@@ -1,5 +1,8 @@
 # US-002: Attack Profile Data Model & Damage Types
 
+## Execution Mode
+**Mode:** HEADLESS
+
 ## Overview
 Create the data-driven foundation for the entire combat system. All attacks (melee, projectile, AoE) are described by an `AttackProfile` data asset so designers can tune without code changes. This story also establishes the damage type taxonomy and gameplay tags that every subsequent combat story depends on.
 

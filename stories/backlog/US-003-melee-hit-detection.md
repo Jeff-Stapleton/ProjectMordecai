@@ -1,5 +1,8 @@
 # US-003: Melee Hit Detection System
 
+## Execution Mode
+**Mode:** HEADLESS
+
 ## Overview
 Implement the spatial query system for the three melee attack shapes (sweep/thrust/slam) plus target filtering and airborne interaction rules. This is the geometry layer that all melee attacks use to determine what they hit. Depends on the data types from US-002.
 

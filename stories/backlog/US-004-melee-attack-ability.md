@@ -1,5 +1,8 @@
 # US-004: Melee Attack GAS Ability & Combo System
 
+## Execution Mode
+**Mode:** HEADLESS
+
 ## Overview
 Implement the core melee attack as a GAS Gameplay Ability. Reads from an `AttackProfile` data asset (US-002), uses hit detection (US-003) during the active window, applies damage and posture damage via Gameplay Effects, and supports light attack combo chains. This is the ability that makes swinging a weapon actually work.
 

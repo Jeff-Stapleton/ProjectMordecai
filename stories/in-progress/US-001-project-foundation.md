@@ -1,5 +1,8 @@
 # US-001: Project Foundation & Initial Player Character
 
+## Execution Mode
+**Mode:** HEADLESS
+
 ## Overview
 Get a running UE 5.7 project with a controllable player character in a test level. Twin-stick controls, fixed diorama camera, GAS wired up with base attributes. This is the foundation everything else builds on.
 
