@@ -58,4 +58,4 @@ Create the data-driven foundation for the entire combat system. All attacks (mel
 - [x] All implementation complete
 - [x] All tests passing (green)
 - [x] `Scripts/Verify.bat` passes (tests + build)
-- [ ] Code committed and pushed with `[US-002]` prefix
+- [x] Code committed and pushed with `[US-002]` prefix
