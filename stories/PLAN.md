@@ -9,78 +9,81 @@
 
 ## Epics (High Level)
 
-### Epic 1: Foundation ✅ (in progress)
+### Epic 1: Foundation ✅ (complete)
 Get a running project with a controllable character.
-- US-001: Project Foundation & Initial Player Character
+- US-001: Project Foundation & Initial Player Character ✅
 
 ### Epic 2: Core Combat
-Implement the combat system: attacks, defense, posture, stamina.
+Implement the combat system: attacks, defense, posture, stamina, projectiles.
 - US-002: Attack Profile Data Model & Damage Types (data foundation) ← **scoped**
 - US-003: Melee Hit Detection System (overlap shapes, filtering, airborne rules) ← **scoped**
 - US-004: Melee Attack GAS Ability & Combo System (phases, damage, combos) ← **scoped**
-- US-005: Defense Mechanics (Dodge/Block/Parry)
-- US-006: Posture & Stagger System
-- US-007: Stamina Tier System
-- US-008: Projectile System & Aim Assist
+- US-005: Dodge System (i-frames, perfect dodge, directional dodge) ← **scoped**
+- US-006: Block & Parry System (mitigation, stability, perfect block, parry risk/reward) ← **scoped**
+- US-007: Posture & Stagger System (posture meter, break state, riposte window, regen) ← **scoped**
+- US-008: Stamina Tier System (Green/Yellow/Red tiers, effectiveness modifiers, regen delay) ← **scoped**
+- US-009: Projectile System & Aim Assist (flight, pierce, ricochet, AoE, soft aim assist) ← **scoped**
 
 ### Epic 3: Attributes & Progression
 Wire up the attribute system and skill progression.
-- US-009: Attribute Scaling (STR/DEX/END/CON/RES/DIS/INT/WIS/CHA)
-- US-010: Skill Leveling & Milestone Unlocks
-- US-011: Feat System (Achievement-Based Unlocks)
+- US-010: Attribute Scaling (STR/DEX/END/CON/RES/DIS/INT/WIS/CHA)
+- US-011: Skill Leveling & Milestone Unlocks
+- US-012: Feat System (Achievement-Based Unlocks)
 
 ### Epic 4: Status Effects
-Implement the launch status effect set via GAS.
-- US-012: Status Effect Framework (GAS-based)
-- US-013: Physical Statuses (Burning, Bleeding, Poisoned, Frostbitten, Shocked)
-- US-014: Debuff Statuses (Weakened, Brittle, Silenced, Rooted, Blinded, Fear, Cursed, Exposed, Corroded, Drenched)
-- US-015: Focused Buff (Perfect Action Streak)
+Implement the launch status effect set via GAS. Split into 6 stories by mechanical grouping.
+- US-013: Status Effect Framework (GAS infrastructure, tags, stacking, immunity, cleanse) ← **scoped**
+- US-014: DoT & Resource Denial Statuses (Burning, Bleeding, Poisoned) ← **scoped**
+- US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked) ← **scoped**
+- US-016: Combat Modifier Debuffs (Weakened, Brittle, Exposed, Corroded) ← **scoped**
+- US-017: Control & Mental Debuffs (Silenced, Rooted, Blinded, Fear, Cursed) ← **scoped**
+- US-018: Drenched & Focused Buff (environmental interaction + perfect action streak) ← **scoped**
 
 ### Epic 5: Magic System
 Implement spells with rank progression.
-- US-016: Spell Framework (SP cost, casting, upcasting, rank system)
-- US-017: Damage Spells (Fireball, Frost Nova, Magic Missile, Stone Skin)
-- US-018: Utility Spells (Blink, Sleep/Wind, Fire Ward)
-- US-019: Support Spells (Bless, Restoration)
-- US-020: Tactical Spells (Illusion, Blur, Snare, Enchant Weapon, Enfeeble)
+- US-019: Spell Framework (SP cost, casting, upcasting, rank system)
+- US-020: Damage Spells (Fireball, Frost Nova, Magic Missile, Stone Skin)
+- US-021: Utility Spells (Blink, Sleep/Wind, Fire Ward)
+- US-022: Support Spells (Bless, Restoration)
+- US-023: Tactical Spells (Illusion, Blur, Snare, Enchant Weapon, Enfeeble)
 
 ### Epic 6: Weapons & Equipment
 Implement weapon classes and armor systems.
-- US-021: Weapon Class Framework (data-driven profiles)
-- US-022: Melee Weapons (Longsword, Greatsword, Shortsword, Dagger, Axe, Mace, Spear, Quarterstaff, Unarmed)
-- US-023: Ranged Weapons (Longbow, Shortbow, Crossbow, Throwables, Wands)
-- US-024: Two-Weapon Fighting
-- US-025: Armor System (Leather, Chain, Plate + skills)
-- US-026: Shield System
+- US-024: Weapon Class Framework (data-driven profiles)
+- US-025: Melee Weapons (Longsword, Greatsword, Shortsword, Dagger, Axe, Mace, Spear, Quarterstaff, Unarmed)
+- US-026: Ranged Weapons (Longbow, Shortbow, Crossbow, Throwables, Wands)
+- US-027: Two-Weapon Fighting
+- US-028: Armor System (Leather, Chain, Plate + skills)
+- US-029: Shield System
 
 ### Epic 7: Inventory
 Implement unlimited-carry inventory with town gating (per agent_rules_v2).
-- US-027: Flat Inventory & Auto-Store System
-- US-028: Item Categories & Stack Rules
-- US-029: Unidentified Item & Town Gating Flow
+- US-030: Flat Inventory & Auto-Store System
+- US-031: Item Categories & Stack Rules
+- US-032: Unidentified Item & Town Gating Flow
 
 ### Epic 8: World & Exploration
 Movement skills, exploration systems, Metroidvania gating.
-- US-030: Movement Skills (Climbing, Swimming, Sneaking)
-- US-031: Exploration Skills (Perception, Tracking, Cartography, Lockpicking, Traps)
-- US-032: Metroidvania World Gates
+- US-033: Movement Skills (Climbing, Swimming, Sneaking)
+- US-034: Exploration Skills (Perception, Tracking, Cartography, Lockpicking, Traps)
+- US-035: Metroidvania World Gates
 
 ### Epic 9: Town Management
 Delegated town systems.
-- US-033: Town Building Framework
-- US-034: NPC Job Assignment
-- US-035: Initiatives & Upgrades
-- US-036: Town Events
+- US-036: Town Building Framework
+- US-037: NPC Job Assignment
+- US-038: Initiatives & Upgrades
+- US-039: Town Events
 
 ### Epic 10: UI & HUD
-- US-037: Combat HUD (Health%, Stamina Tiers, SP)
-- US-038: Status Effect VFX
-- US-039: Inventory UI
+- US-040: Combat HUD (Health%, Stamina Tiers, SP)
+- US-041: Status Effect VFX
+- US-042: Inventory UI
 
 ---
 
 ## Priority Order
-1. **Epic 1** — Foundation (in progress)
+1. **Epic 1** — Foundation (complete)
 2. **Epic 2** — Core Combat (next)
 3. **Epic 4** — Status Effects (needed by combat)
 4. **Epic 3** — Attributes & Progression

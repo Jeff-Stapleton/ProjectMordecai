@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.7",
+	"EngineAssociation": "{E47A3356-4078-402B-20DF-C49F2E4FB515}",
 	"Category": "Samples",
 	"Description": "",
 	"Modules": [
@@ -341,6 +341,10 @@
 		},
 		{
 			"Name": "Reflex",
+			"Enabled": true
+		},
+		{
+			"Name": "MordecaiCore",
 			"Enabled": true
 		}
 	],
