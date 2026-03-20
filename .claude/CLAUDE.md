@@ -1,7 +1,35 @@
-# CLAUDE.md — Project Mordecai Development Rules
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 UE 5.7 diorama-style ARPG built on Lyra. Fixed camera, twin-stick controls, GAS-based combat, Iris replication.
+
+## Architecture
+
+### Class Hierarchy (Mordecai extends Lyra)
+All project-specific code lives in `Source/LyraGame/Mordecai/` and extends Lyra base classes:
+
+- `AMordecaiCharacter` → `ALyraCharacter` — Twin-stick player character with sprint, facing arrow
+- `AMordecaiPlayerController` → `ALyraPlayerController`
+- `AMordecaiPlayerState` → `ALyraPlayerState`
+- `AMordecaiGameMode` → `ALyraGameMode`
+- `AMordecaiGameState` → `ALyraGameState`
+- `UMordecaiAbilitySystemComponent` → `ULyraAbilitySystemComponent`
+- `UMordecaiAttributeSet` → `ULyraAttributeSet` — Health, Stamina, Posture, SpellPoints + 9 primary stats (Str/Dex/End/Con/Res/Dis/Int/Wis/Cha)
+- `UMordecaiCameraMode_Diorama` → `ULyraCameraMode` — Fixed overhead camera (no rotation)
+
+### Combat System
+- `UMordecaiHitDetectionSubsystem` (WorldSubsystem) — Shape queries (arc sector, capsule, circle) with target filtering, airborne rules, friendly fire
+- `UMordecaiAttackProfileDataAsset` (DataAsset) — Data-driven attack definitions: timing, hit shapes, damage profiles, combo data, stamina costs
+- `MordecaiCombatTypes.h` — Core enums (`EMordecaiAttackType`, `EMordecaiDamageType`, `EMordecaiInputSlot`, `EMordecaiHitShapeType`) and structs (`FMordecaiHitShapeParams`, `FMordecaiDamageProfile`, `FMordecaiProjectileSpec`)
+- `MordecaiHitDetectionTypes.h` — `FMordecaiHitResult`, `EMordecaiTargetFilter`, trace channel definition
+
+### Gameplay Tags
+Native tags declared in `MordecaiGameplayTags.h/.cpp` under `MordecaiGameplayTags` namespace. Pattern: `Mordecai.State.*`, `Mordecai.Damage.*`.
+
+### Plugin: MordecaiCore
+`Plugins/GameFeatures/MordecaiCore/` — GameFeature plugin for content (maps, input actions, experiences). Runtime module at `Source/MordecaiCoreRuntime/`. Dependencies: GameplayAbilities, EnhancedInput, ModularGameplay.
 
 ## Critical References
 Read these before starting any work:
@@ -10,6 +38,8 @@ Read these before starting any work:
 - **Agent Rules (MUST READ FIRST):** `C:\Users\jeffd\.openclaw\workspace\projects\mordecai\docs\agent_rules_v2.md`
 - **Game Design v2:** `C:\Users\jeffd\.openclaw\workspace\projects\mordecai\docs\game_design_v2.md`
 - **UE5 Tech Stack:** `C:\Users\jeffd\.openclaw\workspace\projects\mordecai\docs\ue5_tech_stack_context.md`
+- **Design Decisions Log:** `C:\Users\jeffd\.openclaw\workspace\projects\mordecai\docs\design_decisions_log.md`
+- **New Spells Proposal:** `C:\Users\jeffd\.openclaw\workspace\projects\mordecai\docs\new_spells_proposal.md`
 
 ### Combat & Abilities
 - **Attack Taxonomy:** `C:\Users\jeffd\.openclaw\workspace\projects\mordecai\docs\attack_taxonomy_v1.md`
@@ -74,13 +104,18 @@ Read these when working on the relevant area — they contain patterns, pitfalls
 - **Solution:** `ProjectMordecai.sln`
 - **MordecaiCore Plugin:** `Plugins\GameFeatures\MordecaiCore`
 
-## Build Commands (Headless — No GUI Editor Needed)
+## Build & Test Commands (Headless — No GUI Editor Needed)
 ```powershell
 # Compile (Development Editor, Win64)
-& "C:\Users\jeffd\Documents\Gamedev\UnrealEngine\Engine\Build\BatchFiles\Build.bat" ProjectMordecaiEditor Win64 Development -Project="C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\ProjectMordecai.uproject" -WaitMutex -FromMsBuild
+& "C:\Users\jeffd\Documents\Gamedev\UnrealEngine\Engine\Build\BatchFiles\Build.bat" LyraEditor Win64 Development -Project="C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\ProjectMordecai.uproject" -WaitMutex -FromMsBuild
 
-# Run Automation Tests (headless — launches its own editor instance)
+# Run ALL Mordecai tests
 & "C:\Users\jeffd\Documents\Gamedev\UnrealEngine\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\ProjectMordecai.uproject" -ExecCmds="Automation RunTests Mordecai" -Unattended -NullRHI -NoSound -NoSplash -Log -LogCmds="LogAutomationTest Display" -TestExit="Automation Test Queue Empty"
+
+# Run a SINGLE test or test group (replace filter with test name prefix)
+# Examples: "Mordecai.HitDetection" runs all hit detection tests
+#           "Mordecai.HitDetection.ArcSectorHitsActorInArc" runs one test
+& "C:\Users\jeffd\Documents\Gamedev\UnrealEngine\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\ProjectMordecai.uproject" -ExecCmds="Automation RunTests Mordecai.HitDetection" -Unattended -NullRHI -NoSound -NoSplash -Log -LogCmds="LogAutomationTest Display" -TestExit="Automation Test Queue Empty"
 ```
 
 These commands are fully headless. They do NOT require the GUI Unreal Editor to be running.
@@ -133,15 +168,8 @@ Every task follows this sequence. No exceptions.
 - Use `TODO(DECISION)` for open items — never guess
 
 ### Step 4: Verify (MANDATORY — Do Not Skip)
-- Compile the full project first:
-  ```powershell
-  & "C:\Users\jeffd\Documents\Gamedev\UnrealEngine\Engine\Build\BatchFiles\Build.bat" ProjectMordecaiEditor Win64 Development -Project="C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\ProjectMordecai.uproject" -WaitMutex -FromMsBuild
-  ```
-- Then run ALL tests (not just new ones):
-  ```powershell
-  & "C:\Users\jeffd\Documents\Gamedev\UnrealEngine\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\ProjectMordecai.uproject" -ExecCmds="Automation RunTests Mordecai" -Unattended -NullRHI -NoSound -NoSplash -Log -LogCmds="LogAutomationTest Display" -TestExit="Automation Test Queue Empty"
-  ```
-- Both are **headless** — they do NOT need the GUI editor
+- Compile the full project (see Build & Test Commands above)
+- Then run ALL Mordecai tests (not just new ones)
 - Both must pass with zero errors
 - If tests fail or build breaks, **fix before proceeding** — do not commit broken code
 
@@ -173,18 +201,13 @@ Every task follows this sequence. No exceptions.
 ### Test Organization
 ```
 Source/LyraGame/Tests/
-├── Combat/
-│   ├── MordecaiDodgeTests.cpp
-│   ├── MordecaiBlockTests.cpp
-│   └── MordecaiPostureTests.cpp
 ├── Attributes/
-│   └── MordecaiAttributeTests.cpp
 ├── Camera/
-│   └── MordecaiCameraTests.cpp
+├── Character/
+├── Combat/
+├── Foundation/
 ├── Input/
-│   └── MordecaiInputTests.cpp
-└── Inventory/
-    └── MordecaiInventoryTests.cpp
+└── Level/
 ```
 
 ### What Makes a Good Test
@@ -203,14 +226,14 @@ Source/LyraGame/Tests/
 - Gameplay Tags: `Mordecai.Category.Subcategory.Name`
 - Plugins: `MordecaiCore`, `MordecaiCombat`, etc.
 
-### Architecture
+### Architecture Rules
 - GAS for all abilities, attributes, status effects
 - Enhanced Input for all player input
 - Data-driven where possible (DataAssets, DataTables)
 - Server-authoritative with Iris replication
 
 ### Files
-- New systems go in appropriately named subdirectories under `Source/LyraGame/`
+- New systems go in appropriately named subdirectories under `Source/LyraGame/Mordecai/`
 - Keep header includes minimal
 - One class per file (with reasonable exceptions for small helper types)
 
