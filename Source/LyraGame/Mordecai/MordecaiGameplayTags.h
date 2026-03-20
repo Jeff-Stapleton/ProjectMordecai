@@ -6,6 +6,9 @@
 
 namespace MordecaiGameplayTags
 {
+	// State tags (US-003)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Airborne);
+
 	// Damage type tags (AC-002.11)
 	// Physical subtypes are nested under Physical per damage_types_v1.md
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damage_Physical);
