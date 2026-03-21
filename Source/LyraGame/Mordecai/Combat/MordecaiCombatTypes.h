@@ -78,6 +78,18 @@ enum class EMordecaiDamageType : uint8
 };
 
 // ---------------------------------------------------------------------------
+// US-004: EMordecaiAttackPhase — phase of a melee attack sequence
+// ---------------------------------------------------------------------------
+UENUM(BlueprintType)
+enum class EMordecaiAttackPhase : uint8
+{
+	None     UMETA(DisplayName = "None"),
+	Windup   UMETA(DisplayName = "Windup"),
+	Active   UMETA(DisplayName = "Active"),
+	Recovery UMETA(DisplayName = "Recovery"),
+};
+
+// ---------------------------------------------------------------------------
 // AC-002.6: FMordecaiHitShapeParams
 // Union-like: all fields present, relevant ones depend on HitShapeType.
 // ArcSector: Radius, Angle, StartAngleOffset

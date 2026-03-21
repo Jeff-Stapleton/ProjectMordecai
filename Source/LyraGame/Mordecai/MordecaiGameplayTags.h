@@ -9,6 +9,15 @@ namespace MordecaiGameplayTags
 	// State tags (US-003)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Airborne);
 
+	// State tags (US-004)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Attacking);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_ComboWindow);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Rooted);
+
+	// SetByCaller data tags (US-004)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_HealthDamage);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_PostureDamage);
+
 	// Damage type tags (AC-002.11)
 	// Physical subtypes are nested under Physical per damage_types_v1.md
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damage_Physical);
