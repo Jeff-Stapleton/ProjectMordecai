@@ -18,6 +18,18 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_DodgeCooldown, "Mordecai.State.DodgeCooldown", "Dodge is on cooldown — cannot re-dodge");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PostureBroken, "Mordecai.State.PostureBroken", "Character posture is broken — staggered");
 
+	// State tags (US-006)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Blocking,     "Mordecai.State.Blocking",     "Character is actively blocking");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PerfectBlock,  "Mordecai.State.PerfectBlock",  "Perfect block timing window is active");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_GuardBroken,   "Mordecai.State.GuardBroken",   "Guard broken — stamina depleted while blocking");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Parrying,      "Mordecai.State.Parrying",      "Character is in parry attempt window");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Parried,       "Mordecai.State.Parried",       "Character was parried — staggered by defender");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Riposte,       "Mordecai.State.Riposte",       "Character has riposte/punish window after parry");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_ParryWhiff,    "Mordecai.State.ParryWhiff",    "Parry failed — animation-locked punish window");
+
+	// Event tags (US-006)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ParryInput,    "Mordecai.Event.ParryInput",    "Simultaneous block+attack input detected for parry");
+
 	// SetByCaller data tags (US-004)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_HealthDamage,  "Mordecai.SetByCaller.HealthDamage",  "SetByCaller tag for health damage magnitude");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_PostureDamage, "Mordecai.SetByCaller.PostureDamage", "SetByCaller tag for posture damage magnitude");

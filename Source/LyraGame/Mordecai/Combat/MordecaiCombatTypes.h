@@ -101,6 +101,28 @@ enum class EMordecaiDodgePhase : uint8
 };
 
 // ---------------------------------------------------------------------------
+// US-006: EMordecaiBlockPhase — phase of a block action
+// ---------------------------------------------------------------------------
+UENUM(BlueprintType)
+enum class EMordecaiBlockPhase : uint8
+{
+	None         UMETA(DisplayName = "None"),
+	Active       UMETA(DisplayName = "Active"),
+	GuardBroken  UMETA(DisplayName = "Guard Broken"),
+};
+
+// ---------------------------------------------------------------------------
+// US-006: EMordecaiParryPhase — phase of a parry attempt
+// ---------------------------------------------------------------------------
+UENUM(BlueprintType)
+enum class EMordecaiParryPhase : uint8
+{
+	None    UMETA(DisplayName = "None"),
+	Active  UMETA(DisplayName = "Active"),
+	Whiff   UMETA(DisplayName = "Whiff"),
+};
+
+// ---------------------------------------------------------------------------
 // AC-002.6: FMordecaiHitShapeParams
 // Union-like: all fields present, relevant ones depend on HitShapeType.
 // ArcSector: Radius, Angle, StartAngleOffset
