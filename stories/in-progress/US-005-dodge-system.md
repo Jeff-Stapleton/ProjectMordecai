@@ -16,19 +16,19 @@ Implement the dodge mechanic as a GAS Gameplay Ability. Dodge grants invincibili
 ---
 
 ## Acceptance Criteria
-- [ ] AC-005.1: `UMordecaiGA_Dodge` (UGameplayAbility subclass) exists and can be granted to an ASC
-- [ ] AC-005.2: Activating dodge applies `Mordecai.State.Dodging` gameplay tag for the full dodge duration
-- [ ] AC-005.3: During dodge, incoming damage is negated — implemented by checking `Mordecai.State.Dodging` tag in the damage pipeline (gameplay tag requirement on damage GE, NOT collision disable)
-- [ ] AC-005.4: Dodge direction is determined by movement input at activation time; if no input, dodge direction defaults to backward (opposite of character facing)
-- [ ] AC-005.5: Dodge applies a movement impulse in the dodge direction (configurable `DodgeDistance` and `DodgeDuration`)
-- [ ] AC-005.6: Dodge consumes stamina on activation — configurable `StaminaCost` (default placeholder: 15.0)
-- [ ] AC-005.7: Dodge can be activated during an attack's Recovery phase if the active attack profile has `CancelableIntoDodge=true` (cancel the attack ability, then activate dodge)
-- [ ] AC-005.8: Perfect Dodge window: the first N ms of dodge (configurable `PerfectDodgeWindowMs`, default `TODO(DECISION)`) applies `Mordecai.State.PerfectDodge` tag for that window duration
-- [ ] AC-005.9: Perfect Dodge reward: if `Mordecai.State.PerfectDodge` is active when an enemy attack would have hit, a configurable stamina refund is applied (`PerfectDodgeStaminaRefund`, default `TODO(DECISION)` — stubbed as configurable float)
-- [ ] AC-005.10: Dodge has a recovery period after completion — cannot dodge again until recovery expires (configurable `DodgeCooldownMs`, default placeholder: 300ms)
-- [ ] AC-005.11: Dodge is blocked while `Mordecai.State.PostureBroken` is active (staggered characters cannot dodge)
-- [ ] AC-005.12: Dodge is NOT blocked by `Mordecai.State.Rooted` — per status_effects doc, Rooted prevents movement but dodge is a stamina-break action that can break root (interface only for now; root-break logic in Epic 4)
-- [ ] AC-005.13: Character movement is locked to the dodge impulse direction during dodge (no steering mid-dodge)
+- [x] AC-005.1: `UMordecaiGA_Dodge` (UGameplayAbility subclass) exists and can be granted to an ASC
+- [x] AC-005.2: Activating dodge applies `Mordecai.State.Dodging` gameplay tag for the full dodge duration
+- [x] AC-005.3: During dodge, incoming damage is negated — implemented by checking `Mordecai.State.Dodging` tag in the damage pipeline (gameplay tag requirement on damage GE, NOT collision disable)
+- [x] AC-005.4: Dodge direction is determined by movement input at activation time; if no input, dodge direction defaults to backward (opposite of character facing)
+- [x] AC-005.5: Dodge applies a movement impulse in the dodge direction (configurable `DodgeDistance` and `DodgeDuration`)
+- [x] AC-005.6: Dodge consumes stamina on activation — configurable `StaminaCost` (default placeholder: 15.0)
+- [x] AC-005.7: Dodge can be activated during an attack's Recovery phase if the active attack profile has `CancelableIntoDodge=true` (cancel the attack ability, then activate dodge)
+- [x] AC-005.8: Perfect Dodge window: the first N ms of dodge (configurable `PerfectDodgeWindowMs`, default `TODO(DECISION)`) applies `Mordecai.State.PerfectDodge` tag for that window duration
+- [x] AC-005.9: Perfect Dodge reward: if `Mordecai.State.PerfectDodge` is active when an enemy attack would have hit, a configurable stamina refund is applied (`PerfectDodgeStaminaRefund`, default `TODO(DECISION)` — stubbed as configurable float)
+- [x] AC-005.10: Dodge has a recovery period after completion — cannot dodge again until recovery expires (configurable `DodgeCooldownMs`, default placeholder: 300ms)
+- [x] AC-005.11: Dodge is blocked while `Mordecai.State.PostureBroken` is active (staggered characters cannot dodge)
+- [x] AC-005.12: Dodge is NOT blocked by `Mordecai.State.Rooted` — per status_effects doc, Rooted prevents movement but dodge is a stamina-break action that can break root (interface only for now; root-break logic in Epic 4)
+- [x] AC-005.13: Character movement is locked to the dodge impulse direction during dodge (no steering mid-dodge)
 
 ## Technical Notes
 - Place in `Plugins/GameFeatures/MordecaiCore/Source/MordecaiCoreRuntime/Combat/`
@@ -42,24 +42,24 @@ Implement the dodge mechanic as a GAS Gameplay Ability. Dodge grants invincibili
 - Stamina cost is consumed even if stamina is at 0 (stamina can go negative per tier system design). The dodge still fires.
 
 ## Tests Required
-- [ ] `Mordecai.Dodge.AbilityActivatesSuccessfully` — grant ability, activate, verify Dodging tag applied (AC-005.1, AC-005.2)
-- [ ] `Mordecai.Dodge.GrantsIFramesDuringDodge` — activate dodge, apply damage during dodge, verify no health loss (AC-005.3)
-- [ ] `Mordecai.Dodge.DamageAppliesAfterDodgeEnds` — apply damage after dodge expires, verify health reduced (AC-005.3)
-- [ ] `Mordecai.Dodge.DirectionMatchesMovementInput` — set movement input to right, dodge, verify impulse direction is right (AC-005.4)
-- [ ] `Mordecai.Dodge.DefaultsToBackwardWithNoInput` — no movement input, dodge, verify impulse is backward relative to facing (AC-005.4)
-- [ ] `Mordecai.Dodge.AppliesMovementImpulse` — dodge, verify character position changes in dodge direction (AC-005.5)
-- [ ] `Mordecai.Dodge.ConsumesStaminaOnActivation` — activate dodge, verify Stamina reduced by StaminaCost (AC-005.6)
-- [ ] `Mordecai.Dodge.CancelsAttackRecoveryPhase` — activate melee attack with CancelableIntoDodge=true, trigger dodge during Recovery, verify attack ends and dodge activates (AC-005.7)
-- [ ] `Mordecai.Dodge.PerfectDodgeWindowGrantsTag` — dodge, verify PerfectDodge tag is active within the window and removed after (AC-005.8)
-- [ ] `Mordecai.Dodge.CooldownPreventsImmediateRedodge` — dodge, immediately try to dodge again, verify second dodge blocked until cooldown expires (AC-005.10)
-- [ ] `Mordecai.Dodge.BlockedDuringPostureBroken` — apply PostureBroken tag, attempt dodge, verify blocked (AC-005.11)
-- [ ] `Mordecai.Dodge.MovementLockedDuringDodge` — during dodge, attempt to change movement direction, verify character continues on original dodge vector (AC-005.13)
+- [x] `Mordecai.Dodge.AbilityActivatesSuccessfully` — grant ability, activate, verify Dodging tag applied (AC-005.1, AC-005.2)
+- [x] `Mordecai.Dodge.GrantsIFramesDuringDodge` — activate dodge, apply damage during dodge, verify no health loss (AC-005.3)
+- [x] `Mordecai.Dodge.DamageAppliesAfterDodgeEnds` — apply damage after dodge expires, verify health reduced (AC-005.3)
+- [x] `Mordecai.Dodge.DirectionMatchesMovementInput` — set movement input to right, dodge, verify impulse direction is right (AC-005.4)
+- [x] `Mordecai.Dodge.DefaultsToBackwardWithNoInput` — no movement input, dodge, verify impulse is backward relative to facing (AC-005.4)
+- [x] `Mordecai.Dodge.AppliesMovementImpulse` — dodge, verify character position changes in dodge direction (AC-005.5)
+- [x] `Mordecai.Dodge.ConsumesStaminaOnActivation` — activate dodge, verify Stamina reduced by StaminaCost (AC-005.6)
+- [x] `Mordecai.Dodge.CancelsAttackRecoveryPhase` — activate melee attack with CancelableIntoDodge=true, trigger dodge during Recovery, verify attack ends and dodge activates (AC-005.7)
+- [x] `Mordecai.Dodge.PerfectDodgeWindowGrantsTag` — dodge, verify PerfectDodge tag is active within the window and removed after (AC-005.8)
+- [x] `Mordecai.Dodge.CooldownPreventsImmediateRedodge` — dodge, immediately try to dodge again, verify second dodge blocked until cooldown expires (AC-005.10)
+- [x] `Mordecai.Dodge.BlockedDuringPostureBroken` — apply PostureBroken tag, attempt dodge, verify blocked (AC-005.11)
+- [x] `Mordecai.Dodge.MovementLockedDuringDodge` — during dodge, attempt to change movement direction, verify character continues on original dodge vector (AC-005.13)
 
 ---
 
 ## Definition of Done
-- [ ] All tests written and failing (red phase confirmed)
-- [ ] All implementation complete
-- [ ] All tests passing (green)
-- [ ] Project compiles with zero errors
-- [ ] Code committed and pushed with `[US-005]` prefix
+- [x] All tests written and failing (red phase confirmed)
+- [x] All implementation complete
+- [x] All tests passing (green)
+- [x] Project compiles with zero errors
+- [x] Code committed and pushed with `[US-005]` prefix

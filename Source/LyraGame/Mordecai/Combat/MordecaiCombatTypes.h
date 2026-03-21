@@ -90,6 +90,17 @@ enum class EMordecaiAttackPhase : uint8
 };
 
 // ---------------------------------------------------------------------------
+// US-005: EMordecaiDodgePhase — phase of a dodge action
+// ---------------------------------------------------------------------------
+UENUM(BlueprintType)
+enum class EMordecaiDodgePhase : uint8
+{
+	None     UMETA(DisplayName = "None"),
+	Active   UMETA(DisplayName = "Active"),
+	Cooldown UMETA(DisplayName = "Cooldown"),
+};
+
+// ---------------------------------------------------------------------------
 // AC-002.6: FMordecaiHitShapeParams
 // Union-like: all fields present, relevant ones depend on HitShapeType.
 // ArcSector: Radius, Angle, StartAngleOffset
