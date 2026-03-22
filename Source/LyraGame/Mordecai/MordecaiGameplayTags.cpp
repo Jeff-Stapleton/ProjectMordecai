@@ -30,6 +30,16 @@ namespace MordecaiGameplayTags
 	// State tags (US-007)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_KnockedDown,    "Mordecai.State.KnockedDown",    "Character is knocked down — extended vulnerability window");
 
+	// Stamina tier tags (US-008)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Stamina_Tier_Green,     "Mordecai.Stamina.Tier.Green",     "Stamina above 66% — full effectiveness + bonus");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Stamina_Tier_Yellow,    "Mordecai.Stamina.Tier.Yellow",    "Stamina 33-66% — normal effectiveness");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Stamina_Tier_Red,       "Mordecai.Stamina.Tier.Red",       "Stamina below 33% — reduced effectiveness");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Stamina_Tier_Exhausted, "Mordecai.Stamina.Tier.Exhausted", "Stamina at or below 0 — heavily reduced effectiveness");
+
+	// State tags (US-008)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Sprinting,          "Mordecai.State.Sprinting",          "Character is currently sprinting");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_StaminaRegenPaused, "Mordecai.State.StaminaRegenPaused", "Stamina regeneration is paused after consumption");
+
 	// Status effect tags (US-007 stubs — no effect until Epic 4)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Weakened,      "Mordecai.Status.Weakened",      "Weakened — reduces outgoing posture damage");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Brittle,       "Mordecai.Status.Brittle",       "Brittle — increases incoming posture damage");
@@ -40,6 +50,9 @@ namespace MordecaiGameplayTags
 	// SetByCaller data tags (US-004)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_HealthDamage,  "Mordecai.SetByCaller.HealthDamage",  "SetByCaller tag for health damage magnitude");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_PostureDamage, "Mordecai.SetByCaller.PostureDamage", "SetByCaller tag for posture damage magnitude");
+
+	// SetByCaller data tags (US-008)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_StaminaCost, "Mordecai.Data.StaminaCost", "SetByCaller tag for stamina cost magnitude");
 
 	// Damage type tags (AC-002.11)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Damage_Physical,        "Mordecai.Damage.Physical",        "Physical damage — direct bodily harm");

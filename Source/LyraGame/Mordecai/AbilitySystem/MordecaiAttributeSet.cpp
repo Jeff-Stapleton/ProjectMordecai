@@ -76,7 +76,8 @@ void UMordecaiAttributeSet::ClampAttribute(const FGameplayAttribute& Attribute, 
 	}
 	else if (Attribute == GetStaminaAttribute())
 	{
-		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxStamina());
+		// AC-008.1: Stamina can go negative (floor at -50 to prevent infinite debt)
+		NewValue = FMath::Clamp(NewValue, -50.0f, GetMaxStamina());
 	}
 	else if (Attribute == GetMaxStaminaAttribute())
 	{

@@ -32,6 +32,16 @@ namespace MordecaiGameplayTags
 	// State tags (US-007)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_KnockedDown);
 
+	// Stamina tier tags (US-008)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Stamina_Tier_Green);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Stamina_Tier_Yellow);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Stamina_Tier_Red);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Stamina_Tier_Exhausted);
+
+	// State tags (US-008)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Sprinting);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_StaminaRegenPaused);
+
 	// Status effect tags (US-007 stubs)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Weakened);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Brittle);
@@ -42,6 +52,9 @@ namespace MordecaiGameplayTags
 	// SetByCaller data tags (US-004)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_HealthDamage);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_PostureDamage);
+
+	// SetByCaller data tags (US-008)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_StaminaCost);
 
 	// Damage type tags (AC-002.11)
 	// Physical subtypes are nested under Physical per damage_types_v1.md
