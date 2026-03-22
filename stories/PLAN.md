@@ -26,9 +26,9 @@ Implement the combat system: attacks, defense, posture, stamina, projectiles.
 
 ### Epic 3: Attributes & Progression
 Wire up the attribute system and skill progression.
-- US-010: Attribute Scaling (STR/DEX/END/CON/RES/DIS/INT/WIS/CHA)
-- US-011: Skill Leveling & Milestone Unlocks
-- US-012: Feat System (Achievement-Based Unlocks)
+- US-010: Effective Mod Formula & Core Attribute Scaling (diminishing returns, 9×2 primary/secondary scaling) ← **scoped**
+- US-011: Skill Framework & Rank Progression (data model, rank storage, skill points, milestones) ← **scoped**
+- US-012: Feat System (achievement-based unlocks, tiers, condition tracking, GAS integration) ← **scoped**
 
 ### Epic 4: Status Effects
 Implement the launch status effect set via GAS. Split into 6 stories by mechanical grouping.

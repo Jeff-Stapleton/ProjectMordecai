@@ -275,3 +275,95 @@ All default to 1.0 (neutral multiplier). Multiple statuses can modify the same a
 6. **Then US-013** (Status Effect Framework) — gate for all Epic 4 work
 7. **Then US-014 through US-018** — can be parallelized (all depend only on US-013)
 8. All Epic 2 and Epic 4 stories are **HEADLESS** — no editor needed.
+
+---
+
+## 2026-03-21 Nightly Planning Run
+
+### Completed Since Last Run
+- **US-001: Project Foundation & Initial Player Character** — moved to `stories/done/`
+- **US-002: Attack Profile Data Model & Damage Types** — moved to `stories/done/`
+- **US-003: Melee Hit Detection System** — moved to `stories/done/`
+- **US-004: Melee Attack GAS Ability & Combo System** — moved to `stories/done/`
+- **US-005: Dodge System** — moved to `stories/done/`
+- **US-006: Block & Parry System** — moved to `stories/done/`
+
+### Currently In Progress
+- (none — all 6 completed stories moved to done, nothing currently in-progress)
+
+### Existing Backlog (unchanged)
+- **US-007**: Posture & Stagger System (HEADLESS, 16 ACs)
+- **US-008**: Stamina Tier System (HEADLESS, 13 ACs)
+- **US-009**: Projectile System & Aim Assist (HEADLESS, 28 ACs)
+- **US-013–018**: Status Effects (HEADLESS, 6 stories, 100 ACs total)
+
+### New Stories Created
+All **HEADLESS** execution mode. All placed in `stories/backlog/`. These scope **Epic 3: Attributes & Progression**.
+
+- **US-010: Effective Mod Formula & Core Attribute Scaling** (`US-010-attribute-scaling.md`)
+  - Diminishing returns formula: `EffMod = min(Mod,5) + max(min(Mod-5,5),0)*0.7 + max(min(Mod-10,5),0)*0.45 + max(Mod-15,0)*0.25`
+  - 9 primary scaling effects (STR→PhysDmg 3.0%, DEX→AtkSpd 1.5%, END→Stamina 4.0%, CON→Health 6.0%, RES→AfflictionResist 3.0%, DIS→Posture 4.0%, INT→SpellPoints 4.0%, WIS→MagicDmg 3.0%, CHA→CastSpd 1.5%)
+  - 9 secondary scaling effects (ArmorPen, PhysCrit, StaminaRegen, HealthRegen, AfflictionRecovery, PostureRecovery, SPRegen, ResPen, MagicCrit)
+  - New derived attributes on `UMordecaiAttributeSet`, GAS recalculation via MMCs
+  - 26 automation tests
+  - Depends on: existing AttributeSet (US-001)
+
+- **US-011: Skill Framework & Rank Progression** (`US-011-skill-framework.md`)
+  - `UMordecaiSkillDataAsset` (PrimaryDataAsset) with category, rank descriptions, milestone ability mappings
+  - `UMordecaiSkillComponent` (ActorComponent) for per-character skill rank storage (TMap<FName, int32>)
+  - Skill point allocation API, rank clamping [0, 20], replication
+  - Milestone system: gameplay events + ability grants + gameplay tags at Ranks 1/5/10/15/20
+  - Sample Longswords skill validates full pipeline
+  - 17 automation tests
+  - Standalone — no combat system dependencies
+
+- **US-012: Feat System (Achievement-Based Unlocks)** (`US-012-feat-system.md`)
+  - `UMordecaiFeatDataAsset` with tiers (Common/Rare/Legendary), conditions, granted effects, drawback effects
+  - `FMordecaiFeatCondition` supporting 4 condition types: StatThreshold, EventCount, TagPresent, SkillRank
+  - `UMordecaiFeatComponent` for feat tracking, stat incrementing, auto-unlock evaluation
+  - Tier behavior: Common (no drawback), Rare/Legendary (drawback effects applied)
+  - Sample "Pyromaniac" feat validates pipeline (burn 6 enemies → unlock)
+  - 21 automation tests
+  - Soft dependency on US-011 (SkillRank condition type queries SkillComponent)
+
+### PLAN.md Updates
+- Marked Epic 3 as fully scoped (3 stories, all HEADLESS)
+- Updated story descriptions with implementation detail
+- No renumbering needed — US-010, US-011, US-012 were already reserved
+
+### Dependency Graph for Epic 3
+```
+US-010 (Attribute Scaling) ——— standalone, depends only on existing AttributeSet
+US-011 (Skill Framework) ———— standalone
+US-012 (Feat System) ————————— soft dependency on US-011 (SkillRank condition type)
+```
+US-010 and US-011 are fully independent of each other and can be parallelized.
+US-012 should follow US-011 (or at minimum stub the SkillRank condition).
+
+### Blockers / Decisions Needed
+
+**Carried from prior runs:**
+- **Gameplay tag taxonomy** — US-010–012 add more tags (`Mordecai.Skill.*`, `Mordecai.Feat.*`, `Mordecai.Event.SkillMilestone`, `Mordecai.Event.FeatUnlocked`). Formal naming policy still undecided.
+- **Damage formula stub** — US-010 provides the attribute multipliers (PhysicalDamageMultiplier, etc.) but they are not yet consumed by the damage pipeline. Full formula integration is needed when damage calculation is unified.
+
+**New this run:**
+- **TODO(DECISION): stat_formulas_v1.md vs character_attributes_v1.md reconciliation** — stat_formulas_v1.md defines linear base formulas (`Health = BaseHealth + CON × 10`) while character_attributes_v1.md defines percentage-based Effective Mod scaling (`CON → 6.0% × EffMod`). These potentially conflict. stat_formulas lists only 5 primary attributes; character_attributes lists 9. US-010 defaults to character_attributes_v1.md as authoritative. **Recommendation: deprecate stat_formulas_v1.md or explicitly reconcile the two docs before US-010 implementation.**
+- **TODO(DECISION): Mod input value** — Does "Mod" in the Effective Mod formula equal the raw attribute value (STR 12 → Mod 12) or a derived modifier (STR 12 → Mod 2)? Examples in character_attributes_v1.md strongly suggest Mod = raw attribute value. Defaulted to this interpretation.
+- **TODO(DECISION): Skill point economy** — How many skill points per level? 50 skills × 20 ranks = 1000 total ranks vs 60 max level. Distribution needs design input.
+- **TODO(DECISION): Skill rank-down** — Can skill ranks decrease (curses, respec)? The system supports it but no trigger is defined.
+- **TODO(DECISION): Full feat list** — Only one example feat exists ("Pyromaniac"). A complete feat list with conditions, effects, and drawback definitions needs design authoring.
+- **TODO(DECISION): Feat stat reset behavior** — Should feat tracking stats (e.g., "enemies burned simultaneously") reset per encounter or be lifetime values? Defaulted to: thresholds use peak watermark, counts are cumulative.
+
+### Attribute Set Expansion Tracker (Updated)
+Epic 3 adds new derived attributes to `UMordecaiAttributeSet`:
+- US-010: `PhysicalDamageMultiplier`, `AttackSpeedMultiplier`, `AfflictionResistMultiplier`, `MagicDamageMultiplier`, `CastSpeedMultiplier`, `ArmorPenetrationMultiplier`, `PhysicalCritChance`, `StaminaRegenMultiplier`, `HealthRegenMultiplier`, `AfflictionRecoveryMultiplier`, `PostureRecoveryMultiplier`, `SpellPointsRegenMultiplier`, `ResistancePenetrationMultiplier`, `MagicCritChance`
+
+Combined with Epic 4 attributes (US-014–018), the attribute set will grow significantly. All multipliers default to 1.0; all additive chances default to 0.0.
+
+### Next Session Recommendation
+1. **US-007** (Posture & Stagger) — next in Epic 2 dependency chain. HEADLESS.
+2. **US-008** (Stamina Tiers) — can parallelize with US-007. HEADLESS.
+3. **US-009** (Projectile & Aim Assist) — after US-007/008. HEADLESS.
+4. **US-013** (Status Effect Framework) — gate for all Epic 4 work. HEADLESS.
+5. **US-010** and **US-011** can start anytime (no combat dependencies) — good candidates for parallel work while combat stories proceed.
+6. All stories remain **HEADLESS** — no editor needed through Epic 4.
