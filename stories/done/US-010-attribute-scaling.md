@@ -19,42 +19,42 @@ Currently, `UMordecaiAttributeSet` declares all 9 primary attributes (default 10
 ## Acceptance Criteria
 
 ### Effective Mod Formula
-- [ ] AC-010.1: `CalculateEffectiveMod(Mod)` returns the correct diminishing-returns value for Band 1 (Mods 1–5 at 100%): `CalculateEffectiveMod(5) == 5.0`
-- [ ] AC-010.2: `CalculateEffectiveMod(Mod)` returns the correct value for Band 2 (Mods 6–10 at 70%): `CalculateEffectiveMod(10) == 8.5`
-- [ ] AC-010.3: `CalculateEffectiveMod(Mod)` returns the correct value across Band 3 (Mods 11–15 at 45%): `CalculateEffectiveMod(12) == 9.4`
-- [ ] AC-010.4: `CalculateEffectiveMod(Mod)` returns the correct value spanning all 4 bands (Mods 16+ at 25%): `CalculateEffectiveMod(20) == 12.0`
-- [ ] AC-010.5: `CalculateEffectiveMod(0)` returns 0.0 (no negative scaling for zero-stat edge case)
+- [x] AC-010.1: `CalculateEffectiveMod(Mod)` returns the correct diminishing-returns value for Band 1 (Mods 1–5 at 100%): `CalculateEffectiveMod(5) == 5.0`
+- [x] AC-010.2: `CalculateEffectiveMod(Mod)` returns the correct value for Band 2 (Mods 6–10 at 70%): `CalculateEffectiveMod(10) == 8.5`
+- [x] AC-010.3: `CalculateEffectiveMod(Mod)` returns the correct value across Band 3 (Mods 11–15 at 45%): `CalculateEffectiveMod(12) == 9.4`
+- [x] AC-010.4: `CalculateEffectiveMod(Mod)` returns the correct value spanning all 4 bands (Mods 16+ at 25%): `CalculateEffectiveMod(20) == 12.0`
+- [x] AC-010.5: `CalculateEffectiveMod(0)` returns 0.0 (no negative scaling for zero-stat edge case)
 
 ### Primary Stat Effects (from character_attributes_v1.md primary_stats table)
 Each primary attribute applies a percentage bonus to one primary derived stat, calculated as `ScalingPercent × EffectiveMod(RawAttributeValue)`:
 
-- [ ] AC-010.6: STR scales `PhysicalDamageMultiplier` at 3.0% per Effective Mod point
-- [ ] AC-010.7: DEX scales `AttackSpeedMultiplier` at 1.5% per Effective Mod point
-- [ ] AC-010.8: END scales `MaxStamina` at 4.0% per Effective Mod point (percentage of base)
-- [ ] AC-010.9: CON scales `MaxHealth` at 6.0% per Effective Mod point (percentage of base)
-- [ ] AC-010.10: RES scales `AfflictionResistMultiplier` at 3.0% per Effective Mod point
-- [ ] AC-010.11: DIS scales `MaxPosture` at 4.0% per Effective Mod point (percentage of base)
-- [ ] AC-010.12: INT scales `MaxSpellPoints` at 4.0% per Effective Mod point (percentage of base)
-- [ ] AC-010.13: WIS scales `MagicDamageMultiplier` at 3.0% per Effective Mod point
-- [ ] AC-010.14: CHA scales `CastSpeedMultiplier` at 1.5% per Effective Mod point
+- [x] AC-010.6: STR scales `PhysicalDamageMultiplier` at 3.0% per Effective Mod point
+- [x] AC-010.7: DEX scales `AttackSpeedMultiplier` at 1.5% per Effective Mod point
+- [x] AC-010.8: END scales `MaxStamina` at 4.0% per Effective Mod point (percentage of base)
+- [x] AC-010.9: CON scales `MaxHealth` at 6.0% per Effective Mod point (percentage of base)
+- [x] AC-010.10: RES scales `AfflictionResistMultiplier` at 3.0% per Effective Mod point
+- [x] AC-010.11: DIS scales `MaxPosture` at 4.0% per Effective Mod point (percentage of base)
+- [x] AC-010.12: INT scales `MaxSpellPoints` at 4.0% per Effective Mod point (percentage of base)
+- [x] AC-010.13: WIS scales `MagicDamageMultiplier` at 3.0% per Effective Mod point
+- [x] AC-010.14: CHA scales `CastSpeedMultiplier` at 1.5% per Effective Mod point
 
 ### Secondary Stat Effects (from character_attributes_v1.md secondary_stats table)
 Each primary attribute also applies a secondary percentage bonus:
 
-- [ ] AC-010.15: STR scales `ArmorPenetrationMultiplier` at 1.5% per Effective Mod point
-- [ ] AC-010.16: DEX scales `PhysicalCritChance` at 0.75% per Effective Mod point
-- [ ] AC-010.17: END scales `StaminaRegenMultiplier` at 2.0% per Effective Mod point
-- [ ] AC-010.18: CON scales `HealthRegenMultiplier` at 1.5% per Effective Mod point
-- [ ] AC-010.19: RES scales `AfflictionRecoveryMultiplier` at 1.5% per Effective Mod point
-- [ ] AC-010.20: DIS scales `PostureRecoveryMultiplier` at 2.0% per Effective Mod point
-- [ ] AC-010.21: INT scales `SpellPointsRegenMultiplier` at 2.0% per Effective Mod point
-- [ ] AC-010.22: WIS scales `ResistancePenetrationMultiplier` at 1.25% per Effective Mod point
-- [ ] AC-010.23: CHA scales `MagicCritChance` at 0.75% per Effective Mod point
+- [x] AC-010.15: STR scales `ArmorPenetrationMultiplier` at 1.5% per Effective Mod point
+- [x] AC-010.16: DEX scales `PhysicalCritChance` at 0.75% per Effective Mod point
+- [x] AC-010.17: END scales `StaminaRegenMultiplier` at 2.0% per Effective Mod point
+- [x] AC-010.18: CON scales `HealthRegenMultiplier` at 1.5% per Effective Mod point
+- [x] AC-010.19: RES scales `AfflictionRecoveryMultiplier` at 1.5% per Effective Mod point
+- [x] AC-010.20: DIS scales `PostureRecoveryMultiplier` at 2.0% per Effective Mod point
+- [x] AC-010.21: INT scales `SpellPointsRegenMultiplier` at 2.0% per Effective Mod point
+- [x] AC-010.22: WIS scales `ResistancePenetrationMultiplier` at 1.25% per Effective Mod point
+- [x] AC-010.23: CHA scales `MagicCritChance` at 0.75% per Effective Mod point
 
 ### GAS Integration
-- [ ] AC-010.24: When a primary attribute changes (e.g., STR modified by a GE), all derived stats that depend on it automatically recalculate
-- [ ] AC-010.25: Multiplier attributes default to 1.0 (neutral) at base stat values; additive chance attributes (crit) default to 0.0
-- [ ] AC-010.26: Example end-to-end: setting STR to 12 results in `PhysicalDamageMultiplier == 1.0 + (0.03 × 9.4) == 1.282` and `ArmorPenetrationMultiplier == 1.0 + (0.015 × 9.4) == 1.141`
+- [x] AC-010.24: When a primary attribute changes (e.g., STR modified by a GE), all derived stats that depend on it automatically recalculate
+- [x] AC-010.25: Multiplier attributes default to 1.0 (neutral) at base stat values; additive chance attributes (crit) default to 0.0
+- [x] AC-010.26: Example end-to-end: setting STR to 12 results in `PhysicalDamageMultiplier == 1.0 + (0.03 × 9.4) == 1.282` and `ArmorPenetrationMultiplier == 1.0 + (0.015 × 9.4) == 1.141`
 
 ## Technical Notes
 
@@ -81,38 +81,38 @@ Each primary attribute also applies a secondary percentage bonus:
 The scaling_rules section uses "Mod" in the formula but doesn't explicitly define whether Mod = raw attribute value (e.g., STR 12 → Mod 12) or a derived modifier (e.g., STR 12 → Mod 2 as offset from base 10). The examples ("Example STR 12" → "Effective Mod = 9.4") strongly suggest **Mod = raw attribute value**. Default to this interpretation.
 
 ## Tests Required
-- [ ] `Mordecai.AttributeScaling.EffectiveModBand1` — verifies AC-010.1
-- [ ] `Mordecai.AttributeScaling.EffectiveModBand2` — verifies AC-010.2
-- [ ] `Mordecai.AttributeScaling.EffectiveModBand3` — verifies AC-010.3
-- [ ] `Mordecai.AttributeScaling.EffectiveModAllBands` — verifies AC-010.4
-- [ ] `Mordecai.AttributeScaling.EffectiveModZero` — verifies AC-010.5
-- [ ] `Mordecai.AttributeScaling.STRScalesPhysicalDamage` — verifies AC-010.6
-- [ ] `Mordecai.AttributeScaling.DEXScalesAttackSpeed` — verifies AC-010.7
-- [ ] `Mordecai.AttributeScaling.ENDScalesMaxStamina` — verifies AC-010.8
-- [ ] `Mordecai.AttributeScaling.CONScalesMaxHealth` — verifies AC-010.9
-- [ ] `Mordecai.AttributeScaling.RESScalesAfflictionResist` — verifies AC-010.10
-- [ ] `Mordecai.AttributeScaling.DISScalesMaxPosture` — verifies AC-010.11
-- [ ] `Mordecai.AttributeScaling.INTScalesMaxSpellPoints` — verifies AC-010.12
-- [ ] `Mordecai.AttributeScaling.WISScalesMagicDamage` — verifies AC-010.13
-- [ ] `Mordecai.AttributeScaling.CHAScalesCastSpeed` — verifies AC-010.14
-- [ ] `Mordecai.AttributeScaling.STRScalesArmorPenetration` — verifies AC-010.15
-- [ ] `Mordecai.AttributeScaling.DEXScalesPhysicalCritChance` — verifies AC-010.16
-- [ ] `Mordecai.AttributeScaling.ENDScalesStaminaRegen` — verifies AC-010.17
-- [ ] `Mordecai.AttributeScaling.CONScalesHealthRegen` — verifies AC-010.18
-- [ ] `Mordecai.AttributeScaling.RESScalesAfflictionRecovery` — verifies AC-010.19
-- [ ] `Mordecai.AttributeScaling.DISScalesPostureRecovery` — verifies AC-010.20
-- [ ] `Mordecai.AttributeScaling.INTScalesSpellPointsRegen` — verifies AC-010.21
-- [ ] `Mordecai.AttributeScaling.WISScalesResistancePenetration` — verifies AC-010.22
-- [ ] `Mordecai.AttributeScaling.CHAScalesMagicCritChance` — verifies AC-010.23
-- [ ] `Mordecai.AttributeScaling.DerivedStatsRecalcOnPrimaryChange` — verifies AC-010.24
-- [ ] `Mordecai.AttributeScaling.DefaultMultiplierValues` — verifies AC-010.25
-- [ ] `Mordecai.AttributeScaling.EndToEndSTR12Example` — verifies AC-010.26
+- [x] `Mordecai.AttributeScaling.EffectiveModBand1` — verifies AC-010.1
+- [x] `Mordecai.AttributeScaling.EffectiveModBand2` — verifies AC-010.2
+- [x] `Mordecai.AttributeScaling.EffectiveModBand3` — verifies AC-010.3
+- [x] `Mordecai.AttributeScaling.EffectiveModAllBands` — verifies AC-010.4
+- [x] `Mordecai.AttributeScaling.EffectiveModZero` — verifies AC-010.5
+- [x] `Mordecai.AttributeScaling.STRScalesPhysicalDamage` — verifies AC-010.6
+- [x] `Mordecai.AttributeScaling.DEXScalesAttackSpeed` — verifies AC-010.7
+- [x] `Mordecai.AttributeScaling.ENDScalesMaxStamina` — verifies AC-010.8
+- [x] `Mordecai.AttributeScaling.CONScalesMaxHealth` — verifies AC-010.9
+- [x] `Mordecai.AttributeScaling.RESScalesAfflictionResist` — verifies AC-010.10
+- [x] `Mordecai.AttributeScaling.DISScalesMaxPosture` — verifies AC-010.11
+- [x] `Mordecai.AttributeScaling.INTScalesMaxSpellPoints` — verifies AC-010.12
+- [x] `Mordecai.AttributeScaling.WISScalesMagicDamage` — verifies AC-010.13
+- [x] `Mordecai.AttributeScaling.CHAScalesCastSpeed` — verifies AC-010.14
+- [x] `Mordecai.AttributeScaling.STRScalesArmorPenetration` — verifies AC-010.15
+- [x] `Mordecai.AttributeScaling.DEXScalesPhysicalCritChance` — verifies AC-010.16
+- [x] `Mordecai.AttributeScaling.ENDScalesStaminaRegen` — verifies AC-010.17
+- [x] `Mordecai.AttributeScaling.CONScalesHealthRegen` — verifies AC-010.18
+- [x] `Mordecai.AttributeScaling.RESScalesAfflictionRecovery` — verifies AC-010.19
+- [x] `Mordecai.AttributeScaling.DISScalesPostureRecovery` — verifies AC-010.20
+- [x] `Mordecai.AttributeScaling.INTScalesSpellPointsRegen` — verifies AC-010.21
+- [x] `Mordecai.AttributeScaling.WISScalesResistancePenetration` — verifies AC-010.22
+- [x] `Mordecai.AttributeScaling.CHAScalesMagicCritChance` — verifies AC-010.23
+- [x] `Mordecai.AttributeScaling.DerivedStatsRecalcOnPrimaryChange` — verifies AC-010.24
+- [x] `Mordecai.AttributeScaling.DefaultMultiplierValues` — verifies AC-010.25
+- [x] `Mordecai.AttributeScaling.EndToEndSTR12Example` — verifies AC-010.26
 
 ---
 
 ## Definition of Done
-- [ ] All tests written and failing (red phase confirmed)
-- [ ] All implementation complete
-- [ ] All tests passing (green)
-- [ ] Project compiles with zero errors
-- [ ] Code committed and pushed with `[US-010]` prefix
+- [x] All tests written and failing (red phase confirmed)
+- [x] All implementation complete
+- [x] All tests passing (green)
+- [x] Project compiles with zero errors
+- [x] Code committed and pushed with `[US-010]` prefix
