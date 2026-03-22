@@ -167,6 +167,10 @@ struct LYRAGAME_API FMordecaiProjectileSpec
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Projectile")
 	float Lifetime = 0.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Projectile",
+		Meta = (ClampMin = "0", ToolTip = "Max travel distance in UU. Default 2000. 0 = no range limit (use Lifetime only)."))
+	float MaxRange = 2000.f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Projectile")
 	int32 PierceCount = 0;
 

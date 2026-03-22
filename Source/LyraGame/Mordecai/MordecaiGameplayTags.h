@@ -56,6 +56,9 @@ namespace MordecaiGameplayTags
 	// SetByCaller data tags (US-008)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_StaminaCost);
 
+	// Team tags (US-009)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Team_Enemy);
+
 	// Damage type tags (AC-002.11)
 	// Physical subtypes are nested under Physical per damage_types_v1.md
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damage_Physical);

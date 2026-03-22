@@ -54,6 +54,9 @@ namespace MordecaiGameplayTags
 	// SetByCaller data tags (US-008)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_StaminaCost, "Mordecai.Data.StaminaCost", "SetByCaller tag for stamina cost magnitude");
 
+	// Team tags (US-009)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Team_Enemy, "Mordecai.Team.Enemy", "Actor belongs to the enemy team — used by aim assist filtering");
+
 	// Damage type tags (AC-002.11)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Damage_Physical,        "Mordecai.Damage.Physical",        "Physical damage — direct bodily harm");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Damage_Physical_Slash,  "Mordecai.Damage.Physical.Slash",  "Slash subtype of Physical");

@@ -46,3 +46,9 @@ struct LYRAGAME_API FMordecaiHitResult
 // Must match DefaultEngine.ini collision profile configuration.
 // ---------------------------------------------------------------------------
 #define Mordecai_TraceChannel_MeleeHitDetection ECC_GameTraceChannel6
+
+// ---------------------------------------------------------------------------
+// Collision channel for Mordecai projectile detection (US-009, AC-009.7).
+// Uses ECC_GameTraceChannel7 (channel 6 = melee).
+// ---------------------------------------------------------------------------
+#define Mordecai_TraceChannel_ProjectileDetection ECC_GameTraceChannel7
