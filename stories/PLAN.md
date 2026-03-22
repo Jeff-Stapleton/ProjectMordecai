@@ -24,6 +24,14 @@ Implement the combat system: attacks, defense, posture, stamina, projectiles.
 - US-008: Stamina Tier System (Green/Yellow/Red tiers, effectiveness modifiers, regen delay) ← **scoped**
 - US-009: Projectile System & Aim Assist (flight, pierce, ricochet, AoE, soft aim assist) ← **scoped**
 
+### Epic 2.5: Playable Vertical Slice ⚡ HIGH PRIORITY
+Wire up all completed combat systems into a playable prototype. The goal: Jeff can launch the game, run around a test map, fight an enemy, and exercise melee/dodge/block/parry/stamina/posture.
+- US-050: Test Map & Diorama Camera (simple arena level, fixed camera per design docs, lighting, ground, walls)
+- US-051: Player Blueprint & Input Bindings (Character BP using combat components, Enhanced Input mapped to gamepad + KB/M)
+- US-052: Basic Enemy AI (test dummy with health, takes damage, simple attack pattern to test block/parry/dodge against)
+- US-053: Combat HUD — Minimal (health bar, stamina tier display, posture meter — enough to see systems working)
+- US-054: Integration Polish (hook up hit reactions, death, respawn, game mode that resets the arena)
+
 ### Epic 3: Attributes & Progression
 Wire up the attribute system and skill progression.
 - US-010: Effective Mod Formula & Core Attribute Scaling (diminishing returns, 9×2 primary/secondary scaling) ← **scoped**
@@ -84,9 +92,10 @@ Delegated town systems.
 
 ## Priority Order
 1. **Epic 1** — Foundation (complete)
-2. **Epic 2** — Core Combat (next)
-3. **Epic 4** — Status Effects (needed by combat)
-4. **Epic 3** — Attributes & Progression
+2. **Epic 2** — Core Combat (finishing up — US-009 in progress)
+3. **Epic 2.5** — Playable Vertical Slice ⚡ (NEXT — make it playable before more systems)
+4. **Epic 4** — Status Effects (needed by combat)
+5. **Epic 3** — Attributes & Progression
 5. **Epic 5** — Magic System
 6. **Epic 6** — Weapons & Equipment
 7. **Epic 7** — Inventory
