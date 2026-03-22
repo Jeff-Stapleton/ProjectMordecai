@@ -27,6 +27,9 @@ UMordecaiGA_Dodge::UMordecaiGA_Dodge(const FObjectInitializer& ObjectInitializer
 	// AC-005.11: Block dodge during posture broken (staggered)
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_PostureBroken);
 
+	// AC-007.8: Block dodge during knocked down
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_KnockedDown);
+
 	// AC-005.12: Dodge is NOT blocked by Rooted
 	// (intentionally omitted from ActivationBlockedTags)
 }

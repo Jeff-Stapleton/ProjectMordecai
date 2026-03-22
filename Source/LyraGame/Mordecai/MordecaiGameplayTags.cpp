@@ -27,6 +27,13 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Riposte,       "Mordecai.State.Riposte",       "Character has riposte/punish window after parry");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_ParryWhiff,    "Mordecai.State.ParryWhiff",    "Parry failed — animation-locked punish window");
 
+	// State tags (US-007)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_KnockedDown,    "Mordecai.State.KnockedDown",    "Character is knocked down — extended vulnerability window");
+
+	// Status effect tags (US-007 stubs — no effect until Epic 4)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Weakened,      "Mordecai.Status.Weakened",      "Weakened — reduces outgoing posture damage");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Brittle,       "Mordecai.Status.Brittle",       "Brittle — increases incoming posture damage");
+
 	// Event tags (US-006)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ParryInput,    "Mordecai.Event.ParryInput",    "Simultaneous block+attack input detected for parry");
 

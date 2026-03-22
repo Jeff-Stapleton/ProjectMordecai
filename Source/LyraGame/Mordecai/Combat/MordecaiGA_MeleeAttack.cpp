@@ -24,6 +24,10 @@ UMordecaiGA_MeleeAttack::UMordecaiGA_MeleeAttack(const FObjectInitializer& Objec
 	// AC-004.14: Prevent concurrent activation (cannot double-swing)
 	ActivationOwnedTags.AddTag(MordecaiGameplayTags::State_Attacking);
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Attacking);
+
+	// AC-007.8: Cannot attack during posture broken or knocked down
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_PostureBroken);
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_KnockedDown);
 }
 
 // ---------------------------------------------------------------------------

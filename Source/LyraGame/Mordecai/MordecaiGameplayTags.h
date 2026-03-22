@@ -29,6 +29,13 @@ namespace MordecaiGameplayTags
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Riposte);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_ParryWhiff);
 
+	// State tags (US-007)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_KnockedDown);
+
+	// Status effect tags (US-007 stubs)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Weakened);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Brittle);
+
 	// Event tags (US-006)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_ParryInput);
 

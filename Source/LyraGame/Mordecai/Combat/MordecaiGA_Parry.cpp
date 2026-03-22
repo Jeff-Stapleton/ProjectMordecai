@@ -20,6 +20,9 @@ UMordecaiGA_Parry::UMordecaiGA_Parry(const FObjectInitializer& ObjectInitializer
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_PostureBroken);
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_GuardBroken);
 
+	// AC-007.8: Cannot parry while knocked down
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_KnockedDown);
+
 	// Cannot parry while already in whiff recovery
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_ParryWhiff);
 

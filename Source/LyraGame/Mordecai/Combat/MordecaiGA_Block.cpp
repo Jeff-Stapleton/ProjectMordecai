@@ -30,6 +30,9 @@ UMordecaiGA_Block::UMordecaiGA_Block(const FObjectInitializer& ObjectInitializer
 	// Block is blocked during posture broken
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_PostureBroken);
 
+	// AC-007.8: Block is blocked during knocked down
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_KnockedDown);
+
 	// AC-006.8: Block is NOT blocked by Rooted
 	// (intentionally omitted from ActivationBlockedTags)
 }
