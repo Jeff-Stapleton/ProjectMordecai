@@ -8,6 +8,7 @@
 
 class UMordecaiAttributeSet;
 class UMordecaiAbilitySystemComponent;
+class UMordecaiSkillComponent;
 
 /**
  * AMordecaiPlayerState
@@ -26,7 +27,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|PlayerState")
 	UMordecaiAttributeSet* GetMordecaiAttributeSet() const { return MordecaiAttributeSet; }
 
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Skills")
+	UMordecaiSkillComponent* GetSkillComponent() const { return SkillComponent; }
+
 private:
 	UPROPERTY()
 	TObjectPtr<UMordecaiAttributeSet> MordecaiAttributeSet;
+
+	UPROPERTY()
+	TObjectPtr<UMordecaiSkillComponent> SkillComponent;
 };
