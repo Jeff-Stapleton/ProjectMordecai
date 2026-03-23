@@ -104,4 +104,4 @@ Should feat stats reset per-session, per-expedition, or be cumulative lifetime s
 - [x] All implementation complete
 - [x] All tests passing (green)
 - [x] Project compiles with zero errors
-- [ ] Code committed and pushed with `[US-012]` prefix
+- [x] Code committed and pushed with `[US-012]` prefix
