@@ -13,28 +13,28 @@
 Get a running project with a controllable character.
 - US-001: Project Foundation & Initial Player Character ✅
 
-### Epic 2: Core Combat
+### Epic 2: Core Combat ✅ (complete)
 Implement the combat system: attacks, defense, posture, stamina, projectiles.
-- US-002: Attack Profile Data Model & Damage Types (data foundation) ← **scoped**
-- US-003: Melee Hit Detection System (overlap shapes, filtering, airborne rules) ← **scoped**
-- US-004: Melee Attack GAS Ability & Combo System (phases, damage, combos) ← **scoped**
-- US-005: Dodge System (i-frames, perfect dodge, directional dodge) ← **scoped**
-- US-006: Block & Parry System (mitigation, stability, perfect block, parry risk/reward) ← **scoped**
-- US-007: Posture & Stagger System (posture meter, break state, riposte window, regen) ← **scoped**
-- US-008: Stamina Tier System (Green/Yellow/Red tiers, effectiveness modifiers, regen delay) ← **scoped**
-- US-009: Projectile System & Aim Assist (flight, pierce, ricochet, AoE, soft aim assist) ← **scoped**
+- US-002: Attack Profile Data Model & Damage Types ✅
+- US-003: Melee Hit Detection System ✅
+- US-004: Melee Attack GAS Ability & Combo System ✅
+- US-005: Dodge System ✅
+- US-006: Block & Parry System ✅
+- US-007: Posture & Stagger System ✅
+- US-008: Stamina Tier System ✅
+- US-009: Projectile System & Aim Assist ✅
 
 ### Epic 2.5: Playable Vertical Slice ⚡ HIGH PRIORITY
 Wire up all completed combat systems into a playable prototype. The goal: Jeff can launch the game, run around a test map, fight an enemy, and exercise melee/dodge/block/parry/stamina/posture.
-- US-050: Test Map & Diorama Camera (simple arena level, fixed camera per design docs, lighting, ground, walls)
-- US-051: Player Blueprint & Input Bindings (Character BP using combat components, Enhanced Input mapped to gamepad + KB/M)
-- US-052: Basic Enemy AI (test dummy with health, takes damage, simple attack pattern to test block/parry/dodge against)
-- US-053: Combat HUD — Minimal (health bar, stamina tier display, posture meter — enough to see systems working)
-- US-054: Integration Polish (hook up hit reactions, death, respawn, game mode that resets the arena)
+- US-050: Enemy Character & Damage Reception (HEADLESS — enemy class, ASC, attributes, death, posture break) ← **scoped**
+- US-051: Basic Enemy AI Combat Loop (HEADLESS — state machine AI: idle/approach/attack/recover/leash) ← **scoped**
+- US-052: Combat HUD C++ Framework (HEADLESS — health/stamina/posture widget classes, percent/tier calculations) ← **scoped**
+- US-053: Player Death & Arena Game Flow (HEADLESS — player death/respawn, arena reset, kill tracking) ← **scoped**
+- US-054: Playable Arena Integration (EDITOR — enemy BP, attack DataAssets, HUD widget BP, level setup, full wiring) ← **scoped**
 
 ### Epic 3: Attributes & Progression
 Wire up the attribute system and skill progression.
-- US-010: Effective Mod Formula & Core Attribute Scaling (diminishing returns, 9×2 primary/secondary scaling) ← **scoped**
+- US-010: Effective Mod Formula & Core Attribute Scaling ✅
 - US-011: Skill Framework & Rank Progression (data model, rank storage, skill points, milestones) ← **scoped**
 - US-012: Feat System (achievement-based unlocks, tiers, condition tracking, GAS integration) ← **scoped**
 
@@ -91,12 +91,12 @@ Delegated town systems.
 ---
 
 ## Priority Order
-1. **Epic 1** — Foundation (complete)
-2. **Epic 2** — Core Combat (finishing up — US-009 in progress)
-3. **Epic 2.5** — Playable Vertical Slice ⚡ (NEXT — make it playable before more systems)
-4. **Epic 4** — Status Effects (needed by combat)
-5. **Epic 3** — Attributes & Progression
-5. **Epic 5** — Magic System
+1. **Epic 1** — Foundation ✅
+2. **Epic 2** — Core Combat ✅
+3. **Epic 2.5** — Playable Vertical Slice ⚡ (IN PROGRESS — make it playable before more systems)
+4. **Epic 3** — Attributes & Progression (US-010 done; US-011, US-012 in backlog)
+5. **Epic 4** — Status Effects (needed by combat)
+6. **Epic 5** — Magic System
 6. **Epic 6** — Weapons & Equipment
 7. **Epic 7** — Inventory
 8. **Epic 10** — UI & HUD

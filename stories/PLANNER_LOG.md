@@ -367,3 +367,117 @@ Combined with Epic 4 attributes (US-014–018), the attribute set will grow sign
 4. **US-013** (Status Effect Framework) — gate for all Epic 4 work. HEADLESS.
 5. **US-010** and **US-011** can start anytime (no combat dependencies) — good candidates for parallel work while combat stories proceed.
 6. All stories remain **HEADLESS** — no editor needed through Epic 4.
+
+---
+
+## 2026-03-22 Nightly Planning Run
+
+### Completed Since Last Run
+- **US-007: Posture & Stagger System** — moved to `stories/done/`
+- **US-008: Stamina Tier System** — moved to `stories/done/`
+- **US-009: Projectile System & Aim Assist** — moved to `stories/done/`
+- **US-010: Effective Mod Formula & Core Attribute Scaling** — moved to `stories/done/`
+
+**Epic 2 (Core Combat) is now COMPLETE** — all 8 stories (US-002 through US-009) done.
+**Epic 3** — US-010 done (1 of 3 stories).
+
+### Currently In Progress
+- (none — backlog being replenished with Epic 2.5)
+
+### Existing Backlog (unchanged)
+- **US-011**: Skill Framework & Rank Progression (HEADLESS)
+- **US-012**: Feat System (HEADLESS)
+- **US-013–018**: Status Effects (HEADLESS, 6 stories)
+
+### New Stories Created
+**Epic 2.5: Playable Vertical Slice** — 5 stories, 4 HEADLESS + 1 EDITOR. All placed in `stories/backlog/`.
+
+Per the Playability-First Rule (PLANNER.md §5.1): after completing 2 system-focused epics (Epic 2 Core Combat + partial Epic 3 Attributes), the next priority MUST be a playable integration milestone. Epic 2.5 is that milestone.
+
+The original PLAN.md placeholder stories (US-050–054) were re-scoped because key infrastructure already exists: player BP, test map, input actions, camera mode, dev experience, and pawn data are all in the MordecaiCore plugin. The re-scoped stories focus on what's genuinely missing.
+
+- **US-050: Enemy Character & Damage Reception** (`US-050-enemy-character-damage-reception.md`) — **HEADLESS**
+  - `AMordecaiEnemyCharacter` extending `ALyraCharacter` with own ASC + `UMordecaiAttributeSet`
+  - Health damage via SetByCaller GE, death at Health ≤ 0 (Dead tag, movement disabled, event broadcast)
+  - Posture damage, posture break at zero, posture regen after delay
+  - `Mordecai.Team.Enemy` tag, configurable base stats, death prevents further damage
+  - 12 automation tests
+  - Standalone — depends only on existing combat infrastructure
+
+- **US-051: Basic Enemy AI Combat Loop** (`US-051-basic-enemy-ai.md`) — **HEADLESS**
+  - `AMordecaiEnemyAIController` with C++ state machine (Idle/Approach/Attack/Recover/Staggered/Leash/Dead)
+  - Distance-based detection (aggro range), approach via `MoveToActor`, attack via `TryActivateAbilityByClass`
+  - Cooldown between attacks, leash to spawn point when player leaves range
+  - Reacts to PostureBroken and Dead tags, server-authority only
+  - 11 automation tests
+  - Depends on US-050 (needs enemy character)
+
+- **US-052: Combat HUD C++ Framework** (`US-052-combat-hud-framework.md`) — **HEADLESS**
+  - `UMordecaiCombatHUDWidget` root container + `UMordecaiHealthBarWidget`, `UMordecaiStaminaBarWidget`, `UMordecaiPostureBarWidget`
+  - Health as 0–100% of MaxHealth, stamina with tier color (Green/Yellow/Red/Exhausted), posture meter
+  - `BindToASC()` for real-time attribute change delegation
+  - `UMordecaiEnemyHealthBarWidget` for world-space enemy health display
+  - All percent/tier computation in static testable functions
+  - 12 automation tests
+  - Standalone — reads existing attributes
+
+- **US-053: Player Death & Arena Game Flow** (`US-053-death-respawn-arena-flow.md`) — **HEADLESS**
+  - Player death at Health ≤ 0: Dead tag, movement/input disabled, gameplay event
+  - `AMordecaiGameMode` respawn timer (default 3s), restores full health/stamina/posture
+  - Arena reset on player respawn: dead enemies respawned at original locations
+  - Kill count tracking via enemy death events
+  - 11 automation tests
+  - Depends on US-050 (enemy death events)
+
+- **US-054: Playable Arena Integration** (`US-054-playable-arena-integration.md`) — **EDITOR**
+  - Enemy BP (`BP_MordecaiEnemy_Frontliner`) with configured stats and AI controller
+  - Attack DataAssets: 1 enemy basic slash, 3 player light combo (Longsword 3-sweep chain)
+  - Player BP configured to grant combat abilities (melee, dodge, block, parry) via input
+  - HUD widget BP showing health/stamina/posture, added to viewport
+  - Enemy world-space health bar
+  - Arena layout in DevTestMap with 3 enemy frontliners
+  - Dev experience configured for arena game mode with respawn
+  - Full end-to-end combat loop verified in PIE
+  - Manual verification tests only (no headless automation)
+  - Depends on ALL HEADLESS stories (US-050–053)
+
+### PLAN.md Updates
+- Marked Epic 2 as ✅ complete (all 8 stories done)
+- Marked US-010 as ✅ done in Epic 3
+- Re-scoped Epic 2.5 from placeholder descriptions to 5 properly scoped stories
+- Updated priority order: Epic 1 ✅, Epic 2 ✅, Epic 2.5 IN PROGRESS, Epic 3 partially done
+- Story numbers remain US-050–054 as originally planned
+
+### Dependency Graph for Epic 2.5
+```
+US-050 (Enemy Character) ──┬──> US-051 (Enemy AI — needs enemy character to possess)
+                           ├──> US-053 (Arena Flow — listens for enemy death events)
+                           │
+US-052 (Combat HUD) ───────┘    (standalone — just reads attribute values)
+                           │
+All (US-050–053) ──────────> US-054 (Integration — wires everything in editor)
+```
+US-050 and US-052 are fully independent — can be parallelized.
+US-051 depends on US-050. US-053 depends on US-050.
+US-054 depends on all four HEADLESS stories.
+
+### Blockers / Decisions Needed
+
+**Carried from prior runs:**
+- **Gameplay tag taxonomy** — Epic 2.5 adds more tags (`Mordecai.State.Dead`, `Mordecai.Event.Death`, `Mordecai.Event.PlayerDeath`, `Mordecai.Event.EnemyKill`). Formal naming policy still undecided.
+- **Damage formula stub** — The vertical slice will use BasePower directly without attribute/skill/status multipliers. Full formula integration deferred to post-slice.
+- **stat_formulas_v1.md vs character_attributes_v1.md** — US-010 resolved this by using character_attributes_v1.md as authoritative. stat_formulas_v1.md should be deprecated.
+- **TODO(DECISION) items from Epic 3 and 4** — still open (skill point economy, feat list, stacking policy, etc.)
+
+**New this run:**
+- **TODO(DECISION): Damage GE architecture** — The vertical slice needs a GameplayEffect that applies health/posture damage via SetByCaller. Should this be a C++ UGameplayEffect subclass (created programmatically) or a Blueprint GE asset created in the editor? C++ is more testable headless; BP is more designer-friendly. Recommendation: create a minimal C++ GE for the headless stories, then optionally replace with BP GE in US-054 if needed.
+- **TODO(DECISION): Enemy attack feel** — US-054 sets enemy windup to 500ms for readability. Is this too generous? Too punishing? Needs playtesting to determine. Defaulted to 500ms as a starting point.
+- **TODO(DECISION): Arena enemy count** — US-054 places 3 frontliners. Is this the right number for initial testing? Too many may overwhelm; too few may not stress the systems. Defaulted to 3.
+
+### Next Session Recommendation
+1. **US-050** (Enemy Character) — first priority, unblocks US-051 and US-053. HEADLESS.
+2. **US-052** (Combat HUD) — can parallelize with US-050. HEADLESS.
+3. **US-051** (Enemy AI) — after US-050. HEADLESS.
+4. **US-053** (Death & Arena Flow) — after US-050. Can parallelize with US-051. HEADLESS.
+5. **US-054** (Playable Arena Integration) — after ALL HEADLESS stories. EDITOR.
+6. After Epic 2.5 is playable, resume with **US-011** (Skill Framework) and **US-013** (Status Effect Framework) from the backlog.
