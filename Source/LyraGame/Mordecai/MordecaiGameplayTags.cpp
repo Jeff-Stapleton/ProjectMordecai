@@ -50,6 +50,9 @@ namespace MordecaiGameplayTags
 	// Event tags (US-011)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_SkillMilestone, "Mordecai.Event.SkillMilestone", "Fired when a skill reaches a milestone rank (1/5/10/15/20)");
 
+	// Event tags (US-012)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_FeatUnlocked, "Mordecai.Event.FeatUnlocked", "Fired when a feat is earned via gameplay achievement");
+
 	// SetByCaller data tags (US-004)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_HealthDamage,  "Mordecai.SetByCaller.HealthDamage",  "SetByCaller tag for health damage magnitude");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_PostureDamage, "Mordecai.SetByCaller.PostureDamage", "SetByCaller tag for posture damage magnitude");

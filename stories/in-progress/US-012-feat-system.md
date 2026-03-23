@@ -17,37 +17,37 @@ Per game_design_v2.md pillar #3: "Feats are earned, not picked. Unlocked via gam
 ## Acceptance Criteria
 
 ### Feat Data Model
-- [ ] AC-012.1: `UMordecaiFeatDataAsset` exists as a `UPrimaryDataAsset` with fields: `FeatName` (FName), `DisplayName` (FText), `Description` (FText), `Tier` (enum: Common/Rare/Legendary), `GrantedEffects` (TArray<TSubclassOf<UGameplayEffect>>), `GrantedAbilities` (TArray<TSubclassOf<UGameplayAbility>>), `DrawbackEffects` (TArray<TSubclassOf<UGameplayEffect>>), `FeatTag` (FGameplayTag)
-- [ ] AC-012.2: `EMordecaiFeatTier` enum defines three tiers: `Common`, `Rare`, `Legendary`
-- [ ] AC-012.3: Feat data assets are queryable at runtime — given a feat ID, retrieve its tier, effects, and description
+- [x] AC-012.1: `UMordecaiFeatDataAsset` exists as a `UPrimaryDataAsset` with fields: `FeatName` (FName), `DisplayName` (FText), `Description` (FText), `Tier` (enum: Common/Rare/Legendary), `GrantedEffects` (TArray<TSubclassOf<UGameplayEffect>>), `GrantedAbilities` (TArray<TSubclassOf<UGameplayAbility>>), `DrawbackEffects` (TArray<TSubclassOf<UGameplayEffect>>), `FeatTag` (FGameplayTag)
+- [x] AC-012.2: `EMordecaiFeatTier` enum defines three tiers: `Common`, `Rare`, `Legendary`
+- [x] AC-012.3: Feat data assets are queryable at runtime — given a feat ID, retrieve its tier, effects, and description
 
 ### Feat Condition System
-- [ ] AC-012.4: `FMordecaiFeatCondition` struct defines an unlock condition with: `ConditionType` (enum: `StatThreshold`, `EventCount`, `TagPresent`, `SkillRank`), condition-specific parameters (tag, threshold value, comparison operator)
-- [ ] AC-012.5: `UMordecaiFeatDataAsset` includes a `TArray<FMordecaiFeatCondition>` — ALL conditions must be met for the feat to unlock (AND logic)
-- [ ] AC-012.6: `StatThreshold` condition evaluates true when a tracked gameplay stat (e.g., "EnemiesBurnedSimultaneously") meets or exceeds a threshold
-- [ ] AC-012.7: `EventCount` condition evaluates true when a tracked cumulative event count (e.g., "TotalPerfectParries") meets or exceeds a threshold
-- [ ] AC-012.8: `TagPresent` condition evaluates true when the character currently has a specified gameplay tag
-- [ ] AC-012.9: `SkillRank` condition evaluates true when a specified skill rank meets or exceeds a threshold
+- [x] AC-012.4: `FMordecaiFeatCondition` struct defines an unlock condition with: `ConditionType` (enum: `StatThreshold`, `EventCount`, `TagPresent`, `SkillRank`), condition-specific parameters (tag, threshold value, comparison operator)
+- [x] AC-012.5: `UMordecaiFeatDataAsset` includes a `TArray<FMordecaiFeatCondition>` — ALL conditions must be met for the feat to unlock (AND logic)
+- [x] AC-012.6: `StatThreshold` condition evaluates true when a tracked gameplay stat (e.g., "EnemiesBurnedSimultaneously") meets or exceeds a threshold
+- [x] AC-012.7: `EventCount` condition evaluates true when a tracked cumulative event count (e.g., "TotalPerfectParries") meets or exceeds a threshold
+- [x] AC-012.8: `TagPresent` condition evaluates true when the character currently has a specified gameplay tag
+- [x] AC-012.9: `SkillRank` condition evaluates true when a specified skill rank meets or exceeds a threshold
 
 ### Feat Tracking Component
-- [ ] AC-012.10: `UMordecaiFeatComponent` (ActorComponent on PlayerState) maintains: a set of unlocked feats (TSet<FName>), a map of tracked gameplay stats (TMap<FName, int32>)
-- [ ] AC-012.11: `IncrementFeatStat(FName StatName, int32 Amount)` updates a tracked stat and triggers condition evaluation for all feats that reference it
-- [ ] AC-012.12: When all conditions for a feat are met, the feat auto-unlocks: its `GrantedEffects`, `GrantedAbilities`, and `DrawbackEffects` are applied to the character's ASC
-- [ ] AC-012.13: `HasFeat(FName FeatName)` returns whether a feat has been unlocked
-- [ ] AC-012.14: Unlocked feats are replicated to clients
-- [ ] AC-012.15: A feat can only be unlocked once — duplicate unlock attempts are no-ops
+- [x] AC-012.10: `UMordecaiFeatComponent` (ActorComponent on PlayerState) maintains: a set of unlocked feats (TSet<FName>), a map of tracked gameplay stats (TMap<FName, int32>)
+- [x] AC-012.11: `IncrementFeatStat(FName StatName, int32 Amount)` updates a tracked stat and triggers condition evaluation for all feats that reference it
+- [x] AC-012.12: When all conditions for a feat are met, the feat auto-unlocks: its `GrantedEffects`, `GrantedAbilities`, and `DrawbackEffects` are applied to the character's ASC
+- [x] AC-012.13: `HasFeat(FName FeatName)` returns whether a feat has been unlocked
+- [x] AC-012.14: Unlocked feats are replicated to clients
+- [x] AC-012.15: A feat can only be unlocked once — duplicate unlock attempts are no-ops
 
 ### Feat Tier Behavior
-- [ ] AC-012.16: Common feats apply `GrantedEffects` only (no `DrawbackEffects`)
-- [ ] AC-012.17: Rare feats apply both `GrantedEffects` and `DrawbackEffects`
-- [ ] AC-012.18: Legendary feats apply both `GrantedEffects` and `DrawbackEffects` — drawback effects are non-optional and applied automatically
+- [x] AC-012.16: Common feats apply `GrantedEffects` only (no `DrawbackEffects`)
+- [x] AC-012.17: Rare feats apply both `GrantedEffects` and `DrawbackEffects`
+- [x] AC-012.18: Legendary feats apply both `GrantedEffects` and `DrawbackEffects` — drawback effects are non-optional and applied automatically
 
 ### Gameplay Tag Integration
-- [ ] AC-012.19: Each unlocked feat grants its `FeatTag` (pattern `Mordecai.Feat.<FeatName>`) to the character — other systems can query whether a feat is active via gameplay tags
-- [ ] AC-012.20: A `Mordecai.Event.FeatUnlocked` gameplay event fires when a feat is earned, with the feat name as payload
+- [x] AC-012.19: Each unlocked feat grants its `FeatTag` (pattern `Mordecai.Feat.<FeatName>`) to the character — other systems can query whether a feat is active via gameplay tags
+- [x] AC-012.20: A `Mordecai.Event.FeatUnlocked` gameplay event fires when a feat is earned, with the feat name as payload
 
 ### Sample Feat Validation
-- [ ] AC-012.21: A sample Common feat ("Pyromaniac" — unlock condition: burn 6 enemies simultaneously) can be defined in code, its condition tracked via `IncrementFeatStat`, and its effect applied when the threshold is met
+- [x] AC-012.21: A sample Common feat ("Pyromaniac" — unlock condition: burn 6 enemies simultaneously) can be defined in code, its condition tracked via `IncrementFeatStat`, and its effect applied when the threshold is met
 
 ## Technical Notes
 
@@ -75,33 +75,33 @@ The design mentions feats are earned via "achievements/patterns" with the single
 Should feat stats reset per-session, per-expedition, or be cumulative lifetime stats? Example: if "burn 6 enemies simultaneously" is a per-combat-encounter stat, it resets between fights. If cumulative, it tracks the max-ever-achieved value. Default: stats are persistent peak values (max watermark) for threshold-type conditions, and cumulative for count-type conditions.
 
 ## Tests Required
-- [ ] `Mordecai.Feats.DataAssetHasRequiredFields` — verifies AC-012.1
-- [ ] `Mordecai.Feats.TierEnumMatchesDesign` — verifies AC-012.2
-- [ ] `Mordecai.Feats.DataAssetQueryable` — verifies AC-012.3
-- [ ] `Mordecai.Feats.ConditionStructDefinesTypes` — verifies AC-012.4
-- [ ] `Mordecai.Feats.AllConditionsMustBeMet` — verifies AC-012.5
-- [ ] `Mordecai.Feats.StatThresholdConditionEvaluates` — verifies AC-012.6
-- [ ] `Mordecai.Feats.EventCountConditionEvaluates` — verifies AC-012.7
-- [ ] `Mordecai.Feats.TagPresentConditionEvaluates` — verifies AC-012.8
-- [ ] `Mordecai.Feats.SkillRankConditionEvaluates` — verifies AC-012.9
-- [ ] `Mordecai.Feats.ComponentTracksUnlockedFeats` — verifies AC-012.10
-- [ ] `Mordecai.Feats.IncrementStatTriggersEvaluation` — verifies AC-012.11
-- [ ] `Mordecai.Feats.AutoUnlockAppliesEffects` — verifies AC-012.12
-- [ ] `Mordecai.Feats.HasFeatQueryWorks` — verifies AC-012.13
-- [ ] `Mordecai.Feats.UnlockedFeatsReplicated` — verifies AC-012.14
-- [ ] `Mordecai.Feats.DuplicateUnlockIsNoOp` — verifies AC-012.15
-- [ ] `Mordecai.Feats.CommonFeatHasNoDrawback` — verifies AC-012.16
-- [ ] `Mordecai.Feats.RareFeatAppliesDrawback` — verifies AC-012.17
-- [ ] `Mordecai.Feats.LegendaryFeatAppliesDrawback` — verifies AC-012.18
-- [ ] `Mordecai.Feats.FeatTagGrantedOnUnlock` — verifies AC-012.19
-- [ ] `Mordecai.Feats.FeatUnlockedEventFires` — verifies AC-012.20
-- [ ] `Mordecai.Feats.PyromaniacSamplePipeline` — verifies AC-012.21
+- [x] `Mordecai.Feats.DataAssetHasRequiredFields` — verifies AC-012.1
+- [x] `Mordecai.Feats.TierEnumMatchesDesign` — verifies AC-012.2
+- [x] `Mordecai.Feats.DataAssetQueryable` — verifies AC-012.3
+- [x] `Mordecai.Feats.ConditionStructDefinesTypes` — verifies AC-012.4
+- [x] `Mordecai.Feats.AllConditionsMustBeMet` — verifies AC-012.5
+- [x] `Mordecai.Feats.StatThresholdConditionEvaluates` — verifies AC-012.6
+- [x] `Mordecai.Feats.EventCountConditionEvaluates` — verifies AC-012.7
+- [x] `Mordecai.Feats.TagPresentConditionEvaluates` — verifies AC-012.8
+- [x] `Mordecai.Feats.SkillRankConditionEvaluates` — verifies AC-012.9
+- [x] `Mordecai.Feats.ComponentTracksUnlockedFeats` — verifies AC-012.10
+- [x] `Mordecai.Feats.IncrementStatTriggersEvaluation` — verifies AC-012.11
+- [x] `Mordecai.Feats.AutoUnlockAppliesEffects` — verifies AC-012.12
+- [x] `Mordecai.Feats.HasFeatQueryWorks` — verifies AC-012.13
+- [x] `Mordecai.Feats.UnlockedFeatsReplicated` — verifies AC-012.14
+- [x] `Mordecai.Feats.DuplicateUnlockIsNoOp` — verifies AC-012.15
+- [x] `Mordecai.Feats.CommonFeatHasNoDrawback` — verifies AC-012.16
+- [x] `Mordecai.Feats.RareFeatAppliesDrawback` — verifies AC-012.17
+- [x] `Mordecai.Feats.LegendaryFeatAppliesDrawback` — verifies AC-012.18
+- [x] `Mordecai.Feats.FeatTagGrantedOnUnlock` — verifies AC-012.19
+- [x] `Mordecai.Feats.FeatUnlockedEventFires` — verifies AC-012.20
+- [x] `Mordecai.Feats.PyromaniacSamplePipeline` — verifies AC-012.21
 
 ---
 
 ## Definition of Done
-- [ ] All tests written and failing (red phase confirmed)
-- [ ] All implementation complete
-- [ ] All tests passing (green)
-- [ ] Project compiles with zero errors
+- [x] All tests written and failing (red phase confirmed)
+- [x] All implementation complete
+- [x] All tests passing (green)
+- [x] Project compiles with zero errors
 - [ ] Code committed and pushed with `[US-012]` prefix

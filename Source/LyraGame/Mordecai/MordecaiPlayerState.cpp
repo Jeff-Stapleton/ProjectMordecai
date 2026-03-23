@@ -4,6 +4,7 @@
 #include "Mordecai/AbilitySystem/MordecaiAbilitySystemComponent.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Skills/MordecaiSkillComponent.h"
+#include "Mordecai/Feats/MordecaiFeatComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPlayerState)
 
@@ -14,4 +15,5 @@ AMordecaiPlayerState::AMordecaiPlayerState(const FObjectInitializer& ObjectIniti
 	// The ASC will auto-detect this subobject during InitializeComponent.
 	MordecaiAttributeSet = CreateDefaultSubobject<UMordecaiAttributeSet>(TEXT("MordecaiAttributeSet"));
 	SkillComponent = CreateDefaultSubobject<UMordecaiSkillComponent>(TEXT("MordecaiSkillComponent"));
+	FeatComponent = CreateDefaultSubobject<UMordecaiFeatComponent>(TEXT("MordecaiFeatComponent"));
 }

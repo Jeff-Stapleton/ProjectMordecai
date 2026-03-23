@@ -52,6 +52,9 @@ namespace MordecaiGameplayTags
 	// Event tags (US-011)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_SkillMilestone);
 
+	// Event tags (US-012)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_FeatUnlocked);
+
 	// SetByCaller data tags (US-004)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_HealthDamage);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_PostureDamage);
