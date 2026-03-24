@@ -40,9 +40,48 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Sprinting,          "Mordecai.State.Sprinting",          "Character is currently sprinting");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_StaminaRegenPaused, "Mordecai.State.StaminaRegenPaused", "Stamina regeneration is paused after consumption");
 
-	// Status effect tags (US-007 stubs — no effect until Epic 4)
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Weakened,      "Mordecai.Status.Weakened",      "Weakened — reduces outgoing posture damage");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Brittle,       "Mordecai.Status.Brittle",       "Brittle — increases incoming posture damage");
+	// Status effect tags (US-013)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Burning,     "Mordecai.Status.Burning",     "Burning — damage over time");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Bleeding,    "Mordecai.Status.Bleeding",    "Bleeding — healing received reduced/blocked");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Poisoned,    "Mordecai.Status.Poisoned",    "Poisoned — stamina regen suppressed");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Frostbitten, "Mordecai.Status.Frostbitten", "Frostbitten — move/attack speed reduced");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Shocked,     "Mordecai.Status.Shocked",     "Shocked — micro-stun risk, timing disruption");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Weakened,    "Mordecai.Status.Weakened",    "Weakened — reduces outgoing posture damage");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Brittle,     "Mordecai.Status.Brittle",     "Brittle — increases incoming posture damage");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Silenced,    "Mordecai.Status.Silenced",    "Silenced — cannot cast spells");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Rooted,      "Mordecai.Status.Rooted",      "Rooted — cannot move, can still attack/block/cast");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Blinded,     "Mordecai.Status.Blinded",     "Blinded — reduced accuracy and detection");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Fear,        "Mordecai.Status.Fear",        "Fear — composure collapse, guard instability");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Cursed,      "Mordecai.Status.Cursed",      "Cursed — spell regen and healing reduced");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Exposed,     "Mordecai.Status.Exposed",     "Exposed — next hit deals bonus damage");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Corroded,    "Mordecai.Status.Corroded",    "Corroded — armor efficiency and block stability reduced");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Drenched,    "Mordecai.Status.Drenched",    "Drenched — elemental interaction modifier");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Focused,     "Mordecai.Status.Focused",     "Focused — perfect-action streak buff");
+
+	// Status effect category tags (US-013)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Category_DoT,           "Mordecai.Status.Category.DoT",           "Damage-over-time status effects");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Category_Debuff,        "Mordecai.Status.Category.Debuff",        "Stat/capability debuff status effects");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Category_Control,       "Mordecai.Status.Category.Control",       "Movement/action control status effects");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Category_Buff,          "Mordecai.Status.Category.Buff",          "Positive buff status effects");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Category_Environmental, "Mordecai.Status.Category.Environmental", "Environmental interaction status effects");
+
+	// Immunity tags (US-013)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Burning,     "Mordecai.Immunity.Burning",     "Immune to Burning status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Bleeding,    "Mordecai.Immunity.Bleeding",    "Immune to Bleeding status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Poisoned,    "Mordecai.Immunity.Poisoned",    "Immune to Poisoned status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Frostbitten, "Mordecai.Immunity.Frostbitten", "Immune to Frostbitten status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Shocked,     "Mordecai.Immunity.Shocked",     "Immune to Shocked status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Weakened,    "Mordecai.Immunity.Weakened",    "Immune to Weakened status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Brittle,     "Mordecai.Immunity.Brittle",     "Immune to Brittle status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Silenced,    "Mordecai.Immunity.Silenced",    "Immune to Silenced status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Rooted,      "Mordecai.Immunity.Rooted",      "Immune to Rooted status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Blinded,     "Mordecai.Immunity.Blinded",     "Immune to Blinded status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Fear,        "Mordecai.Immunity.Fear",        "Immune to Fear status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Cursed,      "Mordecai.Immunity.Cursed",      "Immune to Cursed status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Exposed,     "Mordecai.Immunity.Exposed",     "Immune to Exposed status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Corroded,    "Mordecai.Immunity.Corroded",    "Immune to Corroded status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Drenched,    "Mordecai.Immunity.Drenched",    "Immune to Drenched status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Focused,     "Mordecai.Immunity.Focused",     "Immune to Focused status effect");
 
 	// Event tags (US-006)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ParryInput,    "Mordecai.Event.ParryInput",    "Simultaneous block+attack input detected for parry");
