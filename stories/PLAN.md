@@ -32,11 +32,11 @@ Wire up all completed combat systems into a playable prototype. The goal: Jeff c
 - US-053: Player Death & Arena Game Flow (HEADLESS — player death/respawn, arena reset, kill tracking) ← **scoped**
 - US-054: Playable Arena Integration (EDITOR — enemy BP, attack DataAssets, HUD widget BP, level setup, full wiring) ← **scoped**
 
-### Epic 3: Attributes & Progression
+### Epic 3: Attributes & Progression ✅ (complete)
 Wire up the attribute system and skill progression.
 - US-010: Effective Mod Formula & Core Attribute Scaling ✅
-- US-011: Skill Framework & Rank Progression (data model, rank storage, skill points, milestones) ← **scoped**
-- US-012: Feat System (achievement-based unlocks, tiers, condition tracking, GAS integration) ← **scoped**
+- US-011: Skill Framework & Rank Progression ✅
+- US-012: Feat System ✅
 
 ### Epic 4: Status Effects
 Implement the launch status effect set via GAS. Split into 6 stories by mechanical grouping.
@@ -93,8 +93,8 @@ Delegated town systems.
 ## Priority Order
 1. **Epic 1** — Foundation ✅
 2. **Epic 2** — Core Combat ✅
-3. **Epic 2.5** — Playable Vertical Slice ⚡ (IN PROGRESS — make it playable before more systems)
-4. **Epic 3** — Attributes & Progression (US-010 done; US-011, US-012 in backlog)
+3. **Epic 2.5** — Playable Vertical Slice ⚡ (NEXT — make it playable before more systems)
+4. **Epic 3** — Attributes & Progression ✅
 5. **Epic 4** — Status Effects (needed by combat)
 6. **Epic 5** — Magic System
 6. **Epic 6** — Weapons & Equipment

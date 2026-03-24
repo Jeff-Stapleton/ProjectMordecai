@@ -481,3 +481,82 @@ US-054 depends on all four HEADLESS stories.
 4. **US-053** (Death & Arena Flow) — after US-050. Can parallelize with US-051. HEADLESS.
 5. **US-054** (Playable Arena Integration) — after ALL HEADLESS stories. EDITOR.
 6. After Epic 2.5 is playable, resume with **US-011** (Skill Framework) and **US-013** (Status Effect Framework) from the backlog.
+
+---
+
+## 2026-03-23 Nightly Planning Run
+
+### Completed Since Last Run
+- **US-011: Skill Framework & Rank Progression** — moved to `stories/done/`
+- **US-012: Feat System** — moved to `stories/done/`
+
+**Epic 3 (Attributes & Progression) is now COMPLETE** — all 3 stories (US-010, US-011, US-012) done.
+
+### Currently In Progress
+- (none — backlog ready for Epic 2.5 work)
+
+### Existing Backlog (unchanged, already well-scoped)
+- **US-050**: Enemy Character & Damage Reception (HEADLESS, 12 ACs)
+- **US-051**: Basic Enemy AI Combat Loop (HEADLESS, 12 ACs)
+- **US-052**: Combat HUD C++ Framework (HEADLESS, 11 ACs)
+- **US-053**: Player Death & Arena Game Flow (HEADLESS, 11 ACs)
+- **US-054**: Playable Arena Integration (EDITOR, 13 ACs)
+- **US-013–018**: Status Effects (HEADLESS, 6 stories)
+
+### New Stories Created
+- (none — Epic 2.5 stories were scoped last run and remain valid)
+
+### PLAN.md Updates
+- Marked Epic 3 as ✅ complete (US-011 and US-012 now done)
+- Updated priority order to reflect Epic 3 completion
+
+### Source Tree Snapshot
+Mordecai C++ code now includes:
+- `Mordecai/AbilitySystem/` — ASC, AttributeSet, AttributeScaling
+- `Mordecai/Camera/` — Diorama camera mode
+- `Mordecai/Combat/` — Full combat suite: attacks, hit detection, block, parry, dodge, posture, stamina, projectiles, aim assist
+- `Mordecai/Skills/` — SkillComponent, SkillDataAsset, SkillTypes (NEW — from US-011)
+- `Mordecai/Feats/` — FeatComponent, FeatDataAsset, FeatTypes (NEW — from US-012)
+- `Tests/` — 15 test files across Attributes, Camera, Character, Combat (9 files), Feats, Foundation, Input, Level, Skills, Stamina
+
+No `Enemy/` or `UI/` subdirectories yet — these will be created by US-050 and US-052 respectively.
+
+### Backlog Validation
+Reviewed all 11 backlog stories (US-050–054 and US-013–018):
+- All have **Execution Mode** tags set correctly (10 HEADLESS, 1 EDITOR)
+- Epic 2.5 stories correctly reference existing code (AttributeSet, PostureSystem, StaminaSystem, GameplayTags, GA_MeleeAttack, AttackProfileDataAsset)
+- US-011/US-012 completion does not affect Epic 2.5 stories — skill/feat systems are orthogonal to the vertical slice
+- Epic 4 stories (US-013–018) remain valid with no dependency on Epic 2.5
+
+### Blockers / Decisions Needed
+
+**Carried from prior runs:**
+- **Gameplay tag taxonomy** — formal naming policy still undecided. Growing tag surface area across epics.
+- **Damage formula stub** — vertical slice uses BasePower directly. Full formula integration (attribute scaling × skill modifier × status modifier) deferred to post-slice.
+- **TODO(DECISION): Damage GE architecture** — C++ vs Blueprint GE for the vertical slice. Recommendation remains: C++ GE in headless stories, optionally BP GE in US-054.
+- **TODO(DECISION) items from Epic 3** — skill point economy, feat list, stat reset behavior still open.
+- **TODO(DECISION) items from Epic 4** — stacking policy, bleeding clot timer, frostbitten freeze threshold, etc. still open.
+
+**Resolved this run:**
+- **stat_formulas_v1.md vs character_attributes_v1.md** — US-010 resolved this by using character_attributes_v1.md as authoritative. Can consider stat_formulas_v1.md deprecated.
+- **Epic 3 completion** — US-011 and US-012 shipped cleanly. Skill framework (18 tests) and feat system (21 tests) both passing.
+
+### Dependency Graph for Epic 2.5 (unchanged)
+```
+US-050 (Enemy Character) ──┬──> US-051 (Enemy AI — needs enemy character to possess)
+                           ├──> US-053 (Arena Flow — listens for enemy death events)
+                           │
+US-052 (Combat HUD) ───────┘    (standalone — just reads attribute values)
+                           │
+All (US-050–053) ──────────> US-054 (Integration — wires everything in editor)
+```
+
+### Next Session Recommendation
+**Epic 2.5 is the top priority.** This is the playability milestone — Jeff needs to play the game.
+
+1. **US-050** (Enemy Character & Damage Reception) — first priority, unblocks US-051 and US-053. HEADLESS.
+2. **US-052** (Combat HUD C++ Framework) — can parallelize with US-050. HEADLESS.
+3. **US-051** (Enemy AI) — after US-050 completes. HEADLESS.
+4. **US-053** (Death & Arena Flow) — after US-050 completes. Can parallelize with US-051. HEADLESS.
+5. **US-054** (Playable Arena Integration) — after ALL HEADLESS stories complete. EDITOR. This is the "Jeff can play it" story.
+6. After Epic 2.5 is playable, resume with **US-013** (Status Effect Framework) — gate for all Epic 4 work. HEADLESS.
