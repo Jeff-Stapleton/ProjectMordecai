@@ -22,6 +22,14 @@ UMordecaiStatusEffectGameplayEffect::UMordecaiStatusEffectGameplayEffect()
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+void UMordecaiStatusEffectGameplayEffect::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	// Initialize after CDO construction is complete (NewObject is now safe)
+	InitializeStatusEffect();
+}
+
 void UMordecaiStatusEffectGameplayEffect::InitializeStatusEffect()
 {
 	if (!StatusTag.IsValid())
@@ -29,8 +37,16 @@ void UMordecaiStatusEffectGameplayEffect::InitializeStatusEffect()
 		return;
 	}
 
+	// Guard: don't double-initialize (check if TargetTags component already exists)
+	for (UGameplayEffectComponent* Comp : GEComponents)
+	{
+		if (Cast<UTargetTagsGameplayEffectComponent>(Comp))
+		{
+			return;
+		}
+	}
+
 	// AC-013.5: Grant the status gameplay tag to the target while this GE is active.
-	// UE 5.3+: Use UTargetTagsGameplayEffectComponent to grant tags to the target.
 	FInheritedTagContainer TagContainer;
 	TagContainer.AddTag(StatusTag);
 
@@ -42,7 +58,6 @@ void UMordecaiStatusEffectGameplayEffect::InitializeStatusEffect()
 	}
 
 	// AC-013.8: Immunity — block application if target has the immunity tag.
-	// UE 5.3+: Use UTargetTagRequirementsGameplayEffectComponent for application requirements.
 	FGameplayTag ImmunityTag = GetImmunityTagForStatus(StatusTag);
 	if (ImmunityTag.IsValid())
 	{

@@ -19,24 +19,24 @@ Implement the three status effects that deal damage over time or deny resource r
 ## Acceptance Criteria
 
 ### Burning
-- [ ] AC-014.1: `UMordecaiGE_Burning` (subclass of `UMordecaiStatusEffectGameplayEffect`) exists. Applies `Mordecai.Status.Burning` tag. Duration: configurable `BurningDurationSec` (default placeholder: 5.0s).
-- [ ] AC-014.2: Burning deals periodic fire damage every tick. Period: configurable `BurningTickIntervalSec` (default: 1.0s). Damage per tick: configurable `BurningDamagePerTick` (default placeholder: 3.0). Damage type tag: `Mordecai.Damage.Fire`.
-- [ ] AC-014.3: Each Burning tick has a configurable chance to interrupt casting: `BurningInterruptChance` (default placeholder: 15%, i.e., 0.15). Implementation: on periodic execute, if target has `Mordecai.State.Casting` tag, roll against `BurningInterruptChance` and, if successful, send `Mordecai.Event.CastInterrupted` gameplay event. Actual cast interruption handling deferred to Epic 5 (Magic System).
-- [ ] AC-014.4: Re-applying Burning while already burning refreshes the duration (per framework default stacking).
-- [ ] AC-014.5: Burning is blocked if target has `Mordecai.Immunity.Burning` tag.
+- [x] AC-014.1: `UMordecaiGE_Burning` (subclass of `UMordecaiStatusEffectGameplayEffect`) exists. Applies `Mordecai.Status.Burning` tag. Duration: configurable `BurningDurationSec` (default placeholder: 5.0s).
+- [x] AC-014.2: Burning deals periodic fire damage every tick. Period: configurable `BurningTickIntervalSec` (default: 1.0s). Damage per tick: configurable `BurningDamagePerTick` (default placeholder: 3.0). Damage type tag: `Mordecai.Damage.Fire`.
+- [x] AC-014.3: Each Burning tick has a configurable chance to interrupt casting: `BurningInterruptChance` (default placeholder: 15%, i.e., 0.15). Implementation: on periodic execute, if target has `Mordecai.State.Casting` tag, roll against `BurningInterruptChance` and, if successful, send `Mordecai.Event.CastInterrupted` gameplay event. Actual cast interruption handling deferred to Epic 5 (Magic System).
+- [x] AC-014.4: Re-applying Burning while already burning refreshes the duration (per framework default stacking).
+- [x] AC-014.5: Burning is blocked if target has `Mordecai.Immunity.Burning` tag.
 
 ### Bleeding
-- [ ] AC-014.6: `UMordecaiGE_Bleeding` exists. Applies `Mordecai.Status.Bleeding` tag. Duration: configurable `BleedingDurationSec` (default placeholder: 6.0s).
-- [ ] AC-014.7: While Bleeding is active, healing received is reduced by a configurable percentage: `BleedingHealReductionPct` (default placeholder: 0.50, meaning 50% reduction). Implementation: apply an attribute modifier to a `HealingReceivedModifier` attribute (or use a GE magnitude modifier on incoming healing GEs). If `HealingReceivedModifier` attribute doesn't exist yet, create it on `UMordecaiAttributeSet`.
-- [ ] AC-014.8: Hit-refresh mechanic: when the bleeding target takes any damage (from any source), the Bleeding duration resets to its full value. Implementation: listen for `Mordecai.Event.DamageTaken` gameplay event while Bleeding is active; on receive, remove and re-apply the Bleeding GE.
-- [ ] AC-014.9: Clot mechanic: if the target avoids taking damage for a configurable `BleedingClotTimeSec` (default placeholder: 4.0s), Bleeding is removed early. Implementation: track time since last damage; if it exceeds `BleedingClotTimeSec`, remove the GE. This timer resets on every damage taken.
-- [ ] AC-014.10: Bleeding is blocked if target has `Mordecai.Immunity.Bleeding` tag.
+- [x] AC-014.6: `UMordecaiGE_Bleeding` exists. Applies `Mordecai.Status.Bleeding` tag. Duration: configurable `BleedingDurationSec` (default placeholder: 6.0s).
+- [x] AC-014.7: While Bleeding is active, healing received is reduced by a configurable percentage: `BleedingHealReductionPct` (default placeholder: 0.50, meaning 50% reduction). Implementation: apply an attribute modifier to a `HealingReceivedModifier` attribute (or use a GE magnitude modifier on incoming healing GEs). If `HealingReceivedModifier` attribute doesn't exist yet, create it on `UMordecaiAttributeSet`.
+- [x] AC-014.8: Hit-refresh mechanic: when the bleeding target takes any damage (from any source), the Bleeding duration resets to its full value. Implementation: listen for `Mordecai.Event.DamageTaken` gameplay event while Bleeding is active; on receive, remove and re-apply the Bleeding GE.
+- [x] AC-014.9: Clot mechanic: if the target avoids taking damage for a configurable `BleedingClotTimeSec` (default placeholder: 4.0s), Bleeding is removed early. Implementation: track time since last damage; if it exceeds `BleedingClotTimeSec`, remove the GE. This timer resets on every damage taken.
+- [x] AC-014.10: Bleeding is blocked if target has `Mordecai.Immunity.Bleeding` tag.
 
 ### Poisoned
-- [ ] AC-014.11: `UMordecaiGE_Poisoned` exists. Applies `Mordecai.Status.Poisoned` tag. Duration: configurable `PoisonedDurationSec` (default placeholder: 8.0s).
-- [ ] AC-014.12: While Poisoned is active, stamina regen rate is reduced by a configurable percentage: `PoisonedStaminaRegenReductionPct` (default placeholder: 0.60, meaning 60% reduction). Implementation: apply a GE modifier to `StaminaRegenRate` attribute (or equivalent stamina regen modifier). If stamina regen attribute doesn't exist, add it to `UMordecaiAttributeSet`.
-- [ ] AC-014.13: While Poisoned is active, movement speed is reduced by a configurable percentage: `PoisonedMoveSpeedReductionPct` (default placeholder: 0.15, meaning 15% reduction). Implementation: apply a GE modifier to `MoveSpeed` attribute (or use Character Movement Component max walk speed modifier).
-- [ ] AC-014.14: Poisoned is blocked if target has `Mordecai.Immunity.Poisoned` tag.
+- [x] AC-014.11: `UMordecaiGE_Poisoned` exists. Applies `Mordecai.Status.Poisoned` tag. Duration: configurable `PoisonedDurationSec` (default placeholder: 8.0s).
+- [x] AC-014.12: While Poisoned is active, stamina regen rate is reduced by a configurable percentage: `PoisonedStaminaRegenReductionPct` (default placeholder: 0.60, meaning 60% reduction). Implementation: apply a GE modifier to `StaminaRegenRate` attribute (or equivalent stamina regen modifier). If stamina regen attribute doesn't exist, add it to `UMordecaiAttributeSet`.
+- [x] AC-014.13: While Poisoned is active, movement speed is reduced by a configurable percentage: `PoisonedMoveSpeedReductionPct` (default placeholder: 0.15, meaning 15% reduction). Implementation: apply a GE modifier to `MoveSpeed` attribute (or use Character Movement Component max walk speed modifier).
+- [x] AC-014.14: Poisoned is blocked if target has `Mordecai.Immunity.Poisoned` tag.
 
 ## Technical Notes
 - Place GE subclasses in `Source/LyraGame/Mordecai/StatusEffects/Effects/`
@@ -52,28 +52,28 @@ Implement the three status effects that deal damage over time or deny resource r
 ## Tests Required
 
 ### Burning Tests
-- [ ] `Mordecai.StatusEffect.Burning.AppliesTagAndDuration` — apply Burning GE, verify `Mordecai.Status.Burning` tag is active and removed after duration (AC-014.1)
-- [ ] `Mordecai.StatusEffect.Burning.DealsPeriodicDamage` — apply Burning, advance time by 3 ticks, verify health reduced by ~3x `BurningDamagePerTick` (AC-014.2)
-- [ ] `Mordecai.StatusEffect.Burning.InterruptsCastingOnChance` — apply Burning to target with `Mordecai.State.Casting` tag, force interrupt chance to 1.0 for test, verify `Mordecai.Event.CastInterrupted` event sent (AC-014.3)
-- [ ] `Mordecai.StatusEffect.Burning.RefreshesDurationOnReapply` — apply Burning, wait 2s, re-apply, verify duration resets (AC-014.4)
-- [ ] `Mordecai.StatusEffect.Burning.BlockedByImmunity` — add `Mordecai.Immunity.Burning` tag, apply Burning, verify not applied (AC-014.5)
+- [x] `Mordecai.StatusEffect.Burning.AppliesTagAndDuration` — apply Burning GE, verify `Mordecai.Status.Burning` tag is active and removed after duration (AC-014.1)
+- [x] `Mordecai.StatusEffect.Burning.DealsPeriodicDamage` — apply Burning, advance time by 3 ticks, verify health reduced by ~3x `BurningDamagePerTick` (AC-014.2)
+- [x] `Mordecai.StatusEffect.Burning.InterruptsCastingOnChance` — apply Burning to target with `Mordecai.State.Casting` tag, force interrupt chance to 1.0 for test, verify `Mordecai.Event.CastInterrupted` event sent (AC-014.3)
+- [x] `Mordecai.StatusEffect.Burning.RefreshesDurationOnReapply` — apply Burning, wait 2s, re-apply, verify duration resets (AC-014.4)
+- [x] `Mordecai.StatusEffect.Burning.BlockedByImmunity` — add `Mordecai.Immunity.Burning` tag, apply Burning, verify not applied (AC-014.5)
 
 ### Bleeding Tests
-- [ ] `Mordecai.StatusEffect.Bleeding.ReducesHealingReceived` — apply Bleeding, apply a healing GE, verify healing amount reduced by `BleedingHealReductionPct` (AC-014.7)
-- [ ] `Mordecai.StatusEffect.Bleeding.HitRefreshesDuration` — apply Bleeding, wait 3s, deal damage to target, verify Bleeding duration reset (AC-014.8)
-- [ ] `Mordecai.StatusEffect.Bleeding.ClotsAfterNoDamage` — apply Bleeding, wait `BleedingClotTimeSec` without dealing damage, verify Bleeding removed early (AC-014.9)
-- [ ] `Mordecai.StatusEffect.Bleeding.BlockedByImmunity` — add immunity, apply, verify not applied (AC-014.10)
+- [x] `Mordecai.StatusEffect.Bleeding.ReducesHealingReceived` — apply Bleeding, apply a healing GE, verify healing amount reduced by `BleedingHealReductionPct` (AC-014.7)
+- [x] `Mordecai.StatusEffect.Bleeding.HitRefreshesDuration` — apply Bleeding, wait 3s, deal damage to target, verify Bleeding duration reset (AC-014.8)
+- [x] `Mordecai.StatusEffect.Bleeding.ClotsAfterNoDamage` — apply Bleeding, wait `BleedingClotTimeSec` without dealing damage, verify Bleeding removed early (AC-014.9)
+- [x] `Mordecai.StatusEffect.Bleeding.BlockedByImmunity` — add immunity, apply, verify not applied (AC-014.10)
 
 ### Poisoned Tests
-- [ ] `Mordecai.StatusEffect.Poisoned.ReducesStaminaRegen` — apply Poisoned, verify stamina regen rate reduced by `PoisonedStaminaRegenReductionPct` (AC-014.12)
-- [ ] `Mordecai.StatusEffect.Poisoned.ReducesMoveSpeed` — apply Poisoned, verify movement speed reduced by `PoisonedMoveSpeedReductionPct` (AC-014.13)
-- [ ] `Mordecai.StatusEffect.Poisoned.BlockedByImmunity` — add immunity, apply, verify not applied (AC-014.14)
+- [x] `Mordecai.StatusEffect.Poisoned.ReducesStaminaRegen` — apply Poisoned, verify stamina regen rate reduced by `PoisonedStaminaRegenReductionPct` (AC-014.12)
+- [x] `Mordecai.StatusEffect.Poisoned.ReducesMoveSpeed` — apply Poisoned, verify movement speed reduced by `PoisonedMoveSpeedReductionPct` (AC-014.13)
+- [x] `Mordecai.StatusEffect.Poisoned.BlockedByImmunity` — add immunity, apply, verify not applied (AC-014.14)
 
 ---
 
 ## Definition of Done
-- [ ] All tests written and failing (red phase confirmed)
-- [ ] All implementation complete
-- [ ] All tests passing (green)
-- [ ] Project compiles with zero errors
-- [ ] Code committed and pushed with `[US-014]` prefix
+- [x] All tests written and failing (red phase confirmed)
+- [x] All implementation complete
+- [x] All tests passing (green)
+- [x] Project compiles with zero errors
+- [x] Code committed and pushed with `[US-014]` prefix

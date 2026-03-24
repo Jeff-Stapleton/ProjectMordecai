@@ -2,10 +2,13 @@
 
 #include "Mordecai/StatusEffects/MordecaiStatusEffectComponent.h"
 #include "Mordecai/StatusEffects/MordecaiStatusEffectTypes.h"
+#include "Mordecai/StatusEffects/MordecaiStatusEffectGameplayEffect.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Bleeding.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayEffect.h"
+#include "TimerManager.h"
 
 UMordecaiStatusEffectComponent::UMordecaiStatusEffectComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -35,7 +38,19 @@ FActiveGameplayEffectHandle UMordecaiStatusEffectComponent::ApplyStatusEffect(
 		return FActiveGameplayEffectHandle();
 	}
 
-	return ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	FActiveGameplayEffectHandle Handle = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+
+	// Auto-detect Bleeding and start tracking hit-refresh + clot (US-014)
+	if (Handle.IsValid())
+	{
+		const UMordecaiGE_Bleeding* BleedingGE = Cast<UMordecaiGE_Bleeding>(GEClass.GetDefaultObject());
+		if (BleedingGE)
+		{
+			StartBleedingTracking(GEClass, BleedingGE->BleedingClotTimeSec);
+		}
+	}
+
+	return Handle;
 }
 
 void UMordecaiStatusEffectComponent::RemoveStatusEffect(FGameplayTag StatusTag)
@@ -165,4 +180,88 @@ UAbilitySystemComponent* UMordecaiStatusEffectComponent::GetAbilitySystemCompone
 
 	// Fall back to component search
 	return Owner->FindComponentByClass<UAbilitySystemComponent>();
+}
+
+// ---------------------------------------------------------------------------
+// Bleeding Management (US-014)
+// ---------------------------------------------------------------------------
+
+void UMordecaiStatusEffectComponent::NotifyDamageTaken()
+{
+	if (!bTrackingBleeding || !CachedBleedingGEClass)
+	{
+		return;
+	}
+
+	// Hit-refresh: remove current Bleeding and re-apply (AC-014.8)
+	RemoveStatusEffect(MordecaiGameplayTags::Status_Bleeding);
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (ASC)
+	{
+		FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+		FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(CachedBleedingGEClass, 1.0f, Context);
+		if (Spec.IsValid())
+		{
+			ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+		}
+	}
+
+	// Reset clot timer (AC-014.9)
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BleedingClotTimerHandle);
+		World->GetTimerManager().SetTimer(
+			BleedingClotTimerHandle,
+			this,
+			&UMordecaiStatusEffectComponent::OnBleedingClotExpired,
+			CachedBleedingClotDuration,
+			false);
+	}
+}
+
+void UMordecaiStatusEffectComponent::StartBleedingTracking(TSubclassOf<UGameplayEffect> BleedingGEClass, float ClotTimeSec)
+{
+	CachedBleedingGEClass = BleedingGEClass;
+	CachedBleedingClotDuration = ClotTimeSec;
+	bTrackingBleeding = true;
+
+	// Start clot timer (AC-014.9)
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			BleedingClotTimerHandle,
+			this,
+			&UMordecaiStatusEffectComponent::OnBleedingClotExpired,
+			CachedBleedingClotDuration,
+			false);
+	}
+}
+
+void UMordecaiStatusEffectComponent::StopBleedingTracking()
+{
+	bTrackingBleeding = false;
+	CachedBleedingGEClass = nullptr;
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BleedingClotTimerHandle);
+	}
+}
+
+void UMordecaiStatusEffectComponent::ForceBleedingClotExpiry()
+{
+	OnBleedingClotExpired();
+}
+
+void UMordecaiStatusEffectComponent::OnBleedingClotExpired()
+{
+	if (!bTrackingBleeding)
+	{
+		return;
+	}
+
+	// Clot mechanic: remove Bleeding early (AC-014.9)
+	RemoveStatusEffect(MordecaiGameplayTags::Status_Bleeding);
+	StopBleedingTracking();
 }

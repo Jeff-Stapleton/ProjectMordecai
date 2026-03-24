@@ -42,8 +42,11 @@ public:
 	EMordecaiStackingPolicy StackingPolicy = EMordecaiStackingPolicy::Refresh;
 
 	/**
-	 * Call after setting StatusTag to configure tag granting and immunity blocking.
-	 * Subclass constructors should call this after setting their StatusTag.
+	 * Configure tag granting and immunity blocking based on StatusTag.
+	 * Called automatically from PostInitProperties (safe for CDO construction).
+	 * Can also be called manually for runtime instances (guarded against double-init).
 	 */
 	void InitializeStatusEffect();
+
+	virtual void PostInitProperties() override;
 };

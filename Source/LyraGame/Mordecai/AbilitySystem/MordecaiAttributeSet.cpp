@@ -39,6 +39,9 @@ UMordecaiAttributeSet::UMordecaiAttributeSet()
 	, SpellPointsRegenMultiplier(1.0f)
 	, ResistancePenetrationMultiplier(1.0f)
 	, MagicCritChance(0.0f)
+	// Status effect modifier attributes (US-014) — neutral defaults
+	, HealingReceivedMultiplier(1.0f)
+	, MoveSpeedMultiplier(1.0f)
 {
 }
 
@@ -151,6 +154,10 @@ void UMordecaiAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, SpellPointsRegenMultiplier, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, ResistancePenetrationMultiplier, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, MagicCritChance, COND_None, REPNOTIFY_Always);
+
+	// Status effect modifier attributes (US-014)
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, HealingReceivedMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, MoveSpeedMultiplier, COND_None, REPNOTIFY_Always);
 }
 
 void UMordecaiAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -218,6 +225,14 @@ void UMordecaiAttributeSet::ClampAttribute(const FGameplayAttribute& Attribute, 
 	else if (Attribute == GetMaxPostureAttribute())
 	{
 		NewValue = FMath::Max(NewValue, 1.0f);
+	}
+	else if (Attribute == GetHealingReceivedMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetMoveSpeedMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
 	}
 }
 
@@ -378,4 +393,16 @@ void UMordecaiAttributeSet::OnRep_ResistancePenetrationMultiplier(const FGamepla
 void UMordecaiAttributeSet::OnRep_MagicCritChance(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, MagicCritChance, OldValue);
+}
+
+// --- Status effect modifier OnRep (US-014) ---
+
+void UMordecaiAttributeSet::OnRep_HealingReceivedMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, HealingReceivedMultiplier, OldValue);
+}
+
+void UMordecaiAttributeSet::OnRep_MoveSpeedMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, MoveSpeedMultiplier, OldValue);
 }

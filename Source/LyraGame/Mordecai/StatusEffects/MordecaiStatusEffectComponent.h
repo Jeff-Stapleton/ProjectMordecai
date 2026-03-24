@@ -57,6 +57,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|StatusEffects")
 	FGameplayTagContainer GetActiveStatusTags() const;
 
+	// --- Bleeding Management (US-014) ---
+
+	/**
+	 * Notify the component that the owner took damage.
+	 * If Bleeding is active, this triggers hit-refresh (remove + re-apply) and resets clot timer.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|StatusEffects")
+	void NotifyDamageTaken();
+
+	/** Start tracking Bleeding clot timer and hit-refresh. Called automatically on Bleeding application. */
+	void StartBleedingTracking(TSubclassOf<UGameplayEffect> BleedingGEClass, float ClotTimeSec);
+
+	/** Stop tracking Bleeding mechanics. Called when Bleeding is removed. */
+	void StopBleedingTracking();
+
+	/** Force clot expiry for testing. */
+	void ForceBleedingClotExpiry();
+
 	// --- Dependency Injection (for testing) ---
 
 	/** Override the ASC reference for unit tests without a full actor setup. */
@@ -69,4 +87,14 @@ private:
 	/** Override for ASC (testing). */
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> ASCOverride;
+
+	// --- Bleeding tracking state (US-014) ---
+	void OnBleedingClotExpired();
+
+	UPROPERTY()
+	TSubclassOf<UGameplayEffect> CachedBleedingGEClass;
+
+	FTimerHandle BleedingClotTimerHandle;
+	float CachedBleedingClotDuration = 4.0f;
+	bool bTrackingBleeding = false;
 };
