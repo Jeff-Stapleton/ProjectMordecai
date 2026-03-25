@@ -560,3 +560,98 @@ All (US-050–053) ──────────> US-054 (Integration — wires
 4. **US-053** (Death & Arena Flow) — after US-050 completes. Can parallelize with US-051. HEADLESS.
 5. **US-054** (Playable Arena Integration) — after ALL HEADLESS stories complete. EDITOR. This is the "Jeff can play it" story.
 6. After Epic 2.5 is playable, resume with **US-013** (Status Effect Framework) — gate for all Epic 4 work. HEADLESS.
+
+---
+
+## 2026-03-24 Nightly Planning Run
+
+### Completed Since Last Run
+- **US-013: Status Effect Framework** — moved to `stories/done/`. GAS infrastructure: tags, types, base GE, component, 14 tests.
+- **US-014: DoT & Resource Denial Statuses** — moved to `stories/done/`. Burning, Bleeding, Poisoned — 3 GameplayEffects, 12 tests.
+
+**Epic 4 progress:** 2 of 6 stories complete. US-013 (framework) and US-014 (DoT/resource denial) shipped.
+
+**Note:** The previous run recommended Epic 2.5 as top priority. The coding agent instead picked up Epic 4 status effect stories (US-013, US-014, US-015). This is a deviation from plan — the Playability-First Rule was not followed. Correcting priority now.
+
+### Currently In Progress
+- **US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked)** — in `stories/in-progress/`. HEADLESS. 15 ACs, 13 tests. Implements movement/attack speed reduction, freeze mechanic, micro-stun, block cost multipliers.
+
+### New Stories Created
+- (none — all next stories are already scoped)
+
+### Backlog Review
+All 8 backlog stories reviewed and validated:
+
+**Epic 4 (remaining — deferred until after Epic 2.5):**
+- **US-016**: Combat Modifier Debuffs — HEADLESS, 19 ACs, 14 tests. Well-scoped.
+- **US-017**: Control & Mental Debuffs — HEADLESS, 28 ACs, 20 tests. Largest story at 5 debuffs. Monitor scope — may need splitting if it exceeds a single session.
+- **US-018**: Drenched & Focused Buff — HEADLESS, 15 ACs, 14 tests. Has 3 TODO(DECISION) items for cross-interaction rules.
+
+**Epic 2.5 (Playable Vertical Slice — TOP PRIORITY after US-015):**
+- **US-050**: Enemy Character & Damage Reception — HEADLESS, 12 ACs, 12 tests.
+- **US-051**: Basic Enemy AI Combat Loop — HEADLESS, 12 ACs, 12 tests. Depends on US-050.
+- **US-052**: Combat HUD C++ Framework — HEADLESS, 11 ACs, 12 tests. Independent.
+- **US-053**: Player Death & Arena Game Flow — HEADLESS, 11 ACs, 11 tests. Depends on US-050.
+- **US-054**: Playable Arena Integration — EDITOR, 13 ACs, manual verification. Depends on US-050-053.
+
+### PLAN.md Updates
+- Marked US-013 ✅ and US-014 ✅ in Epic 4
+- Marked US-015 as ⚡ in progress
+- Annotated US-016/017/018 as "(after Epic 2.5)"
+- Updated Priority Order to reflect actual completion sequence: Epics 1-3 done, Epic 4 partially done, Epic 2.5 is NEXT after US-015 finishes
+- Added Playability-First Rule annotation
+
+### Source Tree Snapshot
+Mordecai C++ code now includes:
+- `Mordecai/AbilitySystem/` — ASC, AttributeSet (33 attributes including HealingReceivedMultiplier, MoveSpeedMultiplier from US-014), AttributeScaling
+- `Mordecai/Camera/` — Diorama camera mode
+- `Mordecai/Combat/` — Full combat suite (attacks, hit detection, block, parry, dodge, posture, stamina, projectiles, aim assist)
+- `Mordecai/Skills/` — SkillComponent, SkillDataAsset, SkillTypes
+- `Mordecai/Feats/` — FeatComponent, FeatDataAsset, FeatTypes
+- `Mordecai/StatusEffects/` — StatusEffectComponent, base GE, types (NEW — US-013)
+- `Mordecai/StatusEffects/Effects/` — GE_Burning, GE_Bleeding, GE_Poisoned (NEW — US-014)
+- `MordecaiGameplayTags.h` — 87 tags across 10 categories (state, stamina, status, immunity, event, data, team, damage)
+- `Tests/` — 17 test files including StatusEffects/ (2 files from US-013/014)
+
+No `Enemy/` or `UI/` subdirectories yet — these will be created by US-050 and US-052.
+
+### Blockers / Decisions Needed
+
+**Carried from prior runs:**
+- **Gameplay tag taxonomy** — formal naming policy still undecided. Tag count now at 87 and growing. Not blocking but a governance risk.
+- **Damage formula stub** — vertical slice will use BasePower directly. Full formula integration deferred.
+- **TODO(DECISION): Damage GE architecture** — C++ vs Blueprint GE. Recommendation: C++ GE for headless stories, optionally BP in US-054.
+- **TODO(DECISION) items from Epics 3 & 4** — skill point economy, feat list, stacking policy, etc.
+
+**New this run:**
+- **PRIORITY ENFORCEMENT:** Coding agents picked up Epic 4 instead of the recommended Epic 2.5. The Playability-First Rule requires integration after 3 system epics. Recommendation: **hard-gate** — after US-015, the ONLY stories that should be picked up are Epic 2.5 (US-050 first). Do NOT pick up US-016/017/018 until Epic 2.5 is complete.
+- **US-017 scope risk:** 5 debuffs (Silenced, Rooted, Blinded, Fear, Cursed) with 28 ACs and 20 tests may exceed a single agent session. Monitor — if first attempt stalls, split into US-017a (Silenced, Rooted, Blinded) and US-017b (Fear, Cursed).
+
+### Dependency Graph
+
+```
+Current:
+  US-015 (in progress) ──> FINISH FIRST
+
+Then Epic 2.5:
+  US-050 (Enemy Character) ──┬──> US-051 (Enemy AI)
+                              ├──> US-053 (Arena Flow)
+  US-052 (Combat HUD) ───────┘    (independent)
+                              │
+  All (US-050–053) ───────────> US-054 (Integration — EDITOR)
+
+Then Epic 4 remaining:
+  US-016 (Combat Modifiers) ──> US-017 (Control/Mental) ──> US-018 (Drenched/Focused)
+```
+
+### Next Session Recommendation
+
+**MANDATORY: Finish US-015, then Epic 2.5. Do NOT pick up US-016/017/018.**
+
+1. **US-015** (Frostbitten, Shocked) — finish current in-progress work. HEADLESS.
+2. **US-050** (Enemy Character & Damage Reception) — first Epic 2.5 story, unblocks US-051 and US-053. HEADLESS.
+3. **US-052** (Combat HUD C++ Framework) — can parallelize with US-050. HEADLESS.
+4. **US-051** (Basic Enemy AI) — after US-050. HEADLESS.
+5. **US-053** (Player Death & Arena Flow) — after US-050, can parallelize with US-051. HEADLESS.
+6. **US-054** (Playable Arena Integration) — after US-050-053 all complete. EDITOR. **This is the "Jeff can play it" milestone.**
+7. After Epic 2.5 complete, resume Epic 4: **US-016** → **US-017** → **US-018**. All HEADLESS.

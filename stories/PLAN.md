@@ -38,14 +38,14 @@ Wire up the attribute system and skill progression.
 - US-011: Skill Framework & Rank Progression ✅
 - US-012: Feat System ✅
 
-### Epic 4: Status Effects
+### Epic 4: Status Effects (in progress — 3/6 done, pausing for Epic 2.5)
 Implement the launch status effect set via GAS. Split into 6 stories by mechanical grouping.
-- US-013: Status Effect Framework (GAS infrastructure, tags, stacking, immunity, cleanse) ← **scoped**
-- US-014: DoT & Resource Denial Statuses (Burning, Bleeding, Poisoned) ← **scoped**
-- US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked) ← **scoped**
-- US-016: Combat Modifier Debuffs (Weakened, Brittle, Exposed, Corroded) ← **scoped**
-- US-017: Control & Mental Debuffs (Silenced, Rooted, Blinded, Fear, Cursed) ← **scoped**
-- US-018: Drenched & Focused Buff (environmental interaction + perfect action streak) ← **scoped**
+- US-013: Status Effect Framework (GAS infrastructure, tags, stacking, immunity, cleanse) ✅
+- US-014: DoT & Resource Denial Statuses (Burning, Bleeding, Poisoned) ✅
+- US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked) ⚡ **in progress**
+- US-016: Combat Modifier Debuffs (Weakened, Brittle, Exposed, Corroded) ← **scoped** (after Epic 2.5)
+- US-017: Control & Mental Debuffs (Silenced, Rooted, Blinded, Fear, Cursed) ← **scoped** (after Epic 2.5)
+- US-018: Drenched & Focused Buff (environmental interaction + perfect action streak) ← **scoped** (after Epic 2.5)
 
 ### Epic 5: Magic System
 Implement spells with rank progression.
@@ -93,15 +93,16 @@ Delegated town systems.
 ## Priority Order
 1. **Epic 1** — Foundation ✅
 2. **Epic 2** — Core Combat ✅
-3. **Epic 2.5** — Playable Vertical Slice ⚡ (NEXT — make it playable before more systems)
-4. **Epic 3** — Attributes & Progression ✅
-5. **Epic 4** — Status Effects (needed by combat)
-6. **Epic 5** — Magic System
-6. **Epic 6** — Weapons & Equipment
-7. **Epic 7** — Inventory
-8. **Epic 10** — UI & HUD
-9. **Epic 8** — World & Exploration
-10. **Epic 9** — Town Management
+3. **Epic 3** — Attributes & Progression ✅
+4. **Epic 4 (partial)** — Status Effects: US-013 ✅, US-014 ✅, US-015 ⚡ in progress
+5. **Epic 2.5** — Playable Vertical Slice ⚡ **NEXT after US-015** (Playability-First Rule: 3 system epics done, must integrate)
+6. **Epic 4 (remaining)** — US-016, US-017, US-018 (resume after vertical slice is playable)
+7. **Epic 5** — Magic System
+8. **Epic 6** — Weapons & Equipment
+9. **Epic 7** — Inventory
+10. **Epic 10** — UI & HUD
+11. **Epic 8** — World & Exploration
+12. **Epic 9** — Town Management
 
 ## Notes
 - This plan is a living document. Stories will be broken down further as we approach each epic.
