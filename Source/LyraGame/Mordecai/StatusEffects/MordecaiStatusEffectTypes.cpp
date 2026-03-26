@@ -44,7 +44,9 @@ namespace
 				{ Status_Silenced,    EMordecaiStatusEffectCategory::Control },
 				{ Status_Rooted,      EMordecaiStatusEffectCategory::Control },
 				{ Status_Blinded,     EMordecaiStatusEffectCategory::Control },
-				{ Status_Fear,        EMordecaiStatusEffectCategory::Control },
+				{ Status_Fear,          EMordecaiStatusEffectCategory::Control },
+				{ Status_Frozen,        EMordecaiStatusEffectCategory::Control },
+				{ Status_MicroStunned,  EMordecaiStatusEffectCategory::Control },
 				// Buff
 				{ Status_Focused,     EMordecaiStatusEffectCategory::Buff },
 				// Environmental

@@ -83,6 +83,13 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Drenched,    "Mordecai.Immunity.Drenched",    "Immune to Drenched status effect");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Focused,     "Mordecai.Immunity.Focused",     "Immune to Focused status effect");
 
+	// Status tags (US-015)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Frozen,       "Mordecai.Status.Frozen",       "Frozen — full incapacitation from max frost stacks");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_MicroStunned, "Mordecai.Status.MicroStunned", "MicroStunned — brief interrupt from Shocked on-hit");
+
+	// Immunity tags (US-015)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Frozen, "Mordecai.Immunity.Frozen", "Immune to Frozen status effect");
+
 	// State tags (US-014)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Casting, "Mordecai.State.Casting", "Character is currently casting a spell");
 

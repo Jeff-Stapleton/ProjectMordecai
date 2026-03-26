@@ -42,6 +42,9 @@ UMordecaiAttributeSet::UMordecaiAttributeSet()
 	// Status effect modifier attributes (US-014) — neutral defaults
 	, HealingReceivedMultiplier(1.0f)
 	, MoveSpeedMultiplier(1.0f)
+	// Status effect modifier attributes (US-015) — neutral defaults
+	, DodgeRecoveryMultiplier(1.0f)
+	, BlockStaminaCostMultiplier(1.0f)
 {
 }
 
@@ -158,6 +161,10 @@ void UMordecaiAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	// Status effect modifier attributes (US-014)
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, HealingReceivedMultiplier, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, MoveSpeedMultiplier, COND_None, REPNOTIFY_Always);
+
+	// Status effect modifier attributes (US-015)
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, DodgeRecoveryMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, BlockStaminaCostMultiplier, COND_None, REPNOTIFY_Always);
 }
 
 void UMordecaiAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -231,6 +238,14 @@ void UMordecaiAttributeSet::ClampAttribute(const FGameplayAttribute& Attribute, 
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
 	else if (Attribute == GetMoveSpeedMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetDodgeRecoveryMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetBlockStaminaCostMultiplierAttribute())
 	{
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
@@ -405,4 +420,16 @@ void UMordecaiAttributeSet::OnRep_HealingReceivedMultiplier(const FGameplayAttri
 void UMordecaiAttributeSet::OnRep_MoveSpeedMultiplier(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, MoveSpeedMultiplier, OldValue);
+}
+
+// --- Status effect modifier OnRep (US-015) ---
+
+void UMordecaiAttributeSet::OnRep_DodgeRecoveryMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, DodgeRecoveryMultiplier, OldValue);
+}
+
+void UMordecaiAttributeSet::OnRep_BlockStaminaCostMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, BlockStaminaCostMultiplier, OldValue);
 }

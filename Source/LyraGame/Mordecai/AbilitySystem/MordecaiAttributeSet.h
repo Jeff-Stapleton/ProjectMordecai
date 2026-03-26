@@ -54,6 +54,10 @@ public:
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, HealingReceivedMultiplier);
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, MoveSpeedMultiplier);
 
+	// Status Effect Modifier Attributes (US-015)
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, DodgeRecoveryMultiplier);
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, BlockStaminaCostMultiplier);
+
 	// Derived Attributes — Secondary Effects (per character_attributes_v1 secondary_stats table)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, ArmorPenetrationMultiplier);
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, PhysicalCritChance);
@@ -151,6 +155,12 @@ protected:
 	void OnRep_HealingReceivedMultiplier(const FGameplayAttributeData& OldValue);
 	UFUNCTION()
 	void OnRep_MoveSpeedMultiplier(const FGameplayAttributeData& OldValue);
+
+	// Status effect modifier OnRep (US-015)
+	UFUNCTION()
+	void OnRep_DodgeRecoveryMultiplier(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	void OnRep_BlockStaminaCostMultiplier(const FGameplayAttributeData& OldValue);
 
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& NewValue) const;
 
@@ -258,4 +268,11 @@ private:
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MoveSpeedMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData MoveSpeedMultiplier;
+
+	// --- Status Effect Modifier Attributes (US-015) ---
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DodgeRecoveryMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData DodgeRecoveryMultiplier;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BlockStaminaCostMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData BlockStaminaCostMultiplier;
 };
