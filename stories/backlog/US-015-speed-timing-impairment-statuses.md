@@ -1,5 +1,8 @@
 # US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked)
 
+## Status
+**BLOCKED** — Multiple agent attempts failed to complete this story. Needs manual investigation by Jeff. Workers should SKIP this story.
+
 ## Execution Mode
 **Mode:** HEADLESS
 
