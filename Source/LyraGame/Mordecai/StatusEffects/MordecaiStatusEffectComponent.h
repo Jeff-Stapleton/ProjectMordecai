@@ -75,41 +75,6 @@ public:
 	/** Force clot expiry for testing. */
 	void ForceBleedingClotExpiry();
 
-	// --- Frostbitten Management (US-015) ---
-
-	/** Start tracking Frostbitten stacks. Called automatically on Frostbitten application. */
-	void StartFrostbittenTracking(int32 MaxStacks);
-
-	/** Stop tracking Frostbitten mechanics. */
-	void StopFrostbittenTracking();
-
-	/** Get current Frostbitten stack count (0 if not active). */
-	int32 GetFrostbittenStackCount() const;
-
-	/**
-	 * Reduce Frostbitten stacks by CountToRemove.
-	 * Interface for AC-015.7: Perfect dodge breaks stacks.
-	 * TODO(DECISION): Remove 1 stack or all stacks on perfect dodge.
-	 */
-	void ReduceFrostbittenStacks(int32 CountToRemove = 1);
-
-	// --- Shocked Management (US-015) ---
-
-	/** Start tracking Shocked mechanics. Called automatically on Shocked application. */
-	void StartShockedTracking(float MicroStunChance, float CastInterruptChance);
-
-	/** Stop tracking Shocked mechanics. */
-	void StopShockedTracking();
-
-	/** Get current Shocked stack count (0 if not active). */
-	int32 GetShockedStackCount() const;
-
-	/**
-	 * Reduce Shocked stacks by CountToRemove.
-	 * Interface for AC-015.14: Perfect block clears 1 stack.
-	 */
-	void ReduceShockedStacks(int32 CountToRemove = 1);
-
 	// --- Dependency Injection (for testing) ---
 
 	/** Override the ASC reference for unit tests without a full actor setup. */
@@ -132,15 +97,4 @@ private:
 	FTimerHandle BleedingClotTimerHandle;
 	float CachedBleedingClotDuration = 4.0f;
 	bool bTrackingBleeding = false;
-
-	// --- Frostbitten tracking state (US-015) ---
-	FActiveGameplayEffectHandle FrostbittenActiveHandle;
-	int32 CachedFrostbittenMaxStacks = 5;
-	bool bTrackingFrostbitten = false;
-
-	// --- Shocked tracking state (US-015) ---
-	FActiveGameplayEffectHandle ShockedActiveHandle;
-	float CachedShockedMicroStunChance = 0.15f;
-	float CachedShockedCastInterruptChance = 0.25f;
-	bool bTrackingShocked = false;
 };

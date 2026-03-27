@@ -4,9 +4,6 @@
 #include "Mordecai/StatusEffects/MordecaiStatusEffectTypes.h"
 #include "Mordecai/StatusEffects/MordecaiStatusEffectGameplayEffect.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Bleeding.h"
-#include "Mordecai/StatusEffects/Effects/MordecaiGE_Frostbitten.h"
-#include "Mordecai/StatusEffects/Effects/MordecaiGE_Frozen.h"
-#include "Mordecai/StatusEffects/Effects/MordecaiGE_Shocked.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
@@ -50,39 +47,6 @@ FActiveGameplayEffectHandle UMordecaiStatusEffectComponent::ApplyStatusEffect(
 		if (BleedingGE)
 		{
 			StartBleedingTracking(GEClass, BleedingGE->BleedingClotTimeSec);
-		}
-
-		// Auto-detect Frostbitten and check for max stacks → Frozen (US-015)
-		const UMordecaiGE_Frostbitten* FrostbittenGE = Cast<UMordecaiGE_Frostbitten>(GEClass.GetDefaultObject());
-		if (FrostbittenGE)
-		{
-			if (!bTrackingFrostbitten)
-			{
-				StartFrostbittenTracking(FrostbittenGE->FrostbittenMaxStacks);
-			}
-			FrostbittenActiveHandle = Handle;
-
-			// Check if max stacks reached (AC-015.5)
-			int32 CurrentStacks = ASC->GetCurrentStackCount(Handle);
-			if (CurrentStacks >= CachedFrostbittenMaxStacks)
-			{
-				// Apply Frozen (AC-015.6)
-				ApplyStatusEffect(UMordecaiGE_Frozen::StaticClass(), Instigator);
-				// Remove all Frostbitten stacks
-				RemoveStatusEffect(MordecaiGameplayTags::Status_Frostbitten);
-				StopFrostbittenTracking();
-			}
-		}
-
-		// Auto-detect Shocked and start tracking (US-015)
-		const UMordecaiGE_Shocked* ShockedGE = Cast<UMordecaiGE_Shocked>(GEClass.GetDefaultObject());
-		if (ShockedGE)
-		{
-			if (!bTrackingShocked)
-			{
-				StartShockedTracking(ShockedGE->ShockedMicroStunChancePerStack, ShockedGE->ShockedCastInterruptChance);
-			}
-			ShockedActiveHandle = Handle;
 		}
 	}
 
@@ -224,26 +188,6 @@ UAbilitySystemComponent* UMordecaiStatusEffectComponent::GetAbilitySystemCompone
 
 void UMordecaiStatusEffectComponent::NotifyDamageTaken()
 {
-	// Shocked on-hit processing: micro-stun + cast interrupt (US-015)
-	if (bTrackingShocked)
-	{
-		UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-		if (ASC)
-		{
-			int32 ShockedStacks = ASC->GetCurrentStackCount(ShockedActiveHandle);
-			if (ShockedStacks > 0)
-			{
-				// Micro-stun roll (AC-015.11): EffectiveChance = BaseChance * StackCount
-				float MicroStunChance = CachedShockedMicroStunChance * ShockedStacks;
-				UMordecaiGE_Shocked::TryMicroStun(ASC, MicroStunChance);
-
-				// Cast interrupt roll (AC-015.13): EffectiveChance = BaseChance * StackCount
-				float CastInterruptChance = CachedShockedCastInterruptChance * ShockedStacks;
-				UMordecaiGE_Shocked::TryShockedCastInterrupt(ASC, CastInterruptChance);
-			}
-		}
-	}
-
 	if (!bTrackingBleeding || !CachedBleedingGEClass)
 	{
 		return;
@@ -320,103 +264,4 @@ void UMordecaiStatusEffectComponent::OnBleedingClotExpired()
 	// Clot mechanic: remove Bleeding early (AC-014.9)
 	RemoveStatusEffect(MordecaiGameplayTags::Status_Bleeding);
 	StopBleedingTracking();
-}
-
-// ---------------------------------------------------------------------------
-// Frostbitten Management (US-015)
-// ---------------------------------------------------------------------------
-
-void UMordecaiStatusEffectComponent::StartFrostbittenTracking(int32 MaxStacks)
-{
-	CachedFrostbittenMaxStacks = MaxStacks;
-	bTrackingFrostbitten = true;
-}
-
-void UMordecaiStatusEffectComponent::StopFrostbittenTracking()
-{
-	bTrackingFrostbitten = false;
-	FrostbittenActiveHandle.Invalidate();
-}
-
-int32 UMordecaiStatusEffectComponent::GetFrostbittenStackCount() const
-{
-	if (!bTrackingFrostbitten || !FrostbittenActiveHandle.IsValid())
-	{
-		return 0;
-	}
-
-	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!ASC)
-	{
-		return 0;
-	}
-
-	return ASC->GetCurrentStackCount(FrostbittenActiveHandle);
-}
-
-void UMordecaiStatusEffectComponent::ReduceFrostbittenStacks(int32 CountToRemove)
-{
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!ASC || !FrostbittenActiveHandle.IsValid())
-	{
-		return;
-	}
-
-	ASC->RemoveActiveGameplayEffect(FrostbittenActiveHandle, CountToRemove);
-
-	// Check if all stacks removed
-	if (ASC->GetCurrentStackCount(FrostbittenActiveHandle) <= 0)
-	{
-		StopFrostbittenTracking();
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Shocked Management (US-015)
-// ---------------------------------------------------------------------------
-
-void UMordecaiStatusEffectComponent::StartShockedTracking(float MicroStunChance, float CastInterruptChance)
-{
-	CachedShockedMicroStunChance = MicroStunChance;
-	CachedShockedCastInterruptChance = CastInterruptChance;
-	bTrackingShocked = true;
-}
-
-void UMordecaiStatusEffectComponent::StopShockedTracking()
-{
-	bTrackingShocked = false;
-	ShockedActiveHandle.Invalidate();
-}
-
-int32 UMordecaiStatusEffectComponent::GetShockedStackCount() const
-{
-	if (!bTrackingShocked || !ShockedActiveHandle.IsValid())
-	{
-		return 0;
-	}
-
-	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!ASC)
-	{
-		return 0;
-	}
-
-	return ASC->GetCurrentStackCount(ShockedActiveHandle);
-}
-
-void UMordecaiStatusEffectComponent::ReduceShockedStacks(int32 CountToRemove)
-{
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!ASC || !ShockedActiveHandle.IsValid())
-	{
-		return;
-	}
-
-	ASC->RemoveActiveGameplayEffect(ShockedActiveHandle, CountToRemove);
-
-	// Check if all stacks removed
-	if (ASC->GetCurrentStackCount(ShockedActiveHandle) <= 0)
-	{
-		StopShockedTracking();
-	}
 }
