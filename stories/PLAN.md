@@ -38,11 +38,11 @@ Wire up the attribute system and skill progression.
 - US-011: Skill Framework & Rank Progression ✅
 - US-012: Feat System ✅
 
-### Epic 4: Status Effects (in progress — 3/6 done, pausing for Epic 2.5)
+### Epic 4: Status Effects (in progress — 2/6 done, US-015 blocked, pausing for Epic 2.5)
 Implement the launch status effect set via GAS. Split into 6 stories by mechanical grouping.
 - US-013: Status Effect Framework (GAS infrastructure, tags, stacking, immunity, cleanse) ✅
 - US-014: DoT & Resource Denial Statuses (Burning, Bleeding, Poisoned) ✅
-- US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked) ⚡ **in progress**
+- US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked) 🔴 **BLOCKED** — partial code exists, needs manual investigation
 - US-016: Combat Modifier Debuffs (Weakened, Brittle, Exposed, Corroded) ← **scoped** (after Epic 2.5)
 - US-017: Control & Mental Debuffs (Silenced, Rooted, Blinded, Fear, Cursed) ← **scoped** (after Epic 2.5)
 - US-018: Drenched & Focused Buff (environmental interaction + perfect action streak) ← **scoped** (after Epic 2.5)
@@ -94,8 +94,8 @@ Delegated town systems.
 1. **Epic 1** — Foundation ✅
 2. **Epic 2** — Core Combat ✅
 3. **Epic 3** — Attributes & Progression ✅
-4. **Epic 4 (partial)** — Status Effects: US-013 ✅, US-014 ✅, US-015 ⚡ in progress
-5. **Epic 2.5** — Playable Vertical Slice ⚡ **NEXT after US-015** (Playability-First Rule: 3 system epics done, must integrate)
+4. **Epic 4 (partial)** — Status Effects: US-013 ✅, US-014 ✅, US-015 🔴 BLOCKED
+5. **Epic 2.5** — Playable Vertical Slice ⚡ **IMMEDIATE PRIORITY** (Playability-First Rule: 3 system epics done, US-015 blocked — proceed to integration)
 6. **Epic 4 (remaining)** — US-016, US-017, US-018 (resume after vertical slice is playable)
 7. **Epic 5** — Magic System
 8. **Epic 6** — Weapons & Equipment
