@@ -53,10 +53,11 @@ float UMordecaiStaminaSystem::GetMultiplierForTier(EMordecaiStaminaTier Tier) co
 	// AC-008.7: Per-tier effectiveness multipliers
 	switch (Tier)
 	{
-	case EMordecaiStaminaTier::Green:  return GreenMultiplier;
-	case EMordecaiStaminaTier::Yellow: return YellowMultiplier;
-	case EMordecaiStaminaTier::Red:    return RedMultiplier;
-	default:                           return YellowMultiplier;
+	case EMordecaiStaminaTier::Green:     return GreenMultiplier;
+	case EMordecaiStaminaTier::Yellow:    return YellowMultiplier;
+	case EMordecaiStaminaTier::Red:       return RedMultiplier;
+	case EMordecaiStaminaTier::Exhausted: return ExhaustedMultiplier;
+	default:                              return YellowMultiplier;
 	}
 }
 

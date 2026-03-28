@@ -12,14 +12,18 @@ class UAbilitySystemComponent;
 /**
  * Stamina tier enum.
  * Green/Yellow/Red represent the three tiers of stamina effectiveness.
- * Exhausted is tracked separately as an overlay (can coexist with Red).
+ * Exhausted represents fully depleted stamina (Stamina <= 0).
+ * Note: The combat system (UMordecaiStaminaSystem::GetTierForStamina) returns
+ * Green/Yellow/Red and uses IsExhausted() separately. The HUD (CalcStaminaTier)
+ * returns Exhausted directly for display purposes.
  */
 UENUM(BlueprintType)
 enum class EMordecaiStaminaTier : uint8
 {
-	Green   UMETA(DisplayName = "Green"),
-	Yellow  UMETA(DisplayName = "Yellow"),
-	Red     UMETA(DisplayName = "Red")
+	Green     UMETA(DisplayName = "Green"),
+	Yellow    UMETA(DisplayName = "Yellow"),
+	Red       UMETA(DisplayName = "Red"),
+	Exhausted UMETA(DisplayName = "Exhausted")
 };
 
 /**
