@@ -18,18 +18,18 @@ Wire all C++ systems from US-050–053 into a playable prototype using the Unrea
 ---
 
 ## Acceptance Criteria
-- [ ] AC-054.1: A `BP_MordecaiEnemy_Frontliner` Blueprint exists in `MordecaiCore/Content/Enemies/`, parented to `AMordecaiEnemyCharacter`, with `AMordecaiEnemyAIController` as its AI controller class
-- [ ] AC-054.2: The enemy BP has configured stats: MaxHealth=200, MaxPosture=100, MoveSpeed=400, AggroRange=900, AttackRange=200, LeashRange=1800
-- [ ] AC-054.3: An `DA_EnemyAttack_BasicSlash` DataAsset exists (`UMordecaiAttackProfileDataAsset`) with: AttackType=MeleeSweep, WindupMs=500 (readable telegraph), ActiveMs=200, RecoveryMs=400, ArcAngle=90°, Radius=150cm, BasePower=15, PostureDamageScalar=0.3, StaminaCost=0
-- [ ] AC-054.4: A `DA_PlayerAttack_LightSlash_1/2/3` set of DataAssets exists for a 3-hit sweep combo (Longsword-style): increasing arc angle (70°/90°/120°), increasing BasePower (10/12/15), ComboIndex 0/1/2
-- [ ] AC-054.5: The player's `BP_MordecaiCharacter` is configured to grant combat abilities on possession: MeleeAttack (with the 3-slash combo), Dodge, Block, Parry
-- [ ] AC-054.6: Input actions are bound to combat abilities: RT/LMB → Light Attack, LT/RMB hold → Block, LT+RT/RMB+LMB → Parry, B/LAlt → Dodge
-- [ ] AC-054.7: A `WBP_CombatHUD` UMG Widget Blueprint exists, using the C++ HUD widget classes, showing: Health bar (top-left), Stamina bar with tier color (below health), Posture bar (below stamina)
-- [ ] AC-054.8: The HUD is added to the player's viewport on game start via the experience or player controller
-- [ ] AC-054.9: Enemy has a `WBP_EnemyHealthBar` world-space widget above their head showing their health percentage
-- [ ] AC-054.10: `DevTestMap` has a flat arena floor (~2000x2000 cm), basic walls/boundaries, adequate lighting for the diorama camera
-- [ ] AC-054.11: 3 enemy Frontliners are placed in the arena at varied positions
-- [ ] AC-054.12: `B_MordecaiDevExperience` is configured to use the arena game mode with respawn enabled
+- [x] AC-054.1: A `BP_MordecaiEnemy_Frontliner` Blueprint exists in `MordecaiCore/Content/Enemies/`, parented to `AMordecaiEnemyCharacter`, with `AMordecaiEnemyAIController` as its AI controller class
+- [x] AC-054.2: The enemy BP has configured stats: MaxHealth=200, MaxPosture=100, MoveSpeed=400, AggroRange=900, AttackRange=200, LeashRange=1800
+- [x] AC-054.3: An `DA_EnemyAttack_BasicSlash` DataAsset exists (`UMordecaiAttackProfileDataAsset`) with: AttackType=MeleeSweep, WindupMs=500 (readable telegraph), ActiveMs=200, RecoveryMs=400, ArcAngle=90°, Radius=150cm, BasePower=15, PostureDamageScalar=0.3, StaminaCost=0
+- [x] AC-054.4: A `DA_PlayerAttack_LightSlash_1/2/3` set of DataAssets exists for a 3-hit sweep combo (Longsword-style): increasing arc angle (70°/90°/120°), increasing BasePower (10/12/15), ComboIndex 0/1/2
+- [x] AC-054.5: The player's `BP_MordecaiCharacter` is configured to grant combat abilities on possession: MeleeAttack (with the 3-slash combo), Dodge, Block, Parry
+- [x] AC-054.6: Input actions are bound to combat abilities: RT/LMB → Light Attack, LT/RMB hold → Block, LT+RT/RMB+LMB → Parry, B/LAlt → Dodge
+- [x] AC-054.7: A `WBP_CombatHUD` UMG Widget Blueprint exists, using the C++ HUD widget classes, showing: Health bar (top-left), Stamina bar with tier color (below health), Posture bar (below stamina)
+- [x] AC-054.8: The HUD is added to the player's viewport on game start via the experience or player controller
+- [x] AC-054.9: Enemy has a `WBP_EnemyHealthBar` world-space widget above their head showing their health percentage
+- [x] AC-054.10: `DevTestMap` has a flat arena floor (~2000x2000 cm), basic walls/boundaries, adequate lighting for the diorama camera
+- [x] AC-054.11: 3 enemy Frontliners are placed in the arena at varied positions
+- [x] AC-054.12: `B_MordecaiDevExperience` is configured to use the arena game mode with respawn enabled
 - [ ] AC-054.13: The full loop works end-to-end: launch game → diorama camera → move/aim → attack enemies → take damage → see HUD update → kill enemy → die → respawn → enemies reset
 
 ## Technical Notes
