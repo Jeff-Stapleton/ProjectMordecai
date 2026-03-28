@@ -849,3 +849,102 @@ AFTER Epic 2.5 — Epic 4 remaining:
 3. **US-054** (Playable Arena Integration) — after ALL HEADLESS Epic 2.5 stories complete. EDITOR. **This is the "Jeff can play it" milestone.**
 4. After Epic 2.5 is playable, investigate and unblock **US-015**. Then resume Epic 4: **US-016** → **US-017** → **US-018**. All HEADLESS.
 5. After Epic 4 completes, scope **Epic 5: Magic System** (US-019–023).
+
+---
+
+## 2026-03-27 Nightly Planning Run
+
+### Completed Since Last Run
+- (none — US-050 and US-052 moved to in-progress but have zero implementation)
+
+### Currently In Progress
+- **US-050: Enemy Character & Damage Reception** — in `stories/in-progress/`. HEADLESS. Moved to in-progress since last run. **No implementation code exists yet** — `Source/LyraGame/Mordecai/Enemy/` directory does not exist, no test files created. All 12 ACs unchecked.
+- **US-052: Combat HUD C++ Framework** — in `stories/in-progress/`. HEADLESS. Moved to in-progress since last run. **No implementation code exists yet** — `Source/LyraGame/Mordecai/UI/` directory does not exist, no test files created. All 11 ACs unchecked.
+
+### Blocked
+- **US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked)** — still BLOCKED in `stories/backlog/`. Partial code was fully reverted per commits `c979300` and `19a8e8c` (StatusEffectComponent restored to pre-US-015 state). Build tree should be clean.
+
+### Existing Backlog (unchanged, all validated)
+
+**Epic 2.5 — Playable Vertical Slice (IMMEDIATE PRIORITY):**
+| Story | Mode | ACs | Tests | Dependencies | Status |
+|-------|------|-----|-------|-------------|--------|
+| US-050: Enemy Character & Damage Reception | HEADLESS | 12 | 12 | Standalone | ⚡ In Progress (no code yet) |
+| US-051: Basic Enemy AI Combat Loop | HEADLESS | 12 | 12 | US-050 | Ready |
+| US-052: Combat HUD C++ Framework | HEADLESS | 11 | 12 | Standalone | ⚡ In Progress (no code yet) |
+| US-053: Player Death & Arena Game Flow | HEADLESS | 11 | 11 | US-050 | Ready |
+| US-054: Playable Arena Integration | EDITOR | 13 | Manual | US-050–053 | Ready |
+
+**Epic 4 remaining (deferred until after Epic 2.5):**
+| Story | Mode | ACs | Tests | Dependencies | Status |
+|-------|------|-----|-------|-------------|--------|
+| US-015: Speed & Timing Impairments | HEADLESS | 15 | 13 | US-013 | 🔴 BLOCKED |
+| US-016: Combat Modifier Debuffs | HEADLESS | 19 | 14 | US-013 | Deferred |
+| US-017: Control & Mental Debuffs | HEADLESS | 28 | 20 | US-013 | Deferred |
+| US-018: Drenched & Focused Buff | HEADLESS | 15 | 14 | US-013, US-014, US-015 | Deferred |
+
+### New Stories Created
+- (none — all Epic 2.5 and Epic 4 stories remain well-scoped with Execution Mode tags)
+
+### PLAN.md Updates
+- Marked US-050 and US-052 as ⚡ in progress (moved from "scoped" to "in progress")
+
+### Source Tree Snapshot
+No change from last run. Mordecai C++ code includes:
+- `Mordecai/AbilitySystem/` — ASC, AttributeSet (33+ attributes), AttributeScaling
+- `Mordecai/Camera/` — Diorama camera mode
+- `Mordecai/Combat/` — Full combat suite (attacks, hit detection, block, parry, dodge, posture, stamina, projectiles, aim assist)
+- `Mordecai/Skills/` — SkillComponent, SkillDataAsset, SkillTypes
+- `Mordecai/Feats/` — FeatComponent, FeatDataAsset, FeatTypes
+- `Mordecai/StatusEffects/` — Framework (US-013), Effects: Burning, Bleeding, Poisoned (US-014). US-015 partial code fully reverted.
+- `Tests/` — 17 test files across 11 subdirectories (Attributes, Camera, Character, Combat×9, Feats, Foundation, Input, Level, Skills, Stamina, StatusEffects×2)
+- **No `Enemy/` or `UI/` directories yet** — these will be created by US-050 and US-052 respectively.
+
+### Backlog Validation
+All 9 stories (2 in-progress + 7 backlog) reviewed:
+- ✅ All have Execution Mode set (8 HEADLESS, 1 EDITOR)
+- ✅ All have testable ACs with named automation tests (except US-054 which is manual)
+- ✅ All reference correct design docs and existing code
+- ✅ Dependency chains are correct
+- ✅ No mixed HEADLESS/EDITOR stories — US-054 is the only EDITOR story
+- ✅ US-015 partial code fully reverted — build tree should be clean
+- ⚠️ **US-050 and US-052 stall risk** — both were moved to in-progress but have zero implementation. Coding agents need to pick these up immediately.
+- ⚠️ **US-017 scope risk** (carried): 5 debuffs with 28 ACs may exceed a single session. Split plan ready if needed.
+- ⚠️ **US-018 depends on US-015** — Drenched amplifies Frostbitten/Shocked. If US-015 remains blocked, US-018 will need to stub those interactions.
+
+### Blockers / Decisions Needed
+
+**Carried from prior runs (no changes):**
+- **Gameplay tag taxonomy** — formal naming policy still undecided. 87+ tags across 10 categories.
+- **Damage formula stub** — vertical slice uses BasePower directly. Full formula integration deferred.
+- **TODO(DECISION): Damage GE architecture** — C++ vs Blueprint GE. Recommendation: C++ GE in headless stories, optionally BP in US-054.
+- **TODO(DECISION) items from Epics 3 & 4** — skill point economy, feat list, stacking policy, etc.
+- **US-015 BLOCKED** — needs Jeff's manual investigation. Partial code was reverted. Options: (a) Jeff manually fixes, (b) fresh agent attempt with simplified scope, (c) split into simpler sub-stories.
+
+### Dependency Graph
+
+```
+BLOCKED:
+  US-015 (Frostbitten/Shocked) ──> BLOCKED — skip, investigate later
+
+IN PROGRESS — Epic 2.5 (Playability-First Rule):
+  US-050 (Enemy Character) ⚡──┬──> US-051 (Enemy AI)
+                                ├──> US-053 (Arena Flow)
+  US-052 (Combat HUD) ⚡────────┘    (independent)
+                                │
+  All (US-050–053) ─────────────> US-054 (Integration — EDITOR)
+
+AFTER Epic 2.5 — Epic 4 remaining:
+  US-015 (unblock first) ──> US-016 ──> US-017 ──> US-018
+  (US-016/017 can start without US-015; US-018 needs US-015 for Drenched synergies)
+```
+
+### Next Session Recommendation
+
+**MANDATORY: Complete US-050 and US-052. Both are in-progress with zero code — coding agents must implement them NOW.**
+
+1. **US-050** (Enemy Character & Damage Reception) + **US-052** (Combat HUD C++ Framework) — **IMMEDIATE**. Both are in-progress, standalone, HEADLESS, and have zero implementation. Can be parallelized. Coding agents should verify the project compiles cleanly first (US-015 partial code was reverted).
+2. **US-051** (Basic Enemy AI) + **US-053** (Player Death & Arena Flow) — after US-050 completes. Can be parallelized. Both HEADLESS.
+3. **US-054** (Playable Arena Integration) — after ALL HEADLESS Epic 2.5 stories complete. EDITOR. **This is the "Jeff can play it" milestone.**
+4. After Epic 2.5 is playable, investigate and unblock **US-015**. Then resume Epic 4: **US-016** → **US-017** → **US-018**. All HEADLESS.
+5. After Epic 4 completes, scope **Epic 5: Magic System** (US-019–023). Read `ability_schema_v1.md`, `ability_system_v1.md`, `skill_sheet_v1.1.md`, `new_spells_proposal.md`.

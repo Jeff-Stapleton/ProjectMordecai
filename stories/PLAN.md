@@ -26,9 +26,9 @@ Implement the combat system: attacks, defense, posture, stamina, projectiles.
 
 ### Epic 2.5: Playable Vertical Slice ⚡ HIGH PRIORITY
 Wire up all completed combat systems into a playable prototype. The goal: Jeff can launch the game, run around a test map, fight an enemy, and exercise melee/dodge/block/parry/stamina/posture.
-- US-050: Enemy Character & Damage Reception (HEADLESS — enemy class, ASC, attributes, death, posture break) ← **scoped**
+- US-050: Enemy Character & Damage Reception (HEADLESS — enemy class, ASC, attributes, death, posture break) ⚡ **in progress**
 - US-051: Basic Enemy AI Combat Loop (HEADLESS — state machine AI: idle/approach/attack/recover/leash) ← **scoped**
-- US-052: Combat HUD C++ Framework (HEADLESS — health/stamina/posture widget classes, percent/tier calculations) ← **scoped**
+- US-052: Combat HUD C++ Framework (HEADLESS — health/stamina/posture widget classes, percent/tier calculations) ⚡ **in progress**
 - US-053: Player Death & Arena Game Flow (HEADLESS — player death/respawn, arena reset, kill tracking) ← **scoped**
 - US-054: Playable Arena Integration (EDITOR — enemy BP, attack DataAssets, HUD widget BP, level setup, full wiring) ← **scoped**
 
