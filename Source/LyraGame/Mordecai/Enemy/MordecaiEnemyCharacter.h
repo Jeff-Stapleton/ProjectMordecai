@@ -9,6 +9,9 @@
 class UMordecaiAbilitySystemComponent;
 class UMordecaiAttributeSet;
 class UMordecaiPostureSystem;
+class UMordecaiEnemyHealthBarWidget;
+class UWidgetComponent;
+class UGameplayAbility;
 struct FOnAttributeChangeData;
 
 /**
@@ -41,6 +44,14 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Enemy")
 	float DefaultMoveSpeed = 400.f;
+
+	/** Abilities to grant when this enemy spawns. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Enemy")
+	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
+
+	/** Widget class for the world-space health bar above the enemy's head. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Enemy|UI")
+	TSubclassOf<UMordecaiEnemyHealthBarWidget> EnemyHealthBarWidgetClass;
 
 	// --- State Queries ---
 
@@ -90,6 +101,12 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMordecaiPostureSystem> PostureSystem;
 
+	UPROPERTY()
+	TObjectPtr<UWidgetComponent> HealthBarWidgetComponent;
+
 	bool bAbilitySystemInitialized = false;
 	FTimerHandle PostureBrokenTimerHandle;
+
+	void GrantDefaultAbilities();
+	void CreateHealthBarWidget();
 };

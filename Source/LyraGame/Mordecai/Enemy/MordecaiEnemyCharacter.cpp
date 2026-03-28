@@ -5,9 +5,12 @@
 #include "Mordecai/AbilitySystem/MordecaiAbilitySystemComponent.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
+#include "Mordecai/UI/MordecaiEnemyHealthBarWidget.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
+#include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "Components/WidgetComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyCharacter)
@@ -66,6 +69,7 @@ void AMordecaiEnemyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	InitializeAbilitySystem();
+	CreateHealthBarWidget();
 }
 
 void AMordecaiEnemyCharacter::PossessedBy(AController* NewController)
@@ -110,6 +114,9 @@ void AMordecaiEnemyCharacter::InitializeAbilitySystem()
 	EnemyAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
 		UMordecaiAttributeSet::GetPostureAttribute()).AddUObject(
 			this, &AMordecaiEnemyCharacter::OnPostureChanged);
+
+	// Grant default abilities (US-054)
+	GrantDefaultAbilities();
 
 	bAbilitySystemInitialized = true;
 }
@@ -245,4 +252,54 @@ void AMordecaiEnemyCharacter::ExitPostureBrokenState()
 	PostureSystem->ExitPostureBroken(MaxPosture);
 	EnemyAbilitySystemComponent->SetNumericAttributeBase(
 		UMordecaiAttributeSet::GetPostureAttribute(), MaxPosture);
+}
+
+// ---------------------------------------------------------------------------
+// US-054: Ability Granting
+// ---------------------------------------------------------------------------
+
+void AMordecaiEnemyCharacter::GrantDefaultAbilities()
+{
+	if (!EnemyAbilitySystemComponent || !HasAuthority())
+	{
+		return;
+	}
+
+	for (const TSubclassOf<UGameplayAbility>& AbilityClass : DefaultAbilities)
+	{
+		if (AbilityClass)
+		{
+			FGameplayAbilitySpec Spec(AbilityClass, 1, INDEX_NONE, this);
+			EnemyAbilitySystemComponent->GiveAbility(Spec);
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// US-054: Enemy Health Bar Widget
+// ---------------------------------------------------------------------------
+
+void AMordecaiEnemyCharacter::CreateHealthBarWidget()
+{
+	if (!EnemyHealthBarWidgetClass)
+	{
+		return;
+	}
+
+	HealthBarWidgetComponent = NewObject<UWidgetComponent>(this, TEXT("HealthBarWidget"));
+	if (HealthBarWidgetComponent)
+	{
+		HealthBarWidgetComponent->SetupAttachment(GetRootComponent());
+		HealthBarWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
+		HealthBarWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+		HealthBarWidgetComponent->SetDrawSize(FVector2D(150.f, 20.f));
+		HealthBarWidgetComponent->SetWidgetClass(EnemyHealthBarWidgetClass);
+		HealthBarWidgetComponent->RegisterComponent();
+
+		// Bind to enemy ASC after the widget is created
+		if (UMordecaiEnemyHealthBarWidget* HealthBar = Cast<UMordecaiEnemyHealthBarWidget>(HealthBarWidgetComponent->GetWidget()))
+		{
+			HealthBar->BindToASC(EnemyAbilitySystemComponent);
+		}
+	}
 }
