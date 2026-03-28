@@ -93,6 +93,9 @@ namespace MordecaiGameplayTags
 	// State tags (US-014)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Casting, "Mordecai.State.Casting", "Character is currently casting a spell");
 
+	// State tags (US-050)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "Mordecai.State.Dead", "Character is dead — no further damage, movement, or actions");
+
 	// Event tags (US-006)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ParryInput,    "Mordecai.Event.ParryInput",    "Simultaneous block+attack input detected for parry");
 
@@ -105,6 +108,9 @@ namespace MordecaiGameplayTags
 	// Event tags (US-014)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_CastInterrupted, "Mordecai.Event.CastInterrupted", "Cast was interrupted by a status effect (e.g. Burning)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_DamageTaken,     "Mordecai.Event.DamageTaken",     "Character took damage from any source");
+
+	// Event tags (US-050)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Death, "Mordecai.Event.Death", "Character has died — broadcast for loot, scoring, AI reaction");
 
 	// SetByCaller data tags (US-004)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_HealthDamage,  "Mordecai.SetByCaller.HealthDamage",  "SetByCaller tag for health damage magnitude");

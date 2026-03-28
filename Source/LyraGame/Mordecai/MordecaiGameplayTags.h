@@ -95,6 +95,9 @@ namespace MordecaiGameplayTags
 	// State tags (US-014)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Casting);
 
+	// State tags (US-050)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead);
+
 	// Event tags (US-006)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_ParryInput);
 
@@ -107,6 +110,9 @@ namespace MordecaiGameplayTags
 	// Event tags (US-014)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_CastInterrupted);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_DamageTaken);
+
+	// Event tags (US-050)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Death);
 
 	// SetByCaller data tags (US-004)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_HealthDamage);
