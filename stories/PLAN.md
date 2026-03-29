@@ -24,13 +24,13 @@ Implement the combat system: attacks, defense, posture, stamina, projectiles.
 - US-008: Stamina Tier System ✅
 - US-009: Projectile System & Aim Assist ✅
 
-### Epic 2.5: Playable Vertical Slice ⚡ HIGH PRIORITY
+### Epic 2.5: Playable Vertical Slice ⚡ (nearly complete — US-053 + US-054 remaining)
 Wire up all completed combat systems into a playable prototype. The goal: Jeff can launch the game, run around a test map, fight an enemy, and exercise melee/dodge/block/parry/stamina/posture.
-- US-050: Enemy Character & Damage Reception (HEADLESS — enemy class, ASC, attributes, death, posture break) ⚡ **in progress**
-- US-051: Basic Enemy AI Combat Loop (HEADLESS — state machine AI: idle/approach/attack/recover/leash) ← **scoped**
-- US-052: Combat HUD C++ Framework (HEADLESS — health/stamina/posture widget classes, percent/tier calculations) ⚡ **in progress**
-- US-053: Player Death & Arena Game Flow (HEADLESS — player death/respawn, arena reset, kill tracking) ← **scoped**
-- US-054: Playable Arena Integration (EDITOR — enemy BP, attack DataAssets, HUD widget BP, level setup, full wiring) ← **scoped**
+- US-050: Enemy Character & Damage Reception ✅
+- US-051: Basic Enemy AI Combat Loop ✅
+- US-052: Combat HUD C++ Framework ✅
+- US-053: Player Death & Arena Game Flow (HEADLESS — player death/respawn, arena reset, kill tracking) ⚡ **in progress** (no implementation yet)
+- US-054: Playable Arena Integration (EDITOR — enemy BP, attack DataAssets, HUD widget BP, level setup, full wiring) ⚡ **in progress** (12/13 ACs done, PIE test pending US-053)
 
 ### Epic 3: Attributes & Progression ✅ (complete)
 Wire up the attribute system and skill progression.
@@ -47,13 +47,13 @@ Implement the launch status effect set via GAS. Split into 6 stories by mechanic
 - US-017: Control & Mental Debuffs (Silenced, Rooted, Blinded, Fear, Cursed) ← **scoped** (after Epic 2.5)
 - US-018: Drenched & Focused Buff (environmental interaction + perfect action streak) ← **scoped** (after Epic 2.5)
 
-### Epic 5: Magic System
-Implement spells with rank progression.
-- US-019: Spell Framework (SP cost, casting, upcasting, rank system)
-- US-020: Damage Spells (Fireball, Frost Nova, Magic Missile, Stone Skin)
-- US-021: Utility Spells (Blink, Sleep/Wind, Fire Ward)
-- US-022: Support Spells (Bless, Restoration)
-- US-023: Tactical Spells (Illusion, Blur, Snare, Enchant Weapon, Enfeeble)
+### Epic 5: Magic System ← **scoped** (5 stories, all HEADLESS)
+Implement spell framework and 14 launch spells at Rank 1. Higher rank milestones deferred.
+- US-019: Spell Framework & Spell DataAsset (HEADLESS — base ability class, SP costs, cooldowns, casting phases, movement policies, interruption, scaling, upcasting) ← **scoped**
+- US-020: Damage Spells (HEADLESS — Fireball, Cone of Cold, Magic Missile, Stone Skin) ← **scoped**
+- US-021: Utility Spells (HEADLESS — Blink, Sleep, Fire Ward) ← **scoped**
+- US-022: Support Spells (HEADLESS — Bless, Restoration) ← **scoped**
+- US-023: Tactical Spells (HEADLESS — Snare, Enfeeble, Enchant Weapon, Illusion, Blur) ← **scoped** ⚠️ scope risk
 
 ### Epic 6: Weapons & Equipment
 Implement weapon classes and armor systems.
@@ -95,9 +95,9 @@ Delegated town systems.
 2. **Epic 2** — Core Combat ✅
 3. **Epic 3** — Attributes & Progression ✅
 4. **Epic 4 (partial)** — Status Effects: US-013 ✅, US-014 ✅, US-015 🔴 BLOCKED
-5. **Epic 2.5** — Playable Vertical Slice ⚡ **IMMEDIATE PRIORITY** (Playability-First Rule: 3 system epics done, US-015 blocked — proceed to integration)
+5. **Epic 2.5** — Playable Vertical Slice ⚡ **IMMEDIATE PRIORITY** (US-053 + US-054 remaining)
 6. **Epic 4 (remaining)** — US-016, US-017, US-018 (resume after vertical slice is playable)
-7. **Epic 5** — Magic System
+7. **Epic 5** — Magic System (scoped: US-019–023, all HEADLESS)
 8. **Epic 6** — Weapons & Equipment
 9. **Epic 7** — Inventory
 10. **Epic 10** — UI & HUD

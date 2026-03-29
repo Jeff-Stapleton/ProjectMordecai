@@ -948,3 +948,144 @@ AFTER Epic 2.5 — Epic 4 remaining:
 3. **US-054** (Playable Arena Integration) — after ALL HEADLESS Epic 2.5 stories complete. EDITOR. **This is the "Jeff can play it" milestone.**
 4. After Epic 2.5 is playable, investigate and unblock **US-015**. Then resume Epic 4: **US-016** → **US-017** → **US-018**. All HEADLESS.
 5. After Epic 4 completes, scope **Epic 5: Magic System** (US-019–023). Read `ability_schema_v1.md`, `ability_system_v1.md`, `skill_sheet_v1.1.md`, `new_spells_proposal.md`.
+
+---
+
+## 2026-03-28 Nightly Planning Run
+
+### Completed Since Last Run
+- **US-050: Enemy Character & Damage Reception** — moved to `stories/done/`. AMordecaiEnemyCharacter with ASC, attributes, death, posture break. 12 tests.
+- **US-051: Basic Enemy AI Combat Loop** — moved to `stories/done/`. AMordecaiEnemyAIController with state machine (Idle/Approach/Attack/Recover/Staggered/Leash/Dead). 12 tests.
+- **US-052: Combat HUD C++ Framework** — moved to `stories/done/`. Health/Stamina/Posture bar widgets, enemy health bar, BindToASC. 12 tests.
+
+**Epic 2.5 progress:** 3 of 5 stories complete. 2 remaining (US-053, US-054).
+
+### Currently In Progress
+- **US-053: Player Death & Arena Game Flow** — in `stories/in-progress/`. HEADLESS. **Zero implementation exists.** No Arena test file, no death/respawn code in MordecaiGameMode, all 11 ACs unchecked. This is the critical gap blocking the vertical slice.
+- **US-054: Playable Arena Integration** — in `stories/in-progress/`. EDITOR. **12 of 13 ACs done.** All editor assets created: enemy BP, attack DataAssets, player combo chain, HUD widgets, arena layout, 3 enemies placed, experience configured. Only AC-054.13 (full end-to-end PIE loop test including death/respawn) remains — blocked on US-053 completion.
+
+### Blocked
+- **US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked)** — still BLOCKED in `stories/backlog/`. No change. Partial code was fully reverted.
+
+### New Stories Created
+**Epic 5: Magic System** — 5 stories, all HEADLESS. Scoped ahead of schedule since Epic 4 remaining stories (US-016–018) are already queued.
+
+Per the dependency chain: Epic 2.5 (almost done) → Epic 4 remaining → Epic 5. Scoping Epic 5 now ensures stories are ready when coding agents reach it.
+
+- **US-019: Spell Framework & Spell DataAsset** (`US-019-spell-framework.md`) — **HEADLESS**
+  - `UMordecaiSpellDataAsset` (all spell configuration: cost, cooldown, cast timing, targeting, scaling, delivery)
+  - `UMordecaiGA_SpellBase` (base ability class: SP cost check/deduction, cooldown GE, casting phases, movement policies, interrupt on damage, attribute+rank scaling, upcasting, Silenced immunity check)
+  - 13 ACs, 13 tests
+  - Depends on US-010 (attribute scaling), US-011 (skill ranks). No combat dependencies.
+
+- **US-020: Damage Spells — Fireball, Cone of Cold, Magic Missile, Stone Skin** (`US-020-damage-spells.md`) — **HEADLESS**
+  - Fireball (projectile, fire damage), Cone of Cold (AoE cone, cold damage), Magic Missile (channeled homing projectiles, force damage), Stone Skin (self-buff, damage reduction)
+  - Reuses existing projectile system (US-009) and hit detection (US-003)
+  - 12 ACs, 12 tests
+  - Depends on US-019
+
+- **US-021: Utility Spells — Blink, Sleep, Fire Ward** (`US-021-utility-spells.md`) — **HEADLESS**
+  - Blink (teleport + i-frames), Sleep (single-target CC, wake on damage), Fire Ward (fire damage absorb shield)
+  - Fire Ward introduces a new attribute/mechanic (absorb shield HP)
+  - 11 ACs, 11 tests
+  - Depends on US-019
+
+- **US-022: Support Spells — Bless, Restoration** (`US-022-support-spells.md`) — **HEADLESS**
+  - Bless (damage multiplier self-buff, non-stacking), Restoration (HoT with periodic ticks)
+  - Smaller story — 2 simple self-buff/heal spells
+  - 8 ACs, 8 tests
+  - Depends on US-019
+
+- **US-023: Tactical Spells — Snare, Enfeeble, Enchant Weapon, Illusion, Blur** (`US-023-tactical-spells.md`) — **HEADLESS**
+  - Snare (single-target root), Enfeeble (Weakened debuff), Enchant Weapon (elemental melee buff), Illusion (summon aggro decoy actor), Blur (ranged evasion buff)
+  - ⚠️ **Scope risk:** 5 spells, 15 ACs, 15 tests. If too big, split into US-023a (Snare, Enfeeble, Enchant Weapon) and US-023b (Illusion, Blur)
+  - Illusion requires new `AMordecaiIllusionActor` + AI aggro modification. Blur requires projectile miss-chance pipeline change.
+  - Depends on US-019, US-051 (enemy AI for Illusion aggro), US-009 (projectile for Blur miss)
+
+### PLAN.md Updates
+- Marked US-050, US-051, US-052 as ✅ complete in Epic 2.5
+- Marked US-053 as ⚡ in progress (no implementation)
+- Marked US-054 as ⚡ in progress (12/13 ACs)
+- Expanded Epic 5 from placeholder descriptions to 5 properly scoped stories with Execution Mode tags
+- Updated priority order to reflect Epic 5 scoping
+
+### Source Tree Snapshot
+Mordecai C++ code now includes:
+- `Mordecai/AbilitySystem/` — ASC, AttributeSet (33+ attributes), AttributeScaling
+- `Mordecai/Camera/` — Diorama camera mode
+- `Mordecai/Combat/` — Full combat suite (attacks, hit detection, block, parry, dodge, posture, stamina, projectiles, aim assist)
+- `Mordecai/Enemy/` — **NEW** — MordecaiEnemyCharacter, MordecaiEnemyAIController, MordecaiEnemyAITypes (US-050, US-051)
+- `Mordecai/Skills/` — SkillComponent, SkillDataAsset, SkillTypes
+- `Mordecai/Feats/` — FeatComponent, FeatDataAsset, FeatTypes
+- `Mordecai/StatusEffects/` — Framework (US-013), Effects: Burning, Bleeding, Poisoned (US-014), MicroStunned
+- `Mordecai/UI/` — **NEW** — CombatHUDWidget, HealthBarWidget, StaminaBarWidget, PostureBarWidget, EnemyHealthBarWidget (US-052)
+- `Tests/` — 20+ test files across 12 subdirectories (added Enemy/×2, HUD/×1)
+- MordecaiCore plugin assets: BP_MordecaiEnemy_Frontliner, DA_EnemyAttack_BasicSlash, DA_PlayerAttack_LightSlash_1/2/3, WBP_CombatHUD, WBP_EnemyHealthBar, WBP_HealthBar/PostureBar/StaminaBar, AS_MordecaiCombat, updated DevTestMap with arena + 3 enemies
+
+### Backlog Validation
+All 12 backlog stories reviewed (5 Epic 4 + 5 Epic 5 + 2 in-progress):
+
+**Epic 2.5 (in progress):**
+- ✅ US-053: HEADLESS, 11 ACs, 11 tests. Well-scoped. **Zero implementation — CRITICAL.**
+- ✅ US-054: EDITOR, 13 ACs, manual verification. 12/13 done. Blocked on US-053 for AC-054.13.
+
+**Epic 4 remaining (deferred):**
+- ✅ US-015: BLOCKED. No change.
+- ✅ US-016: HEADLESS, 19 ACs, 14 tests. Well-scoped.
+- ✅ US-017: HEADLESS, 28 ACs, 20 tests. ⚠️ Scope risk carried.
+- ✅ US-018: HEADLESS, 15 ACs, 14 tests. Depends on US-015.
+
+**Epic 5 (newly scoped):**
+- ✅ US-019: HEADLESS, 13 ACs, 13 tests. Foundation — gate for US-020–023.
+- ✅ US-020: HEADLESS, 12 ACs, 12 tests. Depends on US-019.
+- ✅ US-021: HEADLESS, 11 ACs, 11 tests. Depends on US-019.
+- ✅ US-022: HEADLESS, 8 ACs, 8 tests. Small story. Depends on US-019.
+- ✅ US-023: HEADLESS, 15 ACs, 15 tests. ⚠️ Scope risk. Depends on US-019.
+
+All have Execution Mode tags. No mixed HEADLESS/EDITOR stories. Dependency chains correct.
+
+### TODO(DECISION) Items
+
+**Carried from prior runs (no changes):**
+- **Gameplay tag taxonomy** — 87+ tags. No formal naming policy.
+- **Damage formula stub** — vertical slice uses BasePower. Full integration deferred.
+- **Damage GE architecture** — C++ vs Blueprint GE.
+- **Epic 3 & 4 items** — skill point economy, feat list, stacking policy, etc.
+- **US-015 BLOCKED** — needs Jeff's investigation.
+
+**New this run:**
+- **TODO(DECISION): Spell skill mapping** — Which skills from skill_sheet_v1.1 map to which spell? Fireball→Fireball skill, Cone of Cold→Cone of Cold skill, etc. are obvious. But Bless has no skill entry in the sheet — does it get its own skill, or is it mapped to a general "Support Magic" skill? Defaulted to: each spell is its own skill in the SkillComponent, matching skill_sheet names.
+- **TODO(DECISION): Missing spells** — skill_sheet_v1.1 lists Frost Ward, Float, and Counter Spell, which are not in the current Epic 5 scope (US-019–023). These spells are not in the PLAN.md placeholder. Should they be added? Recommendation: defer to a US-023b or a future Epic 5 extension. They're lower priority than the 14 spells already scoped.
+- **TODO(DECISION): Enchant Weapon element selection** — At Rank 1, Enchant Weapon adds bonus elemental damage "matching your highest element." There's no attribute for "highest element" yet. Defaulted to: Fire element at Rank 1. Adaptive element selection (Rank 15 milestone) is deferred.
+- **TODO(DECISION): Blur miss chance implementation** — How does projectile miss chance work mechanically? Options: (a) roll on hit, skip damage application; (b) deflect projectile collision. Recommend (a) — simple roll in the damage pipeline.
+
+### Dependency Graph
+
+```
+CRITICAL PATH — Epic 2.5 (finish now):
+  US-053 (Death & Arena Flow — ZERO CODE) ──> US-054 AC-054.13 (PIE verification)
+
+BLOCKED:
+  US-015 (Frostbitten/Shocked) ──> BLOCKED — skip
+
+AFTER Epic 2.5 — Epic 4 remaining:
+  US-016 (Combat Modifiers) ──> US-017 (Control/Mental) ──> US-018 (Drenched/Focused)
+  (US-016/017 can start without US-015; US-018 needs US-015 for Drenched synergies)
+
+AFTER Epic 4 — Epic 5:
+  US-019 (Spell Framework) ──┬──> US-020 (Damage Spells)
+                              ├──> US-021 (Utility Spells)
+                              ├──> US-022 (Support Spells)
+                              └──> US-023 (Tactical Spells — also depends on US-051 for Illusion)
+```
+
+### Next Session Recommendation
+
+**MANDATORY: Complete US-053. This is the ONLY blocker to finishing the vertical slice.**
+
+1. **US-053** (Player Death & Arena Game Flow) — **IMMEDIATE CRITICAL PRIORITY**. Zero implementation exists. This is the single remaining HEADLESS story blocking the playable prototype. HEADLESS. Complete this first.
+2. **US-054 AC-054.13** (Full PIE loop verification) — After US-053 is done, launch the editor and verify the full combat loop: move → attack → take damage → see HUD → kill enemy → die → respawn → enemies reset. EDITOR.
+3. After Epic 2.5 is verified playable, start **Epic 4 remaining**: **US-016** (Combat Modifier Debuffs) → **US-017** (Control/Mental Debuffs) → **US-018** (Drenched & Focused). All HEADLESS.
+4. After Epic 4, start **Epic 5**: **US-019** (Spell Framework) first — it gates all other spell stories. Then US-020–022 can be parallelized. US-023 last (scope risk).
+5. After Epic 5, consider a **Playable Slice 2** milestone (Playability-First Rule: Epics 4+5 are 2 system epics) to wire spells into the arena.
+6. Investigate and unblock **US-015** when time allows — US-018 (Drenched) depends on it.
