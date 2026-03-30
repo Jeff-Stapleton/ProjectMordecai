@@ -8,6 +8,7 @@
 
 class UMordecaiAbilitySystemComponent;
 class UMordecaiAttributeSet;
+class UMordecaiAttackProfileDataAsset;
 class UMordecaiPostureSystem;
 class UMordecaiEnemyHealthBarWidget;
 class UWidgetComponent;
@@ -48,6 +49,10 @@ public:
 	/** Abilities to grant when this enemy spawns. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Enemy")
 	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
+
+	/** Attack profiles for the enemy's melee attack (set on instanced ability after granting). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Enemy")
+	TArray<TObjectPtr<UMordecaiAttackProfileDataAsset>> EnemyAttackProfiles;
 
 	/** Widget class for the world-space health bar above the enemy's head. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Enemy|UI")

@@ -3,6 +3,7 @@
 #include "Mordecai/Enemy/MordecaiEnemyAIController.h"
 
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
+#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayAbilitySpec.h"
@@ -18,6 +19,9 @@ AMordecaiEnemyAIController::AMordecaiEnemyAIController()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
+
+	// Default melee attack ability for enemy AI (AC-054.13)
+	MeleeAttackAbilityClass = UMordecaiGA_MeleeAttack::StaticClass();
 }
 
 // ---------------------------------------------------------------------------

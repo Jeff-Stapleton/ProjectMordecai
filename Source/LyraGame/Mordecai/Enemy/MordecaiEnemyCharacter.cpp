@@ -5,6 +5,8 @@
 #include "Mordecai/AbilitySystem/MordecaiAbilitySystemComponent.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
+#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
 #include "Mordecai/UI/MordecaiEnemyHealthBarWidget.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiGameMode.h"
@@ -24,6 +26,10 @@
 AMordecaiEnemyCharacter::AMordecaiEnemyCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// Use our custom AI controller (AC-054.1, AC-054.13)
+	AIControllerClass = AMordecaiEnemyAIController::StaticClass();
+	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+
 	// Enemy owns its own ASC (not on PlayerState like the player)
 	EnemyAbilitySystemComponent = CreateDefaultSubobject<UMordecaiAbilitySystemComponent>(TEXT("EnemyASC"));
 	EnemyAbilitySystemComponent->SetIsReplicated(true);
@@ -72,6 +78,18 @@ void AMordecaiEnemyCharacter::BeginPlay()
 	Super::BeginPlay();
 	InitializeAbilitySystem();
 	CreateHealthBarWidget();
+
+	// Register with GameMode for arena reset tracking (AC-054.13)
+	if (HasAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (AMordecaiGameMode* GM = Cast<AMordecaiGameMode>(World->GetAuthGameMode()))
+			{
+				GM->RegisterEnemy(this, GetActorTransform());
+			}
+		}
+	}
 }
 
 void AMordecaiEnemyCharacter::PossessedBy(AController* NewController)
@@ -328,10 +346,32 @@ void AMordecaiEnemyCharacter::GrantDefaultAbilities()
 
 	for (const TSubclassOf<UGameplayAbility>& AbilityClass : DefaultAbilities)
 	{
-		if (AbilityClass)
+		if (!AbilityClass)
 		{
-			FGameplayAbilitySpec Spec(AbilityClass, 1, INDEX_NONE, this);
-			EnemyAbilitySystemComponent->GiveAbility(Spec);
+			continue;
+		}
+
+		FGameplayAbilitySpec Spec(AbilityClass, 1, INDEX_NONE, this);
+		FGameplayAbilitySpecHandle Handle = EnemyAbilitySystemComponent->GiveAbility(Spec);
+
+		// Configure attack profiles on instanced melee abilities (AC-054.13)
+		if (AbilityClass->IsChildOf(UMordecaiGA_MeleeAttack::StaticClass()))
+		{
+			// Use EnemyAttackProfiles if configured (set in Blueprint); otherwise no profiles
+			TArray<TObjectPtr<UMordecaiAttackProfileDataAsset>>& ProfilesToUse = EnemyAttackProfiles;
+
+			if (ProfilesToUse.Num() > 0)
+			{
+				FGameplayAbilitySpec* GrantedSpec = EnemyAbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
+				if (GrantedSpec && GrantedSpec->GetPrimaryInstance())
+				{
+					UMordecaiGA_MeleeAttack* MeleeInstance = Cast<UMordecaiGA_MeleeAttack>(GrantedSpec->GetPrimaryInstance());
+					if (MeleeInstance)
+					{
+						MeleeInstance->AttackProfiles = ProfilesToUse;
+					}
+				}
+			}
 		}
 	}
 }
