@@ -1089,3 +1089,161 @@ AFTER Epic 4 — Epic 5:
 4. After Epic 4, start **Epic 5**: **US-019** (Spell Framework) first — it gates all other spell stories. Then US-020–022 can be parallelized. US-023 last (scope risk).
 5. After Epic 5, consider a **Playable Slice 2** milestone (Playability-First Rule: Epics 4+5 are 2 system epics) to wire spells into the arena.
 6. Investigate and unblock **US-015** when time allows — US-018 (Drenched) depends on it.
+
+---
+
+## 2026-03-29 Nightly Planning Run
+
+### Completed Since Last Run
+- (none — no new stories moved to done since last run)
+
+### Currently In Progress
+- **US-053: Player Death & Arena Game Flow** — HEADLESS. **STILL ZERO IMPLEMENTATION.** This is the single remaining blocker to completing the playable vertical slice. No commits since last planning run (877cb2e).
+- **US-054: Playable Arena Integration** — EDITOR. 12/13 ACs done. AC-054.13 (full PIE loop verification) blocked on US-053 completion.
+
+### Stories Modified
+- **US-017 SPLIT**: Original had 28 ACs across 5 debuffs (Silenced, Rooted, Blinded, Fear, Cursed). Now:
+  - **US-017**: Action-Restricting Debuffs — Silenced & Rooted only (11 ACs, 9 tests). HEADLESS.
+  - **US-059**: Perception & Mental Debuffs — Blinded, Fear, Cursed (17 ACs, 11 tests). HEADLESS.
+  - Rationale: 28 ACs exceeds 2-4 hour session scope. Silenced/Rooted are "hard restriction" debuffs; Blinded/Fear/Cursed are "soft degradation" debuffs — natural split point.
+
+- **US-023 SPLIT**: Original had 15 ACs across 5 spells (Snare, Enfeeble, Enchant Weapon, Illusion, Blur). Scope risk warning was already carried. Now:
+  - **US-023**: Tactical Spells — Debuff Spells: Snare, Enfeeble, Enchant Weapon (9 ACs, 7 tests). HEADLESS.
+  - **US-060**: Tactical Spells — Summon & Evasion: Illusion, Blur (8 ACs, 8 tests). HEADLESS.
+  - Rationale: Illusion requires new actor class + AI aggro modification. Blur requires projectile pipeline modification. Both are mechanically complex. Snare/Enfeeble/Enchant Weapon are simple "apply GE" spells that follow established patterns.
+
+### New Stories Created
+
+**Epic 5.5: Playable Magic Slice** (NEW EPIC — Playability-First Rule integration milestone)
+
+- **US-055: Spell HUD & Status Effect Indicators** (`stories/backlog/US-055-spell-hud-status-indicators.md`) — HEADLESS
+  - SP bar widget (mirrors Health/Stamina/Posture pattern from US-052)
+  - Active buff/debuff indicator bar (dynamically adds/removes indicators on tag change)
+  - Spell cooldown display widget (radial fill + remaining seconds)
+  - Extends CombatHUDWidget with UPROPERTY slots for new widgets
+  - 10 ACs, 8 tests. Depends on US-052 (existing HUD framework).
+
+- **US-056: Status-Applying Attack Profiles** (`stories/backlog/US-056-status-applying-attacks.md`) — HEADLESS
+  - `FMordecaiStatusOnHitEntry` struct: StatusEffectTag, ApplicationChance, StatusEffectGEClass
+  - Extends `UMordecaiAttackProfileDataAsset` with `StatusEffectsOnHit` array (backwards compatible)
+  - Melee attack and projectile hit processing apply status effects from profile on hit
+  - 7 ACs, 6 tests. Depends on US-002 (attack profiles), US-013 (status framework).
+
+- **US-057: Playable Magic Arena Integration** (`stories/backlog/US-057-playable-magic-arena.md`) — EDITOR
+  - Create SpellDataAssets for 4 spells: Fireball, Blink, Stone Skin, Restoration
+  - Spell input bindings: LB/Q, RB/E, LB+RB/R, DPadUp/1
+  - Grant spells to player BP, map to inputs
+  - One enemy gets fire attack with 40% Burning on-hit
+  - HUD updated with SP bar, status indicators, cooldown displays
+  - Full magic + status loop verified in PIE
+  - 12 ACs, manual verification. Depends on US-019–022, US-055, US-056.
+
+**Epic 6: Weapons & Equipment (gate story scoped)**
+
+- **US-024: Weapon Class Framework** (`stories/backlog/US-024-weapon-class-framework.md`) — HEADLESS
+  - `UMordecaiWeaponDataAsset`: weapon identity, stats, attack profile references, stat modifiers, granted abilities/tags
+  - `EMordecaiWeaponType` enum with 14 weapon types
+  - `FMordecaiWeaponInstance` runtime struct for player-owned weapon state
+  - `UMordecaiEquipmentComponent`: equip/unequip via GAS (applies stat GE, grants abilities, grants tags)
+  - Weapon slot model: MainHand, OffHand, TwoHand (TwoHand clears both slots)
+  - Melee attack integration: reads combo chain from equipped weapon, adds BaseDamage, applies AttackSpeedMultiplier
+  - 13 ACs, 11 tests. Foundation for all weapon type stories.
+
+### PLAN.md Updates
+- Added **Epic 5.5** (Playable Magic Slice) with US-055, US-056, US-057
+- Updated **Epic 4** story list to reflect US-017 split (US-017 trimmed, US-059 added)
+- Updated **Epic 5** story list to reflect US-023 split (US-023 trimmed, US-060 added)
+- Updated **Epic 6** with detailed US-024 and renumbered placeholders:
+  - US-025: Melee Weapons — Blade Family (Longsword, Greatsword, Shortsword, Dagger)
+  - US-026: Melee Weapons — Blunt & Polearm (Axe, Mace, Spear, Quarterstaff, Unarmed)
+  - US-027: Ranged Weapons (Longbow, Shortbow, Crossbow, Throwables, Wands)
+  - US-028: Two-Weapon Fighting
+  - US-029: Armor & Equipment System
+  - US-030: Shield System
+- Renumbered Epic 7 (Inventory: US-031–033), Epic 8 (World: US-034–036), Epic 9 (Town: US-037–040), Epic 10 (UI: US-041–043)
+- Updated priority order to include Epic 5.5 between Epic 5 and Epic 6
+
+### Backlog Validation
+
+**All 19 backlog stories reviewed:**
+
+**Epic 4 remaining (6 stories):**
+- ✅ US-015: BLOCKED. No change.
+- ✅ US-016: HEADLESS, 19 ACs, 14 tests. Well-scoped.
+- ✅ US-017: HEADLESS, 11 ACs, 9 tests. **Trimmed** (was 28 ACs). Now manageable.
+- ✅ US-059: HEADLESS, 17 ACs, 11 tests. **NEW** (split from US-017). Formulaic attribute-modifier debuffs.
+- ✅ US-018: HEADLESS, 15 ACs, 14 tests. Depends on US-015 for Drenched synergies.
+
+**Epic 5 (7 stories):**
+- ✅ US-019: HEADLESS, 13 ACs, 13 tests. Gate for all spells.
+- ✅ US-020: HEADLESS, 12 ACs, 12 tests.
+- ✅ US-021: HEADLESS, 11 ACs, 11 tests.
+- ✅ US-022: HEADLESS, 8 ACs, 8 tests. Small.
+- ✅ US-023: HEADLESS, 9 ACs, 7 tests. **Trimmed** (was 15 ACs). Now manageable.
+- ✅ US-060: HEADLESS, 8 ACs, 8 tests. **NEW** (split from US-023). Complex mechanics isolated.
+
+**Epic 5.5 (3 stories — NEW):**
+- ✅ US-055: HEADLESS, 10 ACs, 8 tests.
+- ✅ US-056: HEADLESS, 7 ACs, 6 tests.
+- ✅ US-057: EDITOR, 12 ACs, manual verification.
+
+**Epic 6 (1 story scoped):**
+- ✅ US-024: HEADLESS, 13 ACs, 11 tests. Gate for all weapon stories.
+
+All have Execution Mode tags. No mixed HEADLESS/EDITOR stories. Dependency chains correct.
+
+### TODO(DECISION) Items
+
+**Carried from prior runs (no changes):**
+- **Gameplay tag taxonomy** — 90+ tags. No formal naming policy.
+- **Damage formula stub** — vertical slice uses BasePower. Full integration deferred.
+- **Damage GE architecture** — C++ vs Blueprint GE.
+- **Epic 3 & 4 items** — skill point economy, feat list, stacking policy, etc.
+- **US-015 BLOCKED** — needs Jeff's investigation.
+- **Spell skill mapping** — each spell = its own skill (default).
+- **Missing spells** — Frost Ward, Float, Counter Spell deferred.
+- **Enchant Weapon element** — Fire at Rank 1 (default).
+- **Blur miss chance** — simple roll in damage pipeline (default).
+
+**No new TODO(DECISION) items this run.**
+
+### Dependency Graph
+
+```
+CRITICAL PATH — Epic 2.5 (finish now):
+  US-053 (Death & Arena Flow — ZERO CODE) ──> US-054 AC-054.13 (PIE verification)
+
+BLOCKED:
+  US-015 (Frostbitten/Shocked) ──> BLOCKED — skip
+
+AFTER Epic 2.5 — Epic 4 remaining:
+  US-016 (Combat Modifiers) ──> US-017 (Silenced/Rooted) ──> US-059 (Blinded/Fear/Cursed) ──> US-018 (Drenched/Focused)
+  (US-016/017/059 can start without US-015; US-018 needs US-015 for Drenched synergies)
+
+AFTER Epic 4 — Epic 5:
+  US-019 (Spell Framework) ──┬──> US-020 (Damage Spells)
+                              ├──> US-021 (Utility Spells)
+                              ├──> US-022 (Support Spells)
+                              ├──> US-023 (Snare/Enfeeble/EnchantWeapon)
+                              └──> US-060 (Illusion/Blur — also depends on US-051 for Illusion)
+
+AFTER Epic 5 — Epic 5.5 (Playable Magic Slice):
+  US-055 (Spell HUD) ──┐
+  US-056 (Status Attacks) ──┤──> US-057 (Playable Magic Arena — EDITOR)
+  US-019–023/060 (all spells) ──┘
+
+AFTER Epic 5.5 — Epic 6:
+  US-024 (Weapon Framework) ──> US-025/026/027 (weapon types) ──> US-028/029/030 (dual-wield, armor, shields)
+```
+
+### Next Session Recommendation
+
+**MANDATORY: Complete US-053. This remains the ONLY blocker to finishing the vertical slice. No progress since last planning run.**
+
+1. **US-053** (Player Death & Arena Game Flow) — **IMMEDIATE CRITICAL PRIORITY**. ZERO implementation. HEADLESS. This must be completed before anything else can move.
+2. **US-054 AC-054.13** (Full PIE loop verification) — After US-053, launch editor and verify the full combat loop. EDITOR. This completes Epic 2.5.
+3. After Epic 2.5 is playable: **US-016** (Combat Modifier Debuffs) → **US-017** (Silenced/Rooted) → **US-059** (Blinded/Fear/Cursed) → **US-018** (Drenched/Focused). All HEADLESS. Note: US-018 depends on US-015 which is BLOCKED — US-018 can be partially implemented but Drenched synergies with Frostbitten/Shocked must wait.
+4. After Epic 4: **US-019** (Spell Framework) first — gates all spell stories. Then **US-020/021/022** can be parallelized. Then **US-023** → **US-060**.
+5. After Epic 5: **US-055** + **US-056** (parallel HEADLESS) → **US-057** (EDITOR — Playable Magic Slice).
+6. After Epic 5.5: **US-024** (Weapon Framework) — gates Epic 6.
+7. Investigate and unblock **US-015** when time allows — US-018 depends on it.
