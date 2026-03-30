@@ -178,6 +178,19 @@ void AMordecaiEnemyAIController::TransitionToState(EMordecaiEnemyAIState NewStat
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Arena Reset (US-053, AC-053.9)
+// ---------------------------------------------------------------------------
+
+void AMordecaiEnemyAIController::ResetState()
+{
+	CurrentState = EMordecaiEnemyAIState::Idle;
+	bAttackInProgress = false;
+	RecoverElapsedTime = 0.f;
+	StopMovement();
+	ClearFocus(EAIFocusPriority::Gameplay);
+}
+
 void AMordecaiEnemyAIController::NotifyAttackCompleted()
 {
 	if (CurrentState == EMordecaiEnemyAIState::Attack)

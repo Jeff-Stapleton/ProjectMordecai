@@ -8,6 +8,7 @@
 #include "Mordecai/UI/MordecaiEnemyHealthBarWidget.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiGameMode.h"
+#include "Mordecai/Enemy/MordecaiEnemyAIController.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
@@ -305,6 +306,12 @@ void AMordecaiEnemyCharacter::ResetForArena()
 	{
 		CMC->SetMovementMode(MOVE_Walking);
 		CMC->MaxWalkSpeed = DefaultMoveSpeed;
+	}
+
+	// Reset AI state to Idle (AC-053.9)
+	if (AMordecaiEnemyAIController* AI = Cast<AMordecaiEnemyAIController>(GetController()))
+	{
+		AI->ResetState();
 	}
 }
 

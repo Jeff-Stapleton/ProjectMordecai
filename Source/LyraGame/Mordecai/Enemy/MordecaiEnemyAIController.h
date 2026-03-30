@@ -67,6 +67,11 @@ public:
 	bool IsInAttackRange(float Distance) const { return Distance <= AttackRange; }
 	bool IsOutsideLeashRange(float Distance) const { return Distance > LeashRange; }
 
+	// --- Arena Reset (US-053) ---
+
+	/** Reset state machine to Idle. Bypasses Dead-state lock for arena respawn (AC-053.9). */
+	void ResetState();
+
 	// --- Attack Notification ---
 
 	void NotifyAttackCompleted();
