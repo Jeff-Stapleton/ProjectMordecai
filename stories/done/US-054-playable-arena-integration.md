@@ -30,7 +30,7 @@ Wire all C++ systems from US-050–053 into a playable prototype using the Unrea
 - [x] AC-054.10: `DevTestMap` has a flat arena floor (~2000x2000 cm), basic walls/boundaries, adequate lighting for the diorama camera
 - [x] AC-054.11: 3 enemy Frontliners are placed in the arena at varied positions
 - [x] AC-054.12: `B_MordecaiDevExperience` is configured to use the arena game mode with respawn enabled
-- [ ] AC-054.13: The full loop works end-to-end: launch game → diorama camera → move/aim → attack enemies → take damage → see HUD update → kill enemy → die → respawn → enemies reset
+- [x] AC-054.13: The full loop works end-to-end: launch game → diorama camera → move/aim → attack enemies → take damage → see HUD update → kill enemy → die → respawn → enemies reset
 
 ## Technical Notes
 - **This is an EDITOR story** — requires the Unreal Editor running with Python remote execution.
@@ -47,23 +47,23 @@ Wire all C++ systems from US-050–053 into a playable prototype using the Unrea
 ## Tests Required
 This story does not have headless automation tests — it is verified via manual playtesting in the editor (PIE). The C++ systems it wires together are individually tested in US-050 through US-053.
 
-- [ ] Manual: Launch PIE, verify diorama camera follows player
-- [ ] Manual: Move with WASD/Left Stick, aim with Mouse/Right Stick
-- [ ] Manual: Attack enemies with LMB/RT, see 3-hit combo
-- [ ] Manual: Dodge with LAlt/B, observe i-frames
-- [ ] Manual: Block with RMB/LT, see damage reduction
-- [ ] Manual: See HUD health/stamina/posture update in real-time
-- [ ] Manual: Kill an enemy, see enemy health bar deplete and enemy dies
-- [ ] Manual: Take damage from enemy attacks, see player health bar drop
-- [ ] Manual: Die, wait for respawn, verify arena resets
+- [x] Manual: Launch PIE, verify diorama camera follows player
+- [x] Manual: Move with WASD/Left Stick, aim with Mouse/Right Stick
+- [x] Manual: Attack enemies with LMB/RT, see 3-hit combo
+- [x] Manual: Dodge with LAlt/B, observe i-frames
+- [x] Manual: Block with RMB/LT, see damage reduction
+- [x] Manual: See HUD health/stamina/posture update in real-time
+- [x] Manual: Kill an enemy, see enemy health bar deplete and enemy dies
+- [x] Manual: Take damage from enemy attacks, see player health bar drop
+- [x] Manual: Die, wait for respawn, verify arena resets
 
 ---
 
 ## Definition of Done
-- [ ] All DataAssets created and configured
-- [ ] Enemy BP created and configured with AI controller
-- [ ] Player BP configured with combat abilities and input bindings
-- [ ] HUD widget BP created and displaying on screen
-- [ ] DevTestMap has arena layout with 3 enemies placed
-- [ ] Full combat loop verified in PIE (launch → fight → die → respawn)
-- [ ] Code/assets committed and pushed with `[US-054]` prefix
+- [x] All DataAssets created and configured
+- [x] Enemy BP created and configured with AI controller
+- [x] Player BP configured with combat abilities and input bindings
+- [x] HUD widget BP created and displaying on screen
+- [x] DevTestMap has arena layout with 3 enemies placed
+- [x] Full combat loop verified in PIE (launch → fight → die → respawn)
+- [x] Code/assets committed and pushed with `[US-054]` prefix
