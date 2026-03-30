@@ -7,6 +7,7 @@
 #include "MordecaiCharacter.generated.h"
 
 class UArrowComponent;
+struct FOnAttributeChangeData;
 
 /**
  * AMordecaiCharacter
@@ -45,8 +46,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Character")
 	UArrowComponent* GetFacingArrow() const { return FacingArrowComponent; }
 
+	// --- Death / Respawn (US-053) ---
+
+	/** Handle player death: apply State_Dead, disable movement/input, broadcast Event_PlayerDeath. */
+	void HandlePlayerDeath();
+
+	/** Handle player respawn: restore attributes, remove Dead tag, re-enable movement/input. */
+	void HandlePlayerRespawn();
+
+	/** Returns true if this character is dead. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Character")
+	bool IsDead() const;
+
+protected:
+	virtual void BeginPlay() override;
+	virtual void PossessedBy(AController* NewController) override;
+
 private:
 	// Facing direction indicator (AC-2.1.5)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Character", Meta = (AllowPrivateAccess = true))
 	TObjectPtr<UArrowComponent> FacingArrowComponent;
+
+	// Death handling (US-053)
+	void BindToASC();
+	void OnHealthChanged(const FOnAttributeChangeData& Data);
+	bool bDeathHandled = false;
 };

@@ -7,6 +7,7 @@
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
 #include "Mordecai/UI/MordecaiEnemyHealthBarWidget.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/MordecaiGameMode.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
@@ -215,6 +216,15 @@ void AMordecaiEnemyCharacter::EnterDeathState()
 	EventData.Instigator = this;
 	EventData.Target = this;
 	EnemyAbilitySystemComponent->HandleGameplayEvent(MordecaiGameplayTags::Event_Death, &EventData);
+
+	// US-053: Notify game mode for kill tracking
+	if (UWorld* World = GetWorld())
+	{
+		if (AMordecaiGameMode* GM = Cast<AMordecaiGameMode>(World->GetAuthGameMode()))
+		{
+			GM->NotifyEnemyKilled(this);
+		}
+	}
 }
 
 void AMordecaiEnemyCharacter::EnterPostureBrokenState()
@@ -252,6 +262,50 @@ void AMordecaiEnemyCharacter::ExitPostureBrokenState()
 	PostureSystem->ExitPostureBroken(MaxPosture);
 	EnemyAbilitySystemComponent->SetNumericAttributeBase(
 		UMordecaiAttributeSet::GetPostureAttribute(), MaxPosture);
+}
+
+// ---------------------------------------------------------------------------
+// US-053: Arena Reset
+// ---------------------------------------------------------------------------
+
+void AMordecaiEnemyCharacter::ResetForArena()
+{
+	if (!EnemyAbilitySystemComponent || !AttributeSet)
+	{
+		return;
+	}
+
+	// Remove death and posture broken tags
+	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Dead);
+	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_PostureBroken);
+
+	// Cancel posture broken timer if active
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PostureBrokenTimerHandle);
+	}
+
+	// Restore health and posture to max (AC-053.9)
+	const float MaxHealth = AttributeSet->GetMaxHealth();
+	const float MaxPosture = AttributeSet->GetMaxPosture();
+	AttributeSet->InitHealth(MaxHealth);
+	AttributeSet->InitPosture(MaxPosture);
+
+	// Reset posture system state
+	if (PostureSystem)
+	{
+		PostureSystem->ExitPostureBroken(MaxPosture);
+	}
+
+	// Re-enable collision
+	SetActorEnableCollision(true);
+
+	// Re-enable movement
+	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
+	{
+		CMC->SetMovementMode(MOVE_Walking);
+		CMC->MaxWalkSpeed = DefaultMoveSpeed;
+	}
 }
 
 // ---------------------------------------------------------------------------

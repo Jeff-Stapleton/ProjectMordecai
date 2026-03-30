@@ -114,6 +114,10 @@ namespace MordecaiGameplayTags
 	// Event tags (US-050)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Death);
 
+	// Event tags (US-053)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_PlayerDeath);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_EnemyKill);
+
 	// SetByCaller data tags (US-004)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_HealthDamage);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_PostureDamage);

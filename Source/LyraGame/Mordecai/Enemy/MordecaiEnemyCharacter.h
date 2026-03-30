@@ -82,6 +82,10 @@ public:
 	/** Initialize ASC, attributes, tags, and delegates. Idempotent — safe to call multiple times. */
 	void InitializeAbilitySystem();
 
+	/** Reset this enemy for arena replay. Restores health/posture, removes death state,
+	 *  re-enables collision and movement. Called by GameMode::ResetArena(). */
+	void ResetForArena();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void PossessedBy(AController* NewController) override;

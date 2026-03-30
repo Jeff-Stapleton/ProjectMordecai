@@ -112,6 +112,10 @@ namespace MordecaiGameplayTags
 	// Event tags (US-050)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Death, "Mordecai.Event.Death", "Character has died — broadcast for loot, scoring, AI reaction");
 
+	// Event tags (US-053)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_PlayerDeath, "Mordecai.Event.PlayerDeath", "Player character has died — broadcast for respawn, UI, game flow");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_EnemyKill,   "Mordecai.Event.EnemyKill",   "An enemy was killed — broadcast for scoring, arena tracking");
+
 	// SetByCaller data tags (US-004)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_HealthDamage,  "Mordecai.SetByCaller.HealthDamage",  "SetByCaller tag for health damage magnitude");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_PostureDamage, "Mordecai.SetByCaller.PostureDamage", "SetByCaller tag for posture damage magnitude");
