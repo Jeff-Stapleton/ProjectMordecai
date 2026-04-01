@@ -111,6 +111,18 @@ namespace MordecaiGameplayTags
 	// Status tags (US-020)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_StoneSkin);
 
+	// Ability tags (US-021)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Spell_Blink);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Spell_Sleep);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Spell_FireWard);
+
+	// Status tags (US-021)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Sleeping);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_FireWard);
+
+	// State tags (US-021)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Invulnerable);
+
 	// Event tags (US-019)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_SpellCast);
 

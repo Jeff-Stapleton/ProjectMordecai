@@ -61,6 +61,9 @@ public:
 	// Damage Reduction Attribute (US-020)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, DamageReduction);
 
+	// Fire Ward Shield HP (US-021)
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, FireWardShieldHP);
+
 	// Derived Attributes — Secondary Effects (per character_attributes_v1 secondary_stats table)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, ArmorPenetrationMultiplier);
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, PhysicalCritChance);
@@ -168,6 +171,10 @@ protected:
 	// Damage reduction OnRep (US-020)
 	UFUNCTION()
 	void OnRep_DamageReduction(const FGameplayAttributeData& OldValue);
+
+	// Fire Ward Shield HP OnRep (US-021)
+	UFUNCTION()
+	void OnRep_FireWardShieldHP(const FGameplayAttributeData& OldValue);
 
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& NewValue) const;
 
@@ -286,4 +293,8 @@ private:
 	// --- Damage Reduction (US-020) ---
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DamageReduction, Category = "Mordecai|Defense", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData DamageReduction;
+
+	// --- Fire Ward Shield HP (US-021) ---
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_FireWardShieldHP, Category = "Mordecai|Defense", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData FireWardShieldHP;
 };

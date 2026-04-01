@@ -109,6 +109,18 @@ namespace MordecaiGameplayTags
 	// Status tags (US-020)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_StoneSkin, "Mordecai.Status.StoneSkin", "Stone Skin buff is active — damage reduction applied");
 
+	// Ability tags (US-021)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_Blink,    "Mordecai.Ability.Spell.Blink",    "Blink spell ability — short-range teleport");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_Sleep,    "Mordecai.Ability.Spell.Sleep",    "Sleep spell ability — single-target crowd control");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_FireWard, "Mordecai.Ability.Spell.FireWard", "Fire Ward spell ability — fire damage absorb shield");
+
+	// Status tags (US-021)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Sleeping, "Mordecai.Status.Sleeping", "Sleeping — incapacitated, wakes on damage");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_FireWard, "Mordecai.Status.FireWard", "Fire Ward active — absorbing fire damage");
+
+	// State tags (US-021)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Invulnerable, "Mordecai.State.Invulnerable", "Invulnerable — immune to all damage (Blink i-frames)");
+
 	// Event tags (US-019)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_SpellCast, "Mordecai.Event.SpellCast", "Spell cast phase completed successfully");
 

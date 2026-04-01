@@ -47,6 +47,8 @@ UMordecaiAttributeSet::UMordecaiAttributeSet()
 	, BlockStaminaCostMultiplier(1.0f)
 	// Damage reduction (US-020) — 0 means no flat reduction
 	, DamageReduction(0.0f)
+	// Fire Ward shield HP (US-021) — 0 means no shield active
+	, FireWardShieldHP(0.0f)
 {
 }
 
@@ -170,6 +172,9 @@ void UMordecaiAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 	// Damage reduction (US-020)
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, DamageReduction, COND_None, REPNOTIFY_Always);
+
+	// Fire Ward shield HP (US-021)
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, FireWardShieldHP, COND_None, REPNOTIFY_Always);
 }
 
 void UMordecaiAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -255,6 +260,10 @@ void UMordecaiAttributeSet::ClampAttribute(const FGameplayAttribute& Attribute, 
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
 	else if (Attribute == GetDamageReductionAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetFireWardShieldHPAttribute())
 	{
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
@@ -448,4 +457,11 @@ void UMordecaiAttributeSet::OnRep_BlockStaminaCostMultiplier(const FGameplayAttr
 void UMordecaiAttributeSet::OnRep_DamageReduction(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, DamageReduction, OldValue);
+}
+
+// --- Fire Ward shield HP OnRep (US-021) ---
+
+void UMordecaiAttributeSet::OnRep_FireWardShieldHP(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, FireWardShieldHP, OldValue);
 }
