@@ -1336,3 +1336,45 @@ AFTER Epic 5.5 — Epic 6:
 5. After Epic 4: **US-019** (Spell Framework) — gates all Epic 5 spell stories.
 
 6. Investigate and unblock **US-015** when Jeff has time — this remains the only long-standing blocker.
+
+---
+
+## 2026-03-31 Nightly Planning Run (2)
+
+### Completed Since Last Run
+- (none — no coding work since the earlier run today)
+
+### Currently In Progress
+- (none — queue is clear)
+
+### New Stories Created
+- (none — all stories through Epic 5.5 are scoped and in backlog)
+
+### Backlog Audit
+All 15 backlog stories verified with correct Execution Mode tags:
+
+| Mode | Count | Stories |
+|------|-------|---------|
+| HEADLESS | 14 | US-015 (blocked), US-016, US-017, US-018, US-019, US-020, US-021, US-022, US-023, US-024, US-055, US-056, US-059, US-060 |
+| EDITOR | 1 | US-057 (Playable Magic Arena) |
+
+No mixed stories found. All stories comply with PLANNER.md classification rules.
+
+### Blockers / Decisions Needed
+- **US-015 (Frostbitten/Shocked) remains BLOCKED.** Partial code exists (MicroStunned GE in `StatusEffects/Effects/`). Multiple agent attempts failed. Needs manual investigation by Jeff. This blocks US-018 ACs 3/4 (Drenched synergies with Frostbitten/Shocked). All other Epic 4 stories are unblocked.
+
+### Next Session Recommendation
+
+Priority order unchanged — agents should start here:
+
+1. **US-016** (Weakened, Brittle, Exposed, Corroded) — **START HERE.** HEADLESS. 19 ACs, 14 tests. All dependencies met. Follows established GE + attribute modifier pattern from US-014.
+
+2. **US-017** (Silenced, Rooted) — **CAN PARALLELIZE with US-016.** HEADLESS. 11 ACs, 9 tests. Independent of US-016.
+
+3. **US-059** (Blinded, Fear, Cursed) — After US-017. HEADLESS. Depends on `SpellPointRegenMultiplier` attr from US-017.
+
+4. **US-018** (Drenched, Focused) — After US-059. HEADLESS. Implement all non-Frostbitten/Shocked ACs. Mark ACs 3/4 as `BLOCKED_BY_US015`.
+
+5. **US-019** (Spell Framework) — After Epic 4. Gates all Epic 5 spell stories.
+
+6. **US-015** — Still needs Jeff's manual investigation. Only long-standing blocker.
