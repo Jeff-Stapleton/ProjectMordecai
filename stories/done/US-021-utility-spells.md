@@ -57,4 +57,4 @@ Implement three utility spells using the Spell Framework from US-019. Blink (sho
 - [x] All implementation complete
 - [x] All tests passing (green)
 - [x] Project compiles with zero errors
-- [ ] Code committed and pushed with `[US-021]` prefix
+- [x] Code committed and pushed with `[US-021]` prefix
