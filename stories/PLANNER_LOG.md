@@ -1247,3 +1247,92 @@ AFTER Epic 5.5 — Epic 6:
 5. After Epic 5: **US-055** + **US-056** (parallel HEADLESS) → **US-057** (EDITOR — Playable Magic Slice).
 6. After Epic 5.5: **US-024** (Weapon Framework) — gates Epic 6.
 7. Investigate and unblock **US-015** when time allows — US-018 depends on it.
+
+---
+
+## 2026-03-31 Nightly Planning Run
+
+### Completed Since Last Run
+- **US-053: Player Death & Arena Game Flow** — implemented player death, respawn, and arena reset flow. Commit: `092800e`, `0e29035`.
+- **US-054: Playable Arena Integration** — configured enemy attack profiles, wired arena. Commit: `2067b81`, `3f4d1b5`.
+- **Epic 2.5: Playable Vertical Slice is COMPLETE.** All 5 stories (US-050 through US-054) are done. Jeff can now launch the game, fight enemies in the test arena, and exercise the full melee/dodge/block/parry/stamina/posture loop with HUD feedback.
+
+### Currently In Progress
+- (none — all in-progress stories cleared)
+
+### Corrective Action
+- **US-019 moved back to backlog.** It was found in `stories/in-progress/` but Epic 4 remaining (US-016 → US-017 → US-059 → US-018) must be completed before Epic 5 per priority order. US-019 also has an integration point with US-017 (Silenced tag blocking spells — AC-019.13). No implementation code existed for US-019 so nothing was lost.
+
+### New Stories Created
+- (none — all stories through Epic 5.5 are already scoped and in backlog)
+
+### Backlog Review — Epic 4 Remaining (All HEADLESS)
+All four stories reviewed and confirmed well-scoped with execution modes, ACs, tests, and design doc references:
+
+| Story | Status Effects | ACs | Tests | Dependencies |
+|-------|---------------|-----|-------|-------------|
+| US-016 | Weakened, Brittle, Exposed, Corroded | 19 | 14 | US-013 ✅ |
+| US-017 | Silenced, Rooted | 11 | 9 | US-013 ✅ |
+| US-059 | Blinded, Fear, Cursed | 17 | 11 | US-013 ✅, US-017 (shared attrs) |
+| US-018 | Drenched, Focused | 15 | 14 | US-013 ✅, US-015 🔴 (partial) |
+
+**New attributes introduced across Epic 4 remaining:**
+- US-016: `OutgoingPostureDamageMultiplier`, `IncomingPostureDamageMultiplier`, `IncomingDamageMultiplier`, `BlockStabilityMultiplier`, `ArmorEfficiencyMultiplier`
+- US-017: `SpellPointRegenMultiplier`
+- US-059: `RangedAccuracyMultiplier`, `AimAssistMultiplier`, `StealthDetectionMultiplier`, `StaminaTierPenaltyMultiplier`
+- US-018: `FireDamageReceivedMultiplier`
+
+These all follow the established multiplier pattern (default 1.0) from US-014.
+
+### Existing Source Code State
+- `Mordecai/StatusEffects/Effects/` contains: Bleeding, Burning, Poisoned, MicroStunned (from US-014 + partial US-015)
+- No `Mordecai/Magic/` directory exists yet (US-019 not started)
+- Test directories exist for: Arena, Attributes, Camera, Character, Combat, Enemy, Feats, Foundation, HUD, Input, Level, Skills, Stamina, StatusEffects
+
+### Blockers / Decisions Needed
+- **US-015 remains BLOCKED.** Partial code exists (MicroStunned GE). Needs manual investigation by Jeff. This blocks US-018's Drenched synergies with Frostbitten/Shocked.
+- **US-018 partial implementation:** Drenched ACs 3/4 (Shocked/Frostbitten amplification) depend on US-015. Focused and Drenched fire/burning interactions can be implemented without US-015. Recommend implementing what's possible and marking the remaining ACs as `BLOCKED_BY_US015`.
+
+### Dependency Graph (Updated)
+
+```
+CURRENT PRIORITY — Epic 4 remaining:
+  US-016 (Weakened/Brittle/Exposed/Corroded) ──┐
+  US-017 (Silenced/Rooted) ──────────────────────┤──> US-059 (Blinded/Fear/Cursed) ──> US-018 (Drenched/Focused)
+                                                  │
+  Note: US-016 and US-017 can be parallelized     │
+  US-059 depends on US-017 (shared attribute defs) │
+  US-018 partially blocked by US-015 🔴           │
+
+BLOCKED:
+  US-015 (Frostbitten/Shocked) ──> US-018 ACs 3/4 (Drenched synergies)
+
+AFTER Epic 4 — Epic 5:
+  US-019 (Spell Framework) ──┬──> US-020 (Damage Spells)
+                              ├──> US-021 (Utility Spells)
+                              ├──> US-022 (Support Spells)
+                              ├──> US-023 (Snare/Enfeeble/EnchantWeapon)
+                              └──> US-060 (Illusion/Blur)
+
+AFTER Epic 5 — Epic 5.5 (Playable Magic Slice):
+  US-055 (Spell HUD) ──┐
+  US-056 (Status Attacks) ──┤──> US-057 (Playable Magic Arena — EDITOR)
+  US-019–023/060 (all spells) ──┘
+
+AFTER Epic 5.5 — Epic 6:
+  US-024 (Weapon Framework) ──> US-025/026/027 ──> US-028/029/030
+```
+
+### Next Session Recommendation
+
+1. **US-016** (Combat Modifier Debuffs: Weakened, Brittle, Exposed, Corroded) — **START HERE**. HEADLESS. 19 ACs, 14 tests. All dependencies met (US-013 done). Follows established GE + attribute modifier pattern from US-014.
+
+2. **US-017** (Silenced, Rooted) — **CAN PARALLELIZE with US-016**. HEADLESS. 11 ACs, 9 tests. Independent of US-016. Both share US-013 as their only dependency.
+
+3. **US-059** (Blinded, Fear, Cursed) — After US-017 completes (shares `SpellPointRegenMultiplier` attr). HEADLESS.
+
+4. **US-018** (Drenched, Focused) — After US-059. HEADLESS. Partially blocked by US-015 — implement all non-Frostbitten/Shocked-dependent ACs. Mark remaining as blocked.
+
+5. After Epic 4: **US-019** (Spell Framework) — gates all Epic 5 spell stories.
+
+6. Investigate and unblock **US-015** when Jeff has time — this remains the only long-standing blocker.

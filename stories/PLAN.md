@@ -24,13 +24,13 @@ Implement the combat system: attacks, defense, posture, stamina, projectiles.
 - US-008: Stamina Tier System ✅
 - US-009: Projectile System & Aim Assist ✅
 
-### Epic 2.5: Playable Vertical Slice ⚡ (nearly complete — US-053 + US-054 remaining)
+### Epic 2.5: Playable Vertical Slice ✅ (complete)
 Wire up all completed combat systems into a playable prototype. The goal: Jeff can launch the game, run around a test map, fight an enemy, and exercise melee/dodge/block/parry/stamina/posture.
 - US-050: Enemy Character & Damage Reception ✅
 - US-051: Basic Enemy AI Combat Loop ✅
 - US-052: Combat HUD C++ Framework ✅
-- US-053: Player Death & Arena Game Flow (HEADLESS — player death/respawn, arena reset, kill tracking) ⚡ **in progress** (no implementation yet)
-- US-054: Playable Arena Integration (EDITOR — enemy BP, attack DataAssets, HUD widget BP, level setup, full wiring) ⚡ **in progress** (12/13 ACs done, PIE test pending US-053)
+- US-053: Player Death & Arena Game Flow ✅
+- US-054: Playable Arena Integration ✅
 
 ### Epic 3: Attributes & Progression ✅ (complete)
 Wire up the attribute system and skill progression.
@@ -104,8 +104,8 @@ Delegated town systems.
 2. **Epic 2** — Core Combat ✅
 3. **Epic 3** — Attributes & Progression ✅
 4. **Epic 4 (partial)** — Status Effects: US-013 ✅, US-014 ✅, US-015 🔴 BLOCKED
-5. **Epic 2.5** — Playable Vertical Slice ⚡ **IMMEDIATE PRIORITY** (US-053 + US-054 remaining)
-6. **Epic 4 (remaining)** — US-016 → US-017 → US-059 → US-018 (resume after vertical slice is playable)
+5. **Epic 2.5** — Playable Vertical Slice ✅
+6. **Epic 4 (remaining)** — US-016 → US-017 → US-059 → US-018 ⚡ **CURRENT PRIORITY**
 7. **Epic 5** — Magic System: US-019 (gate) → US-020/021/022 (parallel) → US-023 → US-060
 8. **Epic 5.5** — Playable Magic Slice: US-055 + US-056 (parallel, HEADLESS) → US-057 (EDITOR)
 9. **Epic 6** — Weapons & Equipment: US-024 (gate) → US-025/026/027 → US-028/029/030
