@@ -95,6 +95,19 @@ namespace MordecaiGameplayTags
 	// State tags (US-014)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Casting);
 
+	// State tags (US-019)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_CastingSlow);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_CastingRooted);
+
+	// Ability tags (US-019)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Spell);
+
+	// Event tags (US-019)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_SpellCast);
+
+	// SetByCaller data tags (US-019)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_SpellPointCost);
+
 	// State tags (US-050)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead);
 

@@ -93,6 +93,19 @@ namespace MordecaiGameplayTags
 	// State tags (US-014)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Casting, "Mordecai.State.Casting", "Character is currently casting a spell");
 
+	// State tags (US-019)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_CastingSlow,   "Mordecai.State.CastingSlow",   "Character is casting a spell with reduced movement speed");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_CastingRooted, "Mordecai.State.CastingRooted", "Character is casting a spell and cannot move");
+
+	// Ability tags (US-019)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell, "Mordecai.Ability.Spell", "Identifies an ability as a spell");
+
+	// Event tags (US-019)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_SpellCast, "Mordecai.Event.SpellCast", "Spell cast phase completed successfully");
+
+	// SetByCaller data tags (US-019)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_SpellPointCost, "Mordecai.SetByCaller.SpellPointCost", "SetByCaller tag for spell point cost magnitude");
+
 	// State tags (US-050)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "Mordecai.State.Dead", "Character is dead — no further damage, movement, or actions");
 
