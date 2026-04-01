@@ -45,6 +45,8 @@ UMordecaiAttributeSet::UMordecaiAttributeSet()
 	// Status effect modifier attributes (US-015) — neutral defaults
 	, DodgeRecoveryMultiplier(1.0f)
 	, BlockStaminaCostMultiplier(1.0f)
+	// Damage reduction (US-020) — 0 means no flat reduction
+	, DamageReduction(0.0f)
 {
 }
 
@@ -165,6 +167,9 @@ void UMordecaiAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	// Status effect modifier attributes (US-015)
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, DodgeRecoveryMultiplier, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, BlockStaminaCostMultiplier, COND_None, REPNOTIFY_Always);
+
+	// Damage reduction (US-020)
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, DamageReduction, COND_None, REPNOTIFY_Always);
 }
 
 void UMordecaiAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -246,6 +251,10 @@ void UMordecaiAttributeSet::ClampAttribute(const FGameplayAttribute& Attribute, 
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
 	else if (Attribute == GetBlockStaminaCostMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetDamageReductionAttribute())
 	{
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
@@ -432,4 +441,11 @@ void UMordecaiAttributeSet::OnRep_DodgeRecoveryMultiplier(const FGameplayAttribu
 void UMordecaiAttributeSet::OnRep_BlockStaminaCostMultiplier(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, BlockStaminaCostMultiplier, OldValue);
+}
+
+// --- Damage reduction OnRep (US-020) ---
+
+void UMordecaiAttributeSet::OnRep_DamageReduction(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, DamageReduction, OldValue);
 }

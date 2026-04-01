@@ -100,6 +100,15 @@ namespace MordecaiGameplayTags
 	// Ability tags (US-019)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell, "Mordecai.Ability.Spell", "Identifies an ability as a spell");
 
+	// Ability tags (US-020)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_Fireball,     "Mordecai.Ability.Spell.Fireball",     "Fireball spell ability");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_ConeOfCold,   "Mordecai.Ability.Spell.ConeOfCold",   "Cone of Cold spell ability");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_MagicMissile, "Mordecai.Ability.Spell.MagicMissile", "Magic Missile spell ability");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_StoneSkin,    "Mordecai.Ability.Spell.StoneSkin",    "Stone Skin spell ability");
+
+	// Status tags (US-020)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_StoneSkin, "Mordecai.Status.StoneSkin", "Stone Skin buff is active — damage reduction applied");
+
 	// Event tags (US-019)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_SpellCast, "Mordecai.Event.SpellCast", "Spell cast phase completed successfully");
 

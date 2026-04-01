@@ -58,6 +58,9 @@ public:
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, DodgeRecoveryMultiplier);
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, BlockStaminaCostMultiplier);
 
+	// Damage Reduction Attribute (US-020)
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, DamageReduction);
+
 	// Derived Attributes — Secondary Effects (per character_attributes_v1 secondary_stats table)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, ArmorPenetrationMultiplier);
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, PhysicalCritChance);
@@ -161,6 +164,10 @@ protected:
 	void OnRep_DodgeRecoveryMultiplier(const FGameplayAttributeData& OldValue);
 	UFUNCTION()
 	void OnRep_BlockStaminaCostMultiplier(const FGameplayAttributeData& OldValue);
+
+	// Damage reduction OnRep (US-020)
+	UFUNCTION()
+	void OnRep_DamageReduction(const FGameplayAttributeData& OldValue);
 
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& NewValue) const;
 
@@ -275,4 +282,8 @@ private:
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BlockStaminaCostMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData BlockStaminaCostMultiplier;
+
+	// --- Damage Reduction (US-020) ---
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DamageReduction, Category = "Mordecai|Defense", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData DamageReduction;
 };

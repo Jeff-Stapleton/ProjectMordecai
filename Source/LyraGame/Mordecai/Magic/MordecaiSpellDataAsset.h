@@ -92,6 +92,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Delivery")
 	EMordecaiSpellDeliveryType DeliveryType = EMordecaiSpellDeliveryType::InstantApply;
 
+	// --- Projectile Configuration (US-020) ---
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Projectile")
+	float ProjectileSpeed = 2000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Projectile")
+	float ProjectileLifetime = 3.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Projectile")
+	float ProjectileCollisionRadius = 30.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Projectile")
+	int32 ProjectileCount = 1;
+
+	// --- Buff Configuration (US-020) ---
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Buff")
+	float BuffDuration = 0.f;
+
 	// --- Upcasting ---
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Upcast")
