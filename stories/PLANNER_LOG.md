@@ -1378,3 +1378,185 @@ Priority order unchanged — agents should start here:
 5. **US-019** (Spell Framework) — After Epic 4. Gates all Epic 5 spell stories.
 
 6. **US-015** — Still needs Jeff's manual investigation. Only long-standing blocker.
+
+---
+
+## 2026-04-02 Nightly Planning Run
+
+### Completed Since Last Run (3/31)
+- **US-019: Spell Framework & Spell DataAsset** — moved to done. Base spell ability class, SP costs, cooldowns, casting phases, movement policies, interruption, scaling infrastructure all implemented.
+- **US-020: Damage Spells** — moved to done. Fireball, Cone of Cold, Magic Missile, Stone Skin all implemented with 12 ACs passing.
+- **US-021: Utility Spells** — moved to done. Blink, Sleep, Fire Ward all implemented with 11 ACs passing.
+
+Epic 5 jumped ahead of Epic 4 remaining (agents worked on spell system instead of status effects). This is acceptable — Epic 5 stories had no hard dependencies on remaining Epic 4 status effects. US-023 and US-060 do have soft dependencies on US-016/US-017 for reusing Weakened/Rooted GEs.
+
+### Currently In Progress
+- **US-022: Support Spells (Bless, Restoration)** — WIP recovery from previous agent run. HEADLESS. Small story (2 spells, 8 ACs). Git log shows `[WIP] Recovering US-022 move to in-progress from previous agent run`.
+
+### New Stories Created
+- (none — all stories through Epic 5.5 + US-024 are already well-scoped in backlog)
+
+### PLAN.md Updates
+- Updated Epic 5 header from "← **scoped**" to "(4/6 done, US-022 in progress)" with individual story status markers
+- Updated Priority Order to reflect that Epic 5 partially completed ahead of Epic 4 remaining
+- New priority 7 merges remaining Epic 4 + Epic 5 stories into an interleaved dependency chain:
+  `US-022 (finish) → US-016 + US-017 (parallel) → US-059 + US-060 (parallel) → US-023 → US-018`
+
+### Backlog Audit (11 stories)
+
+| Story | Epic | Mode | ACs | Tests | Dependencies Met? |
+|-------|------|------|-----|-------|-------------------|
+| US-015 | 4 | HEADLESS | 15 | 13 | 🔴 BLOCKED |
+| US-016 | 4 | HEADLESS | 19 | 14 | ✅ Ready |
+| US-017 | 4 | HEADLESS | 11 | 9 | ✅ Ready |
+| US-059 | 4 | HEADLESS | 17 | 11 | ⏳ After US-017 |
+| US-018 | 4 | HEADLESS | 15 | 14 | ⏳ After US-059; partially blocked by US-015 |
+| US-023 | 5 | HEADLESS | 9 | 7 | ⏳ After US-016 + US-017 |
+| US-060 | 5 | HEADLESS | 8 | 8 | ✅ Ready |
+| US-055 | 5.5 | HEADLESS | 10 | 8 | ✅ Ready (but logically after spells) |
+| US-056 | 5.5 | HEADLESS | 7 | 6 | ✅ Ready |
+| US-057 | 5.5 | EDITOR | 12 | Manual | ⏳ After US-055 + US-056 + all spells |
+| US-024 | 6 | HEADLESS | 13 | 11 | ✅ Ready (but after Epic 5.5) |
+
+All 10 HEADLESS, 1 EDITOR. No mixed stories. All comply with PLANNER.md classification rules.
+
+### Source Code State
+- `Mordecai/StatusEffects/Effects/`: Burning, Bleeding, Poisoned, MicroStunned (from US-014 + partial US-015)
+- `Mordecai/Magic/`: SpellBase, SpellDataAsset, SpellTypes + 8 spell implementations (Fireball, ConeOfCold, MagicMissile, StoneSkin, Blink, Sleep, FireWard + types)
+- No Bless or Restoration code yet (US-022 WIP)
+- Test directories: Arena, Attributes, Camera, Character, Combat, Enemy, Feats, Foundation, HUD, Input, Level, Magic, Skills, Stamina, StatusEffects
+
+### Dependency Graph (Current)
+
+```
+IN PROGRESS:
+  US-022 (Bless/Restoration) ──> done
+
+NEXT — Parallelizable pair:
+  US-016 (Weakened/Brittle/Exposed/Corroded) ─┬──> US-023 (Snare/Enfeeble/EnchantWeapon)
+  US-017 (Silenced/Rooted) ───────────────────┤
+                                                └──> US-059 (Blinded/Fear/Cursed) ──> US-018 (Drenched/Focused)
+
+INDEPENDENT (can run anytime after US-019):
+  US-060 (Illusion/Blur)
+
+INTEGRATION MILESTONE (Epic 5.5):
+  US-055 (Spell HUD) ──────┐
+  US-056 (Status Attacks) ──┤──> US-057 (Playable Magic Arena — EDITOR)
+  All spells complete ──────┘
+
+BLOCKED:
+  US-015 (Frostbitten/Shocked) ──> US-018 ACs 3/4 (Drenched synergies)
+```
+
+### Blockers / Decisions Needed
+1. **US-015 (Frostbitten/Shocked) remains BLOCKED.** Partial code exists (MicroStunned GE). Multiple agent attempts failed. Needs manual investigation by Jeff. Blocks US-018 ACs 3/4 (Drenched synergies with Frostbitten/Shocked). All other stories are unblocked.
+2. **US-022 recovery:** Previous agent run left US-022 in a WIP state. Next coding agent should check the current code state and either continue or restart cleanly.
+
+### Next Session Recommendation
+
+1. **US-022** (Support Spells: Bless, Restoration) — **FINISH FIRST.** HEADLESS. In-progress WIP recovery. Small story, 8 ACs. Check code state, continue or restart.
+
+2. **US-016 + US-017** — **PARALLELIZE.** Both HEADLESS. Both dependencies met. US-016 has 19 ACs (larger), US-017 has 11 ACs. Together they unblock US-023, US-059, and US-060.
+
+3. **US-060** (Illusion/Blur) — **CAN START IMMEDIATELY** after US-022 finishes. No dependency on Epic 4 stories. HEADLESS.
+
+4. **US-059** (Blinded/Fear/Cursed) — After US-017. HEADLESS. Shares `SpellPointRegenMultiplier` attribute from US-017.
+
+5. **US-023** (Snare/Enfeeble/EnchantWeapon) — After US-016 + US-017. HEADLESS. Reuses Weakened (US-016) and Rooted (US-017) GEs.
+
+6. **US-018** (Drenched/Focused) — After US-059. HEADLESS. Implement non-Frostbitten/Shocked ACs. Mark ACs 3/4 as `BLOCKED_BY_US015`.
+
+7. **US-055 + US-056** — After all spells + Epic 4 remaining. HEADLESS. Can parallelize.
+
+8. **US-057** — EDITOR. After US-055 + US-056. Playable Magic Arena integration milestone.
+
+9. **US-015** — Still needs Jeff's manual investigation. Only long-standing blocker.
+
+---
+
+## 2026-04-02 Nightly Planning Run (2)
+
+### Completed Since Last Run
+- (none — US-022 still in WIP recovery, no new completions)
+
+### Currently In Progress
+- **US-022: Support Spells (Bless, Restoration)** — HEADLESS. WIP recovery from previous agent run. Small story (2 spells, 8 ACs). No Bless or Restoration code exists yet in `Mordecai/Magic/`. Last commit: `3e8129a [WIP] Recovering US-022 move to in-progress from previous agent run`.
+
+### Changes to Existing Stories
+- **US-017 AC-017.2 updated:** Original text said "Since spell abilities don't exist yet (Epic 5)..." — this is now stale. Spells DO exist (US-019/020/021 done, US-022 in progress). Updated to instruct the coding agent to add `Mordecai.Status.Silenced` to `ActivationBlockedTags` on all 9 existing spell abilities (Fireball, ConeOfCold, MagicMissile, StoneSkin, Blink, Sleep, FireWard, Bless, Restoration), not just register the tag for future use.
+- **PLAN.md Epic 4 count fixed:** "2/8 done" → "2/7 done" (actual count: US-013, 014, 015, 016, 017, 059, 018 = 7 stories).
+
+### New Stories Created
+- (none — backlog is healthy at 11 stories covering the full dependency chain through Epic 5.5 + US-024)
+
+### Backlog Audit (11 stories)
+
+| Story | Epic | Mode | Status | Dependencies Met? |
+|-------|------|------|--------|-------------------|
+| US-015 | 4 | HEADLESS | 🔴 BLOCKED | Needs Jeff investigation |
+| US-016 | 4 | HEADLESS | ✅ Ready | All deps met (US-013 done) |
+| US-017 | 4 | HEADLESS | ✅ Ready (updated) | All deps met (US-013 done) |
+| US-059 | 4 | HEADLESS | ⏳ After US-017 | Shares SpellPointRegenMultiplier attr |
+| US-018 | 4 | HEADLESS | ⏳ After US-059 | Partially blocked by US-015 (ACs 3/4) |
+| US-023 | 5 | HEADLESS | ⏳ After US-016 + US-017 | Reuses Weakened/Rooted GEs |
+| US-060 | 5 | HEADLESS | ✅ Ready | Independent (only needs US-019 done) |
+| US-055 | 5.5 | HEADLESS | ✅ Ready | Logically after spells complete |
+| US-056 | 5.5 | HEADLESS | ✅ Ready | No hard deps beyond US-002/US-013 |
+| US-057 | 5.5 | EDITOR | ⏳ After US-055 + US-056 + all spells | Integration milestone |
+| US-024 | 6 | HEADLESS | ✅ Ready | After Epic 5.5 (ordering only) |
+
+All 10 HEADLESS, 1 EDITOR. No mixed stories. All comply with PLANNER.md classification rules.
+
+### Source Code State
+- `Mordecai/Magic/`: SpellBase, SpellDataAsset, SpellTypes + 7 spell implementations (Fireball, ConeOfCold, MagicMissile, StoneSkin, Blink, Sleep, FireWard). No Bless or Restoration yet (US-022 WIP).
+- `Mordecai/StatusEffects/Effects/`: Burning, Bleeding, Poisoned, MicroStunned (from US-014 + partial US-015)
+- `Mordecai/UI/`: CombatHUDWidget, HealthBarWidget, StaminaBarWidget, PostureBarWidget (from US-052)
+- Test directories: Arena, Attributes, Camera, Character, Combat, Enemy, Feats, Foundation, HUD, Input, Level, Magic, Skills, Stamina, StatusEffects
+
+### Dependency Graph (Unchanged)
+
+```
+IN PROGRESS:
+  US-022 (Bless/Restoration) ──> done
+
+NEXT — Parallelizable pair:
+  US-016 (Weakened/Brittle/Exposed/Corroded) ─┬──> US-023 (Snare/Enfeeble/EnchantWeapon)
+  US-017 (Silenced/Rooted) ───────────────────┤
+                                                └──> US-059 (Blinded/Fear/Cursed) ──> US-018 (Drenched/Focused)
+
+INDEPENDENT (can run anytime after US-019):
+  US-060 (Illusion/Blur)
+
+INTEGRATION MILESTONE (Epic 5.5):
+  US-055 (Spell HUD) ──────┐
+  US-056 (Status Attacks) ──┤──> US-057 (Playable Magic Arena — EDITOR)
+  All spells complete ──────┘
+
+BLOCKED:
+  US-015 (Frostbitten/Shocked) ──> US-018 ACs 3/4 (Drenched synergies)
+```
+
+### Blockers / Decisions Needed
+1. **US-015 (Frostbitten/Shocked) remains BLOCKED.** Same as previous runs. Multiple agent attempts failed. Needs manual investigation by Jeff. Blocks US-018 ACs 3/4 only. All other stories are unblocked.
+2. **US-022 recovery:** Still WIP. Next coding agent should check code state and either continue or restart. No Bless/Restoration C++ files exist yet, so a clean start is likely needed.
+
+### Next Session Recommendation
+
+1. **US-022** (Bless, Restoration) — **FINISH FIRST.** HEADLESS. In-progress WIP. Small story, 8 ACs, 2 simple spells (self-buff + HoT). No code written yet despite WIP status — agent should start clean.
+
+2. **US-016 + US-017** — **PARALLELIZE.** Both HEADLESS, both ready. US-016 (19 ACs, Weakened/Brittle/Exposed/Corroded) and US-017 (11 ACs, Silenced/Rooted). Together they unblock US-023, US-059, and US-060. **Note:** US-017 was updated this run — coding agent should update existing spell abilities with Silenced blocking tag.
+
+3. **US-060** (Illusion/Blur) — **CAN START IMMEDIATELY** after US-022 finishes. No Epic 4 dependency. HEADLESS.
+
+4. **US-059** (Blinded/Fear/Cursed) — After US-017. HEADLESS.
+
+5. **US-023** (Snare/Enfeeble/EnchantWeapon) — After US-016 + US-017. HEADLESS.
+
+6. **US-018** (Drenched/Focused) — After US-059. HEADLESS. Implement non-Frostbitten/Shocked ACs. Mark ACs 3/4 as `BLOCKED_BY_US015`.
+
+7. **US-055 + US-056** — After all spells + remaining Epic 4. HEADLESS. Can parallelize.
+
+8. **US-057** — EDITOR. After US-055 + US-056. Playable Magic Arena.
+
+9. **US-015** — Still needs Jeff's manual investigation. Only long-standing blocker.

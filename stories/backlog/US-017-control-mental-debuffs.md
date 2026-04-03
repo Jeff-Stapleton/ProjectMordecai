@@ -20,7 +20,7 @@ Split from original US-017 scope. Blinded, Fear, and Cursed moved to US-059.
 
 ### Silenced
 - [ ] AC-017.1: `UMordecaiGE_Silenced` exists. Applies `Mordecai.Status.Silenced` tag. Duration: configurable `SilencedDurationSec` (default placeholder: 5.0s).
-- [ ] AC-017.2: While Silenced, spell abilities cannot be activated. Implementation: all spell abilities should have `Mordecai.Status.Silenced` as a blocking tag in their `ActivationBlockedTags`. Since spell abilities don't exist yet (Epic 5), register tag `Mordecai.Ability.Category.Spell` and document that all spell abilities must include `Mordecai.Status.Silenced` in their blocked tags.
+- [ ] AC-017.2: While Silenced, spell abilities cannot be activated. Implementation: all spell abilities should have `Mordecai.Status.Silenced` as a blocking tag in their `ActivationBlockedTags`. Existing spell abilities (Fireball, ConeOfCold, MagicMissile, StoneSkin, Blink, Sleep, FireWard from US-019/020/021, plus Bless/Restoration from US-022) MUST be updated to add `Mordecai.Status.Silenced` to their `ActivationBlockedTags`. Also register tag `Mordecai.Ability.Category.Spell` and ensure all future spell abilities include this blocking tag.
 - [ ] AC-017.3: While Silenced, spell point regen is paused. Implementation: set `SpellPointRegenMultiplier` to 0. Add `SpellPointRegenMultiplier` attribute if needed (default 1.0). `TODO(DECISION)` — whether SP regen pause is mandatory or optional per design doc note.
 - [ ] AC-017.4: While Silenced, weapon skills are still usable unless they have the `Mordecai.Ability.Category.Magical` tag. Non-magical weapon abilities remain unaffected.
 - [ ] AC-017.5: Silenced is blocked if target has `Mordecai.Immunity.Silenced` tag.
@@ -38,7 +38,7 @@ Split from original US-017 scope. Blinded, Fear, and Cursed moved to US-059.
 - New attributes needed on `UMordecaiAttributeSet`:
   - `SpellPointRegenMultiplier` (default 1.0) — read by SP regen system
 - Reuses `MoveSpeedMultiplier` from US-014.
-- Silenced blocking spells: use GAS tag requirements. The Silenced tag being present blocks ability activation for abilities that have it in their `ActivationBlockedTags`. Standard GAS pattern.
+- Silenced blocking spells: use GAS tag requirements. The Silenced tag being present blocks ability activation for abilities that have it in their `ActivationBlockedTags`. Standard GAS pattern. **NOTE: 9 spell abilities already exist** (Fireball, ConeOfCold, MagicMissile, StoneSkin, Blink, Sleep, FireWard, Bless, Restoration in `Mordecai/Magic/`). Each must have `Mordecai.Status.Silenced` added to `ActivationBlockedTags`.
 - Rooted blocking movement: prefer a tag-based check in the movement component over zeroing the speed attribute, as zeroing speed has side effects (animation, physics). Check for `Mordecai.Status.Rooted` in the movement tick and skip movement input processing.
 - Register new tags: `Mordecai.Ability.Category.Spell`, `Mordecai.Ability.Category.Magical`, `Mordecai.Event.BreakFree`.
 

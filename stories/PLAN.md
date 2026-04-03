@@ -38,24 +38,24 @@ Wire up the attribute system and skill progression.
 - US-011: Skill Framework & Rank Progression ✅
 - US-012: Feat System ✅
 
-### Epic 4: Status Effects (2/8 done, US-015 blocked)
+### Epic 4: Status Effects (2/7 done, US-015 blocked)
 Implement the launch status effect set via GAS. Split into 8 stories by mechanical grouping.
 - US-013: Status Effect Framework (GAS infrastructure, tags, stacking, immunity, cleanse) ✅
 - US-014: DoT & Resource Denial Statuses (Burning, Bleeding, Poisoned) ✅
 - US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked) 🔴 **BLOCKED** — partial code exists, needs manual investigation
-- US-016: Combat Modifier Debuffs (Weakened, Brittle, Exposed, Corroded) ← **scoped**
-- US-017: Action-Restricting Debuffs (Silenced, Rooted) ← **scoped** (trimmed from original 5 debuffs)
-- US-059: Perception & Mental Debuffs (Blinded, Fear, Cursed) ← **scoped** (split from US-017)
-- US-018: Drenched & Focused Buff (environmental interaction + perfect action streak) ← **scoped**
+- US-016: Combat Modifier Debuffs (Weakened, Brittle, Exposed, Corroded) ← **next** (parallelize with US-017)
+- US-017: Action-Restricting Debuffs (Silenced, Rooted) ← **next** (parallelize with US-016)
+- US-059: Perception & Mental Debuffs (Blinded, Fear, Cursed) ← **scoped** (after US-017)
+- US-018: Drenched & Focused Buff (environmental interaction + perfect action streak) ← **scoped** (after US-059; partially blocked by US-015)
 
-### Epic 5: Magic System ← **scoped** (7 stories: 5 HEADLESS + 2 split from US-023)
+### Epic 5: Magic System (4/6 done, US-022 in progress)
 Implement spell framework and 14 launch spells at Rank 1. Higher rank milestones deferred.
-- US-019: Spell Framework & Spell DataAsset (HEADLESS — base ability class, SP costs, cooldowns, casting phases, movement policies, interruption, scaling, upcasting) ← **scoped**
-- US-020: Damage Spells (HEADLESS — Fireball, Cone of Cold, Magic Missile, Stone Skin) ← **scoped**
-- US-021: Utility Spells (HEADLESS — Blink, Sleep, Fire Ward) ← **scoped**
-- US-022: Support Spells (HEADLESS — Bless, Restoration) ← **scoped**
-- US-023: Tactical Spells — Debuff Spells (HEADLESS — Snare, Enfeeble, Enchant Weapon) ← **scoped** (trimmed from original 5 spells)
-- US-060: Tactical Spells — Summon & Evasion (HEADLESS — Illusion, Blur) ← **scoped** (split from US-023)
+- US-019: Spell Framework & Spell DataAsset ✅
+- US-020: Damage Spells (Fireball, Cone of Cold, Magic Missile, Stone Skin) ✅
+- US-021: Utility Spells (Blink, Sleep, Fire Ward) ✅
+- US-022: Support Spells (Bless, Restoration) 🔄 **IN PROGRESS** (WIP recovery)
+- US-023: Tactical Spells — Debuff Spells (Snare, Enfeeble, Enchant Weapon) ← **scoped** (depends on US-016 + US-017)
+- US-060: Tactical Spells — Summon & Evasion (Illusion, Blur) ← **scoped** (independent)
 
 ### Epic 5.5: Playable Magic Slice ← **NEW** (3 stories: 2 HEADLESS + 1 EDITOR)
 Wire spells, status effects, and spell HUD into the playable arena. Integration milestone per Playability-First Rule (after 2 system epics: 4 + 5).
@@ -105,8 +105,9 @@ Delegated town systems.
 3. **Epic 3** — Attributes & Progression ✅
 4. **Epic 4 (partial)** — Status Effects: US-013 ✅, US-014 ✅, US-015 🔴 BLOCKED
 5. **Epic 2.5** — Playable Vertical Slice ✅
-6. **Epic 4 (remaining)** — US-016 → US-017 → US-059 → US-018 ⚡ **CURRENT PRIORITY**
-7. **Epic 5** — Magic System: US-019 (gate) → US-020/021/022 (parallel) → US-023 → US-060
+6. **Epic 5 (partial)** — Magic System: US-019 ✅, US-020 ✅, US-021 ✅, US-022 🔄
+7. **Epic 4 (remaining) + Epic 5 (remaining)** — interleaved by dependency ⚡ **CURRENT PRIORITY**
+   - US-022 (finish in-progress) → US-016 + US-017 (parallel) → US-059 + US-060 (parallel) → US-023 → US-018
 8. **Epic 5.5** — Playable Magic Slice: US-055 + US-056 (parallel, HEADLESS) → US-057 (EDITOR)
 9. **Epic 6** — Weapons & Equipment: US-024 (gate) → US-025/026/027 → US-028/029/030
 10. **Epic 7** — Inventory
