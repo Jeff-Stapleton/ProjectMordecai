@@ -123,6 +123,14 @@ namespace MordecaiGameplayTags
 	// State tags (US-021)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Invulnerable);
 
+	// Ability tags (US-022)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Spell_Bless);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Spell_Restoration);
+
+	// Status tags (US-022)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Blessed);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Restoration);
+
 	// Event tags (US-019)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_SpellCast);
 

@@ -121,6 +121,14 @@ namespace MordecaiGameplayTags
 	// State tags (US-021)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Invulnerable, "Mordecai.State.Invulnerable", "Invulnerable — immune to all damage (Blink i-frames)");
 
+	// Ability tags (US-022)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_Bless,       "Mordecai.Ability.Spell.Bless",       "Bless spell ability — self-targeted damage multiplier buff");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_Restoration, "Mordecai.Ability.Spell.Restoration", "Restoration spell ability — self-targeted heal over time");
+
+	// Status tags (US-022)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Blessed,     "Mordecai.Status.Blessed",     "Blessed — increased physical and magic damage multipliers");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Restoration, "Mordecai.Status.Restoration", "Restoration — healing over time active");
+
 	// Event tags (US-019)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_SpellCast, "Mordecai.Event.SpellCast", "Spell cast phase completed successfully");
 
