@@ -92,11 +92,16 @@ Read these when working on the relevant area — they contain patterns, pitfalls
   - References: `actor-subsystem.md`, `asset-library.md`, `common-classes.md`, `custom-classes.md`, `level-blockout.md`, `level-subsystem.md`, `remote-execution.md` (same directory `/references/`)
   - Remote exec script: `C:\Users\jeffd\.openclaw\workspace\skills\unreal-python-editor\scripts\ue_remote_exec.py`
 
+- **Tribal Knowledge** (hard-won lessons, gotchas, non-obvious fixes for Lyra/UE5/Mordecai):
+  `C:\Users\jeffd\.openclaw\workspace\skills\unreal-tribal-knowledge\SKILL.md`
+
 **When to read which skill:**
 - Writing ANY C++ → read `unreal-cpp` SKILL.md first
 - Writing GAS code (abilities, attributes, effects) → also read `unreal-gas` SKILL.md
 - Writing tests → read `unreal-testing` SKILL.md
 - Creating editor assets via Python → read `unreal-python-editor` SKILL.md
+- Debugging asset loading, experience, camera, or ability issues → read `unreal-tribal-knowledge` SKILL.md
+- **After solving any non-obvious problem** → ADD the lesson to `unreal-tribal-knowledge` SKILL.md
 
 ## Project Paths
 - **Project Root:** `C:\Users\jeffd\Documents\Gamedev\ProjectMordecai`

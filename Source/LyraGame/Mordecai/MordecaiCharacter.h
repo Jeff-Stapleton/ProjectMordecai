@@ -7,6 +7,7 @@
 #include "MordecaiCharacter.generated.h"
 
 class UArrowComponent;
+class ULyraHeroComponent;
 struct FOnAttributeChangeData;
 
 /**
@@ -63,6 +64,10 @@ protected:
 	virtual void PossessedBy(AController* NewController) override;
 
 private:
+	// Hero component — handles input binding and camera mode from PawnData
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Character", Meta = (AllowPrivateAccess = true))
+	TObjectPtr<ULyraHeroComponent> HeroComponent;
+
 	// Facing direction indicator (AC-2.1.5)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Character", Meta = (AllowPrivateAccess = true))
 	TObjectPtr<UArrowComponent> FacingArrowComponent;

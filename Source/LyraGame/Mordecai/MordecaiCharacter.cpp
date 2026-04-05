@@ -5,6 +5,7 @@
 #include "Mordecai/MordecaiGameMode.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "AbilitySystemComponent.h"
+#include "Character/LyraHeroComponent.h"
 #include "Components/ArrowComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -19,6 +20,9 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 	, GroundDeceleration(2048.0f)
 	, bIsSprinting(false)
 {
+	// Hero component: binds camera mode from PawnData and initializes input
+	HeroComponent = CreateDefaultSubobject<ULyraHeroComponent>(TEXT("HeroComponent"));
+
 	// Arrow component for facing direction visualization (AC-2.1.5)
 	FacingArrowComponent = CreateDefaultSubobject<UArrowComponent>(TEXT("FacingArrow"));
 	FacingArrowComponent->SetupAttachment(RootComponent);

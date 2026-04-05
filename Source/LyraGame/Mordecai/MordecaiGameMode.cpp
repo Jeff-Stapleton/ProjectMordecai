@@ -3,6 +3,9 @@
 #include "MordecaiGameMode.h"
 
 #include "Mordecai/MordecaiCharacter.h"
+#include "Mordecai/MordecaiPlayerController.h"
+#include "Mordecai/MordecaiPlayerState.h"
+#include "Mordecai/MordecaiGameState.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiGameMode)
@@ -10,6 +13,10 @@
 AMordecaiGameMode::AMordecaiGameMode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	GameStateClass = AMordecaiGameState::StaticClass();
+	PlayerControllerClass = AMordecaiPlayerController::StaticClass();
+	PlayerStateClass = AMordecaiPlayerState::StaticClass();
+	DefaultPawnClass = AMordecaiCharacter::StaticClass();
 }
 
 // ---------------------------------------------------------------------------
