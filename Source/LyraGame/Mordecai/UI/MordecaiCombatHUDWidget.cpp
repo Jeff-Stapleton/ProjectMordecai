@@ -1,9 +1,12 @@
-// Project Mordecai — Combat HUD Root Widget (US-052)
+// Project Mordecai — Combat HUD Root Widget (US-052, US-055)
 
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
 #include "Mordecai/UI/MordecaiHealthBarWidget.h"
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
 #include "Mordecai/UI/MordecaiPostureBarWidget.h"
+#include "Mordecai/UI/MordecaiSpellPointsBarWidget.h"
+#include "Mordecai/UI/MordecaiStatusEffectBarWidget.h"
+#include "Mordecai/UI/MordecaiSpellCooldownWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCombatHUDWidget)
 
@@ -14,6 +17,7 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 		return;
 	}
 
+	// Core resource bars (US-052)
 	if (HealthBar)
 	{
 		HealthBar->BindToASC(ASC);
@@ -26,4 +30,17 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 	{
 		PostureBar->BindToASC(ASC);
 	}
+
+	// Spell HUD (US-055)
+	if (SpellPointsBar)
+	{
+		SpellPointsBar->BindToASC(ASC);
+	}
+	if (StatusEffectBar)
+	{
+		StatusEffectBar->BindToASC(ASC);
+	}
+	// Note: SpellCooldownA/B are bound individually via BindToCooldownTag()
+	// from the player controller or experience setup, since each slot needs
+	// its specific cooldown tag and duration.
 }
