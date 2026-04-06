@@ -3,6 +3,7 @@
 #include "Misc/AutomationTest.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Components/ArrowComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // Mordecai.Character.MovesInWorldSpace
@@ -88,16 +89,28 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiChar_PlaceholderVisuals,
 
 bool FMordecaiChar_PlaceholderVisuals::RunTest(const FString& Parameters)
 {
-	// Verify capsule + arrow component exist (AC-2.1.5)
-	UClass* CharClass = AMordecaiCharacter::StaticClass();
-	TestNotNull("Character class exists", CharClass);
-
-	// Check that FacingArrow subobject exists on the class template
+	// Verify capsule + arrow + placeholder mesh components exist (AC-2.1.5)
 	const AMordecaiCharacter* CDO = GetDefault<AMordecaiCharacter>();
 	TestNotNull("Character CDO exists", CDO);
 
 	UArrowComponent* Arrow = CDO->GetFacingArrow();
 	TestNotNull("FacingArrow component exists", Arrow);
+
+	// Placeholder body mesh must exist and have a mesh assigned
+	UStaticMeshComponent* BodyMesh = CDO->GetPlaceholderBody();
+	TestNotNull("PlaceholderBody component exists", BodyMesh);
+	if (BodyMesh)
+	{
+		TestNotNull("PlaceholderBody has a static mesh assigned", BodyMesh->GetStaticMesh().Get());
+	}
+
+	// Placeholder head mesh must exist and have a mesh assigned
+	UStaticMeshComponent* HeadMesh = CDO->GetPlaceholderHead();
+	TestNotNull("PlaceholderHead component exists", HeadMesh);
+	if (HeadMesh)
+	{
+		TestNotNull("PlaceholderHead has a static mesh assigned", HeadMesh->GetStaticMesh().Get());
+	}
 
 	return true;
 }

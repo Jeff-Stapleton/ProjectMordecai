@@ -23,6 +23,8 @@ class LYRAGAME_API AMordecaiGameMode : public ALyraGameMode
 public:
 	AMordecaiGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
+
 	// --- Arena Configuration (US-053) ---
 
 	/** Delay in seconds before the player is respawned after death (AC-053.4). */

@@ -5,10 +5,16 @@
 #include "Mordecai/MordecaiGameMode.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "AbilitySystemComponent.h"
-#include "Character/LyraHeroComponent.h"
+#include "Mordecai/MordecaiHeroComponent.h"
+#include "Mordecai/Camera/MordecaiCameraMode_Diorama.h"
+#include "Camera/LyraCameraComponent.h"
 #include "Components/ArrowComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "UObject/ConstructorHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCharacter)
 
@@ -21,7 +27,8 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 	, bIsSprinting(false)
 {
 	// Hero component: binds camera mode from PawnData and initializes input
-	HeroComponent = CreateDefaultSubobject<ULyraHeroComponent>(TEXT("HeroComponent"));
+	// Uses MordecaiHeroComponent to set DefaultInputMappings with IMC_Mordecai
+	HeroComponent = CreateDefaultSubobject<UMordecaiHeroComponent>(TEXT("HeroComponent"));
 
 	// Arrow component for facing direction visualization (AC-2.1.5)
 	FacingArrowComponent = CreateDefaultSubobject<UArrowComponent>(TEXT("FacingArrow"));
@@ -29,6 +36,37 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 	FacingArrowComponent->ArrowColor = FColor::Green;
 	FacingArrowComponent->ArrowSize = 1.5f;
 	FacingArrowComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 50.0f));
+
+	// Placeholder visual mesh — cylinder body + sphere head (replace with skeletal mesh when art is ready)
+	PlaceholderBodyComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PlaceholderBody"));
+	PlaceholderBodyComponent->SetupAttachment(RootComponent);
+	PlaceholderBodyComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	PlaceholderHeadComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PlaceholderHead"));
+	PlaceholderHeadComponent->SetupAttachment(RootComponent);
+	PlaceholderHeadComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(
+		TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereFinder(
+		TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+
+	if (CylinderFinder.Succeeded())
+	{
+		PlaceholderBodyComponent->SetStaticMesh(CylinderFinder.Object);
+		// Engine cylinder is 100 units radius, 100 units half-height by default
+		// Scale to match capsule: ~35 radius, ~70 half-height (body portion below head)
+		PlaceholderBodyComponent->SetRelativeScale3D(FVector(0.7f, 0.7f, 1.4f));
+		PlaceholderBodyComponent->SetRelativeLocation(FVector(0.f, 0.f, -20.f));
+	}
+
+	if (SphereFinder.Succeeded())
+	{
+		PlaceholderHeadComponent->SetStaticMesh(SphereFinder.Object);
+		// Sphere head on top of body
+		PlaceholderHeadComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
+		PlaceholderHeadComponent->SetRelativeLocation(FVector(0.f, 0.f, 65.f));
+	}
 
 	// Twin-stick: character rotation independent of movement (AC-2.1.2)
 	bUseControllerRotationYaw = false;
@@ -68,12 +106,47 @@ void AMordecaiCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	BindToASC();
+
+	// Override camera delegate to always use diorama camera (permanent, no asset dependency)
+	if (ULyraCameraComponent* CameraComp = FindComponentByClass<ULyraCameraComponent>())
+	{
+		CameraComp->DetermineCameraModeDelegate.BindUObject(this, &AMordecaiCharacter::DetermineDioramaCameraMode);
+	}
+}
+
+TSubclassOf<ULyraCameraMode> AMordecaiCharacter::DetermineDioramaCameraMode() const
+{
+	return UMordecaiCameraMode_Diorama::StaticClass();
 }
 
 void AMordecaiCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 	BindToASC();
+}
+
+void AMordecaiCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	UE_LOG(LogTemp, Warning, TEXT("MORDECAI: SetupPlayerInputComponent called. PlayerInputComponent=%s, Controller=%s"),
+		PlayerInputComponent ? *PlayerInputComponent->GetClass()->GetName() : TEXT("NULL"),
+		GetController() ? *GetController()->GetClass()->GetName() : TEXT("NULL"));
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+
+	// Ensure IMC_Mordecai is added and movement input is bound.
+	if (HeroComponent && PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MORDECAI: Calling EnsureMordecaiInputBound"));
+		HeroComponent->EnsureMordecaiInputBound(PC);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("MORDECAI: Cannot bind input! HeroComponent=%s, PC=%s"),
+			HeroComponent ? TEXT("valid") : TEXT("NULL"),
+			PC ? TEXT("valid") : TEXT("NULL"));
+	}
 }
 
 void AMordecaiCharacter::BindToASC()
