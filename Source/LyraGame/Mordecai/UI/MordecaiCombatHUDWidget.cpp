@@ -9,6 +9,7 @@
 #include "Mordecai/UI/MordecaiSpellCooldownWidget.h"
 #include "Mordecai/UI/MordecaiComboCounterWidget.h"
 #include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
+#include "Mordecai/UI/MordecaiKillCounterWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCombatHUDWidget)
 
@@ -54,5 +55,11 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 	if (CombatFeedback)
 	{
 		CombatFeedback->BindToASC(ASC);
+	}
+
+	// Kill counter (US-063)
+	if (KillCounter)
+	{
+		KillCounter->BindToASC(ASC);
 	}
 }

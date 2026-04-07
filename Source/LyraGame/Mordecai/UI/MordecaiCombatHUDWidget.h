@@ -16,6 +16,7 @@ class UMordecaiStatusEffectBarWidget;
 class UMordecaiSpellCooldownWidget;
 class UMordecaiComboCounterWidget;
 class UMordecaiCombatFeedbackWidget;
+class UMordecaiKillCounterWidget;
 
 /**
  * UMordecaiCombatHUDWidget
@@ -70,4 +71,9 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UMordecaiCombatFeedbackWidget> CombatFeedback;
+
+	// --- Kill Counter (US-063) ---
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UMordecaiKillCounterWidget> KillCounter;
 };
