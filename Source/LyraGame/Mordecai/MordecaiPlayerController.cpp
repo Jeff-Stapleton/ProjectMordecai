@@ -41,9 +41,23 @@ void AMordecaiPlayerController::OnPossess(APawn* InPawn)
 
 void AMordecaiPlayerController::CreateCombatHUD()
 {
-	if (CombatHUDWidget || !CombatHUDWidgetClass || !IsLocalController())
+	if (CombatHUDWidget || !IsLocalController())
 	{
 		return;
+	}
+
+	// If CombatHUDWidgetClass is not set (e.g., no Blueprint subclass), try to load WBP_CombatHUD
+	if (!CombatHUDWidgetClass)
+	{
+		CombatHUDWidgetClass = LoadClass<UMordecaiCombatHUDWidget>(
+			nullptr,
+			TEXT("/MordecaiCore/UI/WBP_CombatHUD.WBP_CombatHUD_C"));
+
+		if (!CombatHUDWidgetClass)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MordecaiPlayerController: Failed to load WBP_CombatHUD. No combat HUD will be displayed."));
+			return;
+		}
 	}
 
 	CombatHUDWidget = CreateWidget<UMordecaiCombatHUDWidget>(this, CombatHUDWidgetClass);
