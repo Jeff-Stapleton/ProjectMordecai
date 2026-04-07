@@ -1,4 +1,4 @@
-// Project Mordecai — Combat HUD Root Widget (US-052, US-055)
+// Project Mordecai — Combat HUD Root Widget (US-052, US-055, US-061)
 
 #pragma once
 
@@ -14,6 +14,8 @@ class UMordecaiPostureBarWidget;
 class UMordecaiSpellPointsBarWidget;
 class UMordecaiStatusEffectBarWidget;
 class UMordecaiSpellCooldownWidget;
+class UMordecaiComboCounterWidget;
+class UMordecaiCombatFeedbackWidget;
 
 /**
  * UMordecaiCombatHUDWidget
@@ -60,4 +62,12 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UMordecaiSpellCooldownWidget> SpellCooldownB;
+
+	// --- Combat Feedback (US-061) ---
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UMordecaiComboCounterWidget> ComboCounter;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UMordecaiCombatFeedbackWidget> CombatFeedback;
 };
