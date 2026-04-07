@@ -92,10 +92,33 @@ Delegated town systems.
 - US-039: Initiatives & Upgrades
 - US-040: Town Events
 
-### Epic 10: UI & HUD
-- US-041: Combat HUD (Health%, Stamina Tiers, SP)
-- US-042: Status Effect VFX
-- US-043: Inventory UI
+### Epic 10: UI & HUD (Phase 1 complete, Phase 2-4 scoped)
+**Phase 1 — Combat HUD Completion ✅**
+- US-055: Spell HUD & Status Effect Indicators (SP bar, status icons, cooldowns) ✅
+- US-061: Combat Feedback — Combo Counter & Action Indicators ✅
+- US-062: Death Screen & Respawn Countdown ✅
+- US-063: Kill Counter Display ✅
+
+**Phase 2 — World-Space Combat Indicators**
+- US-064: Enemy Indicator System Migration (Lyra IndicatorSystem) ← **next**
+- US-065: Floating Damage Numbers (world-space, color-coded by damage type) ← after US-064
+
+**Phase 3 — Menus & Progression UI**
+- US-069: Pause Menu Framework (tabbed, CommonUI) ← **can start parallel with Phase 2**
+- US-066: Character Sheet — Attributes & Derived Stats ← after US-069
+- US-067: Skill Tree Display ← after US-069
+- US-068: Feat Display ← after US-069
+
+**Phase 4 — Blueprint & Visual Polish (EDITOR)**
+- US-070: Combat HUD Blueprint Polish ← after Phase 1
+- US-076: Pause Menu Blueprint & Tab Wiring ← after Phase 3
+- US-075: Status Effect VFX (Niagara) ← after Epic 4 complete
+
+**Future (blocked on later epics)**
+- US-071: Inventory UI — Flat List & Filtering ← after Epic 7
+- US-072: Equipment Panel — Weapon Sets & Armor ← after Epic 6+7
+- US-073: Map — Metroidvania World Map ← after Epic 8
+- US-074: Town Management UI ← after Epic 9
 
 ---
 
@@ -106,14 +129,16 @@ Delegated town systems.
 4. **Epic 4 (partial)** — Status Effects: US-013 ✅, US-014 ✅, US-015 🔴 BLOCKED
 5. **Epic 2.5** — Playable Vertical Slice ✅
 6. **Epic 5 (partial)** — Magic System: US-019 ✅, US-020 ✅, US-021 ✅, US-022 🔄
-7. **Epic 4 (remaining) + Epic 5 (remaining)** — interleaved by dependency ⚡ **CURRENT PRIORITY**
+7. **Epic 10 Phase 1** — Combat HUD Completion ✅ (US-055, US-061, US-062, US-063)
+8. **Epic 4 (remaining) + Epic 5 (remaining)** — interleaved by dependency ⚡ **CURRENT PRIORITY**
    - US-022 (finish in-progress) → US-016 + US-017 (parallel) → US-059 + US-060 (parallel) → US-023 → US-018
-8. **Epic 5.5** — Playable Magic Slice: US-055 + US-056 (parallel, HEADLESS) → US-057 (EDITOR)
-9. **Epic 6** — Weapons & Equipment: US-024 (gate) → US-025/026/027 → US-028/029/030
-10. **Epic 7** — Inventory
-11. **Epic 10** — UI & HUD
-12. **Epic 8** — World & Exploration
-13. **Epic 9** — Town Management
+9. **Epic 5.5** — Playable Magic Slice: US-056 (HEADLESS) → US-057 (EDITOR) — US-055 already done
+10. **Epic 10 Phase 2-3** — Enemy indicators, damage numbers, pause menu, character sheet
+11. **Epic 6** — Weapons & Equipment: US-024 (gate) → US-025/026/027 → US-028/029/030
+12. **Epic 7** — Inventory
+13. **Epic 10 Phase 4+5** — Blueprint polish, VFX, inventory/town/map UI
+14. **Epic 8** — World & Exploration
+15. **Epic 9** — Town Management
 
 ## Notes
 - This plan is a living document. Stories will be broken down further as we approach each epic.
