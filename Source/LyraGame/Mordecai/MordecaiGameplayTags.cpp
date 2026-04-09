@@ -179,6 +179,13 @@ namespace MordecaiGameplayTags
 	// Attack tags (US-016)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Attack_Heavy, "Mordecai.Attack.Heavy", "Heavy/charged attack — partially bypasses Weakened penalty");
 
+	// Ability category tags (US-017)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Category_Spell,   "Mordecai.Ability.Category.Spell",   "Identifies an ability as a spell — blocked by Silenced");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Category_Magical, "Mordecai.Ability.Category.Magical", "Identifies an ability as magical — blocked by Silenced even if not a spell");
+
+	// Event tags (US-017)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_BreakFree, "Mordecai.Event.BreakFree", "Break-free action — heavy stamina cost to remove Rooted early");
+
 	// Damage type tags (AC-002.11)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Damage_Physical,        "Mordecai.Damage.Physical",        "Physical damage — direct bodily harm");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Damage_Physical_Slash,  "Mordecai.Damage.Physical.Slash",  "Slash subtype of Physical");

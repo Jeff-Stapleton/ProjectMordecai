@@ -4,7 +4,9 @@
 #include "Mordecai/StatusEffects/MordecaiStatusEffectTypes.h"
 #include "Mordecai/StatusEffects/MordecaiStatusEffectGameplayEffect.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Bleeding.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Rooted.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayEffect.h"
@@ -47,6 +49,16 @@ FActiveGameplayEffectHandle UMordecaiStatusEffectComponent::ApplyStatusEffect(
 		if (BleedingGE)
 		{
 			StartBleedingTracking(GEClass, BleedingGE->BleedingClotTimeSec);
+		}
+	}
+
+	// Auto-detect Rooted and start tracking break-free event (US-017)
+	if (Handle.IsValid())
+	{
+		const UMordecaiGE_Rooted* RootedGE = Cast<UMordecaiGE_Rooted>(GEClass.GetDefaultObject());
+		if (RootedGE)
+		{
+			StartRootedBreakFreeTracking(RootedGE->RootedBreakFreeStaminaCost);
 		}
 	}
 
@@ -271,4 +283,85 @@ void UMordecaiStatusEffectComponent::OnBleedingClotExpired()
 	// Clot mechanic: remove Bleeding early (AC-014.9)
 	RemoveStatusEffect(MordecaiGameplayTags::Status_Bleeding);
 	StopBleedingTracking();
+}
+
+// ---------------------------------------------------------------------------
+// Rooted Break-Free Management (US-017)
+// ---------------------------------------------------------------------------
+
+void UMordecaiStatusEffectComponent::StartRootedBreakFreeTracking(float BreakFreeStaminaCost)
+{
+	CachedBreakFreeStaminaCost = BreakFreeStaminaCost;
+	bTrackingRootedBreakFree = true;
+
+	// Register for BreakFree gameplay event on the ASC
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (ASC)
+	{
+		FGameplayEventMulticastDelegate& Delegate = ASC->GenericGameplayEventCallbacks.FindOrAdd(
+			MordecaiGameplayTags::Event_BreakFree);
+		BreakFreeDelegateHandle = Delegate.AddUObject(
+			this, &UMordecaiStatusEffectComponent::OnBreakFreeEvent);
+	}
+}
+
+void UMordecaiStatusEffectComponent::StopRootedBreakFreeTracking()
+{
+	bTrackingRootedBreakFree = false;
+
+	// Unregister event callback
+	if (BreakFreeDelegateHandle.IsValid())
+	{
+		UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+		if (ASC)
+		{
+			ASC->GenericGameplayEventCallbacks.FindOrAdd(
+				MordecaiGameplayTags::Event_BreakFree).Remove(BreakFreeDelegateHandle);
+		}
+		BreakFreeDelegateHandle.Reset();
+	}
+}
+
+void UMordecaiStatusEffectComponent::OnBreakFreeEvent(const FGameplayEventData* Payload)
+{
+	if (!bTrackingRootedBreakFree)
+	{
+		return;
+	}
+
+	// AC-017.9: Check Rooted is active
+	if (!HasStatusEffect(MordecaiGameplayTags::Status_Rooted))
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC)
+	{
+		return;
+	}
+
+	// Check stamina >= cost
+	float CurrentStamina = ASC->GetNumericAttribute(UMordecaiAttributeSet::GetStaminaAttribute());
+	if (CurrentStamina < CachedBreakFreeStaminaCost)
+	{
+		return;
+	}
+
+	// Deduct stamina via instant GE
+	UGameplayEffect* StaminaCostGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiBreakFreeStaminaCost"));
+	StaminaCostGE->DurationPolicy = EGameplayEffectDurationType::Instant;
+
+	FGameplayModifierInfo& Mod = StaminaCostGE->Modifiers.AddDefaulted_GetRef();
+	Mod.Attribute = UMordecaiAttributeSet::GetStaminaAttribute();
+	Mod.ModifierOp = EGameplayModOp::Additive;
+	Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(-CachedBreakFreeStaminaCost));
+
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	FGameplayEffectSpec Spec(StaminaCostGE, Context, 1.0f);
+	ASC->ApplyGameplayEffectSpecToSelf(Spec);
+
+	// Remove Root
+	RemoveStatusEffect(MordecaiGameplayTags::Status_Rooted);
+	StopRootedBreakFreeTracking();
 }

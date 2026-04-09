@@ -181,6 +181,13 @@ namespace MordecaiGameplayTags
 	// Attack tags (US-016)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Attack_Heavy);
 
+	// Ability category tags (US-017)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Category_Spell);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Category_Magical);
+
+	// Event tags (US-017)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_BreakFree);
+
 	// Damage type tags (AC-002.11)
 	// Physical subtypes are nested under Physical per damage_types_v1.md
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damage_Physical);

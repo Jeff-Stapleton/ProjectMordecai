@@ -10,6 +10,7 @@
 
 class UAbilitySystemComponent;
 class UGameplayEffect;
+struct FGameplayEventData;
 
 /**
  * UMordecaiStatusEffectComponent
@@ -75,6 +76,14 @@ public:
 	/** Force clot expiry for testing. */
 	void ForceBleedingClotExpiry();
 
+	// --- Rooted Break-Free Management (US-017) ---
+
+	/** Start tracking break-free event for Rooted status. Called automatically on Root application. */
+	void StartRootedBreakFreeTracking(float BreakFreeStaminaCost);
+
+	/** Stop tracking break-free event. Called when Rooted is removed. */
+	void StopRootedBreakFreeTracking();
+
 	// --- Dependency Injection (for testing) ---
 
 	/** Override the ASC reference for unit tests without a full actor setup. */
@@ -87,6 +96,13 @@ private:
 	/** Override for ASC (testing). */
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> ASCOverride;
+
+	// --- Rooted break-free state (US-017) ---
+	void OnBreakFreeEvent(const FGameplayEventData* Payload);
+
+	float CachedBreakFreeStaminaCost = 25.0f;
+	bool bTrackingRootedBreakFree = false;
+	FDelegateHandle BreakFreeDelegateHandle;
 
 	// --- Bleeding tracking state (US-014) ---
 	void OnBleedingClotExpired();
