@@ -114,6 +114,7 @@ protected:
 	// --- Hit Detection & Damage ---
 	void PerformHitDetectionAndApplyDamage();
 	void ApplyDamageToTarget(AActor* TargetActor, const FVector& HitLocation);
+	void ApplyEnchantWeaponBonusDamage(UAbilitySystemComponent* TargetASC);
 	void ApplyStaminaCost();
 	void ApplyOnUsePayloads();
 	void ApplyOnHitPayloads(UAbilitySystemComponent* TargetASC);

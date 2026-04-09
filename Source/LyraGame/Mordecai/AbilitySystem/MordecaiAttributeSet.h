@@ -71,6 +71,9 @@ public:
 	// Fire Ward Shield HP (US-021)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, FireWardShieldHP);
 
+	// Enchant Weapon Bonus Damage (US-023)
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, EnchantWeaponBonusDamage);
+
 	// Derived Attributes — Secondary Effects (per character_attributes_v1 secondary_stats table)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, ArmorPenetrationMultiplier);
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, PhysicalCritChance);
@@ -194,6 +197,10 @@ protected:
 	// Fire Ward Shield HP OnRep (US-021)
 	UFUNCTION()
 	void OnRep_FireWardShieldHP(const FGameplayAttributeData& OldValue);
+
+	// Enchant Weapon Bonus Damage OnRep (US-023)
+	UFUNCTION()
+	void OnRep_EnchantWeaponBonusDamage(const FGameplayAttributeData& OldValue);
 
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& NewValue) const;
 
@@ -332,4 +339,8 @@ private:
 	// --- Fire Ward Shield HP (US-021) ---
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_FireWardShieldHP, Category = "Mordecai|Defense", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData FireWardShieldHP;
+
+	// --- Enchant Weapon Bonus Damage (US-023) ---
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_EnchantWeaponBonusDamage, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData EnchantWeaponBonusDamage;
 };

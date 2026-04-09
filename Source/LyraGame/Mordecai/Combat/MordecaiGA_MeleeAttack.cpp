@@ -471,8 +471,60 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 		TargetASC->ApplyGameplayEffectSpecToSelf(PostureSpec);
 	}
 
+	// AC-023.8: Apply Enchant Weapon bonus fire damage if active
+	ApplyEnchantWeaponBonusDamage(TargetASC);
+
 	// AC-004.11: Apply OnHit payloads
 	ApplyOnHitPayloads(TargetASC);
+}
+
+// ---------------------------------------------------------------------------
+// Enchant Weapon Bonus Damage (AC-023.8)
+// ---------------------------------------------------------------------------
+
+void UMordecaiGA_MeleeAttack::ApplyEnchantWeaponBonusDamage(UAbilitySystemComponent* TargetASC)
+{
+	if (!TargetASC) return;
+
+	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
+	if (!SourceASC) return;
+
+	// AC-023.8: Check if attacker has the EnchantedWeapon status tag
+	if (!SourceASC->HasMatchingGameplayTag(MordecaiGameplayTags::Status_EnchantedWeapon))
+	{
+		return;
+	}
+
+	// Read bonus damage from the EnchantWeaponBonusDamage attribute
+	float BonusDamage = 0.f;
+	if (const UMordecaiAttributeSet* AttrSet = SourceASC->GetSet<UMordecaiAttributeSet>())
+	{
+		BonusDamage = AttrSet->GetEnchantWeaponBonusDamage();
+	}
+
+	if (FMath::IsNearlyZero(BonusDamage))
+	{
+		return;
+	}
+
+	// AC-023.8: Apply bonus fire damage as a separate instant GE
+	UGameplayEffect* FireDmgGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiEnchantWeaponFireDamage"));
+	FireDmgGE->DurationPolicy = EGameplayEffectDurationType::Instant;
+
+	FGameplayModifierInfo& Mod = FireDmgGE->Modifiers.AddDefaulted_GetRef();
+	Mod.Attribute = UMordecaiAttributeSet::GetHealthAttribute();
+	Mod.ModifierOp = EGameplayModOp::Additive;
+	Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(-BonusDamage));
+
+	FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
+	Context.AddSourceObject(this);
+
+	FGameplayEffectSpec FireSpec(FireDmgGE, Context, 1.0f);
+
+	// AC-023.8: Tag as fire damage
+	FireSpec.AddDynamicAssetTag(MordecaiGameplayTags::Damage_Fire);
+
+	TargetASC->ApplyGameplayEffectSpecToSelf(FireSpec);
 }
 
 // ---------------------------------------------------------------------------

@@ -129,6 +129,14 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Blessed,     "Mordecai.Status.Blessed",     "Blessed — increased physical and magic damage multipliers");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Restoration, "Mordecai.Status.Restoration", "Restoration — healing over time active");
 
+	// Ability tags (US-023)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_Snare,         "Mordecai.Ability.Spell.Snare",         "Snare spell ability — single-target root");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_Enfeeble,      "Mordecai.Ability.Spell.Enfeeble",      "Enfeeble spell ability — single-target Weakened debuff");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_EnchantWeapon, "Mordecai.Ability.Spell.EnchantWeapon", "Enchant Weapon spell ability — elemental melee buff");
+
+	// Status tags (US-023)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_EnchantedWeapon, "Mordecai.Status.EnchantedWeapon", "Enchanted Weapon — melee attacks deal bonus elemental damage");
+
 	// Event tags (US-019)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_SpellCast, "Mordecai.Event.SpellCast", "Spell cast phase completed successfully");
 
