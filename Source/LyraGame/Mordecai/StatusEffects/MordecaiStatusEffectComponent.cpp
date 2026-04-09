@@ -188,6 +188,13 @@ UAbilitySystemComponent* UMordecaiStatusEffectComponent::GetAbilitySystemCompone
 
 void UMordecaiStatusEffectComponent::NotifyDamageTaken()
 {
+	// AC-016.12: Consume Exposed on first hit (bonus damage already applied via attribute multiplier)
+	if (HasStatusEffect(MordecaiGameplayTags::Status_Exposed))
+	{
+		RemoveStatusEffect(MordecaiGameplayTags::Status_Exposed);
+	}
+
+	// Bleeding hit-refresh (AC-014.8)
 	if (!bTrackingBleeding || !CachedBleedingGEClass)
 	{
 		return;

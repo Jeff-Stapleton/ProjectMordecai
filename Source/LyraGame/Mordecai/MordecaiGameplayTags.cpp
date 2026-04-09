@@ -168,6 +168,9 @@ namespace MordecaiGameplayTags
 	// Team tags (US-009)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Team_Enemy, "Mordecai.Team.Enemy", "Actor belongs to the enemy team — used by aim assist filtering");
 
+	// Attack tags (US-016)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Attack_Heavy, "Mordecai.Attack.Heavy", "Heavy/charged attack — partially bypasses Weakened penalty");
+
 	// Damage type tags (AC-002.11)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Damage_Physical,        "Mordecai.Damage.Physical",        "Physical damage — direct bodily harm");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Damage_Physical_Slash,  "Mordecai.Damage.Physical.Slash",  "Slash subtype of Physical");

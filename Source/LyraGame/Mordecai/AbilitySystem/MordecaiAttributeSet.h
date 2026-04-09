@@ -58,6 +58,13 @@ public:
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, DodgeRecoveryMultiplier);
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, BlockStaminaCostMultiplier);
 
+	// Combat Modifier Debuff Attributes (US-016)
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, OutgoingPostureDamageMultiplier);
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, IncomingPostureDamageMultiplier);
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, IncomingDamageMultiplier);
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, BlockStabilityMultiplier);
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, ArmorEfficiencyMultiplier);
+
 	// Damage Reduction Attribute (US-020)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, DamageReduction);
 
@@ -167,6 +174,18 @@ protected:
 	void OnRep_DodgeRecoveryMultiplier(const FGameplayAttributeData& OldValue);
 	UFUNCTION()
 	void OnRep_BlockStaminaCostMultiplier(const FGameplayAttributeData& OldValue);
+
+	// Combat modifier debuff OnRep (US-016)
+	UFUNCTION()
+	void OnRep_OutgoingPostureDamageMultiplier(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	void OnRep_IncomingPostureDamageMultiplier(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	void OnRep_IncomingDamageMultiplier(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	void OnRep_BlockStabilityMultiplier(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	void OnRep_ArmorEfficiencyMultiplier(const FGameplayAttributeData& OldValue);
 
 	// Damage reduction OnRep (US-020)
 	UFUNCTION()
@@ -289,6 +308,22 @@ private:
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BlockStaminaCostMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData BlockStaminaCostMultiplier;
+
+	// --- Combat Modifier Debuff Attributes (US-016) ---
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_OutgoingPostureDamageMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData OutgoingPostureDamageMultiplier;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_IncomingPostureDamageMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData IncomingPostureDamageMultiplier;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_IncomingDamageMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData IncomingDamageMultiplier;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BlockStabilityMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData BlockStabilityMultiplier;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ArmorEfficiencyMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData ArmorEfficiencyMultiplier;
 
 	// --- Damage Reduction (US-020) ---
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DamageReduction, Category = "Mordecai|Defense", Meta = (AllowPrivateAccess = true))

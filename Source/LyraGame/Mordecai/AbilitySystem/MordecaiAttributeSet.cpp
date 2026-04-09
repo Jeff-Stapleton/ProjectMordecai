@@ -45,6 +45,12 @@ UMordecaiAttributeSet::UMordecaiAttributeSet()
 	// Status effect modifier attributes (US-015) — neutral defaults
 	, DodgeRecoveryMultiplier(1.0f)
 	, BlockStaminaCostMultiplier(1.0f)
+	// Combat modifier debuff attributes (US-016) — neutral defaults
+	, OutgoingPostureDamageMultiplier(1.0f)
+	, IncomingPostureDamageMultiplier(1.0f)
+	, IncomingDamageMultiplier(1.0f)
+	, BlockStabilityMultiplier(1.0f)
+	, ArmorEfficiencyMultiplier(1.0f)
 	// Damage reduction (US-020) — 0 means no flat reduction
 	, DamageReduction(0.0f)
 	// Fire Ward shield HP (US-021) — 0 means no shield active
@@ -170,6 +176,13 @@ void UMordecaiAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, DodgeRecoveryMultiplier, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, BlockStaminaCostMultiplier, COND_None, REPNOTIFY_Always);
 
+	// Combat modifier debuff attributes (US-016)
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, OutgoingPostureDamageMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, IncomingPostureDamageMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, IncomingDamageMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, BlockStabilityMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, ArmorEfficiencyMultiplier, COND_None, REPNOTIFY_Always);
+
 	// Damage reduction (US-020)
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, DamageReduction, COND_None, REPNOTIFY_Always);
 
@@ -256,6 +269,26 @@ void UMordecaiAttributeSet::ClampAttribute(const FGameplayAttribute& Attribute, 
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
 	else if (Attribute == GetBlockStaminaCostMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetOutgoingPostureDamageMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetIncomingPostureDamageMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetIncomingDamageMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetBlockStabilityMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetArmorEfficiencyMultiplierAttribute())
 	{
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
@@ -450,6 +483,33 @@ void UMordecaiAttributeSet::OnRep_DodgeRecoveryMultiplier(const FGameplayAttribu
 void UMordecaiAttributeSet::OnRep_BlockStaminaCostMultiplier(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, BlockStaminaCostMultiplier, OldValue);
+}
+
+// --- Combat modifier debuff OnRep (US-016) ---
+
+void UMordecaiAttributeSet::OnRep_OutgoingPostureDamageMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, OutgoingPostureDamageMultiplier, OldValue);
+}
+
+void UMordecaiAttributeSet::OnRep_IncomingPostureDamageMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, IncomingPostureDamageMultiplier, OldValue);
+}
+
+void UMordecaiAttributeSet::OnRep_IncomingDamageMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, IncomingDamageMultiplier, OldValue);
+}
+
+void UMordecaiAttributeSet::OnRep_BlockStabilityMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, BlockStabilityMultiplier, OldValue);
+}
+
+void UMordecaiAttributeSet::OnRep_ArmorEfficiencyMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, ArmorEfficiencyMultiplier, OldValue);
 }
 
 // --- Damage reduction OnRep (US-020) ---
