@@ -178,6 +178,42 @@ Every task follows this sequence. No exceptions.
 - Both must pass with zero errors
 - If tests fail or build breaks, **fix before proceeding** — do not commit broken code
 
+### Step 4b: PIE Smoke Test (MANDATORY for EDITOR stories and UI/HUD changes)
+Headless tests (NullRHI) cannot catch visual or integration issues (invisible widgets, broken spawn chains, missing Blueprint content). After headless tests pass, run PIE smoke tests to verify the game actually works in-editor.
+
+**When to run PIE smoke tests:**
+- ANY story with `Execution Mode: EDITOR`
+- ANY change touching UI/HUD widgets, Blueprint assets, Experience config, PawnData, or input bindings
+- After creating or modifying Widget Blueprints
+- When in doubt — run them. They take <30 seconds.
+
+**How to run:**
+```powershell
+# Full pipeline (launches editor if needed, starts PIE, runs all tests, stops PIE):
+py Scripts/run_pie_verify.py
+
+# If editor is already running:
+py Scripts/run_pie_verify.py --no-launch
+
+# Run specific tests only:
+py Scripts/run_pie_verify.py --tests hud,spawn
+
+# Or run individual smoke tests manually during PIE:
+py "C:\Users\jeffd\.openclaw\workspace\skills\unreal-python-editor\scripts\ue_remote_exec.py" "exec(open(r'Scripts/verify_pie_hud.py').read())"
+py "C:\Users\jeffd\.openclaw\workspace\skills\unreal-python-editor\scripts\ue_remote_exec.py" "exec(open(r'Scripts/verify_pie_spawn.py').read())"
+```
+
+**PIE mode:** Use `editor_request_begin_play()` (NOT `editor_play_simulate()` which starts spectator mode).
+
+**If remote exec is unreliable:** Open the editor's Python console (`Window > Developer Tools > Output Log > Cmd dropdown > Python`) and paste the smoke test script content directly.
+
+**Available smoke tests** (in `Scripts/`):
+- `verify_pie_hud.py` — Checks combat HUD widget tree: root visible, all child bars exist
+- `verify_pie_spawn.py` — Checks spawn chain: controller, pawn, components, camera, ASC
+
+**Writing new smoke tests:**
+When you implement a feature that has runtime/visual behavior, add a `Scripts/verify_pie_<feature>.py` smoke test. Follow the pattern in existing verify scripts: get PIE world, check invariants, print PASS/FAIL lines, raise RuntimeError on any failure.
+
 ### Step 5: Commit and Push (MANDATORY)
 - Only commit when build succeeds AND tests pass
 - Commit message format: `[US-XXX] Brief description of what was implemented`
