@@ -476,6 +476,9 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 
 	// AC-004.11: Apply OnHit payloads
 	ApplyOnHitPayloads(TargetASC);
+
+	// US-056: Apply status effects from attack profile
+	ApplyStatusEffectsFromEntries(Profile->StatusEffectsOnHit, SourceASC, TargetASC, this);
 }
 
 // ---------------------------------------------------------------------------
@@ -618,5 +621,51 @@ void UMordecaiGA_MeleeAttack::UpdateRooting()
 			ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Rooted);
 		}
 		bIsRooted = false;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// US-056: Status Effects On Hit (AC-056.3, AC-056.5, AC-056.6, AC-056.7)
+// ---------------------------------------------------------------------------
+
+void UMordecaiGA_MeleeAttack::ApplyStatusEffectsFromEntries(
+	const TArray<FMordecaiStatusOnHitEntry>& Entries,
+	UAbilitySystemComponent* SourceASC,
+	UAbilitySystemComponent* TargetASC,
+	UObject* SourceObject)
+{
+	if (!SourceASC || !TargetASC)
+	{
+		return;
+	}
+
+	for (const FMordecaiStatusOnHitEntry& Entry : Entries)
+	{
+		if (!Entry.StatusEffectGEClass)
+		{
+			continue;
+		}
+
+		// AC-056.6: Roll against ApplicationChance
+		if (Entry.ApplicationChance <= 0.0f)
+		{
+			continue;
+		}
+		if (Entry.ApplicationChance < 1.0f && FMath::FRand() >= Entry.ApplicationChance)
+		{
+			continue;
+		}
+
+		// AC-056.3 / AC-056.5: Apply via source ASC context to target
+		FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
+		if (SourceObject)
+		{
+			Context.AddSourceObject(SourceObject);
+		}
+		FGameplayEffectSpecHandle Spec = SourceASC->MakeOutgoingSpec(Entry.StatusEffectGEClass, 1.0f, Context);
+		if (Spec.IsValid())
+		{
+			TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
+		}
 	}
 }

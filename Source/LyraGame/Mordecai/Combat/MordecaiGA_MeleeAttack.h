@@ -84,6 +84,13 @@ public:
 	/** Map damage type enum to gameplay tag (AC-004.6). */
 	static FGameplayTag GetDamageTagForType(EMordecaiDamageType DamageType);
 
+	/** US-056: Apply status effects from on-hit entries. Static utility usable by melee + projectile + tests. */
+	static void ApplyStatusEffectsFromEntries(
+		const TArray<FMordecaiStatusOnHitEntry>& Entries,
+		UAbilitySystemComponent* SourceASC,
+		UAbilitySystemComponent* TargetASC,
+		UObject* SourceObject);
+
 	/** Transition to a new phase. Public for testing; called internally by timer callbacks. */
 	void TransitionToPhase(EMordecaiAttackPhase NewPhase);
 

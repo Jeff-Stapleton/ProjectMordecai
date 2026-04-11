@@ -392,6 +392,10 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 
 		TargetASC->ApplyGameplayEffectSpecToSelf(PostureSpec);
 	}
+
+	// US-056: Apply status effects on hit
+	UMordecaiGA_MeleeAttack::ApplyStatusEffectsFromEntries(
+		StatusEffectsOnHit, SourceASC ? SourceASC : TargetASC, TargetASC, this);
 }
 
 // ---------------------------------------------------------------------------

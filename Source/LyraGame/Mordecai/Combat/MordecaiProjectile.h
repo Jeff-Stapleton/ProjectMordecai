@@ -85,6 +85,11 @@ public:
 	void AddToHitList(AActor* Actor) { HitActors.Add(Actor); }
 	bool ShouldIgnoreActor(const AActor* Actor) const;
 
+	// --- US-056: Status effects on hit ---
+
+	void SetStatusEffectsOnHit(const TArray<FMordecaiStatusOnHitEntry>& InEntries) { StatusEffectsOnHit = InEntries; }
+	const TArray<FMordecaiStatusOnHitEntry>& GetStatusEffectsOnHit() const { return StatusEffectsOnHit; }
+
 	// --- AoE (AC-009.15-18) ---
 
 	bool HasOnHitAoE() const { return Spec.OnHitAoERadius > 0.f; }
@@ -134,4 +139,7 @@ private:
 
 	FVector SpawnLocation = FVector::ZeroVector;
 	float DistanceTraveled = 0.f;
+
+	// US-056: Status effects to apply on hit
+	TArray<FMordecaiStatusOnHitEntry> StatusEffectsOnHit;
 };

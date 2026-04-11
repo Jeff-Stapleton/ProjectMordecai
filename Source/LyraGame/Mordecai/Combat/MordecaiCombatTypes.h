@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "GameplayEffect.h"
 
 #include "MordecaiCombatTypes.generated.h"
 
@@ -218,4 +219,27 @@ struct LYRAGAME_API FMordecaiDamageProfile
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Damage")
 	float StatusMagnitude = 0.f;
+};
+
+// ---------------------------------------------------------------------------
+// US-056: FMordecaiStatusOnHitEntry — status effect application on hit
+// ---------------------------------------------------------------------------
+USTRUCT(BlueprintType)
+struct LYRAGAME_API FMordecaiStatusOnHitEntry
+{
+	GENERATED_BODY()
+
+	/** Which status this entry applies (e.g., Mordecai.Status.Burning). For designer identification. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|StatusOnHit",
+		Meta = (Categories = "Mordecai.Status"))
+	FGameplayTag StatusEffectTag;
+
+	/** Probability of application: 0.0 = never, 1.0 = always. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|StatusOnHit",
+		Meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float ApplicationChance = 1.0f;
+
+	/** The GameplayEffect class to apply on successful roll. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|StatusOnHit")
+	TSubclassOf<UGameplayEffect> StatusEffectGEClass;
 };

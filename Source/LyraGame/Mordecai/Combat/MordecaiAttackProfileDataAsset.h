@@ -95,6 +95,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Payload")
 	TArray<TSubclassOf<UGameplayEffect>> OnUsePayload;
 
+	// --- US-056: Status effects applied on hit (empty = none, backwards compatible) ---
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Payload")
+	TArray<FMordecaiStatusOnHitEntry> StatusEffectsOnHit;
+
 	// --- Projectile (only relevant when AttackType == Projectile) ---
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mordecai|Projectile")
