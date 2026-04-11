@@ -44,6 +44,8 @@ public:
 	void BindToASC(UAbilitySystemComponent* ASC);
 
 protected:
+	virtual void NativeOnInitialized() override;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> PostureProgressBar;
 
@@ -65,6 +67,7 @@ protected:
 	FLinearColor BrokenPostureColor = FLinearColor(1.f, 0.2f, 0.2f);
 
 private:
+	void BuildDefaultContent();
 	void OnPostureChanged(const FOnAttributeChangeData& Data);
 	void OnMaxPostureChanged(const FOnAttributeChangeData& Data);
 	void OnPostureBrokenTagChanged(const FGameplayTag Tag, int32 NewCount);

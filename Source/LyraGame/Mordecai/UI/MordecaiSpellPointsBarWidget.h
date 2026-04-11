@@ -44,6 +44,8 @@ public:
 	void BindToASC(UAbilitySystemComponent* ASC);
 
 protected:
+	virtual void NativeOnInitialized() override;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> SpellPointsProgressBar;
 
@@ -57,6 +59,7 @@ protected:
 	float CachedMaxSpellPoints = 10.f;
 
 private:
+	void BuildDefaultContent();
 	void OnSpellPointsChanged(const FOnAttributeChangeData& Data);
 	void OnMaxSpellPointsChanged(const FOnAttributeChangeData& Data);
 	void UpdateDisplay();

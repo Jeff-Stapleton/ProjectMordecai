@@ -61,6 +61,8 @@ public:
 	FLinearColor ExhaustedTierColor = FLinearColor(0.5f, 0.f, 0.f);
 
 protected:
+	virtual void NativeOnInitialized() override;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> StaminaProgressBar;
 
@@ -71,6 +73,7 @@ protected:
 	float CachedMaxStamina = 100.f;
 
 private:
+	void BuildDefaultContent();
 	void OnStaminaChanged(const FOnAttributeChangeData& Data);
 	void OnMaxStaminaChanged(const FOnAttributeChangeData& Data);
 	void UpdateDisplay();

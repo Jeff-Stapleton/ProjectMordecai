@@ -3,9 +3,40 @@
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "AbilitySystemComponent.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/ProgressBar.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiStaminaBarWidget)
+
+// ---------------------------------------------------------------------------
+// Programmatic Fallback (empty Blueprint support)
+// ---------------------------------------------------------------------------
+
+void UMordecaiStaminaBarWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+
+	if (!StaminaProgressBar && WidgetTree && !WidgetTree->RootWidget)
+	{
+		BuildDefaultContent();
+	}
+}
+
+void UMordecaiStaminaBarWidget::BuildDefaultContent()
+{
+	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
+	WidgetTree->RootWidget = Root;
+
+	StaminaProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("StaminaProgressBar"));
+	UCanvasPanelSlot* BarSlot = Root->AddChildToCanvas(StaminaProgressBar);
+	BarSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+	BarSlot->SetOffsets(FMargin(0.f));
+
+	StaminaProgressBar->SetPercent(1.f);
+	StaminaProgressBar->SetFillColorAndOpacity(GreenTierColor);
+}
 
 // ---------------------------------------------------------------------------
 // Tier thresholds for HUD display (AC-052.8)

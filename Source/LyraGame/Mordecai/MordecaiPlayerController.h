@@ -45,7 +45,7 @@ private:
 	void CreateCombatHUD();
 	void GrantCombatAbilities();
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMordecaiCombatHUDWidget> CombatHUDWidget;
 
 	bool bAbilitiesGranted = false;

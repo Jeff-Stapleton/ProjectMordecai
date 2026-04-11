@@ -48,10 +48,13 @@ public:
 	TSubclassOf<UMordecaiStatusEffectIndicatorWidget> IndicatorWidgetClass;
 
 protected:
+	virtual void NativeOnInitialized() override;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UHorizontalBox> IndicatorContainer;
 
 private:
+	void BuildDefaultContent();
 	void OnStatusTagChanged(const FGameplayTag Tag, int32 NewCount);
 	void AddIndicator(const FGameplayTag& StatusTag);
 	void RemoveIndicator(const FGameplayTag& StatusTag);

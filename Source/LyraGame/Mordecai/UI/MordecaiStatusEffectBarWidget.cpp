@@ -4,11 +4,38 @@
 #include "Mordecai/UI/MordecaiStatusEffectIndicatorWidget.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
+#include "Blueprint/WidgetTree.h"
 #include "GameplayEffect.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiStatusEffectBarWidget)
+
+// ---------------------------------------------------------------------------
+// Programmatic Fallback (empty Blueprint support)
+// ---------------------------------------------------------------------------
+
+void UMordecaiStatusEffectBarWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+
+	if (!IndicatorContainer && WidgetTree && !WidgetTree->RootWidget)
+	{
+		BuildDefaultContent();
+	}
+
+	// Set default indicator class to C++ class if not configured
+	if (!IndicatorWidgetClass)
+	{
+		IndicatorWidgetClass = UMordecaiStatusEffectIndicatorWidget::StaticClass();
+	}
+}
+
+void UMordecaiStatusEffectBarWidget::BuildDefaultContent()
+{
+	IndicatorContainer = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("IndicatorContainer"));
+	WidgetTree->RootWidget = IndicatorContainer;
+}
 
 // ---------------------------------------------------------------------------
 // Buff Tag Set (AC-055.7)

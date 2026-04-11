@@ -38,7 +38,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void BindToASC(UAbilitySystemComponent* ASC);
 
+	/** Returns the number of non-null child widget slots (for smoke test verification). */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
+	int32 GetBoundChildCount() const;
+
 protected:
+	virtual void NativeOnInitialized() override;
+
 	// --- Core Resource Bars (US-052) ---
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -76,4 +82,7 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UMordecaiKillCounterWidget> KillCounter;
+
+private:
+	void BuildDefaultLayout();
 };

@@ -3,9 +3,44 @@
 #include "Mordecai/UI/MordecaiKillCounterWidget.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiKillCounterWidget)
+
+// ---------------------------------------------------------------------------
+// Programmatic Fallback (empty Blueprint support)
+// ---------------------------------------------------------------------------
+
+void UMordecaiKillCounterWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+
+	if (!KillCountText && WidgetTree && !WidgetTree->RootWidget)
+	{
+		BuildDefaultContent();
+	}
+}
+
+void UMordecaiKillCounterWidget::BuildDefaultContent()
+{
+	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
+	WidgetTree->RootWidget = Root;
+
+	KillCountText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("KillCountText"));
+	UCanvasPanelSlot* TextSlot = Root->AddChildToCanvas(KillCountText);
+	TextSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+	TextSlot->SetOffsets(FMargin(0.f));
+
+	KillCountText->SetText(FText::FromString(FormatKillCount(0)));
+	KillCountText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+
+	FSlateFontInfo FontInfo = KillCountText->GetFont();
+	FontInfo.Size = 14;
+	KillCountText->SetFont(FontInfo);
+}
 
 // ---------------------------------------------------------------------------
 // Static Helper

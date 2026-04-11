@@ -3,9 +3,45 @@
 #include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCombatFeedbackWidget)
+
+// ---------------------------------------------------------------------------
+// Programmatic Fallback (empty Blueprint support)
+// ---------------------------------------------------------------------------
+
+void UMordecaiCombatFeedbackWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+
+	if (!FeedbackText && WidgetTree && !WidgetTree->RootWidget)
+	{
+		BuildDefaultContent();
+	}
+}
+
+void UMordecaiCombatFeedbackWidget::BuildDefaultContent()
+{
+	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
+	WidgetTree->RootWidget = Root;
+
+	FeedbackText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("FeedbackText"));
+	UCanvasPanelSlot* TextSlot = Root->AddChildToCanvas(FeedbackText);
+	TextSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+	TextSlot->SetOffsets(FMargin(0.f));
+
+	FeedbackText->SetText(FText::GetEmpty());
+	FeedbackText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	FeedbackText->SetJustification(ETextJustify::Center);
+
+	FSlateFontInfo FontInfo = FeedbackText->GetFont();
+	FontInfo.Size = 20;
+	FeedbackText->SetFont(FontInfo);
+}
 
 // ---------------------------------------------------------------------------
 // Static color constants

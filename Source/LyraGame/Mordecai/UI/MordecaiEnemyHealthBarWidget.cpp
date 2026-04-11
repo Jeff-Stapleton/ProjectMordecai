@@ -4,9 +4,40 @@
 #include "Mordecai/UI/MordecaiHealthBarWidget.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "AbilitySystemComponent.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/ProgressBar.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyHealthBarWidget)
+
+// ---------------------------------------------------------------------------
+// Programmatic Fallback (empty Blueprint support)
+// ---------------------------------------------------------------------------
+
+void UMordecaiEnemyHealthBarWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+
+	if (!HealthProgressBar && WidgetTree && !WidgetTree->RootWidget)
+	{
+		BuildDefaultContent();
+	}
+}
+
+void UMordecaiEnemyHealthBarWidget::BuildDefaultContent()
+{
+	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
+	WidgetTree->RootWidget = Root;
+
+	HealthProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("HealthProgressBar"));
+	UCanvasPanelSlot* BarSlot = Root->AddChildToCanvas(HealthProgressBar);
+	BarSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+	BarSlot->SetOffsets(FMargin(0.f));
+
+	HealthProgressBar->SetPercent(1.f);
+	HealthProgressBar->SetFillColorAndOpacity(FLinearColor::Red);
+}
 
 // ---------------------------------------------------------------------------
 // Instance Methods

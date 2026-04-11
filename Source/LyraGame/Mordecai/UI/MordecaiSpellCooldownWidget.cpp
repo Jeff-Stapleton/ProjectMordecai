@@ -3,10 +3,54 @@
 #include "Mordecai/UI/MordecaiSpellCooldownWidget.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiSpellCooldownWidget)
+
+// ---------------------------------------------------------------------------
+// Programmatic Fallback (empty Blueprint support)
+// ---------------------------------------------------------------------------
+
+void UMordecaiSpellCooldownWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+
+	if (!CooldownProgressBar && WidgetTree && !WidgetTree->RootWidget)
+	{
+		BuildDefaultContent();
+	}
+}
+
+void UMordecaiSpellCooldownWidget::BuildDefaultContent()
+{
+	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
+	WidgetTree->RootWidget = Root;
+
+	CooldownProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("CooldownProgressBar"));
+	UCanvasPanelSlot* BarSlot = Root->AddChildToCanvas(CooldownProgressBar);
+	BarSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 0.7f));
+	BarSlot->SetOffsets(FMargin(0.f));
+
+	CooldownProgressBar->SetPercent(1.f);
+	CooldownProgressBar->SetFillColorAndOpacity(FLinearColor(0.3f, 0.6f, 1.f)); // Light blue
+
+	CooldownText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CooldownText"));
+	UCanvasPanelSlot* TextSlot = Root->AddChildToCanvas(CooldownText);
+	TextSlot->SetAnchors(FAnchors(0.f, 0.7f, 1.f, 1.f));
+	TextSlot->SetOffsets(FMargin(0.f));
+
+	CooldownText->SetText(FText::GetEmpty());
+	CooldownText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	CooldownText->SetJustification(ETextJustify::Center);
+
+	FSlateFontInfo FontInfo = CooldownText->GetFont();
+	FontInfo.Size = 9;
+	CooldownText->SetFont(FontInfo);
+}
 
 // ---------------------------------------------------------------------------
 // Static Helpers (AC-055.8)

@@ -40,6 +40,8 @@ public:
 	void ResetKillCount();
 
 protected:
+	virtual void NativeOnInitialized() override;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> KillCountText;
 
@@ -47,6 +49,7 @@ protected:
 	int32 KillCount = 0;
 
 private:
+	void BuildDefaultContent();
 	void OnEnemyKillEvent(const FGameplayTag Tag, int32 NewCount);
 	void OnPlayerDeathEvent(const FGameplayTag Tag, int32 NewCount);
 	void UpdateDisplay();

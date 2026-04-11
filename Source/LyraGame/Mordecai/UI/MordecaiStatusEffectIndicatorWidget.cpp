@@ -1,10 +1,51 @@
 // Project Mordecai — Status Effect Indicator Widget (US-055)
 
 #include "Mordecai/UI/MordecaiStatusEffectIndicatorWidget.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiStatusEffectIndicatorWidget)
+
+// ---------------------------------------------------------------------------
+// Programmatic Fallback (empty Blueprint support)
+// ---------------------------------------------------------------------------
+
+void UMordecaiStatusEffectIndicatorWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+
+	if (!StatusNameText && WidgetTree && !WidgetTree->RootWidget)
+	{
+		BuildDefaultContent();
+	}
+}
+
+void UMordecaiStatusEffectIndicatorWidget::BuildDefaultContent()
+{
+	UHorizontalBox* Root = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Root"));
+	WidgetTree->RootWidget = Root;
+
+	StatusNameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusNameText"));
+	UHorizontalBoxSlot* NameSlot = Root->AddChildToHorizontalBox(StatusNameText);
+	NameSlot->SetPadding(FMargin(2.f, 0.f));
+
+	StatusNameText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	FSlateFontInfo NameFont = StatusNameText->GetFont();
+	NameFont.Size = 10;
+	StatusNameText->SetFont(NameFont);
+
+	DurationText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DurationText"));
+	UHorizontalBoxSlot* DurSlot = Root->AddChildToHorizontalBox(DurationText);
+	DurSlot->SetPadding(FMargin(2.f, 0.f));
+
+	DurationText->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.8f, 0.8f)));
+	FSlateFontInfo DurFont = DurationText->GetFont();
+	DurFont.Size = 9;
+	DurationText->SetFont(DurFont);
+}
 
 // ---------------------------------------------------------------------------
 // Static Helper

@@ -34,6 +34,8 @@ public:
 	void BindToASC(UAbilitySystemComponent* ASC);
 
 protected:
+	virtual void NativeOnInitialized() override;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> HealthProgressBar;
 
@@ -44,6 +46,7 @@ protected:
 	float CachedMaxHealth = 100.f;
 
 private:
+	void BuildDefaultContent();
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
 	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
 	void UpdateDisplay();

@@ -47,12 +47,14 @@ public:
 	float FeedbackDisplayDuration = 1.0f;
 
 protected:
+	virtual void NativeOnInitialized() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> FeedbackText;
 
 private:
+	void BuildDefaultContent();
 	void OnFeedbackTagChanged(const FGameplayTag Tag, int32 NewCount);
 
 	float RemainingDisplayTime = 0.f;

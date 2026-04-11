@@ -44,6 +44,7 @@ public:
 	bool IsOnCooldown() const { return bIsOnCooldown; }
 
 protected:
+	virtual void NativeOnInitialized() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -65,6 +66,7 @@ protected:
 	bool bIsOnCooldown = false;
 
 private:
+	void BuildDefaultContent();
 	void OnCooldownTagChanged(const FGameplayTag Tag, int32 NewCount);
 	void UpdateDisplay();
 

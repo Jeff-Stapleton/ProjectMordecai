@@ -41,6 +41,8 @@ public:
 	void SetComboVisible(bool bVisible);
 
 protected:
+	virtual void NativeOnInitialized() override;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> ComboText;
 
@@ -48,6 +50,7 @@ protected:
 	int32 CachedComboIndex = -1;
 
 private:
+	void BuildDefaultContent();
 	void OnComboWindowTagChanged(const FGameplayTag Tag, int32 NewCount);
 	void UpdateDisplay();
 

@@ -43,6 +43,8 @@ public:
 	static float CalcDurationRemaining(float StartTime, float Duration, float CurrentTime);
 
 protected:
+	virtual void NativeOnInitialized() override;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> StatusNameText;
 
@@ -60,4 +62,7 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	bool bIsBuffIndicator = false;
+
+private:
+	void BuildDefaultContent();
 };
