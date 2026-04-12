@@ -223,6 +223,14 @@ When you implement a feature that has runtime/visual behavior, add a `Scripts/ve
 - If all ACs are done, move story from `stories/in-progress/` to `stories/done/`
 - Commit and push the story file move too
 
+### Step 7: Close the Editor (MANDATORY)
+- After all work is complete (committed and pushed), **close the Unreal Editor** if it is running
+- Use the following command to gracefully shut it down:
+```powershell
+Stop-Process -Name "UnrealEditor" -ErrorAction SilentlyContinue
+```
+- This applies to **every story**, regardless of Execution Mode — if PIE smoke tests launched the editor, close it when done
+
 ---
 
 ## Test Standards
