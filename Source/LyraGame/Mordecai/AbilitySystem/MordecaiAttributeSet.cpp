@@ -64,6 +64,8 @@ UMordecaiAttributeSet::UMordecaiAttributeSet()
 	, StaminaTierPenaltyMultiplier(1.0f)
 	// Blur evasion (US-060) — 0 means no evasion
 	, RangedEvasionChance(0.0f)
+	// Drenched & Focused (US-018) — 1.0 = neutral fire damage multiplier
+	, FireDamageReceivedMultiplier(1.0f)
 {
 }
 
@@ -209,6 +211,9 @@ void UMordecaiAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 	// Blur evasion (US-060)
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, RangedEvasionChance, COND_None, REPNOTIFY_Always);
+
+	// Drenched & Focused (US-018)
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, FireDamageReceivedMultiplier, COND_None, REPNOTIFY_Always);
 }
 
 void UMordecaiAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -344,6 +349,10 @@ void UMordecaiAttributeSet::ClampAttribute(const FGameplayAttribute& Attribute, 
 	else if (Attribute == GetRangedEvasionChanceAttribute())
 	{
 		NewValue = FMath::Clamp(NewValue, 0.0f, 1.0f);
+	}
+	else if (Attribute == GetFireDamageReceivedMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
 	}
 }
 
@@ -605,4 +614,11 @@ void UMordecaiAttributeSet::OnRep_StaminaTierPenaltyMultiplier(const FGameplayAt
 void UMordecaiAttributeSet::OnRep_RangedEvasionChance(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, RangedEvasionChance, OldValue);
+}
+
+// --- Drenched & Focused OnRep (US-018) ---
+
+void UMordecaiAttributeSet::OnRep_FireDamageReceivedMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, FireDamageReceivedMultiplier, OldValue);
 }

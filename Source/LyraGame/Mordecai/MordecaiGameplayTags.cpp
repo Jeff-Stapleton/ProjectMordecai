@@ -196,6 +196,10 @@ namespace MordecaiGameplayTags
 	// Team tags (US-060)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Team_Ally, "Mordecai.Team.Ally", "Actor is an allied decoy — enemies prefer targeting it");
 
+	// Event tags (US-018)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_PerfectAction,    "Mordecai.Event.PerfectAction",    "Generic event for any perfect action (perfect dodge, perfect block, perfect parry)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_NonPerfectAction, "Mordecai.Event.NonPerfectAction", "A non-perfect action occurred — resets Focused streak counter");
+
 	// Event tags (US-017)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_BreakFree, "Mordecai.Event.BreakFree", "Break-free action — heavy stamina cost to remove Rooted early");
 

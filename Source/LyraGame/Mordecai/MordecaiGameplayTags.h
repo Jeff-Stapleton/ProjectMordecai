@@ -198,6 +198,10 @@ namespace MordecaiGameplayTags
 	// Team tags (US-060)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Team_Ally);
 
+	// Event tags (US-018)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_PerfectAction);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_NonPerfectAction);
+
 	// Event tags (US-017)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_BreakFree);
 

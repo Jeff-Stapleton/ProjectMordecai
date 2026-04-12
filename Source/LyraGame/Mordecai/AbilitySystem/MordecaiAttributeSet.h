@@ -83,6 +83,9 @@ public:
 	// Blur Evasion Attribute (US-060)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, RangedEvasionChance);
 
+	// Drenched & Focused Attributes (US-018)
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, FireDamageReceivedMultiplier);
+
 	// Derived Attributes — Secondary Effects (per character_attributes_v1 secondary_stats table)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, ArmorPenetrationMultiplier);
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, PhysicalCritChance);
@@ -224,6 +227,10 @@ protected:
 	// Blur evasion OnRep (US-060)
 	UFUNCTION()
 	void OnRep_RangedEvasionChance(const FGameplayAttributeData& OldValue);
+
+	// Drenched & Focused OnRep (US-018)
+	UFUNCTION()
+	void OnRep_FireDamageReceivedMultiplier(const FGameplayAttributeData& OldValue);
 
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& NewValue) const;
 
@@ -383,4 +390,8 @@ private:
 	// --- Blur Evasion (US-060) ---
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RangedEvasionChance, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData RangedEvasionChance;
+
+	// --- Drenched & Focused (US-018) ---
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_FireDamageReceivedMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData FireDamageReceivedMultiplier;
 };

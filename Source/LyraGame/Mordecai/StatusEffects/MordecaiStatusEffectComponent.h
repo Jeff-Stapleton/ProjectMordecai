@@ -84,6 +84,14 @@ public:
 	/** Stop tracking break-free event. Called when Rooted is removed. */
 	void StopRootedBreakFreeTracking();
 
+	// --- Drenched Elemental Interactions (US-018) ---
+
+	/**
+	 * Handle Drenched-related elemental interactions before status application.
+	 * Returns false if the status application should be cancelled (e.g., Burning on Drenched target).
+	 */
+	bool HandleDrenchedInteractions(TSubclassOf<UGameplayEffect> GEClass);
+
 	// --- Dependency Injection (for testing) ---
 
 	/** Override the ASC reference for unit tests without a full actor setup. */

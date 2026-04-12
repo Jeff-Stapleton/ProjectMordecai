@@ -4,6 +4,8 @@
 #include "Mordecai/StatusEffects/MordecaiStatusEffectTypes.h"
 #include "Mordecai/StatusEffects/MordecaiStatusEffectGameplayEffect.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Bleeding.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Burning.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Drenched.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Rooted.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
@@ -25,6 +27,13 @@ FActiveGameplayEffectHandle UMordecaiStatusEffectComponent::ApplyStatusEffect(
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!ASC || !GEClass)
 	{
+		return FActiveGameplayEffectHandle();
+	}
+
+	// AC-018.5/018.6: Handle Drenched elemental interactions before application
+	if (!HandleDrenchedInteractions(GEClass))
+	{
+		// Application cancelled (e.g., Burning on Drenched target)
 		return FActiveGameplayEffectHandle();
 	}
 
@@ -62,7 +71,39 @@ FActiveGameplayEffectHandle UMordecaiStatusEffectComponent::ApplyStatusEffect(
 		}
 	}
 
+	// AC-018.5: When Drenched is applied, douse Burning
+	if (Handle.IsValid())
+	{
+		const UMordecaiGE_Drenched* DrenchedGE = Cast<UMordecaiGE_Drenched>(GEClass.GetDefaultObject());
+		if (DrenchedGE && HasStatusEffect(MordecaiGameplayTags::Status_Burning))
+		{
+			RemoveStatusEffect(MordecaiGameplayTags::Status_Burning);
+		}
+	}
+
 	return Handle;
+}
+
+// ---------------------------------------------------------------------------
+// Drenched Elemental Interactions (US-018)
+// ---------------------------------------------------------------------------
+
+bool UMordecaiStatusEffectComponent::HandleDrenchedInteractions(TSubclassOf<UGameplayEffect> GEClass)
+{
+	if (!GEClass)
+	{
+		return true;
+	}
+
+	// AC-018.6: Burning on a Drenched target → remove Drenched, cancel Burning
+	const UMordecaiGE_Burning* BurningGE = Cast<UMordecaiGE_Burning>(GEClass.GetDefaultObject());
+	if (BurningGE && HasStatusEffect(MordecaiGameplayTags::Status_Drenched))
+	{
+		RemoveStatusEffect(MordecaiGameplayTags::Status_Drenched);
+		return false; // Cancel Burning application
+	}
+
+	return true; // Allow normal application
 }
 
 void UMordecaiStatusEffectComponent::RemoveStatusEffect(FGameplayTag StatusTag)
