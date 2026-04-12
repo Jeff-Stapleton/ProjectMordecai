@@ -7,6 +7,7 @@
 #include "Mordecai/Magic/MordecaiGA_Blur.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/UI/MordecaiDamagePopComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SphereComponent.h"
 #include "AbilitySystemComponent.h"
@@ -412,6 +413,14 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 	// US-056: Apply status effects on hit
 	UMordecaiGA_MeleeAttack::ApplyStatusEffectsFromEntries(
 		StatusEffectsOnHit, SourceASC ? SourceASC : TargetASC, TargetASC, this);
+
+	// US-065: Fire floating damage number
+	{
+		FGameplayTag DamageTag = UMordecaiGA_MeleeAttack::GetDamageTagForType(DamageProfile.DamageType);
+		int32 DisplayDamage = FMath::Abs(FMath::RoundToInt32(DamageMagnitude));
+		UMordecaiDamagePopComponent::BroadcastDamagePop(
+			TargetActor->GetWorld(), DisplayDamage, DamageTag, TargetActor->GetActorLocation(), /*bIsCritical=*/false);
+	}
 }
 
 // ---------------------------------------------------------------------------

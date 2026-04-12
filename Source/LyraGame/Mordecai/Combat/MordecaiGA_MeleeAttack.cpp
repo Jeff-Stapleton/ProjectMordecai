@@ -6,6 +6,7 @@
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/UI/MordecaiDamagePopComponent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
@@ -412,7 +413,7 @@ void UMordecaiGA_MeleeAttack::PerformHitDetectionAndApplyDamage()
 	}
 }
 
-void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVector& /*HitLocation*/)
+void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVector& HitLocation)
 {
 	if (!TargetActor) return;
 
@@ -479,6 +480,15 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 
 	// US-056: Apply status effects from attack profile
 	ApplyStatusEffectsFromEntries(Profile->StatusEffectsOnHit, SourceASC, TargetASC, this);
+
+	// US-065: Fire floating damage number
+	{
+		FGameplayTag DamageTag = GetDamageTagForType(Profile->DamageProfile.DamageType);
+		int32 DisplayDamage = FMath::Abs(FMath::RoundToInt32(ComputeHealthDamage()));
+		FVector PopLocation = HitLocation.IsNearlyZero() ? TargetActor->GetActorLocation() : HitLocation;
+		UMordecaiDamagePopComponent::BroadcastDamagePop(
+			TargetActor->GetWorld(), DisplayDamage, DamageTag, PopLocation, /*bIsCritical=*/false);
+	}
 }
 
 // ---------------------------------------------------------------------------

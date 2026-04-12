@@ -7,6 +7,7 @@
 #include "MordecaiPlayerController.generated.h"
 
 class UMordecaiCombatHUDWidget;
+class UMordecaiDamagePopComponent;
 class UGameplayAbility;
 class UMordecaiAttackProfileDataAsset;
 class UMordecaiSpellDataAsset;
@@ -59,6 +60,10 @@ private:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMordecaiCombatHUDWidget> CombatHUDWidget;
+
+	/** Floating damage number component (US-065). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|DamagePop", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UMordecaiDamagePopComponent> DamagePopComponent;
 
 	bool bAbilitiesGranted = false;
 };

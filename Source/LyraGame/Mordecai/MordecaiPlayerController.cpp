@@ -3,6 +3,7 @@
 #include "MordecaiPlayerController.h"
 
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
+#include "Mordecai/UI/MordecaiDamagePopComponent.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
 #include "Mordecai/Magic/MordecaiGA_SpellBase.h"
@@ -22,6 +23,9 @@
 AMordecaiPlayerController::AMordecaiPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// US-065: Create floating damage number component
+	DamagePopComponent = CreateDefaultSubobject<UMordecaiDamagePopComponent>(TEXT("DamagePopComponent"));
+
 	// AC-057.6: Default spell loadout (Fireball, Blink, StoneSkin, Restoration)
 	DefaultSpellAbilities.Add(UMordecaiGA_Fireball::StaticClass());
 	DefaultSpellAbilities.Add(UMordecaiGA_Blink::StaticClass());
