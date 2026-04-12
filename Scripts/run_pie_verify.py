@@ -114,20 +114,19 @@ def stop_pie():
 def wait_for_pie_world(timeout=30):
     """Wait for the PIE world and player pawn to be ready."""
     log("Waiting for PIE world and player spawn...")
-    check_script = (
-        "import unreal\n"
-        "w = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_game_world()\n"
-        "if not w:\n"
-        "    raise RuntimeError('NO_PIE_WORLD')\n"
-        "p = unreal.GameplayStatics.get_player_pawn(w, 0)\n"
-        "if not p:\n"
-        "    raise RuntimeError('NO_PAWN')\n"
-        "print('PIE_READY')\n"
+    # Single-statement form (ExecuteStatement mode requires one expression/statement)
+    check_cmd = (
+        "exec(\"import unreal\\n"
+        "w = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_game_world()\\n"
+        "assert w, 'NO_PIE_WORLD'\\n"
+        "p = unreal.GameplayStatics.get_player_pawn(w, 0)\\n"
+        "assert p, 'NO_PAWN'\\n"
+        "print('PIE_READY')\")"
     )
 
     start = time.time()
     while time.time() - start < timeout:
-        success, output = remote_exec_cmd(check_script, timeout=10)
+        success, output = remote_exec_cmd(check_cmd, timeout=10)
         if success and "PIE_READY" in output:
             log("PIE world ready, player spawned.")
             return True

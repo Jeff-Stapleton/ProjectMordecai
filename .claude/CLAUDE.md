@@ -178,14 +178,11 @@ Every task follows this sequence. No exceptions.
 - Both must pass with zero errors
 - If tests fail or build breaks, **fix before proceeding** — do not commit broken code
 
-### Step 4b: PIE Smoke Test (MANDATORY for EDITOR stories and UI/HUD changes)
-Headless tests (NullRHI) cannot catch visual or integration issues (invisible widgets, broken spawn chains, missing Blueprint content). After headless tests pass, run PIE smoke tests to verify the game actually works in-editor.
+### Step 4b: PIE Smoke Test (MANDATORY — Run Every Time)
+Headless tests (NullRHI) cannot catch visual or integration issues (invisible widgets, broken spawn chains, missing Blueprint content). After headless tests pass, **always** run PIE smoke tests to verify the game actually works in-editor.
 
 **When to run PIE smoke tests:**
-- ANY story with `Execution Mode: EDITOR`
-- ANY change touching UI/HUD widgets, Blueprint assets, Experience config, PawnData, or input bindings
-- After creating or modifying Widget Blueprints
-- When in doubt — run them. They take <30 seconds.
+- **EVERY story, regardless of Execution Mode** — no exceptions.
 
 **How to run:**
 ```powershell
