@@ -62,4 +62,4 @@ This story does not have headless automation tests — it is verified via manual
 - [x] One enemy configured with fire status attack
 - [x] HUD updated with SP bar, status indicators, cooldown displays
 - [x] Full magic + status combat loop verified in PIE
-- [ ] Code/assets committed and pushed with `[US-057]` prefix
+- [x] Code/assets committed and pushed with `[US-057]` prefix
