@@ -100,7 +100,7 @@ Delegated town systems.
 - US-063: Kill Counter Display ✅
 
 **Phase 2 — World-Space Combat Indicators**
-- US-064: Enemy Indicator System Migration (Lyra IndicatorSystem) ← **next**
+- US-064: Enemy Indicator System Migration (Lyra IndicatorSystem) ✅
 - US-065: Floating Damage Numbers (world-space, color-coded by damage type) ← after US-064
 
 **Phase 3 — Menus & Progression UI**

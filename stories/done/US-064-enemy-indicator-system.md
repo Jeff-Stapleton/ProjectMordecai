@@ -61,4 +61,4 @@ Migrate enemy world-space indicators to Lyra's built-in IndicatorSystem for prop
 - [x] All tests passing (green) — 9/9 new tests + 418 total Mordecai tests pass
 - [x] Project compiles with zero errors
 - [x] PIE smoke tests pass (4/4 including new verify_pie_indicator.py)
-- [ ] Code committed and pushed with `[US-064]` prefix
+- [x] Code committed and pushed with `[US-064]` prefix
