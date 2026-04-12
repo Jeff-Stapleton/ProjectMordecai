@@ -188,6 +188,16 @@ namespace MordecaiGameplayTags
 	// Status tags (US-059)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Resolved);
 
+	// Ability tags (US-060)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Spell_Illusion);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Spell_Blur);
+
+	// Status tags (US-060)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Blurred);
+
+	// Team tags (US-060)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Team_Ally);
+
 	// Event tags (US-017)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_BreakFree);
 

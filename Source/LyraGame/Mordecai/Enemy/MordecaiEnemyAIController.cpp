@@ -4,10 +4,12 @@
 
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Magic/MordecaiIllusionActor.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayAbilitySpec.h"
 #include "Kismet/GameplayStatics.h"
+#include "EngineUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyAIController)
 
@@ -236,7 +238,8 @@ void AMordecaiEnemyAIController::Tick(float DeltaTime)
 		return;
 	}
 
-	AActor* Target = FindPlayerTarget();
+	// AC-060.3: Prefer decoy targets over player
+	AActor* Target = FindBestTarget();
 	const float DistToTarget = Target
 		? FVector::Dist(ControlledPawn->GetActorLocation(), Target->GetActorLocation())
 		: MAX_FLT;
@@ -349,6 +352,19 @@ void AMordecaiEnemyAIController::Tick(float DeltaTime)
 // Helpers
 // ---------------------------------------------------------------------------
 
+AActor* AMordecaiEnemyAIController::FindBestTarget() const
+{
+	// AC-060.3: Prefer decoy (Team_Ally) targets within aggro range
+	AActor* Decoy = FindNearestDecoy();
+	if (Decoy)
+	{
+		return Decoy;
+	}
+
+	// Fallback to player
+	return FindPlayerTarget();
+}
+
 AActor* AMordecaiEnemyAIController::FindPlayerTarget() const
 {
 	if (const UWorld* World = GetWorld())
@@ -356,4 +372,35 @@ AActor* AMordecaiEnemyAIController::FindPlayerTarget() const
 		return UGameplayStatics::GetPlayerPawn(World, 0);
 	}
 	return nullptr;
+}
+
+AActor* AMordecaiEnemyAIController::FindNearestDecoy() const
+{
+	const UWorld* World = GetWorld();
+	APawn* ControlledPawn = GetPawn();
+	if (!World || !ControlledPawn)
+	{
+		return nullptr;
+	}
+
+	AActor* BestDecoy = nullptr;
+	float BestDist = MAX_FLT;
+
+	for (TActorIterator<AMordecaiIllusionActor> It(World); It; ++It)
+	{
+		AMordecaiIllusionActor* Decoy = *It;
+		if (!Decoy || !Decoy->IsAlive())
+		{
+			continue;
+		}
+
+		float Dist = FVector::Dist(ControlledPawn->GetActorLocation(), Decoy->GetActorLocation());
+		if (Dist <= AggroRange && Dist < BestDist)
+		{
+			BestDist = Dist;
+			BestDecoy = Decoy;
+		}
+	}
+
+	return BestDecoy;
 }

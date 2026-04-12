@@ -86,11 +86,15 @@ protected:
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 
+	/** Find best target: prefer decoys (Team_Ally), fallback to player (AC-060.3). */
+	AActor* FindBestTarget() const;
+
 private:
 	void BindTagDelegates();
 	void UnbindTagDelegates();
 
 	AActor* FindPlayerTarget() const;
+	AActor* FindNearestDecoy() const;
 
 	EMordecaiEnemyAIState CurrentState = EMordecaiEnemyAIState::Idle;
 	FVector SpawnLocation = FVector::ZeroVector;

@@ -39,6 +39,7 @@ enum class EMordecaiSpellDeliveryType : uint8
 	TraceHit,
 	DashMovement,
 	SpawnPersistentArea,
+	SummonActor,
 };
 
 /** Casting phase state machine. */

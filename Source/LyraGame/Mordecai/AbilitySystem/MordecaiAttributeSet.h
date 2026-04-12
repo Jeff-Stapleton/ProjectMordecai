@@ -80,6 +80,9 @@ public:
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, StealthDetectionMultiplier);
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, StaminaTierPenaltyMultiplier);
 
+	// Blur Evasion Attribute (US-060)
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, RangedEvasionChance);
+
 	// Derived Attributes — Secondary Effects (per character_attributes_v1 secondary_stats table)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, ArmorPenetrationMultiplier);
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, PhysicalCritChance);
@@ -217,6 +220,10 @@ protected:
 	void OnRep_StealthDetectionMultiplier(const FGameplayAttributeData& OldValue);
 	UFUNCTION()
 	void OnRep_StaminaTierPenaltyMultiplier(const FGameplayAttributeData& OldValue);
+
+	// Blur evasion OnRep (US-060)
+	UFUNCTION()
+	void OnRep_RangedEvasionChance(const FGameplayAttributeData& OldValue);
 
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& NewValue) const;
 
@@ -372,4 +379,8 @@ private:
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_StaminaTierPenaltyMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData StaminaTierPenaltyMultiplier;
+
+	// --- Blur Evasion (US-060) ---
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RangedEvasionChance, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData RangedEvasionChance;
 };

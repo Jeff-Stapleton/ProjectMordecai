@@ -62,6 +62,8 @@ UMordecaiAttributeSet::UMordecaiAttributeSet()
 	, AimAssistMultiplier(1.0f)
 	, StealthDetectionMultiplier(1.0f)
 	, StaminaTierPenaltyMultiplier(1.0f)
+	// Blur evasion (US-060) — 0 means no evasion
+	, RangedEvasionChance(0.0f)
 {
 }
 
@@ -204,6 +206,9 @@ void UMordecaiAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, AimAssistMultiplier, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, StealthDetectionMultiplier, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, StaminaTierPenaltyMultiplier, COND_None, REPNOTIFY_Always);
+
+	// Blur evasion (US-060)
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, RangedEvasionChance, COND_None, REPNOTIFY_Always);
 }
 
 void UMordecaiAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -335,6 +340,10 @@ void UMordecaiAttributeSet::ClampAttribute(const FGameplayAttribute& Attribute, 
 	else if (Attribute == GetStaminaTierPenaltyMultiplierAttribute())
 	{
 		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetRangedEvasionChanceAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.0f, 1.0f);
 	}
 }
 
@@ -589,4 +598,11 @@ void UMordecaiAttributeSet::OnRep_StealthDetectionMultiplier(const FGameplayAttr
 void UMordecaiAttributeSet::OnRep_StaminaTierPenaltyMultiplier(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, StaminaTierPenaltyMultiplier, OldValue);
+}
+
+// --- Blur evasion OnRep (US-060) ---
+
+void UMordecaiAttributeSet::OnRep_RangedEvasionChance(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, RangedEvasionChance, OldValue);
 }

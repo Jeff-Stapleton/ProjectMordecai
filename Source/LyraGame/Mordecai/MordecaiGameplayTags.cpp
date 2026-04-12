@@ -186,6 +186,16 @@ namespace MordecaiGameplayTags
 	// Status tags (US-059)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resolved, "Mordecai.Status.Resolved", "Resolved — Fear cancelled by perfect block/parry during Fear");
 
+	// Ability tags (US-060)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_Illusion, "Mordecai.Ability.Spell.Illusion", "Illusion spell ability — summon aggro-drawing decoy");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_Blur,     "Mordecai.Ability.Spell.Blur",     "Blur spell ability — self-targeted evasion buff");
+
+	// Status tags (US-060)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Blurred, "Mordecai.Status.Blurred", "Blurred — ranged projectile attacks have a chance to miss");
+
+	// Team tags (US-060)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Team_Ally, "Mordecai.Team.Ally", "Actor is an allied decoy — enemies prefer targeting it");
+
 	// Event tags (US-017)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_BreakFree, "Mordecai.Event.BreakFree", "Break-free action — heavy stamina cost to remove Rooted early");
 

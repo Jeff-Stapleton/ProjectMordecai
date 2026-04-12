@@ -4,6 +4,7 @@
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Magic/MordecaiGA_Blur.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -329,6 +330,21 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 	if (!TargetASC)
 	{
 		return;
+	}
+
+	// AC-060.7: Blur miss chance — ranged projectile attacks can miss blurred targets
+	if (TargetASC->HasMatchingGameplayTag(MordecaiGameplayTags::Status_Blurred))
+	{
+		float EvasionChance = TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetRangedEvasionChanceAttribute());
+		if (EvasionChance > 0.f)
+		{
+			float Roll = FMath::FRand();
+			if (UMordecaiGA_Blur::RollMiss(EvasionChance, Roll))
+			{
+				// Miss — skip damage application
+				return;
+			}
+		}
 	}
 
 	// Use instigator's ASC as source for effect context
