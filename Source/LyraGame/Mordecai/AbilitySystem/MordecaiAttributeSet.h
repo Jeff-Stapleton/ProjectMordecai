@@ -74,6 +74,12 @@ public:
 	// Enchant Weapon Bonus Damage (US-023)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, EnchantWeaponBonusDamage);
 
+	// Perception & Mental Debuff Attributes (US-059)
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, RangedAccuracyMultiplier);
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, AimAssistMultiplier);
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, StealthDetectionMultiplier);
+	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, StaminaTierPenaltyMultiplier);
+
 	// Derived Attributes — Secondary Effects (per character_attributes_v1 secondary_stats table)
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, ArmorPenetrationMultiplier);
 	ATTRIBUTE_ACCESSORS(UMordecaiAttributeSet, PhysicalCritChance);
@@ -201,6 +207,16 @@ protected:
 	// Enchant Weapon Bonus Damage OnRep (US-023)
 	UFUNCTION()
 	void OnRep_EnchantWeaponBonusDamage(const FGameplayAttributeData& OldValue);
+
+	// Perception & mental debuff OnRep (US-059)
+	UFUNCTION()
+	void OnRep_RangedAccuracyMultiplier(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	void OnRep_AimAssistMultiplier(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	void OnRep_StealthDetectionMultiplier(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	void OnRep_StaminaTierPenaltyMultiplier(const FGameplayAttributeData& OldValue);
 
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& NewValue) const;
 
@@ -343,4 +359,17 @@ private:
 	// --- Enchant Weapon Bonus Damage (US-023) ---
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_EnchantWeaponBonusDamage, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData EnchantWeaponBonusDamage;
+
+	// --- Perception & Mental Debuff Attributes (US-059) ---
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RangedAccuracyMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData RangedAccuracyMultiplier;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_AimAssistMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData AimAssistMultiplier;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_StealthDetectionMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData StealthDetectionMultiplier;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_StaminaTierPenaltyMultiplier, Category = "Mordecai|StatusModifiers", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData StaminaTierPenaltyMultiplier;
 };

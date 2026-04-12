@@ -185,6 +185,9 @@ namespace MordecaiGameplayTags
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Category_Spell);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Category_Magical);
 
+	// Status tags (US-059)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Resolved);
+
 	// Event tags (US-017)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_BreakFree);
 

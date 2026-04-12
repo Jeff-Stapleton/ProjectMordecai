@@ -183,6 +183,9 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Category_Spell,   "Mordecai.Ability.Category.Spell",   "Identifies an ability as a spell — blocked by Silenced");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Category_Magical, "Mordecai.Ability.Category.Magical", "Identifies an ability as magical — blocked by Silenced even if not a spell");
 
+	// Status tags (US-059)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Resolved, "Mordecai.Status.Resolved", "Resolved — Fear cancelled by perfect block/parry during Fear");
+
 	// Event tags (US-017)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_BreakFree, "Mordecai.Event.BreakFree", "Break-free action — heavy stamina cost to remove Rooted early");
 

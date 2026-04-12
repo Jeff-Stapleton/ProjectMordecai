@@ -57,6 +57,11 @@ UMordecaiAttributeSet::UMordecaiAttributeSet()
 	, FireWardShieldHP(0.0f)
 	// Enchant Weapon bonus damage (US-023) — 0 means no enchant active
 	, EnchantWeaponBonusDamage(0.0f)
+	// Perception & mental debuff attributes (US-059) — neutral defaults
+	, RangedAccuracyMultiplier(1.0f)
+	, AimAssistMultiplier(1.0f)
+	, StealthDetectionMultiplier(1.0f)
+	, StaminaTierPenaltyMultiplier(1.0f)
 {
 }
 
@@ -193,6 +198,12 @@ void UMordecaiAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 	// Enchant Weapon bonus damage (US-023)
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, EnchantWeaponBonusDamage, COND_None, REPNOTIFY_Always);
+
+	// Perception & mental debuff attributes (US-059)
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, RangedAccuracyMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, AimAssistMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, StealthDetectionMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, StaminaTierPenaltyMultiplier, COND_None, REPNOTIFY_Always);
 }
 
 void UMordecaiAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -306,6 +317,22 @@ void UMordecaiAttributeSet::ClampAttribute(const FGameplayAttribute& Attribute, 
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
 	else if (Attribute == GetEnchantWeaponBonusDamageAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetRangedAccuracyMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetAimAssistMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetStealthDetectionMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
+	}
+	else if (Attribute == GetStaminaTierPenaltyMultiplierAttribute())
 	{
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
@@ -540,4 +567,26 @@ void UMordecaiAttributeSet::OnRep_FireWardShieldHP(const FGameplayAttributeData&
 void UMordecaiAttributeSet::OnRep_EnchantWeaponBonusDamage(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, EnchantWeaponBonusDamage, OldValue);
+}
+
+// --- Perception & mental debuff OnRep (US-059) ---
+
+void UMordecaiAttributeSet::OnRep_RangedAccuracyMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, RangedAccuracyMultiplier, OldValue);
+}
+
+void UMordecaiAttributeSet::OnRep_AimAssistMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, AimAssistMultiplier, OldValue);
+}
+
+void UMordecaiAttributeSet::OnRep_StealthDetectionMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, StealthDetectionMultiplier, OldValue);
+}
+
+void UMordecaiAttributeSet::OnRep_StaminaTierPenaltyMultiplier(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UMordecaiAttributeSet, StaminaTierPenaltyMultiplier, OldValue);
 }
