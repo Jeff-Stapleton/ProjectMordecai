@@ -8,6 +8,7 @@
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
 #include "Mordecai/UI/MordecaiEnemyHealthBarWidget.h"
+#include "Mordecai/UI/MordecaiEnemyIndicatorComponent.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiGameMode.h"
 #include "Mordecai/Enemy/MordecaiEnemyAIController.h"
@@ -41,6 +42,9 @@ AMordecaiEnemyCharacter::AMordecaiEnemyCharacter(const FObjectInitializer& Objec
 
 	// Posture system for break/regen logic (reuses existing UMordecaiPostureSystem)
 	PostureSystem = CreateDefaultSubobject<UMordecaiPostureSystem>(TEXT("PostureSystem"));
+
+	// Enemy indicator component for world-space health/status display (US-064)
+	EnemyIndicatorComponent = CreateDefaultSubobject<UMordecaiEnemyIndicatorComponent>(TEXT("EnemyIndicator"));
 
 	// Enable tick for posture regeneration
 	PrimaryActorTick.bCanEverTick = true;
@@ -178,6 +182,12 @@ void AMordecaiEnemyCharacter::Tick(float DeltaTime)
 
 void AMordecaiEnemyCharacter::OnHealthChanged(const FOnAttributeChangeData& Data)
 {
+	// US-064: Notify indicator component when enemy takes damage (AC-064.2)
+	if (Data.NewValue < Data.OldValue && EnemyIndicatorComponent)
+	{
+		EnemyIndicatorComponent->NotifyDamageReceived();
+	}
+
 	// AC-050.6: When Health reaches <= 0, enter death state
 	if (Data.NewValue <= 0.f && !IsDead())
 	{
@@ -218,6 +228,12 @@ void AMordecaiEnemyCharacter::EnterDeathState()
 
 	// AC-050.6: Apply State_Dead tag (replicated via ASC, AC-050.11)
 	EnemyAbilitySystemComponent->AddLooseGameplayTag(MordecaiGameplayTags::State_Dead);
+
+	// US-064: Unregister indicator on death (AC-064.3)
+	if (EnemyIndicatorComponent)
+	{
+		EnemyIndicatorComponent->NotifyDeath();
+	}
 
 	// AC-050.6: Disable movement
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())

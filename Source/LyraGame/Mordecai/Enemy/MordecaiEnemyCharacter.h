@@ -11,6 +11,7 @@ class UMordecaiAttributeSet;
 class UMordecaiAttackProfileDataAsset;
 class UMordecaiPostureSystem;
 class UMordecaiEnemyHealthBarWidget;
+class UMordecaiEnemyIndicatorComponent;
 class UWidgetComponent;
 class UGameplayAbility;
 struct FOnAttributeChangeData;
@@ -112,6 +113,10 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UWidgetComponent> HealthBarWidgetComponent;
+
+	/** Enemy indicator component for world-space health/status display (US-064). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Enemy", Meta = (AllowPrivateAccess = true))
+	TObjectPtr<UMordecaiEnemyIndicatorComponent> EnemyIndicatorComponent;
 
 	bool bAbilitySystemInitialized = false;
 	FTimerHandle PostureBrokenTimerHandle;
