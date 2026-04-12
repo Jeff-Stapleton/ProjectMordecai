@@ -1626,3 +1626,220 @@ All 10 HEADLESS, 1 EDITOR. No mixed stories. No changes needed.
 8. **US-057** — EDITOR. After US-055+056. Playable Magic Arena integration.
 
 9. **US-015** — Still blocked. Needs Jeff's manual investigation.
+
+## 2026-04-09 Nightly Planning Run
+
+### Completed Since Last Run
+- **US-016: Combat Modifier Debuffs** (Weakened, Brittle, Exposed, Corroded) — moved to done
+- **US-017: Action-Restricting Debuffs** (Silenced, Rooted) — moved to done
+- **US-022: Support Spells** (Bless, Restoration) — moved to done (WIP recovery completed)
+- **US-023: Tactical Spells** (Snare, Enfeeble, Enchant Weapon) — moved to done
+- **US-055: Spell HUD & Status Effect Indicators** — moved to done (Epic 10 Phase 1 complete)
+- **US-061: Combat Feedback — Combo Counter** — moved to done
+- **US-062: Death Screen & Respawn Countdown** — moved to done
+- **US-063: Kill Counter Display** — moved to done
+
+### Currently In Progress
+- (none — backlog is queued and ready)
+
+### New Stories Created
+- **US-064: Enemy Indicator System Migration** (`stories/backlog/US-064-enemy-indicator-system.md`) — HEADLESS
+  - Migrate enemy world-space indicators to Lyra's IndicatorSystem (SActorCanvas projection)
+  - Enemy health bar, name, and status icons above heads; distance-based visibility
+  - 9 automation tests
+- **US-065: Floating Damage Numbers** (`stories/backlog/US-065-floating-damage-numbers.md`) — HEADLESS
+  - Integrate Lyra's NumberPops system for color-coded damage/healing numbers
+  - Color by damage type (Physical=white, Fire=orange, etc.), critical hit emphasis, healing green
+  - Pooled pops with max concurrent cap
+  - 10 automation tests
+- **US-069: Pause Menu Framework** (`stories/backlog/US-069-pause-menu-framework.md`) — HEADLESS
+  - CommonUI-based tabbed pause menu with Game→Menu input mode switching
+  - Tab registration API for future content (character sheet, skills, feats)
+  - Pause/unpause game lifecycle via subsystem
+  - 11 automation tests
+
+### PLAN.md Updates
+- Marked US-016, US-017, US-022, US-023, US-055 as ✅
+- Updated Epic 4 count: 5/7 done (US-015 still blocked)
+- Updated Epic 5 count: 5/6 done
+- Reorganized priority 8 into batches: Batch 1 (US-059+060+056 parallel), Batch 2 (US-018), Batch 3 (US-057 EDITOR)
+- Added priority 9: Epic 10 Phase 2-3 with newly scoped stories
+
+### Blockers / Decisions Needed
+- **US-015 (Frostbitten/Shocked)** — Still BLOCKED. Multiple agent attempts failed. Needs Jeff's manual investigation. This partially blocks US-018 (Drenched's frost/lightning synergy ACs) but US-018 can proceed with TODO stubs for those interactions.
+- **US-018 AC-018.3/AC-018.4** — Drenched+Shocked and Drenched+Frostbitten interactions cannot be fully tested until US-015 is resolved. Coding agent should implement the checks but mark those test assertions as TODO.
+
+### Backlog Summary (10 stories, priority order)
+| # | Story | Mode | ACs | Dependencies | Status |
+|---|-------|------|-----|-------------|--------|
+| 1 | US-059 (Blinded/Fear/Cursed) | HEADLESS | 17 | US-013 ✅, US-017 ✅ | Ready |
+| 2 | US-060 (Illusion/Blur) | HEADLESS | 8 | US-019 ✅, US-051 ✅ | Ready |
+| 3 | US-056 (Status-Applying Attacks) | HEADLESS | 7 | US-002 ✅, US-004 ✅, US-013 ✅ | Ready |
+| 4 | US-018 (Drenched/Focused) | HEADLESS | 15 | US-059, partial US-015 🔴 | After Batch 1 |
+| 5 | US-057 (Magic Arena Integration) | EDITOR | 12 | US-056, US-019-022 ✅ | After US-056 |
+| 6 | US-064 (Enemy Indicators) | HEADLESS | 10 | US-050 ✅, US-052 ✅ | Ready (Phase 2) |
+| 7 | US-065 (Floating Damage Numbers) | HEADLESS | 10 | US-064 | After US-064 |
+| 8 | US-069 (Pause Menu Framework) | HEADLESS | 13 | None | Ready (Phase 3) |
+| 9 | US-024 (Weapon Class Framework) | HEADLESS | 13 | US-002 ✅, US-004 ✅ | Ready (Epic 6) |
+| 10 | US-015 (Frostbitten/Shocked) | HEADLESS | 15 | 🔴 BLOCKED | Needs Jeff |
+
+### Next Session Recommendation
+
+**Batch 1 — Parallelize (all HEADLESS, all independent):**
+1. **US-059** (Blinded/Fear/Cursed) — 17 ACs, ~11 tests. Follows established GE + attribute modifier pattern from US-014/016/017.
+2. **US-060** (Illusion/Blur) — 8 ACs, ~8 tests. New actor type (IllusionActor) + projectile pipeline modification.
+3. **US-056** (Status-Applying Attack Profiles) — 7 ACs, ~6 tests. Extends attack profile data model + melee/projectile hit processing.
+
+**Batch 2 — Sequential (after Batch 1):**
+4. **US-018** (Drenched/Focused) — 15 ACs, ~14 tests. Drenched elemental synergies + PerfectActionTracker component. Skip Frostbitten/Shocked interaction tests (US-015 blocked).
+
+**Batch 3 — EDITOR (after US-056):**
+5. **US-057** (Playable Magic Arena) — EDITOR. Wire spells + status attacks + HUD into playable arena. Jeff can play-test magic.
+
+**Batch 4 — Phase 2+3 (after Batch 3, parallelize):**
+6. **US-064** (Enemy Indicators) + **US-069** (Pause Menu) — both HEADLESS, independent. Can parallelize.
+
+**Batch 5 — After Batch 4:**
+7. **US-065** (Floating Damage Numbers) — HEADLESS, after US-064.
+
+**Still blocked:**
+- **US-015** — Needs Jeff's investigation before Drenched synergy ACs can be fully verified.
+
+---
+
+## 2026-04-10 Nightly Planning Run
+
+### Completed Since Last Run
+- (none — no new stories moved to done since 2026-04-09 run)
+
+### Currently In Progress
+- (none — backlog is queued and ready for coding agents)
+
+### New Stories Created
+
+**Epic 10 Phase 3 — Menus & Progression UI (3 stories, all HEADLESS)**
+
+These complete the Phase 3 coverage. All three depend on US-069 (Pause Menu Framework) for the tab registration API. They read from existing C++ components (ASC, SkillComponent, FeatComponent) that are already implemented.
+
+- **US-066: Character Sheet — Attributes & Derived Stats** (`stories/backlog/US-066-character-sheet-widget.md`) — HEADLESS
+  - `UMordecaiCharacterSheetWidget` binds to the player's ASC via attribute change delegates
+  - Displays 9 primary attributes grouped into Physical/Resilience/Magical columns
+  - Shows 4 core resource pools (Health, Stamina, SP, Posture) as current/max
+  - Shows 5 primary-derived multipliers + 9 secondary-derived stats as percentages
+  - Real-time updates via `GetGameplayAttributeValueChangeDelegate()`
+  - 9 ACs, 8 tests. Depends on US-069 (tab API), US-010 (attribute scaling).
+
+- **US-067: Skill Tree Display** (`stories/backlog/US-067-skill-tree-display.md`) — HEADLESS
+  - `UMordecaiSkillTreeWidget` binds to `UMordecaiSkillComponent`
+  - Skills grouped by 5 categories with category switching
+  - Rank display (1–20) with milestone markers at 1/5/10/15/20
+  - Detail panel shows milestone descriptions from `UMordecaiSkillDataAsset::RankDescriptions`
+  - Skill point allocation via `TryAllocateSkillPoint()` with disabled state when 0 points or max rank
+  - Live updates via `OnSkillMilestoneReachedBP` delegate
+  - 11 ACs, 10 tests. Depends on US-069 (tab API), US-011 (skill framework).
+
+- **US-068: Feat Display** (`stories/backlog/US-068-feat-display.md`) — HEADLESS
+  - `UMordecaiFeatDisplayWidget` binds to `UMordecaiFeatComponent`
+  - Shows unlocked feats with tier color-coding (Common=gray, Rare=blue, Legendary=gold)
+  - Detail panel shows description, applied effects/abilities/drawback counts
+  - Locked feats section with unlock condition progress (StatName: current/threshold)
+  - Summary header with total unlocked + per-tier breakdown
+  - Live unlock notifications via `OnFeatUnlockedBP` delegate
+  - 9 ACs, 8 tests. Depends on US-069 (tab API), US-012 (feat system).
+
+### PLAN.md Updates
+- Updated Epic 10 Phase 3 with detailed story descriptions and Execution Mode tags for US-066, US-067, US-068
+- No priority order changes — these stories slot into existing Batch 6 (after US-069)
+
+### Backlog Summary (13 stories, priority order)
+
+| # | Story | Epic | Mode | ACs | Tests | Dependencies | Status |
+|---|-------|------|------|-----|-------|-------------|--------|
+| 1 | US-059 (Blinded/Fear/Cursed) | 4 | HEADLESS | 17 | 11 | US-013 ✅, US-017 ✅ | Ready |
+| 2 | US-060 (Illusion/Blur) | 5 | HEADLESS | 8 | 8 | US-019 ✅, US-051 ✅ | Ready |
+| 3 | US-056 (Status-Applying Attacks) | 5.5 | HEADLESS | 7 | 6 | US-002 ✅, US-013 ✅ | Ready |
+| 4 | US-018 (Drenched/Focused) | 4 | HEADLESS | 15 | 14 | US-059, partial US-015 🔴 | After Batch 1 |
+| 5 | US-057 (Magic Arena Integration) | 5.5 | EDITOR | 12 | Manual | US-056, spells ✅ | After US-056 |
+| 6 | US-064 (Enemy Indicators) | 10 | HEADLESS | 10 | 9 | US-050 ✅, US-052 ✅ | Ready (Phase 2) |
+| 7 | US-065 (Floating Damage Numbers) | 10 | HEADLESS | 10 | 10 | US-064 | After US-064 |
+| 8 | US-069 (Pause Menu Framework) | 10 | HEADLESS | 13 | 11 | None | Ready (Phase 3) |
+| 9 | US-066 (Character Sheet) | 10 | HEADLESS | 9 | 8 | US-069, US-010 ✅ | After US-069 |
+| 10 | US-067 (Skill Tree Display) | 10 | HEADLESS | 11 | 10 | US-069, US-011 ✅ | After US-069 |
+| 11 | US-068 (Feat Display) | 10 | HEADLESS | 9 | 8 | US-069, US-012 ✅ | After US-069 |
+| 12 | US-024 (Weapon Class Framework) | 6 | HEADLESS | 13 | 11 | US-002 ✅, US-004 ✅ | Ready (Epic 6) |
+| 13 | US-015 (Frostbitten/Shocked) | 4 | HEADLESS | 15 | 13 | 🔴 BLOCKED | Needs Jeff |
+
+All 12 HEADLESS, 1 EDITOR. No mixed stories. All comply with PLANNER.md classification rules.
+
+### Source Code State (unchanged from last run)
+- `Mordecai/AbilitySystem/` — ASC, AttributeSet (40+ attributes), AttributeScaling
+- `Mordecai/Camera/` — Diorama camera mode
+- `Mordecai/Combat/` — Full combat suite (attacks, hit detection, block, parry, dodge, posture, stamina, projectiles, aim assist)
+- `Mordecai/Enemy/` — EnemyCharacter, EnemyAIController, EnemyAITypes
+- `Mordecai/Skills/` — SkillComponent, SkillDataAsset, SkillTypes
+- `Mordecai/Feats/` — FeatComponent, FeatDataAsset, FeatTypes
+- `Mordecai/StatusEffects/` — Framework + 8 status GEs (Burning, Bleeding, Poisoned, MicroStunned, Weakened, Brittle, Exposed, Corroded, Silenced, Rooted)
+- `Mordecai/Magic/` — SpellBase, SpellDataAsset + 11 spells (Fireball, ConeOfCold, MagicMissile, StoneSkin, Blink, Sleep, FireWard, Bless, Restoration, Snare, Enfeeble, EnchantWeapon)
+- `Mordecai/UI/` — CombatHUD, HealthBar, StaminaBar, PostureBar, EnemyHealthBar, SpellPointsBar, SpellCooldown, StatusEffectBar, StatusEffectIndicator, CombatFeedback, ComboCounter, DeathScreen, KillCounter (26 files)
+- Tests: 25+ test files across 13 subdirectories
+
+### Dependency Graph
+
+```
+CURRENT PRIORITY — Batch 1 (parallel, all HEADLESS):
+  US-059 (Blinded/Fear/Cursed) ──┐
+  US-060 (Illusion/Blur) ────────┤
+  US-056 (Status-Applying Attacks) ──┘
+
+Batch 2 (after Batch 1):
+  US-018 (Drenched/Focused) ──> partially blocked by US-015 🔴
+
+Batch 3 (after US-056):
+  US-057 (Playable Magic Arena — EDITOR)
+
+Batch 4 (Phase 2+3, parallel):
+  US-064 (Enemy Indicators) ──> US-065 (Floating Damage Numbers)
+  US-069 (Pause Menu) ──┬──> US-066 (Character Sheet)
+                         ├──> US-067 (Skill Tree) ←── NEW
+                         └──> US-068 (Feat Display) ←── NEW
+
+After Phase 3:
+  US-024 (Weapon Framework) ──> Epic 6 weapon type stories (US-025+)
+
+BLOCKED:
+  US-015 (Frostbitten/Shocked) ──> US-018 ACs 3/4
+```
+
+### Blockers / Decisions Needed
+- **US-015 (Frostbitten/Shocked)** — Still BLOCKED. Multiple agent attempts failed. Needs Jeff's manual investigation. Partially blocks US-018 (Drenched synergies). All other stories unblocked.
+- No new TODO(DECISION) items. All open items carried from prior runs.
+
+### Coverage Check
+- **Epic 10 Phase 3** is now fully scoped: US-069 (framework) → US-066/067/068 (content tabs). All HEADLESS.
+- **Epic 10 Phase 4** (Blueprint polish: US-070, US-076, US-075) remains unscoped — these are EDITOR stories and lower priority. Will scope when Phase 3 stories approach completion.
+- **Epic 6** (Weapons): US-024 is scoped as the gate story. US-025–030 remain placeholders — will scope as Epic 5.5 + Epic 10 Phase 2-3 approach completion.
+
+### Next Session Recommendation
+
+**Batch 1 — Parallelize (all HEADLESS, all independent, all ready NOW):**
+1. **US-059** (Blinded/Fear/Cursed) — 17 ACs, 11 tests. Follows established GE + attribute modifier pattern.
+2. **US-060** (Illusion/Blur) — 8 ACs, 8 tests. New actor type + projectile miss-chance pipeline.
+3. **US-056** (Status-Applying Attack Profiles) — 7 ACs, 6 tests. Extends attack profile + hit processing.
+
+**Batch 2 — Sequential (after Batch 1):**
+4. **US-018** (Drenched/Focused) — 15 ACs, 14 tests. Skip Frostbitten/Shocked ACs (US-015 blocked).
+
+**Batch 3 — EDITOR (after US-056):**
+5. **US-057** (Playable Magic Arena) — EDITOR. Wire spells + status attacks + HUD. Jeff can play-test magic.
+
+**Batch 4 — Phase 2+3 (after Batch 3, parallelize):**
+6. **US-064** (Enemy Indicators) + **US-069** (Pause Menu) — both HEADLESS, independent. Can parallelize.
+
+**Batch 5 — After Batch 4:**
+7. **US-065** (Floating Damage Numbers) — HEADLESS, after US-064.
+
+**Batch 6 — Phase 3 content (after US-069, parallelize):**
+8. **US-066** (Character Sheet) + **US-067** (Skill Tree) + **US-068** (Feat Display) — all HEADLESS, all independent once US-069 is done. Can parallelize all three.
+
+**Still blocked:**
+- **US-015** — Needs Jeff's investigation before Drenched synergy ACs can be fully verified.
