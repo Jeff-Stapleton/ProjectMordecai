@@ -30,4 +30,11 @@ private:
 	void Input_MoveBackward(const FInputActionValue& InputActionValue);
 	void Input_MoveRight(const FInputActionValue& InputActionValue);
 	void Input_MoveLeft(const FInputActionValue& InputActionValue);
+
+	// Spell input handlers (AC-057.5) — each activates the spell in the corresponding slot
+	void HandleSpell1Input(const FInputActionValue& InputActionValue);
+	void HandleSpell2Input(const FInputActionValue& InputActionValue);
+	void HandleSpell3Input(const FInputActionValue& InputActionValue);
+	void HandleSpell4Input(const FInputActionValue& InputActionValue);
+	void ActivateSpellBySlot(int32 SlotIndex);
 };

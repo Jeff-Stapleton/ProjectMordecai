@@ -5,6 +5,12 @@
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
+#include "Mordecai/Magic/MordecaiGA_SpellBase.h"
+#include "Mordecai/Magic/MordecaiSpellDataAsset.h"
+#include "Mordecai/Magic/MordecaiGA_Fireball.h"
+#include "Mordecai/Magic/MordecaiGA_Blink.h"
+#include "Mordecai/Magic/MordecaiGA_StoneSkin.h"
+#include "Mordecai/Magic/MordecaiGA_Restoration.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "Abilities/GameplayAbility.h"
@@ -16,6 +22,11 @@
 AMordecaiPlayerController::AMordecaiPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// AC-057.6: Default spell loadout (Fireball, Blink, StoneSkin, Restoration)
+	DefaultSpellAbilities.Add(UMordecaiGA_Fireball::StaticClass());
+	DefaultSpellAbilities.Add(UMordecaiGA_Blink::StaticClass());
+	DefaultSpellAbilities.Add(UMordecaiGA_StoneSkin::StaticClass());
+	DefaultSpellAbilities.Add(UMordecaiGA_Restoration::StaticClass());
 }
 
 void AMordecaiPlayerController::BeginPlay()
@@ -126,5 +137,61 @@ void AMordecaiPlayerController::GrantCombatAbilities()
 		ASC->GiveAbility(Spec);
 	}
 
+	// --- AC-057.6: Grant spell abilities with SpellData assignment ---
+	for (int32 i = 0; i < DefaultSpellAbilities.Num(); ++i)
+	{
+		TSubclassOf<UGameplayAbility> SpellClass = DefaultSpellAbilities[i];
+		if (!SpellClass)
+		{
+			continue;
+		}
+
+		// Set SpellData on CDO before granting (if SpellDataAssets array is populated)
+		if (SpellDataAssets.IsValidIndex(i) && SpellDataAssets[i])
+		{
+			UMordecaiGA_SpellBase* SpellCDO = SpellClass->GetDefaultObject<UMordecaiGA_SpellBase>();
+			if (SpellCDO)
+			{
+				SpellCDO->SpellData = SpellDataAssets[i];
+			}
+		}
+		else
+		{
+			// Try to load SpellData from well-known content paths
+			static const TCHAR* SpellDataPaths[] = {
+				TEXT("/MordecaiCore/Spells/DA_Spell_Fireball.DA_Spell_Fireball"),
+				TEXT("/MordecaiCore/Spells/DA_Spell_Blink.DA_Spell_Blink"),
+				TEXT("/MordecaiCore/Spells/DA_Spell_StoneSkin.DA_Spell_StoneSkin"),
+				TEXT("/MordecaiCore/Spells/DA_Spell_Restoration.DA_Spell_Restoration"),
+			};
+
+			if (i < UE_ARRAY_COUNT(SpellDataPaths))
+			{
+				UMordecaiGA_SpellBase* SpellCDO = SpellClass->GetDefaultObject<UMordecaiGA_SpellBase>();
+				if (SpellCDO && !SpellCDO->SpellData)
+				{
+					UMordecaiSpellDataAsset* LoadedData = Cast<UMordecaiSpellDataAsset>(
+						FSoftObjectPath(SpellDataPaths[i]).TryLoad());
+					if (LoadedData)
+					{
+						SpellCDO->SpellData = LoadedData;
+					}
+				}
+			}
+		}
+
+		FGameplayAbilitySpec Spec(SpellClass, 1, INDEX_NONE, this);
+		ASC->GiveAbility(Spec);
+	}
+
 	bAbilitiesGranted = true;
+}
+
+TSubclassOf<UGameplayAbility> AMordecaiPlayerController::GetSpellAbilityClass(int32 SlotIndex) const
+{
+	if (DefaultSpellAbilities.IsValidIndex(SlotIndex))
+	{
+		return DefaultSpellAbilities[SlotIndex];
+	}
+	return nullptr;
 }

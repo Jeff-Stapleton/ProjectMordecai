@@ -18,18 +18,18 @@ Wire up spells, status effects, and the new HUD elements into the playable arena
 ---
 
 ## Acceptance Criteria
-- [ ] AC-057.1: `DA_Spell_Fireball` SpellDataAsset exists in `MordecaiCore/Content/Spells/` configured with: SpellPointCost=3, CooldownDuration=2.0, CastTime=0.3, WindupTime=0.2, RecoveryTime=0.3, TargetingType=Projectile, BasePower=25, Range=1500, DeliveryType=SpawnProjectile, MovementPolicy=SlowWhileCasting
-- [ ] AC-057.2: `DA_Spell_Blink` SpellDataAsset exists configured with: SpellPointCost=2, CooldownDuration=4.0, CastTime=0, WindupTime=0, RecoveryTime=0.2, TargetingType=Dash, Range=500, DeliveryType=DashMovement, MovementPolicy=FreeMove
-- [ ] AC-057.3: `DA_Spell_StoneSkin` SpellDataAsset exists configured with: SpellPointCost=4, CooldownDuration=15.0, CastTime=0.5, WindupTime=0.3, RecoveryTime=0.3, TargetingType=Self, BasePower=50 (shield HP), Duration=10.0, DeliveryType=InstantApply, MovementPolicy=RootWhileCasting
-- [ ] AC-057.4: `DA_Spell_Restoration` SpellDataAsset exists configured with: SpellPointCost=3, CooldownDuration=10.0, CastTime=0.4, WindupTime=0.2, RecoveryTime=0.2, TargetingType=Self, BasePower=40 (total heal), Duration=5.0, DeliveryType=InstantApply, MovementPolicy=SlowWhileCasting
-- [ ] AC-057.5: Spell input actions exist in `IMC_Mordecai`: `IA_Spell_1` (LB/Q), `IA_Spell_2` (RB/E), `IA_Spell_3` (LB+RB/R), `IA_Spell_4` (DPadUp/1). Bound to activate the 4 configured spell abilities
-- [ ] AC-057.6: `BP_MordecaiCharacter` is configured to grant the 4 spell abilities (Fireball, Blink, Stone Skin, Restoration) on possession, mapped to the spell input bindings
-- [ ] AC-057.7: `DA_EnemyAttack_FireSlash` DataAsset exists: same base stats as `DA_EnemyAttack_BasicSlash` but with `StatusEffectsOnHit` containing Burning at 40% application chance
-- [ ] AC-057.8: One of the 3 arena Frontliners uses `DA_EnemyAttack_FireSlash` instead of `DA_EnemyAttack_BasicSlash` — this enemy inflicts Burning on hit
-- [ ] AC-057.9: `WBP_CombatHUD` is updated with: SP bar (below posture bar), status effect indicator bar (below SP bar), and 4 spell cooldown indicators (bottom-center or side panel)
-- [ ] AC-057.10: The SP bar shows current/max SP and updates in real-time when spells are cast
-- [ ] AC-057.11: Status effect indicators appear when the player is Burning (from enemy fire attack) and disappear when the effect expires
-- [ ] AC-057.12: The full magic loop works end-to-end: cast Fireball at enemy → see SP decrease → see cooldown timer → SP bar updates → get hit by fire enemy → see Burning indicator → cast Restoration to heal → cast Blink to reposition → cast Stone Skin for defense
+- [x] AC-057.1: `DA_Spell_Fireball` SpellDataAsset exists in `MordecaiCore/Content/Spells/` configured with: SpellPointCost=3, CooldownDuration=2.0, CastTime=0.3, WindupTime=0.2, RecoveryTime=0.3, TargetingType=Projectile, BasePower=25, Range=1500, DeliveryType=SpawnProjectile, MovementPolicy=SlowWhileCasting
+- [x] AC-057.2: `DA_Spell_Blink` SpellDataAsset exists configured with: SpellPointCost=2, CooldownDuration=4.0, CastTime=0, WindupTime=0, RecoveryTime=0.2, TargetingType=Dash, Range=500, DeliveryType=DashMovement, MovementPolicy=FreeMove
+- [x] AC-057.3: `DA_Spell_StoneSkin` SpellDataAsset exists configured with: SpellPointCost=4, CooldownDuration=15.0, CastTime=0.5, WindupTime=0.3, RecoveryTime=0.3, TargetingType=Self, BasePower=50 (shield HP), Duration=10.0, DeliveryType=InstantApply, MovementPolicy=RootWhileCasting
+- [x] AC-057.4: `DA_Spell_Restoration` SpellDataAsset exists configured with: SpellPointCost=3, CooldownDuration=10.0, CastTime=0.4, WindupTime=0.2, RecoveryTime=0.2, TargetingType=Self, BasePower=40 (total heal), Duration=5.0, DeliveryType=InstantApply, MovementPolicy=SlowWhileCasting
+- [x] AC-057.5: Spell input actions exist in `IMC_Mordecai`: `IA_Spell_1` (LB/Q), `IA_Spell_2` (RB/E), `IA_Spell_3` (LB+RB/R), `IA_Spell_4` (DPadUp/1). Bound to activate the 4 configured spell abilities
+- [x] AC-057.6: `BP_MordecaiCharacter` is configured to grant the 4 spell abilities (Fireball, Blink, Stone Skin, Restoration) on possession, mapped to the spell input bindings
+- [x] AC-057.7: `DA_EnemyAttack_FireSlash` DataAsset exists: same base stats as `DA_EnemyAttack_BasicSlash` but with `StatusEffectsOnHit` containing Burning at 40% application chance
+- [x] AC-057.8: One of the 3 arena Frontliners uses `DA_EnemyAttack_FireSlash` instead of `DA_EnemyAttack_BasicSlash` — this enemy inflicts Burning on hit
+- [x] AC-057.9: `WBP_CombatHUD` is updated with: SP bar (below posture bar), status effect indicator bar (below SP bar), and 4 spell cooldown indicators (bottom-center or side panel)
+- [x] AC-057.10: The SP bar shows current/max SP and updates in real-time when spells are cast
+- [x] AC-057.11: Status effect indicators appear when the player is Burning (from enemy fire attack) and disappear when the effect expires
+- [x] AC-057.12: The full magic loop works end-to-end: cast Fireball at enemy → see SP decrease → see cooldown timer → SP bar updates → get hit by fire enemy → see Burning indicator → cast Restoration to heal → cast Blink to reposition → cast Stone Skin for defense
 
 ## Technical Notes
 - **This is an EDITOR story** — requires the Unreal Editor running with Python remote execution.
@@ -56,10 +56,10 @@ This story does not have headless automation tests — it is verified via manual
 ---
 
 ## Definition of Done
-- [ ] All SpellDataAssets created and configured
-- [ ] Spell input bindings created and mapped
-- [ ] Player configured with 4 spell abilities
-- [ ] One enemy configured with fire status attack
-- [ ] HUD updated with SP bar, status indicators, cooldown displays
-- [ ] Full magic + status combat loop verified in PIE
+- [x] All SpellDataAssets created and configured
+- [x] Spell input bindings created and mapped
+- [x] Player configured with 4 spell abilities
+- [x] One enemy configured with fire status attack
+- [x] HUD updated with SP bar, status indicators, cooldown displays
+- [x] Full magic + status combat loop verified in PIE
 - [ ] Code/assets committed and pushed with `[US-057]` prefix

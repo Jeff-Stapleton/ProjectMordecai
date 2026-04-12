@@ -9,6 +9,7 @@
 class UMordecaiCombatHUDWidget;
 class UGameplayAbility;
 class UMordecaiAttackProfileDataAsset;
+class UMordecaiSpellDataAsset;
 
 /**
  * AMordecaiPlayerController
@@ -36,6 +37,17 @@ public:
 	/** Attack profiles for the melee attack ability combo (AC-054.4). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Combat")
 	TArray<TObjectPtr<UMordecaiAttackProfileDataAsset>> MeleeAttackProfiles;
+
+	/** Spell abilities to grant to the player, ordered by spell slot 1-4 (AC-057.6). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Spells")
+	TArray<TSubclassOf<UGameplayAbility>> DefaultSpellAbilities;
+
+	/** SpellDataAssets for each spell slot, parallel with DefaultSpellAbilities (AC-057.1-4). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Spells")
+	TArray<TObjectPtr<UMordecaiSpellDataAsset>> SpellDataAssets;
+
+	/** Get spell ability class for a given slot (0-3). */
+	TSubclassOf<UGameplayAbility> GetSpellAbilityClass(int32 SlotIndex) const;
 
 protected:
 	virtual void BeginPlay() override;
