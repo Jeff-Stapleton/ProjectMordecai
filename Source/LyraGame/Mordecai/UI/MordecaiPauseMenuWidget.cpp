@@ -1,6 +1,7 @@
 // Project Mordecai — Pause Menu Widget (US-069)
 
 #include "Mordecai/UI/MordecaiPauseMenuWidget.h"
+#include "Mordecai/UI/MordecaiCharacterSheetWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuPlaceholderWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuSubsystem.h"
 
@@ -25,6 +26,9 @@ void UMordecaiPauseMenuWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 	InitDefaultTabs();
+
+	// Replace the placeholder for the "character" tab with the real character sheet widget (US-066).
+	UMordecaiCharacterSheetWidget::RegisterWithPauseMenu(this);
 }
 
 void UMordecaiPauseMenuWidget::NativeOnDeactivated()
