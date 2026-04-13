@@ -38,6 +38,9 @@ public:
 	/** Register a skill data asset so the component can validate and grant milestones. */
 	void RegisterSkillDataAsset(UMordecaiSkillDataAsset* SkillData);
 
+	/** Lookup a previously registered skill data asset by skill name (null if not registered). */
+	UMordecaiSkillDataAsset* GetRegisteredSkillDataAsset(FName SkillName) const;
+
 	// --- Rank Queries ---
 
 	/** Returns the current rank of a skill (0 if not learned). */

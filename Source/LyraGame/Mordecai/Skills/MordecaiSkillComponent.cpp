@@ -36,6 +36,12 @@ void UMordecaiSkillComponent::RegisterSkillDataAsset(UMordecaiSkillDataAsset* Sk
 	RegisteredSkills.Add(SkillData->SkillName, SkillData);
 }
 
+UMordecaiSkillDataAsset* UMordecaiSkillComponent::GetRegisteredSkillDataAsset(FName SkillName) const
+{
+	const TObjectPtr<UMordecaiSkillDataAsset>* Found = RegisteredSkills.Find(SkillName);
+	return Found ? Found->Get() : nullptr;
+}
+
 // ---------------------------------------------------------------------------
 // Rank Entry Helpers (TArray-based storage for replication)
 // ---------------------------------------------------------------------------
