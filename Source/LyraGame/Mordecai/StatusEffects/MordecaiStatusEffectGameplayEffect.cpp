@@ -11,10 +11,10 @@ UMordecaiStatusEffectGameplayEffect::UMordecaiStatusEffectGameplayEffect()
 	DurationPolicy = EGameplayEffectDurationType::HasDuration;
 	DurationMagnitude = FScalableFloat(5.0f);
 
-	// TODO(DECISION): Stacking policy per agent_rules_v2.md Open Item #2.
-	// Default: AggregateBySource, limit 1, refresh duration on re-application.
+	// Stacking: AggregateByTarget so all sources contribute to one stack per target.
+	// Subclasses override StackLimitCount for multi-stack effects (Frostbitten=5, Shocked=3).
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	StackingType = EGameplayEffectStackingType::AggregateBySource;
+	StackingType = EGameplayEffectStackingType::AggregateByTarget;
 	StackLimitCount = 1;
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackPeriodResetPolicy = EGameplayEffectStackingPeriodPolicy::NeverReset;

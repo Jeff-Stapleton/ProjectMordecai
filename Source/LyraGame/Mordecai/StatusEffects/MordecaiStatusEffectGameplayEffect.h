@@ -34,9 +34,8 @@ public:
 	FGameplayTag StatusTag;
 
 	/**
-	 * TODO(DECISION): Stacking policy per agent_rules_v2.md Open Item #2.
-	 * Default: Refresh (duration refresh on re-application, no magnitude stacking).
-	 * Expose as configurable so concrete subclasses can override when policy is decided.
+	 * Stacking policy (AggregateByTarget). Default: Refresh (StackLimitCount=1).
+	 * Subclasses override StackLimitCount for multi-stack effects.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|StatusEffect")
 	EMordecaiStackingPolicy StackingPolicy = EMordecaiStackingPolicy::Refresh;

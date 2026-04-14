@@ -88,7 +88,8 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_MicroStunned, "Mordecai.Status.MicroStunned", "MicroStunned — brief interrupt from Shocked on-hit");
 
 	// Immunity tags (US-015)
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Frozen, "Mordecai.Immunity.Frozen", "Immune to Frozen status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_Frozen,       "Mordecai.Immunity.Frozen",       "Immune to Frozen status effect");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_MicroStunned, "Mordecai.Immunity.MicroStunned", "Immune to MicroStunned status effect");
 
 	// State tags (US-014)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Casting, "Mordecai.State.Casting", "Character is currently casting a spell");
@@ -202,6 +203,23 @@ namespace MordecaiGameplayTags
 
 	// Event tags (US-017)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_BreakFree, "Mordecai.Event.BreakFree", "Break-free action — heavy stamina cost to remove Rooted early");
+
+	// Weapon type tags (US-024)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Sword,    "Mordecai.Weapon.Type.Sword",    "Character is wielding a sword-class weapon");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Axe,      "Mordecai.Weapon.Type.Axe",      "Character is wielding an axe-class weapon");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Mace,     "Mordecai.Weapon.Type.Mace",     "Character is wielding a mace-class weapon");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Spear,    "Mordecai.Weapon.Type.Spear",    "Character is wielding a spear-class weapon");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Staff,    "Mordecai.Weapon.Type.Staff",    "Character is wielding a staff-class weapon");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Dagger,   "Mordecai.Weapon.Type.Dagger",   "Character is wielding a dagger-class weapon");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Bow,      "Mordecai.Weapon.Type.Bow",      "Character is wielding a bow-class weapon");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Crossbow, "Mordecai.Weapon.Type.Crossbow", "Character is wielding a crossbow-class weapon");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Wand,     "Mordecai.Weapon.Type.Wand",     "Character is wielding a wand-class weapon");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Unarmed,  "Mordecai.Weapon.Type.Unarmed",  "Character is fighting unarmed");
+
+	// Weapon slot tags (US-024)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Slot_MainHand, "Mordecai.Weapon.Slot.MainHand", "Weapon equipped in main hand slot");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Slot_OffHand,  "Mordecai.Weapon.Slot.OffHand",  "Weapon equipped in off-hand slot");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Slot_TwoHand,  "Mordecai.Weapon.Slot.TwoHand",  "Two-handed weapon equipped — both hands occupied");
 
 	// Damage type tags (AC-002.11)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Damage_Physical,        "Mordecai.Damage.Physical",        "Physical damage — direct bodily harm");

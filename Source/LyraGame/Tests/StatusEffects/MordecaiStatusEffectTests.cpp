@@ -229,9 +229,9 @@ bool FMordecaiStatusEffect_BaseGEClassExists::RunTest(const FString& Parameters)
 
 		// GAS stacking defaults
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		TestEqual("StackingType is AggregateBySource",
+		TestEqual("StackingType is AggregateByTarget",
 			static_cast<int32>(CDO->StackingType),
-			static_cast<int32>(EGameplayEffectStackingType::AggregateBySource));
+			static_cast<int32>(EGameplayEffectStackingType::AggregateByTarget));
 		TestEqual("StackLimitCount is 1", CDO->StackLimitCount, 1);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
@@ -496,9 +496,9 @@ bool FMordecaiStatusEffect_DefaultStackingRefreshesDuration::RunTest(const FStri
 
 	// Verify stacking configuration
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	TestEqual("StackingType is AggregateBySource",
+	TestEqual("StackingType is AggregateByTarget",
 		static_cast<int32>(BurningGE->StackingType),
-		static_cast<int32>(EGameplayEffectStackingType::AggregateBySource));
+		static_cast<int32>(EGameplayEffectStackingType::AggregateByTarget));
 	TestEqual("StackLimitCount is 1", BurningGE->StackLimitCount, 1);
 	TestEqual("StackDurationRefreshPolicy is RefreshOnSuccessfulApplication",
 		static_cast<int32>(BurningGE->StackDurationRefreshPolicy),

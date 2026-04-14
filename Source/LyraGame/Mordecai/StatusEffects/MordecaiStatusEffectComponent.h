@@ -5,6 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "ActiveGameplayEffectHandle.h"
+#include "GameplayEffectTypes.h"
 
 #include "MordecaiStatusEffectComponent.generated.h"
 
@@ -92,6 +93,40 @@ public:
 	 */
 	bool HandleDrenchedInteractions(TSubclassOf<UGameplayEffect> GEClass);
 
+	// --- Frostbitten Stack Tracking (US-015) ---
+
+	/** Start monitoring Frostbitten stacks. Called automatically on first Frostbitten application. */
+	void StartFrostbittenTracking(FActiveGameplayEffectHandle InHandle);
+
+	/** Stop monitoring Frostbitten stacks and clean up. */
+	void StopFrostbittenTracking();
+
+	// --- Shocked Stack Tracking (US-015) ---
+
+	/** Start monitoring Shocked stacks and companion modifier GE. Called on first Shocked application. */
+	void StartShockedTracking(FActiveGameplayEffectHandle InHandle);
+
+	/** Stop monitoring Shocked stacks and remove companion modifier GE. */
+	void StopShockedTracking();
+
+	/** Try micro-stun roll for Shocked on-hit mechanic. Returns true if stun applied. */
+	bool TryShockedMicroStun();
+
+	/** Try cast interrupt roll for Shocked. Returns true if interrupt succeeded. */
+	bool TryShockedCastInterrupt();
+
+	/** Override micro-stun chance for deterministic testing. Set < 0 to use normal calculation. */
+	void SetShockedMicroStunChanceOverride(float InOverride) { ShockedMicroStunChanceOverride = InOverride; }
+
+	/** Override cast interrupt chance for deterministic testing. Set < 0 to use normal calculation. */
+	void SetShockedCastInterruptChanceOverride(float InOverride) { ShockedCastInterruptChanceOverride = InOverride; }
+
+	// --- Stack Count Query (US-015) ---
+
+	/** Get the current stack count for a status effect by its status tag. Returns 0 if not active. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|StatusEffects")
+	int32 GetStatusEffectStackCount(FGameplayTag StatusTag) const;
+
 	// --- Dependency Injection (for testing) ---
 
 	/** Override the ASC reference for unit tests without a full actor setup. */
@@ -121,4 +156,23 @@ private:
 	FTimerHandle BleedingClotTimerHandle;
 	float CachedBleedingClotDuration = 4.0f;
 	bool bTrackingBleeding = false;
+
+	// --- Frostbitten tracking state (US-015) ---
+	void OnFrostbittenStackChanged(FActiveGameplayEffectHandle Handle, int32 NewStackCount, int32 PreviousStackCount);
+
+	FActiveGameplayEffectHandle CachedFrostbittenHandle;
+	FDelegateHandle FrostbittenStackChangeDelegateHandle;
+	bool bTrackingFrostbitten = false;
+
+	// --- Shocked tracking state (US-015) ---
+	void OnShockedStackChanged(FActiveGameplayEffectHandle Handle, int32 NewStackCount, int32 PreviousStackCount);
+	void UpdateShockedBlockCostModifier(int32 StackCount);
+
+	FActiveGameplayEffectHandle CachedShockedHandle;
+	FActiveGameplayEffectHandle ShockedBlockCostCompanionHandle;
+	FDelegateHandle ShockedStackChangeDelegateHandle;
+	bool bTrackingShocked = false;
+	int32 CachedShockedStackCount = 0;
+	float ShockedMicroStunChanceOverride = -1.0f;
+	float ShockedCastInterruptChanceOverride = -1.0f;
 };

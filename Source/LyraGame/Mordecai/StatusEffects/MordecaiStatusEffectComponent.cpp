@@ -7,6 +7,10 @@
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Burning.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Drenched.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Rooted.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Frostbitten.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Shocked.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Frozen.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_MicroStunned.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "AbilitySystemComponent.h"
@@ -78,6 +82,38 @@ FActiveGameplayEffectHandle UMordecaiStatusEffectComponent::ApplyStatusEffect(
 		if (DrenchedGE && HasStatusEffect(MordecaiGameplayTags::Status_Burning))
 		{
 			RemoveStatusEffect(MordecaiGameplayTags::Status_Burning);
+		}
+	}
+
+	// Auto-detect Frostbitten and start stack tracking (US-015)
+	if (Handle.IsValid())
+	{
+		const UMordecaiGE_Frostbitten* FrostbittenGE = Cast<UMordecaiGE_Frostbitten>(GEClass.GetDefaultObject());
+		if (FrostbittenGE && HasStatusEffect(MordecaiGameplayTags::Status_Frostbitten))
+		{
+			StartFrostbittenTracking(Handle);
+
+			// Drenched bonus stacks: apply extra stacks if target is Drenched.
+			// Guard: stop if Frozen triggers during a bonus application (delegate fires synchronously).
+			const int32 BonusStacks = UMordecaiGE_Drenched::GetFrostBonusStacks(ASC);
+			for (int32 i = 0; i < BonusStacks && bTrackingFrostbitten; ++i)
+			{
+				FGameplayEffectSpecHandle BonusSpec = ASC->MakeOutgoingSpec(GEClass, Level, Context);
+				if (BonusSpec.IsValid())
+				{
+					ASC->ApplyGameplayEffectSpecToSelf(*BonusSpec.Data.Get());
+				}
+			}
+		}
+	}
+
+	// Auto-detect Shocked and start stack tracking (US-015)
+	if (Handle.IsValid())
+	{
+		const UMordecaiGE_Shocked* ShockedGE = Cast<UMordecaiGE_Shocked>(GEClass.GetDefaultObject());
+		if (ShockedGE)
+		{
+			StartShockedTracking(Handle);
 		}
 	}
 
@@ -247,6 +283,15 @@ void UMordecaiStatusEffectComponent::NotifyDamageTaken()
 		RemoveStatusEffect(MordecaiGameplayTags::Status_Exposed);
 	}
 
+	// AC-015.11: Shocked micro-stun on hit
+	if (bTrackingShocked && HasStatusEffect(MordecaiGameplayTags::Status_Shocked))
+	{
+		TryShockedMicroStun();
+
+		// AC-015.13: Shocked cast interrupt on hit while casting
+		TryShockedCastInterrupt();
+	}
+
 	// Bleeding hit-refresh (AC-014.8)
 	if (!bTrackingBleeding || !CachedBleedingGEClass)
 	{
@@ -405,4 +450,329 @@ void UMordecaiStatusEffectComponent::OnBreakFreeEvent(const FGameplayEventData* 
 	// Remove Root
 	RemoveStatusEffect(MordecaiGameplayTags::Status_Rooted);
 	StopRootedBreakFreeTracking();
+}
+
+// ---------------------------------------------------------------------------
+// Stack Count Query (US-015)
+// ---------------------------------------------------------------------------
+
+int32 UMordecaiStatusEffectComponent::GetStatusEffectStackCount(FGameplayTag StatusTag) const
+{
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC || !StatusTag.IsValid())
+	{
+		return 0;
+	}
+
+	if (!ASC->HasMatchingGameplayTag(StatusTag))
+	{
+		return 0;
+	}
+
+	// Query active effects by owning tags (same query used by RemoveActiveEffectsWithGrantedTags)
+	FGameplayTagContainer TagContainer;
+	TagContainer.AddTag(StatusTag);
+
+	FGameplayEffectQuery Query = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(TagContainer);
+	TArray<FActiveGameplayEffectHandle> Handles = ASC->GetActiveEffects(Query);
+	if (Handles.Num() > 0)
+	{
+		return ASC->GetCurrentStackCount(Handles[0]);
+	}
+
+	return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Frostbitten Stack Tracking (US-015)
+// ---------------------------------------------------------------------------
+
+void UMordecaiStatusEffectComponent::StartFrostbittenTracking(FActiveGameplayEffectHandle InHandle)
+{
+	if (bTrackingFrostbitten)
+	{
+		// Already tracking — stack increments handled by OnFrostbittenStackChanged
+		return;
+	}
+
+	CachedFrostbittenHandle = InHandle;
+	bTrackingFrostbitten = true;
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (ASC)
+	{
+		FOnActiveGameplayEffectStackChange* Delegate = ASC->OnGameplayEffectStackChangeDelegate(InHandle);
+		if (Delegate)
+		{
+			FrostbittenStackChangeDelegateHandle = Delegate->AddUObject(
+				this, &UMordecaiStatusEffectComponent::OnFrostbittenStackChanged);
+		}
+	}
+}
+
+void UMordecaiStatusEffectComponent::StopFrostbittenTracking()
+{
+	if (!bTrackingFrostbitten)
+	{
+		return;
+	}
+
+	bTrackingFrostbitten = false;
+
+	if (FrostbittenStackChangeDelegateHandle.IsValid())
+	{
+		UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+		if (ASC)
+		{
+			FOnActiveGameplayEffectStackChange* Delegate = ASC->OnGameplayEffectStackChangeDelegate(CachedFrostbittenHandle);
+			if (Delegate)
+			{
+				Delegate->Remove(FrostbittenStackChangeDelegateHandle);
+			}
+		}
+		FrostbittenStackChangeDelegateHandle.Reset();
+	}
+
+	CachedFrostbittenHandle = FActiveGameplayEffectHandle();
+}
+
+void UMordecaiStatusEffectComponent::OnFrostbittenStackChanged(
+	FActiveGameplayEffectHandle Handle,
+	int32 NewStackCount,
+	int32 PreviousStackCount)
+{
+	if (!bTrackingFrostbitten)
+	{
+		return;
+	}
+
+	const UMordecaiGE_Frostbitten* CDO = GetDefault<UMordecaiGE_Frostbitten>();
+
+	// AC-015.5/015.6: At max stacks, trigger Frozen and clear Frostbitten
+	if (NewStackCount >= CDO->FrostbittenMaxStacks)
+	{
+		// Remove Frostbitten first (clears all stacks)
+		StopFrostbittenTracking();
+		RemoveStatusEffect(MordecaiGameplayTags::Status_Frostbitten);
+
+		// Apply Frozen
+		UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+		if (ASC)
+		{
+			FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+			FGameplayEffectSpecHandle FrozenSpec = ASC->MakeOutgoingSpec(
+				UMordecaiGE_Frozen::StaticClass(), 1.0f, Context);
+			if (FrozenSpec.IsValid())
+			{
+				ASC->ApplyGameplayEffectSpecToSelf(*FrozenSpec.Data.Get());
+			}
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Shocked Stack Tracking (US-015)
+// ---------------------------------------------------------------------------
+
+void UMordecaiStatusEffectComponent::StartShockedTracking(FActiveGameplayEffectHandle InHandle)
+{
+	if (bTrackingShocked)
+	{
+		// Already tracking — stack increments handled by OnShockedStackChanged
+		return;
+	}
+
+	CachedShockedHandle = InHandle;
+	bTrackingShocked = true;
+	CachedShockedStackCount = 1;
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (ASC)
+	{
+		FOnActiveGameplayEffectStackChange* Delegate = ASC->OnGameplayEffectStackChangeDelegate(InHandle);
+		if (Delegate)
+		{
+			ShockedStackChangeDelegateHandle = Delegate->AddUObject(
+				this, &UMordecaiStatusEffectComponent::OnShockedStackChanged);
+		}
+	}
+
+	// Apply initial companion modifier for 1 stack
+	UpdateShockedBlockCostModifier(1);
+}
+
+void UMordecaiStatusEffectComponent::StopShockedTracking()
+{
+	if (!bTrackingShocked)
+	{
+		return;
+	}
+
+	bTrackingShocked = false;
+	CachedShockedStackCount = 0;
+	ShockedMicroStunChanceOverride = -1.0f;
+	ShockedCastInterruptChanceOverride = -1.0f;
+
+	// Remove companion modifier GE
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (ASC && ShockedBlockCostCompanionHandle.IsValid())
+	{
+		ASC->RemoveActiveGameplayEffect(ShockedBlockCostCompanionHandle);
+		ShockedBlockCostCompanionHandle = FActiveGameplayEffectHandle();
+	}
+
+	// Unregister stack change delegate
+	if (ShockedStackChangeDelegateHandle.IsValid())
+	{
+		if (ASC)
+		{
+			FOnActiveGameplayEffectStackChange* Delegate = ASC->OnGameplayEffectStackChangeDelegate(CachedShockedHandle);
+			if (Delegate)
+			{
+				Delegate->Remove(ShockedStackChangeDelegateHandle);
+			}
+		}
+		ShockedStackChangeDelegateHandle.Reset();
+	}
+
+	CachedShockedHandle = FActiveGameplayEffectHandle();
+}
+
+void UMordecaiStatusEffectComponent::OnShockedStackChanged(
+	FActiveGameplayEffectHandle Handle,
+	int32 NewStackCount,
+	int32 PreviousStackCount)
+{
+	if (!bTrackingShocked)
+	{
+		return;
+	}
+
+	CachedShockedStackCount = NewStackCount;
+
+	if (NewStackCount <= 0)
+	{
+		StopShockedTracking();
+		return;
+	}
+
+	// Update companion modifier GE magnitude for new stack count
+	UpdateShockedBlockCostModifier(NewStackCount);
+}
+
+void UMordecaiStatusEffectComponent::UpdateShockedBlockCostModifier(int32 StackCount)
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC)
+	{
+		return;
+	}
+
+	const UMordecaiGE_Shocked* CDO = GetDefault<UMordecaiGE_Shocked>();
+	const float Magnitude = CDO->ShockedBlockStaminaCostMultiplierPerStack * static_cast<float>(StackCount);
+
+	// Remove old companion GE if it exists
+	if (ShockedBlockCostCompanionHandle.IsValid())
+	{
+		ASC->RemoveActiveGameplayEffect(ShockedBlockCostCompanionHandle);
+		ShockedBlockCostCompanionHandle = FActiveGameplayEffectHandle();
+	}
+
+	// Create new dynamic Infinite GE with the correct magnitude
+	UGameplayEffect* CompanionGE = NewObject<UGameplayEffect>(
+		GetTransientPackage(), TEXT("GE_MordecaiShockedBlockCostModifier"));
+	CompanionGE->DurationPolicy = EGameplayEffectDurationType::Infinite;
+
+	FGameplayModifierInfo& Mod = CompanionGE->Modifiers.AddDefaulted_GetRef();
+	Mod.Attribute = UMordecaiAttributeSet::GetBlockStaminaCostMultiplierAttribute();
+	Mod.ModifierOp = EGameplayModOp::Additive;
+	Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Magnitude));
+
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	FGameplayEffectSpec Spec(CompanionGE, Context, 1.0f);
+	ShockedBlockCostCompanionHandle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
+}
+
+bool UMordecaiStatusEffectComponent::TryShockedMicroStun()
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC || !bTrackingShocked)
+	{
+		return false;
+	}
+
+	if (!HasStatusEffect(MordecaiGameplayTags::Status_Shocked))
+	{
+		return false;
+	}
+
+	const UMordecaiGE_Shocked* CDO = GetDefault<UMordecaiGE_Shocked>();
+	const int32 StackCount = FMath::Max(CachedShockedStackCount, 1);
+
+	// Calculate effective chance: base * stacks * Drenched multiplier
+	float EffectiveChance = CDO->ShockedMicroStunChancePerStack * static_cast<float>(StackCount);
+	EffectiveChance *= UMordecaiGE_Drenched::GetShockedChanceMultiplier(ASC);
+
+	// Test override
+	if (ShockedMicroStunChanceOverride >= 0.0f)
+	{
+		EffectiveChance = ShockedMicroStunChanceOverride;
+	}
+
+	// Roll
+	const float Roll = FMath::FRand();
+	if (Roll >= EffectiveChance)
+	{
+		return false;
+	}
+
+	// Apply MicroStunned
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	FGameplayEffectSpecHandle StunSpec = ASC->MakeOutgoingSpec(
+		UMordecaiGE_MicroStunned::StaticClass(), 1.0f, Context);
+	if (StunSpec.IsValid())
+	{
+		ASC->ApplyGameplayEffectSpecToSelf(*StunSpec.Data.Get());
+	}
+
+	return true;
+}
+
+bool UMordecaiStatusEffectComponent::TryShockedCastInterrupt()
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC || !bTrackingShocked)
+	{
+		return false;
+	}
+
+	// AC-015.13: Only interrupt if target is currently casting
+	if (!ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Casting))
+	{
+		return false;
+	}
+
+	const UMordecaiGE_Shocked* CDO = GetDefault<UMordecaiGE_Shocked>();
+	const int32 StackCount = FMath::Max(CachedShockedStackCount, 1);
+
+	float EffectiveChance = CDO->ShockedCastInterruptChance * static_cast<float>(StackCount);
+
+	// Test override
+	if (ShockedCastInterruptChanceOverride >= 0.0f)
+	{
+		EffectiveChance = ShockedCastInterruptChanceOverride;
+	}
+
+	const float Roll = FMath::FRand();
+	if (Roll >= EffectiveChance)
+	{
+		return false;
+	}
+
+	// Send CastInterrupted event (actual handling deferred to Epic 5)
+	FGameplayEventData Payload;
+	Payload.EventTag = MordecaiGameplayTags::Event_CastInterrupted;
+	ASC->HandleGameplayEvent(Payload.EventTag, &Payload);
+
+	return true;
 }
