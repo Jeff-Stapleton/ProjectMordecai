@@ -9,6 +9,7 @@
 #include "MordecaiGA_MeleeAttack.generated.h"
 
 class UMordecaiAttackProfileDataAsset;
+class UMordecaiEquipmentComponent;
 class UAbilitySystemComponent;
 struct FMordecaiHitResult;
 
@@ -106,6 +107,27 @@ public:
 	/** Check if ActivationBlockedTags contains the given tag (AC-004.14 testability). */
 	bool HasActivationBlockedTag(const FGameplayTag& Tag) const;
 
+	// --- US-024: Equipment Integration ---
+
+	/**
+	 * Get the resolved attack profiles for the current weapon. First checks the
+	 * EquipmentComponent on the owning actor; falls back to the hardcoded
+	 * AttackProfiles array if no EquipmentComponent is present.
+	 */
+	TArray<const UMordecaiAttackProfileDataAsset*> GetResolvedAttackProfiles() const;
+
+	/** Override for equipment component (testing). */
+	void SetEquipmentComponentOverride(UMordecaiEquipmentComponent* InComp);
+
+	/** Get the weapon base damage bonus from the equipped weapon (0 if none). */
+	float GetWeaponBaseDamage() const;
+
+	/** Get the weapon attack speed multiplier (1.0 if no weapon). */
+	float GetWeaponAttackSpeedMultiplier() const;
+
+	/** Get the weapon posture damage bonus (0 if no weapon). */
+	float GetWeaponPostureDamageBonus() const;
+
 protected:
 	//~ UGameplayAbility interface
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
@@ -137,4 +159,11 @@ protected:
 
 	FTimerHandle PhaseTimerHandle;
 	FTimerHandle ComboWindowTimerHandle;
+
+	/** US-024: Override for equipment component (testing). */
+	UPROPERTY()
+	TObjectPtr<UMordecaiEquipmentComponent> EquipmentComponentOverride;
+
+	/** US-024: Find the equipment component on the owning actor (or use override). */
+	UMordecaiEquipmentComponent* FindEquipmentComponent() const;
 };

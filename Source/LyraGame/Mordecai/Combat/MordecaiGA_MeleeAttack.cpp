@@ -6,6 +6,7 @@
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/UI/MordecaiDamagePopComponent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
@@ -37,9 +38,11 @@ UMordecaiGA_MeleeAttack::UMordecaiGA_MeleeAttack(const FObjectInitializer& Objec
 
 const UMordecaiAttackProfileDataAsset* UMordecaiGA_MeleeAttack::GetActiveProfile() const
 {
-	if (AttackProfiles.IsValidIndex(CurrentComboIndex))
+	// US-024: Prefer weapon profiles from EquipmentComponent
+	TArray<const UMordecaiAttackProfileDataAsset*> Resolved = GetResolvedAttackProfiles();
+	if (Resolved.IsValidIndex(CurrentComboIndex))
 	{
-		return AttackProfiles[CurrentComboIndex];
+		return Resolved[CurrentComboIndex];
 	}
 	return nullptr;
 }
@@ -49,13 +52,23 @@ float UMordecaiGA_MeleeAttack::GetPhaseDurationSeconds(EMordecaiAttackPhase Phas
 	const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
 	if (!Profile) return 0.f;
 
+	float BaseTimeMs = 0.f;
 	switch (Phase)
 	{
-	case EMordecaiAttackPhase::Windup:   return Profile->WindupTimeMs / 1000.f;
-	case EMordecaiAttackPhase::Active:   return Profile->ActiveTimeMs / 1000.f;
-	case EMordecaiAttackPhase::Recovery: return Profile->RecoveryTimeMs / 1000.f;
+	case EMordecaiAttackPhase::Windup:   BaseTimeMs = Profile->WindupTimeMs; break;
+	case EMordecaiAttackPhase::Active:   BaseTimeMs = Profile->ActiveTimeMs; break;
+	case EMordecaiAttackPhase::Recovery: BaseTimeMs = Profile->RecoveryTimeMs; break;
 	default: return 0.f;
 	}
+
+	// AC-024.12: Weapon AttackSpeedMultiplier adjusts timing: AdjustedTime = BaseTime / Multiplier
+	const float SpeedMul = GetWeaponAttackSpeedMultiplier();
+	if (SpeedMul > 0.f)
+	{
+		BaseTimeMs /= SpeedMul;
+	}
+
+	return BaseTimeMs / 1000.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -67,10 +80,9 @@ float UMordecaiGA_MeleeAttack::ComputeHealthDamage() const
 	const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
 	if (!Profile) return 0.f;
 
-	// Damage = BasePower x SkillModifier x AttributeScaling x CriticalModifier x StatusModifier
-	// TODO(DECISION): SkillModifier, AttributeScaling, CriticalModifier, StatusModifier
-	//                 all stubbed at 1.0 until Epic 3 (Attributes) and Epic 4 (Status Effects)
-	return -Profile->DamageProfile.BasePower;
+	// AC-024.11: FinalDamage = (AttackProfile.BasePower + Weapon.BaseDamage) x existing multipliers
+	const float WeaponBonus = GetWeaponBaseDamage();
+	return -(Profile->DamageProfile.BasePower + WeaponBonus);
 }
 
 float UMordecaiGA_MeleeAttack::ComputePostureDamage() const
@@ -78,7 +90,9 @@ float UMordecaiGA_MeleeAttack::ComputePostureDamage() const
 	const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
 	if (!Profile) return 0.f;
 
-	return -(Profile->DamageProfile.BasePower * Profile->PostureDamageScalar);
+	// AC-024.11: Add weapon posture bonus
+	const float WeaponPostureBonus = GetWeaponPostureDamageBonus();
+	return -((Profile->DamageProfile.BasePower * Profile->PostureDamageScalar) + WeaponPostureBonus);
 }
 
 // ---------------------------------------------------------------------------
@@ -142,7 +156,9 @@ bool UMordecaiGA_MeleeAttack::CanCancelIntoBlock() const
 
 bool UMordecaiGA_MeleeAttack::AdvanceCombo()
 {
-	if (CurrentComboIndex + 1 < AttackProfiles.Num())
+	// US-024: Use resolved profiles (weapon or fallback)
+	TArray<const UMordecaiAttackProfileDataAsset*> Resolved = GetResolvedAttackProfiles();
+	if (CurrentComboIndex + 1 < Resolved.Num())
 	{
 		CurrentComboIndex++;
 		return true;
@@ -678,4 +694,77 @@ void UMordecaiGA_MeleeAttack::ApplyStatusEffectsFromEntries(
 			TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// US-024: Equipment Integration
+// ---------------------------------------------------------------------------
+
+void UMordecaiGA_MeleeAttack::SetEquipmentComponentOverride(UMordecaiEquipmentComponent* InComp)
+{
+	EquipmentComponentOverride = InComp;
+}
+
+UMordecaiEquipmentComponent* UMordecaiGA_MeleeAttack::FindEquipmentComponent() const
+{
+	if (EquipmentComponentOverride)
+	{
+		return EquipmentComponentOverride;
+	}
+
+	// Guard: CurrentActorInfo may be null in headless tests
+	if (!CurrentActorInfo)
+	{
+		return nullptr;
+	}
+
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	return AvatarActor ? AvatarActor->FindComponentByClass<UMordecaiEquipmentComponent>() : nullptr;
+}
+
+TArray<const UMordecaiAttackProfileDataAsset*> UMordecaiGA_MeleeAttack::GetResolvedAttackProfiles() const
+{
+	// AC-024.10: Read combo chain from equipped weapon; fallback to hardcoded AttackProfiles
+	UMordecaiEquipmentComponent* EquipComp = FindEquipmentComponent();
+	if (EquipComp)
+	{
+		TArray<UMordecaiAttackProfileDataAsset*> WeaponProfiles = EquipComp->GetActiveLightAttackProfiles();
+		if (WeaponProfiles.Num() > 0)
+		{
+			TArray<const UMordecaiAttackProfileDataAsset*> Result;
+			Result.Reserve(WeaponProfiles.Num());
+			for (UMordecaiAttackProfileDataAsset* P : WeaponProfiles)
+			{
+				Result.Add(P);
+			}
+			return Result;
+		}
+	}
+
+	// Fallback: hardcoded profiles on the ability itself
+	TArray<const UMordecaiAttackProfileDataAsset*> Result;
+	Result.Reserve(AttackProfiles.Num());
+	for (const TObjectPtr<UMordecaiAttackProfileDataAsset>& P : AttackProfiles)
+	{
+		Result.Add(P);
+	}
+	return Result;
+}
+
+float UMordecaiGA_MeleeAttack::GetWeaponBaseDamage() const
+{
+	UMordecaiEquipmentComponent* EquipComp = FindEquipmentComponent();
+	return EquipComp ? EquipComp->GetWeaponBaseDamage() : 0.f;
+}
+
+float UMordecaiGA_MeleeAttack::GetWeaponAttackSpeedMultiplier() const
+{
+	UMordecaiEquipmentComponent* EquipComp = FindEquipmentComponent();
+	return EquipComp ? EquipComp->GetWeaponAttackSpeedMultiplier() : 1.f;
+}
+
+float UMordecaiGA_MeleeAttack::GetWeaponPostureDamageBonus() const
+{
+	UMordecaiEquipmentComponent* EquipComp = FindEquipmentComponent();
+	return EquipComp ? EquipComp->GetWeaponPostureDamageBonus() : 0.f;
 }
