@@ -66,6 +66,12 @@ public:
 	/** Returns true if the specified feat tag has been granted. */
 	bool HasGrantedFeatTag(FGameplayTag Tag) const;
 
+	/** Returns all registered feat data assets (keyed by feat name). Used by UI to list locked feats. */
+	const TMap<FName, TObjectPtr<UMordecaiFeatDataAsset>>& GetRegisteredFeats() const { return RegisteredFeats; }
+
+	/** Returns the SkillComponent (via override or owner lookup). Used by UI for condition progress. */
+	UMordecaiSkillComponent* GetSkillComponent() const { return FindSkillComponent(); }
+
 	// --- External Notifications (trigger re-evaluation) ---
 
 	/** Notify the component that a gameplay tag changed on the character. */
