@@ -1843,3 +1843,127 @@ BLOCKED:
 
 **Still blocked:**
 - **US-015** — Needs Jeff's investigation before Drenched synergy ACs can be fully verified.
+
+---
+
+## 2026-04-14 Nightly Planning Run
+
+### Completed Since Last Run
+Massive progress since the last planning run. All remaining batch items through Epic 10 Phase 3 are done:
+
+**Epic 4 (Status Effects) — COMPLETE:**
+- US-015: Frostbitten & Shocked (was BLOCKED, now resolved and done)
+- US-059: Blinded, Fear, Cursed ✅
+- US-018: Drenched & Focused Buff ✅
+
+**Epic 5 (Magic) — COMPLETE:**
+- US-060: Illusion & Blur ✅
+
+**Epic 5.5 (Playable Magic Slice) — COMPLETE:**
+- US-056: Status-Applying Attack Profiles ✅
+- US-057: Playable Magic Arena Integration ✅
+
+**Epic 10 Phase 2 (World-Space Indicators) — COMPLETE:**
+- US-064: Enemy Indicator System Migration ✅
+- US-065: Floating Damage Numbers ✅
+
+**Epic 10 Phase 3 (Menus & Progression UI) — COMPLETE:**
+- US-069: Pause Menu Framework ✅
+- US-066: Character Sheet Widget ✅
+- US-067: Skill Tree Display ✅
+- US-068: Feat Display ✅
+
+**Epic 6 (Weapons) — Gate story done:**
+- US-024: Weapon Class Framework ✅
+
+### Currently In Progress
+- (none — between batches)
+
+### New Stories Created
+
+- **US-026: Blunt & Polearm Weapon Profiles** (`stories/backlog/US-026-blunt-polearm-weapon-profiles.md`) — HEADLESS
+  - Factory methods for Axe, Mace, Spear, Quarterstaff, Unarmed
+  - Full attack profiles with timing, damage, shape, and stamina values for each weapon
+  - 14 automation tests covering profile specs, cross-cutting rules, full 9-weapon relative ordering
+  - Axe: MainHand Slash, 2 sweep lights + slam heavy, high burst damage
+  - Mace: MainHand Blunt, sweep+slam lights + slam heavy, highest PostureDamageBonus (5)
+  - Spear: TwoHand Pierce, 2 thrust + sweep finisher lights + lunge heavy, longest melee range (280)
+  - Quarterstaff: TwoHand Blunt, sweep+thrust+sweep lights + 360 sweep heavy, jack-of-all-trades
+  - Unarmed: MainHand Blunt, 3 thrust lights + slam heavy, fastest but weakest, zero BaseDamage
+  - Note: Axe, Mace, Quarterstaff, and Unarmed profiles are planner-scoped (design docs describe identity but not specific numbers). Values follow attack taxonomy patterns and are marked as initial tuning placeholders.
+
+- **US-077: Weapon Cycling & Equipped Weapon Display** (`stories/backlog/US-077-weapon-cycling-hud.md`) — HEADLESS
+  - Adds AvailableWeapons list + CycleNextWeapon/CyclePrevWeapon to EquipmentComponent
+  - OnWeaponChanged multicast delegate for UI binding
+  - UMordecaiEquippedWeaponWidget (weapon name/type display, "Unarmed" fallback)
+  - 12 automation tests covering cycling, wrapping, empty list, delegate firing, widget updates
+
+- **US-078: Playable Weapon Arena Integration** (`stories/backlog/US-078-playable-weapon-arena.md`) — EDITOR
+  - Creates DataAssets for 5 representative weapons: Longsword, Dagger, Greatsword, Spear, Mace
+  - Weapon cycling input (Tab/Y) wired to EquipmentComponent
+  - Combat HUD updated with weapon display widget
+  - Player spawns with all 5 weapons available, Longsword equipped by default
+  - PIE verification: cycle weapons, each feels distinct, damage/speed/range differences visible
+
+### PLAN.md Updates
+- Epic 4: Marked COMPLETE (US-015 blocker resolved)
+- Epic 5: Marked COMPLETE (US-060 done)
+- Epic 5.5: Marked COMPLETE
+- Epic 10 Phase 2: Marked COMPLETE
+- Epic 10 Phase 3: Marked COMPLETE
+- Epic 6: Updated with scoped stories (US-025 in backlog, US-026 scoped)
+- Epic 6.5: NEW integration milestone added (US-077 + US-078)
+- Priority order updated to reflect current state — item 10 is now active
+- US-027-030 marked as needing design input
+
+### Source Code State
+- `Mordecai/Weapons/` — NEW: MordecaiWeaponDataAsset, MordecaiEquipmentComponent, MordecaiWeaponTypes (5 files from US-024)
+- `Mordecai/UI/` — NEW: MordecaiFeatDisplayWidget (from US-068)
+- `Tests/Weapons/` — NEW: MordecaiWeaponTests.cpp (from US-024)
+- `Tests/UI/` — NEW: MordecaiFeatDisplayTests.cpp (from US-068)
+- All prior systems unchanged from last run + US-015/059/018/060/056/057/064/065/066/067/068/069 additions
+
+### Dependency Graph
+
+```
+CURRENT PRIORITY — Epic 6 Melee Weapons:
+
+  US-025 (Blade Family profiles) ──┐
+  US-026 (Blunt/Polearm profiles) ─┤ (both HEADLESS, can parallelize)
+                                    │
+                                    v
+  US-077 (Weapon Cycling + HUD widget, HEADLESS)
+                                    │
+                                    v
+  US-078 (Playable Weapon Arena, EDITOR — integration milestone)
+
+AFTER Epic 6.5:
+  Epic 6 ranged weapons (US-027-030) — BLOCKED on design input
+  Epic 10 Phase 4 (US-070, US-076, US-075) — Blueprint polish, lower priority
+  Epic 7 — Inventory
+```
+
+### Design Gaps / Decisions Needed
+- **Ranged weapons (US-027):** Longbow and Shortbow have sufficient design detail. Crossbow, Throwables, and Wands do NOT — they need specific attack mechanics, charge patterns, and interaction with existing spell/projectile systems designed before scoping.
+- **Two-weapon fighting (US-028):** OffHand equip slot exists but dual-wield rules (damage penalties, combo chains, interaction with TwoHand) are completely undefined in design docs.
+- **Shield system (US-030):** Block mechanic exists from US-006 but shield types, durability, and equip slot interaction are undefined.
+- **Armor system (US-029):** Item schema has Armor as an ItemType. Defense formula has mitigation concept. But armor slots, stat values, weight/encumbrance, and resistance system are undefined.
+- **Heavy attack input routing:** The melee ability (US-004) handles light combo chains. Whether it routes InputSlot::Heavy to HeavyAttackProfile needs verification during US-077/078. Noted as TODO(DECISION) in US-078.
+- **Weapon numeric tuning:** US-026 profiles for Axe, Mace, Quarterstaff, and Unarmed are planner-scoped from attack taxonomy identity descriptions. Jeff may want to tune these after play-testing in US-078.
+
+### Next Session Recommendation
+
+**Batch 1 — Parallelize (both HEADLESS, independent, ready NOW):**
+1. **US-025** (Blade Family profiles) — 12 tests. Well-scoped, factory pattern for Longsword/Greatsword/Shortsword/Dagger.
+2. **US-026** (Blunt & Polearm profiles) — 14 tests. Same factory pattern for Axe/Mace/Spear/Quarterstaff/Unarmed.
+
+**Batch 2 — Sequential (after Batch 1):**
+3. **US-077** (Weapon Cycling + HUD) — 12 tests. Small C++ story, extends EquipmentComponent.
+
+**Batch 3 — EDITOR (after US-077):**
+4. **US-078** (Playable Weapon Arena) — Create DataAssets, wire input, configure arena. Jeff can play-test all melee weapons.
+
+**After Epic 6.5:**
+- Ranged weapon stories need design input from Jeff before scoping
+- Epic 10 Phase 4 (Blueprint polish) is ready to scope if there's a gap
+- Epic 7 (Inventory) can be scoped in parallel

@@ -38,40 +38,45 @@ Wire up the attribute system and skill progression.
 - US-011: Skill Framework & Rank Progression ✅
 - US-012: Feat System ✅
 
-### Epic 4: Status Effects (5/7 done, US-015 blocked)
+### Epic 4: Status Effects ✅ (complete)
 Implement the launch status effect set via GAS. Split into 8 stories by mechanical grouping.
 - US-013: Status Effect Framework (GAS infrastructure, tags, stacking, immunity, cleanse) ✅
 - US-014: DoT & Resource Denial Statuses (Burning, Bleeding, Poisoned) ✅
-- US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked) 🔴 **BLOCKED** — partial code exists, needs manual investigation
+- US-015: Speed & Timing Impairment Statuses (Frostbitten, Shocked) ✅
 - US-016: Combat Modifier Debuffs (Weakened, Brittle, Exposed, Corroded) ✅
 - US-017: Action-Restricting Debuffs (Silenced, Rooted) ✅
-- US-059: Perception & Mental Debuffs (Blinded, Fear, Cursed) ← **next** (parallelize with US-060)
-- US-018: Drenched & Focused Buff (environmental interaction + perfect action streak) ← after US-059 (partially blocked by US-015)
+- US-059: Perception & Mental Debuffs (Blinded, Fear, Cursed) ✅
+- US-018: Drenched & Focused Buff (environmental interaction + perfect action streak) ✅
 
-### Epic 5: Magic System (5/6 done)
+### Epic 5: Magic System ✅ (complete)
 Implement spell framework and 14 launch spells at Rank 1. Higher rank milestones deferred.
 - US-019: Spell Framework & Spell DataAsset ✅
 - US-020: Damage Spells (Fireball, Cone of Cold, Magic Missile, Stone Skin) ✅
 - US-021: Utility Spells (Blink, Sleep, Fire Ward) ✅
 - US-022: Support Spells (Bless, Restoration) ✅
 - US-023: Tactical Spells — Debuff Spells (Snare, Enfeeble, Enchant Weapon) ✅
-- US-060: Tactical Spells — Summon & Evasion (Illusion, Blur) ← **next** (parallelize with US-059)
+- US-060: Tactical Spells — Summon & Evasion (Illusion, Blur) ✅
 
-### Epic 5.5: Playable Magic Slice ← **NEW** (3 stories: 2 HEADLESS + 1 EDITOR)
-Wire spells, status effects, and spell HUD into the playable arena. Integration milestone per Playability-First Rule (after 2 system epics: 4 + 5).
+### Epic 5.5: Playable Magic Slice ✅ (complete)
+Wire spells, status effects, and spell HUD into the playable arena. Integration milestone per Playability-First Rule.
 - US-055: Spell HUD & Status Effect Indicators (HEADLESS — SP bar, buff/debuff indicators, cooldown display) ✅
-- US-056: Status-Applying Attack Profiles (HEADLESS — extend attack profiles with on-hit status application) ← **next** (parallelize with US-059 + US-060)
-- US-057: Playable Magic Arena Integration (EDITOR — spell DataAssets, spell inputs, enemy status attacks, HUD wiring, full magic loop verification) ← after US-056
+- US-056: Status-Applying Attack Profiles (HEADLESS — extend attack profiles with on-hit status application) ✅
+- US-057: Playable Magic Arena Integration (EDITOR — spell DataAssets, spell inputs, enemy status attacks, HUD wiring) ✅
 
-### Epic 6: Weapons & Equipment (partially scoped — US-024 detailed, rest placeholder)
+### Epic 6: Weapons & Equipment (3/7 scoped, US-025 next)
 Implement weapon classes and armor systems.
-- US-024: Weapon Class Framework (HEADLESS — WeaponDataAsset, WeaponInstance, EquipmentComponent, equip/unequip via GAS, weapon slot model, melee attack integration) ← **scoped**
-- US-025: Melee Weapons — Blade Family (Longsword, Greatsword, Shortsword, Dagger) ← placeholder, needs scoping
-- US-026: Melee Weapons — Blunt & Polearm (Axe, Mace, Spear, Quarterstaff, Unarmed) ← placeholder, needs scoping
-- US-027: Ranged Weapons (Longbow, Shortbow, Crossbow, Throwables, Wands) ← placeholder, needs scoping
-- US-028: Two-Weapon Fighting ← placeholder, needs scoping
-- US-029: Armor & Equipment System (Leather, Chain, Plate + skills) ← placeholder, needs scoping
-- US-030: Shield System ← placeholder, needs scoping
+- US-024: Weapon Class Framework (HEADLESS — WeaponDataAsset, WeaponInstance, EquipmentComponent, equip/unequip via GAS, weapon slot model, melee attack integration) ✅
+- US-025: Melee Weapons — Blade Family (HEADLESS — Longsword, Greatsword, Shortsword, Dagger factory profiles) ← **next**
+- US-026: Melee Weapons — Blunt & Polearm (HEADLESS — Axe, Mace, Spear, Quarterstaff, Unarmed factory profiles) ← after US-025
+- US-027: Ranged Weapons (Longbow, Shortbow, Crossbow, Throwables, Wands) ← placeholder, needs design input
+- US-028: Two-Weapon Fighting ← placeholder, needs design input
+- US-029: Armor & Equipment System (Leather, Chain, Plate + skills) ← placeholder, needs design input
+- US-030: Shield System ← placeholder, needs design input
+
+### Epic 6.5: Playable Weapon Arena (integration milestone)
+Wire melee weapons into the playable arena. Per Playability-First Rule (after Epics 4+5+10 Phase 2-3 system work).
+- US-077: Weapon Cycling & Equipped Weapon Display (HEADLESS — cycling logic, weapon HUD widget, OnWeaponChanged delegate) ← after US-026
+- US-078: Playable Weapon Arena Integration (EDITOR — weapon DataAssets, cycling input, HUD wiring, arena setup, 5-weapon play-test) ← after US-077
 
 ### Epic 7: Inventory
 Implement unlimited-carry inventory with town gating (per agent_rules_v2).
@@ -99,15 +104,15 @@ Delegated town systems.
 - US-062: Death Screen & Respawn Countdown ✅
 - US-063: Kill Counter Display ✅
 
-**Phase 2 — World-Space Combat Indicators**
+**Phase 2 — World-Space Combat Indicators ✅**
 - US-064: Enemy Indicator System Migration (Lyra IndicatorSystem) ✅
-- US-065: Floating Damage Numbers (world-space, color-coded by damage type) ← after US-064
+- US-065: Floating Damage Numbers (world-space, color-coded by damage type) ✅
 
-**Phase 3 — Menus & Progression UI**
-- US-069: Pause Menu Framework (tabbed, CommonUI) ← **can start parallel with Phase 2**
-- US-066: Character Sheet — Attributes & Derived Stats (HEADLESS — ASC-bound widget, 9 primary attrs + derived stats + core resources) ← after US-069
-- US-067: Skill Tree Display (HEADLESS — SkillComponent-bound widget, category tabs, rank/milestone display, point allocation) ← after US-069
-- US-068: Feat Display (HEADLESS — FeatComponent-bound widget, unlocked/locked feats, tier colors, condition progress) ← after US-069
+**Phase 3 — Menus & Progression UI ✅**
+- US-069: Pause Menu Framework (tabbed, CommonUI) ✅
+- US-066: Character Sheet — Attributes & Derived Stats (HEADLESS — ASC-bound widget, 9 primary attrs + derived stats + core resources) ✅
+- US-067: Skill Tree Display (HEADLESS — SkillComponent-bound widget, category tabs, rank/milestone display, point allocation) ✅
+- US-068: Feat Display (HEADLESS — FeatComponent-bound widget, unlocked/locked feats, tier colors, condition progress) ✅
 
 **Phase 4 — Blueprint & Visual Polish (EDITOR)**
 - US-070: Combat HUD Blueprint Polish ← after Phase 1
@@ -126,21 +131,23 @@ Delegated town systems.
 1. **Epic 1** — Foundation ✅
 2. **Epic 2** — Core Combat ✅
 3. **Epic 3** — Attributes & Progression ✅
-4. **Epic 4 (partial)** — Status Effects: US-013 ✅, US-014 ✅, US-015 🔴 BLOCKED, US-016 ✅, US-017 ✅
+4. **Epic 4** — Status Effects ✅
 5. **Epic 2.5** — Playable Vertical Slice ✅
-6. **Epic 5 (partial)** — Magic System: US-019 ✅, US-020 ✅, US-021 ✅, US-022 ✅, US-023 ✅
-7. **Epic 10 Phase 1** — Combat HUD Completion ✅ (US-055, US-061, US-062, US-063)
-8. **Epic 4 (remaining) + Epic 5 (remaining) + Epic 5.5** ⚡ **CURRENT PRIORITY**
-   - Batch 1 (parallel): US-059 + US-060 + US-056 (all HEADLESS, all independent)
-   - Batch 2: US-018 (HEADLESS, after US-059)
-   - Batch 3: US-057 (EDITOR, after US-056)
-9. **Epic 10 Phase 2-3** — Enemy indicators, damage numbers, pause menu
-10. **Epic 10 Phase 2-3** — Enemy indicators, damage numbers, pause menu, character sheet
-11. **Epic 6** — Weapons & Equipment: US-024 (gate) → US-025/026/027 → US-028/029/030
-12. **Epic 7** — Inventory
-13. **Epic 10 Phase 4+5** — Blueprint polish, VFX, inventory/town/map UI
-14. **Epic 8** — World & Exploration
-15. **Epic 9** — Town Management
+6. **Epic 5** — Magic System ✅
+7. **Epic 10 Phase 1** — Combat HUD Completion ✅
+8. **Epic 4+5 remaining + Epic 5.5** — Status/magic completion + magic slice ✅
+9. **Epic 10 Phase 2-3** — Enemy indicators, damage numbers, pause menu, progression UI ✅
+10. **Epic 6 (melee weapons) + Epic 6.5 (playable weapon slice)** ⚡ **CURRENT PRIORITY**
+    - Batch 1: US-025 (Blade Family profiles, HEADLESS)
+    - Batch 2: US-026 (Blunt & Polearm profiles, HEADLESS) — can parallelize with US-025
+    - Batch 3: US-077 (Weapon cycling + HUD, HEADLESS)
+    - Batch 4: US-078 (Playable Weapon Arena, EDITOR)
+11. **Epic 6 (ranged weapons)** — US-027/028/029/030 — needs design input for crossbow/throwables/wands/two-weapon/armor/shields
+12. **Epic 10 Phase 4** — Blueprint polish, VFX (US-070, US-076, US-075)
+13. **Epic 7** — Inventory
+14. **Epic 10 Phase 5+** — Inventory/town/map UI
+15. **Epic 8** — World & Exploration
+16. **Epic 9** — Town Management
 
 ## Notes
 - This plan is a living document. Stories will be broken down further as we approach each epic.
@@ -149,3 +156,5 @@ Delegated town systems.
 - US-017 was split: Silenced + Rooted stay in US-017; Blinded + Fear + Cursed moved to US-059
 - US-023 was split: Snare + Enfeeble + Enchant Weapon stay in US-023; Illusion + Blur moved to US-060
 - Epic 6 US-025 (Melee Weapons) split into US-025 (Blades) and US-026 (Blunt/Polearm). Original US-026–029 renumbered to US-027–030
+- Epic 6.5 added as integration milestone: US-077 (weapon cycling C++) + US-078 (playable weapon arena EDITOR)
+- US-027–030 marked as needing design input: crossbow, throwables, wands, two-weapon fighting, armor, and shields have insufficient design detail in current docs
