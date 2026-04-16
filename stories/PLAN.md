@@ -76,7 +76,7 @@ Implement weapon classes and armor systems.
 ### Epic 6.5: Playable Weapon Arena (integration milestone)
 Wire melee weapons into the playable arena. Per Playability-First Rule (after Epics 4+5+10 Phase 2-3 system work).
 - US-077: Weapon Cycling & Equipped Weapon Display (HEADLESS — cycling logic, weapon HUD widget, OnWeaponChanged delegate) ✅
-- US-078: Playable Weapon Arena Integration (EDITOR — weapon DataAssets, cycling input, HUD wiring, arena setup, 5-weapon play-test) ← after US-077
+- US-078: Playable Weapon Arena Integration (EDITOR — weapon DataAssets, cycling input, HUD wiring, arena setup, 5-weapon play-test) ✅
 
 ### Epic 7: Inventory
 Implement unlimited-carry inventory with town gating (per agent_rules_v2).
