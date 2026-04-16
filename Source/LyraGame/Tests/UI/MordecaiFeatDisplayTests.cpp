@@ -109,7 +109,7 @@ namespace MordecaiFeatDisplayTestHelpers
 		return Comp;
 	}
 
-	static UMordecaiFeatDisplayWidget* CreateWidget()
+	static UMordecaiFeatDisplayWidget* CreateFeatDisplayWidget()
 	{
 		return NewObject<UMordecaiFeatDisplayWidget>(GetTransientPackage());
 	}
@@ -127,7 +127,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_FeatDisplay_ShowsUnlockedFeats,
 bool FMordecai_UI_FeatDisplay_ShowsUnlockedFeats::RunTest(const FString& Parameters)
 {
 	UMordecaiFeatComponent* Comp = CreateComponentWithFeats();
-	UMordecaiFeatDisplayWidget* Widget = CreateWidget();
+	UMordecaiFeatDisplayWidget* Widget = CreateFeatDisplayWidget();
 
 	Widget->BindToFeatComponent(Comp);
 
@@ -163,7 +163,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_FeatDisplay_TierColorCoding,
 
 bool FMordecai_UI_FeatDisplay_TierColorCoding::RunTest(const FString& Parameters)
 {
-	UMordecaiFeatDisplayWidget* Widget = CreateWidget();
+	UMordecaiFeatDisplayWidget* Widget = CreateFeatDisplayWidget();
 
 	// Verify default tier colors match spec
 	const FLinearColor CommonColor = Widget->GetTierColor(EMordecaiFeatTier::Common);
@@ -198,7 +198,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_FeatDisplay_DetailPanelShowsDescri
 bool FMordecai_UI_FeatDisplay_DetailPanelShowsDescription::RunTest(const FString& Parameters)
 {
 	UMordecaiFeatComponent* Comp = CreateComponentWithFeats();
-	UMordecaiFeatDisplayWidget* Widget = CreateWidget();
+	UMordecaiFeatDisplayWidget* Widget = CreateFeatDisplayWidget();
 
 	Widget->BindToFeatComponent(Comp);
 	Widget->SetSelectedFeat(FName(TEXT("IronWill")));
@@ -232,7 +232,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_FeatDisplay_ShowsLockedFeats,
 bool FMordecai_UI_FeatDisplay_ShowsLockedFeats::RunTest(const FString& Parameters)
 {
 	UMordecaiFeatComponent* Comp = CreateComponentWithFeats();
-	UMordecaiFeatDisplayWidget* Widget = CreateWidget();
+	UMordecaiFeatDisplayWidget* Widget = CreateFeatDisplayWidget();
 
 	Widget->BindToFeatComponent(Comp);
 
@@ -285,7 +285,7 @@ bool FMordecai_UI_FeatDisplay_LockedFeatShowsProgress::RunTest(const FString& Pa
 	// Partially progress the event count
 	Comp->IncrementFeatStat(FName(TEXT("SpellsCast")), 42);
 
-	UMordecaiFeatDisplayWidget* Widget = CreateWidget();
+	UMordecaiFeatDisplayWidget* Widget = CreateFeatDisplayWidget();
 	Widget->BindToFeatComponent(Comp);
 
 	TArray<FMordecaiFeatDisplayRow> LockedRows = Widget->GetLockedFeatRows();
@@ -330,7 +330,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_FeatDisplay_SummaryCountsCorrect,
 bool FMordecai_UI_FeatDisplay_SummaryCountsCorrect::RunTest(const FString& Parameters)
 {
 	UMordecaiFeatComponent* Comp = CreateComponentWithFeats();
-	UMordecaiFeatDisplayWidget* Widget = CreateWidget();
+	UMordecaiFeatDisplayWidget* Widget = CreateFeatDisplayWidget();
 
 	Widget->BindToFeatComponent(Comp);
 
@@ -354,7 +354,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_FeatDisplay_LiveUnlockMovesToUnloc
 bool FMordecai_UI_FeatDisplay_LiveUnlockMovesToUnlocked::RunTest(const FString& Parameters)
 {
 	UMordecaiFeatComponent* Comp = CreateComponentWithFeats();
-	UMordecaiFeatDisplayWidget* Widget = CreateWidget();
+	UMordecaiFeatDisplayWidget* Widget = CreateFeatDisplayWidget();
 
 	Widget->BindToFeatComponent(Comp);
 
@@ -389,7 +389,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_FeatDisplay_GracefulWithoutCompone
 
 bool FMordecai_UI_FeatDisplay_GracefulWithoutComponent::RunTest(const FString& Parameters)
 {
-	UMordecaiFeatDisplayWidget* Widget = CreateWidget();
+	UMordecaiFeatDisplayWidget* Widget = CreateFeatDisplayWidget();
 
 	// No component bound
 	TestFalse("Not bound by default", Widget->IsBoundToComponent());

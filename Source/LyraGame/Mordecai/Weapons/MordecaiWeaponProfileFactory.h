@@ -31,4 +31,21 @@ public:
 
 	/** Create a fully-configured Dagger: 5 thrust lights + lunge thrust heavy. */
 	static UMordecaiWeaponDataAsset* CreateDagger(UObject* Outer);
+
+	// --- Blunt & Polearm (US-026) ---
+
+	/** Create a fully-configured Axe: 2 wide sweep lights + slam heavy. */
+	static UMordecaiWeaponDataAsset* CreateAxe(UObject* Outer);
+
+	/** Create a fully-configured Mace: sweep + slam lights + ground pound heavy. */
+	static UMordecaiWeaponDataAsset* CreateMace(UObject* Outer);
+
+	/** Create a fully-configured Spear: 2 thrust + sweep lights + lunge thrust heavy. */
+	static UMordecaiWeaponDataAsset* CreateSpear(UObject* Outer);
+
+	/** Create a fully-configured Quarterstaff: sweep+thrust+sweep lights + 360° sweep heavy. */
+	static UMordecaiWeaponDataAsset* CreateQuarterstaff(UObject* Outer);
+
+	/** Create a fully-configured Unarmed: 3 punch thrust lights + slam heavy. */
+	static UMordecaiWeaponDataAsset* CreateUnarmed(UObject* Outer);
 };

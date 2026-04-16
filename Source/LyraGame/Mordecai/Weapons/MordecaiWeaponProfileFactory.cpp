@@ -249,3 +249,172 @@ UMordecaiWeaponDataAsset* UMordecaiWeaponProfileFactory::CreateDagger(UObject* O
 
 	return W;
 }
+
+// ---------------------------------------------------------------------------
+// Axe — Aggressive slash weapon, frontloaded burst (MainHand)
+// ---------------------------------------------------------------------------
+
+UMordecaiWeaponDataAsset* UMordecaiWeaponProfileFactory::CreateAxe(UObject* Outer)
+{
+	UMordecaiWeaponDataAsset* W = NewObject<UMordecaiWeaponDataAsset>(Outer);
+	W->WeaponId = FName(TEXT("Axe"));
+	W->DisplayName = FText::FromString(TEXT("Axe"));
+	W->WeaponType = EMordecaiWeaponType::Axe;
+	W->EquipSlot = EMordecaiEquipSlot::MainHand;
+	W->Rarity = EMordecaiItemRarity::Common;
+	W->BaseDamage = 6.f;
+	W->AttackSpeedMultiplier = 0.85f;
+	W->Range = 180.f;
+	W->PostureDamageBonus = 3.f;
+	W->GrantedTags.AddTag(MordecaiGameplayTags::Weapon_Type_Axe);
+
+	const EMordecaiDamageType Slash = EMordecaiDamageType::Slash;
+
+	// L1: ArcSector(180, 140), 280/180/350, BP=16, Stam=12, PS=0.7
+	W->LightAttackProfiles.Add(MakeSweep(Outer, 180.f, 140.f, 280.f, 180.f, 350.f, 16.f, 12.f, 0.7f, Slash));
+	// L2: ArcSector(190, 160), 320/200/400, BP=22, Stam=16, PS=0.9
+	W->LightAttackProfiles.Add(MakeSweep(Outer, 190.f, 160.f, 320.f, 200.f, 400.f, 22.f, 16.f, 0.9f, Slash));
+
+	// Heavy: MeleeSlam, Circle(160), 500/200/550, BP=30, Stam=24, PS=1.8, Rooted=Active
+	W->HeavyAttackProfile = MakeSlam(Outer, 160.f, 500.f, 200.f, 550.f, 30.f, 24.f, 1.8f, Slash, EMordecaiRootedMode::Active);
+
+	return W;
+}
+
+// ---------------------------------------------------------------------------
+// Mace — Blunt posture-breaker (MainHand)
+// ---------------------------------------------------------------------------
+
+UMordecaiWeaponDataAsset* UMordecaiWeaponProfileFactory::CreateMace(UObject* Outer)
+{
+	UMordecaiWeaponDataAsset* W = NewObject<UMordecaiWeaponDataAsset>(Outer);
+	W->WeaponId = FName(TEXT("Mace"));
+	W->DisplayName = FText::FromString(TEXT("Mace"));
+	W->WeaponType = EMordecaiWeaponType::Mace;
+	W->EquipSlot = EMordecaiEquipSlot::MainHand;
+	W->Rarity = EMordecaiItemRarity::Common;
+	W->BaseDamage = 5.f;
+	W->AttackSpeedMultiplier = 0.8f;
+	W->Range = 160.f;
+	W->PostureDamageBonus = 5.f;
+	W->GrantedTags.AddTag(MordecaiGameplayTags::Weapon_Type_Mace);
+
+	const EMordecaiDamageType Blunt = EMordecaiDamageType::Blunt;
+
+	// L1: MeleeSweep, ArcSector(160, 150), 300/180/400, BP=14, Stam=12, PS=1.0
+	W->LightAttackProfiles.Add(MakeSweep(Outer, 160.f, 150.f, 300.f, 180.f, 400.f, 14.f, 12.f, 1.0f, Blunt));
+	// L2: MeleeSlam, Circle(140), 320/200/450, BP=18, Stam=14, PS=1.2, HA=true
+	auto* L2 = MakeSlam(Outer, 140.f, 320.f, 200.f, 450.f, 18.f, 14.f, 1.2f, Blunt);
+	L2->InputSlot = EMordecaiInputSlot::Light;
+	L2->CancelableIntoDodge = true;
+	L2->CancelableIntoBlock = true;
+	W->LightAttackProfiles.Add(L2);
+
+	// Heavy: MeleeSlam, Circle(180), 600/200/600, BP=28, Stam=28, PS=2.5, Rooted=Active
+	W->HeavyAttackProfile = MakeSlam(Outer, 180.f, 600.f, 200.f, 600.f, 28.f, 28.f, 2.5f, Blunt, EMordecaiRootedMode::Active);
+
+	return W;
+}
+
+// ---------------------------------------------------------------------------
+// Spear — Pierce polearm, longest melee reach (TwoHand)
+// ---------------------------------------------------------------------------
+
+UMordecaiWeaponDataAsset* UMordecaiWeaponProfileFactory::CreateSpear(UObject* Outer)
+{
+	UMordecaiWeaponDataAsset* W = NewObject<UMordecaiWeaponDataAsset>(Outer);
+	W->WeaponId = FName(TEXT("Spear"));
+	W->DisplayName = FText::FromString(TEXT("Spear"));
+	W->WeaponType = EMordecaiWeaponType::Spear;
+	W->EquipSlot = EMordecaiEquipSlot::TwoHand;
+	W->Rarity = EMordecaiItemRarity::Common;
+	W->BaseDamage = 5.f;
+	W->AttackSpeedMultiplier = 0.9f;
+	W->Range = 280.f;
+	W->PostureDamageBonus = 2.f;
+	W->GrantedTags.AddTag(MordecaiGameplayTags::Weapon_Type_Spear);
+
+	const EMordecaiDamageType Pierce = EMordecaiDamageType::Pierce;
+
+	// L1: MeleeThrust, Capsule(280, 50), 200/150/280, BP=12, Stam=8, PS=0.5
+	W->LightAttackProfiles.Add(MakeThrust(Outer, 280.f, 50.f, 200.f, 150.f, 280.f, 12.f, 8.f, 0.5f, Pierce));
+	// L2: MeleeThrust, Capsule(290, 55), 220/160/280, BP=14, Stam=10, PS=0.6
+	W->LightAttackProfiles.Add(MakeThrust(Outer, 290.f, 55.f, 220.f, 160.f, 280.f, 14.f, 10.f, 0.6f, Pierce));
+	// L3: MeleeSweep, ArcSector(250, 160), 280/200/350, BP=18, Stam=14, PS=0.8
+	W->LightAttackProfiles.Add(MakeSweep(Outer, 250.f, 160.f, 280.f, 200.f, 350.f, 18.f, 14.f, 0.8f, Pierce));
+
+	// Heavy: MeleeThrust, Capsule(320, 60), 400/180/450, BP=26, Stam=22, PS=1.3, Rooted=Active
+	auto* Heavy = MakeThrust(Outer, 320.f, 60.f, 400.f, 180.f, 450.f, 26.f, 22.f, 1.3f, Pierce, EMordecaiRootedMode::Active, /*bCancel=*/false);
+	Heavy->InputSlot = EMordecaiInputSlot::Heavy;
+	W->HeavyAttackProfile = Heavy;
+
+	return W;
+}
+
+// ---------------------------------------------------------------------------
+// Quarterstaff — Versatile two-handed blunt (TwoHand)
+// ---------------------------------------------------------------------------
+
+UMordecaiWeaponDataAsset* UMordecaiWeaponProfileFactory::CreateQuarterstaff(UObject* Outer)
+{
+	UMordecaiWeaponDataAsset* W = NewObject<UMordecaiWeaponDataAsset>(Outer);
+	W->WeaponId = FName(TEXT("Quarterstaff"));
+	W->DisplayName = FText::FromString(TEXT("Quarterstaff"));
+	W->WeaponType = EMordecaiWeaponType::Quarterstaff;
+	W->EquipSlot = EMordecaiEquipSlot::TwoHand;
+	W->Rarity = EMordecaiItemRarity::Common;
+	W->BaseDamage = 3.f;
+	W->AttackSpeedMultiplier = 1.f;
+	W->Range = 240.f;
+	W->PostureDamageBonus = 2.f;
+	W->GrantedTags.AddTag(MordecaiGameplayTags::Weapon_Type_Staff);
+
+	const EMordecaiDamageType Blunt = EMordecaiDamageType::Blunt;
+
+	// L1: MeleeSweep, ArcSector(240, 130), 200/160/250, BP=10, Stam=7, PS=0.5
+	W->LightAttackProfiles.Add(MakeSweep(Outer, 240.f, 130.f, 200.f, 160.f, 250.f, 10.f, 7.f, 0.5f, Blunt));
+	// L2: MeleeThrust, Capsule(250, 50), 180/140/240, BP=11, Stam=8, PS=0.5
+	W->LightAttackProfiles.Add(MakeThrust(Outer, 250.f, 50.f, 180.f, 140.f, 240.f, 11.f, 8.f, 0.5f, Blunt));
+	// L3: MeleeSweep, ArcSector(250, 200), 250/180/320, BP=15, Stam=12, PS=0.7
+	W->LightAttackProfiles.Add(MakeSweep(Outer, 250.f, 200.f, 250.f, 180.f, 320.f, 15.f, 12.f, 0.7f, Blunt));
+
+	// Heavy: MeleeSweep, ArcSector(260, 360), 400/220/450, BP=22, Stam=20, PS=1.2, Rooted=Active
+	auto* Heavy = MakeSweep(Outer, 260.f, 360.f, 400.f, 220.f, 450.f, 22.f, 20.f, 1.2f, Blunt, EMordecaiRootedMode::Active, /*bCancel=*/false);
+	Heavy->InputSlot = EMordecaiInputSlot::Heavy;
+	W->HeavyAttackProfile = Heavy;
+
+	return W;
+}
+
+// ---------------------------------------------------------------------------
+// Unarmed — Weakest but always available (MainHand fallback)
+// ---------------------------------------------------------------------------
+
+UMordecaiWeaponDataAsset* UMordecaiWeaponProfileFactory::CreateUnarmed(UObject* Outer)
+{
+	UMordecaiWeaponDataAsset* W = NewObject<UMordecaiWeaponDataAsset>(Outer);
+	W->WeaponId = FName(TEXT("Unarmed"));
+	W->DisplayName = FText::FromString(TEXT("Unarmed"));
+	W->WeaponType = EMordecaiWeaponType::Unarmed;
+	W->EquipSlot = EMordecaiEquipSlot::MainHand;
+	W->Rarity = EMordecaiItemRarity::Common;
+	W->BaseDamage = 0.f;
+	W->AttackSpeedMultiplier = 1.3f;
+	W->Range = 100.f;
+	W->PostureDamageBonus = 0.f;
+	W->GrantedTags.AddTag(MordecaiGameplayTags::Weapon_Type_Unarmed);
+
+	const EMordecaiDamageType Blunt = EMordecaiDamageType::Blunt;
+
+	// L1: Capsule(100, 40), 80/60/100, BP=3, Stam=2, PS=0.1
+	W->LightAttackProfiles.Add(MakeThrust(Outer, 100.f, 40.f, 80.f, 60.f, 100.f, 3.f, 2.f, 0.1f, Blunt));
+	// L2: Capsule(100, 40), 80/60/100, BP=3, Stam=2, PS=0.1
+	W->LightAttackProfiles.Add(MakeThrust(Outer, 100.f, 40.f, 80.f, 60.f, 100.f, 3.f, 2.f, 0.1f, Blunt));
+	// L3: Capsule(110, 45), 100/80/140, BP=5, Stam=4, PS=0.2
+	W->LightAttackProfiles.Add(MakeThrust(Outer, 110.f, 45.f, 100.f, 80.f, 140.f, 5.f, 4.f, 0.2f, Blunt));
+
+	// Heavy: MeleeSlam, Circle(80), 200/100/250, BP=8, Stam=8, PS=0.5, Rooted=Active
+	W->HeavyAttackProfile = MakeSlam(Outer, 80.f, 200.f, 100.f, 250.f, 8.f, 8.f, 0.5f, Blunt, EMordecaiRootedMode::Active);
+
+	return W;
+}
