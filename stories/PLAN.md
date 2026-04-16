@@ -67,7 +67,7 @@ Wire spells, status effects, and spell HUD into the playable arena. Integration 
 Implement weapon classes and armor systems.
 - US-024: Weapon Class Framework (HEADLESS — WeaponDataAsset, WeaponInstance, EquipmentComponent, equip/unequip via GAS, weapon slot model, melee attack integration) ✅
 - US-025: Melee Weapons — Blade Family (HEADLESS — Longsword, Greatsword, Shortsword, Dagger factory profiles) ✅
-- US-026: Melee Weapons — Blunt & Polearm (HEADLESS — Axe, Mace, Spear, Quarterstaff, Unarmed factory profiles) ← after US-025
+- US-026: Melee Weapons — Blunt & Polearm (HEADLESS — Axe, Mace, Spear, Quarterstaff, Unarmed factory profiles) ✅
 - US-027: Ranged Weapons (Longbow, Shortbow, Crossbow, Throwables, Wands) ← placeholder, needs design input
 - US-028: Two-Weapon Fighting ← placeholder, needs design input
 - US-029: Armor & Equipment System (Leather, Chain, Plate + skills) ← placeholder, needs design input

@@ -21,10 +21,10 @@ This builds directly on the weapon framework from US-024 and follows the identic
 ## Acceptance Criteria
 
 ### Factory Extension
-- [ ] AC-026.1: `UMordecaiWeaponProfileFactory` gains five new static methods: `CreateAxe()`, `CreateMace()`, `CreateSpear()`, `CreateQuarterstaff()`, `CreateUnarmed()`. Each returns a `UMordecaiWeaponDataAsset*` with all attack profiles populated. Same pattern as US-025's blade factory methods.
+- [x] AC-026.1: `UMordecaiWeaponProfileFactory` gains five new static methods: `CreateAxe()`, `CreateMace()`, `CreateSpear()`, `CreateQuarterstaff()`, `CreateUnarmed()`. Each returns a `UMordecaiWeaponDataAsset*` with all attack profiles populated. Same pattern as US-025's blade factory methods.
 
 ### Axe — Aggressive slash weapon, frontloaded burst (MainHand)
-- [ ] AC-026.2: Axe has 2 light attack profiles (wide sweeps) and 1 heavy attack profile (overhead slam). Lights use `EMordecaiDamageType::Slash`, heavy uses `Slash` with `MeleeSlam` attack type. EquipSlot: `MainHand`. GrantedTag: `Mordecai.Weapon.Type.Axe`.
+- [x] AC-026.2: Axe has 2 light attack profiles (wide sweeps) and 1 heavy attack profile (overhead slam). Lights use `EMordecaiDamageType::Slash`, heavy uses `Slash` with `MeleeSlam` attack type. EquipSlot: `MainHand`. GrantedTag: `Mordecai.Weapon.Type.Axe`.
 
 Axe weapon stats: `BaseDamage=6, AttackSpeedMultiplier=0.85, Range=180, PostureDamageBonus=3`
 
@@ -38,7 +38,7 @@ Axe light combo chain:
 Axe heavy: MeleeSlam, Circle(R=160), Windup=500, Active=200, Recovery=550, BasePower=30, StaminaCost=24, PostureScalar=1.8, HitsAirborne=true, RootedDuring=Active.
 
 ### Mace — Blunt posture-breaker (MainHand)
-- [ ] AC-026.3: Mace has 2 light attack profiles (side sweep + overhead slam) and 1 heavy attack profile (ground pound slam). All use `EMordecaiDamageType::Blunt`. L1 is `MeleeSweep`/`ArcSector`, L2 is `MeleeSlam`/`Circle`. Heavy is `MeleeSlam`/`Circle`. EquipSlot: `MainHand`. GrantedTag: `Mordecai.Weapon.Type.Mace`.
+- [x] AC-026.3: Mace has 2 light attack profiles (side sweep + overhead slam) and 1 heavy attack profile (ground pound slam). All use `EMordecaiDamageType::Blunt`. L1 is `MeleeSweep`/`ArcSector`, L2 is `MeleeSlam`/`Circle`. Heavy is `MeleeSlam`/`Circle`. EquipSlot: `MainHand`. GrantedTag: `Mordecai.Weapon.Type.Mace`.
 
 Mace weapon stats: `BaseDamage=5, AttackSpeedMultiplier=0.8, Range=160, PostureDamageBonus=5`
 
@@ -52,7 +52,7 @@ Mace light combo chain:
 Mace heavy: MeleeSlam, Circle(R=180), Windup=600, Active=200, Recovery=600, BasePower=28, StaminaCost=28, PostureScalar=2.5, HitsAirborne=true, RootedDuring=Active.
 
 ### Spear — Pierce polearm, longest melee reach (TwoHand)
-- [ ] AC-026.4: Spear has 3 light attack profiles (2 thrusts + sweep finisher) and 1 heavy attack profile (charging lunge thrust). L1-L2 are `MeleeThrust`/`Capsule`, L3 is `MeleeSweep`/`ArcSector` (polearm sweep). Heavy is `MeleeThrust`/`Capsule`. All use `EMordecaiDamageType::Pierce`. EquipSlot: `TwoHand`. GrantedTag: `Mordecai.Weapon.Type.Spear`.
+- [x] AC-026.4: Spear has 3 light attack profiles (2 thrusts + sweep finisher) and 1 heavy attack profile (charging lunge thrust). L1-L2 are `MeleeThrust`/`Capsule`, L3 is `MeleeSweep`/`ArcSector` (polearm sweep). Heavy is `MeleeThrust`/`Capsule`. All use `EMordecaiDamageType::Pierce`. EquipSlot: `TwoHand`. GrantedTag: `Mordecai.Weapon.Type.Spear`.
 
 Spear weapon stats: `BaseDamage=5, AttackSpeedMultiplier=0.9, Range=280, PostureDamageBonus=2`
 
@@ -67,7 +67,7 @@ Spear light combo chain:
 Spear heavy: MeleeThrust, Capsule(L=320, W=60), Windup=400, Active=180, Recovery=450, BasePower=26, StaminaCost=22, PostureScalar=1.3, HitsAirborne=true, RootedDuring=Active.
 
 ### Quarterstaff — Versatile two-handed blunt (TwoHand)
-- [ ] AC-026.5: Quarterstaff has 3 light attack profiles (sweep + thrust + wide sweep finisher) and 1 heavy attack profile (360-degree spinning sweep). L1 and L3 are `MeleeSweep`/`ArcSector`, L2 is `MeleeThrust`/`Capsule`. Heavy is `MeleeSweep`/`ArcSector` (360 degrees). All use `EMordecaiDamageType::Blunt`. EquipSlot: `TwoHand`. GrantedTag: `Mordecai.Weapon.Type.Staff`.
+- [x] AC-026.5: Quarterstaff has 3 light attack profiles (sweep + thrust + wide sweep finisher) and 1 heavy attack profile (360-degree spinning sweep). L1 and L3 are `MeleeSweep`/`ArcSector`, L2 is `MeleeThrust`/`Capsule`. Heavy is `MeleeSweep`/`ArcSector` (360 degrees). All use `EMordecaiDamageType::Blunt`. EquipSlot: `TwoHand`. GrantedTag: `Mordecai.Weapon.Type.Staff`.
 
 Quarterstaff weapon stats: `BaseDamage=3, AttackSpeedMultiplier=1.0, Range=240, PostureDamageBonus=2`
 
@@ -82,7 +82,7 @@ Quarterstaff light combo chain:
 Quarterstaff heavy: MeleeSweep, ArcSector(R=260, A=360), Windup=400, Active=220, Recovery=450, BasePower=22, StaminaCost=20, PostureScalar=1.2, JumpAvoidable=true, RootedDuring=Active.
 
 ### Unarmed — Weakest but always available (MainHand fallback)
-- [ ] AC-026.6: Unarmed has 3 light attack profiles (quick punch thrusts) and 1 heavy attack profile (overhead slam). All lights are `MeleeThrust`/`Capsule`. Heavy is `MeleeSlam`/`Circle`. All use `EMordecaiDamageType::Blunt`. EquipSlot: `MainHand`. GrantedTag: `Mordecai.Weapon.Type.Unarmed`.
+- [x] AC-026.6: Unarmed has 3 light attack profiles (quick punch thrusts) and 1 heavy attack profile (overhead slam). All lights are `MeleeThrust`/`Capsule`. Heavy is `MeleeSlam`/`Circle`. All use `EMordecaiDamageType::Blunt`. EquipSlot: `MainHand`. GrantedTag: `Mordecai.Weapon.Type.Unarmed`.
 
 Unarmed weapon stats: `BaseDamage=0, AttackSpeedMultiplier=1.3, Range=100, PostureDamageBonus=0`
 
@@ -97,15 +97,15 @@ Unarmed light combo chain:
 Unarmed heavy: MeleeSlam, Circle(R=80), Windup=200, Active=100, Recovery=250, BasePower=8, StaminaCost=8, PostureScalar=0.5, HitsAirborne=true, RootedDuring=Active.
 
 ### Cross-Cutting Rules
-- [ ] AC-026.7: All `MeleeSweep` attacks across these weapons have `JumpAvoidable=true` and `HitsAirborne=false`. All `MeleeThrust` and `MeleeSlam` attacks have `HitsAirborne=true` and `JumpAvoidable=false`. Consistent with US-025 blade family rules.
-- [ ] AC-026.8: Relative weapon stats enforce correct feel ordering across ALL melee weapons (blade + blunt/polearm combined):
+- [x] AC-026.7: All `MeleeSweep` attacks across these weapons have `JumpAvoidable=true` and `HitsAirborne=false`. All `MeleeThrust` and `MeleeSlam` attacks have `HitsAirborne=true` and `JumpAvoidable=false`. Consistent with US-025 blade family rules.
+- [x] AC-026.8: Relative weapon stats enforce correct feel ordering across ALL melee weapons (blade + blunt/polearm combined):
   - **Speed**: Dagger (1.4) > Unarmed (1.3) > Shortsword (1.2) > Longsword (1.0) = Quarterstaff (1.0) > Spear (0.9) > Axe (0.85) > Mace (0.8) > Greatsword (0.75)
   - **BaseDamage**: Greatsword (8) > Axe (6) > Mace (5) = Spear (5) > Longsword (4) > Quarterstaff (3) > Shortsword (2) > Dagger (1) > Unarmed (0)
   - **Range**: Spear (280) > Greatsword (250) > Quarterstaff (240) > Longsword (200) > Axe (180) > Mace (160) > Shortsword (150) > Dagger (120) > Unarmed (100)
   - **PostureDamageBonus**: Mace (5) > Greatsword (4) > Axe (3) > Spear (2) = Quarterstaff (2) > Longsword (1) > Shortsword (0) = Dagger (0) = Unarmed (0)
-- [ ] AC-026.9: Equipping any blunt/polearm weapon via EquipmentComponent makes its light combo chain available to the melee attack ability. Unequipping reverts to Unarmed fallback (which now uses the factory-created Unarmed profiles).
-- [ ] AC-026.10: All light attacks have `CancelableIntoDodge=true` during Recovery. All heavy attacks have `CancelableIntoDodge=false` (committed attacks per design doc). Consistent with US-025 rules.
-- [ ] AC-026.11: All attacks across all five weapons have `CanCrit=true` and `AppliesPostureDamage=true` on their DamageProfile.
+- [x] AC-026.9: Equipping any blunt/polearm weapon via EquipmentComponent makes its light combo chain available to the melee attack ability. Unequipping reverts to Unarmed fallback (which now uses the factory-created Unarmed profiles).
+- [x] AC-026.10: All light attacks have `CancelableIntoDodge=true` during Recovery. All heavy attacks have `CancelableIntoDodge=false` (committed attacks per design doc). Consistent with US-025 rules.
+- [x] AC-026.11: All attacks across all five weapons have `CanCrit=true` and `AppliesPostureDamage=true` on their DamageProfile.
 
 ## Technical Notes
 - **File location:** Extend `Source/LyraGame/Mordecai/Weapons/MordecaiWeaponProfileFactory.h/.cpp` with 5 new static methods. Same file as US-025.
@@ -116,26 +116,26 @@ Unarmed heavy: MeleeSlam, Circle(R=80), Windup=200, Active=100, Recovery=250, Ba
 - **Mixed attack type chains:** Spear (thrust+sweep) and Quarterstaff (sweep+thrust+sweep) have mixed attack types within a single combo chain. This is intentional — polearm weapons are more versatile than pure-type weapons.
 
 ## Tests Required
-- [ ] `Mordecai.Weapon.Axe.ProfilesMatchSpec` — Axe factory output: 2 light ArcSector sweeps + slam heavy, MainHand, all Slash, correct BasePower/timing/stamina values (AC-026.2)
-- [ ] `Mordecai.Weapon.Mace.ProfilesMatchSpec` — Mace factory output: sweep L1 + slam L2 + slam heavy, MainHand, all Blunt, correct values (AC-026.3)
-- [ ] `Mordecai.Weapon.Spear.ProfilesMatchSpec` — Spear factory output: 2 thrust + sweep finisher light chain + lunge thrust heavy, TwoHand, all Pierce, correct values (AC-026.4)
-- [ ] `Mordecai.Weapon.Quarterstaff.ProfilesMatchSpec` — Quarterstaff factory output: sweep + thrust + sweep light chain + 360 sweep heavy, TwoHand, all Blunt, correct values (AC-026.5)
-- [ ] `Mordecai.Weapon.Unarmed.ProfilesMatchSpec` — Unarmed factory output: 3 thrust lights + slam heavy, MainHand, all Blunt, zero BaseDamage, correct values (AC-026.6)
-- [ ] `Mordecai.Weapon.BluntPolearm.SweepAttacksJumpAvoidable` — Every MeleeSweep profile across Axe/Mace/Spear/Quarterstaff/Unarmed has JumpAvoidable=true, HitsAirborne=false (AC-026.7)
-- [ ] `Mordecai.Weapon.BluntPolearm.ThrustSlamAttacksHitAirborne` — Every MeleeThrust/MeleeSlam profile has HitsAirborne=true, JumpAvoidable=false (AC-026.7)
-- [ ] `Mordecai.Weapon.AllMelee.RelativeSpeedOrdering` — Full 9-weapon speed ordering matches AC-026.8 (AC-026.8)
-- [ ] `Mordecai.Weapon.AllMelee.RelativeDamageOrdering` — Full 9-weapon damage ordering matches AC-026.8 (AC-026.8)
-- [ ] `Mordecai.Weapon.AllMelee.RelativeRangeOrdering` — Full 9-weapon range ordering matches AC-026.8 (AC-026.8)
-- [ ] `Mordecai.Weapon.AllMelee.RelativePostureOrdering` — Full 9-weapon posture bonus ordering matches AC-026.8 (AC-026.8)
-- [ ] `Mordecai.Weapon.BluntPolearm.EquipSetsActiveProfiles` — Equip each blunt/polearm weapon via EquipmentComponent -> GetActiveLightAttackProfiles() returns correct chain (AC-026.9)
-- [ ] `Mordecai.Weapon.BluntPolearm.HeavyAttacksNotCancelable` — All heavy profiles have CancelableIntoDodge=false (AC-026.10)
-- [ ] `Mordecai.Weapon.BluntPolearm.LightAttacksCancelIntoDodge` — All light profiles have CancelableIntoDodge=true (AC-026.10)
+- [x] `Mordecai.Weapon.Axe.ProfilesMatchSpec` — Axe factory output: 2 light ArcSector sweeps + slam heavy, MainHand, all Slash, correct BasePower/timing/stamina values (AC-026.2)
+- [x] `Mordecai.Weapon.Mace.ProfilesMatchSpec` — Mace factory output: sweep L1 + slam L2 + slam heavy, MainHand, all Blunt, correct values (AC-026.3)
+- [x] `Mordecai.Weapon.Spear.ProfilesMatchSpec` — Spear factory output: 2 thrust + sweep finisher light chain + lunge thrust heavy, TwoHand, all Pierce, correct values (AC-026.4)
+- [x] `Mordecai.Weapon.Quarterstaff.ProfilesMatchSpec` — Quarterstaff factory output: sweep + thrust + sweep light chain + 360 sweep heavy, TwoHand, all Blunt, correct values (AC-026.5)
+- [x] `Mordecai.Weapon.Unarmed.ProfilesMatchSpec` — Unarmed factory output: 3 thrust lights + slam heavy, MainHand, all Blunt, zero BaseDamage, correct values (AC-026.6)
+- [x] `Mordecai.Weapon.BluntPolearm.SweepAttacksJumpAvoidable` — Every MeleeSweep profile across Axe/Mace/Spear/Quarterstaff/Unarmed has JumpAvoidable=true, HitsAirborne=false (AC-026.7)
+- [x] `Mordecai.Weapon.BluntPolearm.ThrustSlamAttacksHitAirborne` — Every MeleeThrust/MeleeSlam profile has HitsAirborne=true, JumpAvoidable=false (AC-026.7)
+- [x] `Mordecai.Weapon.AllMelee.RelativeSpeedOrdering` — Full 9-weapon speed ordering matches AC-026.8 (AC-026.8)
+- [x] `Mordecai.Weapon.AllMelee.RelativeDamageOrdering` — Full 9-weapon damage ordering matches AC-026.8 (AC-026.8)
+- [x] `Mordecai.Weapon.AllMelee.RelativeRangeOrdering` — Full 9-weapon range ordering matches AC-026.8 (AC-026.8)
+- [x] `Mordecai.Weapon.AllMelee.RelativePostureOrdering` — Full 9-weapon posture bonus ordering matches AC-026.8 (AC-026.8)
+- [x] `Mordecai.Weapon.BluntPolearm.EquipSetsActiveProfiles` — Equip each blunt/polearm weapon via EquipmentComponent -> GetActiveLightAttackProfiles() returns correct chain (AC-026.9)
+- [x] `Mordecai.Weapon.BluntPolearm.HeavyAttacksNotCancelable` — All heavy profiles have CancelableIntoDodge=false (AC-026.10)
+- [x] `Mordecai.Weapon.BluntPolearm.LightAttacksCancelIntoDodge` — All light profiles have CancelableIntoDodge=true (AC-026.10)
 
 ---
 
 ## Definition of Done
-- [ ] All tests written and failing (red phase confirmed)
-- [ ] All implementation complete
-- [ ] All tests passing (green)
-- [ ] Project compiles with zero errors
-- [ ] Code committed and pushed with `[US-026]` prefix
+- [x] All tests written and failing (red phase confirmed)
+- [x] All implementation complete
+- [x] All tests passing (green)
+- [x] Project compiles with zero errors
+- [x] Code committed and pushed with `[US-026]` prefix
