@@ -13,6 +13,12 @@ class UMordecaiWeaponDataAsset;
 class UMordecaiAttackProfileDataAsset;
 class UAbilitySystemComponent;
 
+/** Broadcast when a weapon is equipped or unequipped. NewWeapon is nullptr on unequip. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+	FOnMordecaiWeaponChanged,
+	EMordecaiEquipSlot, ChangedSlot,
+	const UMordecaiWeaponDataAsset*, NewWeapon);
+
 /**
  * UMordecaiEquipmentComponent
  *
@@ -86,6 +92,36 @@ public:
 	/** Get weapon PostureDamageBonus for the MainHand weapon (0 if Unarmed). */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Equipment")
 	float GetWeaponPostureDamageBonus() const;
+
+	// --- Weapon Cycling (US-077) ---
+
+	/** List of weapons the player can cycle through. Populated by game logic. */
+	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|Equipment")
+	TArray<FMordecaiWeaponInstance> AvailableWeapons;
+
+	/** Create a weapon instance from a data asset and append to AvailableWeapons. Returns index. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Equipment")
+	int32 AddAvailableWeapon(const UMordecaiWeaponDataAsset* WeaponAsset);
+
+	/** Equip the next weapon in AvailableWeapons (wraps). Does nothing if list is empty. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Equipment")
+	void CycleNextWeapon();
+
+	/** Equip the previous weapon in AvailableWeapons (wraps). Does nothing if list is empty. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Equipment")
+	void CyclePrevWeapon();
+
+	/** Index in AvailableWeapons of the currently equipped MainHand weapon, or -1. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Equipment")
+	int32 GetCurrentWeaponIndex() const;
+
+	/** Number of weapons in AvailableWeapons. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Equipment")
+	int32 GetAvailableWeaponCount() const { return AvailableWeapons.Num(); }
+
+	/** Broadcasts on every EquipWeapon / UnequipWeapon call. */
+	UPROPERTY(BlueprintAssignable, Category = "Mordecai|Equipment")
+	FOnMordecaiWeaponChanged OnWeaponChanged;
 
 	// --- Unarmed Defaults ---
 

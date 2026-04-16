@@ -19,7 +19,7 @@
 
 namespace MordecaiBluntPolearmTestHelpers
 {
-	static FMordecaiWeaponInstance MakeInstance(UMordecaiWeaponDataAsset* DA)
+	static FMordecaiWeaponInstance MakeBluntInstance(UMordecaiWeaponDataAsset* DA)
 	{
 		FMordecaiWeaponInstance Inst;
 		Inst.InstanceId = FGuid::NewGuid();
@@ -447,7 +447,7 @@ bool FMordecai_Weapon_BluntPolearm_EquipSetsActiveProfiles::RunTest(const FStrin
 
 	auto TestWeapon = [&](UMordecaiWeaponDataAsset* W, EMordecaiEquipSlot Slot, int32 ExpectedCount)
 	{
-		FMordecaiWeaponInstance Inst = MakeInstance(W);
+		FMordecaiWeaponInstance Inst = MakeBluntInstance(W);
 		EquipComp->EquipWeapon(Inst, Slot);
 		TArray<UMordecaiAttackProfileDataAsset*> Active = EquipComp->GetActiveLightAttackProfiles();
 		TestEqual(FString::Printf(TEXT("%s active count"), *W->WeaponId.ToString()), Active.Num(), ExpectedCount);

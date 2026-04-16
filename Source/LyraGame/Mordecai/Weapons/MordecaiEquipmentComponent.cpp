@@ -115,6 +115,9 @@ bool UMordecaiEquipmentComponent::EquipWeapon(FMordecaiWeaponInstance& Weapon, E
 	// Apply GE, abilities, tags
 	ApplyWeaponEffects(WeaponData, StorageSlot);
 
+	// AC-077.10: Broadcast weapon change
+	OnWeaponChanged.Broadcast(Slot, WeaponData);
+
 	return true;
 }
 
@@ -137,7 +140,96 @@ bool UMordecaiEquipmentComponent::UnequipWeapon(EMordecaiEquipSlot Slot)
 	WeaponSlot->IsEquipped = false;
 	*WeaponSlot = FMordecaiWeaponInstance();
 
+	// AC-077.10: Broadcast weapon change (nullptr on unequip)
+	OnWeaponChanged.Broadcast(Slot, nullptr);
+
 	return true;
+}
+
+// ---------------------------------------------------------------------------
+// Weapon Cycling (US-077)
+// ---------------------------------------------------------------------------
+
+int32 UMordecaiEquipmentComponent::AddAvailableWeapon(const UMordecaiWeaponDataAsset* WeaponAsset)
+{
+	if (!WeaponAsset)
+	{
+		return INDEX_NONE;
+	}
+
+	FMordecaiWeaponInstance Inst;
+	Inst.InstanceId = FGuid::NewGuid();
+	Inst.WeaponDataAsset = const_cast<UMordecaiWeaponDataAsset*>(WeaponAsset);
+	Inst.IsEquipped = false;
+
+	return AvailableWeapons.Add(Inst);
+}
+
+int32 UMordecaiEquipmentComponent::GetCurrentWeaponIndex() const
+{
+	if (!MainHandWeapon.IsValid())
+	{
+		return INDEX_NONE;
+	}
+
+	for (int32 Idx = 0; Idx < AvailableWeapons.Num(); ++Idx)
+	{
+		if (AvailableWeapons[Idx].InstanceId == MainHandWeapon.InstanceId)
+		{
+			return Idx;
+		}
+	}
+	return INDEX_NONE;
+}
+
+void UMordecaiEquipmentComponent::CycleNextWeapon()
+{
+	if (AvailableWeapons.Num() == 0)
+	{
+		return;
+	}
+
+	const int32 CurrentIdx = GetCurrentWeaponIndex();
+	int32 NextIdx;
+	if (CurrentIdx == INDEX_NONE)
+	{
+		NextIdx = 0;
+	}
+	else
+	{
+		NextIdx = (CurrentIdx + 1) % AvailableWeapons.Num();
+	}
+
+	const EMordecaiEquipSlot TargetSlot = AvailableWeapons[NextIdx].WeaponDataAsset
+		? AvailableWeapons[NextIdx].WeaponDataAsset->EquipSlot
+		: EMordecaiEquipSlot::MainHand;
+
+	EquipWeapon(AvailableWeapons[NextIdx], TargetSlot);
+}
+
+void UMordecaiEquipmentComponent::CyclePrevWeapon()
+{
+	if (AvailableWeapons.Num() == 0)
+	{
+		return;
+	}
+
+	const int32 CurrentIdx = GetCurrentWeaponIndex();
+	int32 PrevIdx;
+	if (CurrentIdx == INDEX_NONE)
+	{
+		PrevIdx = 0;
+	}
+	else
+	{
+		PrevIdx = (CurrentIdx - 1 + AvailableWeapons.Num()) % AvailableWeapons.Num();
+	}
+
+	const EMordecaiEquipSlot TargetSlot = AvailableWeapons[PrevIdx].WeaponDataAsset
+		? AvailableWeapons[PrevIdx].WeaponDataAsset->EquipSlot
+		: EMordecaiEquipSlot::MainHand;
+
+	EquipWeapon(AvailableWeapons[PrevIdx], TargetSlot);
 }
 
 // ---------------------------------------------------------------------------
