@@ -1,6 +1,7 @@
 // Project Mordecai
 
 #include "MordecaiHeroComponent.h"
+#include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiPlayerController.h"
 #include "GameFeatures/GameFeatureAction_AddInputContextMapping.h"
 #include "AbilitySystemComponent.h"
@@ -134,6 +135,10 @@ void UMordecaiHeroComponent::EnsureMordecaiInputBound(APlayerController* PC)
 	UInputAction* Spell3Action = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_Spell3.IA_Mordecai_Spell3"));
 	UInputAction* Spell4Action = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_Spell4.IA_Mordecai_Spell4"));
 
+	// --- US-078: Weapon Cycling Input Actions (Tab / Shift+Tab / Gamepad Y) ---
+	UInputAction* WeaponCycleNextAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_WeaponSwap.IA_Mordecai_WeaponSwap"));
+	UInputAction* WeaponCyclePrevAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_WeaponCyclePrev.IA_Mordecai_WeaponCyclePrev"));
+
 	if (Spell1Action)
 	{
 		MordecaiIMC->MapKey(Spell1Action, FKey(TEXT("Q")));
@@ -152,6 +157,20 @@ void UMordecaiHeroComponent::EnsureMordecaiInputBound(APlayerController* PC)
 	{
 		MordecaiIMC->MapKey(Spell4Action, FKey(TEXT("One")));
 		MordecaiIMC->MapKey(Spell4Action, FKey(TEXT("Gamepad_DPad_Up")));
+	}
+
+	// --- US-078: Weapon cycling ---
+	// AC-078.6: Next weapon — Tab (MKB) / Gamepad Y tap
+	if (WeaponCycleNextAction)
+	{
+		MordecaiIMC->MapKey(WeaponCycleNextAction, FKey(TEXT("Tab")));
+		MordecaiIMC->MapKey(WeaponCycleNextAction, FKey(TEXT("Gamepad_FaceButton_Top")));
+	}
+	// AC-078.7: Previous weapon — BackSlash (pragmatic alternative to Shift+Tab chord,
+	// which requires a separate IA_Sprint chord-action setup in Enhanced Input).
+	if (WeaponCyclePrevAction)
+	{
+		MordecaiIMC->MapKey(WeaponCyclePrevAction, FKey(TEXT("BackSlash")));
 	}
 
 	// Add the programmatic IMC to the subsystem
@@ -184,6 +203,16 @@ void UMordecaiHeroComponent::EnsureMordecaiInputBound(APlayerController* PC)
 	if (Spell4Action)
 	{
 		EIC->BindAction(Spell4Action, ETriggerEvent::Started, this, &UMordecaiHeroComponent::HandleSpell4Input);
+	}
+
+	// Bind weapon cycling input actions (US-078)
+	if (WeaponCycleNextAction)
+	{
+		EIC->BindAction(WeaponCycleNextAction, ETriggerEvent::Started, this, &UMordecaiHeroComponent::HandleWeaponCycleNextInput);
+	}
+	if (WeaponCyclePrevAction)
+	{
+		EIC->BindAction(WeaponCyclePrevAction, ETriggerEvent::Started, this, &UMordecaiHeroComponent::HandleWeaponCyclePrevInput);
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("MORDECAI: Programmatic IMC created and input bound successfully (including %d spell actions)."),
@@ -238,5 +267,25 @@ void UMordecaiHeroComponent::ActivateSpellBySlot(int32 SlotIndex)
 	if (ASC)
 	{
 		ASC->TryActivateAbilityByClass(SpellClass);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// US-078: Weapon Cycling Input Handlers
+// ---------------------------------------------------------------------------
+
+void UMordecaiHeroComponent::HandleWeaponCycleNextInput(const FInputActionValue& InputActionValue)
+{
+	if (AMordecaiCharacter* MC = Cast<AMordecaiCharacter>(GetOwner()))
+	{
+		MC->CycleNextWeapon();
+	}
+}
+
+void UMordecaiHeroComponent::HandleWeaponCyclePrevInput(const FInputActionValue& InputActionValue)
+{
+	if (AMordecaiCharacter* MC = Cast<AMordecaiCharacter>(GetOwner()))
+	{
+		MC->CyclePrevWeapon();
 	}
 }

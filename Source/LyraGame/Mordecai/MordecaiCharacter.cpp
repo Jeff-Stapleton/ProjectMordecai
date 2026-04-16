@@ -7,6 +7,10 @@
 #include "AbilitySystemComponent.h"
 #include "Mordecai/MordecaiHeroComponent.h"
 #include "Mordecai/Camera/MordecaiCameraMode_Diorama.h"
+#include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
+#include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
+#include "Mordecai/UI/MordecaiEquippedWeaponWidget.h"
+#include "Blueprint/UserWidget.h"
 #include "Camera/LyraCameraComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -29,6 +33,19 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 	// Hero component: binds camera mode from PawnData and initializes input
 	// Uses MordecaiHeroComponent to set DefaultInputMappings with IMC_Mordecai
 	HeroComponent = CreateDefaultSubobject<UMordecaiHeroComponent>(TEXT("HeroComponent"));
+
+	// Equipment component: manages weapon state + cycling (US-078)
+	EquipmentComponent = CreateDefaultSubobject<UMordecaiEquipmentComponent>(TEXT("EquipmentComponent"));
+
+	// Default starting weapons for the arena slice (US-078). Designer can override per-BP.
+	StartingWeapons.Add(TSoftObjectPtr<UMordecaiWeaponDataAsset>(FSoftObjectPath(TEXT("/MordecaiCore/Weapons/DA_Weapon_Longsword.DA_Weapon_Longsword"))));
+	StartingWeapons.Add(TSoftObjectPtr<UMordecaiWeaponDataAsset>(FSoftObjectPath(TEXT("/MordecaiCore/Weapons/DA_Weapon_Dagger.DA_Weapon_Dagger"))));
+	StartingWeapons.Add(TSoftObjectPtr<UMordecaiWeaponDataAsset>(FSoftObjectPath(TEXT("/MordecaiCore/Weapons/DA_Weapon_Greatsword.DA_Weapon_Greatsword"))));
+	StartingWeapons.Add(TSoftObjectPtr<UMordecaiWeaponDataAsset>(FSoftObjectPath(TEXT("/MordecaiCore/Weapons/DA_Weapon_Spear.DA_Weapon_Spear"))));
+	StartingWeapons.Add(TSoftObjectPtr<UMordecaiWeaponDataAsset>(FSoftObjectPath(TEXT("/MordecaiCore/Weapons/DA_Weapon_Mace.DA_Weapon_Mace"))));
+
+	// Default equipped-weapon HUD widget class
+	EquippedWeaponWidgetClass = UMordecaiEquippedWeaponWidget::StaticClass();
 
 	// Arrow component for facing direction visualization (AC-2.1.5)
 	FacingArrowComponent = CreateDefaultSubobject<UArrowComponent>(TEXT("FacingArrow"));
@@ -114,6 +131,72 @@ void AMordecaiCharacter::BeginPlay()
 	}
 }
 
+// ---------------------------------------------------------------------------
+// US-078: Weapon System
+// ---------------------------------------------------------------------------
+
+void AMordecaiCharacter::InitializeWeaponLoadout()
+{
+	if (!EquipmentComponent)
+	{
+		return;
+	}
+
+	// Populate AvailableWeapons from StartingWeapons (synchronous load — assets are small)
+	for (const TSoftObjectPtr<UMordecaiWeaponDataAsset>& SoftWeapon : StartingWeapons)
+	{
+		if (UMordecaiWeaponDataAsset* WeaponAsset = SoftWeapon.LoadSynchronous())
+		{
+			EquipmentComponent->AddAvailableWeapon(WeaponAsset);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MORDECAI: Failed to load starting weapon %s"),
+				*SoftWeapon.ToSoftObjectPath().ToString());
+		}
+	}
+
+	// Auto-equip the first weapon
+	if (EquipmentComponent->GetAvailableWeaponCount() > 0)
+	{
+		EquipmentComponent->CycleNextWeapon();
+	}
+
+	// Create and attach the equipped-weapon HUD widget for local player
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (PC && PC->IsLocalController() && EquippedWeaponWidgetClass)
+	{
+		EquippedWeaponWidget = CreateWidget<UMordecaiEquippedWeaponWidget>(PC, EquippedWeaponWidgetClass);
+		if (EquippedWeaponWidget)
+		{
+			EquippedWeaponWidget->BindToEquipmentComponent(EquipmentComponent);
+			EquippedWeaponWidget->AddToViewport(50);
+			// NOTE: Widget positioning (bottom-center per AC-078.11) is handled by the widget's
+			// own UMG layout (root CanvasPanel with anchor preset). The C++ widget is minimal;
+			// a companion WBP can override layout if desired.
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("MORDECAI: Weapon loadout initialized — %d weapons available"),
+		EquipmentComponent->GetAvailableWeaponCount());
+}
+
+void AMordecaiCharacter::CycleNextWeapon()
+{
+	if (EquipmentComponent)
+	{
+		EquipmentComponent->CycleNextWeapon();
+	}
+}
+
+void AMordecaiCharacter::CyclePrevWeapon()
+{
+	if (EquipmentComponent)
+	{
+		EquipmentComponent->CyclePrevWeapon();
+	}
+}
+
 TSubclassOf<ULyraCameraMode> AMordecaiCharacter::DetermineDioramaCameraMode() const
 {
 	return UMordecaiCameraMode_Diorama::StaticClass();
@@ -123,6 +206,14 @@ void AMordecaiCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 	BindToASC();
+
+	// US-078: Populate weapons and create HUD widget once we have a controller.
+	// PossessedBy runs after BeginPlay and after the controller is set.
+	// Works for standalone/listen server; PlayerController is valid client-side too.
+	if (NewController && NewController->IsLocalController())
+	{
+		InitializeWeaponLoadout();
+	}
 }
 
 void AMordecaiCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

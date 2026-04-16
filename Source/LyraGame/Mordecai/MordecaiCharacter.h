@@ -9,6 +9,9 @@
 class UArrowComponent;
 class ULyraCameraMode;
 class UMordecaiHeroComponent;
+class UMordecaiEquipmentComponent;
+class UMordecaiWeaponDataAsset;
+class UMordecaiEquippedWeaponWidget;
 class UStaticMeshComponent;
 struct FOnAttributeChangeData;
 
@@ -67,6 +70,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Character")
 	bool IsDead() const;
 
+	// --- US-078: Weapon System Integration ---
+
+	/** Equipment component for weapon management. Exposed for HeroComponent input wiring. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Equipment")
+	UMordecaiEquipmentComponent* GetEquipmentComponent() const { return EquipmentComponent; }
+
+	/** Cycle to next weapon in AvailableWeapons (bound to Tab / Gamepad Y via HeroComponent). */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Equipment")
+	void CycleNextWeapon();
+
+	/** Cycle to previous weapon in AvailableWeapons (bound to Shift+Tab via HeroComponent). */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Equipment")
+	void CyclePrevWeapon();
+
+	/** Designer-configurable starting weapon set. Auto-populated into AvailableWeapons on BeginPlay. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Equipment")
+	TArray<TSoftObjectPtr<UMordecaiWeaponDataAsset>> StartingWeapons;
+
+	/** Widget class for the equipped weapon HUD display. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Equipment")
+	TSubclassOf<UMordecaiEquippedWeaponWidget> EquippedWeaponWidgetClass;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void PossessedBy(AController* NewController) override;
@@ -76,6 +101,16 @@ private:
 	// Hero component — handles input binding and camera mode from PawnData
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Character", Meta = (AllowPrivateAccess = true))
 	TObjectPtr<UMordecaiHeroComponent> HeroComponent;
+
+	// Equipment component for weapon management (US-078)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Equipment", Meta = (AllowPrivateAccess = true))
+	TObjectPtr<UMordecaiEquipmentComponent> EquipmentComponent;
+
+	// Runtime: equipped-weapon HUD widget (created on BeginPlay for local player)
+	UPROPERTY(Transient)
+	TObjectPtr<UMordecaiEquippedWeaponWidget> EquippedWeaponWidget;
+
+	void InitializeWeaponLoadout();
 
 	// Facing direction indicator (AC-2.1.5)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Character", Meta = (AllowPrivateAccess = true))

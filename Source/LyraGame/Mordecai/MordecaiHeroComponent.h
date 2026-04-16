@@ -37,4 +37,8 @@ private:
 	void HandleSpell3Input(const FInputActionValue& InputActionValue);
 	void HandleSpell4Input(const FInputActionValue& InputActionValue);
 	void ActivateSpellBySlot(int32 SlotIndex);
+
+	// Weapon cycling handlers (US-078)
+	void HandleWeaponCycleNextInput(const FInputActionValue& InputActionValue);
+	void HandleWeaponCyclePrevInput(const FInputActionValue& InputActionValue);
 };
