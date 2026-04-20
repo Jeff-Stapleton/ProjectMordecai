@@ -91,6 +91,24 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Item|Ownership")
 	bool Tradable = true;
 
+	// --- Identification (US-033) ---
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Item|Identification")
+	bool UsesIdentification = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Item|Identification")
+	EMordecaiIdentificationState DefaultIdentificationState = EMordecaiIdentificationState::Identified;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Item|Identification")
+	bool RequiresIdentificationToEquip = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Item|Identification")
+	bool ShowPartialInfoBeforeIdentify = true;
+
+	/** Which town service identifies this item (placeholder for future multi-service support). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Item|Identification")
+	FName IdentificationService = FName(TEXT("MageTower"));
+
 	// --- Category helpers ---
 
 	/** True iff AutoStoreOnPickup is set. US-031 uses this to route pickups to town storage. */

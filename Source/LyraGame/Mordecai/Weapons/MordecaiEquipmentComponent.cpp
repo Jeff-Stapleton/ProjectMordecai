@@ -4,6 +4,8 @@
 #include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Items/MordecaiItemLibrary.h"
+#include "Mordecai/Items/MordecaiItemInstance.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
@@ -36,6 +38,11 @@ void UMordecaiEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimePro
 void UMordecaiEquipmentComponent::SetASCOverride(UAbilitySystemComponent* InASC)
 {
 	ASCOverride = InASC;
+}
+
+bool UMordecaiEquipmentComponent::IsInstanceEquippable(const FMordecaiItemInstance& Instance)
+{
+	return UMordecaiItemLibrary::CanEquipInstance(Instance);
 }
 
 UAbilitySystemComponent* UMordecaiEquipmentComponent::FindAbilitySystemComponent() const

@@ -77,6 +77,15 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Inventory")
 	int32 GetTotalQuantityOfDefinition(UMordecaiItemDefinition* Def) const;
 
+	// --- US-033: Identification ---
+
+	/**
+	 * Update an instance's IdentificationState. Used by UMordecaiIdentificationService.
+	 * Fires OnInventoryChanged with delta=0 to signal state change to listeners.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Inventory")
+	bool SetInstanceIdentificationState(const FGuid& InstanceId, EMordecaiIdentificationState NewState);
+
 	// --- Delegate ---
 
 	UPROPERTY(BlueprintAssignable, Category = "Mordecai|Inventory")

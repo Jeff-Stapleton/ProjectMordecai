@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Net/Serialization/FastArraySerializer.h"
+#include "Mordecai/Items/MordecaiItemTypes.h"
 #include "MordecaiItemInstance.generated.h"
 
 class UMordecaiItemDefinition;
@@ -35,7 +36,13 @@ struct LYRAGAME_API FMordecaiItemInstance : public FFastArraySerializerItem
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|Item")
 	bool IsEquipped = false;
 
+	/** Identification state (US-033). Defaults to Identified; inventory routes DefaultState on add when definition uses identification. */
+	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|Item")
+	EMordecaiIdentificationState IdentificationState = EMordecaiIdentificationState::Identified;
+
 	bool IsValid() const { return ItemDefinition != nullptr && Quantity > 0; }
+
+	bool IsIdentified() const { return IdentificationState == EMordecaiIdentificationState::Identified; }
 };
 
 /**

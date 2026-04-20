@@ -12,6 +12,7 @@
 class UMordecaiWeaponDataAsset;
 class UMordecaiAttackProfileDataAsset;
 class UAbilitySystemComponent;
+struct FMordecaiItemInstance;
 
 /** Broadcast when a weapon is equipped or unequipped. NewWeapon is nullptr on unequip. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
@@ -133,6 +134,14 @@ public:
 
 	/** Override the ASC reference for headless tests. */
 	void SetASCOverride(UAbilitySystemComponent* InASC);
+
+	/**
+	 * US-033 hook: static helper that defers to UMordecaiItemLibrary::CanEquipInstance.
+	 * Future story will thread this into the full EquipWeapon path when weapon
+	 * instances get linked to FMordecaiItemInstance records.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Equipment")
+	static bool IsInstanceEquippable(const FMordecaiItemInstance& Instance);
 
 	// --- Replication ---
 

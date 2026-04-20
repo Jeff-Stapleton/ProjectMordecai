@@ -222,6 +222,10 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Rarity_Purple, "Mordecai.Item.Rarity.Purple", "Purple (epic) rarity");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Rarity_Red,    "Mordecai.Item.Rarity.Red",    "Red (legendary) rarity");
 
+	// Item identification tags (US-033)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Identification_Identified,   "Mordecai.Item.Identification.Identified",   "Item is fully identified");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Identification_Unidentified, "Mordecai.Item.Identification.Unidentified", "Item is unidentified; partial info visible");
+
 	// Weapon type tags (US-024)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Sword,    "Mordecai.Weapon.Type.Sword",    "Character is wielding a sword-class weapon");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Axe,      "Mordecai.Weapon.Type.Axe",      "Character is wielding an axe-class weapon");

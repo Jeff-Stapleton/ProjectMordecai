@@ -58,3 +58,11 @@ enum class EMordecaiBindType : uint8
 	BindOnEquip,
 	QuestBound
 };
+
+/** Identification state for items that support identification (US-033). */
+UENUM(BlueprintType)
+enum class EMordecaiIdentificationState : uint8
+{
+	Identified = 0,
+	Unidentified
+};

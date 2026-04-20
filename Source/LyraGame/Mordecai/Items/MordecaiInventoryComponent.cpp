@@ -108,6 +108,11 @@ FGuid UMordecaiInventoryComponent::AddItem(UMordecaiItemDefinition* Def, int32 Q
 		NewInst.ItemDefinition = Def;
 		NewInst.Quantity = ThisStack;
 		NewInst.IsEquipped = false;
+		// US-033: Route DefaultIdentificationState for items that opt into identification.
+		// Definitions with UsesIdentification=false always produce Identified instances.
+		NewInst.IdentificationState = Def->UsesIdentification
+			? Def->DefaultIdentificationState
+			: EMordecaiIdentificationState::Identified;
 		ItemList.Items.Add(NewInst);
 		ItemList.MarkArrayDirty();
 
@@ -284,4 +289,27 @@ int32 UMordecaiInventoryComponent::GetTotalQuantityOfDefinition(UMordecaiItemDef
 		}
 	}
 	return Total;
+}
+
+// ---------------------------------------------------------------------------
+// US-033: Identification
+// ---------------------------------------------------------------------------
+
+bool UMordecaiInventoryComponent::SetInstanceIdentificationState(const FGuid& InstanceId, EMordecaiIdentificationState NewState)
+{
+	for (FMordecaiItemInstance& Inst : ItemList.Items)
+	{
+		if (Inst.InstanceId != InstanceId) continue;
+
+		if (Inst.IdentificationState == NewState)
+		{
+			return true; // no-op success
+		}
+		Inst.IdentificationState = NewState;
+		ItemList.MarkItemDirty(Inst);
+		// Delta=0 signals "state change without quantity change" (AC-033.14)
+		OnInventoryChanged.Broadcast(Inst.InstanceId, 0);
+		return true;
+	}
+	return false;
 }

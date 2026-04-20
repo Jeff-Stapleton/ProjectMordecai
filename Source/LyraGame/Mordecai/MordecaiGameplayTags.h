@@ -224,6 +224,10 @@ namespace MordecaiGameplayTags
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Rarity_Purple);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Rarity_Red);
 
+	// Item identification tags (US-033)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Identification_Identified);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Identification_Unidentified);
+
 	// Weapon type tags (US-024)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Weapon_Type_Sword);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Weapon_Type_Axe);

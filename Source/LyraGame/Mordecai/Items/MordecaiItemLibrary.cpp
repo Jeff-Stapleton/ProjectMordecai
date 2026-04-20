@@ -86,3 +86,140 @@ FGameplayTag UMordecaiItemLibrary::GetRarityTag(EMordecaiItemRarity Rarity)
 	default:                          return FGameplayTag();
 	}
 }
+
+// ---------------------------------------------------------------------------
+// US-033: Identification helpers
+// ---------------------------------------------------------------------------
+
+namespace
+{
+	FString RarityDisplayString(EMordecaiItemRarity R)
+	{
+		switch (R)
+		{
+		case EMordecaiItemRarity::Common: return TEXT("Common");
+		case EMordecaiItemRarity::Green:  return TEXT("Green");
+		case EMordecaiItemRarity::Blue:   return TEXT("Blue");
+		case EMordecaiItemRarity::Purple: return TEXT("Purple");
+		case EMordecaiItemRarity::Red:    return TEXT("Red");
+		default:                          return TEXT("");
+		}
+	}
+
+	FString ItemTypeDisplayString(EMordecaiItemType T)
+	{
+		switch (T)
+		{
+		case EMordecaiItemType::Weapon:        return TEXT("Weapon");
+		case EMordecaiItemType::Armor:         return TEXT("Armor");
+		case EMordecaiItemType::Trinket:       return TEXT("Trinket");
+		case EMordecaiItemType::Consumable:    return TEXT("Consumable");
+		case EMordecaiItemType::Material:      return TEXT("Material");
+		case EMordecaiItemType::TownResource:  return TEXT("Resource");
+		case EMordecaiItemType::UpgradeKey:    return TEXT("Upgrade Key");
+		case EMordecaiItemType::QuestItem:     return TEXT("Quest Item");
+		case EMordecaiItemType::MagicalItem:   return TEXT("Magical Item");
+		case EMordecaiItemType::CurrencyProxy: return TEXT("Currency");
+		default:                               return TEXT("Item");
+		}
+	}
+}
+
+FText UMordecaiItemLibrary::GetDisplayName(const FMordecaiItemInstance& Instance)
+{
+	const UMordecaiItemDefinition* Def = Instance.ItemDefinition;
+	if (!Def)
+	{
+		return FText::GetEmpty();
+	}
+
+	if (Instance.IsIdentified())
+	{
+		return Def->DisplayName;
+	}
+
+	if (!Def->ShowPartialInfoBeforeIdentify)
+	{
+		return FText::FromString(TEXT("Unknown Item"));
+	}
+
+	const FString RarityLabel = RarityDisplayString(Def->Rarity);
+	const FString TypeLabel = Def->Subtype.IsNone()
+		? ItemTypeDisplayString(Def->ItemType)
+		: Def->Subtype.ToString();
+
+	return FText::FromString(FString::Printf(TEXT("Unidentified %s %s"), *RarityLabel, *TypeLabel));
+}
+
+FText UMordecaiItemLibrary::GetDescription(const FMordecaiItemInstance& Instance)
+{
+	const UMordecaiItemDefinition* Def = Instance.ItemDefinition;
+	if (!Def)
+	{
+		return FText::GetEmpty();
+	}
+
+	if (Instance.IsIdentified())
+	{
+		return Def->Description;
+	}
+
+	if (Def->ShowPartialInfoBeforeIdentify)
+	{
+		return Def->ShortDescription;
+	}
+
+	return FText::GetEmpty();
+}
+
+FGameplayTagContainer UMordecaiItemLibrary::GetVisibleTags(const FMordecaiItemInstance& Instance)
+{
+	const UMordecaiItemDefinition* Def = Instance.ItemDefinition;
+	if (!Def)
+	{
+		return FGameplayTagContainer();
+	}
+
+	if (Instance.IsIdentified())
+	{
+		return Def->Tags;
+	}
+
+	// Filter: keep only Mordecai.Item.Rarity.* and Mordecai.Item.Type.* tags
+	static const FGameplayTag RarityRoot = FGameplayTag::RequestGameplayTag(FName(TEXT("Mordecai.Item.Rarity")), false);
+	static const FGameplayTag TypeRoot = FGameplayTag::RequestGameplayTag(FName(TEXT("Mordecai.Item.Type")), false);
+
+	FGameplayTagContainer Result;
+	for (const FGameplayTag& Tag : Def->Tags)
+	{
+		if (Tag.MatchesTag(RarityRoot) || Tag.MatchesTag(TypeRoot))
+		{
+			Result.AddTag(Tag);
+		}
+	}
+	return Result;
+}
+
+bool UMordecaiItemLibrary::CanEquipInstance(const FMordecaiItemInstance& Instance)
+{
+	const UMordecaiItemDefinition* Def = Instance.ItemDefinition;
+	if (!Def || !Def->IsEquippable())
+	{
+		return false;
+	}
+	if (Def->UsesIdentification && Def->RequiresIdentificationToEquip && !Instance.IsIdentified())
+	{
+		return false;
+	}
+	return true;
+}
+
+FGameplayTag UMordecaiItemLibrary::GetIdentificationTag(EMordecaiIdentificationState State)
+{
+	switch (State)
+	{
+	case EMordecaiIdentificationState::Identified:   return MordecaiGameplayTags::Item_Identification_Identified;
+	case EMordecaiIdentificationState::Unidentified: return MordecaiGameplayTags::Item_Identification_Unidentified;
+	default:                                         return FGameplayTag();
+	}
+}

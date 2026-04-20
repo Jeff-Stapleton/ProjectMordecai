@@ -13,7 +13,7 @@
 namespace MordecaiInventoryTestHelpers
 {
 	/** Build a transient UMordecaiItemDefinition with the specified fields. */
-	static UMordecaiItemDefinition* MakeDef(
+	static UMordecaiItemDefinition* MakeInvDef(
 		FName ItemId,
 		EMordecaiItemType Type,
 		bool bAutoStored = false,
@@ -54,7 +54,7 @@ bool FMordecai_Inventory_AddNonAutoStoredCreatesInstance::RunTest(const FString&
 {
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInventory(&Ledger);
-	UMordecaiItemDefinition* Sword = MakeDef(FName("Sword_Iron"), EMordecaiItemType::Weapon);
+	UMordecaiItemDefinition* Sword = MakeInvDef(FName("Sword_Iron"), EMordecaiItemType::Weapon);
 
 	FGuid Id = Inv->AddItem(Sword, 1);
 	TestTrue("Returned valid InstanceId", Id.IsValid());
@@ -74,7 +74,7 @@ bool FMordecai_Inventory_AddAutoStoredRoutesToLedger::RunTest(const FString& Par
 {
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInventory(&Ledger);
-	UMordecaiItemDefinition* IronOre = MakeDef(FName("Mat_IronOre"), EMordecaiItemType::Material, /*autoStored*/true);
+	UMordecaiItemDefinition* IronOre = MakeInvDef(FName("Mat_IronOre"), EMordecaiItemType::Material, /*autoStored*/true);
 
 	Inv->PickupItem(IronOre, 5);
 
@@ -98,7 +98,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Inventory_AddStackableMergesIntoExist
 bool FMordecai_Inventory_AddStackableMergesIntoExistingStack::RunTest(const FString& Parameters)
 {
 	UMordecaiInventoryComponent* Inv = MakeInventory();
-	UMordecaiItemDefinition* Potion = MakeDef(FName("Potion_Health"), EMordecaiItemType::Consumable,
+	UMordecaiItemDefinition* Potion = MakeInvDef(FName("Potion_Health"), EMordecaiItemType::Consumable,
 		/*autoStored*/false, /*stackable*/true, /*maxStack*/10);
 
 	Inv->AddItem(Potion, 1);
@@ -119,7 +119,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Inventory_AddStackableOverflowsWhenAt
 bool FMordecai_Inventory_AddStackableOverflowsWhenAtMax::RunTest(const FString& Parameters)
 {
 	UMordecaiInventoryComponent* Inv = MakeInventory();
-	UMordecaiItemDefinition* Potion = MakeDef(FName("Potion_Health"), EMordecaiItemType::Consumable,
+	UMordecaiItemDefinition* Potion = MakeInvDef(FName("Potion_Health"), EMordecaiItemType::Consumable,
 		/*autoStored*/false, /*stackable*/true, /*maxStack*/10);
 
 	Inv->AddItem(Potion, 10);
@@ -141,7 +141,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Inventory_RemoveItemDecrementsQuantit
 bool FMordecai_Inventory_RemoveItemDecrementsQuantity::RunTest(const FString& Parameters)
 {
 	UMordecaiInventoryComponent* Inv = MakeInventory();
-	UMordecaiItemDefinition* Potion = MakeDef(FName("Potion"), EMordecaiItemType::Consumable,
+	UMordecaiItemDefinition* Potion = MakeInvDef(FName("Potion"), EMordecaiItemType::Consumable,
 		false, true, 10);
 
 	FGuid Id = Inv->AddItem(Potion, 3);
@@ -160,7 +160,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Inventory_RemoveItemDeletesInstanceAt
 bool FMordecai_Inventory_RemoveItemDeletesInstanceAtZero::RunTest(const FString& Parameters)
 {
 	UMordecaiInventoryComponent* Inv = MakeInventory();
-	UMordecaiItemDefinition* Sword = MakeDef(FName("Sword"), EMordecaiItemType::Weapon);
+	UMordecaiItemDefinition* Sword = MakeInvDef(FName("Sword"), EMordecaiItemType::Weapon);
 	FGuid Id = Inv->AddItem(Sword, 1);
 
 	TestTrue("Remove 1 returns true", Inv->RemoveItem(Id, 1));
@@ -181,7 +181,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Inventory_ConsumeByDefinitionIsAtomic
 bool FMordecai_Inventory_ConsumeByDefinitionIsAtomic::RunTest(const FString& Parameters)
 {
 	UMordecaiInventoryComponent* Inv = MakeInventory();
-	UMordecaiItemDefinition* Potion = MakeDef(FName("Potion"), EMordecaiItemType::Consumable,
+	UMordecaiItemDefinition* Potion = MakeInvDef(FName("Potion"), EMordecaiItemType::Consumable,
 		false, true, 10);
 	Inv->AddItem(Potion, 3);
 
@@ -200,7 +200,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Inventory_ConsumeByDefinitionPrefersL
 bool FMordecai_Inventory_ConsumeByDefinitionPrefersLowestStack::RunTest(const FString& Parameters)
 {
 	UMordecaiInventoryComponent* Inv = MakeInventory();
-	UMordecaiItemDefinition* Potion = MakeDef(FName("Potion"), EMordecaiItemType::Consumable,
+	UMordecaiItemDefinition* Potion = MakeInvDef(FName("Potion"), EMordecaiItemType::Consumable,
 		false, true, 10);
 
 	// Two stacks: 5 and 2 (add the 5 first, then force a separate 2-stack by adding 2 after)
@@ -234,8 +234,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Inventory_GetItemsByTypeFiltersCorrec
 bool FMordecai_Inventory_GetItemsByTypeFiltersCorrectly::RunTest(const FString& Parameters)
 {
 	UMordecaiInventoryComponent* Inv = MakeInventory();
-	UMordecaiItemDefinition* Sword = MakeDef(FName("Sword"), EMordecaiItemType::Weapon);
-	UMordecaiItemDefinition* Potion = MakeDef(FName("Potion"), EMordecaiItemType::Consumable);
+	UMordecaiItemDefinition* Sword = MakeInvDef(FName("Sword"), EMordecaiItemType::Weapon);
+	UMordecaiItemDefinition* Potion = MakeInvDef(FName("Potion"), EMordecaiItemType::Consumable);
 	Inv->AddItem(Sword, 1);
 	Inv->AddItem(Potion, 1);
 
@@ -255,9 +255,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Inventory_GetSortedItemsOrdersByPrior
 bool FMordecai_Inventory_GetSortedItemsOrdersByPriority::RunTest(const FString& Parameters)
 {
 	UMordecaiInventoryComponent* Inv = MakeInventory();
-	UMordecaiItemDefinition* Low = MakeDef(FName("Low"), EMordecaiItemType::Material,
+	UMordecaiItemDefinition* Low = MakeInvDef(FName("Low"), EMordecaiItemType::Material,
 		false, false, 1, EMordecaiSortPriority::Normal);
-	UMordecaiItemDefinition* High = MakeDef(FName("High"), EMordecaiItemType::QuestItem,
+	UMordecaiItemDefinition* High = MakeInvDef(FName("High"), EMordecaiItemType::QuestItem,
 		false, false, 1, EMordecaiSortPriority::Critical);
 	Inv->AddItem(Low, 1);
 	Inv->AddItem(High, 1);
@@ -282,7 +282,7 @@ bool FMordecai_Inventory_NoCapacityLimit::RunTest(const FString& Parameters)
 	// Add 1000 distinct non-stackable items — no capacity rejection
 	for (int32 i = 0; i < 1000; ++i)
 	{
-		UMordecaiItemDefinition* Def = MakeDef(FName(*FString::Printf(TEXT("Item_%d"), i)),
+		UMordecaiItemDefinition* Def = MakeInvDef(FName(*FString::Printf(TEXT("Item_%d"), i)),
 			EMordecaiItemType::Trinket);
 		FGuid Id = Inv->AddItem(Def, 1);
 		TestTrue("Valid id every time", Id.IsValid());
@@ -306,7 +306,7 @@ bool FMordecai_Inventory_ChangedDelegateFiresOnAdd::RunTest(const FString& Param
 	UMordecaiInventoryDelegateSpy* Spy = NewObject<UMordecaiInventoryDelegateSpy>();
 	Inv->OnInventoryChanged.AddDynamic(Spy, &UMordecaiInventoryDelegateSpy::Handle);
 
-	UMordecaiItemDefinition* Sword = MakeDef(FName("Sword"), EMordecaiItemType::Weapon);
+	UMordecaiItemDefinition* Sword = MakeInvDef(FName("Sword"), EMordecaiItemType::Weapon);
 	Inv->AddItem(Sword, 1);
 	TestEqual("Add fired 1 event", Spy->AddEvents, 1);
 	TestEqual("Delta = +1", Spy->LastDelta, 1);
@@ -320,7 +320,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Inventory_ChangedDelegateFiresOnRemov
 bool FMordecai_Inventory_ChangedDelegateFiresOnRemove::RunTest(const FString& Parameters)
 {
 	UMordecaiInventoryComponent* Inv = MakeInventory();
-	UMordecaiItemDefinition* Potion = MakeDef(FName("Potion"), EMordecaiItemType::Consumable,
+	UMordecaiItemDefinition* Potion = MakeInvDef(FName("Potion"), EMordecaiItemType::Consumable,
 		false, true, 10);
 	FGuid Id = Inv->AddItem(Potion, 3);
 
@@ -343,7 +343,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Ledger_AddResourceIncrementsCount,
 bool FMordecai_Ledger_AddResourceIncrementsCount::RunTest(const FString& Parameters)
 {
 	UMordecaiResourceLedger* Ledger = NewObject<UMordecaiResourceLedger>();
-	UMordecaiItemDefinition* Ore = MakeDef(FName("Mat_Ore"), EMordecaiItemType::Material, true);
+	UMordecaiItemDefinition* Ore = MakeInvDef(FName("Mat_Ore"), EMordecaiItemType::Material, true);
 
 	Ledger->AddResource(Ore, 7);
 	TestEqual("Count=7 after add", Ledger->GetResourceCount(FName("Mat_Ore")), 7);
@@ -363,7 +363,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Ledger_AddResourceRejectsNonAutoStore
 bool FMordecai_Ledger_AddResourceRejectsNonAutoStored::RunTest(const FString& Parameters)
 {
 	UMordecaiResourceLedger* Ledger = NewObject<UMordecaiResourceLedger>();
-	UMordecaiItemDefinition* Sword = MakeDef(FName("Sword"), EMordecaiItemType::Weapon, /*autostored*/false);
+	UMordecaiItemDefinition* Sword = MakeInvDef(FName("Sword"), EMordecaiItemType::Weapon, /*autostored*/false);
 
 	AddExpectedError(TEXT("rejected non-auto-stored"), EAutomationExpectedErrorFlags::Contains, 0);
 	Ledger->AddResource(Sword, 5);
@@ -381,7 +381,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Ledger_ConsumeResourceIsAtomic,
 bool FMordecai_Ledger_ConsumeResourceIsAtomic::RunTest(const FString& Parameters)
 {
 	UMordecaiResourceLedger* Ledger = NewObject<UMordecaiResourceLedger>();
-	UMordecaiItemDefinition* Ore = MakeDef(FName("Mat_Ore"), EMordecaiItemType::Material, true);
+	UMordecaiItemDefinition* Ore = MakeInvDef(FName("Mat_Ore"), EMordecaiItemType::Material, true);
 	Ledger->AddResource(Ore, 4);
 
 	TestFalse("Consume 5 from 4 returns false", Ledger->ConsumeResource(FName("Mat_Ore"), 5));
@@ -406,7 +406,7 @@ bool FMordecai_Ledger_ChangedDelegateFiresOnAdd::RunTest(const FString& Paramete
 	UMordecaiLedgerDelegateSpy* Spy = NewObject<UMordecaiLedgerDelegateSpy>();
 	Ledger->OnResourceChanged.AddDynamic(Spy, &UMordecaiLedgerDelegateSpy::Handle);
 
-	UMordecaiItemDefinition* Ore = MakeDef(FName("Mat_Ore"), EMordecaiItemType::Material, true);
+	UMordecaiItemDefinition* Ore = MakeInvDef(FName("Mat_Ore"), EMordecaiItemType::Material, true);
 	Ledger->AddResource(Ore, 5);
 
 	TestEqual("Delegate fired once", Spy->EventCount, 1);

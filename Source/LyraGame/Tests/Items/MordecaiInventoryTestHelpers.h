@@ -42,3 +42,21 @@ public:
 		LastCount = NewCount;
 	}
 };
+
+class UMordecaiInventoryComponent;
+
+UCLASS()
+class UMordecaiIdentifyDelegateSpy : public UObject
+{
+	GENERATED_BODY()
+public:
+	int32 EventCount = 0;
+	FGuid LastInstanceId;
+
+	UFUNCTION()
+	void Handle(UMordecaiInventoryComponent* Inventory, FGuid InstanceId)
+	{
+		EventCount++;
+		LastInstanceId = InstanceId;
+	}
+};
