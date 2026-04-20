@@ -78,11 +78,11 @@ Wire melee weapons into the playable arena. Per Playability-First Rule (after Ep
 - US-077: Weapon Cycling & Equipped Weapon Display (HEADLESS — cycling logic, weapon HUD widget, OnWeaponChanged delegate) ✅
 - US-078: Playable Weapon Arena Integration (EDITOR — weapon DataAssets, cycling input, HUD wiring, arena setup, 5-weapon play-test) ✅
 
-### Epic 7: Inventory
+### Epic 7: Inventory (3/3 scoped, ready for implementation)
 Implement unlimited-carry inventory with town gating (per agent_rules_v2).
-- US-031: Flat Inventory & Auto-Store System
-- US-032: Item Categories & Stack Rules
-- US-033: Unidentified Item & Town Gating Flow
+- US-032: Item Definition & Categories (HEADLESS — foundation: UMordecaiItemDefinition, enums, sort/stack helpers, item tags) ✅
+- US-031: Flat Inventory & Auto-Store System (HEADLESS — UMordecaiInventoryComponent, UMordecaiResourceLedger, pickup routing) — after US-032
+- US-033: Unidentified Items & Identification Service (HEADLESS — per-instance ID state, partial-info API, equip gating, service subsystem) — after US-031
 
 ### Epic 8: World & Exploration
 Movement skills, exploration systems, Metroidvania gating.
@@ -137,15 +137,14 @@ Delegated town systems.
 7. **Epic 10 Phase 1** — Combat HUD Completion ✅
 8. **Epic 4+5 remaining + Epic 5.5** — Status/magic completion + magic slice ✅
 9. **Epic 10 Phase 2-3** — Enemy indicators, damage numbers, pause menu, progression UI ✅
-10. **Epic 6 (melee weapons) + Epic 6.5 (playable weapon slice)** ⚡ **CURRENT PRIORITY**
-    - Batch 1: US-025 (Blade Family profiles, HEADLESS)
-    - Batch 2: US-026 (Blunt & Polearm profiles, HEADLESS) — can parallelize with US-025
-    - Batch 3: US-077 (Weapon cycling + HUD, HEADLESS)
-    - Batch 4: US-078 (Playable Weapon Arena, EDITOR)
-11. **Epic 6 (ranged weapons)** — US-027/028/029/030 — needs design input for crossbow/throwables/wands/two-weapon/armor/shields
-12. **Epic 10 Phase 4** — Blueprint polish, VFX (US-070, US-076, US-075)
-13. **Epic 7** — Inventory
-14. **Epic 10 Phase 5+** — Inventory/town/map UI
+10. **Epic 6 (melee weapons) + Epic 6.5 (playable weapon slice)** ✅
+11. **Epic 7 — Inventory** ⚡ **CURRENT PRIORITY**
+    - Batch 1: US-032 (Item Definition & Categories, HEADLESS) — foundation, go first
+    - Batch 2: US-031 (Flat Inventory & Auto-Store, HEADLESS) — after US-032
+    - Batch 3: US-033 (Unidentified Items & Identification Service, HEADLESS) — after US-031
+12. **Epic 6 (ranged weapons)** — US-027/028/029/030 — needs design input for crossbow/throwables/wands/two-weapon/armor/shields
+13. **Epic 10 Phase 4** — Blueprint polish, VFX (US-070, US-076, US-075)
+14. **Epic 10 Phase 5+** — Inventory/town/map UI (US-071 Inventory UI unblocks after Epic 7)
 15. **Epic 8** — World & Exploration
 16. **Epic 9** — Town Management
 
@@ -158,3 +157,5 @@ Delegated town systems.
 - Epic 6 US-025 (Melee Weapons) split into US-025 (Blades) and US-026 (Blunt/Polearm). Original US-026–029 renumbered to US-027–030
 - Epic 6.5 added as integration milestone: US-077 (weapon cycling C++) + US-078 (playable weapon arena EDITOR)
 - US-027–030 marked as needing design input: crossbow, throwables, wands, two-weapon fighting, armor, and shields have insufficient design detail in current docs
+- Epic 7 (Inventory) implementation order: US-032 → US-031 → US-033. US-032 delivers item definition foundation; US-031 and US-033 depend on it.
+- Per Playability-First Rule: Epic 6.5 was the last integration milestone. Epic 7 is pure system work (HEADLESS). After Epic 7, next integration candidate is UI-focused (US-071 Inventory UI — EDITOR — after Epic 7 complete).
