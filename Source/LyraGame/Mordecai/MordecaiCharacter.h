@@ -12,6 +12,8 @@ class UMordecaiHeroComponent;
 class UMordecaiEquipmentComponent;
 class UMordecaiWeaponDataAsset;
 class UMordecaiEquippedWeaponWidget;
+class UMordecaiInventoryComponent;
+class UMordecaiResourceLedger;
 class UStaticMeshComponent;
 struct FOnAttributeChangeData;
 
@@ -76,6 +78,14 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Equipment")
 	UMordecaiEquipmentComponent* GetEquipmentComponent() const { return EquipmentComponent; }
 
+	// --- US-031: Inventory & Ledger ---
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Inventory")
+	UMordecaiInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Inventory")
+	UMordecaiResourceLedger* GetResourceLedger() const { return ResourceLedger; }
+
 	/** Cycle to next weapon in AvailableWeapons (bound to Tab / Gamepad Y via HeroComponent). */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Equipment")
 	void CycleNextWeapon();
@@ -105,6 +115,13 @@ private:
 	// Equipment component for weapon management (US-078)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Equipment", Meta = (AllowPrivateAccess = true))
 	TObjectPtr<UMordecaiEquipmentComponent> EquipmentComponent;
+
+	// Inventory (flat-list, unlimited carry) and resource ledger (auto-stored materials) — US-031
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Inventory", Meta = (AllowPrivateAccess = true))
+	TObjectPtr<UMordecaiInventoryComponent> InventoryComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Inventory", Meta = (AllowPrivateAccess = true))
+	TObjectPtr<UMordecaiResourceLedger> ResourceLedger;
 
 	// Runtime: equipped-weapon HUD widget (created on BeginPlay for local player)
 	UPROPERTY(Transient)

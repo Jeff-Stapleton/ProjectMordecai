@@ -9,6 +9,8 @@
 #include "Mordecai/Camera/MordecaiCameraMode_Diorama.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
+#include "Mordecai/Items/MordecaiInventoryComponent.h"
+#include "Mordecai/Items/MordecaiResourceLedger.h"
 #include "Mordecai/UI/MordecaiEquippedWeaponWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Camera/LyraCameraComponent.h"
@@ -36,6 +38,14 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 
 	// Equipment component: manages weapon state + cycling (US-078)
 	EquipmentComponent = CreateDefaultSubobject<UMordecaiEquipmentComponent>(TEXT("EquipmentComponent"));
+
+	// Inventory + ledger (US-031) — unlimited carry flat list + auto-stored resource counts
+	InventoryComponent = CreateDefaultSubobject<UMordecaiInventoryComponent>(TEXT("InventoryComponent"));
+	ResourceLedger = CreateDefaultSubobject<UMordecaiResourceLedger>(TEXT("ResourceLedger"));
+	if (InventoryComponent && ResourceLedger)
+	{
+		InventoryComponent->SetResourceLedger(ResourceLedger);
+	}
 
 	// Default starting weapons for the arena slice (US-078). Designer can override per-BP.
 	StartingWeapons.Add(TSoftObjectPtr<UMordecaiWeaponDataAsset>(FSoftObjectPath(TEXT("/MordecaiCore/Weapons/DA_Weapon_Longsword.DA_Weapon_Longsword"))));
