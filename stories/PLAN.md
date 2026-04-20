@@ -81,7 +81,7 @@ Wire melee weapons into the playable arena. Per Playability-First Rule (after Ep
 ### Epic 7: Inventory (3/3 scoped, ready for implementation)
 Implement unlimited-carry inventory with town gating (per agent_rules_v2).
 - US-032: Item Definition & Categories (HEADLESS — foundation: UMordecaiItemDefinition, enums, sort/stack helpers, item tags) ✅
-- US-031: Flat Inventory & Auto-Store System (HEADLESS — UMordecaiInventoryComponent, UMordecaiResourceLedger, pickup routing) — after US-032
+- US-031: Flat Inventory & Auto-Store System (HEADLESS — UMordecaiInventoryComponent, UMordecaiResourceLedger, pickup routing) ✅
 - US-033: Unidentified Items & Identification Service (HEADLESS — per-instance ID state, partial-info API, equip gating, service subsystem) — after US-031
 
 ### Epic 8: World & Exploration
