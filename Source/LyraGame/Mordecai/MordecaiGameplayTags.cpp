@@ -204,6 +204,24 @@ namespace MordecaiGameplayTags
 	// Event tags (US-017)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_BreakFree, "Mordecai.Event.BreakFree", "Break-free action — heavy stamina cost to remove Rooted early");
 
+	// Item type tags (US-032)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Type_Weapon,       "Mordecai.Item.Type.Weapon",       "Item is a weapon");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Type_Armor,        "Mordecai.Item.Type.Armor",        "Item is armor");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Type_Trinket,      "Mordecai.Item.Type.Trinket",      "Item is a trinket / accessory");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Type_Consumable,   "Mordecai.Item.Type.Consumable",   "Item is a consumable (potion, scroll)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Type_Material,     "Mordecai.Item.Type.Material",     "Item is a crafting/upgrade material (auto-stored by default)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Type_TownResource, "Mordecai.Item.Type.TownResource", "Item is a town-level resource (auto-stored)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Type_UpgradeKey,   "Mordecai.Item.Type.UpgradeKey",   "Item is a persistent upgrade key");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Type_QuestItem,    "Mordecai.Item.Type.QuestItem",    "Item is a quest-bound item");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Type_MagicalItem,  "Mordecai.Item.Type.MagicalItem",  "Item is a magical item (may require identification)");
+
+	// Item rarity tags (US-032)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Rarity_Common, "Mordecai.Item.Rarity.Common", "Common rarity");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Rarity_Green,  "Mordecai.Item.Rarity.Green",  "Green (uncommon) rarity");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Rarity_Blue,   "Mordecai.Item.Rarity.Blue",   "Blue (rare) rarity");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Rarity_Purple, "Mordecai.Item.Rarity.Purple", "Purple (epic) rarity");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Rarity_Red,    "Mordecai.Item.Rarity.Red",    "Red (legendary) rarity");
+
 	// Weapon type tags (US-024)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Sword,    "Mordecai.Weapon.Type.Sword",    "Character is wielding a sword-class weapon");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Weapon_Type_Axe,      "Mordecai.Weapon.Type.Axe",      "Character is wielding an axe-class weapon");

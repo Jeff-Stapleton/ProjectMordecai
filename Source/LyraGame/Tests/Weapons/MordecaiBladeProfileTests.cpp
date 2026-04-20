@@ -19,7 +19,7 @@
 
 namespace MordecaiBladeTestHelpers
 {
-	static FMordecaiWeaponInstance MakeInstance(UMordecaiWeaponDataAsset* DA)
+	static FMordecaiWeaponInstance MakeBladeInstance(UMordecaiWeaponDataAsset* DA)
 	{
 		FMordecaiWeaponInstance Inst;
 		Inst.InstanceId = FGuid::NewGuid();
@@ -377,7 +377,7 @@ bool FMordecai_Weapon_Blades_EquipSetsActiveProfiles::RunTest(const FString& Par
 	// Equip each blade and check active profiles
 	auto TestWeapon = [&](UMordecaiWeaponDataAsset* W, EMordecaiEquipSlot Slot, int32 ExpectedCount)
 	{
-		FMordecaiWeaponInstance Inst = MakeInstance(W);
+		FMordecaiWeaponInstance Inst = MakeBladeInstance(W);
 		EquipComp->EquipWeapon(Inst, Slot);
 		TArray<UMordecaiAttackProfileDataAsset*> Active = EquipComp->GetActiveLightAttackProfiles();
 		TestEqual(FString::Printf(TEXT("%s active profiles count"), *W->WeaponId.ToString()),
