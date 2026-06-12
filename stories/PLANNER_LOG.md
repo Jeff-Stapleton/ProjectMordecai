@@ -1967,3 +1967,766 @@ AFTER Epic 6.5:
 - Ranged weapon stories need design input from Jeff before scoping
 - Epic 10 Phase 4 (Blueprint polish) is ready to scope if there's a gap
 - Epic 7 (Inventory) can be scoped in parallel
+
+---
+
+## 2026-04-16 Nightly Planning Run
+
+### Completed Since Last Run
+Epic 6.5 (Playable Weapon Arena) completed — both stories landed:
+- US-077: Weapon Cycling & Equipped Weapon Display ✅ (HEADLESS)
+- US-078: Playable Weapon Arena Integration ✅ (EDITOR)
+
+All of Epic 6 melee (US-024, US-025, US-026) + Epic 6.5 (US-077, US-078) is now in `done/`. Backlog and in-progress are empty.
+
+### Currently In Progress
+- (none — clean state)
+
+### New Stories Created
+All three Epic 7 stories scoped. All HEADLESS. All placed in `stories/backlog/`.
+
+- **US-032: Item Definition & Categories** (`stories/backlog/US-032-item-definition-categories.md`) — HEADLESS
+  - Foundation story. Delivers `EMordecaiItemType`, `EMordecaiCarryModel`, `EMordecaiStorageDomain`, `EMordecaiSortPriority`, `EMordecaiBindType` enums
+  - `UMordecaiItemDefinition` (UDataAsset) with identity/classification/storage/stack/ownership fields mirroring `item_schema_v2.md`
+  - `UMordecaiItemLibrary` with `CompareSortPriority`, `GetTypeDefaultAutoStore`, tag accessors
+  - Reuses existing `EMordecaiItemRarity` and `EMordecaiModifierOp` from Weapons — does NOT duplicate
+  - Does NOT refactor `UMordecaiWeaponDataAsset` to inherit from the new class (deferred)
+  - 13 automation tests — enums, fields, helpers, tag mapping
+  - **IMPLEMENT FIRST in Epic 7 — US-031 and US-033 depend on this.**
+
+- **US-031: Flat Inventory & Auto-Store System** (`stories/backlog/US-031-flat-inventory-auto-store.md`) — HEADLESS
+  - `FMordecaiItemInstance` struct (InstanceId, ItemDefinition, Quantity, AffixRolls, IsEquipped)
+  - `UMordecaiInventoryComponent` (replicated, flat list, unlimited carry): AddItem, RemoveItem, ConsumeByDefinition (atomic), GetAllItems/ByType/Sorted, FindInstance, GetTotalQuantityOfDefinition
+  - `UMordecaiResourceLedger` (replicated component, TMap<FName,int32>): AddResource, GetResourceCount, ConsumeResource (atomic), GetAllResources
+  - `PickupItem` unified entry point — routes by `IsAutoStored()`: Materials/TownResources go to ledger, everything else to inventory
+  - OnInventoryChanged and OnResourceChanged multicast delegates
+  - Stack merging with overflow, no capacity cap (enforces locked rule)
+  - AMordecaiCharacter wires both components as subobjects
+  - 18 automation tests — routing, stacking, atomicity, filters, delegates, no-cap invariant
+  - Flagged TODO(DECISION): ledger location may migrate to PlayerState when town persistence lands (future story)
+
+- **US-033: Unidentified Items & Identification Service** (`stories/backlog/US-033-unidentified-items-town-gating.md`) — HEADLESS
+  - Adds `EMordecaiIdentificationState` enum (Identified/Unidentified)
+  - `UMordecaiItemDefinition` gains UsesIdentification/DefaultIdentificationState/RequiresIdentificationToEquip/ShowPartialInfoBeforeIdentify/IdentificationService fields
+  - `FMordecaiItemInstance` gains IdentificationState field; instance creation respects `Def->DefaultIdentificationState` but forces Identified when UsesIdentification=false
+  - `UMordecaiItemLibrary` adds GetDisplayName/GetDescription/GetVisibleTags helpers — returns partial info (e.g., "Unidentified Purple Sword") for unidentified items when ShowPartialInfoBeforeIdentify is true
+  - CanEquipInstance blocks equip when RequiresIdentificationToEquip + Unidentified
+  - `UMordecaiIdentificationService` (UGameInstanceSubsystem) with IdentifyInstance + OnItemIdentified delegate — callable headlessly, no NPC/UI (future town story)
+  - 17 automation tests — field defaults, partial-info rendering, tag filtering, equip gating, service state flip, delegate firing
+  - No cost model; flagged TODO(DECISION): identification is currently free — gold/time/reagent cost is future design decision
+
+### PLAN.md Updates
+- Epic 7 marked "3/3 scoped, ready for implementation" with explicit implementation order (US-032 → US-031 → US-033)
+- Priority order updated: item 10 (Epic 6 + 6.5) marked complete; item 11 (Epic 7) is now the CURRENT PRIORITY
+- Added note that next integration milestone candidate is US-071 (Inventory UI, EDITOR) — expected after Epic 7 completes, in line with Playability-First Rule
+
+### Source Code State
+- `Mordecai/Weapons/` — US-024 foundation + blade/blunt/polearm profiles + cycling
+- `Mordecai/UI/` — Combat HUD widgets + character sheet + skill tree + feat display + equipped weapon
+- `Mordecai/Items/` — does NOT exist yet. US-032 creates this directory.
+- All prior systems unchanged from 2026-04-14 run + US-025/026/077/078 additions
+
+### Dependency Graph
+
+```
+CURRENT — Epic 7 Inventory:
+
+  US-032 (Item Definition & Categories, HEADLESS)
+                        │
+                        ▼
+  US-031 (Flat Inventory & Auto-Store, HEADLESS)
+                        │
+                        ▼
+  US-033 (Unidentified Items & ID Service, HEADLESS)
+
+AFTER Epic 7:
+  US-071 (Inventory UI, EDITOR) — integration milestone for Epic 7
+  Epic 10 Phase 4 (Blueprint polish: US-070, US-076, US-075) — EDITOR, lower priority
+  Epic 6 ranged weapons (US-027–030) — BLOCKED on design input
+```
+
+### Design Gaps / Decisions Needed
+- **Identification cost model:** Current scope makes identification free and instant. A future decision is needed on gold cost, in-game time cost, reagent requirements, or NPC-service gating. Flagged as TODO(DECISION) in US-033.
+- **Ledger ownership:** Resource ledger is per-character for launch (US-031). When town persistence / shared storage lands, this likely migrates to PlayerState or a GameInstance subsystem. Out of scope here, flagged in US-031.
+- **Weapon/Item definition relationship:** `UMordecaiWeaponDataAsset` (US-024) does NOT currently inherit from the new `UMordecaiItemDefinition` (US-032). They coexist for now. A future refactor story can unify them — scoping that is risky (touches all weapon profile factories) and NOT in scope for Epic 7.
+- **Ranged weapons (US-027):** Still blocked on design for crossbow, throwables, wands. Longbow/Shortbow are scopable (clear intent in attack_taxonomy) but have no numeric values — planner-scoped initial tuning would be needed like US-026. Noted but not scoped this run.
+- **Shield/Armor/Two-weapon (US-028/029/030):** Still blocked on design input.
+
+### Next Session Recommendation
+
+**Batch 1 — Sequential (HEADLESS, all ready NOW):**
+1. **US-032** (Item Definition & Categories) — foundation. 13 tests. Well-scoped, follows DataAsset pattern from US-024.
+2. **US-031** (Flat Inventory & Auto-Store) — after US-032. 18 tests. Replicated component + resource ledger.
+3. **US-033** (Unidentified Items & ID Service) — after US-031. 17 tests. Per-instance state + library helpers + subsystem.
+
+Epic 7 is **three sequential HEADLESS stories**. None can parallelize (each depends on the previous). Total: 48 tests across three stories. All end with PIE smoke test per the "PIE smoke tests run every time" rule.
+
+**Playability-First note:** Epic 6.5 just concluded as an integration milestone. Epic 7 is pure system work. After Epic 7, the next integration candidate is US-071 (Inventory UI, EDITOR) to make the inventory/auto-store/identification flow actually visible and testable by Jeff in-game.
+
+**Still blocked (unchanged):**
+- Ranged weapons (US-027), two-weapon fighting (US-028), armor (US-029), shields (US-030) — need design input before scoping
+
+---
+
+## 2026-04-17 Nightly Planning Run
+
+### Completed Since Last Run
+- (none) No implementation commits have landed since the 2026-04-16 run. HEAD is still at `bdc0119` ([US-078] Mark DoD complete), which pre-dates the last planner entry.
+
+### Currently In Progress
+- (none — `stories/in-progress/` is empty)
+
+### New Stories Created
+- (none) Epic 7 was fully scoped in the 2026-04-16 run. All three stories remain in `stories/backlog/` and are still valid:
+  - `US-032-item-definition-categories.md` (HEADLESS) — foundation, go first
+  - `US-031-flat-inventory-auto-store.md` (HEADLESS) — depends on US-032
+  - `US-033-unidentified-items-town-gating.md` (HEADLESS) — depends on US-031
+
+### PLAN.md Updates
+- No changes this run. Priority order is unchanged: Epic 7 (Inventory) remains CURRENT PRIORITY.
+- Note: `stories/PLAN.md` and `stories/PLANNER_LOG.md` edits from the 2026-04-16 run plus the three backlog story files are still uncommitted locally (working-tree only). They were authored by the previous planner but were never staged. No action required — the next commit (from either a coding agent picking up US-032 or the user manually) will pick them up. Flagging so it is not surprising.
+
+### Source Code State
+- Unchanged from 2026-04-16 run. `Mordecai/Items/` still does not exist — US-032 will create it.
+
+### Dependency Graph
+
+```
+CURRENT — Epic 7 Inventory (unchanged from 2026-04-16):
+
+  US-032 (Item Definition & Categories, HEADLESS)
+                        │
+                        ▼
+  US-031 (Flat Inventory & Auto-Store, HEADLESS)
+                        │
+                        ▼
+  US-033 (Unidentified Items & ID Service, HEADLESS)
+
+AFTER Epic 7:
+  US-071 (Inventory UI, EDITOR) — integration milestone for Epic 7
+  Epic 10 Phase 4 (Blueprint polish: US-070, US-076, US-075) — EDITOR, lower priority
+  Epic 6 ranged weapons (US-027–030) — BLOCKED on design input
+```
+
+### Design Gaps / Decisions Needed
+Unchanged from 2026-04-16 run:
+- Identification cost model (US-033) — free/instant for now, future TODO(DECISION)
+- Ledger ownership (US-031) — per-character for launch; may migrate to PlayerState with town persistence
+- WeaponDataAsset ↔ ItemDefinition relationship — coexist for now, unification deferred
+- Ranged weapons / two-weapon / shields / armor — still blocked on design input
+
+### Next Session Recommendation
+
+**No scoping work needed — coding agents should pick up Epic 7 in order.**
+
+1. **US-032** (Item Definition & Categories, HEADLESS) — ready NOW, foundation story. 13 tests.
+2. **US-031** (Flat Inventory & Auto-Store, HEADLESS) — after US-032 lands. 18 tests.
+3. **US-033** (Unidentified Items & ID Service, HEADLESS) — after US-031 lands. 17 tests.
+
+All three are sequential (each depends on the previous). No parallelization opportunity inside Epic 7.
+
+**After Epic 7:** Per the Playability-First Rule, the next integration milestone candidate is **US-071 (Inventory UI, EDITOR)**. That is the natural place to scope once US-033 lands — it turns the headless inventory/auto-store/identification plumbing into something Jeff can see and exercise in PIE. Not scoping it this run because US-071 currently has no backlog file and writing it today would just stale before Epic 7 completes; scope it when Epic 7 is finishing up so it stays fresh.
+
+**Still blocked (unchanged):**
+- Ranged weapons (US-027), two-weapon fighting (US-028), armor (US-029), shields (US-030) — need design input before scoping
+
+---
+
+## 2026-04-18 Nightly Planning Run
+
+### Completed Since Last Run
+- (none) HEAD is still `bdc0119` — no implementation commits since the 2026-04-16 / 2026-04-17 runs.
+
+### Currently In Progress
+- (none — `stories/in-progress/` is empty)
+
+### New Stories Created
+- (none) Epic 7 backlog from 2026-04-16 is still queued and valid:
+  - `US-032-item-definition-categories.md` (HEADLESS) — foundation, go first
+  - `US-031-flat-inventory-auto-store.md` (HEADLESS) — depends on US-032
+  - `US-033-unidentified-items-town-gating.md` (HEADLESS) — depends on US-031
+
+### PLAN.md Updates
+- No changes this run. Priority order unchanged: Epic 7 (Inventory) is CURRENT PRIORITY.
+- The 2026-04-16 working-tree changes (PLAN.md + PLANNER_LOG.md edits, three backlog files) are still uncommitted. Same situation flagged on 2026-04-17 — will be picked up by the next coding-agent commit. No action.
+
+### Source Code State
+- Unchanged. `Source/LyraGame/Mordecai/Items/` still does not exist. US-032 will create it.
+
+### Dependency Graph
+Unchanged from 2026-04-17:
+```
+CURRENT — Epic 7 Inventory:
+  US-032 (HEADLESS) ──▶ US-031 (HEADLESS) ──▶ US-033 (HEADLESS)
+
+AFTER Epic 7:
+  US-071 (Inventory UI, EDITOR) — integration milestone, scope when US-033 is finishing
+  Epic 10 Phase 4 (US-070, US-076, US-075) — EDITOR Blueprint/VFX polish
+  Epic 6 ranged/two-weapon/armor/shields (US-027–030) — BLOCKED on design input
+```
+
+### Design Gaps / Decisions Needed
+Unchanged from 2026-04-17 — no new decisions are blocking Epic 7 scoping.
+
+### Next Session Recommendation
+
+No scoping work needed. Coding agents should pick up Epic 7 in order:
+
+1. **US-032** (Item Definition & Categories, HEADLESS) — ready NOW. 13 tests.
+2. **US-031** (Flat Inventory & Auto-Store, HEADLESS) — after US-032 lands. 18 tests.
+3. **US-033** (Unidentified Items & ID Service, HEADLESS) — after US-031 lands. 17 tests.
+
+After US-033 lands, the planner should scope **US-071 (Inventory UI, EDITOR)** as the next integration milestone per the Playability-First Rule — that turns the inventory plumbing into something Jeff can exercise in PIE.
+
+**Still blocked (unchanged):** US-027 (ranged), US-028 (two-weapon), US-029 (armor), US-030 (shields) — need design input.
+
+---
+
+## 2026-04-19 Nightly Planning Run
+
+### Completed Since Last Run
+- (none) HEAD is still `bdc0119` — no implementation commits since 2026-04-16. This is the **fourth consecutive planner run** with zero forward motion on Epic 7.
+
+### Currently In Progress
+- (none — `stories/in-progress/` is empty)
+
+### New Stories Created
+- (none) Epic 7 backlog from 2026-04-16 remains queued and valid:
+  - `US-032-item-definition-categories.md` (HEADLESS) — foundation, go first
+  - `US-031-flat-inventory-auto-store.md` (HEADLESS) — depends on US-032
+  - `US-033-unidentified-items-town-gating.md` (HEADLESS) — depends on US-031
+
+### PLAN.md Updates
+- No changes this run.
+- The 2026-04-16 working-tree edits (PLAN.md + PLANNER_LOG.md + three backlog story files under `stories/backlog/`) are **still uncommitted** in the working tree — flagged on 04-17 and 04-18, now flagged for a fourth day. A coding agent picking up US-032 will incidentally commit them; if no agent runs, they will drift further. Low risk (local-only) but worth noting.
+
+### Source Code State
+- Verified unchanged: `Source/LyraGame/Mordecai/` contains `AbilitySystem, Camera, Combat, Enemy, Feats, Magic, Skills, StatusEffects, UI, Weapons` — no `Items/` folder. US-032 will create it.
+
+### Dependency Graph
+Unchanged:
+```
+CURRENT — Epic 7 Inventory:
+  US-032 (HEADLESS) ──▶ US-031 (HEADLESS) ──▶ US-033 (HEADLESS)
+
+AFTER Epic 7:
+  US-071 (Inventory UI, EDITOR) — integration milestone, scope when US-033 is finishing
+  Epic 10 Phase 4 (US-070, US-076, US-075) — EDITOR Blueprint/VFX polish
+  Epic 6 ranged/two-weapon/armor/shields (US-027–030) — BLOCKED on design input
+```
+
+### Design Gaps / Decisions Needed
+Unchanged — nothing blocking Epic 7 scoping.
+
+### Stall Pattern — Flagging For Jeff
+Four nightly planner runs (04-16, 04-17, 04-18, 04-19) have completed without any coding agent picking up US-032. The backlog is healthy and ready; the blocker is strictly *agent invocation*, not scoping. If this pattern continues, the planner's output will continue to be no-ops. Possible causes (not acting on any of these — flagging only):
+- Jeff has been away / not starting coding sessions
+- Coding agents are being invoked on other work not visible from this repo
+- An environment issue is preventing agents from picking up backlog
+
+No action from the planner. Surfacing this so it is visible rather than quietly repeating.
+
+### Next Session Recommendation
+
+**No new scoping work.** Coding agents should pick up Epic 7 in order:
+
+1. **US-032** (Item Definition & Categories, HEADLESS) — ready NOW. 13 tests.
+2. **US-031** (Flat Inventory & Auto-Store, HEADLESS) — after US-032 lands. 18 tests.
+3. **US-033** (Unidentified Items & ID Service, HEADLESS) — after US-031 lands. 17 tests.
+
+After US-033 lands, scope **US-071 (Inventory UI, EDITOR)** as the next integration milestone per the Playability-First Rule.
+
+**Still blocked (unchanged):** US-027 (ranged), US-028 (two-weapon), US-029 (armor), US-030 (shields) — need design input.
+
+---
+
+## 2026-04-20 Nightly Planning Run
+
+### Completed Since Last Run
+Epic 7 finished in a single burst. All three HEADLESS inventory stories landed between 2026-04-19 and 2026-04-20 (commits `dbf46d7` through `1666193`):
+- **US-032** (Item Definition & Categories) — `UMordecaiItemDefinition`, enums, sort/stack helpers, item tags
+- **US-031** (Flat Inventory & Auto-Store) — `UMordecaiInventoryComponent`, `UMordecaiResourceLedger`, pickup routing
+- **US-033** (Unidentified Items & ID Service) — per-instance state, partial-info API, `UMordecaiIdentificationService`
+
+Epic 7 is now fully complete. Four consecutive no-op planner runs (04-16 → 04-19) ended — the stall pattern flagged on 04-19 broke today.
+
+### Currently In Progress
+- (none — `stories/in-progress/` is empty)
+
+### New Stories Created
+Scoping the Epic 7 integration milestone per Playability-First Rule (Epic 7 was pure HEADLESS system work; a playable proof-point is now mandatory). Following the Epic 5.5 (US-057) and Epic 6.5 (US-077+US-078) template: HEADLESS widget first, then EDITOR playable integration.
+
+- **US-071: Inventory UI — Flat List, Filter & Ledger Widget** (HEADLESS)
+  - `UMordecaiInventoryWidget` content class for the Pause Menu "Inventory" tab
+  - Binds to `UMordecaiInventoryComponent` + `UMordecaiResourceLedger` via change delegates (no polling)
+  - Sorted flat list using `GetSortedItems`, category filter (All/Weapons/Armor/Trinkets/Consumables/Materials/Quest/Magical)
+  - Rarity color map, identification badge, "Identify" action dispatching to `UMordecaiIdentificationService`
+  - Ledger panel for auto-stored resources
+  - Empty-state and unbound-state handling
+  - 17 automation tests (bind/unbind, display, filter, ledger, identify happy path + edge cases, rebuild on delegate)
+  - No drop / equip actions — those are future scope
+
+- **US-079: Playable Inventory Arena Integration** (EDITOR)
+  - `AMordecaiItemPickup` C++ actor (sphere trigger → `PickupItem`), server-authoritative, replicated
+  - 6 test `UMordecaiItemDefinition` DataAssets covering every major routing case: Consumable+stackable, Material (auto-store), TownResource (auto-store), UpgradeKey (Critical sort), MagicalItem (UsesIdentification+RequiresIdentificationToEquip), Weapon (no identification)
+  - Python scripts (`create_test_pickups.py`, `place_test_pickups.py`) so the arena setup is reproducible
+  - Pause Menu "Inventory" tab wired to the widget from US-071
+  - BP_MordecaiItemPickup with in-world name label (uses `GetDisplayName` so unidentified pickups show partial info)
+  - Minimum viable BP polish on the Inventory widget (filter buttons visible/clickable, rarity colors on rows, identify button on unidentified rows)
+  - `Scripts/verify_pie_inventory.py` — full PIE smoke: pickup everything → assert inventory + ledger contents → open pause menu → verify tab populated → identify amulet → verify row rebuild
+  - 4 C++ automation tests on the pickup actor (overlap routing, destroy, null guard, server-auth)
+
+### PLAN.md Updates
+- Epic 7 marked complete (was "3/3 scoped, ready for implementation")
+- **Epic 7.5 added**: Playable Inventory Slice with US-071 + US-079 (mirrors Epic 5.5 / 6.5 structure)
+- Priority order: Epic 7.5 is now the CURRENT PRIORITY. Epic 6 (ranged/two-weapon/armor/shields) still BLOCKED on design input and falls to next position.
+- Phase 5+ "Future" list updated: US-071/US-079 moved out of "future" since they are now scoped under Epic 7.5. US-072/073/074 remain future (blocked on their parent epics).
+
+### Dependency Graph
+
+```
+CURRENT — Epic 7.5 Playable Inventory Slice:
+
+  US-071 (Inventory Widget, HEADLESS)
+                        │
+                        ▼
+  US-079 (Playable Inventory Arena, EDITOR)
+
+AFTER Epic 7.5:
+  Epic 10 Phase 4 (BP/VFX polish: US-070, US-076, US-075) — EDITOR, lower priority
+  Epic 6 ranged/two-weapon/armor/shields (US-027–030) — BLOCKED on design input
+  Epic 8 (World & Exploration) — unscoped
+  Epic 9 (Town Management) — unscoped; Mage Tower NPC UI unblocks US-033's identification cost story
+```
+
+### Design Gaps / Decisions Needed
+- **Identification cost model** (carried from US-033): still free/instant. The Mage Tower NPC flow in Epic 9 will likely introduce a gold/reputation cost — US-071's identify button is written to succeed or no-op, so adding a cost later is non-breaking but should be planned.
+- **Equip/drop actions from the inventory widget**: intentionally out of scope for US-071. The weapon-cycling flow (US-077) already handles equipping for weapons; armor/trinkets equip via the inventory UI is a future story once Epic 6 ranged/armor stories scope.
+- **Rarity enum naming**: `EMordecaiItemRarity` has canonical names (Common/Uncommon/Rare/Epic/Legendary/Mythic) while `item_system_v1.md` uses color names (Green/Blue/Purple/Red/Gold). US-071 maps each enum value to its FLinearColor — the color naming is presentation-only. Not a blocker.
+- **Ranged weapons / two-weapon / shields / armor** (US-027–030): unchanged — still blocked on design input. Flagged for the 5th consecutive run.
+
+### Next Session Recommendation
+
+**Batch 1 — Sequential (Epic 7.5):**
+1. **US-071** (Inventory Widget, HEADLESS) — ready NOW. 17 tests. Follows US-066/067/068 widget pattern.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071 lands. 4 C++ tests + 1 PIE smoke. Depends on US-071 widget class.
+
+Both stories are fresh and specific. The HEADLESS story is agent-friendly and lines up with the established widget pattern; the EDITOR story is the playable proof Jeff needs after three epics of inventory system work.
+
+**After Epic 7.5:** The next scoping decision is whether to start Epic 10 Phase 4 (BP/VFX polish — low risk but also low game-feel impact) or to unblock Epic 6 ranged weapons. Ranged needs design input. BP polish is scopable today but lower priority than actual new feature work. Revisit after Epic 7.5 lands.
+
+**Still blocked (unchanged, 5th run):** US-027 (ranged), US-028 (two-weapon), US-029 (armor), US-030 (shields) — need design input. Consider asking Jeff to make a decision on at least one of these so Epic 6 can resume after Epic 7.5.
+
+### Addendum — Second planner invocation on 2026-04-20
+
+Planner re-invoked later the same day. State is unchanged since the earlier 04-20 run:
+- HEAD still at `1666193 [US-033] Mark all ACs complete, move story to done` — no implementation commits yet today after Epic 7.
+- `stories/in-progress/` still empty.
+- `stories/backlog/` still contains exactly US-071 and US-079 (Epic 7.5).
+- `stories/PLAN.md` + `stories/PLANNER_LOG.md` + both backlog story files remain uncommitted in the working tree — they will be picked up by the next coding-agent commit (likely the US-071 commit).
+
+Re-read both backlog stories to confirm they are still well-scoped and ready:
+- **US-071** (HEADLESS, 17 tests) — ACs cover bind/unbind, flat list, rarity color map, category filter (with Materials/Magical/Quest group rules), ledger panel, identify action + 3 no-op edge cases, empty/filter-empty placeholders, rebuild-on-delegate. References match existing US-031/032/033 API surface (`GetSortedItems`, `OnInventoryChanged`, `UMordecaiItemLibrary::GetDisplayName`, `UMordecaiIdentificationService::IdentifyInstance`). Follows the US-066/067/068 widget pattern. Ready to pick up.
+- **US-079** (EDITOR, 4 C++ tests + PIE smoke) — ACs cover pickup actor, 6 test DataAssets covering every routing case (stackable consumable, Material auto-store, TownResource auto-store, Critical-sort UpgradeKey, unidentified MagicalItem, non-identifying Weapon), arena placement, pause-menu tab wiring, BP polish floor, and a full PIE smoke covering pickup → ledger/inventory assertion → open pause menu → identify → rebuild. Reproducible via `Scripts/create_test_pickups.py` + `Scripts/place_test_pickups.py`. Correctly blocks on US-071.
+
+No new scoping needed. No changes to PLAN.md. No new design gaps. Recommendation from the earlier 04-20 entry stands: coding agents pick up US-071 first, then US-079. After Epic 7.5 lands, the next planner run should decide between Epic 10 Phase 4 (BP/VFX polish) and attempting to unblock at least one of US-027–030 with Jeff.
+
+---
+
+## 2026-04-21 Nightly Planning Run
+
+### Completed Since Last Run
+- None. HEAD is still at `1666193 [US-033] Mark all ACs complete, move story to done` — no commits landed between the 04-20 addendum and now.
+
+### Currently In Progress
+- (none — `stories/in-progress/` is empty)
+
+### New Stories Created
+- None. Epic 7.5 (US-071 HEADLESS + US-079 EDITOR) was fully scoped on 04-20 and both files remain in `stories/backlog/` unchanged. Both are well-specified and ready to pick up as-written.
+
+### Working-Tree State
+- `stories/PLAN.md` — modified, uncommitted (Epic 7.5 block added 04-20)
+- `stories/PLANNER_LOG.md` — modified, uncommitted
+- `stories/backlog/` — untracked (US-071 + US-079 story files, authored 04-20)
+- These will flow into the next coding-agent commit (expected to be the US-071 implementation commit). No planner action.
+
+### Design Gaps / Decisions Needed
+- No change from 04-20. Still pending Jeff input: identification cost model (deferred to Epic 9 Mage Tower), and design for US-027 (ranged), US-028 (two-weapon), US-029 (armor), US-030 (shields). These remain blocked for a 6th consecutive run.
+
+### Stall Pattern
+No coding-agent activity for 1 calendar day (last commit 04-20 closed Epic 7). This is not yet the multi-day stall pattern seen pre-Epic 7 — flagging only as an early observation. If 04-22 also produces no commits, escalate per the 04-19 template.
+
+### Next Session Recommendation
+
+**Unchanged from 04-20:**
+
+1. **US-071** (Inventory Widget, HEADLESS) — ready NOW. 17 tests. Matches US-066/067/068 widget pattern. This is the single most valuable next unit of work.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071 lands. 4 C++ tests + PIE smoke. Delivers the playable Epic 7 proof-point.
+
+**After Epic 7.5:** Decide between Epic 10 Phase 4 (BP/VFX polish — low risk, scopable today) or unblocking Epic 6 ranged/two-weapon/armor/shields with Jeff. The playability-first rule is satisfied for the current cycle once US-079 ships, so either direction is acceptable from a rhythm standpoint.
+
+**Still blocked (6th consecutive run):** US-027, US-028, US-029, US-030 — design input needed.
+
+---
+
+## 2026-04-26 Nightly Planning Run
+
+### Completed Since Last Run
+- None. HEAD is still at `1666193 [US-033] Mark all ACs complete, move story to done`. The 5-day gap between 04-21 and 04-26 produced no coding-agent commits.
+
+### Currently In Progress
+- (none — `stories/in-progress/` is empty)
+
+### New Stories Created
+- None. Epic 7.5 (US-071 HEADLESS + US-079 EDITOR) was scoped on 04-20 and re-verified on 04-21. Both backlog files are unchanged and remain ready to pick up as-written.
+
+### Working-Tree State
+- `stories/PLAN.md` — modified, uncommitted (Epic 7.5 block added 04-20)
+- `stories/PLANNER_LOG.md` — modified, uncommitted (this entry plus 04-20/04-21)
+- `stories/backlog/` — untracked (US-071 + US-079 story files, authored 04-20)
+- These will flow into the next coding-agent commit (expected to be the US-071 implementation commit). No planner action.
+
+### Verification Pass on Existing Backlog
+Re-checked Source tree against the API surfaces named in US-071 / US-079:
+- `Source/LyraGame/Mordecai/Items/` contains `MordecaiInventoryComponent`, `MordecaiResourceLedger`, `MordecaiItemDefinition`, `MordecaiItemInstance`, `MordecaiItemLibrary`, `MordecaiIdentificationService`, `MordecaiItemTypes` — every API surface referenced in the backlog stories exists. No drift.
+- `Source/LyraGame/Mordecai/UI/` contains the US-066/067/068 widgets (`MordecaiCharacterSheetWidget`, `MordecaiSkillTreeWidget`, `MordecaiFeatDisplayWidget`) plus `MordecaiPauseMenuWidget` / `MordecaiPauseMenuSubsystem`. No `MordecaiInventoryWidget` yet (expected — US-071 still backlog).
+- Design docs: `agent_rules_v2.md` last modified 2026-04-11; nothing newer than what was scoped against. No new docs warrant rescoping.
+
+Conclusion: scoping is still correct; the bottleneck is agent invocation, not planner output.
+
+### Design Gaps / Decisions Needed
+Unchanged from 04-21:
+- Identification cost model (deferred to Epic 9 Mage Tower)
+- US-027 (ranged), US-028 (two-weapon), US-029 (armor), US-030 (shields) — still blocked on design input. **7th consecutive run** flagging this.
+
+### Stall Pattern — Escalating
+Five calendar days have elapsed since the last commit (04-20 → 04-26) with no coding-agent activity. This now matches or exceeds the 04-16 → 04-19 stall pattern that was flagged previously. Possible causes (planner does not act on these — surfacing only):
+- Jeff has been away or focused on other work
+- Coding agents are running on other repos
+- An environment / invocation issue is preventing pickup
+
+The healthy backlog (2 well-scoped stories, all dependencies satisfied) remains the same. If 04-27 also produces no commits, that's a 6-day stall and worth a direct prompt to Jeff to sanity-check the agent invocation pipeline.
+
+### Next Session Recommendation
+
+**Unchanged from 04-20 / 04-21:**
+
+1. **US-071** (Inventory Widget, HEADLESS) — ready NOW. 17 tests. Matches US-066/067/068 widget pattern. Single most valuable next unit of work.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071 lands. 4 C++ tests + PIE smoke. Delivers the playable Epic 7 proof-point per the Playability-First Rule.
+
+**After Epic 7.5:** Same fork as before — Epic 10 Phase 4 (BP/VFX polish, scopable today) or unblock Epic 6 ranged/two-weapon/armor/shields with Jeff input. No new information to break that tie.
+
+**Still blocked (7th consecutive run):** US-027, US-028, US-029, US-030 — design input needed.
+
+---
+
+## 2026-04-27 Nightly Planning Run
+
+### Completed Since Last Run
+- None. HEAD is still at `1666193 [US-033] Mark all ACs complete, move story to done`. The 04-26 → 04-27 window produced no coding-agent commits.
+
+### Currently In Progress
+- (none — `stories/in-progress/` is empty)
+
+### New Stories Created
+- None. Epic 7.5 (US-071 HEADLESS + US-079 EDITOR) was scoped on 04-20 and deep-verified on 04-26. Both backlog files remain unchanged on disk and ready to pick up as-written.
+
+### Working-Tree State
+- `stories/PLAN.md` — modified, uncommitted (Epic 7.5 block added 04-20)
+- `stories/PLANNER_LOG.md` — modified, uncommitted (this entry plus all prior runs back through 04-20)
+- `stories/backlog/` — untracked (US-071 + US-079 story files, authored 04-20)
+- These will flow into the next coding-agent commit (expected to be the US-071 implementation commit). No planner action.
+
+### Verification Pass
+Skipped a fresh API-surface re-verification — 04-26 ran a thorough pass against `Source/LyraGame/Mordecai/Items/` and `Source/LyraGame/Mordecai/UI/` and confirmed every API named in US-071 / US-079 still exists. No commits have landed since, so nothing has drifted. Re-verifying daily would be wasted work; the next verification pass should run when either (a) a commit lands or (b) one of the referenced design docs is updated.
+
+### Design Gaps / Decisions Needed
+Unchanged from 04-26:
+- Identification cost model (deferred to Epic 9 Mage Tower).
+- US-027 (ranged), US-028 (two-weapon), US-029 (armor), US-030 (shields) — still blocked on design input. **8th consecutive run** flagging this.
+
+### Stall Pattern — 6-Day Mark Reached
+Six full calendar days have now elapsed since the last commit (04-20 → 04-27). This is the threshold the 04-26 entry called out as the point to surface a direct sanity-check prompt to Jeff. Restating without acting (planner does not invoke agents):
+- Healthy backlog: 2 well-scoped, dependency-satisfied stories sitting in `stories/backlog/` for 7 days.
+- No environment/spec drift detected — when an agent is invoked, US-071 should land cleanly against the current source tree.
+- Possible causes (unchanged): Jeff is away/elsewhere, agents running on other repos, or an invocation pipeline issue.
+
+If 04-28 also produces no commits, the stall will exceed any prior gap in this log. At that point the recommendation is to ask Jeff to confirm the coding-agent invocation pipeline is working — the planner's output side is healthy and is not the bottleneck.
+
+### Next Session Recommendation
+
+**Unchanged from 04-20 / 04-21 / 04-26:**
+
+1. **US-071** (Inventory Widget, HEADLESS) — ready NOW. 17 tests. Matches the US-066/067/068 widget pattern. Single most valuable next unit of work.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071 lands. 4 C++ tests + PIE smoke. Delivers the playable Epic 7 proof-point per the Playability-First Rule.
+
+**After Epic 7.5:** Same fork as before — Epic 10 Phase 4 (BP/VFX polish, scopable today) or unblock Epic 6 ranged/two-weapon/armor/shields with Jeff input. No new information to break the tie.
+
+**Still blocked (8th consecutive run):** US-027, US-028, US-029, US-030 — design input needed.
+
+---
+
+## 2026-04-28 Nightly Planning Run
+
+### Completed Since Last Run
+- None. HEAD is still at `1666193 [US-033] Mark all ACs complete, move story to done`. The 04-27 → 04-28 window produced no coding-agent commits.
+
+### Currently In Progress
+- (none — `stories/in-progress/` is empty)
+
+### New Stories Created
+- None. Epic 7.5 (US-071 HEADLESS + US-079 EDITOR) was scoped on 04-20 and deep-verified on 04-26. Both backlog files remain unchanged on disk.
+
+### Working-Tree State
+- `stories/PLAN.md` — modified, uncommitted (Epic 7.5 block added 04-20)
+- `stories/PLANNER_LOG.md` — modified, uncommitted (this entry plus all prior runs back through 04-20)
+- `stories/backlog/` — untracked (US-071 + US-079 story files, authored 04-20)
+- These will flow into the next coding-agent commit (expected to be the US-071 implementation commit). No planner action.
+
+### Verification Pass
+Skipped, per 04-27's rationale: no commits have landed since 04-26's deep verification of `Source/LyraGame/Mordecai/Items/` and `Source/LyraGame/Mordecai/UI/` against the API surfaces named in US-071/US-079. Nothing has drifted. Re-verification triggers remain (a) a commit lands or (b) a referenced design doc is updated — neither has fired.
+
+### Design Gaps / Decisions Needed
+Unchanged from 04-26 / 04-27:
+- Identification cost model (deferred to Epic 9 Mage Tower).
+- US-027 (ranged), US-028 (two-weapon), US-029 (armor), US-030 (shields) — still blocked on design input. **9th consecutive run** flagging this.
+
+### Stall Pattern — Now Exceeds Any Prior Gap
+Seven full calendar days have now elapsed since the last commit (04-20 → 04-28). This exceeds the 04-16 → 04-19 gap and any other gap in this log. The 04-27 entry called out 04-28 as the threshold to surface a direct sanity-check prompt to Jeff. Restating the situation:
+
+- **Healthy backlog:** 2 well-scoped, dependency-satisfied stories sitting in `stories/backlog/` for 8 days.
+- **No spec drift:** every API surface referenced by US-071/US-079 still exists; no design doc updates since scoping.
+- **Bottleneck is not on the planner side.** Output is healthy; the gap is between scoping and agent invocation.
+
+**Recommendation to Jeff:** Sanity-check the coding-agent invocation pipeline. If the pipeline is fine and you've simply been away or focused elsewhere, no action is needed — US-071 will land cleanly when the next agent picks it up. If the pipeline is broken, that's the unblock.
+
+### Next Session Recommendation
+
+**Unchanged from 04-20 / 04-21 / 04-26 / 04-27:**
+
+1. **US-071** (Inventory Widget, HEADLESS) — ready NOW. 17 tests. Matches the US-066/067/068 widget pattern. Single most valuable next unit of work.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071 lands. 4 C++ tests + PIE smoke. Delivers the playable Epic 7 proof-point per the Playability-First Rule.
+
+**After Epic 7.5:** Same fork as before — Epic 10 Phase 4 (BP/VFX polish, scopable today) or unblock Epic 6 ranged/two-weapon/armor/shields with Jeff input. No new information to break the tie.
+
+**Still blocked (9th consecutive run):** US-027, US-028, US-029, US-030 — design input needed.
+
+---
+
+## 2026-04-29 Nightly Planning Run
+
+### Completed Since Last Run
+- None. HEAD is still at `1666193 [US-033] Mark all ACs complete, move story to done` (committed 04-19). The 04-28 → 04-29 window produced no coding-agent commits.
+
+### Currently In Progress
+- (none — `stories/in-progress/` is empty)
+
+### New Stories Created
+- None. Epic 7.5 (US-071 HEADLESS + US-079 EDITOR) was scoped on 04-20 and deep-verified on 04-26. Both backlog files remain unchanged on disk and ready to pick up as-written.
+
+### Working-Tree State
+- `stories/PLAN.md` — modified, uncommitted (Epic 7.5 block added 04-20)
+- `stories/PLANNER_LOG.md` — modified, uncommitted (this entry plus all prior runs back through 04-20)
+- `stories/backlog/` — untracked (US-071 + US-079 story files, authored 04-20)
+- These will flow into the next coding-agent commit (expected to be the US-071 implementation commit). No planner action.
+
+### Verification Pass
+Skipped, per 04-27/04-28 rationale. Re-verification triggers (commit lands or referenced design doc updated) have not fired since 04-26's deep pass against `Source/LyraGame/Mordecai/Items/` and `Source/LyraGame/Mordecai/UI/`. Nothing has drifted.
+
+### Design Gaps / Decisions Needed
+Unchanged from 04-26 / 04-27 / 04-28:
+- Identification cost model (deferred to Epic 9 Mage Tower).
+- US-027 (ranged), US-028 (two-weapon), US-029 (armor), US-030 (shields) — still blocked on design input. **10th consecutive run** flagging this.
+
+### Stall Pattern — Day 9, Threshold Already Crossed
+Eight full calendar days since the last commit (04-20 authoring → today). The 04-28 entry already crossed the "exceeds any prior gap" threshold and surfaced the direct sanity-check prompt to Jeff. Restating here only because daily entries are the standing format — the situation and recommendation are identical:
+
+- **Healthy backlog:** 2 well-scoped, dependency-satisfied stories sitting in `stories/backlog/` for 9 days.
+- **No spec drift.** Every API surface referenced by US-071/US-079 still exists.
+- **Bottleneck is downstream of the planner.** The 04-28 prompt to Jeff still stands: sanity-check the coding-agent invocation pipeline.
+
+To avoid log churn while the stall continues, the next several runs (until a commit lands or a design doc is updated) will be one-paragraph "no change, see 04-28" entries instead of full reruns.
+
+### Next Session Recommendation
+
+**Unchanged from 04-20 / 04-21 / 04-26 / 04-27 / 04-28:**
+
+1. **US-071** (Inventory Widget, HEADLESS) — ready NOW. 17 tests. Matches the US-066/067/068 widget pattern. Single most valuable next unit of work.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071 lands. 4 C++ tests + PIE smoke. Delivers the playable Epic 7 proof-point per the Playability-First Rule.
+
+**After Epic 7.5:** Same fork — Epic 10 Phase 4 (BP/VFX polish) vs unblocking Epic 6 ranged/two-weapon/armor/shields with Jeff input.
+
+**Still blocked (10th consecutive run):** US-027, US-028, US-029, US-030 — design input needed.
+
+---
+
+## 2026-05-15 Nightly Planning Run
+
+### Status: No change since 04-29. Stall gap has grown.
+
+- **HEAD:** still `1666193 [US-033] Mark all ACs complete, move story to done` (committed 04-19). 26 calendar days since the last commit.
+- **Planner-side gap:** 16 calendar days since the prior planner entry (04-29). The "one-paragraph entries while the stall continues" cadence promised on 04-29 was not honored daily — the planner itself was also not invoked. Surfacing this so it's visible: the bottleneck has been the invocation pipeline on both sides (coding agent and planner), not the work queue.
+- **Backlog:** `stories/backlog/` still holds **US-071** (Inventory Widget, HEADLESS) and **US-079** (Playable Inventory Arena, EDITOR), both authored 04-20 and last deep-verified 04-26. No design doc updates since then; no spec drift expected.
+- **Working-tree state:** identical to 04-29 — `PLAN.md` and `PLANNER_LOG.md` modified-uncommitted, `stories/backlog/` untracked. These will flow into the next coding-agent commit.
+- **Design gaps:** unchanged. Identification cost model (deferred to Epic 9). US-027/028/029/030 still blocked on design input — **11th consecutive run** flagging this.
+
+### Recommendation to Jeff
+The 04-28 prompt still stands and is now more urgent: please sanity-check the coding-agent invocation pipeline. If you've simply been away and the pipeline is fine, no action is needed — US-071 will land cleanly when the next agent picks it up. If the pipeline is broken, that's the unblock and nothing downstream will move until it's fixed.
+
+### Next Session Recommendation (unchanged)
+1. **US-071** (Inventory Widget, HEADLESS) — ready. 17 tests. Single most valuable next unit of work.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071 lands. Delivers the playable Epic 7 proof-point.
+
+After Epic 7.5: same fork — Epic 10 Phase 4 (BP/VFX polish) vs unblocking Epic 6 ranged/two-weapon/armor/shields with Jeff input.
+
+---
+
+## 2026-05-16 Nightly Planning Run
+
+### Status: No change since 05-15. Stall now at 27 days.
+
+- **HEAD:** still `1666193 [US-033] Mark all ACs complete, move story to done` (committed 04-19). 27 calendar days since the last commit.
+- **Backlog:** unchanged — US-071 (Inventory Widget, HEADLESS) and US-079 (Playable Inventory Arena, EDITOR), both authored 04-20, last deep-verified 04-26.
+- **Working tree:** unchanged from 05-15. `PLAN.md` + `PLANNER_LOG.md` modified-uncommitted; `stories/backlog/` untracked. Will flow into the next coding-agent commit.
+- **Design docs:** none modified since 04-11 (`agent_rules_v2.md`). No spec drift. Re-verification triggers still have not fired.
+- **Design gaps:** unchanged. Identification cost model deferred to Epic 9. US-027/028/029/030 still blocked on design input — **12th consecutive run** flagging this.
+
+### Recommendation to Jeff (unchanged, restated)
+The 04-28 / 05-15 prompt still stands: please sanity-check the coding-agent invocation pipeline. The planner-side queue is healthy; nothing downstream will move until a coding agent is invoked against US-071. If you're simply away, no action needed — US-071 will land cleanly when picked up.
+
+### Next Session Recommendation (unchanged)
+1. **US-071** (Inventory Widget, HEADLESS) — ready.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071 lands.
+
+After Epic 7.5: same fork as 04-21+ — Epic 10 Phase 4 (BP/VFX polish) vs unblocking Epic 6 ranged/two-weapon/armor/shields with Jeff input.
+
+---
+
+## 2026-05-17 Nightly Planning Run
+
+### Status: No change since 05-16. Stall now at 28 days.
+
+- **HEAD:** still `1666193 [US-033] Mark all ACs complete, move story to done` (committed 04-19). 28 calendar days since the last commit.
+- **Backlog:** unchanged — US-071 (Inventory Widget, HEADLESS) and US-079 (Playable Inventory Arena, EDITOR), both authored 04-20, last deep-verified 04-26.
+- **In-progress:** empty.
+- **Working tree:** unchanged from 05-16. `PLAN.md` + `PLANNER_LOG.md` modified-uncommitted; `stories/backlog/` untracked. Will flow into the next coding-agent commit.
+- **Design docs:** newest is `agent_rules_v2.md` at 04-11. No modifications since the 04-26 deep-verification pass. Re-verification triggers still have not fired.
+- **Design gaps:** unchanged. Identification cost model deferred to Epic 9. US-027/028/029/030 still blocked on design input — **13th consecutive run** flagging this.
+
+### Recommendation to Jeff (unchanged, restated)
+The 04-28 / 05-15 / 05-16 prompt still stands: please sanity-check the coding-agent invocation pipeline. The planner-side queue is healthy; nothing downstream will move until a coding agent is invoked against US-071. If you're simply away, no action needed — US-071 will land cleanly when picked up.
+
+### Next Session Recommendation (unchanged)
+1. **US-071** (Inventory Widget, HEADLESS) — ready.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071 lands.
+
+After Epic 7.5: same fork — Epic 10 Phase 4 (BP/VFX polish) vs unblocking Epic 6 ranged/two-weapon/armor/shields with Jeff input.
+
+---
+
+## 2026-06-08 Nightly Planning Run
+
+### Status: No change since 05-17. Stall now at 50 days (last commit 04-19).
+
+This entry consolidates the 05-17 → 06-08 window (22 days, planner not invoked in between).
+
+- **HEAD:** still `1666193 [US-033] Mark all ACs complete, move story to done` (committed 2026-04-19). **50 calendar days** since the last coding-agent commit.
+- **Backlog:** unchanged — **US-071** (Inventory Widget, HEADLESS) and **US-079** (Playable Inventory Arena, EDITOR), both authored 04-20, last deep-verified 04-26.
+- **In-progress:** empty.
+- **Working tree:** unchanged — `PLAN.md` + `PLANNER_LOG.md` modified-uncommitted; `stories/backlog/` untracked. Will flow into the next coding-agent commit.
+- **Design docs:** newest is `agent_rules_v2.md` (Specs: Apr 14, alt docs: Apr 11). No modifications since the 04-26 deep-verification pass. Neither re-verification trigger (commit lands / referenced doc updated) has fired, so the backlog API surfaces are not re-checked this run — nothing has drifted.
+- **Design gaps:** unchanged. Identification cost model deferred to Epic 9 (Mage Tower). US-027 (ranged) / US-028 (two-weapon) / US-029 (armor) / US-030 (shields) still blocked on design input — **14th consecutive run** flagging this.
+
+### Assessment
+The planner side has nothing left to do that adds value: the queue is healthy, dependency-satisfied, and spec-current. Writing additional stories into a queue that has gone 50 days unconsumed would be churn, not progress. The bottleneck is entirely downstream of the planner — between scoping and coding-agent invocation.
+
+### Recommendation to Jeff (now urgent)
+Please sanity-check the **coding-agent invocation pipeline**. The planner queue is healthy and has been for 50 days; nothing downstream will move until a coding agent is invoked against **US-071**. If you've simply been away and the pipeline is fine, no action is needed — US-071 will land cleanly when the next agent picks it up. If the pipeline is broken, that is the single unblock the whole project is waiting on.
+
+Secondary, lower-urgency unblock: provide design input for US-027/028/029/030 (ranged weapons, two-weapon fighting, armor, shields) so Epic 6 can be fully scoped. This has been blocked for 14 runs.
+
+### Next Session Recommendation (unchanged)
+1. **US-071** (Inventory Widget, HEADLESS) — ready. 17 tests. Single most valuable next unit of work.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071 lands. Delivers the playable Epic 7 proof-point per the Playability-First Rule.
+
+After Epic 7.5: same fork as 04-21+ — Epic 10 Phase 4 (BP/VFX polish: US-070/075/076, scopable today) vs unblocking Epic 6 ranged/two-weapon/armor/shields with Jeff input.
+
+---
+
+## 2026-06-09 Nightly Planning Run
+
+### Status: Stall now 51 days (last commit 04-19). Used this run to extend the unblocked runway.
+
+- **HEAD:** still `1666193 [US-033] ...` (2026-04-19). **51 calendar days** with no coding-agent commit.
+- **Backlog before this run:** US-071, US-079 (Epic 7.5) — both still ready, unconsumed since 04-20.
+- **In-progress:** empty. **Done:** 50 stories.
+- **Working tree:** `PLAN.md` + `PLANNER_LOG.md` modified-uncommitted; `stories/backlog/` untracked (now contains the new US-080/081/082 in addition to US-071/079).
+
+### The dominant issue is unchanged and is NOT a planning problem
+The 51-day stall is entirely downstream of the planner. The queue has been healthy, dependency-satisfied, and spec-current the whole time. **Nothing moves until a coding agent is invoked against US-071.** This remains the single most important unblock — see Recommendation to Jeff.
+
+### Why I scoped new stories anyway (this is not queue-churn)
+Prior runs (05-17, 06-08) correctly declined to add stories to an unconsumed queue. The difference this run: prior runs treated **all** of Epic 8 as "future / needs design input." On a closer read of `map_style_technical_design_v1.md` and `agentic_map_pipeline_v1.md`, I found that **Epic 8 Phase 1 (the Cell Framework foundation, Milestone 1) is genuinely unblocked, HEADLESS, and highly testable** — it implements the *already-locked* data model and markup framework and does not touch the human-approval gates (gate-type introduction, biome graph, height-tier rules, connection sockets, progression sequence). So this is net-new, dependency-satisfied scoping that extends the runway from 2 stories to 5 — not a re-churn of existing work. If the pipeline unstalls, there is now a clear unblocked path well past Epic 7.5.
+
+### New Stories Created (all HEADLESS, all in `stories/backlog/`)
+- **US-080: Cell Framework — Metadata Asset & Core World Types** — `UMordecaiCellMetadata` (full §5.2 schema), enums for biome/cell-type/height-tier/gate-requirement/exit-direction/path-role, `FMordecaiCellExit`, `UMordecaiWorldLibrary` naming/opposite helpers. 10 tests. Pure data + pure functions. First Epic 8 story; no dependencies beyond existing patterns.
+- **US-081: Cell Framework — Gameplay Markup Actors & Cell Registry** — 19 `PM_*` markup types, `AMordecaiGameplayMarker` base + `AMordecaiGateMarker`/`AMordecaiSpawnGroupMarker` subclasses, queryable `UMordecaiCellMarkupSubsystem` (gates-by-requirement, cells-missing-type). 11 tests. Depends on US-080 enums.
+- **US-082: Cell Framework — Validation Library & Report** — deterministic Critical/High/Medium checks (metadata completeness, exit connectivity, gate mismatch, combat-no-spawn, secret-no-hint, gate-no-marker, shortcut-not-instantiated), `FMordecaiCellValidationReport`, per-cell + cross-cell entry points. 14 tests. Depends on US-080 + US-081.
+
+Strict implementation order: **US-080 → US-081 → US-082**.
+
+### PLAN.md Updates
+- Expanded Epic 8 into Phase 1 (Cell Framework Foundation — US-080/081/082, scoped) and Phase 2 (skills + gates — blocked).
+- Marked US-034/035 (movement/exploration skills) BLOCKED: skill_sheet_v1.1 rank values are `{x}*rank` placeholders with no decided constants.
+- Marked US-036 (world gates) and the Milestone-2 biome slice BLOCKED on human approval per agent_rules_v2 / agentic_map_pipeline_v1 §8.
+- Inserted Epic 8 Phase 1 into the priority order at #14 (after Epic 7.5) as the no-blocker pipeline filler.
+
+### Blockers / Decisions Needed
+1. **CODING-AGENT PIPELINE (urgent, 51 days):** unchanged from 06-08. Nothing ships until an agent runs against US-071.
+2. **Epic 8 movement/exploration skill values** (NEW): `skill_sheet_v1.1.md` specifies effects as `{x} * rank` / `{y} * rank` with no concrete `{x}`/`{y}`. US-034/035 can't be scoped without these constants. Need Jeff to fill in per-skill numbers (climb speed %, swim breath seconds, sneak detection-radius %, perception range/units, lockpick window %, trap arm-time/damage, etc.).
+3. **Epic 8 world gates / biome content** (NEW): introducing gate types, the biome graph, height-tier rules, connection-socket standards, or progression sequence requires explicit human approval (Stage A "World Intent"). Agents may build cell content only *after* that approval. US-036 + the Milestone-2 vertical slice are gated on this.
+4. **Epic 6 design input** (carried, 15th run): US-027 ranged / US-028 two-weapon / US-029 armor / US-030 shields still under-specified.
+
+### Recommendation to Jeff (still urgent)
+Same as 06-08: **please sanity-check the coding-agent invocation pipeline.** The planner queue is now 5 deep (US-071, US-079, US-080, US-081, US-082), all dependency-satisfied and spec-current. If you've simply been away, no action needed — US-071 lands cleanly when the next agent picks it up. If the pipeline is broken, that is the one unblock the whole project waits on. Secondary: provide the Epic 8 skill constants (blocker #2) and Epic 6 design input (blocker #4) when convenient.
+
+### Next Session Recommendation
+1. **US-071** (Inventory Widget, HEADLESS) — single most valuable next unit. 17 tests.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071. Epic 7.5 playable proof-point.
+3. **US-080 → US-081 → US-082** (Cell Framework Foundation, HEADLESS) — unblocked Epic 8 runway, pickable in parallel with / after Epic 7.5. Strict order.
+
+---
+
+## 2026-06-11 Nightly Planning Run
+
+### Status: Stall now 53 days (HEAD `1666193`, 2026-04-19). No coding-agent commit since. Queue healthy and unchanged.
+
+- **HEAD:** still `1666193 [US-033]` (2026-04-19). `git log --since=2026-04-20` is empty — zero commits in 53 calendar days.
+- **Backlog (5, all ready):** US-071, US-079 (Epic 7.5); US-080, US-081, US-082 (Epic 8 Phase 1). All dependency-satisfied and spec-current.
+- **In-progress:** empty. **Done:** 50 stories.
+
+### No new stories this run — deliberately
+The queue is 5 deep, dependency-satisfied, and unconsumed. Every genuinely-unblocked path was already scoped by the 06-09 run (which correctly extended the runway from Epic 7.5 into Epic 8 Phase 1). The remaining unscoped work is all gated:
+- **Epic 8 Phase 2** (US-034/035 movement/exploration skills) — blocked on undecided `{x}*rank` skill constants in `skill_sheet_v1.1.md`.
+- **Epic 8 gates / biome content** (US-036, Milestone-2 slice) — blocked on human "World Intent" approval per agentic_map_pipeline_v1 §8.
+- **Epic 6** (US-027 ranged / US-028 two-weapon / US-029 armor / US-030 shields) — blocked on design input.
+- **Epic 9** (Town) — would be premature scoping while 5 stories sit unconsumed and several epics intervene.
+
+Adding to an unconsumed queue is the queue-churn the 05-17 and 06-08 runs correctly rejected. The dominant issue remains downstream of the planner: **nothing ships until a coding agent runs against US-071.**
+
+### Durability fix (new this run)
+`stories/backlog/` has been **untracked in git** and PLAN.md / PLANNER_LOG.md modified-uncommitted across several prior runs — the planning work was not durable. Committed PLAN.md, PLANNER_LOG.md, and all 5 backlog stories this run so the queue is safe in git history regardless of when the pipeline resumes.
+
+### Blockers / Decisions Needed (unchanged from 06-09)
+1. **CODING-AGENT PIPELINE (urgent, 53 days):** nothing moves until an agent is invoked against US-071. Single most important unblock.
+2. **Epic 8 skill constants:** need concrete per-skill numbers for US-034/035.
+3. **Epic 8 World Intent approval:** required before US-036 / Milestone-2 biome content.
+4. **Epic 6 design input:** ranged/two-weapon/armor/shields under-specified.
+
+### Recommendation to Jeff (still urgent)
+**Please sanity-check the coding-agent invocation pipeline.** If you've simply been away, no action needed — US-071 lands cleanly when the next agent picks it up. If the pipeline is broken, that is the one unblock the whole project waits on.
+
+### Next Session Recommendation
+1. **US-071** (Inventory Widget, HEADLESS) — single most valuable next unit.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071.
+3. **US-080 → US-081 → US-082** (Cell Framework Foundation, HEADLESS) — strict order.

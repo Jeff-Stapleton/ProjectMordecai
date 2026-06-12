@@ -78,17 +78,31 @@ Wire melee weapons into the playable arena. Per Playability-First Rule (after Ep
 - US-077: Weapon Cycling & Equipped Weapon Display (HEADLESS — cycling logic, weapon HUD widget, OnWeaponChanged delegate) ✅
 - US-078: Playable Weapon Arena Integration (EDITOR — weapon DataAssets, cycling input, HUD wiring, arena setup, 5-weapon play-test) ✅
 
-### Epic 7: Inventory (3/3 scoped, ready for implementation)
+### Epic 7: Inventory ✅ (complete)
 Implement unlimited-carry inventory with town gating (per agent_rules_v2).
 - US-032: Item Definition & Categories (HEADLESS — foundation: UMordecaiItemDefinition, enums, sort/stack helpers, item tags) ✅
 - US-031: Flat Inventory & Auto-Store System (HEADLESS — UMordecaiInventoryComponent, UMordecaiResourceLedger, pickup routing) ✅
 - US-033: Unidentified Items & Identification Service (HEADLESS — per-instance ID state, partial-info API, equip gating, service subsystem) ✅
 
+### Epic 7.5: Playable Inventory Slice (integration milestone — 2/2 scoped)
+Wire inventory, auto-store, and identification into the playable arena per Playability-First Rule.
+- US-071: Inventory UI — Flat List, Filter & Ledger Widget (HEADLESS — UMordecaiInventoryWidget, category filter, rarity colors, identify action, ledger panel)
+- US-079: Playable Inventory Arena Integration (EDITOR — pickup actor, 6 test DataAssets, arena placement, pause-menu tab wiring, PIE smoke test)
+
 ### Epic 8: World & Exploration
-Movement skills, exploration systems, Metroidvania gating.
-- US-034: Movement Skills (Climbing, Swimming, Sneaking)
-- US-035: Exploration Skills (Perception, Tracking, Cartography, Lockpicking, Traps)
-- US-036: Metroidvania World Gates
+Authored-cell world framework, movement/exploration skills, Metroidvania gating.
+
+**Phase 1 — Cell Framework Foundation (Milestone 1, HEADLESS — scoped)**
+Implements the *already-locked* data model + markup framework from `map_style_technical_design_v1.md` §12. Does NOT introduce gate types/biomes/tier rules (those need human approval).
+- US-080: Cell Framework — Metadata Asset & Core World Types (HEADLESS — `UMordecaiCellMetadata`, biome/cell-type/height-tier/gate/exit enums, naming helpers)
+- US-081: Cell Framework — Gameplay Markup Actors & Cell Registry (HEADLESS — 19 `PM_*` markup types, `AMordecaiGameplayMarker` + Gate/SpawnGroup subclasses, queryable `UMordecaiCellMarkupSubsystem`)
+- US-082: Cell Framework — Validation Library & Report (HEADLESS — deterministic Critical/High/Medium checks, per-cell + cross-cell reports)
+
+**Phase 2 — Skills & Content (blocked — see notes)**
+- US-034: Movement Skills (Climbing, Swimming, Sneaking) ← BLOCKED: skill rank values are `{x}*rank` placeholders in skill_sheet (need decided constants); traversal interacts with US-081 markup
+- US-035: Exploration Skills (Perception, Tracking, Cartography, Lockpicking, Traps) ← BLOCKED: same value-placeholder issue
+- US-036: Metroidvania World Gates ← BLOCKED: gate-type introduction + biome graph + progression sequence require HUMAN APPROVAL per agent_rules_v2 / agentic_map_pipeline_v1 §8
+- (future EDITOR) One-Biome Vertical Slice (Milestone 2): blockout template cell, `DA_Cell_*` content, cell-from-template + validation editor utilities — blocked on World Intent approval (Stage A)
 
 ### Epic 9: Town Management
 Delegated town systems.
@@ -120,7 +134,8 @@ Delegated town systems.
 - US-075: Status Effect VFX (Niagara) ← after Epic 4 complete
 
 **Future (blocked on later epics)**
-- US-071: Inventory UI — Flat List & Filtering ← after Epic 7
+- US-071: Inventory UI — Flat List, Filter & Ledger Widget (HEADLESS) ← scoped under Epic 7.5
+- US-079: Playable Inventory Arena Integration (EDITOR) ← scoped under Epic 7.5
 - US-072: Equipment Panel — Weapon Sets & Armor ← after Epic 6+7
 - US-073: Map — Metroidvania World Map ← after Epic 8
 - US-074: Town Management UI ← after Epic 9
@@ -138,15 +153,16 @@ Delegated town systems.
 8. **Epic 4+5 remaining + Epic 5.5** — Status/magic completion + magic slice ✅
 9. **Epic 10 Phase 2-3** — Enemy indicators, damage numbers, pause menu, progression UI ✅
 10. **Epic 6 (melee weapons) + Epic 6.5 (playable weapon slice)** ✅
-11. **Epic 7 — Inventory** ⚡ **CURRENT PRIORITY**
-    - Batch 1: US-032 (Item Definition & Categories, HEADLESS) — foundation, go first
-    - Batch 2: US-031 (Flat Inventory & Auto-Store, HEADLESS) — after US-032
-    - Batch 3: US-033 (Unidentified Items & Identification Service, HEADLESS) — after US-031
-12. **Epic 6 (ranged weapons)** — US-027/028/029/030 — needs design input for crossbow/throwables/wands/two-weapon/armor/shields
-13. **Epic 10 Phase 4** — Blueprint polish, VFX (US-070, US-076, US-075)
-14. **Epic 10 Phase 5+** — Inventory/town/map UI (US-071 Inventory UI unblocks after Epic 7)
-15. **Epic 8** — World & Exploration
-16. **Epic 9** — Town Management
+11. **Epic 7 — Inventory** ✅
+12. **Epic 7.5 — Playable Inventory Slice** ⚡ **CURRENT PRIORITY**
+    - Batch 1: US-071 (Inventory Widget, HEADLESS) — foundation, go first
+    - Batch 2: US-079 (Playable Inventory Arena, EDITOR) — after US-071
+13. **Epic 6 (ranged weapons)** — US-027/028/029/030 — needs design input for crossbow/throwables/wands/two-weapon/armor/shields
+14. **Epic 8 Phase 1 — Cell Framework Foundation** (US-080 → US-081 → US-082) — HEADLESS, no blockers, good pipeline filler after Epic 7.5. Strict order: US-080 (types) → US-081 (markup, depends on US-080 enums) → US-082 (validation, depends on both).
+15. **Epic 10 Phase 4** — Blueprint polish, VFX (US-070, US-076, US-075)
+16. **Epic 10 Phase 5+** — Equipment/map/town UI (US-072/073/074 after their parent epics)
+17. **Epic 8 Phase 2** — Movement/exploration skills + world gates — BLOCKED (skill values undecided; gates need human approval)
+18. **Epic 9** — Town Management
 
 ## Notes
 - This plan is a living document. Stories will be broken down further as we approach each epic.
@@ -158,4 +174,4 @@ Delegated town systems.
 - Epic 6.5 added as integration milestone: US-077 (weapon cycling C++) + US-078 (playable weapon arena EDITOR)
 - US-027–030 marked as needing design input: crossbow, throwables, wands, two-weapon fighting, armor, and shields have insufficient design detail in current docs
 - Epic 7 (Inventory) implementation order: US-032 → US-031 → US-033. US-032 delivers item definition foundation; US-031 and US-033 depend on it.
-- Per Playability-First Rule: Epic 6.5 was the last integration milestone. Epic 7 is pure system work (HEADLESS). After Epic 7, next integration candidate is UI-focused (US-071 Inventory UI — EDITOR — after Epic 7 complete).
+- Per Playability-First Rule: Epic 6.5 was the last integration milestone. Epic 7 was pure system work. Epic 7.5 (US-071 + US-079) is the integration milestone that turns the inventory plumbing into something Jeff can pick up, filter, and identify in PIE.
