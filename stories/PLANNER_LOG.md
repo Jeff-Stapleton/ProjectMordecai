@@ -2730,3 +2730,39 @@ Adding to an unconsumed queue is the queue-churn the 05-17 and 06-08 runs correc
 1. **US-071** (Inventory Widget, HEADLESS) — single most valuable next unit.
 2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071.
 3. **US-080 → US-081 → US-082** (Cell Framework Foundation, HEADLESS) — strict order.
+
+---
+
+## 2026-06-12 Nightly Planning Run
+
+### Status: Stall now 54 days (last coding commit `1666193`, 2026-04-19). Queue healthy and unchanged.
+
+- **HEAD:** `a754566 [planning] 2026-06-11 ...` (yesterday's planner commit that made the queue durable in git). Last **coding-agent** commit is still `1666193 [US-033]` (2026-04-19) — `git log --since=2026-04-20` excluding planning commits is empty. **54 calendar days** with no implementation.
+- **Backlog (5, all ready):** US-071, US-079 (Epic 7.5); US-080, US-081, US-082 (Epic 8 Phase 1). All dependency-satisfied and spec-current.
+- **In-progress:** empty. **Done:** 50 stories. **Working tree:** clean (06-11 run committed PLAN.md, PLANNER_LOG.md, and all 5 backlog files).
+
+### No new stories this run — deliberately (1 day after a full scoping run)
+Yesterday's run already extended the runway from 2 to 5 stories and committed the whole queue. Every genuinely-unblocked path is scoped. The remaining unscoped work is all gated and unchanged from 06-09/06-11:
+- **Epic 8 Phase 2** (US-034/035) — blocked on undecided `{x}*rank` skill constants in `skill_sheet_v1.1.md`.
+- **Epic 8 gates / biome content** (US-036, Milestone-2 slice) — blocked on human "World Intent" approval (agentic_map_pipeline_v1 §8).
+- **Epic 6** (US-027 ranged / US-028 two-weapon / US-029 armor / US-030 shields) — blocked on design input (**16th consecutive run** flagging).
+- **Epic 9** (Town) — premature to scope while 5 stories sit unconsumed.
+
+Adding to an unconsumed queue is churn, not progress. The dominant issue remains entirely downstream of the planner: **nothing ships until a coding agent runs against US-071.**
+
+### Verification
+No re-verification triggered: no coding commit has landed and no referenced design doc changed since the 04-26 deep pass (newest doc `agent_rules_v2.md`, unchanged). Backlog API surfaces have not drifted.
+
+### Blockers / Decisions Needed (unchanged from 06-11)
+1. **CODING-AGENT PIPELINE (urgent, 54 days):** nothing moves until an agent is invoked against US-071. Single most important unblock.
+2. **Epic 8 skill constants:** concrete per-skill numbers needed for US-034/035.
+3. **Epic 8 World Intent approval:** required before US-036 / Milestone-2 biome content.
+4. **Epic 6 design input:** ranged/two-weapon/armor/shields under-specified.
+
+### Recommendation to Jeff (still urgent)
+**Please sanity-check the coding-agent invocation pipeline.** The planner queue has been healthy for 54 days; if you've simply been away, no action is needed — US-071 lands cleanly when the next agent picks it up. If the pipeline is broken, that is the single unblock the whole project is waiting on.
+
+### Next Session Recommendation
+1. **US-071** (Inventory Widget, HEADLESS) — single most valuable next unit. 17 tests.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071. Epic 7.5 playable proof-point.
+3. **US-080 → US-081 → US-082** (Cell Framework Foundation, HEADLESS) — strict order.
