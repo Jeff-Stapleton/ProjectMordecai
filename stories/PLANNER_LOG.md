@@ -2766,3 +2766,32 @@ No re-verification triggered: no coding commit has landed and no referenced desi
 1. **US-071** (Inventory Widget, HEADLESS) — single most valuable next unit. 17 tests.
 2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071. Epic 7.5 playable proof-point.
 3. **US-080 → US-081 → US-082** (Cell Framework Foundation, HEADLESS) — strict order.
+
+---
+
+## 2026-06-13 Nightly Planning Run
+
+### Status: Stall 55 days. No change. (HEAD = yesterday's planner commit; last coding commit `1666193` [US-033], 2026-04-19.)
+
+- **Verified:** `git log --since=2026-04-20 --invert-grep --grep="[planning]"` is empty — zero implementation commits in 55 days. Working tree clean.
+- **Backlog (5, all ready, unchanged):** US-071, US-079 (Epic 7.5); US-080 → US-081 → US-082 (Epic 8 Phase 1). All dependency-satisfied, spec-current.
+- **In-progress:** empty. **Done:** 50 stories.
+
+### No new stories — and note on cadence
+Queue is unconsumed; adding to it is churn, not progress (consistent with 05-17 / 06-08 / 06-11 / 06-12). Every unblocked path is already scoped. Remaining work is gated and unchanged: Epic 8 Phase 2 skill constants, Epic 8 World Intent approval, Epic 6 design input (now **17th run** flagging), Epic 9 premature.
+
+**Cadence flag:** this is the 5th straight night that produces only a log entry. The nightly planner has nothing left to do until the pipeline resumes. Recommend pausing nightly planner runs until a coding commit lands or Jeff provides one of the gated decisions below — continuing to append "stall +1 day" entries is itself low-value noise.
+
+### Blockers / Decisions Needed (unchanged)
+1. **CODING-AGENT PIPELINE (urgent, 55 days):** nothing ships until an agent runs against US-071. The one unblock the whole project waits on.
+2. **Epic 8 skill constants** for US-034/035 (`{x}*rank` placeholders).
+3. **Epic 8 World Intent approval** before US-036 / Milestone-2 biome content.
+4. **Epic 6 design input:** ranged/two-weapon/armor/shields.
+
+### Recommendation to Jeff
+**Sanity-check the coding-agent invocation pipeline.** If you've been away, no action needed — US-071 lands cleanly when the next agent picks it up. If it's broken, that's the single unblock. Consider pausing this nightly planner until then.
+
+### Next Session Recommendation
+1. **US-071** (Inventory Widget, HEADLESS) — single most valuable next unit.
+2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071.
+3. **US-080 → US-081 → US-082** (Cell Framework Foundation, HEADLESS) — strict order.
