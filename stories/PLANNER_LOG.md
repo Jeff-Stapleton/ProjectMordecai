@@ -2824,3 +2824,19 @@ This is the **6th straight night producing only a log entry.** The 06-13 run rec
 1. **US-071** (Inventory Widget, HEADLESS) — single most valuable next unit.
 2. **US-079** (Playable Inventory Arena, EDITOR) — after US-071.
 3. **US-080 → US-081 → US-082** (Cell Framework Foundation, HEADLESS) — strict order.
+
+---
+
+## 2026-06-15 Nightly Planning Run
+
+### Status: Stall 57 days. No change. (7th straight log-only night.)
+HEAD = `0e5ceed` (yesterday's planner commit); last coding commit `1666193` [US-033], 2026-04-19. Verified: `git log --since=2026-04-20 --invert-grep --grep="[planning]"` empty; working tree clean; in-progress empty; done 50; backlog 5 (US-071, US-079, US-080->081->082) — all ready, dependency-satisfied, spec-current. No in-session cron exists to pause (nightly trigger is external).
+
+### No new stories
+Queue is unconsumed; scoping more is churn. Every unblocked path is already scoped. Gated work unchanged: Epic 8 skill constants, Epic 8 World Intent approval, Epic 6 design input, Epic 9 premature.
+
+### The one ask (unchanged, 57 days)
+**Sanity-check the coding-agent invocation pipeline.** Nothing ships until an agent runs against **US-071**. If Jeff has been away, no action needed — US-071 lands cleanly when the next agent picks it up. If the pipeline is broken, that is the single unblock for the whole project. Keeping entries short from here; the situation, not the wording, is what needs to change.
+
+### Next Session Recommendation
+US-071 -> US-079 -> US-080 -> US-081 -> US-082 (unchanged order).
