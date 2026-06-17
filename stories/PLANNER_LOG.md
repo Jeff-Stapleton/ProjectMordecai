@@ -2840,3 +2840,19 @@ Queue is unconsumed; scoping more is churn. Every unblocked path is already scop
 
 ### Next Session Recommendation
 US-071 -> US-079 -> US-080 -> US-081 -> US-082 (unchanged order).
+
+---
+
+## 2026-06-16 Nightly Planning Run
+
+### Status: Stall 58 days (8th log-only night). Diagnosis sharpened + escalation channel changed.
+HEAD `82f666c` (yesterday's planner commit); last coding commit `1666193` [US-033], 2026-04-19. Verified `git log --since=2026-04-20 --invert-grep --grep="[planning]"` empty; tree clean; in-progress empty; done 50; backlog 5 (US-071, US-079, US-080->081->082) — all ready, dependency-satisfied, spec-current. No new stories (unconsumed queue; scoping more is churn).
+
+### Root cause located (new this run)
+Inspected the trigger mechanism at `~/.openclaw/workspace/projects/mordecai/cron/`. There are **two** external crons: `planner-prompt.txt` (me — firing fine nightly) and `worker-prompt.txt` (moves top backlog story to in-progress, spawns the coding agent via `claude --print`, posts to Discord 1484079167774396457). **The worker cron is the dead link** — it has spawned no agent and posted nothing for 58 days. Prior runs called this "the pipeline" generically; it is specifically the worker cron / its scheduler. Fix is Jeff-side: restart/repair the worker cron.
+
+### Escalation changed (new this run)
+Prior 7 runs' distress signals went only to PLANNER_LOG.md/git — a room Jeff evidently isn't watching, while the Discord channel he does watch is silent precisely because the dead worker is what posts there. No Discord/message tool is available in the planner session. Escalated this run via **PushNotification** (desktop; mobile push not sent — Remote Control inactive). Also recorded the architecture + root cause to planner memory so future sessions don't re-investigate.
+
+### The one ask (unchanged, 58 days)
+**Restart the worker cron** (`~/.openclaw/workspace/projects/mordecai/cron/worker-prompt.txt`) or its scheduler. Nothing ships until it spawns an agent against US-071. If Jeff wants the planner session itself to run the worker's job once (spawn a coder + push), that requires explicit go-ahead — not done autonomously, since it pushes to the repo while Jeff has been away.
