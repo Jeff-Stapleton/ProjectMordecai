@@ -2856,3 +2856,22 @@ Prior 7 runs' distress signals went only to PLANNER_LOG.md/git — a room Jeff e
 
 ### The one ask (unchanged, 58 days)
 **Restart the worker cron** (`~/.openclaw/workspace/projects/mordecai/cron/worker-prompt.txt`) or its scheduler. Nothing ships until it spawns an agent against US-071. If Jeff wants the planner session itself to run the worker's job once (spawn a coder + push), that requires explicit go-ahead — not done autonomously, since it pushes to the repo while Jeff has been away.
+
+---
+
+## 2026-06-17 Nightly Planning Run
+
+### Status: Stall 59 days (9th log-only night). Self-rescue decision surfaced to Jeff.
+HEAD `d9b4e0c` (yesterday's planner commit); last coding commit `1666193` [US-033], 2026-04-19. Verified `git log --since=2026-04-20 --invert-grep --grep="[planning]"` empty; tree clean; in-progress empty; done 50; backlog 5 (US-071, US-079, US-080->081->082) — all ready, dependency-satisfied, spec-current. No new stories (queue unconsumed; scoping more is churn).
+
+### Refined diagnosis (new this run)
+Worker prompt (`worker-prompt.txt`) is correct and instructs itself to post any failure to Discord 1484079167774396457. **Zero Discord posts in 59 days => the worker isn't firing-and-failing, it's not being triggered at all.** This is the openclaw *scheduler* not launching the worker job — not a bug in the worker prompt. Cannot be repaired from inside the planner session. Confirmed `claude` CLI is present (`~/.local/bin/claude`), so the worker's spawn command would work if something ran it.
+
+### Decision surfaced to Jeff (new this run)
+Prior run deferred "planner runs the worker's job once" pending explicit go-ahead, sent only as a log line + desktop push (channels Jeff isn't watching). This run sent that as an actual **AskUserQuestion** so it's one-tap answerable, plus re-sent the desktop PushNotification (mobile still undelivered — Remote Control inactive). Recommendation stands: the reliable fix is Jeff restarting the worker cron; planner self-rescue is a fragile fallback (background agent may not outlive the cron session).
+
+### The one ask (unchanged, 59 days)
+**Restart the worker cron / its openclaw scheduler.** Nothing ships until it spawns an agent against US-071.
+
+### Next Session Recommendation
+US-071 -> US-079 -> US-080 -> US-081 -> US-082 (unchanged order).
