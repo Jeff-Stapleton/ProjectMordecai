@@ -3,6 +3,10 @@
 #include "MordecaiHeroComponent.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiPlayerController.h"
+#include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
+#include "Mordecai/UI/MordecaiInventoryWidget.h"
+#include "Mordecai/UI/MordecaiPauseMenuSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "GameFeatures/GameFeatureAction_AddInputContextMapping.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
@@ -139,6 +143,20 @@ void UMordecaiHeroComponent::EnsureMordecaiInputBound(APlayerController* PC)
 	UInputAction* WeaponCycleNextAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_WeaponSwap.IA_Mordecai_WeaponSwap"));
 	UInputAction* WeaponCyclePrevAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_WeaponCyclePrev.IA_Mordecai_WeaponCyclePrev"));
 
+	// --- US-079: Interact (press-to-pickup) + Pause / Inventory menu actions ---
+	UInputAction* InteractAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_Interact.IA_Mordecai_Interact"));
+	UInputAction* PauseAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_Pause.IA_Mordecai_Pause"));
+	// No IA asset exists for direct-to-inventory; a programmatic action matches
+	// the programmatic-IMC pattern and keeps the binding permanent in C++.
+	UInputAction* InventoryAction = NewObject<UInputAction>(this, TEXT("IA_Mordecai_Inventory_Runtime"));
+	InventoryAction->ValueType = EInputActionValueType::Boolean;
+	InventoryAction->bTriggerWhenPaused = true;
+	if (PauseAction)
+	{
+		// Menu keys must fire while the game is paused so the toggle can close too
+		PauseAction->bTriggerWhenPaused = true;
+	}
+
 	if (Spell1Action)
 	{
 		MordecaiIMC->MapKey(Spell1Action, FKey(TEXT("Q")));
@@ -172,6 +190,20 @@ void UMordecaiHeroComponent::EnsureMordecaiInputBound(APlayerController* PC)
 	{
 		MordecaiIMC->MapKey(WeaponCyclePrevAction, FKey(TEXT("BackSlash")));
 	}
+
+	// --- US-079: Interact — F (MKB) / Gamepad X, per control_bindings_v1.1 ---
+	if (InteractAction)
+	{
+		MordecaiIMC->MapKey(InteractAction, FKey(TEXT("F")));
+		MordecaiIMC->MapKey(InteractAction, FKey(TEXT("Gamepad_FaceButton_Left")));
+	}
+	// --- US-079: Pause menu — Esc (MKB) / Start; I opens straight to Inventory ---
+	if (PauseAction)
+	{
+		MordecaiIMC->MapKey(PauseAction, FKey(TEXT("Escape")));
+		MordecaiIMC->MapKey(PauseAction, FKey(TEXT("Gamepad_Special_Right")));
+	}
+	MordecaiIMC->MapKey(InventoryAction, FKey(TEXT("I")));
 
 	// Add the programmatic IMC to the subsystem
 	Subsystem->AddMappingContext(MordecaiIMC, 2); // Priority 2 to override any broken .uasset IMC
@@ -214,6 +246,17 @@ void UMordecaiHeroComponent::EnsureMordecaiInputBound(APlayerController* PC)
 	{
 		EIC->BindAction(WeaponCyclePrevAction, ETriggerEvent::Started, this, &UMordecaiHeroComponent::HandleWeaponCyclePrevInput);
 	}
+
+	// Bind pickup + menu input actions (US-079)
+	if (InteractAction)
+	{
+		EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &UMordecaiHeroComponent::HandleInteractInput);
+	}
+	if (PauseAction)
+	{
+		EIC->BindAction(PauseAction, ETriggerEvent::Started, this, &UMordecaiHeroComponent::HandlePauseInput);
+	}
+	EIC->BindAction(InventoryAction, ETriggerEvent::Started, this, &UMordecaiHeroComponent::HandleInventoryInput);
 
 	UE_LOG(LogTemp, Warning, TEXT("MORDECAI: Programmatic IMC created and input bound successfully (including %d spell actions)."),
 		(Spell1Action ? 1 : 0) + (Spell2Action ? 1 : 0) + (Spell3Action ? 1 : 0) + (Spell4Action ? 1 : 0));
@@ -288,4 +331,42 @@ void UMordecaiHeroComponent::HandleWeaponCyclePrevInput(const FInputActionValue&
 	{
 		MC->CyclePrevWeapon();
 	}
+}
+
+// ---------------------------------------------------------------------------
+// US-079: Pickup + Menu Input Handlers
+// ---------------------------------------------------------------------------
+
+void UMordecaiHeroComponent::HandleInteractInput(const FInputActionValue& InputActionValue)
+{
+	if (const AActor* Owner = GetOwner())
+	{
+		if (UMordecaiPickupInteractionComponent* Interaction = Owner->FindComponentByClass<UMordecaiPickupInteractionComponent>())
+		{
+			Interaction->TryPickupFocused();
+		}
+	}
+}
+
+void UMordecaiHeroComponent::HandlePauseInput(const FInputActionValue& InputActionValue)
+{
+	if (UMordecaiPauseMenuSubsystem* Subsystem = GetPauseMenuSubsystem())
+	{
+		Subsystem->TogglePauseMenu();
+	}
+}
+
+void UMordecaiHeroComponent::HandleInventoryInput(const FInputActionValue& InputActionValue)
+{
+	if (UMordecaiPauseMenuSubsystem* Subsystem = GetPauseMenuSubsystem())
+	{
+		Subsystem->TogglePauseMenuToTab(UMordecaiInventoryWidget::GetInventoryTabId());
+	}
+}
+
+UMordecaiPauseMenuSubsystem* UMordecaiHeroComponent::GetPauseMenuSubsystem() const
+{
+	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	UGameInstance* GameInstance = OwnerPawn ? OwnerPawn->GetGameInstance() : nullptr;
+	return GameInstance ? GameInstance->GetSubsystem<UMordecaiPauseMenuSubsystem>() : nullptr;
 }

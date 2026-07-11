@@ -41,4 +41,10 @@ private:
 	// Weapon cycling handlers (US-078)
 	void HandleWeaponCycleNextInput(const FInputActionValue& InputActionValue);
 	void HandleWeaponCyclePrevInput(const FInputActionValue& InputActionValue);
+
+	// Pickup + menu handlers (US-079)
+	void HandleInteractInput(const FInputActionValue& InputActionValue);
+	void HandlePauseInput(const FInputActionValue& InputActionValue);
+	void HandleInventoryInput(const FInputActionValue& InputActionValue);
+	class UMordecaiPauseMenuSubsystem* GetPauseMenuSubsystem() const;
 };
