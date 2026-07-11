@@ -1,5 +1,9 @@
-Lyra Sample Game
+Project Mordecai
 ===
+
+Overview
+----
+This is a for of the Unreal Lyra Source code. We are adapting it as the starting point for Project Mordecai
 
 Content Information
 ----
