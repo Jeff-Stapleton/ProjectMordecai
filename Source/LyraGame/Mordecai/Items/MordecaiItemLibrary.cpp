@@ -83,6 +83,7 @@ FGameplayTag UMordecaiItemLibrary::GetRarityTag(EMordecaiItemRarity Rarity)
 	case EMordecaiItemRarity::Blue:   return MordecaiGameplayTags::Item_Rarity_Blue;
 	case EMordecaiItemRarity::Purple: return MordecaiGameplayTags::Item_Rarity_Purple;
 	case EMordecaiItemRarity::Red:    return MordecaiGameplayTags::Item_Rarity_Red;
+	case EMordecaiItemRarity::Gold:   return MordecaiGameplayTags::Item_Rarity_Gold;
 	default:                          return FGameplayTag();
 	}
 }
@@ -102,6 +103,7 @@ namespace
 		case EMordecaiItemRarity::Blue:   return TEXT("Blue");
 		case EMordecaiItemRarity::Purple: return TEXT("Purple");
 		case EMordecaiItemRarity::Red:    return TEXT("Red");
+		case EMordecaiItemRarity::Gold:   return TEXT("Gold");
 		default:                          return TEXT("");
 		}
 	}

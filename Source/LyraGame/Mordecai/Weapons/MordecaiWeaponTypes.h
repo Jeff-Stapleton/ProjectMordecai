@@ -37,7 +37,9 @@ enum class EMordecaiEquipSlot : uint8
 	TwoHand
 };
 
-/** Item rarity tier — affects affix count, stat budget, and visual treatment. */
+/** Item rarity tier — affects affix count, stat budget, and visual treatment.
+ *  Common(Gray) < Green(Uncommon) < Blue(Rare) < Purple(Epic) < Red(Legendary) < Gold(Mythic).
+ *  Gold added by US-071 per item_system_v1 "Red / Gold" top tiers (appended — ordinals stable). */
 UENUM(BlueprintType)
 enum class EMordecaiItemRarity : uint8
 {
@@ -45,7 +47,8 @@ enum class EMordecaiItemRarity : uint8
 	Green,
 	Blue,
 	Purple,
-	Red
+	Red,
+	Gold
 };
 
 /** Operation type for stat modifiers applied by equipped items. */

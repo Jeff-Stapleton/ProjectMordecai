@@ -221,6 +221,7 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Rarity_Blue,   "Mordecai.Item.Rarity.Blue",   "Blue (rare) rarity");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Rarity_Purple, "Mordecai.Item.Rarity.Purple", "Purple (epic) rarity");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Rarity_Red,    "Mordecai.Item.Rarity.Red",    "Red (legendary) rarity");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Rarity_Gold,   "Mordecai.Item.Rarity.Gold",   "Gold (mythic) rarity (US-071)");
 
 	// Item identification tags (US-033)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Identification_Identified,   "Mordecai.Item.Identification.Identified",   "Item is fully identified");
