@@ -43,6 +43,23 @@ void UMordecaiPauseMenuSubsystem::TogglePauseMenu()
 	}
 }
 
+void UMordecaiPauseMenuSubsystem::TogglePauseMenuToTab(FName TabId)
+{
+	if (MenuState.bIsOpen)
+	{
+		ClosePauseMenu();
+		return;
+	}
+
+	// Land on the requested tab instead of the remembered one (US-079)
+	MenuState.LastActiveTabId = TabId;
+	OpenPauseMenu();
+	if (ActiveMenuWidget.IsValid() && TabId != NAME_None)
+	{
+		ActiveMenuWidget->SetActiveTab(TabId);
+	}
+}
+
 void UMordecaiPauseMenuSubsystem::OpenPauseMenu()
 {
 	if (!MenuState.Open())

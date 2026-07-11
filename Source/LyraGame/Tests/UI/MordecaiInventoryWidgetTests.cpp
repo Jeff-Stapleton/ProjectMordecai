@@ -90,7 +90,6 @@ namespace MordecaiInventoryWidgetTestHelpers
 	}
 }
 
-using namespace MordecaiInventoryWidgetTestHelpers;
 
 // ===========================================================================
 // 1. Mordecai.UI.Inventory.BindsAndUnbinds (AC-071.2, AC-071.3)
@@ -101,6 +100,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_BindsAndUnbinds,
 
 bool FMordecai_UI_Inventory_BindsAndUnbinds::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 	UMordecaiInventoryWidget* Widget = MakeWidget();
@@ -133,6 +133,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_GracefulWithoutBinding,
 
 bool FMordecai_UI_Inventory_GracefulWithoutBinding::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiInventoryWidget* Widget = MakeWidget();
 	Widget->BindToInventory(nullptr, nullptr);
 
@@ -159,6 +160,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_DisplaysFlatList,
 
 bool FMordecai_UI_Inventory_DisplaysFlatList::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 
@@ -218,6 +220,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_RowUsesLibraryDisplayNam
 
 bool FMordecai_UI_Inventory_RowUsesLibraryDisplayName::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 	const FGuid Id = Inv->AddItem(MakeUnidentifiedDef(FName("Amulet_A")), 1);
@@ -257,6 +260,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_RarityColorMap,
 
 bool FMordecai_UI_Inventory_RarityColorMap::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	const TArray<EMordecaiItemRarity> Rarities = {
 		EMordecaiItemRarity::Common, EMordecaiItemRarity::Green, EMordecaiItemRarity::Blue,
 		EMordecaiItemRarity::Purple, EMordecaiItemRarity::Red, EMordecaiItemRarity::Gold
@@ -300,6 +304,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_FilterRestrictsList,
 
 bool FMordecai_UI_Inventory_FilterRestrictsList::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 	Inv->AddItem(MakeDef(FName("Sword_A"),  EMordecaiItemType::Weapon), 1);
@@ -354,6 +359,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_FilterFiresDelegate,
 
 bool FMordecai_UI_Inventory_FilterFiresDelegate::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiInventoryWidget* Widget = MakeWidget();
 	UMordecaiInventoryFilterDelegateSpy* Spy = NewObject<UMordecaiInventoryFilterDelegateSpy>();
 	Widget->OnFilterChanged.AddDynamic(Spy, &UMordecaiInventoryFilterDelegateSpy::Handle);
@@ -378,6 +384,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_LedgerPanelShowsResource
 
 bool FMordecai_UI_Inventory_LedgerPanelShowsResources::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 
@@ -413,6 +420,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_LedgerEmptyStateMessage,
 
 bool FMordecai_UI_Inventory_LedgerEmptyStateMessage::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 
@@ -438,6 +446,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_IdentifyActionFlipsState
 
 bool FMordecai_UI_Inventory_IdentifyActionFlipsState::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 	const FGuid Id = Inv->AddItem(MakeUnidentifiedDef(FName("Amulet_Id")), 1);
@@ -489,6 +498,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_IdentifyNoopOnIdentified
 
 bool FMordecai_UI_Inventory_IdentifyNoopOnIdentified::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 	// Plain identified weapon (no identification flow at all)
@@ -523,6 +533,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_IdentifyNoopOnMissingIns
 
 bool FMordecai_UI_Inventory_IdentifyNoopOnMissingInstance::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 	Inv->AddItem(MakeUnidentifiedDef(FName("Amulet_X")), 1);
@@ -546,6 +557,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_IdentifyWithoutServiceSu
 
 bool FMordecai_UI_Inventory_IdentifyWithoutServiceSubsystem::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 	const FGuid Id = Inv->AddItem(MakeUnidentifiedDef(FName("Amulet_NoSvc")), 1);
@@ -575,6 +587,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_EmptyInventoryShowsPlace
 
 bool FMordecai_UI_Inventory_EmptyInventoryShowsPlaceholder::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 
@@ -600,6 +613,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_FilterHidesAllShowsAltPl
 
 bool FMordecai_UI_Inventory_FilterHidesAllShowsAltPlaceholder::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 	Inv->AddItem(MakeDef(FName("Sword_A"), EMordecaiItemType::Weapon), 1);
@@ -629,6 +643,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_RebuildsOnInventoryChang
 
 bool FMordecai_UI_Inventory_RebuildsOnInventoryChanged::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 
@@ -656,6 +671,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_RebuildsOnResourceChange
 
 bool FMordecai_UI_Inventory_RebuildsOnResourceChanged::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiResourceLedger* Ledger = nullptr;
 	UMordecaiInventoryComponent* Inv = MakeInv(&Ledger);
 
@@ -699,6 +715,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_RegistersWithPauseMenu,
 
 bool FMordecai_UI_Inventory_RegistersWithPauseMenu::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiInventoryWidgetTestHelpers;
 	UMordecaiPauseMenuWidget* PauseMenu = NewObject<UMordecaiPauseMenuWidget>(GetTransientPackage());
 
 	UMordecaiInventoryWidget::RegisterWithPauseMenu(PauseMenu);

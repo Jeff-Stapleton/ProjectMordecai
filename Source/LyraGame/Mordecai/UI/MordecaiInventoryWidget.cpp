@@ -2,6 +2,13 @@
 
 #include "Mordecai/UI/MordecaiInventoryWidget.h"
 
+#include "Blueprint/WidgetTree.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/ScrollBox.h"
+#include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Engine/GameInstance.h"
 #include "Mordecai/Items/MordecaiIdentificationService.h"
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
@@ -9,6 +16,7 @@
 #include "Mordecai/Items/MordecaiItemLibrary.h"
 #include "Mordecai/Items/MordecaiResourceLedger.h"
 #include "Mordecai/UI/MordecaiPauseMenuWidget.h"
+#include "Mordecai/UI/MordecaiTabButton.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiInventoryWidget)
 
@@ -100,6 +108,17 @@ bool UMordecaiInventoryWidget::FilterMatchesType(EMordecaiInventoryFilter Filter
 // Lifecycle
 // ---------------------------------------------------------------------------
 
+void UMordecaiInventoryWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+
+	if (WidgetTree && !WidgetTree->RootWidget)
+	{
+		BuildDefaultLayout();
+	}
+	RefreshVisuals();
+}
+
 void UMordecaiInventoryWidget::NativeDestruct()
 {
 	Unbind();
@@ -129,6 +148,7 @@ void UMordecaiInventoryWidget::BindToInventory(UMordecaiInventoryComponent* Inve
 
 	RebuildRowCache();
 	RebuildLedgerCache();
+	RefreshVisuals();
 }
 
 void UMordecaiInventoryWidget::Unbind()
@@ -156,6 +176,7 @@ void UMordecaiInventoryWidget::SetFilter(EMordecaiInventoryFilter NewFilter)
 {
 	ActiveFilter = NewFilter;
 	OnFilterChanged.Broadcast(FilterToName(NewFilter));
+	RefreshVisuals();
 }
 
 // ---------------------------------------------------------------------------
@@ -268,11 +289,36 @@ void UMordecaiInventoryWidget::SetIdentificationServiceOverride(UMordecaiIdentif
 void UMordecaiInventoryWidget::HandleInventoryChanged(const FGuid& InstanceId, int32 QuantityDelta)
 {
 	RebuildRowCache();
+	RefreshVisuals();
 }
 
 void UMordecaiInventoryWidget::HandleResourceChanged(FName ItemId, int32 NewCount)
 {
 	RebuildLedgerCache();
+	RefreshVisuals();
+}
+
+void UMordecaiInventoryWidget::HandleFilterButtonClicked(FName FilterId)
+{
+	// Map the button id back to the enum via FilterToName round-trip
+	for (uint8 Value = 0; Value <= static_cast<uint8>(EMordecaiInventoryFilter::Magical); ++Value)
+	{
+		const EMordecaiInventoryFilter Filter = static_cast<EMordecaiInventoryFilter>(Value);
+		if (FilterToName(Filter) == FilterId)
+		{
+			SetFilter(Filter);
+			return;
+		}
+	}
+}
+
+void UMordecaiInventoryWidget::HandleIdentifyButtonClicked(FName InstanceIdString)
+{
+	FGuid InstanceId;
+	if (FGuid::Parse(InstanceIdString.ToString(), InstanceId))
+	{
+		TryIdentify(InstanceId);
+	}
 }
 
 void UMordecaiInventoryWidget::RebuildRowCache()
@@ -348,6 +394,172 @@ UMordecaiIdentificationService* UMordecaiInventoryWidget::ResolveIdentificationS
 	// has no world — headless test widgets resolve to no service here.
 	UGameInstance* GameInstance = GetGameInstance();
 	return GameInstance ? GameInstance->GetSubsystem<UMordecaiIdentificationService>() : nullptr;
+}
+
+// ---------------------------------------------------------------------------
+// Programmatic fallback layout (US-079)
+// ---------------------------------------------------------------------------
+
+void UMordecaiInventoryWidget::BuildDefaultLayout()
+{
+	UHorizontalBox* Root = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Root"));
+	WidgetTree->RootWidget = Root;
+
+	// --- Left column: filter bar over the item list ---
+	UVerticalBox* ListColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ListColumn"));
+	if (UHorizontalBoxSlot* ListColumnSlot = Root->AddChildToHorizontalBox(ListColumn))
+	{
+		ListColumnSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		ListColumnSlot->SetPadding(FMargin(0.f, 0.f, 12.f, 0.f));
+	}
+
+	FilterBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("FilterBar"));
+	if (UVerticalBoxSlot* FilterSlot = ListColumn->AddChildToVerticalBox(FilterBar))
+	{
+		FilterSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+	}
+
+	ItemListBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("ItemListBox"));
+	if (UVerticalBoxSlot* ListSlot = ListColumn->AddChildToVerticalBox(ItemListBox))
+	{
+		ListSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	}
+
+	ListPlaceholder = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ListPlaceholder"));
+	ListPlaceholder->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.f)));
+	ListColumn->AddChildToVerticalBox(ListPlaceholder);
+
+	// --- Right column: auto-stored resource ledger ---
+	UVerticalBox* LedgerColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LedgerColumn"));
+	if (UHorizontalBoxSlot* LedgerColumnSlot = Root->AddChildToHorizontalBox(LedgerColumn))
+	{
+		LedgerColumnSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+	}
+
+	LedgerHeader = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LedgerHeader"));
+	LedgerHeader->SetText(LOCTEXT("LedgerHeader", "Stored Resources"));
+	if (UVerticalBoxSlot* HeaderSlot = LedgerColumn->AddChildToVerticalBox(LedgerHeader))
+	{
+		HeaderSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+	}
+
+	LedgerBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LedgerBox"));
+	LedgerColumn->AddChildToVerticalBox(LedgerBox);
+
+	LedgerPlaceholder = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LedgerPlaceholder"));
+	LedgerPlaceholder->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.f)));
+	LedgerColumn->AddChildToVerticalBox(LedgerPlaceholder);
+}
+
+void UMordecaiInventoryWidget::RefreshVisuals()
+{
+	if (!WidgetTree || !ItemListBox)
+	{
+		return; // Headless (NewObject) widgets carry no visual tree — caches are the API
+	}
+
+	// --- Filter bar: one button per filter, active one highlighted ---
+	if (FilterBar)
+	{
+		FilterBar->ClearChildren();
+		for (uint8 Value = 0; Value <= static_cast<uint8>(EMordecaiInventoryFilter::Magical); ++Value)
+		{
+			const EMordecaiInventoryFilter Filter = static_cast<EMordecaiInventoryFilter>(Value);
+			const bool bActive = Filter == ActiveFilter;
+
+			UMordecaiTabButton* Button = WidgetTree->ConstructWidget<UMordecaiTabButton>(UMordecaiTabButton::StaticClass());
+			Button->InitButton(FilterToName(Filter));
+			Button->OnClickedWithId.AddUniqueDynamic(this, &UMordecaiInventoryWidget::HandleFilterButtonClicked);
+			Button->SetBackgroundColor(bActive
+				? FLinearColor(0.25f, 0.35f, 0.55f, 1.f)
+				: FLinearColor(0.12f, 0.12f, 0.15f, 1.f));
+
+			UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+			Label->SetText(FText::FromName(FilterToName(Filter)));
+			Label->SetColorAndOpacity(FSlateColor(bActive ? FLinearColor::White : FLinearColor(0.7f, 0.7f, 0.7f, 1.f)));
+			Button->AddChild(Label);
+
+			if (UHorizontalBoxSlot* ButtonSlot = FilterBar->AddChildToHorizontalBox(Button))
+			{
+				ButtonSlot->SetPadding(FMargin(2.f, 0.f));
+			}
+		}
+	}
+
+	// --- Item list: name (rarity-colored), quantity, "?" badge + identify button ---
+	ItemListBox->ClearChildren();
+	for (const FMordecaiInventoryRowModel& Row : GetVisibleRows())
+	{
+		UHorizontalBox* RowBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+
+		FString NameString = Row.DisplayName.ToString();
+		if (Row.bShowQuantity)
+		{
+			NameString += FString::Printf(TEXT("  x%d"), Row.Quantity);
+		}
+		if (Row.bIsEquipped)
+		{
+			NameString += TEXT("  [equipped]");
+		}
+		if (Row.bIsUnidentified)
+		{
+			NameString = TEXT("? ") + NameString;
+		}
+
+		UTextBlock* NameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		NameText->SetText(FText::FromString(NameString));
+		NameText->SetColorAndOpacity(FSlateColor(GetRarityColor(Row.Rarity)));
+		if (UHorizontalBoxSlot* NameSlot = RowBox->AddChildToHorizontalBox(NameText))
+		{
+			NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			NameSlot->SetVerticalAlignment(VAlign_Center);
+		}
+
+		if (Row.bIsUnidentified)
+		{
+			UMordecaiTabButton* IdentifyButton = WidgetTree->ConstructWidget<UMordecaiTabButton>(UMordecaiTabButton::StaticClass());
+			IdentifyButton->InitButton(FName(*Row.InstanceId.ToString()));
+			IdentifyButton->OnClickedWithId.AddUniqueDynamic(this, &UMordecaiInventoryWidget::HandleIdentifyButtonClicked);
+
+			UTextBlock* IdentifyLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+			IdentifyLabel->SetText(LOCTEXT("IdentifyButton", "Identify"));
+			IdentifyButton->AddChild(IdentifyLabel);
+
+			if (UHorizontalBoxSlot* IdentifySlot = RowBox->AddChildToHorizontalBox(IdentifyButton))
+			{
+				IdentifySlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
+			}
+		}
+
+		ItemListBox->AddChild(RowBox);
+	}
+
+	if (ListPlaceholder)
+	{
+		const FText Placeholder = GetListPlaceholderText();
+		ListPlaceholder->SetText(Placeholder);
+		ListPlaceholder->SetVisibility(Placeholder.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+
+	// --- Ledger panel ---
+	if (LedgerBox)
+	{
+		LedgerBox->ClearChildren();
+		for (const FMordecaiInventoryLedgerRow& LedgerRow : CachedLedgerRows)
+		{
+			UTextBlock* EntryText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+			EntryText->SetText(FText::Format(LOCTEXT("LedgerEntryFormat", "{0}  x{1}"),
+				LedgerRow.DisplayName, FText::AsNumber(LedgerRow.Count)));
+			LedgerBox->AddChildToVerticalBox(EntryText);
+		}
+	}
+
+	if (LedgerPlaceholder)
+	{
+		const FText Placeholder = GetLedgerPlaceholderText();
+		LedgerPlaceholder->SetText(Placeholder);
+		LedgerPlaceholder->SetVisibility(Placeholder.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

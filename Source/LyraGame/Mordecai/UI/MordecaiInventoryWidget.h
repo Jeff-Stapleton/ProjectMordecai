@@ -9,11 +9,15 @@
 
 #include "MordecaiInventoryWidget.generated.h"
 
+class UHorizontalBox;
 class UMordecaiIdentificationService;
 class UMordecaiInventoryComponent;
 class UMordecaiPauseMenuWidget;
 class UMordecaiResourceLedger;
+class UScrollBox;
+class UTextBlock;
 class UTexture2D;
+class UVerticalBox;
 
 /**
  * EMordecaiInventoryFilter
@@ -263,7 +267,28 @@ public:
 	void SetIdentificationServiceOverride(UMordecaiIdentificationService* InService);
 
 protected:
+	virtual void NativeOnInitialized() override;
 	virtual void NativeDestruct() override;
+
+	// --- Programmatic fallback layout (US-079) — BP polish can override ---
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UHorizontalBox> FilterBar;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UScrollBox> ItemListBox;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> ListPlaceholder;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> LedgerHeader;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UVerticalBox> LedgerBox;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> LedgerPlaceholder;
 
 private:
 	UFUNCTION()
@@ -271,6 +296,18 @@ private:
 
 	UFUNCTION()
 	void HandleResourceChanged(FName ItemId, int32 NewCount);
+
+	UFUNCTION()
+	void HandleFilterButtonClicked(FName FilterId);
+
+	UFUNCTION()
+	void HandleIdentifyButtonClicked(FName InstanceIdString);
+
+	/** Build the fallback widget tree when no Blueprint layout exists (US-079). */
+	void BuildDefaultLayout();
+
+	/** Repopulate the visual item list, filter bar highlight, and ledger panel from the caches. */
+	void RefreshVisuals();
 
 	/** Single-pass rebuild of the item row cache from GetSortedItems(). */
 	void RebuildRowCache();
