@@ -297,3 +297,40 @@ bool FMordecai_UI_PauseMenu_DoubleCloseIsNoOp::RunTest(const FString& Parameters
 
 	return true;
 }
+
+// ---------------------------------------------------------------------------
+// 12. Mordecai.UI.PauseMenu.InventoryTabRegistered (US-079, AC-079.8)
+// InitializeTabs (the NativeOnInitialized hook) registers the real inventory
+// widget as the "inventory" tab content, alongside the character sheet.
+// ---------------------------------------------------------------------------
+#include "Mordecai/UI/MordecaiCharacterSheetWidget.h"
+#include "Mordecai/UI/MordecaiInventoryWidget.h"
+#include "Mordecai/UI/MordecaiPauseMenuWidget.h"
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_PauseMenu_InventoryTabRegistered,
+	"Mordecai.UI.PauseMenu.InventoryTabRegistered",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_PauseMenu_InventoryTabRegistered::RunTest(const FString& Parameters)
+{
+	UMordecaiPauseMenuWidget* Menu = NewObject<UMordecaiPauseMenuWidget>(GetTransientPackage());
+	Menu->InitializeTabs();
+
+	const FMordecaiPauseMenuTabEntry* InventoryTab = Menu->GetTabModel().FindTab(UMordecaiInventoryWidget::GetInventoryTabId());
+	TestNotNull("'inventory' tab exists", InventoryTab);
+	if (InventoryTab)
+	{
+		TestTrue("'inventory' tab content is the real inventory widget class",
+			InventoryTab->ContentWidgetClass == UMordecaiInventoryWidget::StaticClass());
+	}
+
+	const FMordecaiPauseMenuTabEntry* CharacterTab = Menu->GetTabModel().FindTab(UMordecaiCharacterSheetWidget::GetCharacterTabId());
+	TestNotNull("'character' tab still registered", CharacterTab);
+	if (CharacterTab)
+	{
+		TestTrue("'character' tab content is the character sheet",
+			CharacterTab->ContentWidgetClass == UMordecaiCharacterSheetWidget::StaticClass());
+	}
+
+	return true;
+}

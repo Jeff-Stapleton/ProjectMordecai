@@ -148,8 +148,8 @@ bool UMordecaiInventoryComponent::RemoveItem(const FGuid& InstanceId, int32 Quan
 		Inst.Quantity -= Quantity;
 		const FGuid CapturedId = Inst.InstanceId;
 
-		OnInventoryChanged.Broadcast(CapturedId, -Quantity);
-
+		// Mutate the list fully BEFORE broadcasting — listeners rebuild from
+		// GetSortedItems() synchronously and must not see emptied stacks.
 		if (Inst.Quantity <= 0)
 		{
 			ItemList.Items.RemoveAt(Idx);
@@ -159,6 +159,8 @@ bool UMordecaiInventoryComponent::RemoveItem(const FGuid& InstanceId, int32 Quan
 		{
 			ItemList.MarkItemDirty(Inst);
 		}
+
+		OnInventoryChanged.Broadcast(CapturedId, -Quantity);
 		return true;
 	}
 	return false;
@@ -200,8 +202,11 @@ bool UMordecaiInventoryComponent::ConsumeByDefinition(UMordecaiItemDefinition* D
 	});
 
 	// Drain in ascending-quantity order; decrement then remove empties.
+	// Broadcasts are deferred until the list is fully mutated — listeners
+	// rebuild from GetSortedItems() synchronously and must not see emptied stacks.
 	int32 Remaining = Quantity;
 	TArray<int32> ToRemove;
+	TArray<TPair<FGuid, int32>> PendingBroadcasts;
 	for (int32 MatchIdx : MatchIndices)
 	{
 		if (Remaining <= 0) break;
@@ -209,7 +214,7 @@ bool UMordecaiInventoryComponent::ConsumeByDefinition(UMordecaiItemDefinition* D
 		const int32 Take = FMath::Min(Remaining, Inst.Quantity);
 		Inst.Quantity -= Take;
 		Remaining -= Take;
-		OnInventoryChanged.Broadcast(Inst.InstanceId, -Take);
+		PendingBroadcasts.Emplace(Inst.InstanceId, -Take);
 
 		if (Inst.Quantity <= 0)
 		{
@@ -230,6 +235,11 @@ bool UMordecaiInventoryComponent::ConsumeByDefinition(UMordecaiItemDefinition* D
 	if (ToRemove.Num() > 0)
 	{
 		ItemList.MarkArrayDirty();
+	}
+
+	for (const TPair<FGuid, int32>& Pending : PendingBroadcasts)
+	{
+		OnInventoryChanged.Broadcast(Pending.Key, Pending.Value);
 	}
 
 	return true;

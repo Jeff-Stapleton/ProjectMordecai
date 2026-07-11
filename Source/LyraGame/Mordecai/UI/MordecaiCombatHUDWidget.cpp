@@ -10,6 +10,7 @@
 #include "Mordecai/UI/MordecaiComboCounterWidget.h"
 #include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
 #include "Mordecai/UI/MordecaiKillCounterWidget.h"
+#include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -116,6 +117,13 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 		StatusEffectBar = CreateWidget<UMordecaiStatusEffectBarWidget>(this);
 	}
 	AddChild(StatusEffectBar, BottomLeft, FVector2D(20, -60), FVector2D(400, 40));
+
+	// --- Pickup / Inventory Assist Prompts (US-079, bottom-center above feedback) ---
+	if (!PickupPrompt)
+	{
+		PickupPrompt = CreateWidget<UMordecaiPickupPromptWidget>(this);
+	}
+	AddChild(PickupPrompt, BottomCenter, FVector2D(0, -30), FVector2D(420, 56), FVector2D(0.5f, 1.f));
 }
 
 // ---------------------------------------------------------------------------

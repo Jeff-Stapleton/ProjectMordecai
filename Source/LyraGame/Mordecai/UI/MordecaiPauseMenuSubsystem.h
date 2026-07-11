@@ -30,6 +30,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|PauseMenu")
 	void TogglePauseMenu();
 
+	/**
+	 * Toggle the pause menu, landing on a specific tab when opening (US-079:
+	 * the "I" key opens straight to the Inventory tab). Closing behaves like
+	 * TogglePauseMenu.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|PauseMenu")
+	void TogglePauseMenuToTab(FName TabId);
+
 	/** Open the pause menu (no-op if already open). */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|PauseMenu")
 	void OpenPauseMenu();
@@ -45,6 +53,10 @@ public:
 	/** The tab that was active when the menu was last closed. */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|PauseMenu")
 	FName GetLastActiveTabId() const;
+
+	/** The live pushed menu widget, or null while closed (US-079: PIE verification hook). */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|PauseMenu")
+	UMordecaiPauseMenuWidget* GetActiveMenuWidget() const { return ActiveMenuWidget.Get(); }
 
 	/**
 	 * If false, opening the menu only switches input mode without pausing

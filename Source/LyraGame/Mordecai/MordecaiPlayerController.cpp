@@ -4,6 +4,8 @@
 
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
 #include "Mordecai/UI/MordecaiDamagePopComponent.h"
+#include "Mordecai/UI/MordecaiPickupPromptWidget.h"
+#include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
 #include "Mordecai/Magic/MordecaiGA_SpellBase.h"
@@ -88,6 +90,18 @@ void AMordecaiPlayerController::CreateCombatHUD()
 				if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
 				{
 					CombatHUDWidget->BindToASC(ASC);
+				}
+			}
+		}
+
+		// Wire the pickup/inventory assist prompts to the pawn's interaction component (US-079)
+		if (UMordecaiPickupPromptWidget* Prompt = CombatHUDWidget->GetPickupPrompt())
+		{
+			if (APawn* PossessedPawn = GetPawn())
+			{
+				if (UMordecaiPickupInteractionComponent* Interaction = PossessedPawn->FindComponentByClass<UMordecaiPickupInteractionComponent>())
+				{
+					Prompt->BindToInteraction(Interaction);
 				}
 			}
 		}

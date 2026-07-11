@@ -17,6 +17,7 @@ class UMordecaiSpellCooldownWidget;
 class UMordecaiComboCounterWidget;
 class UMordecaiCombatFeedbackWidget;
 class UMordecaiKillCounterWidget;
+class UMordecaiPickupPromptWidget;
 
 /**
  * UMordecaiCombatHUDWidget
@@ -41,6 +42,10 @@ public:
 	/** Returns the number of non-null child widget slots (for smoke test verification). */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	int32 GetBoundChildCount() const;
+
+	/** Pickup/inventory assist prompts (US-079). May be null if a BP layout omits the slot. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|HUD")
+	UMordecaiPickupPromptWidget* GetPickupPrompt() const { return PickupPrompt; }
 
 protected:
 	virtual void NativeOnInitialized() override;
@@ -82,6 +87,11 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UMordecaiKillCounterWidget> KillCounter;
+
+	// --- Pickup / Inventory Assist Prompts (US-079) ---
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UMordecaiPickupPromptWidget> PickupPrompt;
 
 private:
 	void BuildDefaultLayout();

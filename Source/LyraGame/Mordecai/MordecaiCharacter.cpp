@@ -10,6 +10,7 @@
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
+#include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/Items/MordecaiResourceLedger.h"
 #include "Mordecai/UI/MordecaiEquippedWeaponWidget.h"
 #include "Blueprint/UserWidget.h"
@@ -46,6 +47,10 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 	{
 		InventoryComponent->SetResourceLedger(ResourceLedger);
 	}
+
+	// Press-to-pickup focus tracking (US-079) — pickups register on overlap,
+	// Interact input picks up the focused one
+	PickupInteractionComponent = CreateDefaultSubobject<UMordecaiPickupInteractionComponent>(TEXT("PickupInteractionComponent"));
 
 	// Default starting weapons for the arena slice (US-078). Designer can override per-BP.
 	StartingWeapons.Add(TSoftObjectPtr<UMordecaiWeaponDataAsset>(FSoftObjectPath(TEXT("/MordecaiCore/Weapons/DA_Weapon_Longsword.DA_Weapon_Longsword"))));

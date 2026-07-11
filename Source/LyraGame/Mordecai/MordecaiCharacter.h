@@ -13,6 +13,7 @@ class UMordecaiEquipmentComponent;
 class UMordecaiWeaponDataAsset;
 class UMordecaiEquippedWeaponWidget;
 class UMordecaiInventoryComponent;
+class UMordecaiPickupInteractionComponent;
 class UMordecaiResourceLedger;
 class UStaticMeshComponent;
 struct FOnAttributeChangeData;
@@ -86,6 +87,11 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Inventory")
 	UMordecaiResourceLedger* GetResourceLedger() const { return ResourceLedger; }
 
+	// --- US-079: Press-to-pickup interaction ---
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Inventory")
+	UMordecaiPickupInteractionComponent* GetPickupInteractionComponent() const { return PickupInteractionComponent; }
+
 	/** Cycle to next weapon in AvailableWeapons (bound to Tab / Gamepad Y via HeroComponent). */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Equipment")
 	void CycleNextWeapon();
@@ -122,6 +128,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Inventory", Meta = (AllowPrivateAccess = true))
 	TObjectPtr<UMordecaiResourceLedger> ResourceLedger;
+
+	// Press-to-pickup focus tracking (US-079)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Inventory", Meta = (AllowPrivateAccess = true))
+	TObjectPtr<UMordecaiPickupInteractionComponent> PickupInteractionComponent;
 
 	// Runtime: equipped-weapon HUD widget (created on BeginPlay for local player)
 	UPROPERTY(Transient)
