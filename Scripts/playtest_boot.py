@@ -97,6 +97,9 @@ EVIDENCE_GRACE_S = 60
 # After a crash marker, let the game finish writing its callstack to game.log and hand
 # the crash to CrashReportClient (minidump) before the process tree is killed.
 CRASH_GRACE_S = 30
+# Engine screenshots are scheduled from the game's own experience-load detection, which can lag
+# the log line slightly; allow this long past the last scheduled shot for its PNG to appear.
+ENGINE_SHOT_GRACE_S = 15
 
 # Screenshot heuristics (8-bit grayscale).
 UNIFORM_RANGE = 12      # max-min luminance at or below this = flat image
@@ -1206,10 +1209,18 @@ def main():
         "-windowed", f"-ResX={RES_X}", f"-ResY={RES_Y}", "-log",
         f"-abslog={quote_value(game_log)}", "-nosplash", "-nosound",
     ]
+    if args.shots > 0:
+        # UMordecaiPlaytestCaptureSubsystem saves engine_NN.png from the game's own viewport,
+        # which works when the desktop is locked or the window is covered.
+        game_args += [
+            "-PlaytestCapture", f"-PlaytestShotDir={quote_value(run_dir)}",
+            f"-PlaytestShots={args.shots}", f"-PlaytestShotDelay={args.settle:g}",
+            f"-PlaytestShotInterval={args.shot_interval:g}",
+        ]
     command_line = subprocess.list2cmdline([exe]) + " " + " ".join(game_args)
 
     started_at = datetime.datetime.now().isoformat(timespec="seconds")
-    checks, warnings, screenshots = [], [], []
+    checks, warnings, screenshots, engine_screenshots = [], [], [], []
     warnings.extend(fresh["warnings"])
     if not fresh["fresh"]:
         warnings.append("STALE BUILD allowed by --allow-stale: " + "; ".join(fresh["reasons"]))
@@ -1393,6 +1404,55 @@ def main():
                     else:
                         add_check(checks, "screenshots", "SKIP",
                                   "game process exited before the first screenshot", kind="infra")
+
+            # --- Step 5b: Engine screenshots (the game's own frames; primary visual evidence) ---
+            if args.shots > 0 and state.load_complete and proc.poll() is None:
+                expected_paths = [os.path.join(run_dir, f"engine_{i + 1:02d}.png")
+                                  for i in range(args.shots)]
+                load_t = state.load_complete["t"]
+                engine_end = (t0 + load_t + args.settle
+                              + (args.shots - 1) * args.shot_interval + ENGINE_SHOT_GRACE_S)
+
+                def engine_shots_written():
+                    return all(os.path.isfile(p) and os.path.getsize(p) > 0 for p in expected_paths)
+
+                while not engine_shots_written() and time.time() < engine_end:
+                    if not watch(0.5):
+                        break
+                watch(1.0)  # let the last PNG finish writing
+                for path in expected_paths:
+                    if not os.path.isfile(path):
+                        continue
+                    try:
+                        from PIL import Image
+                        with Image.open(path) as img:
+                            img.load()
+                            info = analyze_image(img)
+                            info.update({"path": path, "width": img.width, "height": img.height})
+                    except Exception as e:  # truncated or unreadable PNG
+                        warnings.append(f"{os.path.basename(path)} unreadable: {e}")
+                        continue
+                    engine_screenshots.append(info)
+                    log(f"Engine screenshot {path} ({info['width']}x{info['height']}, "
+                        f"mean {info['mean']}, stddev {info['stddev']})")
+                    if info["uniform"]:
+                        msg = (f"{os.path.basename(path)} is near-uniform"
+                               f"{' BLACK' if info['black'] else ''} (mean {info['mean']}, "
+                               f"stddev {info['stddev']}): the game rendered nothing visible")
+                        warnings.append(msg)
+                        log(f"WARNING: {msg}")
+                n_uniform = sum(1 for s in engine_screenshots if s["uniform"])
+                if not engine_screenshots:
+                    add_check(checks, "engine_screenshots", "FAIL",
+                              f"0/{args.shots} engine_NN.png written; is this a Shipping build, "
+                              "or one without UMordecaiPlaytestCaptureSubsystem? See "
+                              "'LogMordecaiPlaytest' lines in game.log", kind="infra")
+                else:
+                    add_check(checks, "engine_screenshots",
+                              "WARN" if (n_uniform or len(engine_screenshots) < args.shots) else "PASS",
+                              f"{len(engine_screenshots)}/{args.shots} captured by the game"
+                              + (f", {n_uniform} near-uniform" if n_uniform else ""),
+                              kind="infra")
     except KeyboardInterrupt:
         outcome = "interrupted"
         add_check(checks, "completed", "FAIL", "interrupted by user", kind="infra")
@@ -1507,6 +1567,7 @@ def main():
         + ([state.failed_identify_line] if state.failed_identify_line else []),
         "window": window,
         "screenshots": screenshots,
+        "engine_screenshots": engine_screenshots,
         "log": logsum,
         "checks": checks,
         "warnings": warnings,
@@ -1527,9 +1588,11 @@ def main():
             print(f"    (x{e['count']}) {e['line'][:160]}")
     print(f"\nRun dir: {run_dir}")
     print(f"Report:  {md_path}")
+    for s in engine_screenshots:
+        print(f"Engine screenshot: {s['path']}")
     for s in screenshots:
-        print(f"Screenshot: {s['path']}")
-    if screenshots:
+        print(f"Desktop screenshot: {s['path']}")
+    if screenshots or engine_screenshots:
         print(AGENT_LINE)
     return code
 
