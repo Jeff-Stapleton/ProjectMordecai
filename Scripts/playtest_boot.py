@@ -992,11 +992,36 @@ def summarize_log(path, top_n=15, tail_n=40):
     return out
 
 
+# The game asked for a Mordecai asset that is not in the build. These log as Warnings, so they
+# never show up as errors, but each one is a feature that works in PIE and is missing for players
+# (typically content loaded by a path string, which the cooker can't see).
+RE_MISSING_CONTENT = (
+    re.compile(r"SkipPackage: (/MordecaiCore/[^\s(]+)"),
+    re.compile(r"Failed to find object '(?:\w+ )?(/MordecaiCore/[^'.]+)"),
+)
+
+
+def find_missing_content(path):
+    """Returns the sorted /MordecaiCore package paths the game failed to load."""
+    missing = set()
+    try:
+        with open(path, "r", encoding="utf-8-sig", errors="replace") as f:
+            for line in f:
+                for pattern in RE_MISSING_CONTENT:
+                    m = pattern.search(line)
+                    if m:
+                        missing.add(m.group(1))
+    except OSError:
+        pass
+    return sorted(missing)
+
+
 # ---------------------------------------------------------------------------
 # Reports
 # ---------------------------------------------------------------------------
 CHECK_ORDER = ("build_fresh", "launch", "experience_identified", "experience_loaded", "no_crash",
-               "game_window", "screenshots", "log_errors", "completed")
+               "content_cooked", "game_window", "engine_screenshots", "screenshots", "log_errors",
+               "completed")
 
 
 def add_check(checks, name, status, detail, kind="gameplay"):
@@ -1526,6 +1551,13 @@ def main():
             add_check(checks, name, "SKIP", f"not evaluated ({outcome})")
 
     logsum = summarize_log(game_log)
+    missing_content = find_missing_content(game_log)
+    logsum["missing_content"] = missing_content
+    if proc is not None:
+        add_check(checks, "content_cooked", "FAIL" if missing_content else "PASS",
+                  f"{len(missing_content)} /MordecaiCore package(s) requested but not in the build: "
+                  + ", ".join(missing_content[:8]) + (" ..." if len(missing_content) > 8 else "")
+                  if missing_content else "no missing /MordecaiCore packages in game.log")
     if args.fail_on_errors:
         add_check(checks, "log_errors", "FAIL" if logsum["errors"] else "PASS",
                   f"{logsum['errors']} error(s), {logsum['warnings']} warning(s)")
