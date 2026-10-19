@@ -3,6 +3,8 @@
 #include "MordecaiGameMode.h"
 
 #include "Development/LyraDeveloperSettings.h"
+#include "GameModes/LyraWorldSettings.h"
+#include "Kismet/GameplayStatics.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiPlayerController.h"
 #include "Mordecai/MordecaiPlayerState.h"
@@ -22,20 +24,33 @@ AMordecaiGameMode::AMordecaiGameMode(const FObjectInitializer& ObjectInitializer
 
 void AMordecaiGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
-	// Ensure the Mordecai arena experience is used for PIE when no override is configured.
-	// This is permanent C++ code — no config file dependency.
-	if (GetWorld() && GetWorld()->IsPlayInEditor())
-	{
-		ULyraDeveloperSettings* Settings = GetMutableDefault<ULyraDeveloperSettings>();
-		if (Settings && !Settings->ExperienceOverride.IsValid())
-		{
-			Settings->ExperienceOverride = FPrimaryAssetId(
-				FPrimaryAssetType(TEXT("LyraExperienceDefinition")),
-				FName(TEXT("B_MordecaiArenaExperience")));
-		}
-	}
-
 	Super::InitGame(MapName, Options, ErrorMessage);
+
+	// Lyra picks the experience on the next tick from OptionsString, so naming ours here works in
+	// PIE and packaged builds alike. The previous PIE-only ExperienceOverride left packaged builds
+	// on B_LyraDefaultExperience (the shooter).
+	const UWorld* World = GetWorld();
+	const ALyraWorldSettings* WorldSettings = Cast<ALyraWorldSettings>(GetWorldSettings());
+	const bool bDeveloperOverrideApplies = World && World->IsPlayInEditor()
+		&& GetDefault<ULyraDeveloperSettings>()->ExperienceOverride.IsValid();
+	const bool bWorldSettingsHasExperience = WorldSettings && WorldSettings->GetDefaultGameplayExperience().IsValid();
+
+	if (DefaultExperience.IsValid()
+		&& ShouldUseDefaultExperience(OptionsString, FCommandLine::Get(), bDeveloperOverrideApplies, bWorldSettingsHasExperience))
+	{
+		OptionsString += FString::Printf(TEXT("?Experience=%s"), *DefaultExperience.PrimaryAssetName.ToString());
+	}
+}
+
+bool AMordecaiGameMode::ShouldUseDefaultExperience(const FString& Options, const TCHAR* CommandLine, bool bDeveloperOverrideApplies, bool bWorldSettingsHasExperience)
+{
+	FString ExperienceFromCommandLine;
+	const bool bCommandLineHasExperience = CommandLine && FParse::Value(CommandLine, TEXT("Experience="), ExperienceFromCommandLine);
+
+	return !UGameplayStatics::HasOption(Options, TEXT("Experience"))
+		&& !bCommandLineHasExperience
+		&& !bDeveloperOverrideApplies
+		&& !bWorldSettingsHasExperience;
 }
 
 // ---------------------------------------------------------------------------

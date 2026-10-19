@@ -1,9 +1,9 @@
 @echo off
 setlocal
 
-set ENGINE_DIR=C:\Users\jeffd\Documents\Gamedev\UnrealEngine
-set PROJECT_DIR=C:\Users\jeffd\Documents\Gamedev\ProjectMordecai
-set PROJECT_FILE=%PROJECT_DIR%\ProjectMordecai.uproject
+rem Delegates to run_tests.py, which judges pass/fail from the test log.
+rem UnrealEditor-Cmd exits 0 even when tests fail, so its exit code can't be trusted.
+
 set TEST_FILTER=%1
 if "%TEST_FILTER%"=="" set TEST_FILTER=Mordecai
 
@@ -12,7 +12,7 @@ echo  Running Automation Tests: %TEST_FILTER%
 echo ============================================
 echo.
 
-"%ENGINE_DIR%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%PROJECT_FILE%" -ExecCmds="Automation RunTests %TEST_FILTER%" -Unattended -NullRHI -NoSound -NoSplash -Log -LogCmds="LogAutomationTest Display" -TestExit="Automation Test Queue Empty"
+py "%~dp0run_tests.py" %TEST_FILTER%
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

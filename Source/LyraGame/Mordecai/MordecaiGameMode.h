@@ -25,6 +25,23 @@ public:
 
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 
+	// --- Experience Selection ---
+
+	/**
+	 * Experience used when nothing else names one. Without this, Lyra falls back to
+	 * B_LyraDefaultExperience (the shooter) in packaged builds, because Mordecai maps
+	 * don't set DefaultGameplayExperience in World Settings.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Mordecai|Experience", meta = (AllowedTypes = "LyraExperienceDefinition"))
+	FPrimaryAssetId DefaultExperience = FPrimaryAssetId(FPrimaryAssetType(TEXT("LyraExperienceDefinition")), FName(TEXT("B_MordecaiArenaExperience")));
+
+	/**
+	 * True when no higher-priority source picks the experience, so DefaultExperience should be used.
+	 * Mirrors the sources ALyraGameMode::HandleMatchAssignmentIfNotExpectingOne checks:
+	 * URL options, PIE developer settings, command line, World Settings.
+	 */
+	static bool ShouldUseDefaultExperience(const FString& Options, const TCHAR* CommandLine, bool bDeveloperOverrideApplies, bool bWorldSettingsHasExperience);
+
 	// --- Arena Configuration (US-053) ---
 
 	/** Delay in seconds before the player is respawned after death (AC-053.4). */

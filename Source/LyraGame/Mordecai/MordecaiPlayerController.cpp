@@ -164,18 +164,10 @@ void AMordecaiPlayerController::GrantCombatAbilities()
 			continue;
 		}
 
-		// Set SpellData on CDO before granting (if SpellDataAssets array is populated)
-		if (SpellDataAssets.IsValidIndex(i) && SpellDataAssets[i])
+		UMordecaiSpellDataAsset* GrantedData = SpellDataAssets.IsValidIndex(i) ? SpellDataAssets[i].Get() : nullptr;
+		if (!GrantedData)
 		{
-			UMordecaiGA_SpellBase* SpellCDO = SpellClass->GetDefaultObject<UMordecaiGA_SpellBase>();
-			if (SpellCDO)
-			{
-				SpellCDO->SpellData = SpellDataAssets[i];
-			}
-		}
-		else
-		{
-			// Try to load SpellData from well-known content paths
+			// Try to load SpellData from well-known content paths (all of /MordecaiCore is cooked)
 			static const TCHAR* SpellDataPaths[] = {
 				TEXT("/MordecaiCore/Spells/DA_Spell_Fireball.DA_Spell_Fireball"),
 				TEXT("/MordecaiCore/Spells/DA_Spell_Blink.DA_Spell_Blink"),
@@ -183,22 +175,16 @@ void AMordecaiPlayerController::GrantCombatAbilities()
 				TEXT("/MordecaiCore/Spells/DA_Spell_Restoration.DA_Spell_Restoration"),
 			};
 
-			if (i < UE_ARRAY_COUNT(SpellDataPaths))
+			const UMordecaiGA_SpellBase* SpellCDO = SpellClass->GetDefaultObject<UMordecaiGA_SpellBase>();
+			if (i < UE_ARRAY_COUNT(SpellDataPaths) && SpellCDO && !SpellCDO->SpellData)
 			{
-				UMordecaiGA_SpellBase* SpellCDO = SpellClass->GetDefaultObject<UMordecaiGA_SpellBase>();
-				if (SpellCDO && !SpellCDO->SpellData)
-				{
-					UMordecaiSpellDataAsset* LoadedData = Cast<UMordecaiSpellDataAsset>(
-						FSoftObjectPath(SpellDataPaths[i]).TryLoad());
-					if (LoadedData)
-					{
-						SpellCDO->SpellData = LoadedData;
-					}
-				}
+				GrantedData = Cast<UMordecaiSpellDataAsset>(FSoftObjectPath(SpellDataPaths[i]).TryLoad());
 			}
 		}
 
-		FGameplayAbilitySpec Spec(SpellClass, 1, INDEX_NONE, this);
+		// The spell data travels with the grant as its SourceObject; the ability instance picks it up
+		// in OnGiveAbility. Writing it into the CDO instead is a fatal GC error in packaged builds.
+		FGameplayAbilitySpec Spec(SpellClass, 1, INDEX_NONE, GrantedData ? static_cast<UObject*>(GrantedData) : this);
 		ASC->GiveAbility(Spec);
 	}
 

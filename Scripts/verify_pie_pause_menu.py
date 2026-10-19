@@ -60,18 +60,13 @@ def _run():
     check("Game instance exists", gi is not None)
 
     if gi and has_class:
-        # Try to get subsystem from game instance
-        sub = None
-        try:
-            sub = gi.get_subsystem(unreal.MordecaiPauseMenuSubsystem)
-        except Exception as e:
-            # Fallback: check that subsystem type is valid even if get_subsystem
-            # isn't exposed to Python for GameInstance
-            check("Subsystem accessible (get_subsystem may not be Python-exposed)", True,
-                  f"Expected: {e}")
+        # GameInstance.get_subsystem isn't exposed to Python; find the PIE game instance's subsystem directly
+        sub = next((s for s in unreal.ObjectIterator(unreal.MordecaiPauseMenuSubsystem)
+                    if s.get_outer() == gi), None)
+        check("PauseMenuSubsystem instance exists", sub is not None,
+              "No MordecaiPauseMenuSubsystem on the PIE game instance")
 
         if sub is not None:
-            check("PauseMenuSubsystem instance exists", True)
 
             # Check initial state: menu should be closed
             try:
@@ -83,14 +78,12 @@ def _run():
 
             # Check bCanPauseGame defaults to true
             try:
-                can_pause = sub.get_editor_property("b_can_pause_game")
+                # Python drops the 'b' prefix: bCanPauseGame -> can_pause_game
+                can_pause = sub.get_editor_property("can_pause_game")
                 check("bCanPauseGame defaults to true", can_pause == True,
                       f"Got {can_pause}")
             except Exception as e:
                 check("bCanPauseGame property accessible", False, str(e))
-        else:
-            # Subsystem not accessible via Python but class exists -- acceptable
-            check("Subsystem class exists (runtime instance not Python-accessible)", True)
 
     print("")
     print(f"RESULT: {pass_count} passed, {fail_count} failed")

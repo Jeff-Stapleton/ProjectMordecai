@@ -56,27 +56,9 @@ def _run():
         finish()
         return
 
-    # --- US-071: standalone widget creation + unbound behavior ---
-    widget = None
-    try:
-        widget = unreal.WidgetBlueprintLibrary.create(world, unreal.MordecaiInventoryWidget)
-    except Exception as e:
-        check("Inventory widget created", False, str(e))
-
-    if widget:
-        check("Inventory widget created", True)
-        try:
-            list_ph = str(widget.get_list_placeholder_text())
-            check("Unbound list placeholder is '--'", list_ph == "--", f"Got '{list_ph}'")
-            ledger_ph = str(widget.get_ledger_placeholder_text())
-            check("Unbound ledger placeholder is '--'", ledger_ph == "--", f"Got '{ledger_ph}'")
-            check("Zero visible rows while unbound", widget.get_visible_row_count() == 0,
-                  f"Got {widget.get_visible_row_count()}")
-            widget.set_filter(unreal.MordecaiInventoryFilter.WEAPONS)
-            widget.set_filter(unreal.MordecaiInventoryFilter.ALL)
-            check("Filter switching does not crash", True)
-        except Exception as e:
-            check("Unbound widget state queries", False, str(e))
+    # US-071 unbound-widget behavior (placeholders, filters) is covered by the headless
+    # Mordecai.UI.Inventory* tests: WidgetLibrary.create is BlueprintInternalUseOnly and
+    # not exposed to Python, so a standalone widget can't be created here.
 
     # --- AC-079.7: pawn component wiring ---
     pawn = unreal.GameplayStatics.get_player_pawn(world, 0)
@@ -96,7 +78,8 @@ def _run():
         return
 
     # --- HUD prompt widget present (AC-079.18) ---
-    prompts = unreal.WidgetBlueprintLibrary.get_all_widgets_of_class(world, unreal.MordecaiPickupPromptWidget, True)
+    # Not top-level: the prompt is nested inside the HUD layout
+    prompts = unreal.WidgetLibrary.get_all_widgets_of_class(world, unreal.MordecaiPickupPromptWidget, False)
     prompt = prompts[0] if prompts else None
     check("Pickup prompt widget lives in the HUD", prompt is not None)
     if prompt:
@@ -151,8 +134,10 @@ def _run():
         check("Prompt hidden after everything collected", not prompt.is_prompt_visible())
 
     # --- AC-079.8/.9: open the pause menu on the inventory tab (I-key path) ---
-    subsystem = unreal.SubsystemBlueprintLibrary.get_game_instance_subsystem(
-        world, unreal.MordecaiPauseMenuSubsystem)
+    # SubsystemBlueprintLibrary isn't exposed to Python; find the PIE game instance's subsystem directly
+    game_instance = unreal.GameplayStatics.get_game_instance(world)
+    subsystem = next((s for s in unreal.ObjectIterator(unreal.MordecaiPauseMenuSubsystem)
+                      if s.get_outer() == game_instance), None)
     check("Pause menu subsystem available", subsystem is not None)
 
     menu_widget = None
