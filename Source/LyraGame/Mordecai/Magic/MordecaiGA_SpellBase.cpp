@@ -39,6 +39,26 @@ UMordecaiGA_SpellBase::UMordecaiGA_SpellBase(const FObjectInitializer& ObjectIni
 	ActivationOwnedTags.AddTag(MordecaiGameplayTags::State_Casting);
 }
 
+void UMordecaiGA_SpellBase::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	TakeSpellDataFromSpec(Spec);
+	Super::OnGiveAbility(ActorInfo, Spec);
+}
+
+void UMordecaiGA_SpellBase::TakeSpellDataFromSpec(const FGameplayAbilitySpec& Spec)
+{
+	// GAS calls OnGiveAbility on the CDO when the ability has no instance
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+
+	if (UMordecaiSpellDataAsset* GrantedData = Cast<UMordecaiSpellDataAsset>(Spec.SourceObject.Get()))
+	{
+		SpellData = GrantedData;
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Public Getters (testable API)
 // ---------------------------------------------------------------------------

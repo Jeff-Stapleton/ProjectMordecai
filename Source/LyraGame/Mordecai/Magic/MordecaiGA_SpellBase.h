@@ -94,8 +94,16 @@ public:
 	/** Check if ActivationBlockedTags contains the given tag (testability). */
 	bool HasActivationBlockedTag(const FGameplayTag& Tag) const;
 
+	/**
+	 * Use the spell data granted with this spec (its SourceObject), if it carries one.
+	 * Instances only: the CDO is never written, because native CDOs sit in the packaged
+	 * build's disregard-for-GC pool and must not point at loaded assets.
+	 */
+	void TakeSpellDataFromSpec(const FGameplayAbilitySpec& Spec);
+
 protected:
 	//~ UGameplayAbility interface
+	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
