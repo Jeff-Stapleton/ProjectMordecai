@@ -1,0 +1,7 @@
+Attribute,Health (MaxHP multiplier),Stamina (Max pool multiplier),Stamina Regen,Stamina Tier Effectiveness,Spell Points (Max SP),Spell Regen,Posture Damage (deal),Block Stability,Parry Forgiveness,Cast Stability,Element DR% (Fire/Frost/Shock),Status Resist (buildup threshold),Notes
+STR,—,—,—,—,—,—,+1.5% × Mod (melee/heavy),+2.0% × Mod,—,—,—,—,Strength primarily improves melee posture/damage and blocking stability.
+DEX,—,—,—,+0.5% × Mod (dodge/parry consistency when tired),—,—,+1.0% × Mod (finesse/ranged posture),—,+1.0% × Mod,—,—,—,Dexterity improves finesse posture output and slightly widens perfect-parry timing.
+CON,+3.0% × Mod,+2.0% × Mod,+2.0% × Mod,+0.5% × Mod (reduces low-tier penalties),—,+1.0% × Mod,—,+1.0% × Mod,—,—,+0.5% × Mod,+2.0% × Mod,Constitution is the main scaler for HP/stamina and supports spell regen and resist thresholds.
+INT,—,—,—,—,+0.5 SP × Mod (rounded),+3.0% × Mod,+1.0% × Mod (spell posture/damage component),—,—,+2.0% × Mod,—,+1.0% × Mod (vs magic statuses),Intelligence drives spell point regen and increases max spell points; also improves cast stability.
+WIS,—,—,+1.0% × Mod (recovery under pressure),+0.5% × Mod (defense actions more consistent),+0.25 SP × Mod (optional; rounded),+1.5% × Mod,—,—,—,+1.0% × Mod (less interruption),+0.5% × Mod,+3.0% × Mod,"Wisdom improves status thresholds, modest elemental DR, and supports spell/stamina recovery consistency."
+CHA,—,—,—,—,—,—,—,—,—,—,—,—,"Charisma focuses on town attraction, dialogue leverage, vendor outcomes; minimal combat math impact."
