@@ -15,6 +15,16 @@ For more information please visit the [Unreal Engine Lyra documentation](https:/
 
 Once installed, copy the "Content" folder and any other folders named "Content" from the Marketplace project you downloaded to the project in your solution, and you should be good to go.
 
+Project Docs & Agent Context
+----
+Everything agents and humans need lives in this repo (moved from `~/.openclaw` on 2026-10-19):
+
+- `CLAUDE.md`: the agent rulebook (TDD pipeline, verification ladder, packaged playtest). Claude Code loads it automatically.
+- `Specs/`: game design docs, `agent_rules_v2.md` (authoritative constraints, read first), `design_decisions_log.md`, `agent_playtest_plan_v1.md` (agent-playtesting phases and backlog).
+- `stories/`: kanban story pipeline (`backlog/`, `in-progress/`, `done/`), `PLAN.md` (epics), `PLANNER.md` (planner instructions and the story template), `PLANNER_LOG.md`, `agent-prompts/` (nightly planner and worker prompts, currently not scheduled).
+- `.claude/skills/`: Unreal skills Claude Code discovers automatically (`unreal-cpp`, `unreal-gas`, `unreal-python-editor`, `unreal-testing`, `unreal-tribal-knowledge`).
+- `Scripts/check_editor.py`, `Scripts/ue_remote_exec.py`: editor readiness check and Python remote execution against a running editor.
+
 Building, Testing & Playtesting
 ----
 All tooling is local (Windows, UE 5.7 source build at `C:\Users\jeffd\Documents\Gamedev\UnrealEngine`); run it from the repo root. Python is `py` (3.12). There is no CI, BuildGraph, Horde, or Gauntlet pipeline.
