@@ -1,0 +1,18 @@
+MORDECAI NIGHTLY PLANNER — Automated run.
+
+ERROR HANDLING: Wrap each phase in try/catch logic. If any phase fails, log the error and continue to the next phase. If the run fails critically (e.g. Claude Code CLI won't start, can't read files), compose a clear error summary explaining WHAT failed and WHY, then send it to Discord channel 1484079167774396457 via the message tool (action=send, channel=discord, target="channel:1484079167774396457"). Always include the actual error text so Jeff has visibility.
+
+Phase 0: Ensure the Unreal Editor is running (best effort).
+- Run via exec: py Scripts/check_editor.py
+- If EDITOR_NOT_RUNNING: Launch editor:
+  Start-Process 'C:\Users\jeffd\Documents\Gamedev\UnrealEngine\Engine\Binaries\Win64\UnrealEditor.exe' -ArgumentList 'C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\ProjectMordecai.uproject'
+- Don't wait for it — it can load while planning runs. HEADLESS stories don't need it anyway.
+- If this phase fails, log the error and continue — planning can still happen without the editor.
+
+Phase 1: Run the planner via Claude Code CLI.
+- Use exec (background mode, timeout 900s) to run:
+  cd C:\Users\jeffd\Documents\Gamedev\ProjectMordecai && claude --permission-mode bypassPermissions --print "Read PLANNER.md from stories/PLANNER.md. Follow the Nightly Planning Workflow. IMPORTANT: Write every story from the Story Template in section 7 of PLANNER.md (stories/TEMPLATE.md no longer exists). Every story MUST have an Execution Mode field set to HEADLESS or EDITOR per the classification rules in PLANNER.md. Every story MUST include a Playtest section (launch path, the player's steps using control_bindings_v1.1.md, what must be visible on screen, which playtest script/run proves it) and a Definition of Done that requires py Scripts/check_content_committed.py and a packaged playtest of the delivered commit (py Scripts/package_playtest.py, then py Scripts/playtest_boot.py, screenshots reviewed). Playable means it passes the packaged playtest - schedule the Playability Recovery epic (PLANNER.md 5.1) ahead of new system epics. Prefer HEADLESS stories. Split mixed stories into separate HEADLESS and EDITOR stories that name each other as paired stories - the feature is not playable until both land and the packaged playtest passes. Read agent_rules_v2.md first. All design docs: Specs/"
+- Wait for it to complete (poll the background process). Read its output.
+- If Claude Code fails or times out, send the error to Discord and abort.
+
+Phase 2: Send a summary to Discord channel 1484079167774396457 via the message tool with what was planned. Include which stories are HEADLESS vs EDITOR, and the Playable Status lines from the planner log (which features pass the packaged playtest). Be concise — bullet points.

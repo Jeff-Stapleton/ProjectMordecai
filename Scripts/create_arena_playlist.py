@@ -37,7 +37,7 @@ the Config/DefaultGame.ini scan paths (Map: /MordecaiCore/Game/Maps, playlists:
 needed after that ini change.
 
 Runs INSIDE the Unreal editor (needs the `unreal` module), not from a shell:
-  py C:/Users/jeffd/.openclaw/workspace/skills/unreal-python-editor/scripts/ue_remote_exec.py "exec(open(r'C:/Users/jeffd/Documents/Gamedev/ProjectMordecai/Scripts/create_arena_playlist.py').read())" --timeout 60
+  py Scripts/ue_remote_exec.py "exec(open(r'C:/Users/jeffd/Documents/Gamedev/ProjectMordecai/Scripts/create_arena_playlist.py').read())" --timeout 60
 
 Stop PIE first (the script refuses to run during PIE). After it passes, commit
 Plugins/GameFeatures/MordecaiCore/Content/System/Playlists/DA_Mordecai_Arena.uasset;

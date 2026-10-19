@@ -34,14 +34,8 @@ import time
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 
-CHECK_EDITOR = os.path.join(
-    os.path.expanduser("~"),
-    ".openclaw", "workspace", "projects", "mordecai", "scripts", "check_editor.py",
-)
-UE_REMOTE_EXEC = os.path.join(
-    os.path.expanduser("~"),
-    ".openclaw", "workspace", "skills", "unreal-python-editor", "scripts", "ue_remote_exec.py",
-)
+CHECK_EDITOR = os.path.join(SCRIPT_DIR, "check_editor.py")
+UE_REMOTE_EXEC = os.path.join(SCRIPT_DIR, "ue_remote_exec.py")
 EDITOR_EXE = os.path.join(
     os.path.expanduser("~"),
     "Documents", "Gamedev", "UnrealEngine", "Engine", "Binaries", "Win64", "UnrealEditor.exe",
