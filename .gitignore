@@ -109,3 +109,6 @@ Desktop.ini
 
 # Python bytecode from Scripts/
 __pycache__/
+
+# Personal Claude Code settings (permission allowlist)
+.claude/settings.local.json
