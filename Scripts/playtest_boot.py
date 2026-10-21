@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Packaged-Build Boot Playtest -- Phase 1 (observation only, no input yet)
+"""Packaged-Build Boot Playtest -- Tier 3 (observation only, no input)
 
 Launches the PACKAGED game (not PIE, not the editor), waits for the Lyra
 experience to finish loading, takes screenshots of the real game window, then
@@ -8,7 +8,8 @@ a feature can reach an actual player: if the Mordecai experience does not load
 in the packaged build, nothing built on top of it is playable.
 
 Observation = game.log markers + window screenshots.  Real input (keys, mouse,
-Enhanced Input mappings) arrives in Phase 2 via the in-game agent bridge.
+Enhanced Input mappings) is Tier 4: the in-game agent bridge (Scripts/agent_bridge.py,
+Scripts/playtests/usXXX_*.py), which reuses this module's launch and staleness gate.
 
 STALENESS GATE: the package must have been built from the code being tested.
 PackagedBuilds/Playtest/build_info.json (written by package_playtest.py) is
@@ -32,7 +33,17 @@ Usage:
 Prereq: py Scripts/package_playtest.py  (writes PackagedBuilds/Playtest + build_info.json)
 
 Output: Saved/Playtests/<YYYYmmdd-HHMMSS>-boot/
-  game.log, shot_01.png .., report.json, report.md
+  game.log, engine_01.png .., shot_01.png .., report.json, report.md
+
+Library use (importing has no side effects; Scripts/agent_bridge.py reuses these):
+  gate(exe, allow_stale)                 -> (fresh, exit_code_or_None)   the STALE BUILD gate
+  new_run_dir(suffix="boot")             -> Saved/Playtests/<stamp>-<suffix>
+  build_game_args(map_arg, game_log, ...) and build_command_line(exe, game_args)
+  launch_game(exe, game_args, keep_running=False) -> (proc, job, command_line)
+  wait_for_experience(proc, tail, state, timeout, t0)
+                                         -> "loaded" | "crash" | "no_experience" | "exited" | "timeout"
+  set_log_stream(stream) / log_stream(stream)   send log output elsewhere (an MCP stdio
+                                         server passes sys.stderr: stdout is its protocol channel)
 
 Exit codes:
   0 -- all checks passed
@@ -43,6 +54,7 @@ Exit codes:
 import argparse
 import codecs
 import collections
+import contextlib
 import datetime
 import json
 import os
@@ -111,9 +123,38 @@ AGENT_LINE = ("AGENT: open each screenshot with the Read tool and describe what 
 
 EXIT_PASS, EXIT_FAIL, EXIT_INFRA = 0, 1, 2
 
+# Where log(), print_stale_banner() and BootState.scan() write. None = sys.stdout at call time.
+_LOG_STREAM = None
+
+
+def set_log_stream(stream):
+    """Send this module's log output to `stream` (None = sys.stdout). Returns the previous setting.
+
+    The CLI keeps stdout.  A stdio MCP server passes sys.stderr, because its stdout is the
+    JSON-RPC channel and a stray log line would corrupt it.
+    """
+    global _LOG_STREAM
+    previous = _LOG_STREAM
+    _LOG_STREAM = stream
+    return previous
+
+
+@contextlib.contextmanager
+def log_stream(stream):
+    """Temporarily route log output to `stream`."""
+    previous = set_log_stream(stream)
+    try:
+        yield
+    finally:
+        set_log_stream(previous)
+
+
+def _log_out():
+    return _LOG_STREAM if _LOG_STREAM is not None else sys.stdout
+
 
 def log(msg):
-    print(f"[Boot-Playtest] {msg}", flush=True)
+    print(f"[Boot-Playtest] {msg}", file=_log_out(), flush=True)
 
 
 # ---------------------------------------------------------------------------
@@ -416,17 +457,47 @@ def check_build_freshness(build_info_path):
 
 
 def print_stale_banner(fresh, allowed):
+    out = _log_out()
     bar = "!" * 78
-    print(bar, flush=True)
+    print(bar, file=out, flush=True)
     title = "STALE BUILD" + (" (continuing: --allow-stale)" if allowed else "")
-    print(f"!!  {title}", flush=True)
-    print("!!  The packaged game does not match the code you are testing:", flush=True)
+    print(f"!!  {title}", file=out, flush=True)
+    print("!!  The packaged game does not match the code you are testing:", file=out, flush=True)
     for r in fresh["reasons"]:
-        print(f"!!   - {r}", flush=True)
+        print(f"!!   - {r}", file=out, flush=True)
     if not allowed:
-        print("!!  Re-package:  py Scripts/package_playtest.py", flush=True)
-        print("!!  (or pass --allow-stale to run anyway; it is recorded in the report)", flush=True)
-    print(bar, flush=True)
+        print("!!  Re-package:  py Scripts/package_playtest.py", file=out, flush=True)
+        print("!!  (or pass --allow-stale to run anyway; it is recorded in the report)",
+              file=out, flush=True)
+    print(bar, file=out, flush=True)
+
+
+def gate(exe, allow_stale):
+    """The STALE BUILD gate, exactly as main() runs it.
+
+    Returns (fresh, exit_code): fresh is check_build_freshness()'s dict (plus a warning when
+    build_info.json describes a different exe); exit_code is EXIT_INFRA when the run must stop
+    (stale or unverifiable and not allow_stale), else None.
+    """
+    build_info_path = find_build_info(exe)
+    fresh = check_build_freshness(build_info_path)
+    if fresh["git_error"]:
+        log(f"{'WARNING' if allow_stale else 'ERROR'}: cannot verify build freshness: "
+            f"{fresh['git_error']}")
+        if not allow_stale:
+            return fresh, EXIT_INFRA
+    elif not fresh["fresh"]:
+        print_stale_banner(fresh, allow_stale)
+        if not allow_stale:
+            return fresh, EXIT_INFRA
+    else:
+        log(f"Build is fresh: commit {short(fresh['head'])} ({fresh['branch']})")
+    recorded_exe = (fresh.get("build") or {}).get("game_exe")
+    if recorded_exe and os.path.normcase(os.path.abspath(recorded_exe)) != os.path.normcase(exe):
+        fresh["warnings"].append(f"running {exe}, but build_info.json describes {recorded_exe}")
+    for w in fresh["warnings"]:
+        log(f"WARNING: {w}")
+    return fresh, None
 
 
 # ---------------------------------------------------------------------------
@@ -879,6 +950,20 @@ class KillOnCloseJob:
             self.k.TerminateJobObject(self.handle, 1)
         return n
 
+    def close(self):
+        """Close the job handle; KILL_ON_JOB_CLOSE then kills anything still in it.
+
+        main() never calls this (the handle closes when the script exits).  Long-lived users
+        that launch several games, such as an MCP server, call it so handles do not leak.
+        """
+        handle, self.handle = self.handle, None
+        self.ok = False
+        if handle:
+            try:
+                self.k.CloseHandle(handle)
+            except Exception:
+                pass
+
 
 def analyze_image(img):
     from PIL import ImageStat
@@ -950,15 +1035,150 @@ def resolve_exe(exe):
     return exe
 
 
-def new_run_dir():
+def new_run_dir(suffix="boot", base=None):
+    """Create <base>/<YYYYmmdd-HHMMSS>-<suffix> (then -<suffix>-2, -3, ... on a collision).
+
+    base defaults to Saved/Playtests.  Tier 3 uses "boot"; the bridge and Tier 4 playtests
+    use their own suffix ("bridge", "us079", ...).
+    """
+    base = base or PLAYTESTS_DIR
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    run_dir = os.path.join(PLAYTESTS_DIR, f"{stamp}-boot")
+    run_dir = os.path.join(base, f"{stamp}-{suffix}")
     n = 2
     while os.path.exists(run_dir):
-        run_dir = os.path.join(PLAYTESTS_DIR, f"{stamp}-boot-{n}")
+        run_dir = os.path.join(base, f"{stamp}-{suffix}-{n}")
         n += 1
     os.makedirs(run_dir)
     return run_dir
+
+
+# ---------------------------------------------------------------------------
+# Launch and boot wait (shared with Scripts/agent_bridge.py)
+# ---------------------------------------------------------------------------
+# Windows process creation flags, used only for a detached launch (agent_bridge.py's CLI).
+DETACHED_PROCESS = 0x00000008
+CREATE_NEW_PROCESS_GROUP = 0x00000200
+CREATE_BREAKAWAY_FROM_JOB = 0x01000000
+
+
+def build_game_args(map_arg, game_log, shot_dir=None, shots=0, settle=6.0, shot_interval=2.0,
+                    extra=()):
+    """The game's command-line tokens (after the exe), in the order playtest_boot has always used.
+
+    map_arg None boots the default map (the front end).  shots > 0 adds -PlaytestCapture, whose
+    engine_NN.png files go to shot_dir (default: game_log's folder).  `extra` tokens are appended
+    as given, so values with spaces must already be quote_value()d.
+    """
+    args = ([map_arg] if map_arg else []) + [
+        "-windowed", f"-ResX={RES_X}", f"-ResY={RES_Y}", "-log",
+        f"-abslog={quote_value(game_log)}", "-nosplash", "-nosound",
+    ]
+    if shots > 0:
+        # UMordecaiPlaytestCaptureSubsystem saves engine_NN.png from the game's own viewport,
+        # which works when the desktop is locked or the window is covered.
+        shot_dir = shot_dir or os.path.dirname(os.path.abspath(game_log))
+        args += [
+            "-PlaytestCapture", f"-PlaytestShotDir={quote_value(shot_dir)}",
+            f"-PlaytestShots={shots}", f"-PlaytestShotDelay={settle:g}",
+            f"-PlaytestShotInterval={shot_interval:g}",
+        ]
+    args += list(extra)
+    return args
+
+
+def build_command_line(exe, game_args, exe_argv=None):
+    """One command-line string: UE's FParse needs -abslog="C:/a b/x", not a quoted whole token.
+
+    exe_argv replaces the program part (tests run a stand-in game as [python, script]).
+    """
+    program = list(exe_argv) if exe_argv else [exe]
+    return subprocess.list2cmdline(program) + " " + " ".join(game_args)
+
+
+def launch_game(exe, game_args, keep_running=False, exe_argv=None, cwd=None, detached=False):
+    """Start the game exactly as main() does. Returns (proc, job, command_line).
+
+    stdin/stdout/stderr are DEVNULL.  Unless keep_running, the game is put in a KillOnCloseJob,
+    so it dies with this Python process even if the process is killed; job is None when that is
+    impossible (a NOTE is logged).  detached=True starts the game without a console and, where
+    Windows allows it, outside the caller's own job object; together with keep_running=True a
+    one-shot CLI can exit and leave the game running.  main() never detaches.
+    Raises OSError if the process cannot be started.
+    """
+    command_line = build_command_line(exe, game_args, exe_argv)
+    program = (list(exe_argv) if exe_argv else [exe])[0]
+    kwargs = dict(cwd=cwd or os.path.dirname(os.path.abspath(program)),
+                  stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if detached and sys.platform == "win32":
+        flags = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+        try:
+            proc = subprocess.Popen(command_line, creationflags=flags | CREATE_BREAKAWAY_FROM_JOB,
+                                    **kwargs)
+        except OSError:  # the caller's job does not allow breakaway
+            proc = subprocess.Popen(command_line, creationflags=flags, **kwargs)
+    else:
+        proc = subprocess.Popen(command_line, **kwargs)
+    job = None
+    if not keep_running:
+        # Kills the game even if this script is killed (e.g. a tool-call timeout).
+        try:
+            job = KillOnCloseJob(proc.pid)
+            if not job.ok:
+                log(f"NOTE: no kill-on-exit job for the game ({job.error}); "
+                    "relying on taskkill at shutdown")
+                job = None
+        except Exception as e:
+            log(f"NOTE: no kill-on-exit job for the game ({e})")
+            job = None
+    return proc, job, command_line
+
+
+def wait_for_experience(proc, tail, state, timeout, t0, poll_s=0.5, progress_s=15,
+                        evidence_grace_s=EVIDENCE_GRACE_S):
+    """Tail game.log until the experience loads or the boot fails.
+
+    Returns "crash", "no_experience", "loaded", "exited" or "timeout".  `state` is a BootState and
+    `tail` a LogTail on game.log; t0 is the launch time (time.time()) and the deadline is
+    t0 + timeout.  A known experience failure (wrong experience, fallback) shortens the deadline
+    to evidence_grace_s from now, so the screenshots can still show what did load.
+    """
+    deadline = t0 + timeout
+    next_progress = t0 + progress_s
+    log(f"Waiting up to {timeout:.0f}s for experience {state.expected}...")
+    while True:
+        now = time.time()
+        state.scan(tail.poll(), now - t0)
+        if state.crash_lines:
+            return "crash"
+        if state.failed_identify_line:
+            return "no_experience"
+        if state.load_complete:
+            return "loaded"
+        if state.experience_failure() and deadline > now + evidence_grace_s:
+            # Known failure: only wait a little longer for evidence screenshots.
+            deadline = now + evidence_grace_s
+        if proc.poll() is not None:
+            time.sleep(poll_s)
+            state.scan(tail.flush(), time.time() - t0)
+            return "exited"
+        if now >= deadline:
+            return "timeout"
+        if now >= next_progress:
+            log(f"  ...{now - t0:.0f}s, game.log "
+                f"{'lines: ' + str(tail.line_count) if tail.fh else 'not created yet'}")
+            next_progress = now + progress_s
+        time.sleep(poll_s)
+
+
+def wait_after_crash(proc, tail, state, t0, grace_s=CRASH_GRACE_S, poll_s=0.5):
+    """After a crash marker, let the game finish logging the callstack and hand off to
+    CrashReportClient (minidump) instead of killing it mid-write."""
+    log(f"Crash detected; waiting up to {grace_s}s for the game to finish "
+        "logging and exit...")
+    crash_end = time.time() + grace_s
+    while proc.poll() is None and time.time() < crash_end:
+        state.scan(tail.poll(), time.time() - t0)
+        time.sleep(poll_s)
 
 
 # ---------------------------------------------------------------------------
@@ -1116,6 +1336,18 @@ def write_reports(run_dir, report):
     if report["result"] != "PASS" and logsum.get("tail"):
         lines += ["", "### Log tail", "", "```"] + logsum["tail"] + ["```"]
 
+    lines += ["", "## Engine screenshots", "",
+              "The game's own frames (engine_NN.png): the primary visual evidence.", ""]
+    if report.get("engine_screenshots"):
+        for s in report["engine_screenshots"]:
+            flag = ""
+            if s.get("uniform"):
+                flag += (f"  **WARNING: near-uniform{' black' if s.get('black') else ''} frame "
+                         f"(mean {s['mean']}, stddev {s['stddev']})**")
+            lines.append(f"- {s['path']}{flag}")
+    else:
+        lines.append("- (none captured)")
+
     lines += ["", "## Screenshots", ""]
     if report["screenshots"]:
         for s in report["screenshots"]:
@@ -1207,42 +1439,17 @@ def main():
     exe = resolve_exe(exe)
 
     # --- Step 2: Staleness gate ---
-    build_info_path = find_build_info(exe)
-    fresh = check_build_freshness(build_info_path)
-    if fresh["git_error"]:
-        log(f"{'WARNING' if args.allow_stale else 'ERROR'}: cannot verify build freshness: "
-            f"{fresh['git_error']}")
-        if not args.allow_stale:
-            return EXIT_INFRA
-    elif not fresh["fresh"]:
-        print_stale_banner(fresh, args.allow_stale)
-        if not args.allow_stale:
-            return EXIT_INFRA
-    else:
-        log(f"Build is fresh: commit {short(fresh['head'])} ({fresh['branch']})")
-    recorded_exe = (fresh.get("build") or {}).get("game_exe")
-    if recorded_exe and os.path.normcase(os.path.abspath(recorded_exe)) != os.path.normcase(exe):
-        fresh["warnings"].append(f"running {exe}, but build_info.json describes {recorded_exe}")
-    for w in fresh["warnings"]:
-        log(f"WARNING: {w}")
+    fresh, gate_code = gate(exe, args.allow_stale)
+    if gate_code is not None:
+        return gate_code
 
     # --- Step 3: Launch ---
     dpi = make_dpi_aware()
     run_dir = new_run_dir()
     game_log = os.path.join(run_dir, "game.log")
-    game_args = ([map_arg] if map_arg else []) + [
-        "-windowed", f"-ResX={RES_X}", f"-ResY={RES_Y}", "-log",
-        f"-abslog={quote_value(game_log)}", "-nosplash", "-nosound",
-    ]
-    if args.shots > 0:
-        # UMordecaiPlaytestCaptureSubsystem saves engine_NN.png from the game's own viewport,
-        # which works when the desktop is locked or the window is covered.
-        game_args += [
-            "-PlaytestCapture", f"-PlaytestShotDir={quote_value(run_dir)}",
-            f"-PlaytestShots={args.shots}", f"-PlaytestShotDelay={args.settle:g}",
-            f"-PlaytestShotInterval={args.shot_interval:g}",
-        ]
-    command_line = subprocess.list2cmdline([exe]) + " " + " ".join(game_args)
+    game_args = build_game_args(map_arg, game_log, shot_dir=run_dir, shots=args.shots,
+                                settle=args.settle, shot_interval=args.shot_interval)
+    command_line = build_command_line(exe, game_args)
 
     started_at = datetime.datetime.now().isoformat(timespec="seconds")
     checks, warnings, screenshots, engine_screenshots = [], [], [], []
@@ -1268,70 +1475,19 @@ def main():
     job = None
     try:
         try:
-            proc = subprocess.Popen(command_line, cwd=os.path.dirname(exe),
-                                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                    stderr=subprocess.DEVNULL)
+            proc, job, _ = launch_game(exe, game_args, keep_running=args.keep_running)
         except OSError as e:
             add_check(checks, "launch", "FAIL", f"could not start the game: {e}", kind="infra")
         else:
             add_check(checks, "launch", "PASS", f"pid {proc.pid}", kind="infra")
-            if not args.keep_running:
-                # Kills the game even if this script is killed (e.g. a tool-call timeout).
-                try:
-                    job = KillOnCloseJob(proc.pid)
-                    if not job.ok:
-                        log(f"NOTE: no kill-on-exit job for the game ({job.error}); "
-                            "relying on taskkill at shutdown")
-                        job = None
-                except Exception as e:
-                    log(f"NOTE: no kill-on-exit job for the game ({e})")
-                    job = None
 
         if proc is not None:
             # --- Step 4: Wait for the experience (tail game.log) ---
-            deadline = t0 + args.timeout
-            outcome = None
-            next_progress = t0 + 15
-            log(f"Waiting up to {args.timeout:.0f}s for experience {expected}...")
-            while True:
-                now = time.time()
-                state.scan(tail.poll(), now - t0)
-                if state.crash_lines:
-                    outcome = "crash"
-                    break
-                if state.failed_identify_line:
-                    outcome = "no_experience"
-                    break
-                if state.load_complete:
-                    outcome = "loaded"
-                    break
-                if state.experience_failure() and deadline > now + EVIDENCE_GRACE_S:
-                    # Known failure: only wait a little longer for evidence screenshots.
-                    deadline = now + EVIDENCE_GRACE_S
-                if proc.poll() is not None:
-                    time.sleep(0.5)
-                    state.scan(tail.flush(), time.time() - t0)
-                    outcome = "exited"
-                    break
-                if now >= deadline:
-                    outcome = "timeout"
-                    break
-                if now >= next_progress:
-                    log(f"  ...{now - t0:.0f}s, game.log "
-                        f"{'lines: ' + str(tail.line_count) if tail.fh else 'not created yet'}")
-                    next_progress = now + 15
-                time.sleep(0.5)
+            outcome = wait_for_experience(proc, tail, state, args.timeout, t0)
             wait_elapsed = time.time() - t0
 
             if outcome == "crash":
-                # Let the game finish logging the callstack and hand off to CrashReportClient
-                # (minidump) instead of killing it mid-write.
-                log(f"Crash detected; waiting up to {CRASH_GRACE_S}s for the game to finish "
-                    "logging and exit...")
-                crash_end = time.time() + CRASH_GRACE_S
-                while proc.poll() is None and time.time() < crash_end:
-                    state.scan(tail.poll(), time.time() - t0)
-                    time.sleep(0.5)
+                wait_after_crash(proc, tail, state, t0)
 
             # --- Step 5: Settle, then screenshots (also on failure, as evidence) ---
             def watch(seconds):
