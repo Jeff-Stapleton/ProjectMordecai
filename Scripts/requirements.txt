@@ -1,0 +1,6 @@
+# Python packages for the playtest tooling. Install once:
+#   py -m pip install -r Scripts/requirements.txt
+#
+# agent_bridge.py and Scripts/playtests/*.py need only the standard library (plus Pillow for image checks).
+mcp>=2.3,<3     # Scripts/mordecai_play_mcp.py (2.x API: mcp.server.mcpserver.MCPServer)
+pillow>=10      # playtest_boot.py / agent_bridge.py screenshot checks

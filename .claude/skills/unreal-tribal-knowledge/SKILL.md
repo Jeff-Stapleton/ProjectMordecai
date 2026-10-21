@@ -288,6 +288,16 @@ MordecaiMapping.InputMapping = TSoftObjectPtr<UInputMappingContext>(
 ```
 The soft reference stores the path and resolves it later when `LoadSynchronous()` is called at runtime, by which point the GameFeature is active.
 
+### Invalid FKey names fail silently: Mordecai's gamepad sticks were never bound
+
+**Problem:** Gamepad move, gamepad look and L3 sprint can never work in Mordecai, and nothing reports it. The agent bridge's `axis` command on `Gamepad_LeftX`/`Gamepad_LeftY` moves nothing, so `walk_to` uses WASD. Found while mapping Phase 2.
+
+**Root cause:** `UMordecaiHeroComponent::EnsureMordecaiInputBound` maps `FKey(TEXT("Gamepad_LeftStick2D"))` (`MordecaiHeroComponent.cpp:103`), `FKey(TEXT("Gamepad_RightStick2D"))` (`:116`) and `FKey(TEXT("Gamepad_LeftThumbstickButton"))` (`:133`). None of these keys exist. The engine names are `Gamepad_Left2D`, `Gamepad_Right2D` and `Gamepad_LeftThumbstick` (`Engine/Source/Runtime/InputCore/Private/InputCoreTypes.cpp:169,172,178`), and no key redirect maps the wrong names. `FKey(TEXT("..."))` accepts any string and `MapKey` accepts the result, so the mapping exists but never matches an event: no error, no warning.
+
+**Fix:** Use the `EKeys::` constants (`EKeys::Gamepad_Left2D`, …) instead of string names. Where a key must come from a string, check it with `FKey::IsValid()` and log or fail loudly (a headless test over the mapping list catches typos). The bridge resolves key names the same way and rejects unknown ones with `bad_key` (`MordecaiAgentBridgeProtocolTests.cpp:410` asserts the broken stick name is not a key).
+
+**Evidence:** the files and lines above; `Specs/agent_bridge_v1.md` §5 and §9.
+
 ---
 
 ## Python Remote Execution
@@ -339,6 +349,20 @@ When building widget trees programmatically:
 - Use `CreateWidget<T>(this)` for `UUserWidget` subclasses (they have their own WidgetTree)
 - Child `UUserWidget` instances can be added to a parent's `UCanvasPanel` via `AddChildToCanvas()` — they render as nested widgets
 
+### CommonUI Menu input mode blocks every unbound key: a menu that closes through an Enhanced Input action can never be closed
+
+**Problem:** The first Tier 4 run (`Saved/Playtests/20261020-144643-us079`) opened the Mordecai pause menu with a real I press, then tapped a real Escape: the menu was still open 3 s later (check `menu_closes_escape` FAIL, `commonui_input_mode='Menu'`, `game_input_allowed=False`; `bridge_03.png` still shows "Paused" and the inventory tab). Pressing I does not close it either. A player who opens the menu cannot close it. Tier 2 never noticed: `verify_pie_inventory.py` toggles the menu with a direct call (`toggle_pause_menu_to_tab`).
+
+**Root cause:** `UMordecaiPauseMenuWidget` activates with `InputConfig = ELyraWidgetInputMode::Menu` (`MordecaiPauseMenuWidget.cpp:38`). In Menu mode the CommonUI action router returns `BlockGameInput` for every key without a UI action binding (`Engine/Plugins/Runtime/CommonUI/.../CommonUIActionRouterBase.cpp:647`), so the Enhanced Input `Pause`/`Inventory` actions that OPEN the menu never fire while it is open. And the widget is not a back handler (`bIsBackHandler` defaults to false, `CommonActivatableWidget.h:189`, and no Mordecai code sets it), so CommonUI's own back action (Escape, gamepad back) does nothing either.
+
+**Fix:**
+- A CommonUI menu must close itself through CommonUI, not through a gameplay input action: set `bIsBackHandler = true` so CommonUI's default back action deactivates it (→ `NativeOnDeactivated` → close), and register UI action bindings (`RegisterUIActionBinding`) for any other close key such as I — or use an input mode that lets those keys through (`GameAndMenu`).
+- In this project the back action is the data-table one (CommonInput `bEnableEnhancedInputSupport` is off): `/Game/UI/B_CommonInputData` → `DT_UniversalActions` row `DefaultBack` = keyboard `Escape`, gamepad `Gamepad_FaceButton_Right` (checked by `Mordecai.UI.PauseMenu.DefaultBackActionIsEscape`). The binding is registered in `UCommonActivatableWidget::NativeConstruct`, so it exists only for back handlers.
+- **Fixed** for the pause menu: `bIsBackHandler = true` in the `UMordecaiPauseMenuWidget` constructor (tests `Mordecai.UI.PauseMenu.IsCommonUIBackHandler`, `...BackActionDeactivationClosesMenu`). Real Escape closed the menu in `Saved/Playtests/20261020-192656-us079` (check `menu_closes_escape` PASS, `bridge_04.png` shows the arena and HUD again). I still does not close it.
+- Prove it with a Tier 4 run that presses the key. Never close the menu by a direct call in a playtest: that hides exactly this bug.
+
+**Evidence:** `Saved/Playtests/20261020-144643-us079/report.md` check 44 and `bridge_03.png` (bug); `Saved/Playtests/20261020-192656-us079/report.md` (fix); the files and lines above; `Specs/agent_bridge_v1.md` §9.
+
 ---
 
 ## Testing Gaps
@@ -353,7 +377,7 @@ When building widget trees programmatically:
 
 **Rule:** PIE smoke tests must pass for **every story, regardless of Execution Mode**. This is now in `agent_rules_v2.md` and `CLAUDE.md` Step 4b.
 
-**PIE has the same blind spot one tier up.** PIE runs against in-editor memory with editor-only settings, so it cannot catch packaging/cook problems (maps or assets not scanned or not cooked), PIE-only code paths (`IsPlayInEditor()`, `LyraDeveloperSettings::ExperienceOverride`), or content that was never saved/committed. Passing PIE is NOT proof a player can use the feature. Any story with player-facing behavior also needs the **Tier 3 packaged playtest** (`py Scripts/package_playtest.py`, then `py Scripts/playtest_boot.py`) — see "Packaged Builds & Playability". A lower tier never substitutes for a higher one.
+**PIE has the same blind spot one tier up.** PIE runs against in-editor memory with editor-only settings, so it cannot catch packaging/cook problems (maps or assets not scanned or not cooked), PIE-only code paths (`IsPlayInEditor()`, `LyraDeveloperSettings::ExperienceOverride`), or content that was never saved/committed. Passing PIE is NOT proof a player can use the feature. Any story with player-facing behavior also needs the **Tier 3 packaged playtest** (`py Scripts/package_playtest.py`, then `py Scripts/playtest_boot.py`), and every AC that needs input needs the **Tier 4 real-input playtest** (`py Scripts/playtests/usXXX_<name>.py`) on the same package — see "Packaged Builds & Playability". A lower tier never substitutes for a higher one.
 
 ### Smoke tests that call gameplay functions directly pass on unplayable features
 
@@ -364,7 +388,7 @@ When building widget trees programmatically:
 **Fix:**
 - Label any check that teleports the pawn, sets state, or calls gameplay/UI functions directly as **logic/diagnostic** — in the script output and in the story's completion notes. It is useful for diagnosis; it is NEVER acceptance evidence for a player-facing AC.
 - DO NOT describe a feature as "playable" or "working in game" from Tier 1/Tier 2 results.
-- Acceptance of a player-facing AC requires the player path: Tier 3 packaged playtest now; Tier 4 real-input playtests (agent bridge, Phase 2) when available.
+- Acceptance of a player-facing AC requires the player path: the Tier 3 packaged playtest for what is on screen, and for anything that needs input, a passing Tier 4 real-input playtest (`py Scripts/playtests/usXXX_<name>.py`, real key/mouse events through the in-game agent bridge) on the same fresh package. The Tier 4 version of this very script, `Scripts/playtests/us079_inventory.py`, presses F and I for real — see "Real-Input Playtests (Agent Bridge, Tier 4)".
 
 ### UnrealEditor-Cmd exits 0 even when automation tests fail
 
@@ -373,6 +397,26 @@ When building widget trees programmatically:
 **Root cause:** With `-TestExit="Automation Test Queue Empty"`, `UnrealEditor-Cmd` quits through a normal exit request when the queue empties and returns 0 whatever the results were. Failures appear only in the log, as `Test Completed. Result={Fail}` followed by `LogAutomationController: Error:` lines. (Found 2026-10-18; a deliberately failing test gave exit code 0.)
 
 **Fix:** Run tests with `py Scripts/run_tests.py [filter]` (`RunTests.bat` now delegates to it). It parses the log: exit 1 if any test failed, exit 2 if no tests matched or the queue never finished, exit 0 only if at least one test ran and all succeeded. Never judge a raw `UnrealEditor-Cmd ... Automation RunTests` run by its exit code.
+
+### `TestEqual` on strings is case-INSENSITIVE — a case test written with it can never fail
+
+**Problem:** New tests asserting that the bridge emits lowercase ids (`TestEqual(TEXT("active_tab is lowercase"), Actual, FString(TEXT("inventory")))`) PASSED in the red phase while the code still emitted `"Inventory"`.
+
+**Root cause:** `FAutomationTestBase::TestEqual(const TCHAR*, const FString&, const FString&)` and the `TCHAR*`/`FStringView` overloads compare **ignoring case**; `TestEqualInsensitive` simply forwards to them (`Engine/Source/Runtime/Core/Public/Misc/AutomationTest.h:2016-2054`, `Private/Misc/AutomationTest.cpp:2300-2308`).
+
+**Fix:** Use `TestEqualSensitive(What, Actual, Expected)` whenever case matters (ids, GUID strings, anything a tool compares exactly). Its `What` is `const TCHAR*`, so pass `*FString::Printf(...)` for formatted names. And always watch a new test fail before you trust it.
+
+### Headless test worlds: spawned actors skip PostInitializeComponents, native widgets skip NativeOnInitialized
+
+**Problem:** An enemy spawned in a `UWorld::CreateWorld(EWorldType::Game, false)` test world had an ASC with no attribute sets registered (`GetSet<UMordecaiAttributeSet>()` null), and a `NewObject`'d `UMordecaiInventoryWidget` had no widget tree, so the tests only ever exercised fallback branches.
+
+**Root cause:** `AActor::PostActorConstruction` runs `PreInitializeComponents` / `InitializeComponents` / `PostInitializeComponents` only when `World->AreActorsInitialized()`, which `InitializeActorsForPlay` sets (`World.cpp:5912`); without it the ASC never runs `InitializeComponent` (where it registers the owner's attribute-set subobjects) and controllers are never added to the world's controller list. `UUserWidget::Initialize` calls `NativeOnInitialized` only when the widget has a valid player context (`UserWidget.cpp:173`), and `FLocalPlayerContext::IsValid` needs a `ULocalPlayer` whose controller is in the world with `PC->Player` set (`LocalPlayer.cpp:97-110`).
+
+**Fix (see `FBridgeGameTestEnv` in `Source/LyraGame/Tests/Playtest/MordecaiAgentBridgeStateTests.cpp`):**
+- After creating the world and its world context, call `World->InitializeActorsForPlay(FURL())` (no game mode needed). Lyra player states additionally need a game state: spawn `ALyraGameState` first (`ALyraPlayerState::PostInitializeComponents` checks it).
+- Spawn an `APlayerController`, `NewObject<ULocalPlayer>(GEngine, ULocalPlayer::StaticClass())`, set `PC->Player = LocalPlayer; LocalPlayer->PlayerController = PC;`. Create widgets with `NewObject<T>(World)`, `SetPlayerContext(FLocalPlayerContext(LocalPlayer, World))`, `Initialize()`. Clear `PC->Player` and `LocalPlayer->PlayerController` before destroying the world.
+- Spawn AI pawns deferred with `AutoPossessAI = EAutoPossessAI::Disabled` to avoid spawning AI controllers.
+- Still not possible headlessly: anything that needs painted geometry or a native `SWindow` (on-screen visibility, widget centres) — test the math with a hand-built `FGeometry::MakeRoot(Size, FSlateLayoutTransform(Scale, Pos))` instead.
 
 ### Python names differ from C++/Blueprint names — and smoke tests hid it
 
@@ -430,9 +474,9 @@ del _run
 1. **Tier 1** — headless automation tests (logic)
 2. **Tier 2** — PIE smoke tests, `py Scripts/run_pie_verify.py` (editor integration)
 3. **Tier 3** — packaged playtest: `py Scripts/package_playtest.py`, then `py Scripts/playtest_boot.py`. Open every screenshot with the Read tool and state what is visibly on screen.
-4. **Tier 4** — real-input playtests through an in-game agent bridge exposed as an MCP server (**Phase 2 — planned, NOT available yet**).
+4. **Tier 4** — real-input playtest on the same fresh package: `py Scripts/playtests/usXXX_<name>.py` (first: `us079_inventory.py`), through the in-game agent bridge (`UMordecaiAgentBridgeSubsystem`, non-Shipping, `-AgentBridge`; `Specs/agent_bridge_v1.md`). Ad hoc: `py Scripts/agent_bridge.py ...` or the `mordecai-play` MCP server (`.mcp.json`). An AC that needs input is accepted only here. Open every `bridge_NN.png`.
 
-Content counts only when saved AND committed: `py Scripts/check_content_committed.py` must pass too. Cite the run dir (`Saved/Playtests/<run>/report.md` + screenshot paths) in the story's completion notes and the body of the closing commit made after the playtest (that commit touches only `stories/`). Report failures as failures — never paper over them. All of this is local Python scripts only (no BuildGraph/Horde/CI/Gauntlet).
+Content counts only when saved AND committed: `py Scripts/check_content_committed.py` must pass too. Cite the run dirs (`Saved/Playtests/<run>/report.md` + screenshot paths, for Tier 3 and Tier 4) in the story's completion notes and the body of the closing commit made after the playtests (that commit touches only `stories/`). Report failures as failures — never paper over them. All of this is local Python scripts only (no BuildGraph/Horde/CI/Gauntlet).
 
 ### Content loaded by a path string from C++ is not cooked: works in PIE, missing for players
 
@@ -474,6 +518,94 @@ Content counts only when saved AND committed: `py Scripts/check_content_committe
 - Exit codes: `0` all checks pass; `1` the game failed (wrong experience, crash, timeout) — fix the game; `2` infrastructure (exe missing, stale build, window not found, git error) — fix the build/environment.
 - The real binary is `PackagedBuilds/Playtest/Windows/ProjectMordecai/Binaries/Win64/LyraGame.exe`; `PackagedBuilds/Playtest/Windows/LyraGame.exe` is only a bootstrapper. Never use `Binaries/Win64/LyraGame.exe` as playtest evidence.
 - Packaging is slow (first package can take an hour+; iterative cooks are faster). That cost is accepted — the "fast" loop shipped nothing playable.
+
+### `-game` on the editor binaries does not load the Mordecai experience — use the packaged build
+
+**Problem:** To smoke-test the agent bridge without packaging, the game was started from the editor binaries in standalone mode: `UnrealEditor.exe ProjectMordecai.uproject /MordecaiCore/Game/Maps/DevTestMap -game -windowed ... -AgentBridge`. The bridge's `ping` reported `"experience": "B_LyraDefaultExperience"`: no pickup was ever focused, no `[F] Pick up` prompt, no inventory, and I did nothing. The same map loads `B_MordecaiArenaExperience` in PIE and in the packaged build.
+
+**Root cause:** `game.log` shows `LogLyraExperience: Error: EXPERIENCE: Wanted to use LyraExperienceDefinition:B_MordecaiArenaExperience but couldn't find it, falling back to the default)` followed by `Identified experience LyraExperienceDefinition:B_LyraDefaultExperience (Source: Default)`. `AMordecaiGameMode::DefaultExperience` does name the experience, but in `-game` mode on the editor binaries `LyraAssetManager` cannot find the GameFeature plugin's experience at that point, so Lyra falls back. (Why the asset manager misses it in this mode was not chased further.)
+
+**Fix:** Never use `UnrealEditor.exe <uproject> <map> -game` as a real-game check, and never as evidence. Package (`py Scripts/package_playtest.py`) and run the packaged build (`playtest_boot.py`, the Tier 4 scripts, `agent_bridge.py launch`). Whatever launches the game, check the experience first (`ping.experience`, or the `Identified experience` log line): `B_LyraDefaultExperience` means you are not testing Mordecai.
+
+**Evidence:** the C++ bridge smoke run of 2026-10-20 (first `ping`: `experience: B_LyraDefaultExperience`; the log lines above).
+
+---
+
+## Real-Input Playtests (Agent Bridge, Tier 4)
+
+Lessons from building and first running the in-game agent bridge (`UMordecaiAgentBridgeSubsystem`, `Scripts/agent_bridge.py`, `Scripts/mordecai_play_mcp.py`, `Scripts/playtests/us079_inventory.py`; contract `Specs/agent_bridge_v1.md`). The first real Tier 4 run, `Saved/Playtests/20261020-144643-us079` (a diagnostic `--allow-stale` build), found two bugs: the FName case lesson below, and "CommonUI Menu input mode blocks every unbound key" under UMG Widget Blueprints. Both were invisible at Tier 1, Tier 2 and against the Python fake bridge.
+
+### Packaged builds do not preserve FName case: `FName("inventory").ToString()` returned "Inventory"
+
+**Problem:** In the first Tier 4 run, tapping I really did open the pause menu on the inventory tab (`bridge_02.png`), but `wait_until('pause_menu.open==true && pause_menu.active_tab=="inventory"')` timed out: the packaged game reported `active_tab='Inventory'` (check `menu_opens_inventory` FAIL, five dependent checks SKIPped). Tier 1, PIE and the 189 offline Python tests against the fake bridge all saw `inventory`.
+
+**Root cause:** `WITH_CASE_PRESERVING_NAME` is defined as `WITH_EDITORONLY_DATA` (`Engine/Source/Runtime/Core/Public/UObject/NameTypes.h:33`), which is 0 in a cooked game. Without it an FName keeps ONE spelling per case-insensitive name: whichever was registered first. The reflected parameter name `Inventory` of `UMordecaiInventoryWidget::BindToInventory(UMordecaiInventoryComponent* Inventory, ...)` (`MordecaiInventoryWidget.h:187`, registered by the generated code at module startup) registered before the tab id `FName(TEXT("inventory"))`, so the tab id's `ToString()` is `"Inventory"`. The `character` tab becomes `"Character"` the same way (`ACharacter`). The bridge first exported `GetActiveTabId().ToString()` as-is (it now lowercases it through `CanonicalNameId`), and `wait_until`'s string `==` is case-sensitive (`ValuesEqual` in `MordecaiAgentBridgePredicate.cpp`). Editor builds (Tier 1, PIE) preserve case, so they show the spelling you typed.
+
+**Fix:**
+- Never compare FName-derived strings case-sensitively across PIE and the package — in game code, tests, bridge state or playtest scripts. Compare `FName`s as `FName`s (case-insensitive), or lowercase both sides.
+- Code that exports an FName as text (JSON state, save data, anything a tool string-compares) emits a canonical string: `.ToString().ToLower()`, or keep the id as an `FString` in the first place. Never rely on `ToString()` returning the spelling you wrote.
+- Tier 4 scripts compare ids lowercase. A headless test can check the canonicalization, but cannot reproduce the bug (editor builds preserve case).
+
+**Evidence:** `Saved/Playtests/20261020-144643-us079/report.md` check 36; the files and lines above.
+
+### Lyra's loading screen eats ALL Slate input outside the editor — wait for `ping.ready`
+
+**Problem:** Input sent to the packaged game as soon as the log shows `OnExperienceLoadComplete` never reaches the game, although the same input works in PIE. The bridge's first `ping` after the experience loaded reported `loading_screen: true`; `ready` came about 2-3 s later.
+
+**Root cause:** CommonLoadingScreen registers `FLoadingScreenInputPreProcessor` while the loading screen is shown. It eats every key, analog, mouse-move, button and wheel event by returning `CanEatInput()`, which is `!GIsEditor` (`Plugins/CommonLoadingScreen/Source/CommonLoadingScreen/Private/LoadingScreenManager.cpp:99-123`) — so it never eats input in PIE. The screen also lingers `HoldLoadingScreenAdditionalSecs = 2.0f` after the experience loads (`CommonLoadingScreenSettings.h:39`). A player sees the loading screen and waits; a script does not.
+
+**Fix:** Send input only once the bridge's `ping.ready` is true (`experience_loaded && !loading_screen && has_pawn`). `Bridge.launch()` waits for it, so `agent_bridge.py launch`, the playtest scripts and the MCP `launch_game` do too. Don't bypass the preprocessor: it is the player's path. (Same root as "Keep `--settle` at 3s or more" for Tier 3 screenshots.)
+
+**Evidence:** the files and lines above; `Specs/agent_bridge_v1.md` §4 `ping`.
+
+### Injecting real input: the ways it crashes or silently does nothing
+
+**Problem:** The obvious ways to inject input into a running game crash it, get dropped without a trace, or click the wrong place on a locked desktop. (Found from the engine source while building the agent bridge.)
+
+**Root cause and fix:**
+1. **`FInputKeyEventArgs` with a null `Viewport` crashes.** `FInputKeyEventArgs::CreateSimulated(...)` defaults to `Viewport = nullptr` and `InputDevice = INPUTDEVICEID_NONE` (`Engine/Source/Runtime/Engine/Private/InputKeyEventArgs.cpp:30-37`), and `UGameViewportClient::RemapControllerInput` dereferences `InOutEventArgs.Viewport->IsPlayInEditorViewport()` (`GameViewportClient.cpp:690`). Always pass the real viewport. Better: don't inject at the viewport at all, because that skips the Slate input preprocessors and focus routing a player's input goes through. Inject Slate events (`FSlateApplication::ProcessKeyDownEvent`/`ProcessKeyUpEvent`/`ProcessAnalogInputEvent`/`ProcessMouse*Event`), as the bridge does.
+2. **`INPUTDEVICEID_NONE` input is silently dropped.** `Config/DefaultInput.ini:34` sets `bFilterInputByPlatformUser=True`, so `APlayerController::InputKey` returns false for any device that the player's platform user does not own (`PlayerController.cpp:2412-2416`), and `INPUTDEVICEID_NONE` maps to no user. Use `IPlatformInputDeviceMapper::Get().GetDefaultInputDevice()` for gamepad events (`FMordecaiAgentBridgeInput::SendKey` / `SendAnalog` in `MordecaiAgentBridgeInput.cpp`).
+3. **Mouse clicks on a locked desktop need Slate's in-memory cursor, and Slate takes it back mid-click.** The OS cursor cannot be moved while the session is locked (`SetCursorPos` fails there), so hover and click hit-testing use the wrong position. Switch Slate's cursor user to a virtual cursor with `FSlateApplication::UsePlatformCursorForCursorUser(false)` and move that. Slate swaps back to the OS cursor **synchronously inside your own mouse-down** when CommonInput switches the input method to MouseAndKeyboard (any earlier gamepad key; `UCommonInputSubsystem::RecalculateCurrentInputType`, `CommonInputSubsystem.cpp:298-303`), and after more than 3 real OS mouse moves (`SlateApplication.cpp:6211`). The next synthesized move then lands at the OS cursor, the pressed `SButton` (the captor) gets `OnMouseLeave`, and `SButton::OnMouseButtonUp` does not click because it is not hovered. So: re-install the virtual cursor after every injected mouse event and every frame while a button is down, and send a **non-synthetic** `ProcessMouseMoveEvent` at the click position right before the up (the captor gets `OnMouseEnter` again, `SlateApplication.cpp:5725-5736`). Report "virtual cursor" from live Slate state (the cursor user's cursor != `GetPlatformCursor()`), never from a flag you set.
+4. **An inactive (backgrounded or locked) app ignores device input** unless `FSlateApplication::SetHandleDeviceInputWhenApplicationNotActive(true)`. Restore user-0 focus to the game viewport only when the user-0 focus path holds **no live widget at all** — not merely when `GetUserFocusedWidget(0)` is null (that only pins the leaf; when a focused button is destroyed, a player's keys still bubble along the live part of the path, `SlateUser.cpp:160-163`, `WidgetPath.h:240`) — and never while the CommonUI router is in Menu mode.
+5. **Auto-repeat like the devices, not "every held key".** A Windows keyboard repeats only the most recently pressed key (pressing another key moves the repeat; the first never resumes), so after a `FlushPressedKeys` only that key is re-pressed through `Input.AutoReconcilePressedEventsOnFirstRepeat`. XInput repeats every held button on its own schedule (`InitialButtonRepeatDelay` 0.2 s, `ButtonRepeatDelay` 0.1 s from Input.ini, `XInputInterface.cpp:51-55, 339-354`). And send each analog axis **once per frame**: `UPlayerInput` sums the samples it gets in a frame (`PlayerInput.cpp:324`), so a second sample doubles the value. A real pad also sends digital threshold buttons (`Gamepad_LeftTrigger`, `Gamepad_LeftStick_Up`, ...) when an axis passes 30/255 or the thumb dead zones (`XInputInterface.cpp:260-292`); bindings on those keys never fire from analog events alone.
+
+**Evidence:** the files and lines above; `Specs/agent_bridge_v1.md` §1 and §4 (`key`, `mouse`).
+
+### Reading SLATE_SCOPE members of `FSlateUser` from game code (cursor, focus path)
+
+**Problem:** The bridge needed to know, live, whether Slate's cursor user is on the in-memory cursor, and whether user 0's focus path still holds any live widget. `FSlateUser::GetCursor()`, `GetWeakFocusPath()`, `GetFocusPath()` and `HasValidFocusPath()` exist but do not compile from LyraGame: "cannot access protected member".
+
+**Root cause:** They are declared under `SLATE_SCOPE:` (`Framework/Application/SlateUser.h:129`), which `SlateScope.h` defines as `public` only inside the Slate module and `protected` everywhere else. There is no public equivalent (`GetUserFocusedWidget` pins only the leaf; nothing public tells you which cursor the user has).
+
+**Fix:** Read them through a pointer to the inherited member formed via a derived class (legal per C++ [class.protected]); the derived type is never instantiated and nothing in Slate changes. See `FSlateUserReadAccess` in `Source/LyraGame/Mordecai/Playtest/MordecaiAgentBridgeInput.cpp`:
+```cpp
+struct FSlateUserReadAccess : public FSlateUser
+{
+	FSlateUserReadAccess() = delete;
+	static TSharedPtr<ICursor> CursorOf(const FSlateUser& User)
+	{
+		TSharedPtr<ICursor> (FSlateUser::*Getter)() const = &FSlateUserReadAccess::GetCursor;
+		return (User.*Getter)();
+	}
+};
+// virtual cursor active: CursorOf(*Slate.GetCursorUser()) != Slate.GetPlatformCursor()
+```
+Use it read-only. Prefer a public API whenever one exists.
+
+### The `mcp` Python SDK 2.x moved FastMCP: `mcp.server.fastmcp` raises ModuleNotFoundError
+
+**Problem:** `from mcp.server.fastmcp import FastMCP`, the import in every 1.x example, raises `ModuleNotFoundError` after `pip install mcp` (2.3.0).
+
+**Root cause:** In 2.x the FastMCP server became `MCPServer` in `mcp.server.mcpserver`; `mcp/server/fastmcp.py` is a stub that only raises. The constructor's positional argument order changed as well.
+
+**Fix:**
+- `from mcp.server.mcpserver import MCPServer, Image` and `from mcp.server.mcpserver.exceptions import ToolError`. Pass every constructor argument except `name` by keyword: `MCPServer(name, version=..., instructions=...)`.
+- Declare tools with `@mcp.tool(name=..., structured_output=False, description=...)`.
+- Raise `ToolError(message)` for anything the model must see (a refused STALE build, a gameplay timeout, a lost connection).
+- stdout is the stdio protocol channel: log to stderr only.
+- Pin it: `Scripts/requirements.txt` has `mcp>=2.3,<3`. Install once with `py -m pip install -r Scripts/requirements.txt`; `mordecai_play_mcp.py` exits 2 with that hint when the SDK is missing.
+
+**Evidence:** `Scripts/mordecai_play_mcp.py:64-65` (imports), `:496` (`MCPServer(...)`), `:500` (first `@mcp.tool`); `Scripts/requirements.txt`.
 
 ---
 

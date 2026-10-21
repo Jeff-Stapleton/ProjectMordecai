@@ -36,6 +36,12 @@ UMordecaiPauseMenuWidget::UMordecaiPauseMenuWidget(const FObjectInitializer& Obj
 {
 	// Menu input mode — blocks game input, shows mouse cursor (AC-069.1)
 	InputConfig = ELyraWidgetInputMode::Menu;
+
+	// Menu mode blocks every key without a UI action binding, so the Escape / gamepad-back that closes
+	// the menu must be CommonUI's default back action (DT_UniversalActions DefaultBack: Escape,
+	// Gamepad_FaceButton_Right), registered in NativeConstruct for back handlers. Its default handling
+	// deactivates the widget, and NativeOnDeactivated closes the menu through the subsystem (AC-069.10).
+	bIsBackHandler = true;
 }
 
 // ---------------------------------------------------------------------------

@@ -466,7 +466,7 @@ def main():
 
     if args.config == "Shipping":
         log("WARNING: Shipping strips dev features (console, most logging, cheats, the "
-            "planned agent bridge). playtest_boot.py expects a Development build.")
+            "agent bridge). playtest_boot.py expects a Development build.")
     elif args.config != "Development":
         log(f"WARNING: {args.config} binary is LyraGame-Win64-{args.config}.exe; "
             "pass it to playtest_boot.py with --exe.")

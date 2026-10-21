@@ -105,6 +105,7 @@ The primary return-to-town forcing functions are:
   - basic commandlets
   - local automation tests that run without infrastructure
   - local packaging: `RunUAT BuildCookRun`, run only through `py Scripts/package_playtest.py` (a local script, not a pipeline)
+  - local real-input playtests: the in-game agent bridge (non-Shipping builds, `-AgentBridge`, `127.0.0.1` only), its Python client `Scripts/agent_bridge.py`, the per-story scripts `Scripts/playtests/usXXX_<name>.py`, and the stdio MCP server `Scripts/mordecai_play_mcp.py` (Python packages pinned in `Scripts/requirements.txt`, installed once with `py -m pip install -r Scripts/requirements.txt`) — local scripts, not a pipeline
 
 ### DO NOT
 - Introduce BuildGraph
@@ -117,13 +118,13 @@ The primary return-to-town forcing functions are:
 - Keep scripts in a predictable location (e.g., `/BuildScripts` or `/Scripts`) and document usage in `README.md`.
 
 ### DEFINITION OF DONE: PLAYABLE IN THE PACKAGED BUILD (Locked)
-**Playable in the packaged build, or it isn't done.** A story with player-facing behavior (anything a player sees, presses, or navigates to) is done only when a playtest on a **fresh packaged build, built from the commit being delivered**, shows the feature working, reached the way a player reaches it — and you have opened the screenshots and stated what is visibly on screen.
+**Playable in the packaged build, or it isn't done.** A story with player-facing behavior (anything a player sees, presses, or navigates to) is done only when a playtest on a **fresh packaged build, built from the commit being delivered**, shows the feature working, reached the way a player reaches it — and you have opened the screenshots and stated what is visibly on screen. Every AC that needs player input (keys, movement, mouse, menus) is accepted **only** by a passing Tier 4 real-input playtest on that same package.
 
 Verification ladder — run in order. A lower tier **never** substitutes for a higher tier.
-1. **Tier 1 — Headless automation tests** (logic): `py Scripts/run_tests.py` (runs `Automation RunTests Mordecai` and judges pass/fail from the log — the raw `UnrealEditor-Cmd` exit code is 0 even when tests fail), per `docs/CLAUDE.md` "Build & Test Commands".
+1. **Tier 1 — Headless automation tests** (logic): `py Scripts/run_tests.py` (runs `Automation RunTests Mordecai` and judges pass/fail from the log — the raw `UnrealEditor-Cmd` exit code is 0 even when tests fail), per `CLAUDE.md` "Build & Test Commands".
 2. **Tier 2 — PIE smoke tests** (editor integration): `py Scripts/run_pie_verify.py`.
 3. **Tier 3 — Packaged playtest** (the game a player actually runs): `py Scripts/package_playtest.py`, then `py Scripts/playtest_boot.py`; review every screenshot.
-4. **Tier 4 — Real-input playtest** (Phase 2 — **planned, NOT available yet**): an in-game agent bridge compiled into non-Shipping builds that injects real key/hold/mouse input at the Slate/viewport level (so Enhanced Input mappings are exercised) and returns state JSON + screenshots, wrapped as an MCP server; plus per-story real-input playtest scripts. Never claim Tier 4 evidence until it exists.
+4. **Tier 4 — Real-input playtest** (the player actually does it): the story's `py Scripts/playtests/usXXX_<name>.py` on the same fresh package as Tier 3; review every `bridge_NN.png`. The in-game agent bridge (`UMordecaiAgentBridgeSubsystem`, non-Shipping builds launched with `-AgentBridge`; contract in `Specs/agent_bridge_v1.md`) injects OS-level key/axis/mouse/click events into Slate, so they reach CommonUI and Enhanced Input along a player's path, and returns state JSON + screenshots. `Scripts/agent_bridge.py` is the Python client and CLI; the `mordecai-play` MCP server (`Scripts/mordecai_play_mcp.py`, `.mcp.json`) lets agents play interactively. See `CLAUDE.md` Step 4d.
 
 ### PIE SMOKE TESTS — Tier 2 (Locked)
 Headless tests (NullRHI) cannot catch visual or runtime integration issues. PIE smoke tests **must** be run for **every story, regardless of Execution Mode** — no exceptions. They prove **editor integration only, never playability**: PIE runs against in-editor memory (including unsaved assets) and honors PIE-only settings.
@@ -135,7 +136,7 @@ Headless tests (NullRHI) cannot catch visual or runtime integration issues. PIE 
 - A story is not done if PIE smoke tests fail. A PIE pass alone never makes a player-facing story done.
 
 ### PACKAGED PLAYTEST — Tier 3 (Locked)
-Required for every story, regardless of Execution Mode (`docs/CLAUDE.md` Step 4c). For a story with player-facing behavior it must show the feature; for any other story it proves the delivered commit still packages and boots to the expected experience. Both scripts are local and need no GUI editor (allowed in HEADLESS stories).
+Required for every story, regardless of Execution Mode (`CLAUDE.md` Step 4c). For a story with player-facing behavior it must show the feature; for any other story it proves the delivered commit still packages and boots to the expected experience. Both scripts are local and need no GUI editor (allowed in HEADLESS stories).
 
 ```powershell
 # 1. Commit code AND content first, then package that commit (Development Win64 -> PackagedBuilds\Playtest\)
@@ -153,7 +154,7 @@ py Scripts/playtest_boot.py --frontend    # real player entry point (L_LyraFront
 - Treat exit codes literally: `0` all checks pass; `1` gameplay failure (wrong experience, crash, timeout) — the story is not done; `2` infrastructure (exe missing, stale build, window not found, git error) — fix it and re-run.
 - Cite the run dir (`Saved/Playtests/<run>/report.md` + absolute screenshot paths) in the story's completion notes and in the body of the story's final commit, made after the playtest. That commit must not touch `Source/`, `Plugins/`, `Content/`, `Config/` or the `.uproject` (otherwise re-package and re-run); `git commit --allow-empty` is fine for an evidence-only commit.
 - Report FAILs and warnings honestly — never paper over them.
-- Until Tier 4 exists, an AC that needs input (e.g. press F to pick up, I to open inventory) is verified as far as Tier 3 can see (the content is in the packaged map and visible on screen) and recorded as `PENDING TIER 4 (real input)` — never as player-verified on the strength of a direct function call.
+- Tier 3 sends no input. An AC that needs input (e.g. press F to pick up, I to open inventory) is checked at Tier 3 only as far as it can see (the content is in the packaged map and visible on screen); it is accepted only by the Tier 4 real-input playtest below — never on the strength of a Tier 3 screenshot or a direct function call.
 
 #### DO NOT
 - Pass `--allow-stale` to produce delivery evidence (diagnostic use only; it is recorded in the report).
@@ -161,8 +162,35 @@ py Scripts/playtest_boot.py --frontend    # real player entry point (L_LyraFront
 - Skip Tier 3 because packaging is slow. The first package can take an hour+ (iterative cooks are faster); that cost is accepted — the old "fast" loop shipped nothing playable.
 
 #### STORIES
-- Every player-facing story carries a **Playtest** section: launch path (front end or direct map + expected experience), the player's steps (keys/movement per `control_bindings_v1.1.md`), what must be visible on screen, and which playtest script/run proves it. If it is missing, add it to the story before implementing.
-- A HEADLESS (C++) story whose feature needs content must name its paired EDITOR story. The feature is not playable — and the epic's playable milestone is not met — until both land and the packaged playtest passes. Record `NOT YET PLAYABLE — pending US-XXX` in the HEADLESS story's completion notes; the Tier 3 playtest is an AC of whichever paired story lands last.
+- Every player-facing story carries a **Playtest** section: launch path (front end or direct map + expected experience), the player's steps (keys/movement per `control_bindings_v1.1.md`), what must be visible on screen, and which playtest proves each step (the Tier 3 `playtest_boot.py` run; the story's Tier 4 script `Scripts/playtests/usXXX_<name>.py` for every step that needs input). If it is missing, add it to the story before implementing.
+- A HEADLESS (C++) story whose feature needs content must name its paired EDITOR story. The feature is not playable — and the epic's playable milestone is not met — until both land and the packaged playtest passes. Record `NOT YET PLAYABLE — pending US-XXX` in the HEADLESS story's completion notes; the Tier 3 playtest (and the Tier 4 playtest, for input-driven ACs) is an AC of whichever paired story lands last.
+
+### REAL-INPUT PLAYTEST — Tier 4 (Locked)
+Required for every story with ACs that need player input (keys, movement, mouse, menus): such an AC is accepted **only** by a passing Tier 4 run (`CLAUDE.md` Step 4d). It runs on the same fresh package as Tier 3; Tier 3 stays mandatory for every story. Both are local scripts and need no GUI editor (allowed in HEADLESS stories).
+
+```powershell
+# Same fresh package as Tier 3 -- no re-package while HEAD is unchanged
+py Scripts/playtests/usXXX_<name>.py      # e.g. us079_inventory.py -> Saved\Playtests\<YYYYmmdd-HHMMSS>-usXXX\
+# Exploring and writing the script (not evidence by itself); always finish with quit
+py Scripts/agent_bridge.py launch | state | press F | walk-to 400 0 | click-button "Identify" | screenshot | quit
+```
+
+#### DO
+- Ship `Scripts/playtests/usXXX_<name>.py` with every player-facing story that has input-driven ACs, modelled on `Scripts/playtests/us079_inventory.py`: every player step is a check (PASS/FAIL/SKIP/WARN), every wait FAILs on timeout (never a false pass), and it screenshots what the ACs promise.
+- Drive the game only through the bridge's real-input commands — `key`, `axis`, `mouse`, `click` (and the client helpers built on them: `tap`, `hold`, `walk_to`, `click_button`). They inject OS-level events into Slate, so they take a player's path (Slate preprocessors, focus, viewport, CommonUI, Enhanced Input). Read with `state`, `wait_until`, `screenshot`.
+- Run it on the same fresh package Tier 3 used. It reuses `playtest_boot.py`'s staleness gate and must exit `0`.
+- Treat exit codes literally: `0` all checks pass; `1` gameplay failure (the game did not do what a player expects) — the AC is not accepted, fix or file the bug; `2` infrastructure (STALE BUILD, launch failure, no bridge connection, crash) — fix it and re-run.
+- Open **every** `bridge_NN.png` listed in `report.md` with the Read tool and state what is actually on screen; compare with what the report says it should show.
+- Cite the run dir (`Saved/Playtests/<YYYYmmdd-HHMMSS>-usXXX/report.md` + absolute screenshot paths) next to the Tier 3 run in the story's completion notes and the closing commit body.
+- Record an input the bridge cannot drive yet as `PENDING TIER 4 (bridge cannot drive: <reason>)`. That AC stays unchecked and is not claimed; every input AC the bridge can drive must still pass in the story's Tier 4 script. The story may then move to done, its Playable Status says the input is not yet accepted, and the bridge gap goes into the Known issues backlog of `Specs/agent_playtest_plan_v1.md`.
+- Close the game afterwards: the playtest scripts and the MCP server kill their game on exit. After a CLI `launch` (detached) run `py Scripts/agent_bridge.py quit`; after a playtest script's `--keep-running` run the quit command it prints (`py Scripts/agent_bridge.py --port <port> --token <token> quit`) or `Stop-Process -Name LyraGame`.
+
+#### DO NOT
+- Call gameplay or UI functions as a stand-in for input: no remote exec, Lyra RPC registry, cheat or console commands, no `debug_*` bridge command. A `debug_*` result (`"debug": true`), a `route:"viewport"` key (`"diagnostic": true`) or any direct call is never Tier 4 evidence.
+- Run Tier 4 acceptance on a STALE BUILD, a package built from a dirty tree, an attached game, or with `--allow-stale`. Those runs report `Evidence: DIAGNOSTIC ONLY -- not acceptance evidence`; acceptance needs `Evidence: ACCEPTANCE CANDIDATE` and exit 0.
+- Work around a game bug inside the playtest (e.g. close a menu some other way because Escape does nothing). A FAIL is a bug to fix or file; US-079's first run found exactly that one (Escape could not close the pause menu; since fixed).
+- Record `PENDING TIER 4 (real input)`. It is retired; only `PENDING TIER 4 (bridge cannot drive: <reason>)` remains.
+- Treat a CLI or MCP session as acceptance. Acceptance is the story's playtest script, run on a fresh package.
 
 ### CONTENT MUST BE COOKED (Locked)
 - Content that C++ loads by a path string (`LoadClass`/`LoadObject`/`FSoftObjectPath(TEXT("/MordecaiCore/..."))`) is invisible to the cooker. It works in PIE and is missing in the packaged game. This left the 2026-10-18 build with 0 weapons, 0 spells and no HUD.
@@ -383,10 +411,10 @@ Agents may create interfaces and TODOs, but must **not finalize behavior** witho
 - [ ] No bag slot system or specialized bag restrictions
 - [ ] Build/test remains local-only (no BuildGraph/Horde/Gauntlet/CI pipelines)
 - [ ] Every story: fresh package of the delivered commit (`py Scripts/package_playtest.py`), `py Scripts/playtest_boot.py` exit 0 without `--allow-stale`, every screenshot opened and described (player-facing stories: the feature is visibly on screen)
-- [ ] Ladder respected: Tier 1/2 passes and direct-call checks (labeled logic/diagnostic) not cited as proof of playability; input ACs marked `PENDING TIER 4` until real-input playtests exist
+- [ ] Ladder respected: Tier 1/2 passes and direct-call checks (labeled logic/diagnostic) not cited as proof of playability; every input-driven AC accepted only by a passing Tier 4 playtest (`py Scripts/playtests/usXXX_<name>.py` exit 0 on the same fresh package, no `--allow-stale`, every `bridge_NN.png` opened and described); no `debug_*` or direct-call result cited as Tier 4 evidence
 - [ ] No gameplay setup depends on `IsPlayInEditor()` / `WITH_EDITOR` / `LyraDeveloperSettings`; every Mordecai map resolves the Mordecai experience in the package
 - [ ] Content saved + committed; `py Scripts/check_content_committed.py` exits 0
-- [ ] Story has a Playtest section; playtest run dir cited in completion notes + commit body; failures reported as failures
+- [ ] Story has a Playtest section; playtest run dirs (Tier 3, and Tier 4 for input-driven ACs) cited in completion notes + commit body; failures reported as failures
 - [ ] Replication uses Iris (no RepGraph)
 - [ ] Persistence respects PlayFab boundary
 - [ ] GAS used for abilities/attributes/effects/tags

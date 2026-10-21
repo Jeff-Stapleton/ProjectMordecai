@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "mordecai-play": {
+      "type": "stdio",
+      "command": "py",
+      "args": ["-X", "utf8", "Scripts/mordecai_play_mcp.py"],
+      "env": {"PYTHONUNBUFFERED": "1"}
+    }
+  }
+}

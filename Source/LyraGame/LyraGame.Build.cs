@@ -74,6 +74,8 @@ public class LyraGame : ModuleRules
 				"EngineSettings",
 				"DTLSHandlerComponent",
 				"Json",
+				"Sockets",
+				"Networking",
 			}
 		);
 

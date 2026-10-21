@@ -334,3 +334,110 @@ bool FMordecai_UI_PauseMenu_InventoryTabRegistered::RunTest(const FString& Param
 
 	return true;
 }
+
+// ---------------------------------------------------------------------------
+// 13. Mordecai.UI.PauseMenu.IsCommonUIBackHandler (AC-069.10, real-input fix)
+// While the menu is open CommonUI's Menu input mode blocks every key that has
+// no UI action binding, so Escape only closes the menu through CommonUI's
+// default back action, which a widget registers only when bIsBackHandler is set
+// (UCommonActivatableWidget::NativeConstruct).
+// ---------------------------------------------------------------------------
+#include "CommonActivatableWidget.h"
+#include "CommonInputBaseTypes.h"
+#include "CommonInputSettings.h"
+#include "CommonInputTypeEnum.h"
+#include "CommonUITypes.h"
+#include "Engine/DataTable.h"
+#include "ICommonInputModule.h"
+#include "Mordecai/UI/MordecaiPauseMenuSubsystem.h"
+#include "Tests/AutomationCommon.h"
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_PauseMenu_IsCommonUIBackHandler,
+	"Mordecai.UI.PauseMenu.IsCommonUIBackHandler",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_PauseMenu_IsCommonUIBackHandler::RunTest(const FString& Parameters)
+{
+	const FBoolProperty* BackHandler = FindFProperty<FBoolProperty>(UCommonActivatableWidget::StaticClass(), TEXT("bIsBackHandler"));
+	if (!TestNotNull("UCommonActivatableWidget::bIsBackHandler", BackHandler))
+	{
+		return true;
+	}
+	TestTrue("the pause menu is a CommonUI back handler (Escape / gamepad back close it)",
+		BackHandler->GetPropertyValue_InContainer(GetDefault<UMordecaiPauseMenuWidget>()));
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 14. Mordecai.UI.PauseMenu.BackActionDeactivationClosesMenu (AC-069.10)
+// CommonUI's default back action deactivates the widget
+// (UCommonActivatableWidget::NativeOnHandleBackAction -> DeactivateWidget);
+// deactivation must close the menu through the subsystem (state, unpause, pop).
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_PauseMenu_BackActionDeactivationClosesMenu,
+	"Mordecai.UI.PauseMenu.BackActionDeactivationClosesMenu",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_PauseMenu_BackActionDeactivationClosesMenu::RunTest(const FString& Parameters)
+{
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue("test world with an initialized game instance", WorldWrapper.CreateTestWorld(EWorldType::Game)))
+	{
+		WorldWrapper.ForwardErrorMessages(this);
+		return true;
+	}
+	UWorld* World = WorldWrapper.GetTestWorld();
+	UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+	UMordecaiPauseMenuSubsystem* Subsystem = GameInstance ? GameInstance->GetSubsystem<UMordecaiPauseMenuSubsystem>() : nullptr;
+	if (!TestNotNull("pause menu subsystem", Subsystem))
+	{
+		return true;
+	}
+
+	Subsystem->OpenPauseMenu();
+	TestTrue("menu open", Subsystem->IsMenuOpen());
+
+	UMordecaiPauseMenuWidget* Menu = NewObject<UMordecaiPauseMenuWidget>(World);
+	Menu->InitializeTabs();
+	Menu->SetActiveTab(FName(TEXT("inventory")));
+	TestTrue("the widget resolves the game instance the subsystem lives on", Menu->GetGameInstance() == GameInstance);
+	Menu->ActivateWidget();
+	TestTrue("activated", Menu->IsActivated());
+
+	// What the back action does by default once the widget is a back handler
+	Menu->DeactivateWidget();
+	TestFalse("deactivated", Menu->IsActivated());
+	TestFalse("deactivation closed the menu through the subsystem", Subsystem->IsMenuOpen());
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 15. Mordecai.UI.PauseMenu.DefaultBackActionIsEscape (project config check)
+// The back action CommonUI binds comes from CommonInputSettings InputData
+// (/Game/UI/B_CommonInputData, DT_UniversalActions row DefaultBack) because
+// bEnableEnhancedInputSupport is off. Its keyboard key must be Escape.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_PauseMenu_DefaultBackActionIsEscape,
+	"Mordecai.UI.PauseMenu.DefaultBackActionIsEscape",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_PauseMenu_DefaultBackActionIsEscape::RunTest(const FString& Parameters)
+{
+	UCommonInputSettings& Settings = ICommonInputModule::GetSettings();
+	Settings.LoadData();
+	TestFalse("CommonUI uses the data-table back action, not an Enhanced Input action", Settings.GetEnableEnhancedInputSupport());
+
+	const FDataTableRowHandle BackAction = Settings.GetDefaultBackAction();
+	TestFalse("a default back action is configured", BackAction.IsNull());
+	const FCommonInputActionDataBase* Row = BackAction.GetRow<FCommonInputActionDataBase>(TEXT("DefaultBackActionIsEscape"));
+	if (!TestNotNull("the back action row resolves", Row))
+	{
+		return true;
+	}
+	const FKey KeyboardKey = Row->GetInputTypeInfo(ECommonInputType::MouseAndKeyboard, FCommonInputDefaults::GamepadGeneric).GetKey();
+	const FKey GamepadKey = Row->GetDefaultGamepadInputTypeInfo().GetKey();
+	AddInfo(FString::Printf(TEXT("DefaultBack row '%s': keyboard %s, gamepad %s"), *BackAction.RowName.ToString(), *KeyboardKey.ToString(), *GamepadKey.ToString()));
+	TestTrue("keyboard back key is Escape", KeyboardKey == EKeys::Escape);
+	TestTrue("gamepad back key is a gamepad key", GamepadKey.IsValid() && GamepadKey.IsGamepadKey());
+	return true;
+}

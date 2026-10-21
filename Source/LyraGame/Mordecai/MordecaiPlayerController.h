@@ -50,6 +50,9 @@ public:
 	/** Get spell ability class for a given slot (0-3). */
 	TSubclassOf<UGameplayAbility> GetSpellAbilityClass(int32 SlotIndex) const;
 
+	/** The live combat HUD widget, or null before it is created (read by the agent bridge state). */
+	UMordecaiCombatHUDWidget* GetCombatHUDWidget() const { return CombatHUDWidget; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnPossess(APawn* InPawn) override;

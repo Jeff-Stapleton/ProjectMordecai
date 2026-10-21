@@ -1,7 +1,7 @@
 # Agent Playtest Plan v1: agents play the packaged game
 
-**Status:** Phase 1 DONE (PR #2, branch `feature/playtest-phase1`). Phase 2 NEXT. Phase 3 after that.
-**Owner:** Jeff. **Last updated:** 2026-10-19.
+**Status:** Phase 1 DONE (PR #2, branch `feature/playtest-phase1`). Phase 2 DONE on `feature/playtest-phase2`: acceptance 2.4 passed on a fresh package of `a40955b` on a locked machine (`Saved/Playtests/20261020-205856-us079`). Phase 3 NEXT.
+**Owner:** Jeff. **Last updated:** 2026-10-20.
 
 ## Problem
 
@@ -16,7 +16,7 @@ Months of stories were marked done, but almost none of it reached real gameplay.
 | No menu path to the arena | No playlist asset | `ec76bf3` |
 | Failing tests reported as passing | `-TestExit` exits 0 on failure; PIE tests passed by default | `668cf31` |
 
-**Principle:** a feature is done only when it is playable in a fresh packaged build of the delivered commit, reached the way a player reaches it. The rules are in `docs/CLAUDE.md` (Verification Ladder, Step 4c) and `docs/agent_rules_v2.md` §3.
+**Principle:** a feature is done only when it is playable in a fresh packaged build of the delivered commit, reached the way a player reaches it. The rules are in `CLAUDE.md` (Verification Ladder, Step 4c, Step 4d) and `Specs/agent_rules_v2.md` §3.
 
 ## Verification ladder
 
@@ -25,7 +25,7 @@ Months of stories were marked done, but almost none of it reached real gameplay.
 | 1 | Headless logic tests | `py Scripts/run_tests.py` | Done |
 | 2 | PIE editor integration | `py Scripts/run_pie_verify.py` | Done (fixed false passes) |
 | 3 | Packaged boot + observation | `py Scripts/package_playtest.py` → `py Scripts/playtest_boot.py` | **Done (Phase 1)** |
-| 4 | Packaged + **real input** + state queries | Agent bridge + MCP | **Phase 2** |
+| 4 | Packaged + **real input** + state queries | Agent bridge + MCP: `py Scripts/playtests/usXXX_<name>.py`, `py Scripts/agent_bridge.py`, MCP server `mordecai-play` | **Done (Phase 2)** |
 | 5 | Per-story scripted playtests + exploratory play | Playtest scripts + agent | **Phase 3** |
 
 A lower tier never substitutes for a higher one.
@@ -46,13 +46,40 @@ Delivered on `feature/playtest-phase1` (PR #2, 8 commits):
 - `create_arena_playlist.py` + `DA_Mordecai_Arena`: front-end path to the arena.
 - Rules and skills rewritten: CLAUDE.md, agent_rules_v2, AGENT_RULES, PLANNER (+ story template with a Playtest section), cron prompts, unreal-testing / tribal-knowledge / python-editor skills.
 
-**Phase 1 limit:** the agent can launch and look, but cannot act. Anything that needs a key press is recorded as `PENDING TIER 4 (real input)`.
+**Phase 1 limit:** the agent can launch and look, but cannot act. Anything that needs a key press is recorded as `PENDING TIER 4 (real input)`. (Phase 2 retired that label; see 2.5.)
 
 ---
 
-## Phase 2: agent bridge, so agents can act in the packaged game (NEXT)
+## Phase 2: agent bridge, so agents can act in the packaged game (DONE)
 
 **Goal:** an agent playing the packaged build can press keys, move, read game state and take screenshots, through the same input path a player uses.
+
+### Phase 2 delivered
+Implemented on `feature/playtest-phase2`. Where the build differs from the plan in 2.1-2.4, `Specs/agent_bridge_v1.md` is the contract. The main differences: input goes in as Slate events (`FSlateApplication::Process*Event`), not `UGameViewportClient::InputKey`, and the viewport route is diagnostic only. The client picks a free port per launch. v1 has no `debug_*` commands.
+- **Bridge (C++):** `UMordecaiAgentBridgeSubsystem` in `Source/LyraGame/Mordecai/Playtest/` (`MordecaiAgentBridgeSubsystem`, `...Server`, `...Protocol`, `...Predicate`, `...Input`, `...State`). It is created only in non-Shipping builds launched with `-AgentBridge`.
+  - Transport: localhost-only TCP NDJSON, run on the game thread from an `FTSTicker`.
+  - Commands: `ping`, `state`, `key`, `axis`, `mouse`, `click`, `screenshot`, `wait`, `wait_until`, `quit`. Every duration is real time.
+  - It emulates a focused window, so it works on a locked or unfocused machine.
+  - `LyraGame.Build.cs` gains `Sockets` and `Networking`. `AMordecaiPlayerController::GetCombatHUDWidget()` exposes the HUD to `state`.
+  - Headless tests: `Mordecai.Playtest.AgentBridge.*` (`Source/LyraGame/Tests/Playtest/MordecaiAgentBridge{Protocol,Predicate,State}Tests.cpp`).
+- **Protocol spec:** `Specs/agent_bridge_v1.md`.
+- **Python client and CLI:** `Scripts/agent_bridge.py`. It provides:
+  - `Bridge.launch()`, which reuses `playtest_boot`'s STALE gate, launch helper and kill-on-close job, then waits for `ping.ready`.
+  - Closed-loop `walk_to`, `click_button`, `wait_until`, and a detached CLI session.
+  - Exit codes 0/1/2.
+- **MCP server:** `Scripts/mordecai_play_mcp.py` (`mordecai-play`, mcp 2.x SDK). It is registered project-scoped in `.mcp.json`. Dependencies are pinned in `Scripts/requirements.txt`.
+- **Tier 4 playtest:** `Scripts/playtests/us079_inventory.py`, the 2.4 acceptance script.
+- **Offline tests:** `Scripts/tests/fake_bridge.py` and `fake_game.py` (fakes of the bridge and the packaged game), the `Scripts/tests/test_*.py` suites, and the runner `py Scripts/run_python_tests.py`.
+- **First real run:** `Saved/Playtests/20261020-144643-us079`. This was a diagnostic build (dirty, `--allow-stale`), so it is not acceptance evidence.
+  - Result: 38 PASS, 1 WARN, 2 FAIL, 6 SKIP.
+  - All six pickups passed with real input: `walk_to`, focus, prompt `[F] Pick up <name>`, then F to store the item.
+  - FAIL 1: the inventory-tab check. The menu opened on the inventory tab, but the package reported the tab id as `Inventory` (FName case).
+  - FAIL 2: Escape did not close the pause menu (game bug).
+- **Acceptance (2.4): PASS** on a fresh package of `a40955b` (clean tree, Development), workstation locked (LogonUI running; desktop captures show the lock screen):
+  - Tier 3: `Saved/Playtests/20261020-205821-boot` — PASS (B_MordecaiArenaExperience at 6.2 s, `content_cooked` PASS; `engine_01..03.png` show the arena, HUD, six pickups and three enemy bars).
+  - Tier 4: `Saved/Playtests/20261020-205856-us079` — PASS, exit 0, every check PASS (Evidence: ACCEPTANCE CANDIDATE). All six pickups walked to and picked up with F, 4 items + 2 ledger resources, I opens the inventory tab with 4 rendered rows, a real click on Identify identifies the amulet (row reads "Mysterious Amulet"), Escape closes the menu. `bridge_01..04.png`: arena at start; inventory tab with "? Unidentified Purple Amulet" and its Identify button; the same tab with "Mysterious Amulet"; the arena after Escape.
+  - Environment recorded by the bridge: Slate active, OS focus elsewhere (`app_has_focus=false`), in-memory cursor used for the click.
+- **Docs (2.5):** done; see below.
 
 ### 2.1 In-game bridge: `UMordecaiAgentBridgeSubsystem` (C++)
 - `UGameInstanceSubsystem` in `Source/LyraGame/Mordecai/Playtest/`. Compiled out of Shipping. Created only with `-AgentBridge` (optional `-AgentBridgePort=47777`).
@@ -92,6 +119,18 @@ Report to `Saved/Playtests/<run>/` like Tier 3. Any step failing is a real bug t
 ### 2.5 Docs
 Update the CLAUDE.md Step 4c (+ a new Tier 4 step), agent_rules_v2 §3 and the unreal-testing skill. The `PENDING TIER 4` label is then retired for stories with a Tier 4 playtest.
 
+**Done 2026-10-20.** The following files were updated:
+- `CLAUDE.md`: new Step 4d, Definition of Done, Order, Step 6, What NOT To Do.
+- `Specs/agent_rules_v2.md` §3: new `REAL-INPUT PLAYTEST — Tier 4 (Locked)` section.
+- Skills: unreal-testing (Real-Input Playtest section), unreal-tribal-knowledge (new Tier 4 lessons), unreal-python-editor.
+- `stories/PLANNER.md`: ladder and story template.
+- `README.md`.
+
+The rules now say:
+- An AC that needs player input is accepted only by a passing Tier 4 run.
+- A player-facing story with input-driven ACs ships `Scripts/playtests/usXXX_<name>.py`, which must exit 0 on the same fresh package before the story is done.
+- `PENDING TIER 4 (real input)` is retired. The only remaining form is `PENDING TIER 4 (bridge cannot drive: <reason>)`, and an AC recorded that way is not claimed.
+
 **Estimate:** 2-3 agent sessions (bridge + tests; client + walk_to; MCP + US-079 acceptance).
 
 ---
@@ -105,8 +144,8 @@ Update the CLAUDE.md Step 4c (+ a new Tier 4 step), agent_rules_v2 §3 and the u
 
 ---
 
-## Known issues backlog (found by Phase 1, not yet fixed)
-- Three floating red bars around the player: unidentified (enemy health bars on invisible enemies?). Phase 2 `state` will answer.
+## Known issues backlog (found by Phase 1 and Phase 2, not yet fixed)
+- Three floating red bars around the player: unidentified (enemy health bars on invisible enemies?). **Answered by Phase 2** (see the Phase 2 list below): they are the health bars of three invisible Frontliner enemies.
 - Pickup name labels render rotated 90° (hard to read).
 - Steam socket config deprecation warnings print on screen (`DefaultEngine.ini` SocketSubsystemSteamIP keys).
 - Loading screen is Lyra-branded.
@@ -116,10 +155,41 @@ Update the CLAUDE.md Step 4c (+ a new Tier 4 step), agent_rules_v2 §3 and the u
 - `Scripts/Package.bat` uses `-allmaps`, which isn't a UAT flag. It cooks only `MapsToCook`.
 - Commit `52735cd`'s subject starts with a UTF-8 BOM (cosmetic).
 
+**Found by Phase 2** (by the bridge's `state` and the first Tier 4 run, `Saved/Playtests/20261020-144643-us079`; see also `Specs/agent_bridge_v1.md` §9). Each item is a game bug to fix or file. None of them may be worked around in a playtest.
+- **The pause menu could not be closed with real input (FIXED in Phase 2).** After a real Escape the menu was still open 3 s later (check `menu_closes_escape`, `bridge_03.png`).
+  - Cause: the widget uses CommonUI Menu input mode (`MordecaiPauseMenuWidget.cpp:38`), which blocks every unbound key, and the widget is not a back handler.
+  - Fixed in Phase 2: `UMordecaiPauseMenuWidget` is a CommonUI back handler, so Escape closes the menu (tests `Mordecai.UI.PauseMenu.*`; real-input check `menu_closes_escape`). I still does not close it.
+- **I does not close the pause menu either.** The Enhanced Input `Inventory` action never fires while the menu is open in Menu mode. It needs a CommonUI UI action binding.
+- **Gamepad stick and L3 mappings use invalid FKey names.** `MordecaiHeroComponent.cpp:103,116,133` use `Gamepad_LeftStick2D`, `Gamepad_RightStick2D` and `Gamepad_LeftThumbstickButton`. The engine names are `Gamepad_Left2D`, `Gamepad_Right2D` and `Gamepad_LeftThumbstick`. Gamepad move, look and sprint are dead, silently.
+- **Facing and aim are pinned to +X.** The diorama camera writes the control rotation every frame (`MordecaiCameraMode_Diorama.cpp:51`), so mouse and right-stick facing (`control_bindings_v1.1.md`) cannot work. Whether fixed facing is intended is Jeff's design call.
+- **Sprint, jump, attacks, block and dodge are not bound at runtime.**
+  - The only live mappings are the programmatic `MordecaiIMC_Runtime` (`MordecaiHeroComponent.cpp:76-209`). `IMC_Mordecai.uasset` is never added.
+  - `AS_MordecaiCombat` is an empty ability set.
+  - Sprint is mapped to LeftShift but never bound (`SetSprinting` has no caller).
+  - Done stories (US-054, US-078) claim otherwise.
+- **Spells have no cooldowns.**
+  - No `DA_Spell_*` asset sets a `CooldownTag`, so `ApplySpellCooldown` returns early (`MordecaiGA_SpellBase.cpp:445`).
+  - The HUD cooldown widgets are never bound (`UMordecaiSpellCooldownWidget::BindToCooldownTag` has no callers), so they always show "ready".
+- **Weapon effects never reach the ASC.** `UMordecaiEquipmentComponent` looks for an ASC on the character (`MordecaiEquipmentComponent.cpp:55-56`), but the ASC lives on the PlayerState. Weapon `GrantedTags` and `StatModifiers` are never applied.
+- **The three red bars are explained.** They are the health bars of three `BP_MordecaiEnemy_Frontliner` enemies that have no mesh, so the enemies are invisible.
+- **The inventory filter bar overlaps the "Stored Resources" header.** The category buttons (Materials, Quest) draw over the ledger heading (`Saved/Playtests/20261020-144643-us079/bridge_02.png`).
+- **On-screen debug text is shown to players.** "MORDECAI: Programmatic IMC created and input bound successfully (including 4 spell actions)." appears in yellow under the HUD bars (`bridge_02.png`; message from `MordecaiHeroComponent.cpp:261`).
+- **The CommonUI pool may leave inventory rows stale on a second menu open (latent).**
+  - CommonUI pools the pause-menu widget.
+  - On a second open, `RebuildContentArea` can short-circuit because the content class is unchanged, so the rows of the unbound inventory widget go stale and Identify silently fails.
+  - The us079 flow opens the menu only once, so it does not hit this.
+
 ## Open decisions (Jeff)
 1. Worker timeouts (3600/4500s) vs packaging time (86 min first, 3-12 min after): raise them, or package in the background across cron runs?
 2. Tier 3 for **every** story (current rule) or only player-facing ones?
 3. HEADLESS stories may launch the editor for Tier 2: confirm.
 4. `Package.bat`: switch to `-CookAll -CookMapsOnly`, or retire it?
 5. ~~The cron prompts reference removed `stories/` folders~~ **Resolved 2026-10-19.** All Mordecai context moved from `~/.openclaw` into the repo: `CLAUDE.md`, `Specs/`, `stories/` (restored from git history), `.claude/skills/`, `Scripts/check_editor.py`, `Scripts/ue_remote_exec.py`. The superseded `AGENT_RULES.md` was not migrated. All four OpenClaw Mordecai cron jobs are disabled, so nothing is scheduled; the prompts are kept for reference in `stories/agent-prompts/`. Choosing a new scheduler is a later decision.
-6. Phase 2 transport/port and whether the MCP server should be registered globally or per-project.
+6. ~~Phase 2 transport/port and whether the MCP server should be registered globally or per-project.~~ **Resolved 2026-10-20** (Jeff may revisit).
+   - **Transport:** localhost-only TCP on `127.0.0.1`, newline-delimited JSON (`Specs/agent_bridge_v1.md` §2-§3).
+   - **Port:** the Python client picks a free `127.0.0.1` port for every launch and passes `-AgentBridgePort=<n>`. When the flag is omitted, the game defaults to 47777. The client also passes `-AgentBridgeToken=`, which `ping` echoes back, so the client knows it reached the process it launched.
+   - **MCP registration:** project-scoped, in the committed `.mcp.json`, as `mordecai-play` (`py -X utf8 Scripts/mordecai_play_mcp.py`; tools `mcp__mordecai-play__*`).
+     - Claude Code asks once to approve a project server.
+     - non-interactive `claude -p` / SDK sessions may load it without asking, depending on their settings.
+     - Per-user pre-approval can go in personal settings: `enabledMcpjsonServers: ["mordecai-play"]`, and allow `mcp__mordecai-play__*`.
+   - **Setup:** install the SDK once with `py -m pip install -r Scripts/requirements.txt`.
