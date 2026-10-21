@@ -10,7 +10,12 @@ description: >
   (9) reviewing test results (log, JSON, HTML), (10) writing Editor Utility Blueprint tests,
   (11) Project Mordecai verification ladder and packaged-build playtests — "playtest", "packaged build",
   "does the feature work in game", "is the story done", package_playtest.py, playtest_boot.py,
-  check_content_committed.py, STALE BUILD, wrong experience (B_LyraDefaultExperience), black screenshots.
+  check_content_committed.py, STALE BUILD, wrong experience (B_LyraDefaultExperience), black screenshots,
+  (12) Project Mordecai Tier 4 real-input playtests — "Tier 4", "real input", "agent bridge", "press a key /
+  walk / click in the packaged game", agent_bridge.py, walk_to / walk-to, wait_until, Scripts/playtests/usXXX_*.py
+  (us079_inventory.py), the mordecai-play MCP server (mordecai_play_mcp.py, .mcp.json, mcp__mordecai-play__*),
+  the AgentBridge command-line flags, bridge_NN.png, run_python_tests.py, "input does nothing in the package",
+  "menu won't close".
   NOT for: gameplay logic (use gameplay framework), performance profiling (use Insights), or CI/CD pipeline setup.
 ---
 
@@ -33,18 +38,18 @@ description: >
 
 > **Playable in the packaged build, or it isn't done.** Applies to every Project Mordecai story with player-facing behavior. Everything here is a local script run with `py` from the repo root `C:\Users\jeffd\Documents\Gamedev\ProjectMordecai` — no BuildGraph, Horde, Gauntlet, or CI.
 
-**Definition of Done:** a playtest on a FRESH packaged build — built by `package_playtest.py` from the commit being delivered and accepted by `playtest_boot.py`'s staleness gate — shows the feature working, reached the way a player reaches it. Open every screenshot with the **Read** tool and state what is visibly on screen before calling the story done.
+**Definition of Done:** a playtest on a FRESH packaged build — built by `package_playtest.py` from the commit being delivered and accepted by `playtest_boot.py`'s staleness gate — shows the feature working, reached the way a player reaches it. An AC that needs player input (keys, movement, mouse, menus) is accepted **only** by a passing Tier 4 real-input playtest (`py Scripts/playtests/usXXX_<name>.py`, exit 0) on that same fresh package. Open every screenshot (`engine_NN.png`, `bridge_NN.png`) with the **Read** tool and state what is visibly on screen before calling the story done.
 
 ### Verification Ladder
 
-A lower tier **never** substitutes for a higher tier. Passing Tiers 1–2 means "ready for Tier 3", not "done".
+A lower tier **never** substitutes for a higher tier. Passing Tiers 1–2 means "ready for Tier 3", not "done"; Tier 3 never accepts an input-driven AC.
 
 | Tier | Proves | Run |
 |------|--------|-----|
 | **1. Headless automation** | C++ logic | `py Scripts/run_tests.py [Mordecai.<Area>]` or `Scripts\RunTests.bat` (wraps it); NullRHI, default filter `Mordecai`; judges the test log — a raw `UnrealEditor-Cmd` run exits 0 even when tests fail |
 | **2. PIE smoke** | Editor integration (in-editor, possibly unsaved state) | `py Scripts/run_pie_verify.py [--no-launch] [--tests hud,spawn]` |
 | **3. Packaged playtest** | The shipped game boots the right experience and shows the feature | `py Scripts/package_playtest.py` → `py Scripts/playtest_boot.py` → Read the screenshots |
-| **4. Real-input playtest** | Player input reaches the feature through Enhanced Input | *Phase 2 — planned, NOT available yet* (agent bridge; see Automation Driver below) |
+| **4. Real-input playtest** | Player input reaches the feature through Slate, CommonUI and Enhanced Input | `py Scripts/playtests/usXXX_<name>.py` (first: `us079_inventory.py`) on the same fresh package → Read every `bridge_NN.png`. Ad hoc: `py Scripts/agent_bridge.py ...` or the `mordecai-play` MCP server (not evidence by themselves). See "Real-Input Playtest" below |
 
 ### Rules
 
@@ -53,12 +58,14 @@ A lower tier **never** substitutes for a higher tier. Passing Tiers 1–2 means 
 - Get exit 0 from `py Scripts/check_content_committed.py` before calling a story done.
 - Make every Mordecai map resolve its Mordecai experience in a packaged build (map World Settings, `?Experience=`, or `AMordecaiGameMode::DefaultExperience`). `playtest_boot.py`'s experience check is the proof.
 - Label smoke-test checks that call gameplay functions directly as **LOGIC/diagnostic** (tag the PASS/FAIL line `[LOGIC]`) in the script output and the story notes.
-- Cite the run dir (`Saved\Playtests\<run>\report.md` + screenshot paths) and what the screenshots show in the story's completion notes AND the body of the closing commit made after the playtest (it touches only `stories/`; a change under `Source/` `Plugins/` `Content/` `Config/` means re-package and re-run). Report failures honestly; never relabel a FAIL.
+- Ship a Tier 4 playtest `Scripts/playtests/usXXX_<name>.py` (modelled on `us079_inventory.py`) with every player-facing story that has input-driven ACs; it must exit 0 on the fresh package before the story is done.
+- Cite the run dirs (Tier 3 `Saved\Playtests\<run>-boot\report.md`, Tier 4 `Saved\Playtests\<run>-usXXX\report.md`, + screenshot paths) and what the screenshots show in the story's completion notes AND the body of the closing commit made after the playtests (it touches only `stories/`; a change under `Source/` `Plugins/` `Content/` `Config/` means re-package and re-run). Report failures honestly; never relabel a FAIL.
 
 **DO NOT:**
 - Gate gameplay setup on `World->IsPlayInEditor()`, `WITH_EDITOR`, `ULyraDeveloperSettings` (`ExperienceOverride` is honored only in PIE), or any other editor-only state.
-- Accept a player-facing AC on direct calls (teleport + `try_pickup_focused()`, `toggle_pause_menu_to_tab('inventory')`, …). That needs the player path: Tier 3 now, Tier 4 when available.
-- Cite a `--allow-stale` run or `Scripts\Package.bat` output (no `build_info.json`) as Done evidence.
+- Accept a player-facing AC on direct calls (teleport + `try_pickup_focused()`, `toggle_pause_menu_to_tab('inventory')`, …). That needs the player path: Tier 3 for what is on screen, Tier 4 (real input through the agent bridge) for anything that needs input.
+- Cite a `--allow-stale` run or `Scripts\Package.bat` output (no `build_info.json`) as Done evidence — at Tier 3 or Tier 4.
+- Cite a `debug_*` bridge result (`"debug": true`), a `route:"viewport"` key (`"diagnostic": true`), or any direct call as Tier 4 evidence. Record an input the bridge cannot drive yet as `PENDING TIER 4 (bridge cannot drive: <reason>)` — that AC is not claimed. (`PENDING TIER 4 (real input)` is retired.)
 
 ### Content Guard: `check_content_committed.py`
 
@@ -114,6 +121,52 @@ Run dir `Saved\Playtests\<YYYYmmdd-HHMMSS>-boot\`: `game.log`, `engine_01.png`�
 | Timeout (exit 1) | Never reached `OnExperienceLoadComplete` | Read the tail of `game.log`; raise `--timeout` only if it shows steady progress (e.g. first-boot shader compile). |
 | Black / uniform screenshot warning, or "another window covers part of the game window" | Captured before first render, window occluded/minimized, desktop locked, or rendering broken | Re-run with a larger `--settle`, desktop unlocked, window uncovered. Still black → treat it as a render failure. Read the image either way. |
 | Window not found (exit 2) | No visible top-level window for the game PID | Check `game.log` — usually the process died before creating its window. |
+
+### Real-Input Playtest (Tier 4): `Scripts/playtests/usXXX_<name>.py` + `agent_bridge.py`
+
+The packaged game, played with real input. `UMordecaiAgentBridgeSubsystem` (`Source/LyraGame/Mordecai/Playtest/`; contract `Specs/agent_bridge_v1.md`) exists only in non-Shipping builds launched with `-AgentBridge` and listens on `127.0.0.1` (NDJSON over TCP). Its input commands (`key`, `axis`, `mouse`, `click`) inject OS-level events into Slate (`FSlateApplication::Process*Event`), so they go through the Slate input preprocessors (CommonInput, CommonUI, the loading-screen eater), user-0 focus, the viewport, the CommonUI action router and Enhanced Input exactly like a player's keyboard, mouse or gamepad. It has no commands that call gameplay or UI functions. It is not the Automation Driver: see the note under "Automation Driver" below.
+
+```
+py -m pip install -r Scripts/requirements.txt         # once per machine (mcp 2.x SDK for the MCP server, Pillow)
+py Scripts/playtests/us079_inventory.py               # story playtest: STALE gate, launch -AgentBridge, play, quit
+py Scripts/playtests/us079_inventory.py --keep-running   # leave the game open (close it with the quit command it prints, or Stop-Process)
+py Scripts/playtests/us079_inventory.py --allow-stale    # STALE BUILD becomes a warning: diagnosis only, never Done evidence
+py Scripts/playtests/us079_inventory.py --attach-port N [--token T]   # play an already running bridge (left running; ALWAYS diagnostic)
+
+py Scripts/agent_bridge.py launch [--map M | --frontend] [--allow-stale]   # DETACHED; writes Saved\Playtests\agent_bridge_session.json
+py Scripts/agent_bridge.py ping | state [--sections a,b] [--radius R]
+py Scripts/agent_bridge.py press F [--hold 0.1]       # a tap (CLI connections close, which releases keys)
+py Scripts/agent_bridge.py axis Gamepad_LeftY=1 --hold 0.5
+py Scripts/agent_bridge.py mouse 640 360 | click [X Y] | click-button "Identify"
+py Scripts/agent_bridge.py walk-to 400 0 [--tol 50]   # closed-loop WASD walk (asserts control yaw 0, calibrates, side-steps when stuck)
+py Scripts/agent_bridge.py screenshot [PATH] | wait 1.5 | wait-until "inventory.count>=4" [--timeout 10]
+py Scripts/agent_bridge.py quit                       # ALWAYS after launch: the detached game outlives the CLI
+
+py Scripts/run_python_tests.py [-k walk_to] [-v]      # offline tests of the tooling against Scripts/tests/fake_bridge.py (not playtest evidence)
+```
+
+- **Library:** `import agent_bridge; b = agent_bridge.Bridge.launch(); b.walk_to(400, 0); b.tap("F"); b.wait_until("inventory.count>=1", timeout_s=5); b.screenshot(); b.quit()` (or `Bridge.attach(port, token)`). `BridgeError.kind` is `"gameplay"` or `"infra"`.
+- **MCP:** the `mordecai-play` stdio server (`Scripts/mordecai_play_mcp.py`) is registered project-scoped in the committed `.mcp.json`; tools `mcp__mordecai-play__launch_game`, `get_state`, `press_key`, `hold_key`, `release_key`, `walk_to`, `click`, `click_button`, `screenshot` (returns the image), `wait_until`, `quit_game`. Claude Code asks once to approve the project server; non-interactive `claude -p`/SDK sessions may load it without asking, depending on their settings (per-user pre-approval: `enabledMcpjsonServers: ["mordecai-play"]` and allow `mcp__mordecai-play__*` in personal settings). It owns one game in a kill-on-close job; a STALE build is refused unless `allow_stale` is passed, and then every result carries `STALE BUILD — not evidence`. CLI and MCP sessions are for exploring and writing the script; acceptance is the story's `Scripts/playtests/*.py` on a fresh package.
+- **Port:** the client picks a free `127.0.0.1` port per launch and passes `-AgentBridgePort=` (game default 47777) plus `-AgentBridgeToken=` (echoed by `ping`, so the client knows it reached the process it launched).
+- **Readiness:** `Bridge.launch()` waits for the experience in `game.log`, then polls `ping` until `ready` (`experience_loaded && !loading_screen && has_pawn`). Send no input before that.
+- **Time:** every bridge duration (`hold_s`, `wait`, `timeout_s`) is real time, because the pause menu pauses the world.
+
+Run dir `Saved\Playtests\<YYYYmmdd-HHMMSS>-usXXX\` (CLI: `...-bridge\`, MCP: `...-mcp\`): `report.md`, `report.json` (every player step is a PASS/FAIL/SKIP/WARN check; a failed check SKIPs the checks that depend on it), `game.log`, `bridge.jsonl` (every request and response — the audit trail that only input and state commands were sent), `bridge_NN.png` (the game's own frames; they work when the machine is locked). `report.md` also records `state.focus` at the start and end. Exit `0` every check passed (WARN allowed), `1` gameplay failure (a key did nothing, a menu did not open or close, a `wait_until` timed out, `walk_to` stuck), `2` infrastructure (STALE BUILD — refused before any run dir is created, launch failure, no connection, crash). The CLI uses the same 0/1/2.
+
+**Reading `report.md`:** every check line; the `Evidence` line (`DIAGNOSTIC ONLY -- not acceptance evidence` for a STALE build run with `--allow-stale`, a package built from a dirty tree, an attached game or a test launch; acceptance needs `ACCEPTANCE CANDIDATE` plus exit 0); the Build section (commit, dirty, `Freshness`); the Environment section (`state.focus`); the "Known issues this run exercises" section. Then **Read every `bridge_NN.png`** and compare it with what the report says it should show. Run it on the SAME fresh package as Tier 3 (no re-package while HEAD is unchanged).
+
+| Symptom | Meaning | Do |
+|---------|---------|-----|
+| Input does nothing right after launch; `ping.ready=false` / `loading_screen=true`; a key the bridge holds is missing from `state.input.pressed` | Lyra's CommonLoadingScreen input preprocessor eats ALL Slate input outside the editor while the loading screen is up, and the screen lingers ~2 s after the experience loads. PIE never shows this | Wait for `ping.ready` (`Bridge.launch()` does; the CLI's `launch` too). Never send input earlier. |
+| Timers look wrong while a menu is open; `world_time_s` stops; `paused=true` | The Mordecai pause menu pauses the world (`SetGamePaused`) | Nothing to fix: the bridge uses real time (`FPlatformTime::Seconds()`) for every duration; compare `real_time_s`, not `world_time_s`. |
+| `STALE BUILD` (exit 2), no run dir | Same staleness gate as `playtest_boot.py` | Commit, re-run `package_playtest.py`, then Tier 3 and Tier 4 again. Don't reach for `--allow-stale`. |
+| Locked machine or unfocused window | Expected on unattended runs. The bridge only emulates a focused window: device input while the app is inactive, user-0 focus to the viewport only when nothing has focus, an in-memory cursor for mouse/click. The input path is still the player's | Read `state.focus` in `report.md` and the `env` flags on each input response (`focus_restored`, `virtual_cursor`, `app_active`) and say which environment the run had. Use `bridge_NN.png` (desktop capture is black when locked). |
+| An id compare fails only in the package (a string that came from an FName has different case than in PIE) | Packaged builds don't preserve FName case (`WITH_CASE_PRESERVING_NAME` = `WITH_EDITORONLY_DATA`); PIE, Tier 1 and the fake bridge all show the source spelling. The bridge already emits `active_tab`, `tabs[].id` and tab/filter button ids lowercase and Identify ids in `instance_id` form | For the other FName-derived strings listed in `Specs/agent_bridge_v1.md` §4, compare case-insensitively in Python (`wait_until` has no `lower()`). See tribal knowledge. |
+| I does not close the pause menu; `focus.commonui_input_mode=="Menu"`, `game_input_allowed==false` | CommonUI Menu input mode blocks every key without a UI action binding. Escape works: `UMordecaiPauseMenuWidget` is a CommonUI back handler (since Phase 2) | A known game gap: I needs a UI action binding. If Escape stops closing the menu, that is a regression of the back-handler fix (`Mordecai.UI.PauseMenu.*`, AC-069.10). Either way let the check FAIL and fix or file it; never close the menu any other way in the script. |
+| `bad_key` (exit 1) | Unknown FKey name, wrong kind (mouse buttons go through `click`), or a denied debug exec key (`K`, `F1`-`F12`, `Tilde`, `Insert`, …) | Use UE FKey names (aliases: `Esc`, `Space`, `Enter`, `Shift`, `Ctrl`, `Alt`, `0`-`9`, arrows). Don't pass `unsafe: true` in a playtest. |
+| `walk_to` fails with `yaw_not_zero`, "movement mapping mismatch" or "stuck at (x, y)" (exit 1) | WASD basis rotated (control yaw not 0), the IMC mapping changed, or geometry is in the way | Check `player.control_rotation`; route around obstacles with waypoints (us079 does for `Box_02`). |
+| `axis` on a gamepad stick moves nothing | `MordecaiHeroComponent` maps non-existent stick FKeys (`Gamepad_LeftStick2D` …); a game bug | Use WASD (`walk_to`) and file the bug. |
+| Near-uniform-frame WARN on a `bridge_NN.png`, or a screenshot `timeout` | The window is minimized (renders nothing) or the frame predates the first render | Read it anyway; it is not visual evidence. Re-run with the window not minimized. |
 
 ## C++ Tests
 
@@ -350,7 +403,7 @@ IAutomationDriverModule::Get().Disable();
 
 **Locators:** `By::Id()`, `By::Path()`, `By::Cursor()`, `By::Delegate()`
 
-> **Project Mordecai — real-input playtests are Phase 2 (planned, NOT available yet).** The Automation Driver runs inside the editor/automation framework, so it is Tier 1–2 evidence, not packaged-game proof. Phase 2 adds an in-game **agent bridge** subsystem compiled into non-Shipping builds: it injects real key/hold/mouse input at the Slate/viewport level (so Enhanced Input mappings are exercised), returns state JSON + screenshots, and is wrapped as an MCP server so agents can play the packaged game, with per-story real-input playtest scripts (Tier 4). Until it lands, `playtest_boot.py` (Tier 3) is the highest tier available — don't claim input-path verification you didn't run.
+> **Project Mordecai — real-input playtests (Tier 4) use the in-game agent bridge, not the Automation Driver.** The Automation Driver runs inside the editor/automation framework (and `Enable()` blocks real input), so it is Tier 1–2 evidence, not packaged-game proof. Tier 4 is `UMordecaiAgentBridgeSubsystem` in the packaged game (non-Shipping, `-AgentBridge`): it injects OS-level key/axis/mouse/click events into Slate (so CommonUI and Enhanced Input mappings are exercised along a player's path), returns state JSON + screenshots, and is driven by `Scripts/agent_bridge.py`, the per-story `Scripts/playtests/usXXX_<name>.py` and the `mordecai-play` MCP server. See "Real-Input Playtest (Tier 4)" above. Don't claim input-path verification you didn't run there.
 
 ## Running Tests
 

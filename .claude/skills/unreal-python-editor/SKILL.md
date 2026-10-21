@@ -89,7 +89,7 @@ py "Scripts/ue_remote_exec.py" "exec(open(r'C:/Users/jeffd/Documents/Gamedev/Pro
 
 ### `verify_pie_*` scripts are logic checks, not playability proof
 
-`Scripts/verify_pie_*.py` scripts that call gameplay functions directly (teleport the pawn + `interaction.try_pickup_focused()`, `subsystem.toggle_pause_menu_to_tab('inventory')`) never press a key, never exercise Enhanced Input mappings, and run against unsaved editor memory. Label them **logic/diagnostic** in their output and in story notes. They never accept a player-facing AC: that requires the packaged playtest now (`py Scripts/package_playtest.py` → `py Scripts/playtest_boot.py` → open every screenshot with the Read tool and describe what is on screen) and, in Phase 2 (planned, not available yet), real-input playtests through the in-game agent bridge.
+`Scripts/verify_pie_*.py` scripts that call gameplay functions directly (teleport the pawn + `interaction.try_pickup_focused()`, `subsystem.toggle_pause_menu_to_tab('inventory')`) never press a key, never exercise Enhanced Input mappings, and run against unsaved editor memory. Label them **logic/diagnostic** in their output and in story notes. They never accept a player-facing AC: that requires the packaged playtest (`py Scripts/package_playtest.py` → `py Scripts/playtest_boot.py` → open every screenshot with the Read tool and describe what is on screen) and, for anything that needs input, the Tier 4 real-input playtest on the same package (`py Scripts/playtests/usXXX_<name>.py`, e.g. `Scripts/playtests/us079_inventory.py`, which presses F and I for real through the in-game agent bridge; open every `bridge_NN.png`). See the `unreal-testing` skill, "Real-Input Playtest (Tier 4)".
 
 ## Core Patterns
 
