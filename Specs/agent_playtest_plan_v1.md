@@ -1,6 +1,6 @@
 # Agent Playtest Plan v1: agents play the packaged game
 
-**Status:** Phase 1 DONE (PR #2, branch `feature/playtest-phase1`). Phase 2 IMPLEMENTED on `feature/playtest-phase2`; acceptance (2.4 on a fresh package) pending. Phase 3 after that.
+**Status:** Phase 1 DONE (PR #2, branch `feature/playtest-phase1`). Phase 2 DONE on `feature/playtest-phase2`: acceptance 2.4 passed on a fresh package of `a40955b` on a locked machine (`Saved/Playtests/20261020-205856-us079`). Phase 3 NEXT.
 **Owner:** Jeff. **Last updated:** 2026-10-20.
 
 ## Problem
@@ -25,7 +25,7 @@ Months of stories were marked done, but almost none of it reached real gameplay.
 | 1 | Headless logic tests | `py Scripts/run_tests.py` | Done |
 | 2 | PIE editor integration | `py Scripts/run_pie_verify.py` | Done (fixed false passes) |
 | 3 | Packaged boot + observation | `py Scripts/package_playtest.py` → `py Scripts/playtest_boot.py` | **Done (Phase 1)** |
-| 4 | Packaged + **real input** + state queries | Agent bridge + MCP: `py Scripts/playtests/usXXX_<name>.py`, `py Scripts/agent_bridge.py`, MCP server `mordecai-play` | **Phase 2** (implemented; acceptance pending) |
+| 4 | Packaged + **real input** + state queries | Agent bridge + MCP: `py Scripts/playtests/usXXX_<name>.py`, `py Scripts/agent_bridge.py`, MCP server `mordecai-play` | **Done (Phase 2)** |
 | 5 | Per-story scripted playtests + exploratory play | Playtest scripts + agent | **Phase 3** |
 
 A lower tier never substitutes for a higher one.
@@ -50,7 +50,7 @@ Delivered on `feature/playtest-phase1` (PR #2, 8 commits):
 
 ---
 
-## Phase 2: agent bridge, so agents can act in the packaged game (IMPLEMENTED — acceptance pending)
+## Phase 2: agent bridge, so agents can act in the packaged game (DONE)
 
 **Goal:** an agent playing the packaged build can press keys, move, read game state and take screenshots, through the same input path a player uses.
 
@@ -75,6 +75,10 @@ Implemented on `feature/playtest-phase2`. Where the build differs from the plan 
   - All six pickups passed with real input: `walk_to`, focus, prompt `[F] Pick up <name>`, then F to store the item.
   - FAIL 1: the inventory-tab check. The menu opened on the inventory tab, but the package reported the tab id as `Inventory` (FName case).
   - FAIL 2: Escape did not close the pause menu (game bug).
+- **Acceptance (2.4): PASS** on a fresh package of `a40955b` (clean tree, Development), workstation locked (LogonUI running; desktop captures show the lock screen):
+  - Tier 3: `Saved/Playtests/20261020-205821-boot` — PASS (B_MordecaiArenaExperience at 6.2 s, `content_cooked` PASS; `engine_01..03.png` show the arena, HUD, six pickups and three enemy bars).
+  - Tier 4: `Saved/Playtests/20261020-205856-us079` — PASS, exit 0, every check PASS (Evidence: ACCEPTANCE CANDIDATE). All six pickups walked to and picked up with F, 4 items + 2 ledger resources, I opens the inventory tab with 4 rendered rows, a real click on Identify identifies the amulet (row reads "Mysterious Amulet"), Escape closes the menu. `bridge_01..04.png`: arena at start; inventory tab with "? Unidentified Purple Amulet" and its Identify button; the same tab with "Mysterious Amulet"; the arena after Escape.
+  - Environment recorded by the bridge: Slate active, OS focus elsewhere (`app_has_focus=false`), in-memory cursor used for the click.
 - **Docs (2.5):** done; see below.
 
 ### 2.1 In-game bridge: `UMordecaiAgentBridgeSubsystem` (C++)
