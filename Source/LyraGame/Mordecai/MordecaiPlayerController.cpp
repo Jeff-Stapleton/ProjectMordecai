@@ -6,7 +6,6 @@
 #include "Mordecai/UI/MordecaiDamagePopComponent.h"
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
-#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
 #include "Mordecai/Magic/MordecaiGA_SpellBase.h"
 #include "Mordecai/Magic/MordecaiSpellDataAsset.h"
@@ -141,16 +140,8 @@ void AMordecaiPlayerController::GrantCombatAbilities()
 			continue;
 		}
 
-		// Special handling for MeleeAttack: set AttackProfiles before granting
-		if (AbilityClass->IsChildOf(UMordecaiGA_MeleeAttack::StaticClass()) && MeleeAttackProfiles.Num() > 0)
-		{
-			UMordecaiGA_MeleeAttack* MeleeCDO = AbilityClass->GetDefaultObject<UMordecaiGA_MeleeAttack>();
-			if (MeleeCDO && MeleeCDO->AttackProfiles.Num() == 0)
-			{
-				MeleeCDO->AttackProfiles = MeleeAttackProfiles;
-			}
-		}
-
+		// This controller is the grant's SourceObject; a melee ability instance takes MeleeAttackProfiles from it
+		// in OnGiveAbility. Writing them into the CDO instead is a fatal GC error in packaged builds.
 		FGameplayAbilitySpec Spec(AbilityClass, 1, INDEX_NONE, this);
 		ASC->GiveAbility(Spec);
 	}

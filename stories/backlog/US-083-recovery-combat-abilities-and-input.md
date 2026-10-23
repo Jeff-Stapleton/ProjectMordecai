@@ -13,13 +13,13 @@ In the packaged build the player cannot attack, heavy-attack, dodge, block, parr
 All fixes are C++ (ability granting, IMC mapping/binding, melee profile routing); the input actions (`IA_Mordecai_LightAttack`, `IA_Mordecai_HeavyAttack`, `IA_Mordecai_Block`, `IA_Mordecai_Dodge`, `IA_Mordecai_Jump`, `IA_Mordecai_Sprint`) and the weapon attack profiles (`/MordecaiCore/Weapons/AttackProfiles/DA_AP_*`) already exist as committed content.
 
 ## References
-- `Specs/agent_playtest_plan_v1.md` — Known issues: "Sprint, jump, attacks, block and dodge are not bound at runtime"; N10; "Melee `AttackProfiles` CDO write ... same GC crash pattern"
+- `Specs/agent_playtest_plan_v1.md` — Known issues: "Sprint, jump, attacks, block and dodge are not bound at runtime"; N10; "Melee `AttackProfiles` CDO write ... same GC crash pattern" (FIXED, issue #40)
 - Sweep `Saved/Playtests/20261022-184702-sweep/summary.md` (fresh package of `8ea853b`): runs `Saved/Playtests/20261022-184725-us001`, `Saved/Playtests/20261022-184803-us054`, `Saved/Playtests/20261022-184940-us078`
 - `Specs/control_bindings_v1.1.md` — Light Attack RT tap / LMB tap; Heavy RT hold / LMB hold; Block LT hold / RMB hold; Parry LT+RT / RMB+LMB timed; Dodge B / Left Alt; Jump A / Space; Sprint (toggle) L3 / Left Shift
 - `Specs/combat_system_v1.md`, `Specs/attack_taxonomy_v1.md`, `Specs/player_attacks_agent_brief_v1.md` — light/heavy input semantics
 - Done stories whose ACs this restores: US-054 AC-054.5, AC-054.6; US-078 AC-078.13, AC-078.14; US-001 AC-1.3.3, AC-2.1.3, AC-2.1.4
 - Existing code:
-  - `Source/LyraGame/Mordecai/MordecaiPlayerController.cpp:115-156` (`GrantCombatAbilities`; iterates `DefaultCombatAbilities`, which only `Scripts/us054_10_configure_all.py:15-42` ever set, on the CDO, unsaved; melee CDO write at :144-152)
+  - `Source/LyraGame/Mordecai/MordecaiPlayerController.cpp:114-147` (`GrantCombatAbilities`; iterates `DefaultCombatAbilities`, which only `Scripts/us054_10_configure_all.py:15-42` ever set, on the CDO, unsaved; the melee CDO write is gone since issue #40)
   - `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:122-134` (Jump and Sprint mapped, never bound — no `BindAction` for them at :211-259); no LMB/RMB/LeftAlt mapping anywhere in :76-209
   - `Source/LyraGame/Mordecai/Weapons/MordecaiEquipmentComponent.cpp:269-294` (`GetActiveLightAttackProfiles`, `GetActiveHeavyAttackProfile` — the equipped weapon's profiles)
   - `Source/LyraGame/Mordecai/Combat/MordecaiGA_MeleeAttack.*`, `MordecaiGA_Dodge.*`, `MordecaiGA_Block.*`, `MordecaiGA_Parry.*`
@@ -39,7 +39,7 @@ All fixes are C++ (ability granting, IMC mapping/binding, melee profile routing)
 
 ## Technical Notes
 - Grant path: populate `DefaultCombatAbilities` in `AMordecaiPlayerController`'s constructor (`UMordecaiGA_MeleeAttack::StaticClass()`, Dodge, Block, Parry) — native class refs need no content and are always cooked. Remove the reliance on `Scripts/us054_10_configure_all.py`'s unsaved CDO edit; leave the script but stop it writing the CDO (or tag the commit `[no-content]` with the reason).
-- Remove the melee CDO write (`MordecaiPlayerController.cpp:144-152`): it is the same GC-crash pattern the spells had. The ability instance should read profiles from the avatar's `UMordecaiEquipmentComponent` at activation.
+- Melee CDO write: removed by issue #40 (same GC-crash pattern the spells had). The controller is the melee grant's SourceObject and `UMordecaiGA_MeleeAttack::TakeAttackProfilesFromSpec` copies `MeleeAttackProfiles` onto the instance in `OnGiveAbility`. The ability instance should read profiles from the avatar's `UMordecaiEquipmentComponent` at activation; light attacks already do (`GetResolvedAttackProfiles`), and heavy routing (`GetActiveHeavyAttackProfile`) is still this story's.
 - Input: load the existing IAs by path like the others in `MordecaiHeroComponent.cpp:63-67` (all of `/MordecaiCore` is cooked). Light vs heavy: use Enhanced Input `Tap` / `Hold` triggers on the same key, or one action with `Started`/`Triggered` routing. `TODO(DECISION)`: hold threshold for heavy (control_bindings: "charge time depends on weapon"); default to 0.4 s and expose it as a `UPROPERTY` until Jeff decides.
 - Activation: activate by ability class or by an input tag on the ASC (Lyra pattern `AbilityInputTagPressed`), whichever the existing GAs support; do not call gameplay functions from input handlers that bypass GAS.
 - Gamepad B is both Dodge (game) and Back (CommonUI menus); in Menu input mode game input is blocked, so there is no conflict — verify `gamepad_back_closes` in `us069_pause_menu.py` still PASSes.
@@ -52,7 +52,7 @@ All fixes are C++ (ability granting, IMC mapping/binding, melee profile routing)
 ### Tier 1 — Automation (headless)
 - `Mordecai.Recovery.Combat.AbilitiesGrantedFromNativeDefaults` — AC-083.1
 - `Mordecai.Recovery.Combat.MeleeUsesEquippedWeaponProfiles` — AC-083.2
-- `Mordecai.Recovery.Combat.NoMeleeCDOWrite` — AC-083.2 (the CDO's `AttackProfiles` stays empty after granting)
+- `Mordecai.Recovery.Combat.NoMeleeCDOWrite` — AC-083.2 (the CDO's `AttackProfiles` stays empty after granting). Exists since issue #40 in `Source/LyraGame/Tests/Combat/MordecaiMeleeGrantTests.cpp`, next to `Mordecai.Combat.MeleeGrant.*`; keep them green. Its `FMordecaiCombatGrantTestEnv` can host `AbilitiesGrantedFromNativeDefaults` (`GrantCombatAbilities` is public for testing)
 - `Mordecai.Recovery.Input.CombatActionsMappedAndBound` — AC-083.3 (inspects the runtime IMC mappings and the EIC bindings)
 ### Tier 2 — PIE smoke (editor integration)
 - `Scripts/verify_pie_spawn.py` + a new `Scripts/verify_pie_combat_input.py`: the PIE pawn's ASC has the 4 combat specs; `MordecaiIMC_Runtime` contains LMB/RMB/LeftAlt/SpaceBar/LeftShift mappings. Any check that activates an ability directly is labeled `[LOGIC]`

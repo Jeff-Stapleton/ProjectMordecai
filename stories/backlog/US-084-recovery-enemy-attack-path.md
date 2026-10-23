@@ -19,7 +19,7 @@ C++ only: the enemy melee activation/hit path and BeginPlay content validation; 
 - Done stories: US-050 (damage reception), US-051 AC-051.5 (enemy attacks damage the player), US-054 AC-054.13
 - Existing code:
   - `Source/LyraGame/Mordecai/Enemy/MordecaiEnemyCharacter.cpp:376-387` — melee ability instance gets `EnemyAttackProfiles` ("set in Blueprint; otherwise no profiles")
-  - `Source/LyraGame/Mordecai/Combat/MordecaiGA_MeleeAttack.cpp:248-252` — empty profiles → the attack does nothing (suspected root of N7)
+  - `Source/LyraGame/Mordecai/Combat/MordecaiGA_MeleeAttack.cpp:280-284` — empty profiles → the attack does nothing (suspected root of N7)
   - `Source/LyraGame/Mordecai/Enemy/MordecaiEnemyCharacter.h:42` — `DefaultMaxHealth = 100.f` (C++ default the cooked enemies report, N13)
   - `Scripts/us057_03_create_fire_slash.py:103` sets `enemy_attack_profiles` and `Scripts/us054_02_create_enemy_bp.py:40` sets `default_max_health = 200` on the BP CDO; the cooked enemies show neither (unsaved, like N10 — see US-085)
 

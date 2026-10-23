@@ -8,6 +8,7 @@
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/UI/MordecaiDamagePopComponent.h"
+#include "Mordecai/MordecaiPlayerController.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
@@ -30,6 +31,37 @@ UMordecaiGA_MeleeAttack::UMordecaiGA_MeleeAttack(const FObjectInitializer& Objec
 	// AC-007.8: Cannot attack during posture broken or knocked down
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_PostureBroken);
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_KnockedDown);
+}
+
+// ---------------------------------------------------------------------------
+// Grant
+// ---------------------------------------------------------------------------
+
+void UMordecaiGA_MeleeAttack::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	TakeAttackProfilesFromSpec(Spec);
+	Super::OnGiveAbility(ActorInfo, Spec);
+}
+
+void UMordecaiGA_MeleeAttack::TakeAttackProfilesFromSpec(const FGameplayAbilitySpec& Spec)
+{
+	// GAS calls OnGiveAbility on the CDO when the ability has no instance
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+
+	// Profiles set on the ability class (e.g. a Blueprint subclass) win over the controller's
+	if (AttackProfiles.Num() > 0)
+	{
+		return;
+	}
+
+	const AMordecaiPlayerController* Granter = Cast<AMordecaiPlayerController>(Spec.SourceObject.Get());
+	if (Granter && Granter->MeleeAttackProfiles.Num() > 0)
+	{
+		AttackProfiles = Granter->MeleeAttackProfiles;
+	}
 }
 
 // ---------------------------------------------------------------------------

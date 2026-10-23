@@ -35,7 +35,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Combat")
 	TArray<TSubclassOf<UGameplayAbility>> DefaultCombatAbilities;
 
-	/** Attack profiles for the melee attack ability combo (AC-054.4). */
+	/**
+	 * Attack profiles for the melee attack ability combo (AC-054.4). A granted melee ability instance takes them
+	 * through its spec's SourceObject (UMordecaiGA_MeleeAttack::TakeAttackProfilesFromSpec), never via the CDO.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Combat")
 	TArray<TObjectPtr<UMordecaiAttackProfileDataAsset>> MeleeAttackProfiles;
 
@@ -53,13 +56,18 @@ public:
 	/** The live combat HUD widget, or null before it is created (read by the agent bridge state). */
 	UMordecaiCombatHUDWidget* GetCombatHUDWidget() const { return CombatHUDWidget; }
 
+	/**
+	 * Grant DefaultCombatAbilities and DefaultSpellAbilities to the PlayerState's ASC (authority only,
+	 * once per controller). Public for testing; called internally by OnPossess.
+	 */
+	void GrantCombatAbilities();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnPossess(APawn* InPawn) override;
 
 private:
 	void CreateCombatHUD();
-	void GrantCombatAbilities();
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMordecaiCombatHUDWidget> CombatHUDWidget;
