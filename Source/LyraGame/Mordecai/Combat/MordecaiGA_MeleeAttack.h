@@ -33,7 +33,10 @@ public:
 
 	// --- Configuration (AC-004.2) ---
 
-	/** Attack profiles for each combo step. Index 0 = step 1. Must have at least one entry. */
+	/**
+	 * Attack profiles for each combo step. Index 0 = step 1. Must have at least one entry.
+	 * An instance with none takes its granting controller's MeleeAttackProfiles (TakeAttackProfilesFromSpec).
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Attack")
 	TArray<TObjectPtr<UMordecaiAttackProfileDataAsset>> AttackProfiles;
 
@@ -107,6 +110,15 @@ public:
 	/** Check if ActivationBlockedTags contains the given tag (AC-004.14 testability). */
 	bool HasActivationBlockedTag(const FGameplayTag& Tag) const;
 
+	// --- Grant ---
+
+	/**
+	 * Use the MeleeAttackProfiles of the player controller that granted this spec (its SourceObject) when this
+	 * ability has no AttackProfiles of its own. Instances only: the CDO is never written, because native CDOs sit
+	 * in the packaged build's disregard-for-GC pool and must not point at loaded assets.
+	 */
+	void TakeAttackProfilesFromSpec(const FGameplayAbilitySpec& Spec);
+
 	// --- US-024: Equipment Integration ---
 
 	/**
@@ -130,6 +142,7 @@ public:
 
 protected:
 	//~ UGameplayAbility interface
+	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	//~ End UGameplayAbility interface

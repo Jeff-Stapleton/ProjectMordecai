@@ -495,7 +495,11 @@ Content counts only when saved AND committed: `py Scripts/check_content_committe
 
 **Root cause:** `AMordecaiPlayerController::GrantCombatAbilities` wrote the loaded `DA_Spell_*` into each spell ability's **class default object** (`SpellClass->GetDefaultObject<...>()->SpellData = Data`). In cooked builds, native CDOs created at startup live in the disregard-for-GC pool. GC verification requires them to reference only rooted or disregarded objects, and a runtime-loaded data asset is neither, so it is fatal. The editor doesn't use that pool, so PIE can't catch it. (Mutating a CDO is also shared state across every instance and every PIE session.)
 
-**Fix:** Never write runtime objects into a CDO (`GetDefaultObject`, `GetMutableDefault`) in game code. Pass per-grant data through the spec instead: `FGameplayAbilitySpec Spec(AbilityClass, Level, INDEX_NONE, /*SourceObject*/ DataAsset)`. The instanced ability picks it up in `OnGiveAbility` (`UMordecaiGA_SpellBase::TakeSpellDataFromSpec`, which skips the CDO; GAS calls `OnGiveAbility` on the CDO when no instance exists). **Same latent bug:** the melee `AttackProfiles` CDO write in `GrantCombatAbilities`, which runs only when `MeleeAttackProfiles` is set.
+**Fix:** Never write runtime objects into a CDO (`GetDefaultObject`, `GetMutableDefault`) in game code. Pass per-grant data through the spec instead: `FGameplayAbilitySpec Spec(AbilityClass, Level, INDEX_NONE, /*SourceObject*/ DataAsset)`. The instanced ability picks it up in `OnGiveAbility` (`UMordecaiGA_SpellBase::TakeSpellDataFromSpec`, which skips the CDO; GAS calls `OnGiveAbility` on the CDO when no instance exists).
+
+**Melee had the same latent bug (issue #40), fixed the same way.** A `TArray` cannot be a SourceObject, so the melee grant's SourceObject is the controller that owns `MeleeAttackProfiles`, and `UMordecaiGA_MeleeAttack::TakeAttackProfilesFromSpec` copies them in `OnGiveAbility` (it skips the CDO and keeps profiles the ability class already has). Don't write the instance after `GiveAbility` instead (the enemy pattern): that reaches only the server's instance. An owning client builds its own instance of a `ReplicateNo` ability when the spec replicates (`FGameplayAbilitySpec::PostReplicatedAdd` -> `ASC::OnGiveAbility`), and only that call sees the spec.
+
+**A native CDO write doesn't even reach new instances.** `NewObject` of a native class, with its own CDO as the template, copies only `Config` properties from the CDO (`FObjectInitializer::InitProperties` fast path in `UObjectGlobals.cpp`; `UClass::GetPropertyLinkFlags` in `Class.cpp`). Every other property comes from the C++ constructor. So the melee CDO write never reached the `UMordecaiGA_MeleeAttack` instance (the red run of the melee grant tests showed it); it only planted the crash. The same holds for actors spawned from a native class (`SpawnActor` uses the CDO as the template). Blueprint classes are no safer: their instances copy the Blueprint-owned properties, but native-owned ones only from a custom list of values that differed from the native parent's CDO when the class loaded (`UBlueprintGeneratedClass::InitPropertiesFromCustomList`). A runtime CDO write does not reliably reach new instances of any class. Pass per-grant data through the spec.
 
 ### Desktop screenshots are black when the workstation is locked
 
@@ -624,6 +628,15 @@ Use it read-only. Prefer a public API whenever one exists.
   -WaitMutex -FromMsBuild -NoUBA -MaxParallelActions=4
 ```
 This uses UBT's built-in Parallel executor instead of UBA. `-MaxParallelActions=4` keeps memory usage under control. A full 22-action rebuild completes in ~75 seconds vs. hanging forever with UBA.
+
+**The same loop hits `package_playtest.py` at the `LyraGame.exe` link (2026-10-23, issue #40).** UAT builds through UBA and takes no `-NoUBA`. The game target's unity compiles all succeeded, then `UbaSessionServer - Killed process LyraGame.exe (Link [x64]) ... Low on memory (34.5gb/36.2gb)` repeated about 141,000 times until the 2 h tool timeout killed the run (`Saved/Playtests/package-20261023-091641.log`). The monolithic link pushes commit charge about 15 GB above an idle ~20 GB, past UBA's threshold, on a 32 GB machine with a small system-managed page file. Without UBA the same link took 24 s, because the page file can grow. Fix: build the game target first with the same target arguments UAT uses, then package; UAT then finds it up to date:
+```powershell
+& "Engine\Build\BatchFiles\Build.bat" LyraGame Win64 Development `
+  -Project="path\to\ProjectMordecai.uproject" -remoteini="path\to\ProjectMordecai" `
+  -WaitMutex -FromMsBuild -NoUBA -MaxParallelActions=4
+py Scripts/package_playtest.py
+```
+The loop never fails the build, so watch the UAT log for `Low on memory` and stop early instead of waiting out the timeout.
 
 ### Unity builds leak file-scope `using namespace` across test cpp files
 
