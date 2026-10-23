@@ -464,6 +464,35 @@ class TestMainEndToEnd(TempDirCase):
         self.assertIn("STALE BUILD (continuing: --allow-stale)", text)
         self.assertIn("BOOT PLAYTEST: PASS", text)
 
+    def test_run_dir_option_writes_the_run_there(self):
+        bat = os.path.join(self.tmp, "FakeGame.bat")
+        with open(bat, "w", encoding="ascii") as f:
+            f.write(f'@"{sys.executable}" "{FAKE_GAME}" %*\n')
+        playtests = os.path.join(self.tmp, "Playtests")
+        run_dir = os.path.join(self.tmp, "chosen dir", "x-boot")
+        out = io.StringIO()
+        argv = ["playtest_boot.py", "--exe", bat, "--allow-stale", "--shots", "0",
+                "--timeout", "60", "--run-dir", run_dir]
+        with mock.patch.object(pb, "PLAYTESTS_DIR", playtests), \
+                mock.patch.object(sys, "argv", argv), pb.log_stream(out), \
+                contextlib.redirect_stdout(out):
+            code = pb.main()
+        self.assertEqual(code, pb.EXIT_PASS, out.getvalue())
+        self.assertFalse(os.path.exists(playtests), "no timestamped run dir is created")
+        with open(os.path.join(run_dir, "report.json"), encoding="utf-8") as f:
+            report = json.load(f)
+        self.assertEqual(report["run_dir"], os.path.abspath(run_dir))
+        self.assertTrue(os.path.isfile(os.path.join(run_dir, "report.md")))
+        self.assertIn(f"Run dir: {os.path.abspath(run_dir)}", out.getvalue())
+
+
+class TestRunDirOptionIsHidden(unittest.TestCase):
+    def test_not_in_help(self):
+        r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "playtest_boot.py"), "--help"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("--run-dir", r.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

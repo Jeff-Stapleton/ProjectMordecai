@@ -1,6 +1,6 @@
 # Agent Playtest Plan v1: agents play the packaged game
 
-**Status:** Phase 1 DONE (PR #2, branch `feature/playtest-phase1`). Phase 2 DONE on `feature/playtest-phase2`: acceptance 2.4 passed on a fresh package of `a40955b` on a locked machine (`Saved/Playtests/20261020-205856-us079`). Phase 3 NEXT.
+**Status:** Phase 1 DONE (PR #2, branch `feature/playtest-phase1`). Phase 2 DONE on `feature/playtest-phase2`: acceptance 2.4 passed on a fresh package of `a40955b` on a locked machine (`Saved/Playtests/20261020-205856-us079`). Phase 3 IN PROGRESS on `feature/playtest-phase3` (kit, story runner, six feature scripts, exploratory agent; contract `Specs/story_playtests_v1.md`).
 **Owner:** Jeff. **Last updated:** 2026-10-20.
 
 ## Problem
@@ -142,6 +142,33 @@ The rules now say:
 3. **Exploratory agent.** An agent with the MCP tools free-plays for N minutes (move, fight, open menus, cast spells). It reports crashes, stuck states, errors in `game.log`, and screenshots that look wrong. It runs nightly after the planner.
 4. **Pipeline wiring.** The worker runs Tier 1→4 for each story and cites run dirs in the closing commit. The planner tracks a "Playable status" line per feature.
 
+### Phase 3 delivered (in progress, branch `feature/playtest-phase3`)
+The contract is `Specs/story_playtests_v1.md`.
+- **Kit:** `Scripts/playtest_kit.py`.
+  - A `PlaytestRun` declares a `PLAN` of `Step`s, each naming the AC ids it proves and an optional `known_issue`.
+  - Its step helpers map 1:1 to bridge calls.
+  - The report records per-AC acceptance (only a launched, fresh, clean-tree run with exit 0 accepts) and marks every FAIL as NEW or known.
+  - `us079_inventory.py` is rebased onto the kit.
+- **Runner:** `Scripts/playtest_story.py`.
+  - `US-XXX` runs Tier 3 and Tier 4 on the same package and writes a summary.
+  - `--plan` and `--lint` keep the story's Playtest section executable.
+  - `--all` is the recovery sweep: one Tier 3 boot per launch path, every Tier 4 script, and a per-feature Playable Status line for each feature.
+  - `--list` shows the stories, their scripts and their latest runs.
+- **Feature scripts (the recovery sweep):**
+  - `us001_movement.py`: movement, camera, sprint, jump, facing, gamepad.
+  - `us054_arena.py`: HUD, enemies, AI, melee, dodge, damage, death, respawn, reset, kill counter.
+  - `us057_magic.py`: the four spells, SP, cooldowns, projectiles, status indicator.
+  - `us069_pause_menu.py`: menu, tabs, tab contents, gamepad open and close.
+  - `us078_weapons.py`: weapon cycling, weapon HUD, attacks.
+  - `us079_inventory.py`: adds the empty state, filters, labels and loop time.
+  - These cover US-001, 050-057, 062-069, 071, 077-079. The other done stories have no player input path and keep Tier 1 as their evidence.
+- **Explorer:** `Scripts/explore_playtest.py` with `Scripts/explorer/charter.md`.
+  - The `mordecai-play` MCP server gains `report_finding`, `session_info`, `--run-dir` and `--budget-s`.
+  - The nightly step is `stories/agent-prompts/explorer-prompt.txt`. Nothing is scheduled yet.
+- **Pipeline prompts:**
+  - The worker runs `playtest_story.py US-XXX` and requires every input-driven AC to be accepted.
+  - The planner reads the sweep and explorer reports.
+
 ---
 
 ## Known issues backlog (found by Phase 1 and Phase 2, not yet fixed)
@@ -178,6 +205,24 @@ The rules now say:
   - CommonUI pools the pause-menu widget.
   - On a second open, `RebuildContentArea` can short-circuit because the content class is unchanged, so the rows of the unbound inventory widget go stale and Identify silently fails.
   - The us079 flow opens the menu only once, so it does not hit this.
+
+**Found by the Phase 3 source audit** (2026-10-22, read-only, while planning the per-story playtests; `Specs/story_playtests_v1.md`). The playtests cite these by id in `known_issue`. N7, N11 and N12 are suspected: the sweep confirms or clears them.
+- **N1 The kill counter can never go up.** `UMordecaiKillCounterWidget` waits for `Mordecai.Event.EnemyKill` tag-count changes on the player ASC (`MordecaiKillCounterWidget.cpp:68`), but nothing ever grants that tag. `AMordecaiGameMode` counts kills elsewhere (`MordecaiGameMode.cpp:115-118`). There is also no kill path with real input today: melee is not bound, and at most 3 Fireballs (75 damage) fit the SP budget against 200 HP enemies.
+- **N2 The death screen is never created.** Nothing references `UMordecaiDeathScreenWidget` outside its own files.
+- **N3 The weapon HUD draws nothing.** `UMordecaiEquippedWeaponWidget` is a native widget with no widget tree (`MordecaiCharacter.cpp:63,184-188`).
+- **N4 The Character tab of the pause menu is blank.** `UMordecaiCharacterSheetWidget` builds no widget tree (`MordecaiCharacterSheetWidget.cpp:36-40`).
+- **N5 The Skills and Feats tabs show "Coming Soon".** `MordecaiPauseMenuWidget.cpp:60-69` registers only Character and Inventory.
+- **N6 The spell budget runs out (design question).** `MaxSpellPoints` is 10 (`MordecaiAttributeSet.cpp:14-15`), the loadout costs 12 (Fireball 3, Blink 2, Stone Skin 4, Restoration 3), nothing regenerates SP, and respawn does not restore it (`MordecaiCharacter.cpp:344-346`).
+- **N7 (suspected) Enemies never hurt the player.** In run `20261020-205856-us079` the player spent about 60 s within aggro range at full health. Suspected causes: empty enemy attack profiles (`MordecaiGA_MeleeAttack.cpp:248-252`) or no navmesh movement. `us054_arena.py` checks `enemy_approaches` and `enemy_damages_player` decide.
+- **N8 The HUD has 2 spell cooldown widgets, not 4.** See the default layout, `MordecaiCombatHUDWidget.cpp:81-92`.
+- **N9 Previous weapon is BackSlash only.** Shift+Tab is not mapped, and Tab still fires Next (`MordecaiHeroComponent.cpp:187-192`). AC-078.7 specifies Shift+Tab.
+- **N10 The player's combat abilities exist only on an unsaved CDO edit.** `Scripts/us054_10_configure_all.py:15-42` set `DefaultCombatAbilities` on the C++ CDO and never saved it (`MordecaiPlayerController.cpp:137-156`). This is the root of "attacks are not bound".
+- **N11 (suspected) Projectiles are destroyed by pickup trigger spheres.** Projectiles overlap WorldDynamic and die on the first overlap (`MordecaiProjectile.cpp:32-33,145-177`).
+- **N12 (suspected) The facing arrow is hidden in game.** `UArrowComponent` is hidden in game by default (`MordecaiCharacter.cpp:66-70`), so AC-2.1.5's arrow may not be visible.
+
+**Bridge gaps found while writing the Phase 3 playtests.** These are missing bridge state, not game bugs; each blocks an assertion.
+- **B1 The bridge does not report pickup name labels.** `actors[].widgets` lists only `UWidgetComponent`s, but the pickup label is a `UTextRenderComponent` (`MordecaiItemPickup.cpp:36`). Check `pickup_labels` in `us079_inventory.py` (AC-079.10) fails on that. The fix is to report TextRender components (text, visibility) in `MakeActorEntry`.
+- **B2 Other missing state.** No camera transform (AC-1.2.1), no progress-bar fill or colour (HUD bars, stamina tiers, rarity colours), no equip slot on `player.weapon` (AC-078.15), no damage-pop events (US-065), no texts from world-space widget components (enemy bars). Mouse buttons cannot be held across reads, which blocks block, parry and charged attacks. The `wait_until` grammar has no "array contains", so tag checks need client-side predicates.
 
 ## Open decisions (Jeff)
 1. Worker timeouts (3600/4500s) vs packaging time (86 min first, 3-12 min after): raise them, or package in the background across cron runs?

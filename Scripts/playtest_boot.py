@@ -34,6 +34,7 @@ Prereq: py Scripts/package_playtest.py  (writes PackagedBuilds/Playtest + build_
 
 Output: Saved/Playtests/<YYYYmmdd-HHMMSS>-boot/
   game.log, engine_01.png .., shot_01.png .., report.json, report.md
+  (hidden --run-dir DIR writes the run there instead; Scripts/playtest_story.py uses it)
 
 Library use (importing has no side effects; Scripts/agent_bridge.py reuses these):
   gate(exe, allow_stale)                 -> (fresh, exit_code_or_None)   the STALE BUILD gate
@@ -1403,6 +1404,8 @@ def parse_args():
                         help="Fail (exit 1) if game.log contains any 'LogXxx: Error:' lines")
     parser.add_argument("--keep-running", action="store_true",
                         help="Leave the game running after the test")
+    # Hidden: Scripts/playtest_story.py names the run dir so it can find this run's report.
+    parser.add_argument("--run-dir", default=None, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error("--timeout must be > 0")
@@ -1445,7 +1448,11 @@ def main():
 
     # --- Step 3: Launch ---
     dpi = make_dpi_aware()
-    run_dir = new_run_dir()
+    if args.run_dir:
+        run_dir = os.path.abspath(args.run_dir)
+        os.makedirs(run_dir, exist_ok=True)
+    else:
+        run_dir = new_run_dir()
     game_log = os.path.join(run_dir, "game.log")
     game_args = build_game_args(map_arg, game_log, shot_dir=run_dir, shots=args.shots,
                                 settle=args.settle, shot_interval=args.shot_interval)

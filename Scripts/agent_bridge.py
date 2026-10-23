@@ -1162,15 +1162,15 @@ class Bridge:
             args["poll_s"] = poll_s
         return self.request("wait_until", **args)
 
-    def wait_for(self, predicate_fn, timeout_s=10, sections=None, poll_s=0.1):
-        """Client-side wait: poll state(sections) until predicate_fn(state) is truthy.
+    def wait_for(self, predicate_fn, timeout_s=10, sections=None, poll_s=0.1, radius=1500):
+        """Client-side wait: poll state(sections, radius) until predicate_fn(state) is truthy.
 
         Returns the state that satisfied it; raises a gameplay BridgeError(code
         "wait_for_timeout") with the last state as .response.
         """
         deadline = time.monotonic() + timeout_s
         while True:
-            st = self.state(sections)
+            st = self.state(sections, radius=radius)
             if predicate_fn(st):
                 return st
             if time.monotonic() >= deadline:

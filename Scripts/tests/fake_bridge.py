@@ -107,7 +107,7 @@ WALK_SPEED = 600.0
 PAWN_Z = 92.0
 CAPSULE_RADIUS = 40.0
 FOCUS_RANGE = 120.0
-SPELL_COST = 2.0
+SPELL_COST = 2.0   # legacy single cost (unused): each spell's cost is in SPELL_COSTS
 
 # ---------------------------------------------------------------------------
 # Key names (section 5)
@@ -558,8 +558,13 @@ PAUSE_TABS = (("character", "Character"), ("skills", "Skills"), ("feats", "Feats
               ("inventory", "Inventory"), ("settings", "Settings"))
 INVENTORY_FILTERS = ("All", "Weapons", "Armor", "Trinkets", "Consumables", "Materials", "Quest",
                      "Magical")
-SPELL_SLOTS = (("Q", "Spell_FireSlash", "Fire Slash"), ("E", "Spell_FrostBolt", "Frost Bolt"),
-               ("R", "Spell_Illusion", "Illusion"), ("One", "Spell_Heal", "Heal"))
+# The packaged game's loadout (AMordecaiPlayerController::DefaultSpellAbilities + DA_Spell_*,
+# AC-057.1-4): (key, spell_id, display_name); the ability class is MordecaiGA_<spell_id>.  No
+# DA_Spell_* sets a CooldownTag (Known issues: spells have no cooldowns), so cooldown_tag is "".
+SPELL_SLOTS = (("Q", "Fireball", "Fireball"), ("E", "Blink", "Blink"),
+               ("R", "StoneSkin", "Stone Skin"), ("One", "Restoration", "Restoration"))
+SPELL_COSTS = {"Fireball": 3.0, "Blink": 2.0, "StoneSkin": 4.0, "Restoration": 3.0}
+SPELL_KEYS = {key: spell_id for key, spell_id, _ in SPELL_SLOTS}
 DEFAULT_MAPPING = {"W": (1.0, 0.0), "S": (-1.0, 0.0), "D": (0.0, 1.0), "A": (0.0, -1.0)}
 
 
@@ -887,9 +892,10 @@ class FakeWorld:
                 self.vel = [0.0, 0.0]
                 return
             self._try_pickup()
-        elif key in ("Q", "E", "R", "One"):
-            if self.spell_points >= SPELL_COST:
-                self.spell_points -= SPELL_COST
+        elif key in SPELL_KEYS:
+            cost = SPELL_COSTS[SPELL_KEYS[key]]
+            if self.spell_points >= cost:  # SP max 10, no regeneration (as the game)
+                self.spell_points -= cost
                 self.casts.append(key)
         elif key == "Tab":
             self.weapon_index = (self.weapon_index + 1) % 2
@@ -1097,10 +1103,11 @@ class FakeWorld:
         dead = self.is_dead
         spells = []
         for slot, (key, spell_id, name) in enumerate(SPELL_SLOTS):
-            spells.append({"slot": slot, "key": key, "ability": f"GA_Mordecai_{spell_id}",
-                           "spell_id": spell_id, "display_name": name, "sp_cost": SPELL_COST,
-                           "cooldown_tag": None, "cooldown_remaining_s": 0.0, "active": False,
-                           "can_afford": self.spell_points >= SPELL_COST})
+            cost = SPELL_COSTS[spell_id]
+            spells.append({"slot": slot, "key": key, "ability": f"MordecaiGA_{spell_id}",
+                           "granted": True, "spell_id": spell_id, "display_name": name,
+                           "sp_cost": cost, "cooldown_tag": "", "cooldown_remaining_s": 0.0,
+                           "active": False, "can_afford": self.spell_points >= cost})
         return {
             "valid": True, "name": "B_Hero_Mordecai_C_0", "class": "B_Hero_Mordecai_C",
             "location": [_r(self.pos[0]), _r(self.pos[1]), PAWN_Z],

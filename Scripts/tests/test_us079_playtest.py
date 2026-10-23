@@ -8,6 +8,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -36,6 +37,82 @@ def load_playtest():
 
 us079 = load_playtest()
 
+# UMordecaiInventoryWidget::FilterMatchesType (MordecaiInventoryWidget.cpp).
+FILTER_TYPES = {"All": None, "Weapons": {"Weapon"}, "Armor": {"Armor"}, "Trinkets": {"Trinket"},
+                "Consumables": {"Consumable"}, "Materials": {"Material", "TownResource"},
+                "Quest": {"QuestItem"}, "Magical": {"MagicalItem", "UpgradeKey"}}
+
+
+def make_realistic_world(base):
+    """A FakeWorld subclass whose inventory tab matches the C++ more closely than the shared fake.
+
+    - rows are filtered by the active filter (FilterMatchesType); the shared fake ignores it.
+    - list_placeholder / ledger_placeholder are the rendered string or null (the C++ contract,
+      GetListPlaceholderText / GetLedgerPlaceholderText), not the shared fake's dict.
+    Options (keyword, JSON-friendly for fake_game.py): escape_budget (None = Escape always closes
+    the menu as configured; N = only the first N Escapes close it, then the fix "regresses"),
+    filters_work (False = filter clicks change nothing on screen), labels_visible (False = the
+    pickups' name-label widgets are hidden).
+    """
+
+    class RealisticWorld(base):
+        def __init__(self, *, escape_budget=None, filters_work=True, labels_visible=True, **kw):
+            super().__init__(**kw)
+            self.escape_budget = escape_budget
+            self.filters_work = bool(filters_work)
+            self.labels_visible = bool(labels_visible)
+
+        def _on_key_pressed(self, key):
+            if key == "Escape" and self.menu_open and self.escape_budget is not None:
+                if self.escape_budget <= 0:
+                    return  # the back handler stopped working
+                self.escape_budget -= 1
+            super()._on_key_pressed(key)
+
+        def _visible(self, it):
+            types = FILTER_TYPES.get(self.inventory_filter) if self.filters_work else None
+            return types is None or it["type"] in types
+
+        def _s_pause_menu(self):
+            pm = super()._s_pause_menu()
+            tab = pm.get("inventory_tab")
+            if not isinstance(tab, dict):
+                return pm
+            visible_ids = {it["instance_id"] for it in self.sorted_items() if self._visible(it)}
+            tab["rows"] = [r for r in tab["rows"] if r["instance_id"] in visible_ids]
+            if not self.inventory and not self.ledger:
+                tab["list_placeholder"] = "Inventory is empty."
+            elif self.inventory and not tab["rows"]:
+                tab["list_placeholder"] = "No items match this filter."
+            else:
+                tab["list_placeholder"] = None
+            tab["ledger_placeholder"] = None if self.ledger else "No resources stored."
+            return pm
+
+        def _actors(self, radius, include_all):
+            entries = super()._actors(radius, include_all)
+            if not self.labels_visible:
+                for e in entries:
+                    if e["kind"] == "pickup":
+                        e["widgets"] = [dict(w, visible=False) for w in e["widgets"]]
+            return entries
+
+    return RealisticWorld
+
+
+RealisticWorld = make_realistic_world(fb.FakeWorld)
+
+# fake_game.py builds fake_bridge.FakeWorld; this wrapper swaps in the realistic subclass.
+FAKE_GAME_WRAPPER = """\
+import sys
+sys.path[0:0] = [{tests!r}, {scripts!r}]
+import fake_bridge
+from tests.test_us079_playtest import make_realistic_world
+fake_bridge.FakeWorld = make_realistic_world(fake_bridge.FakeWorld)
+import fake_game
+sys.exit(fake_game.main())
+"""
+
 
 def read_jsonl(path):
     with open(path, encoding="utf-8") as f:
@@ -61,7 +138,7 @@ class PlaytestCase(unittest.TestCase):
 
     def serve(self, faults=None, **world_kwargs):
         world_kwargs.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES)
-        world = fb.FakeWorld(**world_kwargs)
+        world = RealisticWorld(**world_kwargs)
         server = fb.FakeBridgeServer(world, token=TOKEN, shot_dir=self.tmp, faults=faults).start()
         self.addCleanup(server.stop)
         return world, server
@@ -92,11 +169,30 @@ class TestUs079AgainstTheFake(PlaytestCase):
         self.assertEqual(self.statuses(rep, "FAIL"), [])
         self.assertEqual(self.statuses(rep, "SKIP"), [])
         checks = self.by_name(rep)
-        for name in ("attach", "experience", "hud_visible", "inventory_count", "inventory_items",
+        for name in ("attach", "experience", "hud_visible", "pickup_labels", "empty_state",
+                     "pickup_loop_time", "inventory_count", "inventory_items",
                      "ledger_count", "ledger_entries", "menu_opens_inventory", "menu_rows",
-                     "menu_ledger_rows", "identify_button", "identify_click",
+                     "unidentified_badge", "menu_ledger_rows", "identify_button",
+                     "filter_weapons", "filter_armor_empty", "filter_all", "identify_click",
                      "amulet_identified", "menu_closes_escape", "no_crash"):
             self.assertEqual(checks[name]["status"], "PASS", name)
+        self.assertIn("'Inventory is empty.' shown", checks["empty_state"]["detail"])
+        self.assertIn("the menu closed", checks["empty_state"]["detail"])
+        self.assertIn("6 pickup actor(s), each with a visible widget",
+                      checks["pickup_labels"]["detail"])
+        self.assertIn("to the confirmed 6th pickup (limit 30s", checks["pickup_loop_time"]["detail"])
+        self.assertIn("'? Unidentified Purple Amulet'", checks["unidentified_badge"]["detail"])
+        self.assertIn("clicked 'Weapons'", checks["filter_weapons"]["detail"])
+        self.assertIn("clicked 'Armor'", checks["filter_armor_empty"]["detail"])
+        self.assertIn("clicked 'All'", checks["filter_all"]["detail"])
+        # The checks run in the player's order: the empty menu first, the filters before Identify.
+        order = [c["name"] for c in rep["checks"]]
+        self.assertLess(order.index("empty_state"), order.index("walk_HealthPotion"))
+        self.assertLess(order.index("pickup_RustySword"), order.index("pickup_loop_time"))
+        self.assertLess(order.index("menu_rows"), order.index("unidentified_badge"))
+        self.assertLess(order.index("filter_all"), order.index("identify_click"))
+        self.assertTrue(all(p["picked_s"] is not None for p in rep["pickups"]))
+        self.assertEqual(world.inventory_filter, "All")
         for stop in us079.ROUTE:
             for prefix in ("walk", "focus", "prompt", "pickup"):
                 self.assertEqual(checks[f"{prefix}_{stop['name']}"]["status"], "PASS",
@@ -123,11 +219,12 @@ class TestUs079AgainstTheFake(PlaytestCase):
         code, rep = self.play(server)
         self.assertEqual(code, 0)
         names = sorted(os.listdir(self.run_dir))
+        # empty_state added the "empty" screenshot (bridge_02.png) before the pickups.
         for n in ("report.md", "report.json", "bridge.jsonl", "bridge_01.png", "bridge_02.png",
-                  "bridge_03.png", "bridge_04.png"):
+                  "bridge_03.png", "bridge_04.png", "bridge_05.png"):
             self.assertIn(n, names)
         self.assertEqual([s["label"] for s in rep["screenshots"]],
-                         ["start", "menu", "identified", "after_escape"])
+                         ["start", "empty", "menu", "identified", "after_escape"])
         for s in rep["screenshots"]:
             self.assertTrue(ab.file_complete(s["path"]), s["path"])
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
@@ -149,10 +246,17 @@ class TestUs079AgainstTheFake(PlaytestCase):
         self.assertIn("F", keys)
         self.assertIn("I", keys)
         self.assertIn("Escape", keys)
+        self.assertEqual(keys.count("I"), 2)       # empty_state, then step 4
+        self.assertEqual(keys.count("Escape"), 2)  # empty_state, then step 6
+        # The filters were clicked through Slate at their buttons, never set directly.
+        clicks = [(r.get("x"), r.get("y")) for r in server.received if r.get("cmd") == "click"]
+        self.assertEqual(len(clicks), 4)  # Weapons, Armor, All, Identify
 
     def test_escape_regression_fails_step_6_and_nothing_else(self):
-        # The game's Escape fix (back handler) regressed: a FAIL that names the regression.
-        world, server = self.serve(escape_closes_menu=False)
+        # The game's Escape fix (back handler) regressed after the first close: a FAIL that
+        # names the regression.  (escape_budget=1: empty_state's Escape still closes the menu,
+        # so step 6 is the one that meets the regression.)
+        world, server = self.serve(escape_budget=1)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(self.statuses(rep, "FAIL"), ["menu_closes_escape"])
@@ -167,6 +271,106 @@ class TestUs079AgainstTheFake(PlaytestCase):
         # The screenshot after Escape is still taken: it shows the menu stuck open.
         self.assertIn("after_escape", [s["label"] for s in rep["screenshots"]])
         self.assertEqual(rep["result"], "FAIL")
+
+    def test_escape_regression_from_the_start_fails_empty_state_and_blocks_the_walks(self):
+        # Escape never closes the menu: empty_state meets it first, names the regression, and
+        # the walks are not attempted (the open menu blocks game input).
+        world, server = self.serve(escape_closes_menu=False)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        self.assertEqual(checks["empty_state"]["status"], "FAIL")
+        detail = checks["empty_state"]["detail"]
+        self.assertIn("still open", detail)
+        self.assertIn("REGRESSION of the back-handler fix (AC-069.10), not a known issue", detail)
+        self.assertIn("'Inventory is empty.' shown", detail)
+        for stop in us079.ROUTE:
+            self.assertEqual(checks[f"walk_{stop['name']}"]["status"], "SKIP")
+            self.assertIn("pause menu stayed open", checks[f"walk_{stop['name']}"]["detail"])
+            self.assertEqual(checks[f"pickup_{stop['name']}"]["status"], "SKIP")
+        self.assertEqual(checks["pickup_loop_time"]["status"], "SKIP")
+        self.assertEqual(checks["menu_closes_escape"]["status"], "FAIL")
+        self.assertEqual(world.picked, [])
+        self.assertTrue(world.menu_open)
+
+    def test_the_empty_state_never_taps_escape_on_a_closed_menu(self):
+        # I does nothing before the first pickup (the menu never opens): empty_state FAILs and
+        # does NOT tap Escape, which would open the pause menu on a closed one.
+        world, server = self.serve()
+        original = world._on_key_pressed
+        presses = {"I": 0}
+
+        def first_i_ignored(key):
+            if key == "I" and not world.menu_open:
+                presses["I"] += 1
+                if presses["I"] == 1:
+                    return
+            original(key)
+
+        world._on_key_pressed = first_i_ignored
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        self.assertEqual(checks["empty_state"]["status"], "FAIL")
+        self.assertIn("pause_menu.open=False", checks["empty_state"]["detail"])
+        self.assertIn("Escape not tapped", checks["empty_state"]["detail"])
+        self.assertNotIn("empty", [s["label"] for s in rep["screenshots"]])
+        keys = [r.get("key") or r.get("keys") for r in server.received if r.get("cmd") == "key"]
+        self.assertEqual(keys.index("Escape"), len(keys) - 1, "only step 6 taps Escape")
+        self.assertEqual(self.statuses(rep, "FAIL"), ["empty_state"])
+
+    def test_filters_that_do_not_filter_fail(self):
+        # The filter buttons are clicked but the list does not change: Weapons and Armor FAIL
+        # with the rows the player still sees; All (4 rows) and Identify still pass.
+        world, server = self.serve(filters_work=False)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["filter_weapons", "filter_armor_empty"])
+        self.assertIn("clicked 'Weapons'", checks["filter_weapons"]["detail"])
+        self.assertIn("was not true within 3s", checks["filter_weapons"]["detail"])
+        self.assertIn('"len(pause_menu.inventory_tab.rows)":4', checks["filter_weapons"]["detail"])
+        self.assertIn("clicked 'Armor'", checks["filter_armor_empty"]["detail"])
+        self.assertIn('"pause_menu.inventory_tab.list_placeholder":null',
+                      checks["filter_armor_empty"]["detail"])
+        for name in ("filter_all", "identify_click", "amulet_identified", "menu_closes_escape"):
+            self.assertEqual(checks[name]["status"], "PASS", name)
+        acs = {(a["story"], a["id"]): a for a in rep["acs"]}
+        self.assertEqual(acs[("US-071", "AC-071.8")]["status"], "FAIL")
+        self.assertEqual(acs[("US-071", "AC-071.15")]["status"], "FAIL")
+        self.assertEqual(acs[("US-079", "AC-079.11")]["status"], "FAIL")
+
+    def test_a_filter_button_that_is_not_on_screen_fails(self):
+        # No Armor button (the filter bar lost it): a gameplay FAIL naming the visible buttons.
+        world, server = self.serve()
+        original = world.buttons
+        world.buttons = lambda: [b for b in original() if b["id"] != "armor"]
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["filter_armor_empty"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertEqual(check["kind"], "gameplay")
+        self.assertIn("no visible button with id 'armor'", check["detail"])
+        self.assertEqual(self.statuses(rep, "FAIL"), ["filter_armor_empty"])
+
+    def test_hidden_pickup_labels_fail(self):
+        world, server = self.serve(labels_visible=False)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["pickup_labels"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("6 of 6 pickup actor(s) have no visible widget component", check["detail"])
+        self.assertEqual(self.statuses(rep, "FAIL"), ["pickup_labels"])
+
+    def test_a_slow_pickup_loop_fails(self):
+        with mock.patch.object(us079, "PICKUP_LOOP_LIMIT_S", 0.01):
+            _, server = self.serve()
+            code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["pickup_loop_time"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("(limit 0.01s", check["detail"])
+        self.assertEqual(self.statuses(rep, "FAIL"), ["pickup_loop_time"])
 
     def test_known_issues_and_the_after_escape_expectation_match_the_fixed_game(self):
         _, server = self.serve()
@@ -196,8 +400,14 @@ class TestUs079AgainstTheFake(PlaytestCase):
         self.assertEqual(checks["inventory_items"]["status"], "FAIL")
         self.assertIn("TestItem_RustySword missing", checks["inventory_items"]["detail"])
         self.assertEqual(checks["menu_rows"]["status"], "FAIL")
+        # The loop time needs all six pickups; the filters see the missing sword.
+        self.assertEqual(checks["pickup_loop_time"]["status"], "SKIP")
+        self.assertIn("not every pickup was confirmed", checks["pickup_loop_time"]["detail"])
+        self.assertEqual(checks["filter_weapons"]["status"], "FAIL")
+        self.assertEqual(checks["filter_all"]["status"], "FAIL")
         # Independent steps still ran and passed.
-        for name in ("ledger_entries", "identify_button", "amulet_identified",
+        for name in ("pickup_labels", "empty_state", "ledger_entries", "unidentified_badge",
+                     "identify_button", "filter_armor_empty", "amulet_identified",
                      "menu_closes_escape"):
             self.assertEqual(checks[name]["status"], "PASS", name)
 
@@ -249,14 +459,15 @@ class TestUs079AgainstTheFake(PlaytestCase):
         self.assertEqual(self.statuses(rep, "FAIL"), ["experience"])
 
     def test_a_lost_connection_is_infra_and_skips_the_rest(self):
+        # The first click is now filter_weapons (the filters come before Identify).
         _, server = self.serve(faults=fb.Faults(drop_on_cmd="click"))
         code, rep = self.play(server)
         self.assertEqual(code, 2)
         checks = self.by_name(rep)
-        self.assertEqual(checks["identify_click"]["status"], "FAIL")
-        self.assertEqual(checks["identify_click"]["kind"], "infra")
-        for name in ("amulet_identified", "screenshot_identified", "menu_closes_escape",
-                     "screenshot_after_escape"):
+        self.assertEqual(checks["filter_weapons"]["status"], "FAIL")
+        self.assertEqual(checks["filter_weapons"]["kind"], "infra")
+        for name in ("filter_armor_empty", "filter_all", "identify_click", "amulet_identified",
+                     "screenshot_identified", "menu_closes_escape", "screenshot_after_escape"):
             self.assertEqual(checks[name]["status"], "SKIP", name)
             self.assertIn("connection was lost", checks[name]["detail"])
         self.assertEqual(checks["menu_opens_inventory"]["status"], "PASS")
@@ -289,11 +500,18 @@ class TestUs079AgainstTheFake(PlaytestCase):
 
 
 class TestUs079Launch(PlaytestCase):
+    def fake_game_argv(self):
+        """fake_game.py, run with the realistic inventory tab (make_realistic_world)."""
+        wrapper = os.path.join(self.tmp, "fake_game_realistic.py")
+        with open(wrapper, "w", encoding="utf-8") as f:
+            f.write(FAKE_GAME_WRAPPER.format(tests=os.path.dirname(FAKE_GAME), scripts=SCRIPTS))
+        return json.dumps([sys.executable, wrapper])
+
     def test_launch_mode_with_the_fake_game(self):
         world_json = os.path.join(self.tmp, "world.json")
         with open(world_json, "w", encoding="utf-8") as f:
             json.dump({"obstacles": [list(b) for b in fb.DEVTESTMAP_OBSTACLES]}, f)
-        code = us079.main(["--test-exe-argv", json.dumps([sys.executable, FAKE_GAME]),
+        code = us079.main(["--test-exe-argv", self.fake_game_argv(),
                            "--test-skip-freshness", "--run-dir", self.run_dir,
                            f"--extra-arg=-FakeWorldJson={pb.quote_value(world_json)}"])
         rep = self.report()
@@ -322,7 +540,7 @@ class TestUs079Launch(PlaytestCase):
                            "dirty_count": 3},
                  "head": "abc1234def5678", "branch": "x"}
         with mock.patch.object(pb, "gate", return_value=(dirty, None)) as gate:
-            code = us079.main(["--test-exe-argv", json.dumps([sys.executable, FAKE_GAME]),
+            code = us079.main(["--test-exe-argv", self.fake_game_argv(),
                                "--run-dir", self.run_dir,
                                f"--extra-arg=-FakeWorldJson={pb.quote_value(world_json)}"])
         rep = self.report()
@@ -413,6 +631,90 @@ class TestUs079Evidence(PlaytestCase):
         self.assertIn("did not launch", evidence)
         self.assertIn("An attached run is ALWAYS diagnostic only, never acceptance evidence",
                       " ".join(us079.__doc__.split()))
+
+
+class TestUs079PlanAndAcceptance(PlaytestCase):
+    """The PLAN (playtest_kit) and the report's Phase 3 fields."""
+
+    STORIES = {"US-079": "in-progress/US-079-playable-inventory-arena.md",
+               "US-071": "in-progress/US-071-inventory-widget.md",
+               "US-069": "done/US-069-pause-menu-framework.md"}
+
+    def story_ac_ids(self, story):
+        path = os.path.join(os.path.dirname(SCRIPTS), "stories", self.STORIES[story])
+        if not os.path.isfile(path):
+            self.skipTest(f"{path} moved")
+        with open(path, encoding="utf-8") as f:
+            return set(re.findall(r"^- \[[ xX]\] \**(AC[-\w.]*\w)", f.read(), re.M))
+
+    def test_the_plan_is_valid_and_proves_real_acs(self):
+        import playtest_kit as kit
+        self.assertEqual(kit.plan_problems(us079.Us079Run), [])
+        self.assertIs(us079.Run, us079.Us079Run)
+        self.assertEqual(us079.Us079Run.STORY, "US-079")
+        self.assertEqual(us079.Us079Run.COVERS, ("US-071", "US-069"))
+        self.assertEqual(us079.Us079Run.FEATURES,
+                         ("inventory", "pickups", "identification", "pause_menu"))
+        for step in us079.PLAN:
+            for ac in step.proves:
+                story, ac_id = kit.split_ac(ac, "US-079")
+                self.assertIn(ac_id, self.story_ac_ids(story), f"{step.check}: {ac}")
+        names = [s.check for s in us079.PLAN]
+        for stop in us079.ROUTE:
+            for prefix in ("walk", "focus", "prompt", "pickup"):
+                self.assertIn(f"{prefix}_{stop['name']}", names)
+        self.assertIn("walk_RustySword_waypoint1", names)
+        self.assertLess(names.index("walk_RustySword_waypoint1"), names.index("walk_RustySword"))
+
+    def test_plan_prints_the_steps_table(self):
+        out = io.StringIO()
+        previous = us079.set_log_stream(out)
+        self.addCleanup(us079.set_log_stream, previous)
+        self.assertEqual(us079.main(["--plan"]), 0)
+        rows = [line for line in out.getvalue().splitlines() if line.startswith("| ")]
+        self.assertEqual(len(rows), 1 + len(us079.PLAN))
+        # 37 -> 44: pickup_labels, empty_state, pickup_loop_time, unidentified_badge and the
+        # three filter checks come before it.
+        self.assertIn("| 44 | `menu_closes_escape` | tap Escape -> wait_until "
+                      "pause_menu.open==false | US-069:AC-069.10 |", rows)
+
+    def test_the_report_has_the_plan_and_the_acs(self):
+        _, server = self.serve(escape_budget=1)  # empty_state's Escape works, step 6's does not
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(rep["story"], "US-079")
+        self.assertEqual(rep["covers"], ["US-071", "US-069"])
+        self.assertEqual(rep["features"], ["inventory", "pickups", "identification",
+                                           "pause_menu"])
+        self.assertEqual([p["check"] for p in rep["plan"]], [s.check for s in us079.PLAN])
+        self.assertEqual(rep["undeclared_checks"], [])
+        self.assertEqual(rep["new_failures"], ["menu_closes_escape"])
+        self.assertEqual(rep["known_failures"], [])
+        # The fake reports pickup labels, so the bridge-gap check passes there (FIXED? flag).
+        self.assertEqual(rep["fixed_candidates"], ["pickup_labels"])
+        acs = {(a["story"], a["id"]): a for a in rep["acs"]}
+        self.assertEqual(acs[("US-069", "AC-069.10")]["status"], "FAIL")
+        self.assertEqual(acs[("US-069", "AC-069.10")]["checks"], ["menu_closes_escape"])
+        for key in (("US-079", "AC-079.2"), ("US-079", "AC-079.6"), ("US-079", "AC-079.9"),
+                    ("US-079", "AC-079.10"), ("US-079", "AC-079.11"), ("US-071", "AC-071.7"),
+                    ("US-071", "AC-071.8"), ("US-071", "AC-071.13"), ("US-071", "AC-071.15")):
+            self.assertEqual(acs[key]["status"], "PASS", key)
+        # 7 walks + pickup_loop_time
+        self.assertEqual(len(acs[("US-079", "AC-079.6")]["checks"]), 8)
+        self.assertIn("pickup_loop_time", acs[("US-079", "AC-079.6")]["checks"])
+        self.assertEqual(acs[("US-079", "AC-079.9")]["checks"],
+                         ["empty_state", "menu_rows", "menu_ledger_rows"])
+        self.assertEqual(acs[("US-071", "AC-071.15")]["checks"],
+                         ["empty_state", "filter_armor_empty"])
+        self.assertFalse([a for a in rep["acs"] if a["accepted"]],
+                         "an attached run never accepts an AC")
+        md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
+        self.assertIn("## Acceptance criteria", md)
+        self.assertIn("| US-069:AC-069.10 | menu_closes_escape | FAIL | no |", md)
+        self.assertIn("| FAIL (NEW) |", md)
+        self.assertLess(md.index("## Acceptance criteria"), md.index("## Pickups"))
+        self.assertLess(md.index("## Inventory after the pickups"),
+                        md.index("## Environment (state.focus)"))
 
 
 class TestUs079Helpers(unittest.TestCase):

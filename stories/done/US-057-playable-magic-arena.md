@@ -63,3 +63,29 @@ This story does not have headless automation tests — it is verified via manual
 - [x] HUD updated with SP bar, status indicators, cooldown displays
 - [x] Full magic + status combat loop verified in PIE
 - [x] Code/assets committed and pushed with `[US-057]` prefix
+
+## Playtest
+Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtests_v1.md`).
+
+- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience)
+- **Tier 4 script:** `Scripts/playtests/us057_magic.py` — run: `py Scripts/playtest_story.py US-057`
+- **Steps:** (generated: `py Scripts/playtest_story.py US-057 --plan`; checked: `--lint`)
+
+| # | Check | Player step (bridge calls) → expected | Proves |
+|---|---|---|---|
+| 1 | `hud_visible` | state widgets -> a SpellPointsBar widget renders "10 / 10" (the SP bar, current / max) | AC-057.9, AC-057.10, US-055:AC-055.1, US-055:AC-055.3 |
+| 2 | `spell_loadout` | state player -> player.spells slots 0-3: keys Q/E/R/One, Fireball/Blink/Stone Skin/Restoration, granted, sp_cost 3/2/4/3 | AC-057.1, AC-057.2, AC-057.3, AC-057.4, AC-057.6 |
+| 3 | `cooldown_widgets` | state widgets -> 4 SpellCooldown widgets on the HUD (one per spell) _(known issue: N8 (suspected NEW, Known issues backlog of Specs/agent_playtest_plan_v1.md): the HUD default layout (UMordecaiCombatHUDWidget) has 2 SpellCooldown widgets (SpellCooldownA/B), not 4)_ | AC-057.9 |
+| 4 | `walk_shot_line` | walk_to(-150, -650), walk_to(-700, -650), walk_to(ex-300, ey) of Frontliner_3 (live location, actors radius 3000) within 25 cm; walk again if \|player.y - ey\| > 40 | - |
+| 5 | `fireball_cast` | tap Q -> player.attributes.spell_points 10 -> 7 within 2s (fast poll of player, actors, widgets) | AC-057.1, AC-057.5, AC-057.10, US-055:AC-055.2 |
+| 6 | `fireball_projectile` | same poll -> an actors[] entry with kind=="projectile" within 1.5s of the tap | AC-057.1 |
+| 7 | `fireball_hits_enemy` | same poll -> the nearest enemy's health drops below its pre-cast value (200) within 2.5s; detail reports the damage | AC-057.1, AC-057.12 |
+| 8 | `sp_hud_updates` | state widgets -> the SpellPointsBar widget renders "7 / 10" | AC-057.10, US-055:AC-055.2, US-055:AC-055.3 |
+| 9 | `fireball_cooldown_state` | same poll -> player.spells[0].cooldown_remaining_s>0 within 1s of the tap _(known issue: Known issues backlog (Specs/agent_playtest_plan_v1.md) 'Spells have no cooldowns': no DA_Spell_* sets a CooldownTag (ApplySpellCooldown returns early) and the HUD cooldown widgets are never bound)_ | AC-057.1 |
+| 10 | `cooldown_hud` | same poll -> a SpellCooldown widget renders a numeric remaining time _(known issue: Known issues backlog (Specs/agent_playtest_plan_v1.md) 'Spells have no cooldowns': no DA_Spell_* sets a CooldownTag (ApplySpellCooldown returns early) and the HUD cooldown widgets are never bound)_ | US-055:AC-055.8, US-055:AC-055.9 |
+| 11 | `walk_blink_lane` | walk_to(0, -800) -> within 60 cm (lane L1) | - |
+| 12 | `blink` | tap E -> player.location.x rises > 400 and spell_points 7 -> 5 within 2s, \|dy\| < 50 | AC-057.2, AC-057.5 |
+| 13 | `stone_skin` | tap R -> Mordecai.Status.StoneSkin in player.tags and spell_points 5 -> 1 within 2s | AC-057.3 |
+| 14 | `stone_skin_indicator` | state widgets -> a widget renders "StoneSkin" and a numeric remaining duration within 2s | US-055:AC-055.4, US-055:AC-055.5, US-055:AC-055.6 |
+| 15 | `restoration_refused_low_sp` | tap One at 1 SP -> for 1.5s spell_points stays 1, no Mordecai.Status.Restoration, player.spells[3].can_afford==false | - |
+| 16 | `stone_skin_expires` | state player, widgets -> within 12s Mordecai.Status.StoneSkin leaves player.tags and no widget renders "StoneSkin" | US-055:AC-055.6 |
