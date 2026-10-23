@@ -629,6 +629,15 @@ Use it read-only. Prefer a public API whenever one exists.
 ```
 This uses UBT's built-in Parallel executor instead of UBA. `-MaxParallelActions=4` keeps memory usage under control. A full 22-action rebuild completes in ~75 seconds vs. hanging forever with UBA.
 
+**The same loop hits `package_playtest.py` at the `LyraGame.exe` link (2026-10-23, issue #40).** UAT builds through UBA and takes no `-NoUBA`. The game target's unity compiles all succeeded, then `UbaSessionServer - Killed process LyraGame.exe (Link [x64]) ... Low on memory (34.5gb/36.2gb)` repeated about 141,000 times until the 2 h tool timeout killed the run (`Saved/Playtests/package-20261023-091641.log`). The monolithic link pushes commit charge about 15 GB above an idle ~20 GB, past UBA's threshold, on a 32 GB machine with a small system-managed page file. Without UBA the same link took 24 s, because the page file can grow. Fix: build the game target first with the same target arguments UAT uses, then package; UAT then finds it up to date:
+```powershell
+& "Engine\Build\BatchFiles\Build.bat" LyraGame Win64 Development `
+  -Project="path\to\ProjectMordecai.uproject" -remoteini="path\to\ProjectMordecai" `
+  -WaitMutex -FromMsBuild -NoUBA -MaxParallelActions=4
+py Scripts/package_playtest.py
+```
+The loop never fails the build, so watch the UAT log for `Low on memory` and stop early instead of waiting out the timeout.
+
 ### Unity builds leak file-scope `using namespace` across test cpp files
 
 **Problem:** Adding a new automation test file with a file-scope `using namespace MyNewTestHelpers;` broke compilation of an *unrelated, untouched* test file (`error C2668: ambiguous call to overloaded function` for helper names like `MakeWidget`/`MakeDef` that exist in several test-helper namespaces).

@@ -179,6 +179,7 @@ The contract is `Specs/story_playtests_v1.md`.
 - **Melee `AttackProfiles` CDO write in `AMordecaiPlayerController::GrantCombatAbilities` (FIXED, issue #40).** Same GC crash pattern as the spells; latent while `MeleeAttackProfiles` was empty.
   - Cause: the controller wrote its `MeleeAttackProfiles` into the native `UMordecaiGA_MeleeAttack` CDO, the disregard-for-GC fatal the spells hit (`e833b3e`). The write never reached the ability instance either: an instance of a native class copies only `Config` properties from its CDO.
   - Fixed: the controller stays the melee grant's SourceObject, and `UMordecaiGA_MeleeAttack::OnGiveAbility` -> `TakeAttackProfilesFromSpec` copies the profiles onto the instance, never the CDO. Tests `Mordecai.Combat.MeleeGrant.*` (5) and `Mordecai.Recovery.Combat.NoMeleeCDOWrite`. No Tier 4 check exercises it: the game spawns the native `AMordecaiPlayerController`, whose `MeleeAttackProfiles` and `DefaultCombatAbilities` are empty (N10, US-083).
+  - Verified on `9b53480`: Tier 1 682 passed / 0 failed (`Saved/TestLogs/tests-20261023-084222.log`); PIE 10/10. Tier 3 boot PASS on a fresh package (`Saved/Playtests/20261023-122030-boot`): B_MordecaiArenaExperience in 5.2 s, `content_cooked` PASS, no crash, no GC-verification error in `game.log`. Regression check with `us054_arena.py` on the same package (`20261023-122238-us054`, `20261023-122636-us054`): the same FAIL set as the base commit `32d3927` (`20261023-150847-us054`). The only check that differs between runs is `walk_to_frontliner3` (N14).
 - `BP_CameraMode_Diorama.uasset` references the missing class `/Script/MordecaiCoreRuntime.MordecaiCameraMode_Diorama` (cook warning). Stale asset, so delete it or re-parent it.
 - 23 path-string content loads in Mordecai C++. They are safe now that all of `/MordecaiCore` is cooked, but better as `UPROPERTY` references.
 - `Scripts/Package.bat` uses `-allmaps`, which isn't a UAT flag. It cooks only `MapsToCook`.
@@ -231,6 +232,7 @@ The contract is `Specs/story_playtests_v1.md`.
 - **N14 The invisible enemies body-block the player.** They crowd the spawn and follow the player, so the player meets an invisible wall:
   - A 0.7 s hold of A moved the player only 93 cm (`us001_movement.py` `move_a`).
   - `walk_to(0, -650)` got stuck at (−78, −45) (`walk_lane_wp1`).
+  - `us054_arena.py` `walk_to_frontliner3` fails intermittently on its third leg, where the player walks into the enemies (2026-10-23). Base commit `32d3927`: FAIL, then PASS (`Saved/Playtests/20261023-150847-us054`, `20261023-150936-us054`). The step carries no `known_issue`, so it reports NEW. When it fails, `melee_lmb` and `dodge_lalt` run without the player next to the enemy.
 - **N15 Fireball spends SP but does nothing visible.**
   - SP drops 10 → 7.
   - No projectile appears in `actors` within 1.5 s.
