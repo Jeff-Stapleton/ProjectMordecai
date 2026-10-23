@@ -220,6 +220,36 @@ The contract is `Specs/story_playtests_v1.md`.
 - **N11 (suspected) Projectiles are destroyed by pickup trigger spheres.** Projectiles overlap WorldDynamic and die on the first overlap (`MordecaiProjectile.cpp:32-33,145-177`).
 - **N12 (suspected) The facing arrow is hidden in game.** `UArrowComponent` is hidden in game by default (`MordecaiCharacter.cpp:66-70`), so AC-2.1.5's arrow may not be visible.
 
+**Found by the first Phase 3 sweep** (2026-10-22, `py Scripts/playtest_story.py --all` on a fresh package of `8ea853b`, `Saved/Playtests/20261022-184702-sweep/summary.md`). Each item is a NEW failure on real input, confirmed in the screenshots.
+- **N7 confirmed: enemies swarm the player but never hurt them.**
+  - From the first read, all three Frontliners sit next to the player at the spawn: around (−121, ±151) and (200, 0), `ai_state` Attack.
+  - The player stays at 100/100 health for 20 s (`us054_arena.py` check `enemy_damages_player`).
+  - The death, death-screen, respawn and arena-reset checks therefore cannot run.
+- **N13 Enemies have 100 MaxHealth, not 200.** AC-054.2 specifies 200, but the cooked enemies report 100/100 (check `enemies_present`). The likely cause is that `DefaultMaxHealth` is still at its C++ default because the BP edit was not saved, as with N10.
+- **N14 The invisible enemies body-block the player.** They crowd the spawn and follow the player, so the player meets an invisible wall:
+  - A 0.7 s hold of A moved the player only 93 cm (`us001_movement.py` `move_a`).
+  - `walk_to(0, -650)` got stuck at (−78, −45) (`walk_lane_wp1`).
+- **N15 Fireball spends SP but does nothing visible.**
+  - SP drops 10 → 7.
+  - No projectile appears in `actors` within 1.5 s.
+  - The enemy straight ahead (+X, about 1 m) keeps 100 health (`us057_magic.py` checks `fireball_projectile` and `fireball_hits_enemy`; `bridge_01.png`).
+  - It may be related to N11.
+- **N16 The status-effect indicator shows "Status", not the status name.** Stone Skin's indicator reads "Status 10.0" bottom-left (`stone_skin_indicator`, `bridge_03.png`).
+- **N17 There are no enemy indicators.** No `EnemyIndicator` widget is on screen with three enemies within aggro range (`us054_arena.py` `enemy_indicators`; US-064).
+- **N18 LB/RB do not switch pause-menu tabs.** AC-069.4 specifies them (`us069_pause_menu.py` `shoulder_switches_tab`). Needs triage: possibly missing by design (no CommonUI tab-list action).
+- **The CommonUI pool bug is CONFIRMED** (it was latent).
+  - Open the inventory before any pickup ("Inventory is empty.", correct), close it, then pick up all six items: the second open still shows "Inventory is empty." and "No resources stored." (`us079_inventory.py` checks `menu_rows`, `menu_ledger_rows`, `identify_button`, `filter_*`; `bridge_03.png`).
+  - A player who opens the inventory twice sees a stale, empty list.
+- **A false PASS in that sweep, now fixed.** `us054_arena.py` `melee_lmb` passed only because it compared enemy health (100, N13) against the AC's 200. It now compares against the nearest enemy's health before the click, so the next sweep will show it FAIL (the known "attacks not bound").
+- **More on-screen debug text.** "MORDECAI: Weapon loadout initialized — 5 weapons available" and "MORDECAI: SetupPlayerInputComponent called…" appear alongside the IMC message and the Steam warnings.
+
+**Found by the first exploratory-agent run** (2026-10-22, `py Scripts/explore_playtest.py --minutes 10` on the same fresh package of `8ea853b`, `Saved/Playtests/20261022-185207-explore/report.md`; 7.8 min, $3.07, 210 tool calls). The run independently re-found N7, N15, N14 and the stale inventory. The latter goes further: after several reopens the tab shows "--" placeholders, so the widget is unbound (`bridge_14.png`). New:
+- **N19 (state evidence) The player's invulnerability sticks after Blink.** `Mordecai.State.Invulnerable` stayed on the player after Blink ended (Casting tag gone, `spells[1].active` false) and was still there 6+ s later. This is an i-frame tag that is never removed.
+- **N20 Blink can spend SP and not move the player.** A Blink with an invisible enemy about 90 cm ahead spent 2 SP and moved 0 cm, with no feedback (`bridge_04.png`).
+- **N21 Walls hide the player.** At the south-west corner the near arena wall hides everything but the top of the player's head, and the diorama camera has no cutaway or fade (`bridge_11.png`).
+- **N22 (design question) Items have no actions.** Picked-up items have no Use or Equip action: the Health Potion cannot be used, and the Rusty Sword cannot be equipped or added to the weapon cycle.
+- **The Settings tab also shows "Coming Soon"** (an extension of N5).
+
 **Bridge gaps found while writing the Phase 3 playtests.** These are missing bridge state, not game bugs; each blocks an assertion.
 - **B1 The bridge does not report pickup name labels.** `actors[].widgets` lists only `UWidgetComponent`s, but the pickup label is a `UTextRenderComponent` (`MordecaiItemPickup.cpp:36`). Check `pickup_labels` in `us079_inventory.py` (AC-079.10) fails on that. The fix is to report TextRender components (text, visibility) in `MakeActorEntry`.
 - **B2 Other missing state.** No camera transform (AC-1.2.1), no progress-bar fill or colour (HUD bars, stamina tiers, rarity colours), no equip slot on `player.weapon` (AC-078.15), no damage-pop events (US-065), no texts from world-space widget components (enemy bars). Mouse buttons cannot be held across reads, which blocks block, parry and charged attacks. The `wait_until` grammar has no "array contains", so tag checks need client-side predicates.

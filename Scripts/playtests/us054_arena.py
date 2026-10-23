@@ -167,7 +167,8 @@ PLAN = (
     Step("walk_to_frontliner3", "walk_to(-150, -650), walk_to(ex-300, -650), walk_to(ex-160, ey) "
          "where (ex, ey) is the live enemy nearest (-400, -500) -> within 60 cm of each"),
     Step("melee_lmb", f"click Left at (640, 360) -> within {ATTACK_TIMEOUT_S:g}s "
-         f"'{TAG_ATTACKING}' in player.tags or the nearest enemy's health < {ENEMY_MAX_HEALTH:g}",
+         f"'{TAG_ATTACKING}' in player.tags or the nearest enemy's health below its value "
+         "before the click",
          proves=("AC-054.6", "AC-054.5"), known_issue=KI_UNBOUND),
     Step("dodge_lalt", f"tap LeftAlt -> within {DODGE_TIMEOUT_S:g}s a Dodging tag in player.tags "
          "or a displacement > 150 cm", proves=("AC-054.6", "AC-054.5"), known_issue=KI_UNBOUND),
@@ -546,6 +547,10 @@ class Us054Run(kit.PlaytestRun):
             if p0 is None:
                 return "FAIL", "no valid player before the click", None
             pos0 = xy(p0.get("location"))
+            # Damage is judged against the nearest enemy's health BEFORE the click, never against
+            # the AC's max: the cooked enemies have 100 max health (N13), which is below 200.
+            e0 = enemy_nearest(st0, pos0)
+            h0 = (enemy_health(e0) or (None, None))[0] if e0 else None
             r = b.click(640, 360, button="Left")
             seen = {}
 
@@ -555,8 +560,8 @@ class Us054Run(kit.PlaytestRun):
                 seen["tags"] = tags(p)
                 seen["enemy"] = enemy_health(e) if e else None
                 cur = (seen["enemy"] or (None, None))[0]
-                return TAG_ATTACKING in seen["tags"] or (cur is not None
-                                                         and cur < ENEMY_MAX_HEALTH)
+                return TAG_ATTACKING in seen["tags"] or (cur is not None and h0 is not None
+                                                         and cur < h0)
 
             done, _ = self._poll(["player", "actors"], hit, ATTACK_TIMEOUT_S)
             what = (f"Left click at (640, 360), Slate hit {r.get('hit')}; player.tags "
