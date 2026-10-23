@@ -41,7 +41,7 @@ SERVER = os.path.join(SCRIPTS, "mordecai_play_mcp.py")
 FAKE_GAME = os.path.join(SCRIPTS, "tests", "fake_game.py")
 TOKEN = "mcp-token"
 TOOLS = ["launch_game", "get_state", "press_key", "hold_key", "release_key", "walk_to", "click",
-         "click_button", "screenshot", "wait_until", "quit_game"]
+         "click_button", "screenshot", "wait_until", "quit_game", "report_finding", "session_info"]
 needs_mcp = unittest.skipUnless(HAVE_MCP, "the mcp SDK is not installed")
 
 
@@ -128,7 +128,7 @@ class AttachedCase(McpCase):
 # ---------------------------------------------------------------------------
 @needs_mcp
 class TestToolList(McpCase):
-    def test_the_eleven_tools_and_their_rules(self):
+    def test_the_thirteen_tools_and_their_rules(self):
         self.make_server(mpm.PlaySession())
 
         async def go():
@@ -157,6 +157,14 @@ class TestToolList(McpCase):
         self.assertEqual(props["screenshot"], set())
         self.assertEqual(props["wait_until"], {"condition", "timeout_s"})
         self.assertEqual(props["quit_game"], set())
+        self.assertEqual(props["report_finding"], {"severity", "title", "details", "repro",
+                                                   "expected", "known_issue"})
+        self.assertEqual(set(tools["report_finding"].input_schema.get("required", [])),
+                         {"severity", "title", "details"})
+        self.assertEqual(props["session_info"], set())
+        for sev in mpm.SEVERITIES:
+            self.assertIn(sev, tools["report_finding"].description)
+        self.assertIn("Known issues", tools["report_finding"].description)
         # A key held with hold_key must be released first (the bridge refuses it, walk_to too).
         for name in ("press_key", "hold_key", "walk_to"):
             self.assertIn("release_key", tools[name].description, name)
@@ -171,8 +179,14 @@ class TestToolList(McpCase):
     def test_no_game_yet(self):
         self.make_server(mpm.PlaySession())
         for name, args in (("get_state", {}), ("press_key", {"key": "F"}), ("screenshot", {}),
-                           ("quit_game", {})):
+                           ("quit_game", {}),
+                           ("report_finding", {"severity": "minor", "title": "t",
+                                               "details": "d"})):
             self.assertIn("call launch_game first", self.err_text(self.call(name, args)), name)
+        text = self.ok_text(self.call("session_info"))
+        self.assertIn("Run dir: (none yet: call launch_game)", text)
+        self.assertIn("Game: not running", text)
+        self.assertNotIn("time left", text)  # no budget, no time line
 
 
 # ---------------------------------------------------------------------------
@@ -557,6 +571,222 @@ class TestLaunch(McpCase):
 
 
 # ---------------------------------------------------------------------------
+# Exploratory play: --run-dir, report_finding, session_info, --budget-s
+# ---------------------------------------------------------------------------
+def read_jsonl(path):
+    with open(path, encoding="utf-8") as f:
+        return [json.loads(line) for line in f if line.strip()]
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+class RunDirCase(McpCase):
+    """--attach with --run-dir (and optionally --budget-s) on a fresh fake bridge."""
+
+    budget_s = None
+
+    def setUp(self):
+        super().setUp()
+        self.world = fb.FakeWorld()
+        self.shot_dir = os.path.join(self.tmp, "bridge_own_dir")
+        self.bridge_server = fb.FakeBridgeServer(self.world, token=TOKEN,
+                                                 shot_dir=self.shot_dir).start()
+        self.addCleanup(self.bridge_server.stop)
+        self.run_dir = os.path.join(self.tmp, "run dir")  # a space, as in real paths
+        self.clock = FakeClock()
+        self.make_server(mpm.PlaySession(attach_port=self.bridge_server.port, attach_token=TOKEN,
+                                         run_dir=self.run_dir, budget_s=self.budget_s,
+                                         clock=self.clock))
+
+    def findings(self):
+        return read_jsonl(os.path.join(self.run_dir, mpm.FINDINGS_NAME))
+
+    def notes(self):
+        return [e["msg"] for e in read_jsonl(os.path.join(self.run_dir, ab.TRANSCRIPT_NAME))
+                if e["dir"] == "note"]
+
+
+@needs_mcp
+class TestReportFinding(RunDirCase):
+    def test_works_from_the_first_call_in_attach_mode(self):
+        text = self.ok_text(self.call("report_finding", {
+            "severity": "Major", "title": "Escape does nothing", "details": "menu stayed open",
+            "repro": "press_key I; press_key Escape", "expected": "the menu closes"}))
+        self.assertIn("Recorded finding F01 (major)", text)
+        (f,) = self.findings()
+        self.assertEqual(f["id"], "F01")
+        self.assertEqual(f["severity"], "major")
+        self.assertEqual((f["title"], f["details"]), ("Escape does nothing", "menu stayed open"))
+        self.assertEqual(f["repro"], "press_key I; press_key Escape")
+        self.assertEqual(f["expected"], "the menu closes")
+        self.assertIsNone(f["known_issue"])
+        self.assertEqual(f["source"], "agent")
+        self.assertEqual(f["player_location"][:2], [0.0, 0.0])
+        self.assertEqual(f["map"], fb.DEFAULT_MAP)
+        self.assertIsNone(f["screenshot"])
+        for key in ("id", "time", "severity", "title", "details", "repro", "expected",
+                    "known_issue", "screenshot", "player_location", "map", "build_commit",
+                    "source"):
+            self.assertIn(key, f)
+
+    def test_ids_screenshot_and_known_issue(self):
+        shot = self.call("screenshot")
+        path = re.search(r"Screenshot: (.+\.png)", shot.content[0].text).group(1).strip()
+        # Attached with --run-dir: the frame lands in the run dir, not the bridge's own dir.
+        self.assertEqual(path, os.path.join(self.run_dir, "bridge_01.png"))
+        self.assertTrue(os.path.isfile(path))
+        self.ok_text(self.call("report_finding", {"severity": "minor", "title": "a",
+                                                  "details": "b"}))
+        text = self.ok_text(self.call("report_finding", {
+            "severity": "cosmetic", "title": "labels rotated", "details": "pickup labels",
+            "known_issue": "Pickup name labels render rotated 90 degrees"}))
+        self.assertIn("F02 (cosmetic, known issue)", text)
+        f1, f2 = self.findings()
+        self.assertEqual((f1["id"], f2["id"]), ("F01", "F02"))
+        self.assertEqual(f2["screenshot"], path)
+        self.assertEqual(f2["known_issue"], "Pickup name labels render rotated 90 degrees")
+        self.assertEqual([n["id"] for n in self.notes() if n.get("note") == "finding"],
+                         ["F01", "F02"])
+
+    def test_bad_severity_and_empty_title_are_refused(self):
+        text = self.err_text(self.call("report_finding", {"severity": "awful", "title": "x",
+                                                          "details": "y"}))
+        self.assertIn("severity must be one of crash, blocker, major", text)
+        self.assertIn("give a title", self.err_text(self.call(
+            "report_finding", {"severity": "minor", "title": " ", "details": "y"})))
+        self.assertFalse(os.path.exists(os.path.join(self.run_dir, mpm.FINDINGS_NAME)))
+
+    def test_works_when_the_bridge_is_gone(self):
+        self.bridge_server.stop()
+        self.ok_text(self.call("report_finding", {"severity": "crash", "title": "gone",
+                                                  "details": "the bridge stopped answering"}))
+        (f,) = self.findings()
+        self.assertIsNone(f["player_location"])
+
+    def test_session_info(self):
+        self.calls(("screenshot", {}), ("report_finding", {"severity": "question", "title": "q",
+                                                           "details": "d"}))
+        text = self.ok_text(self.call("session_info"))
+        self.assertIn(f"Run dir: {self.run_dir}", text)
+        self.assertIn("Mode: attached", text)
+        self.assertIn("not checked (attached", text)
+        self.assertIn("Findings so far: 1", text)
+        self.assertIn("Screenshots taken: 1", text)
+        self.assertIn("no budget", text)
+        self.assertTrue(text.startswith("!! " + mpm.ATTACHED_BANNER))
+
+    def test_bridge_errors_are_noted_for_the_detectors(self):
+        self.err_text(self.call("wait_until", {"condition": "inventory.count>=4",
+                                               "timeout_s": 0.2}))
+        errors = [n for n in self.notes() if n.get("note") == "mcp_error"]
+        self.assertEqual(len(errors), 1)
+        self.assertEqual((errors[0]["tool"], errors[0]["code"], errors[0]["kind"]),
+                         ("wait_until", "timeout", "gameplay"))
+
+
+@needs_mcp
+class TestBudgetAttached(RunDirCase):
+    budget_s = 60
+
+    def test_clock_starts_on_the_first_tool_call_and_input_is_refused_after(self):
+        session = self.session
+        self.assertIsNone(session.t_start)
+        text = self.ok_text(self.call("session_info"))
+        self.assertTrue(text.rstrip().endswith("time left: 60s"), text)
+        self.assertEqual(session.t_start, 1000.0)
+        self.clock.now += 45
+        text = self.ok_text(self.call("get_state", {"sections": ["game"]}))
+        self.assertTrue(text.rstrip().endswith("time left: 15s"), text)
+        self.ok_text(self.call("press_key", {"key": "Tab"}))
+        self.ok_text(self.call("hold_key", {"key": "D"}))   # held until release_key
+        self.clock.now += 20
+        refused = {"press_key": {"key": "Tab"}, "hold_key": {"key": "W", "seconds": 0.2},
+                   "walk_to": {"x": 100, "y": 0}, "click": {"x": 10, "y": 10},
+                   "click_button": {"label": "Identify"},
+                   "wait_until": {"condition": "game.ready", "timeout_s": 1},
+                   "launch_game": {}}
+        for name, args in refused.items():
+            text = self.err_text(self.call(name, args))
+            self.assertIn(mpm.BUDGET_USED_UP, text, name)
+        self.assertEqual(self.world.weapon_index, 1)  # only the first Tab tap happened
+        still = (("get_state", {"sections": ["player"]}), ("release_key", {"key": "D"}),
+                 ("report_finding", {"severity": "minor", "title": "late", "details": "d"}),
+                 ("session_info", {}))
+        for name, args in still:
+            text = self.ok_text(self.call(name, args))
+            self.assertIn("time left: 0s -- " + mpm.BUDGET_USED_UP, text, name)
+        shot = self.call("screenshot")
+        self.assertFalse(shot.is_error)
+        self.assertIn("time left: 0s", shot.content[0].text)
+        self.assertEqual(self.world._held_union(), {})
+        self.assertIn("Play time: 65s used of 60s, 0s left", self.ok_text(self.call(
+            "session_info")))
+        text = self.ok_text(self.call("quit_game"))
+        self.assertIn("Game quit", text)
+        self.assertIn("time left: 0s", text)
+
+
+@needs_mcp
+class TestLaunchRunDir(McpCase):
+    def setUp(self):
+        super().setUp()
+        self.run_dir = os.path.join(self.tmp, "explore run")
+        self.clock = FakeClock()
+        self.make_server(mpm.PlaySession(
+            launch_overrides={"exe_argv": [sys.executable, FAKE_GAME], "skip_freshness": True},
+            run_dir=self.run_dir, budget_s=120, clock=self.clock))
+
+    def test_run_dir_budget_from_launch_and_relaunch_subdir(self):
+        # Before any launch: findings already work (the run dir exists), the clock waits.
+        text = self.ok_text(self.call("report_finding", {"severity": "question", "title": "pre",
+                                                         "details": "before launch"}))
+        self.assertIn("unknown (no running game)", text)
+        self.assertIn("time left: 120s (the clock starts with launch_game)", text)
+        self.assertIsNone(self.session.t_start)
+        self.clock.now += 500  # time before launch_game does not count
+        text = self.ok_text(self.call("launch_game"))
+        self.assertIn(f"Run dir: {self.run_dir} ", text)
+        self.assertTrue(text.rstrip().endswith("time left: 120s"), text)
+        self.assertTrue(os.path.isfile(os.path.join(self.run_dir, "game.log")))
+        shot = self.call("screenshot")
+        self.assertIn(os.path.join(self.run_dir, "bridge_01.png"), shot.content[0].text)
+        self.ok_text(self.call("report_finding", {"severity": "minor", "title": "in game",
+                                                  "details": "d"}))
+        pre, in_game = read_jsonl(os.path.join(self.run_dir, mpm.FINDINGS_NAME))
+        self.assertIsNone(pre["player_location"])
+        self.assertIsNotNone(in_game["player_location"])
+        self.assertEqual(in_game["screenshot"], os.path.join(self.run_dir, "bridge_01.png"))
+        info = self.ok_text(self.call("session_info"))
+        self.assertIn("Game: running (pid", info)
+        self.assertIn("Build: commit ? -- not checked", info)
+        self.assertIn("Findings so far: 2", info)
+        # A dead game is noted for the detectors, and a relaunch gets its own subdir.
+        pid = self.session.bridge.pid
+        ab.kill_pid(pid)
+        self.assertTrue(wait_pid_gone(pid))
+        self.assertIn("no longer running", self.err_text(self.call("get_state")))
+        notes = [e["msg"] for e in read_jsonl(os.path.join(self.run_dir, ab.TRANSCRIPT_NAME))
+                 if e["dir"] == "note"]
+        self.assertIn("game_exited", [n.get("note") for n in notes])
+        text = self.ok_text(self.call("launch_game"))
+        second = os.path.join(self.run_dir, "launch_02")
+        self.assertIn(f"Run dir: {second} ", text)
+        self.assertTrue(os.path.isfile(os.path.join(second, "game.log")))
+        self.ok_text(self.call("report_finding", {"severity": "minor", "title": "after",
+                                                  "details": "d"}))
+        self.assertEqual(len(read_jsonl(os.path.join(self.run_dir, mpm.FINDINGS_NAME))), 3)
+        self.ok_text(self.call("quit_game"))
+        self.clock.now += 200
+        self.assertIn(mpm.BUDGET_USED_UP, self.err_text(self.call("launch_game")))
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 class TestHelpers(unittest.TestCase):
@@ -747,6 +977,33 @@ class TestStdio(McpCase):
         self.assert_clean_stdout(server)
         with open(os.path.join(self.tmp, "stderr.txt"), encoding="utf-8") as f:
             self.assertIn("[Play-MCP] serving on stdio", f.read())
+
+    def test_run_dir_and_budget_over_stdio(self):
+        world = fb.FakeWorld()
+        bridge = fb.FakeBridgeServer(world, token=TOKEN, shot_dir=self.tmp).start()
+        self.addCleanup(bridge.stop)
+        run_dir = os.path.join(self.tmp, "explore")
+        server = self.start("--attach", str(bridge.port), "--token", TOKEN, "--run-dir", run_dir,
+                            "--budget-s", "300")
+        server.initialize()
+        res = server.call_tool("report_finding", {"severity": "minor", "title": "t",
+                                                  "details": "d"})["result"]
+        self.assertFalse(res.get("isError"), res)
+        self.assertIn("Recorded finding F01", res["content"][0]["text"])
+        self.assertRegex(res["content"][0]["text"], r"time left: (300|299)s")
+        res = server.call_tool("session_info")["result"]
+        self.assertIn("Findings so far: 1", res["content"][0]["text"])
+        self.assertEqual(len(read_jsonl(os.path.join(run_dir, mpm.FINDINGS_NAME))), 1)
+        server.call_tool("quit_game")
+        self.assertEqual(server.close_stdin_and_wait(), 0)
+        self.assert_clean_stdout(server)
+
+    def test_bad_budget_exits_2(self):
+        r = subprocess.run([sys.executable, "-X", "utf8", "-B", SERVER, "--budget-s", "0"],
+                           capture_output=True, text=True, errors="replace", timeout=120,
+                           stdin=subprocess.DEVNULL)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("--budget-s must be > 0", r.stderr)
 
     def _launch(self, server):
         server.initialize()

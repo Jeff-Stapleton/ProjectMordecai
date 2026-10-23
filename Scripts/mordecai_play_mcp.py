@@ -18,6 +18,9 @@ Tools:
   screenshot()                                                 the game's own frame (image + path)
   wait_until(condition, timeout_s)                             bridge-side wait on a state condition
   quit_game()                                                  quit, wait for exit, summarize the run
+  report_finding(severity, title, details, repro, expected, known_issue)
+                                                               append a finding to findings.jsonl
+  session_info()                                               run dir, build, time used/left, counts
 
 Rules the tools enforce or state: one game at a time, in a kill-on-close job (the game dies with
 this server); a lock serializes tool calls; a STALE build is refused unless allow_stale is passed,
@@ -26,6 +29,13 @@ built from a dirty (uncommitted) tree runs, and every result carries "DIRTY BUIL
 only, not evidence".  Nothing here is acceptance evidence: story acceptance comes from
 Scripts/playtests/*.py on a fresh package built from a clean, committed tree.
 
+Exploratory play (Specs/story_playtests_v1.md section 5; Scripts/explore_playtest.py starts the
+server this way): --run-dir puts the game and findings.jsonl in one directory; --budget-s gives a
+play-time budget counted from the first launch_game (with --attach: from the first tool call).
+Every result then ends with "time left: Ns"; after the budget the input tools (press_key,
+hold_key, walk_to, click, click_button, wait_until, launch_game) are refused, while get_state,
+screenshot, report_finding, session_info, release_key and quit_game still work.
+
 Usage:
   Claude Code starts it from .mcp.json (repo root, project scope; an interactive session asks once
   to approve project servers).  Install the SDK once: py -m pip install -r Scripts/requirements.txt
@@ -33,11 +43,14 @@ Usage:
   py -X utf8 Scripts/mordecai_play_mcp.py --attach PORT [--token T]   (alias --attach-port)
         diagnostic: drive a bridge that is already running (agent_bridge.py launch, or
         Scripts/tests/fake_bridge.py); launch_game is refused and nothing is evidence
-  Options: --image-max-chars N (base64 budget of the screenshot image, default 80000),
+  Options: --run-dir DIR (the game's run dir and findings.jsonl; a relaunch goes to
+           DIR/launch_NN/), --budget-s S (play-time budget),
+           --image-max-chars N (base64 budget of the screenshot image, default 80000),
            --log-level LEVEL (stderr logging, default WARNING)
 
-Output: a launched game's run dir Saved/Playtests/<YYYYmmdd-HHMMSS>-mcp/ holds game.log,
-bridge.jsonl (every request/response plus one note per tool call) and bridge_NN.png.
+Output: a launched game's run dir Saved/Playtests/<YYYYmmdd-HHMMSS>-mcp/ (or --run-dir) holds
+game.log, bridge.jsonl (every request/response plus one note per tool call, per bridge error
+"mcp_error" and per lost game "game_exited"), bridge_NN.png and findings.jsonl.
 Logs go to stderr only; stdout is the MCP protocol channel.
 
 Exit codes:
@@ -52,6 +65,7 @@ import json
 import os
 import sys
 import threading
+import time
 import traceback
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -82,6 +96,13 @@ ATTACHED_BANNER = ("NOT EVIDENCE — attached to an already running bridge (--at
                    "did not launch it and did not check the build")
 NO_GAME = "no game is running: call launch_game first"
 RUN_SUFFIX = "mcp"
+FINDINGS_NAME = "findings.jsonl"
+SEVERITIES = ("crash", "blocker", "major", "minor", "cosmetic", "question")
+BUDGET_USED_UP = "time budget used up: report your findings and call quit_game"
+# Refused once the play-time budget is used up (get_state, screenshot, report_finding,
+# session_info, release_key and quit_game keep working).
+BUDGET_REFUSED = frozenset({"launch_game", "press_key", "hold_key", "walk_to", "click",
+                            "click_button", "wait_until"})
 
 MAX_TEXT_CHARS = 60000          # ~15k tokens: under Claude Code's 25k-token MCP output cap
 MAX_IMAGE_B64_CHARS = 80000     # base64 budget for the screenshot image (~20k tokens worst case)
@@ -108,7 +129,8 @@ INSTRUCTIONS = (
     "menu, Q/E/R/One spells, Tab/BackSlash weapons. Screen coordinates are viewport pixels "
     "(1280x720, origin top-left, the same space as the screenshots). Debug keys with side "
     "effects (K, F1-F12, Insert, Delete, Home, End, PageUp, PageDown, Tilde, ...) are refused. "
-    + RULE)
+    "File what a player would call a bug with report_finding; session_info tells you the run "
+    "dir and the play time left. " + RULE)
 
 
 _LOG_STREAM = None
@@ -150,6 +172,15 @@ def _short_reasons(reasons, limit=2, chars=300):
     if len(reasons or []) > limit:
         text += f"; (+{len(reasons) - limit} more)"
     return text[:chars]
+
+
+def count_findings(path):
+    """Number of findings (non-blank lines) in a findings.jsonl; 0 when it does not exist."""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            return sum(1 for line in f if line.strip())
+    except OSError:
+        return 0
 
 
 # ---------------------------------------------------------------------------
@@ -246,10 +277,15 @@ class PlaySession:
     bridge that is already running instead of launching one.
     launch_overrides: extra Bridge.launch keyword arguments (tests: exe_argv, skip_freshness,
     run_dir).
+    run_dir: the run dir of the first launched game (a relaunch goes to run_dir/launch_NN/) and
+    of findings.jsonl; with attach_port, bridge.jsonl and the screenshots go there too.
+    budget_s: play-time budget in seconds, from the first successful launch_game (attach mode:
+    from the first tool call); clock: the time source (tests).
     """
 
     def __init__(self, *, attach_port=None, attach_token=None, launch_overrides=None,
-                 max_image_chars=MAX_IMAGE_B64_CHARS, max_text_chars=MAX_TEXT_CHARS):
+                 max_image_chars=MAX_IMAGE_B64_CHARS, max_text_chars=MAX_TEXT_CHARS,
+                 run_dir=None, budget_s=None, clock=time.monotonic):
         self.lock = threading.Lock()
         self.bridge = None
         self.attached = False
@@ -260,6 +296,15 @@ class PlaySession:
         self.max_text_chars = int(max_text_chars)
         self.closed = False
         self.last_run_dir = None
+        self.run_dir = os.path.abspath(run_dir) if run_dir else None
+        if self.run_dir:
+            os.makedirs(self.run_dir, exist_ok=True)
+        self.budget_s = float(budget_s) if budget_s else None
+        self.clock = clock
+        self.t_start = None
+        self.shots = 0
+        self.last_screenshot = None
+        self.last_build = None      # {"commit", "freshness"} of the last game launched/attached
 
     # --- banner ---------------------------------------------------------------------
     def banner(self):
@@ -275,7 +320,8 @@ class PlaySession:
         return None
 
     def text(self, body, note=None, banner_last=False):
-        """body with the evidence banner (first, or last for error messages)."""
+        """body with the evidence banner (first, or last for error messages), then the
+        'time left' line when a budget is set."""
         banner = self.banner()
         parts = [body]
         if note:
@@ -285,7 +331,84 @@ class PlaySession:
                 parts.append("!! " + banner)
             else:
                 parts.insert(0, "!! " + banner)
+        line = self.time_line()
+        if line:
+            parts.append(line)
         return "\n".join(parts)
+
+    # --- play-time budget -------------------------------------------------------------
+    def start_clock(self):
+        if self.budget_s is not None and self.t_start is None:
+            self.t_start = self.clock()
+
+    def used_s(self):
+        return 0.0 if self.t_start is None else max(0.0, self.clock() - self.t_start)
+
+    def left_s(self):
+        if self.budget_s is None:
+            return None
+        return max(0.0, self.budget_s - self.used_s())
+
+    def over_budget(self):
+        return self.budget_s is not None and self.t_start is not None and self.left_s() <= 0
+
+    def time_line(self):
+        if self.budget_s is None:
+            return None
+        if self.t_start is None:
+            when = "your first tool call" if self.attach_port is not None else "launch_game"
+            return f"time left: {self.budget_s:.0f}s (the clock starts with {when})"
+        left = self.left_s()
+        return f"time left: {left:.0f}s" + (f" -- {BUDGET_USED_UP}" if left <= 0 else "")
+
+    def begin(self, tool):
+        """Every tool calls this first (under the lock): attach mode starts the budget clock on
+        the first tool call; after the budget the input tools are refused."""
+        if self.budget_s is None:
+            return
+        if self.attach_port is not None:
+            self.start_clock()
+        if tool in BUDGET_REFUSED and self.over_budget():
+            raise ToolError(self.text(f"{tool}: refused, {BUDGET_USED_UP}", banner_last=True))
+
+    # --- run dir, screenshots ---------------------------------------------------------
+    def current_run_dir(self):
+        """Where findings.jsonl goes: --run-dir, else the current (or last) game's run dir."""
+        if self.run_dir:
+            return self.run_dir
+        if self.bridge is not None and self.bridge.run_dir:
+            return self.bridge.run_dir
+        return self.last_run_dir
+
+    def _launch_run_dir(self):
+        """--run-dir for the first game; DIR/launch_NN/ once DIR already holds a game.log."""
+        if not os.path.exists(os.path.join(self.run_dir, "game.log")):
+            return self.run_dir
+        n = 2
+        while os.path.exists(os.path.join(self.run_dir, f"launch_{n:02d}")):
+            n += 1
+        return os.path.join(self.run_dir, f"launch_{n:02d}")
+
+    def _shot_path(self):
+        """An explicit bridge_NN.png in --run-dir for an attached bridge (its own shot dir is
+        unknown); None lets a launched game use the run dir it was given."""
+        if not (self.attached and self.run_dir):
+            return None
+        n = 1
+        while os.path.exists(os.path.join(self.run_dir, f"bridge_{n:02d}.png")):
+            n += 1
+        return os.path.join(self.run_dir, f"bridge_{n:02d}.png")
+
+    def _newest_screenshot(self):
+        if self.last_screenshot:
+            return self.last_screenshot
+        run_dir = self.current_run_dir()
+        if run_dir and os.path.isdir(run_dir):
+            shots = sorted(n for n in os.listdir(run_dir)
+                           if n.startswith("bridge_") and n.lower().endswith(".png"))
+            if shots:
+                return os.path.join(run_dir, shots[-1])
+        return None
 
     # --- bridge lifecycle -------------------------------------------------------------
     def _drop(self, why):
@@ -306,10 +429,13 @@ class PlaySession:
     def _attach(self):
         try:
             self.bridge = ab.Bridge.attach(self.attach_port, token=self.attach_token,
-                                           wait_ready=False, timeout=10.0)
+                                           wait_ready=False, timeout=10.0, run_dir=self.run_dir)
         except ab.BridgeError as e:
             raise ToolError(f"cannot attach to the bridge on 127.0.0.1:{self.attach_port}: {e}")
         self.attached = True
+        build = (self.bridge.ping_info or {}).get("build")
+        self.last_build = {"commit": build.get("commit") if isinstance(build, dict) else None,
+                           "freshness": "not checked (attached: " + ATTACHED_BANNER + ")"}
         log(f"attached to 127.0.0.1:{self.attach_port} (pid {self.bridge.pid})")
 
     def _require(self):
@@ -325,6 +451,7 @@ class PlaySession:
             crash = b.crash_lines()
             code = b.proc.returncode if b.proc is not None else None
             self.last_run_dir = b.run_dir
+            b._note("game_exited", {"exit_code": code, "crash": crash[:3]})
             self._drop("the game exited")
             raise ToolError(f"the game is no longer running (exit code {code}"
                             + (f"; crash: {crash[0]}" if crash else "")
@@ -362,14 +489,22 @@ class PlaySession:
     def run(self, tool, args, fn):
         """Run fn(bridge) under the lock; BridgeError and bad arguments become ToolError."""
         with self.lock:
+            self.begin(tool)
             b = self._require()
             b._note("mcp_tool", {"tool": tool, "args": args})
             try:
                 return fn(b)
             except ab.BridgeError as e:
+                # The explorer's detectors read these notes (stuck walks, wait timeouts, lost
+                # connections) from bridge.jsonl.
+                b._note("mcp_error", {"tool": tool, "code": e.code, "kind": e.kind,
+                                      "message": str(e)[:500]})
                 message = self._error_text(tool, e)
                 if e.code in CONNECTION_LOST and not b.is_alive() and not self.attached:
                     self.last_run_dir = b.run_dir
+                    b._note("game_exited", {"exit_code": b.proc.returncode
+                                            if b.proc is not None else None,
+                                            "crash": b.crash_lines()[:3], "during": tool})
                     self._drop(f"{tool}: {e}")
                     message += "\nThe game is gone: call launch_game to start a new one."
                 raise ToolError(message)
@@ -388,8 +523,11 @@ class PlaySession:
             if self.closed:
                 raise ToolError("the server is shutting down")
             if self.attach_port is not None:
-                raise ToolError("this server was started with --attach: it drives an existing "
-                                "bridge and does not launch games")
+                self.begin("launch_game")
+                raise ToolError(self.text("this server was started with --attach: it drives an "
+                                          "existing bridge and does not launch games",
+                                          banner_last=True))
+            self.begin("launch_game")
             if self.bridge is not None:
                 if self.bridge.is_alive():
                     raise ToolError(f"a game is already running (pid {self.bridge.pid}, port "
@@ -399,6 +537,8 @@ class PlaySession:
             kwargs = dict(map=map or ab.DEFAULT_MAP, frontend=bool(frontend),
                           allow_stale=bool(allow_stale), expect_experience=expect_experience,
                           detach=False, run_suffix=RUN_SUFFIX)
+            if self.run_dir:
+                kwargs["run_dir"] = self._launch_run_dir()
             kwargs.update(self.launch_overrides)
             try:
                 b = ab.Bridge.launch(**kwargs)
@@ -411,28 +551,33 @@ class PlaySession:
             self.bridge = b
             self.attached = False
             self.last_run_dir = b.run_dir
+            self.start_clock()
+            self.last_build = {"commit": b.info().get("commit"), "freshness": self._freshness(b)}
             b._note("mcp_tool", {"tool": "launch_game",
                                  "args": {"map": map, "frontend": frontend,
                                           "allow_stale": allow_stale,
                                           "expect_experience": expect_experience}})
             return self.text(self._launch_summary(b))
 
+    @staticmethod
+    def _freshness(b):
+        if b.stale:
+            return "STALE (allowed: diagnostic only) -- " + _short_reasons(
+                (b.fresh or {}).get("reasons"), limit=4, chars=600)
+        if _dirty_build(b):
+            return (f"FRESH but built from a DIRTY tree (diagnostic only) -- the package "
+                    f"matches HEAD and the working tree, but it was built from "
+                    f"{_dirty_note(b)}; for evidence commit, re-package "
+                    "(py Scripts/package_playtest.py) and relaunch")
+        if (b.fresh or {}).get("fresh"):
+            return "FRESH (the package matches HEAD and the working tree)"
+        return "not checked"
+
     def _launch_summary(self, b):
         info = b.info()
         ping = b.ping_info or {}
         build = info.get("build") or {}
-        if b.stale:
-            freshness = "STALE (allowed: diagnostic only) -- " + _short_reasons(
-                info.get("stale_reasons"), limit=4, chars=600)
-        elif _dirty_build(b):
-            freshness = (f"FRESH but built from a DIRTY tree (diagnostic only) -- the package "
-                         f"matches HEAD and the working tree, but it was built from "
-                         f"{_dirty_note(b)}; for evidence commit, re-package "
-                         "(py Scripts/package_playtest.py) and relaunch")
-        elif (b.fresh or {}).get("fresh"):
-            freshness = "FRESH (the package matches HEAD and the working tree)"
-        else:
-            freshness = "not checked"
+        freshness = self._freshness(b)
         lines = [
             f"Game ready: pid {b.pid}, bridge {b.host}:{b.port}, map {info.get('map') or '(front end)'}, "
             f"experience {ping.get('experience')} (expected {info.get('expected_experience')}).",
@@ -449,6 +594,7 @@ class PlaySession:
 
     def quit(self):
         with self.lock:
+            self.begin("quit_game")
             b = self.bridge
             if b is None:
                 if self.attach_port is None:
@@ -489,8 +635,112 @@ class PlaySession:
                                  + (", ".join(missing[:8]) if missing else "none"))
                     for e in s["top_errors"][:5]:
                         lines.append(f"  error x{e['count']}: {e['line'][:200]}")
+            line = self.time_line()
+            if line:
+                lines.append(line)
             body = "\n".join(lines)
             return ("!! " + banner + "\n" + body) if banner else body
+
+    # --- findings and session info (exploratory play) --------------------------------
+    def _finding_context(self):
+        """(player location or None, map, build commit) without failing the finding."""
+        if self.bridge is None and self.attach_port is not None:
+            try:
+                self._attach()
+            except ToolError:
+                pass
+        b = self.bridge
+        location = None
+        game_map = None
+        commit = (self.last_build or {}).get("commit")
+        if b is not None:
+            game_map = b.map or (b.ping_info or {}).get("map")
+            if not self.attached:
+                commit = b.info().get("commit") or commit
+            alive = b.is_alive() if not self.attached else True
+            if alive and b.conn is not None and not b.conn.closed:
+                try:
+                    player = b.state(["player"]).get("player") or {}
+                    loc = player.get("location")
+                    if player.get("valid") and isinstance(loc, list):
+                        location = loc
+                except Exception as e:  # a finding is still written without the location
+                    log(f"report_finding: no player location ({e})")
+        return location, game_map, commit
+
+    def report_finding(self, severity, title, details, repro=None, expected=None,
+                       known_issue=None):
+        with self.lock:
+            self.begin("report_finding")
+            sev = str(severity or "").strip().lower()
+            if sev not in SEVERITIES:
+                raise ToolError(self.text(f"report_finding: severity must be one of "
+                                          f"{', '.join(SEVERITIES)} (got {severity!r})",
+                                          banner_last=True))
+            if not str(title or "").strip() or not str(details or "").strip():
+                raise ToolError(self.text("report_finding: give a title and details",
+                                          banner_last=True))
+            run_dir = self.current_run_dir()
+            if run_dir is None:
+                raise ToolError(self.text("report_finding: no run dir yet: call launch_game "
+                                          "first (findings go to <run_dir>/findings.jsonl)",
+                                          banner_last=True))
+            location, game_map, commit = self._finding_context()
+            path = os.path.join(run_dir, FINDINGS_NAME)
+            fid = f"F{count_findings(path) + 1:02d}"
+            entry = {"id": fid,
+                     "time": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                     "severity": sev, "title": str(title).strip(), "details": str(details),
+                     "repro": repro, "expected": expected,
+                     "known_issue": known_issue if known_issue else None,
+                     "screenshot": self._newest_screenshot(), "player_location": location,
+                     "map": game_map, "build_commit": commit, "source": "agent"}
+            os.makedirs(run_dir, exist_ok=True)
+            with open(path, "a", encoding="utf-8", newline="\n") as f:
+                f.write(_dumps(entry) + "\n")
+            if self.bridge is not None:
+                self.bridge._note("finding", {"id": fid, "severity": sev,
+                                              "title": entry["title"]})
+            return self.text(f"Recorded finding {fid} ({sev}"
+                             + (", known issue" if entry["known_issue"] else "")
+                             + f"): {entry['title']}\nFile: {path}\nPlayer location: "
+                             + (_dumps(location) if location else "unknown (no running game)")
+                             + f"\nScreenshot: {entry['screenshot'] or 'none yet'}")
+
+    def session_info(self):
+        with self.lock:
+            self.begin("session_info")
+            b = self.bridge
+            run_dir = self.current_run_dir()
+            lines = [f"Run dir: {run_dir or '(none yet: call launch_game)'}"]
+            if self.attach_port is not None:
+                lines.append(f"Mode: attached to 127.0.0.1:{self.attach_port} (diagnostic, "
+                             "not evidence)")
+            if b is not None:
+                state = ("connected" if self.attached else
+                         f"running (pid {b.pid})" if b.is_alive() else "not running")
+                lines.append(f"Game: {state}")
+            else:
+                lines.append("Game: not running")
+            build = self.last_build or {}
+            if build:
+                lines.append(f"Build: commit {pb.short(build.get('commit'))} -- "
+                             f"{build.get('freshness')}")
+            else:
+                lines.append("Build: unknown until launch_game")
+            if self.budget_s is None:
+                lines.append(f"Play time: {self.used_s():.0f}s used (no budget)")
+            elif self.t_start is None:
+                lines.append(f"Play time: not started; budget {self.budget_s:.0f}s")
+            else:
+                lines.append(f"Play time: {self.used_s():.0f}s used of {self.budget_s:.0f}s, "
+                             f"{self.left_s():.0f}s left"
+                             + (f" ({BUDGET_USED_UP})" if self.over_budget() else ""))
+            findings = count_findings(os.path.join(run_dir, FINDINGS_NAME)) if run_dir else 0
+            lines.append(f"Findings so far: {findings}")
+            lines.append(f"Screenshots taken: {self.shots}"
+                         + (f" (newest {self.last_screenshot})" if self.last_screenshot else ""))
+            return self.text("\n".join(lines))
 
     def shutdown(self):
         """Server exit: kill a launched game (an attached one only loses its connection)."""
@@ -636,7 +886,12 @@ return it as an image, plus its path. Large frames are sent as a downscaled JPEG
 full-resolution PNG path is in the text (open it with the Read tool for detail). Look at the
 image and describe what is on screen; do not assume."""))
     def screenshot() -> list:
-        path = session.run("screenshot", {}, lambda b: b.screenshot())
+        def take(b):
+            shot = b.screenshot(session._shot_path())
+            session.shots += 1
+            session.last_screenshot = shot
+            return shot
+        path = session.run("screenshot", {}, take)
         try:
             data, fmt, desc = image_for_mcp(path, session.max_image_chars)
         except OSError as e:
@@ -669,6 +924,30 @@ any /MordecaiCore content missing from the build."""))
     def quit_game() -> str:
         return session.quit()
 
+    @mcp.tool(name="report_finding", structured_output=False, description=_desc("""
+File one finding: something a player would call a bug (a crash, a stuck state, wrong or missing
+UI, an error, a key that does nothing). It is appended to <run_dir>/findings.jsonl with the
+newest screenshot, the player location (when a game is running), the map and the build commit,
+and gets an id (F01, F02, ...). It works without a running game once a run dir exists.
+- severity: crash | blocker (cannot continue) | major (a feature does not work) | minor |
+  cosmetic | question (unsure whether it is a bug)
+- title: one line; details: what you did and what you saw (say what the screenshot shows)
+- repro: the exact steps (tool calls) that reproduce it; expected: what should have happened
+- known_issue: when it matches an entry of the Known issues backlog, that entry's text (it is
+  then marked known, not new)
+Report only what you saw on screen or in get_state, never a guess."""))
+    def report_finding(severity: str, title: str, details: str, repro: str | None = None,
+                       expected: str | None = None, known_issue: str | None = None) -> str:
+        return session.report_finding(severity, title, details, repro=repro, expected=expected,
+                                      known_issue=known_issue)
+
+    @mcp.tool(name="session_info", structured_output=False, description=_desc("""
+The session: run dir, build commit and freshness (STALE / DIRTY / attached banners), play time
+used and left of the budget, findings so far and screenshots taken. It never touches the game.
+Call it to manage your time: when little is left, file your findings and call quit_game."""))
+    def session_info() -> str:
+        return session.session_info()
+
     return mcp
 
 
@@ -683,6 +962,12 @@ def parse_args(argv=None):
                         metavar="PORT",
                         help="diagnostic: drive the bridge already listening on this port")
     parser.add_argument("--token", default=None, help="expected ping token (with --attach)")
+    parser.add_argument("--run-dir", default=None,
+                        help="run dir of the first launched game and of findings.jsonl "
+                             "(default: Saved/Playtests/<ts>-mcp per launch)")
+    parser.add_argument("--budget-s", type=float, default=None,
+                        help="play-time budget in seconds, from the first launch_game "
+                             "(--attach: from the first tool call)")
     parser.add_argument("--image-max-chars", type=int,
                         default=int(os.environ.get("MORDECAI_PLAY_IMAGE_MAX_CHARS",
                                                    MAX_IMAGE_B64_CHARS)),
@@ -705,6 +990,9 @@ def main(argv=None):
         args = parse_args(argv)
     except SystemExit as e:
         return 2 if e.code else 0
+    if args.budget_s is not None and args.budget_s <= 0:
+        print("[Play-MCP] ERROR: --budget-s must be > 0", file=sys.stderr, flush=True)
+        return 2
     # stdout is the protocol channel: every log line goes to stderr.
     ab.set_log_stream(sys.stderr)
     pb.set_log_stream(sys.stderr)
@@ -716,7 +1004,8 @@ def main(argv=None):
     if args.test_run_dir:
         overrides["run_dir"] = args.test_run_dir
     session = PlaySession(attach_port=args.attach, attach_token=args.token,
-                          launch_overrides=overrides, max_image_chars=args.image_max_chars)
+                          launch_overrides=overrides, max_image_chars=args.image_max_chars,
+                          run_dir=args.run_dir, budget_s=args.budget_s)
     server = build_server(session, log_level=args.log_level)
     atexit.register(session.shutdown)
     log(f"serving on stdio (pid {os.getpid()}" + (f", attach port {args.attach}" if args.attach

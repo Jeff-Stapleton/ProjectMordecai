@@ -203,6 +203,8 @@ Copy this into every new story file. Fill every section; write `none` rather tha
 - **Player steps:** <exact keys/movement from control_bindings_v1.1.md, e.g. "walk (WASD) to the chest, press F, press I">
 - **Visible on screen:** <what the screenshots must show — specific widgets, actors, text>
 - **Proof:** <Tier 3 run shows <...>; each input-driven step: Tier 4 check `<check>` in `Scripts/playtests/usXXX_<name>.py` | PENDING TIER 4 (bridge cannot drive: <reason>)>
+- **Tier 4 script:** <`Scripts/playtests/usXXX_<name>.py` (a `PlaytestRun` on `Scripts/playtest_kit.py`, `Specs/story_playtests_v1.md`) — run: `py Scripts/playtest_story.py US-XXX` | none (no input-driven AC)>
+- **Steps:** <paste the output of `py Scripts/playtest_story.py US-XXX --plan`; `--lint` must exit 0, so the table and the script cannot drift>
 - **Playable alone:** <YES | NO — playable after US-ZZZ lands>
 
 ## Definition of Done
@@ -212,7 +214,7 @@ Copy this into every new story file. Fill every section; write `none` rather tha
 - [ ] Content: every `.uasset`/`.umap` this story creates or changes is saved and committed in this branch; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST, then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [ ] `py Scripts/playtest_boot.py <launch flags from Playtest>` exits 0 — never `--allow-stale` (a paired story that is not playable alone still runs it to prove the build boots to the expected experience)
-- [ ] Input-driven ACs: `py Scripts/playtests/usXXX_<name>.py` exits 0 on that same fresh package — never `--allow-stale`; every input-driven AC accepted by that run (an AC recorded `PENDING TIER 4 (bridge cannot drive: <reason>)` is not claimed)
+- [ ] Input-driven ACs: `py Scripts/playtest_story.py US-XXX` (Tier 3 + the Tier 4 `py Scripts/playtests/usXXX_<name>.py`) exits 0 on that same fresh package and its summary's Acceptance criteria table shows every input-driven AC accepted; `py Scripts/playtest_story.py US-XXX --lint` exits 0 — never `--allow-stale`; every input-driven AC accepted by that run (an AC recorded `PENDING TIER 4 (bridge cannot drive: <reason>)` is not claimed)
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
 - [ ] Evidence cited: run dirs (Tier 3 `Saved/Playtests/<run>-boot/report.md`, Tier 4 `Saved/Playtests/<run>-usXXX/report.md`) in Completion Notes AND in the body of the `[US-XXX]` commit that closes the story
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass. A failing playtest is reported honestly and the story stays in progress

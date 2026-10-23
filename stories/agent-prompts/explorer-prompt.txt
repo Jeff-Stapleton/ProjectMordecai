@@ -1,0 +1,27 @@
+MORDECAI NIGHTLY EXPLORER — Automated run, after the nightly planner.
+
+ERROR HANDLING: Wrap each phase in try/catch logic. If any phase fails, log the error and continue to the next phase. If the run fails critically (e.g. the claude CLI won't start, the package is missing), compose a clear error summary explaining WHAT failed and WHY, and send it through this scheduler's notification step (under OpenClaw: Discord channel 1484079167774396457 via the message tool, action=send, channel=discord, target="channel:1484079167774396457"). Always include the actual error text so Jeff has visibility.
+
+Phase 0: Preconditions (do not fix anything here).
+- Run via exec in C:\Users\jeffd\Documents\Gamedev\ProjectMordecai:
+  git status --short
+  git log -1 --oneline
+  type PackagedBuilds\Playtest\build_info.json
+- Close anything that would block the game: Stop-Process -Name "LyraGame" -ErrorAction SilentlyContinue
+- Do NOT package, build, edit or commit code in this run. The explorer plays the package that exists.
+
+Phase 1: Run the exploratory playtest.
+- Use exec (background mode, timeout 1800s) to run:
+  cd C:\Users\jeffd\Documents\Gamedev\ProjectMordecai && py Scripts/explore_playtest.py --minutes 20
+- Exit 0: no crash/blocker and no new major finding. Exit 1: findings to triage. Exit 2: infrastructure (STALE BUILD, no claude CLI, the agent never launched the game).
+- On exit 2 with STALE BUILD: do NOT re-run with --allow-stale and do not re-package; report "explorer skipped: STALE BUILD (<reasons>)" and stop. The next worker run re-packages.
+
+Phase 2: Triage the findings (claude --permission-mode bypassPermissions --print, timeout 900s):
+  cd C:\Users\jeffd\Documents\Gamedev\ProjectMordecai && claude --permission-mode bypassPermissions --print "Read CLAUDE.md, then the newest Saved/Playtests/*-explore/report.md (an exploratory playtest of the packaged game by an agent with real input; exploration only, never acceptance evidence). For every NEW finding (agent or detector), open the screenshot(s) it cites (bridge_NN.png) with the Read tool and say what is actually on screen; read the cited bridge.jsonl / game.log lines. Decide whether it is a real bug a player would hit: CONFIRMED, NOT A BUG (explain), or NEEDS A HUMAN (explain). For each CONFIRMED new bug: if it breaks a feature of a story in stories/done/, write a Playability Recovery story (stories/PLANNER.md section 7 template, Execution Mode, Playtest section with the Tier 4 script that will prove the fix) in stories/backlog/; otherwise add it to the Known issues backlog in Specs/agent_playtest_plan_v1.md (one bullet: symptom, repro, run dir, screenshot). Known findings (known_issue set) only get a line in the log if they changed. A FAIL or finding is a game bug to fix or file, never something to work around. Append a dated entry to stories/PLANNER_LOG.md: the run dir, the build commit and freshness, the exit code, every finding id with your verdict, and what you filed. Commit only stories/ and Specs/ changes with the message '[Explorer] Nightly findings <date>' and push."
+- If Claude Code fails or times out, send the error and continue to Phase 3.
+
+Phase 3: Send a summary (notification step as above): the run dir, the build commit and FRESH/STALE, the explorer's exit code and cost, each new finding (id, severity, title, verdict), the stories or Known issues entries filed, and how many screenshots the triage opened. Be concise: bullet points.
+
+Notes:
+- Nothing is scheduled yet; choosing a scheduler is Jeff's open decision (Specs/agent_playtest_plan_v1.md, Open decisions). This must run on the local machine (it plays the packaged Unreal build), after the planner and not while a worker is packaging (a running package build or game blocks it).
+- The explorer runs claude in a temp directory outside the repo with only the mordecai-play MCP tools; its spend is capped by --max-budget-usd (default 10).

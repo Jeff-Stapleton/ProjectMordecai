@@ -91,3 +91,57 @@ Scope includes: pickup actor class (C++ scaffold, BP placement), a small set of 
 - [ ] `py Scripts/run_pie_verify.py --tests inventory` runs end-to-end clean
 - [ ] Code committed and pushed with `[US-079]` prefix
 - [ ] Editor closed after verification (`Stop-Process -Name "UnrealEditor"`)
+
+## Playtest
+Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtests_v1.md`).
+
+- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience)
+- **Tier 4 script:** `Scripts/playtests/us079_inventory.py` — run: `py Scripts/playtest_story.py US-079`
+- **Steps:** (generated: `py Scripts/playtest_story.py US-079 --plan`; checked: `--lint`)
+
+| # | Check | Player step (bridge calls) → expected | Proves |
+|---|---|---|---|
+| 1 | `hud_visible` | wait_until pickups.prompt.hint_visible==true && pickups.prompt.hint_text=="[I] Inventory" -> a combat HUD widget in state.widgets | - |
+| 2 | `pickup_labels` | state actors -> every actors[] with kind=="pickup" has a widget component with actors[].widgets[].visible==true (its in-world name label) _(known issue: bridge gap B1: actors[].widgets lists only UWidgetComponents, but the pickup name label is a UTextRenderComponent (MordecaiItemPickup.cpp:36); the 'start' screenshot is the evidence until the bridge reports it)_ | AC-079.10 |
+| 3 | `empty_state` | before any pickup: tap I -> wait_until pause_menu.open==true && pause_menu.inventory_tab.list_placeholder=="Inventory is empty."; screenshot; tap Escape -> wait_until pause_menu.open==false | AC-079.9, US-071:AC-071.15 |
+| 4 | `walk_HealthPotion` | walk_to(400, 0) -> within 60 cm | AC-079.6 |
+| 5 | `focus_HealthPotion` | wait_until pickups.focused.label=="TestPickup_HealthPotion" | - |
+| 6 | `prompt_HealthPotion` | wait_until pickups.prompt.visible==true && pickups.prompt.text=="[F] Pick up Health Potion" (the focused display name) | - |
+| 7 | `pickup_HealthPotion` | tap F -> wait until TestPickup_HealthPotion leaves pickups.world and inventory.count or inventory.ledger_count grows | AC-079.2 |
+| 8 | `walk_IronOre` | walk_to(300, 300) -> within 60 cm | AC-079.6 |
+| 9 | `focus_IronOre` | wait_until pickups.focused.label=="TestPickup_IronOre" | - |
+| 10 | `prompt_IronOre` | wait_until pickups.prompt.visible==true && pickups.prompt.text=="[F] Pick up Iron Ore" (the focused display name) | - |
+| 11 | `pickup_IronOre` | tap F -> wait until TestPickup_IronOre leaves pickups.world and inventory.count or inventory.ledger_count grows | AC-079.2 |
+| 12 | `walk_TownStone` | walk_to(0, 420) -> within 60 cm | AC-079.6 |
+| 13 | `focus_TownStone` | wait_until pickups.focused.label=="TestPickup_TownStone" | - |
+| 14 | `prompt_TownStone` | wait_until pickups.prompt.visible==true && pickups.prompt.text=="[F] Pick up Town Stone" (the focused display name) | - |
+| 15 | `pickup_TownStone` | tap F -> wait until TestPickup_TownStone leaves pickups.world and inventory.count or inventory.ledger_count grows | AC-079.2 |
+| 16 | `walk_UpgradeKey` | walk_to(-300, 300) -> within 60 cm | AC-079.6 |
+| 17 | `focus_UpgradeKey` | wait_until pickups.focused.label=="TestPickup_UpgradeKey" | - |
+| 18 | `prompt_UpgradeKey` | wait_until pickups.prompt.visible==true && pickups.prompt.text=="[F] Pick up Upgrade Key" (the focused display name) | - |
+| 19 | `pickup_UpgradeKey` | tap F -> wait until TestPickup_UpgradeKey leaves pickups.world and inventory.count or inventory.ledger_count grows | AC-079.2 |
+| 20 | `walk_MysteriousAmulet` | walk_to(-400, 0) -> within 60 cm | AC-079.6 |
+| 21 | `focus_MysteriousAmulet` | wait_until pickups.focused.label=="TestPickup_MysteriousAmulet" | - |
+| 22 | `prompt_MysteriousAmulet` | wait_until pickups.prompt.visible==true && pickups.prompt.text=="[F] Pick up Unidentified Purple Amulet" (the focused display name) | - |
+| 23 | `pickup_MysteriousAmulet` | tap F -> wait until TestPickup_MysteriousAmulet leaves pickups.world and inventory.count or inventory.ledger_count grows | AC-079.2 |
+| 24 | `walk_RustySword_waypoint1` | walk_to(-250, -150) -> within 60 cm (waypoint, clear of Box_02) | AC-079.6 |
+| 25 | `walk_RustySword` | walk_to(-300, -300) -> within 60 cm | AC-079.6 |
+| 26 | `focus_RustySword` | wait_until pickups.focused.label=="TestPickup_RustySword" | - |
+| 27 | `prompt_RustySword` | wait_until pickups.prompt.visible==true && pickups.prompt.text=="[F] Pick up Rusty Sword" (the focused display name) | - |
+| 28 | `pickup_RustySword` | tap F -> wait until TestPickup_RustySword leaves pickups.world and inventory.count or inventory.ledger_count grows | AC-079.2 |
+| 29 | `pickup_loop_time` | the start of the first walk to the confirmed 6th pickup takes < 30 s | AC-079.6 |
+| 30 | `inventory_count` | state inventory -> inventory.count==4 | AC-079.2, AC-079.7 |
+| 31 | `inventory_items` | state inventory -> Health Potion, Upgrade Key, Unidentified Purple Amulet and Rusty Sword, once each, by item id and display name | AC-079.2, AC-079.7 |
+| 32 | `ledger_count` | state inventory -> inventory.ledger_count==2 | AC-079.7 |
+| 33 | `ledger_entries` | state inventory -> inventory.ledger is Iron Ore x1 and Town Stone x1 (auto-stored) | AC-079.7 |
+| 34 | `menu_opens_inventory` | tap I -> wait_until pause_menu.open==true && pause_menu.active_tab=="inventory" | AC-079.8 |
+| 35 | `menu_rows` | wait_until len(pause_menu.inventory_tab.rows)==4 (rendered item rows) | AC-079.9, US-071:AC-071.4 |
+| 36 | `unidentified_badge` | state pause_menu -> the amulet row's text starts with "?" and unidentified==true | AC-079.11, US-071:AC-071.4 |
+| 37 | `menu_ledger_rows` | state pause_menu -> 2 rendered pause_menu.inventory_tab.ledger_rows | AC-079.9, US-071:AC-071.10 |
+| 38 | `identify_button` | state pause_menu -> the amulet row has an enabled 'Identify' button on screen | AC-079.11 |
+| 39 | `filter_weapons` | click_button(button_id="weapons") -> wait_until len(pause_menu.inventory_tab.rows)==1 && pause_menu.inventory_tab.rows[0].text=="Rusty Sword" | AC-079.11, US-071:AC-071.7, US-071:AC-071.8 |
+| 40 | `filter_armor_empty` | click_button(button_id="armor") -> wait_until pause_menu.inventory_tab.list_placeholder=="No items match this filter." && len(pause_menu.inventory_tab.rows)==0 | US-071:AC-071.8, US-071:AC-071.15 |
+| 41 | `filter_all` | click_button(button_id="all") -> wait_until len(pause_menu.inventory_tab.rows)==4 | US-071:AC-071.7 |
+| 42 | `identify_click` | re-read the amulet row's 'Identify' button (rows rebuild on a filter click), click Left at its center | - |
+| 43 | `amulet_identified` | state pause_menu, inventory -> the amulet row reads 'Mysterious Amulet' with no Identify button and the item is identified | US-071:AC-071.12, US-071:AC-071.13 |
+| 44 | `menu_closes_escape` | tap Escape -> wait_until pause_menu.open==false | US-069:AC-069.10 |

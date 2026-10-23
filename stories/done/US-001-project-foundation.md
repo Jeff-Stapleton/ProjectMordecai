@@ -117,3 +117,34 @@ Get a running UE 5.7 project with a controllable player character in a test leve
 - [x] All tests passing (green)
 - [x] `Scripts/Verify.bat` passes (tests + build)
 - [x] Code committed and pushed with `[US-001]` prefix
+
+## Playtest
+Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtests_v1.md`).
+
+- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience)
+- **Tier 4 script:** `Scripts/playtests/us001_movement.py` — run: `py Scripts/playtest_story.py US-001`
+- **Steps:** (generated: `py Scripts/playtest_story.py US-001 --plan`; checked: `--lint`)
+
+| # | Check | Player step (bridge calls) → expected | Proves |
+|---|---|---|---|
+| 1 | `hud_visible` | state widgets -> a CombatHUD, a HealthBar and a StaminaBar widget on screen and the text "10 / 10" (SP bar) | AC-2.2.5 |
+| 2 | `spawn_state` | state player, actors -> player.valid && !player.is_dead, within 100 cm of (0, 0), pawn native class MordecaiCharacter | AC-2.3.3 |
+| 3 | `imc_active` | state input -> "MordecaiIMC_Runtime" in input.mapping_contexts | AC-1.3.2 |
+| 4 | `move_a` | hold A 0.4s -> player.location moves > 100 cm along -Y, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 5 | `move_w` | hold W 0.4s -> player.location moves > 100 cm along +X, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 6 | `move_d` | hold D 0.4s -> player.location moves > 100 cm along +Y, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 7 | `move_s` | hold S 0.4s -> player.location moves > 100 cm along -X, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 8 | `camera_fixed` | wait_until player.control_rotation == [-50, 0, 0] (+-0.5) after the moves | AC-1.2.2 |
+| 9 | `no_camera_rotation_input` | axis Gamepad_RightX=1, Gamepad_RightY=1 held; mouse to (200,100), (1100,620), (640,360) -> player.control_rotation stays [-50, 0, 0] at every sample | AC-1.2.4, AC-1.2.2 |
+| 10 | `walk_lane_wp1` | walk_to(0, -650) -> within 60 cm (waypoint to lane L1) | - |
+| 11 | `walk_lane_wp2` | walk_to(-700, -650) -> within 60 cm (waypoint to lane L1) | - |
+| 12 | `walk_lane_start` | walk_to(-700, -800) -> within 60 cm (lane L1 start) | - |
+| 13 | `walk_speed_baseline` | hold W 1s -> dx in [400, 700] cm and wait_until player.speed<1 within 0.75s of the release | AC-2.1.6 |
+| 14 | `walk_lane_reset` | walk_to(-700, -800) -> within 60 cm | - |
+| 15 | `sprint_shift` | tap LeftShift, hold W 1s -> dx > 700 cm (then tap LeftShift again to toggle back) _(known issue: sprint, jump, attacks, block and dodge are not bound at runtime (Specs/agent_playtest_plan_v1.md))_ | AC-1.3.3, AC-2.1.3 |
+| 16 | `walk_lane_reset2` | walk_to(-700, -800) -> within 60 cm | - |
+| 17 | `sprint_l3` | tap Gamepad_LeftThumbstick (L3), hold W 1s -> dx > 700 cm (then tap L3 again) _(known issue: sprint, jump, attacks, block and dodge are not bound at runtime (Specs/agent_playtest_plan_v1.md); Known issue: gamepad stick and L3 mappings use invalid FKey names (Specs/agent_playtest_plan_v1.md))_ | AC-1.3.3, AC-2.1.3 |
+| 18 | `jump_space` | tap SpaceBar -> wait_until player.movement_mode=="Falling" within 1s _(known issue: sprint, jump, attacks, block and dodge are not bound at runtime (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.4 |
+| 19 | `facing_mouse` | mouse 1100 360 (right of the player, +Y) -> wait_until player.rotation yaw 90 (+-30) within 1s _(known issue: facing and aim are pinned to +X by the diorama camera (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.2 |
+| 20 | `facing_stick` | axis Gamepad_RightX=-1 held (left, -Y) -> wait_until player.rotation yaw -90 (+-30) within 1s, then release _(known issue: facing and aim are pinned to +X by the diorama camera (Specs/agent_playtest_plan_v1.md); Known issue: gamepad stick and L3 mappings use invalid FKey names (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.2 |
+| 21 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm _(known issue: gamepad stick and L3 mappings use invalid FKey names (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.1, AC-1.3.2 |

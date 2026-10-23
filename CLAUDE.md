@@ -321,9 +321,24 @@ The in-game agent bridge (`UMordecaiAgentBridgeSubsystem`, `Source/LyraGame/Mord
 - Any new commit makes HEAD differ from the packaged commit, so the build goes STALE — including a commit that only fixes the playtest script. Commit the script with the story's code before packaging (Step 5); a later script fix means commit → re-package → re-run Step 4c and Step 4d.
 - NEVER use `--allow-stale` for acceptance evidence. That report is headed `DIAGNOSTIC ONLY -- not acceptance evidence`.
 
+**Story playtests (Phase 3, `Specs/story_playtests_v1.md`):**
+- Every Tier 4 script is a `PlaytestRun` subclass on `Scripts/playtest_kit.py`.
+  - It declares its `PLAN`: one `Step(check, does, proves=(AC ids), known_issue=...)` per player step.
+  - Its step helpers (`walk`, `press`, `expect`, `click_button`, `observe`, `shot`, ...) map 1:1 to bridge calls.
+  - Its report says, per AC, whether the run accepted it. Only a launched, fresh, clean-tree run with exit 0 accepts anything.
+- `py Scripts/playtest_story.py US-XXX` runs the Tier 3 boot and the story's Tier 4 script on the same package and writes `Saved\Playtests\<ts>-story-usXXX\summary.md`. Use it for Steps 4c and 4d.
+- `py Scripts/playtest_story.py US-XXX --plan` prints the Steps table for the story's Playtest section.
+- `py Scripts/playtest_story.py US-XXX --lint` checks that the story and its script agree.
+- `py Scripts/playtest_story.py --all` is the Playability Recovery sweep over every script. It reports per-feature Playable Status lines and marks each failure NEW or known.
+- `known_issue` marks a check that is expected to FAIL because of a filed bug. The check still FAILs and still exits 1; the report just shows it as known instead of NEW.
+- Exploratory play (not evidence): `py Scripts/explore_playtest.py --minutes 20` runs a headless Claude session with only the `mordecai-play` tools. It files findings and runs crash, stuck, log and blank-frame detectors, then writes `Saved\Playtests\<ts>-explore\report.md`.
+
 **2. Run:**
 ```powershell
-# The story's real-input playtest: launches the package with -AgentBridge, plays it, quits
+# Tier 3 + Tier 4 for one story, on the same package (preferred)
+py Scripts/playtest_story.py US-XXX
+
+# The story's real-input playtest alone: launches the package with -AgentBridge, plays it, quits
 py Scripts/playtests/usXXX_<name>.py
 
 # The first one: US-079 inventory (walk to the 6 pickups, F, I, click Identify, Escape)

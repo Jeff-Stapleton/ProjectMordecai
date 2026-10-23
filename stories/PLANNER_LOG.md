@@ -2900,3 +2900,86 @@ Guardrails for this run:
 
 ### Outcome
 (appended below after the agent completes)
+
+---
+
+## 2026-10-22 Phase 3 Recovery Sweep
+
+Inputs: `py Scripts/playtest_story.py --all` on a fresh, clean package of `8ea853b` (`feature/playtest-phase3`) — `Saved/Playtests/20261022-184702-sweep/summary.md` (6 Tier 4 scripts FAIL, Tier 3 DevTestMap boot PASS `Saved/Playtests/20261022-184702-boot`); first exploratory-agent run on the same package — `Saved/Playtests/20261022-185207-explore/report.md`; Known issues backlog of `Specs/agent_playtest_plan_v1.md` (N1-N21, B1-B2). Per `stories/PLANNER.md` §5.1 the Playability Recovery epic (Epic R) now outranks every system epic.
+
+### Completed Since Last Run
+- None moved to done by this run. (Phase 2/3 tooling landed on `feature/playtest-phase3`; no story closed.)
+
+### Currently In Progress
+- US-071 Inventory Widget (HEADLESS) — stays in progress
+- US-079 Playable Inventory Arena (EDITOR) — stays in progress; its Tier 4 (`Saved/Playtests/20261022-184957-us079`) now FAILS on the second-open CommonUI pool bug (`menu_rows`, `unidentified_badge`, `menu_ledger_rows`, `identify_button`, `filter_*`). Both resume after US-094.
+
+### New Stories Created (Epic R: Playability Recovery, dependency order)
+- US-083 Player combat abilities granted at runtime + attack/dodge/block/sprint/jump bound — HEADLESS, P0, no pair (checks `sprint_shift`, `jump_space`, `melee_lmb`, `dodge_lalt`, `light_attack_lmb`, `heavy_attack_hold`)
+- US-084 Enemy attacks reach the player (code) + enemy content guards — HEADLESS, P0, paired with US-085
+- US-085 Frontliner content: visible mesh, 200 HP, attack profiles, placement — EDITOR, P0, paired with US-084 (checks `enemies_present`, `enemies_visible`, `enemy_damages_player` + the death/respawn chain; `move_a`, `walk_lane_wp1`)
+- US-094 Inventory tab current on every menu open (CommonUI pool) — HEADLESS, P0 (us079 `menu_rows` … `amulet_identified`)
+- US-086 Death screen on death + kill counter counts kills — HEADLESS, P1 (`death_screen`, new `kill_enemy_melee`, `kill_counter_increments`)
+- US-087 Fireball flies and hits; Blink moves and ends its invulnerability — HEADLESS, P1 (`fireball_projectile`, `fireball_hits_enemy`, new `blink_past_enemy`, `blink_invulnerability_ends`; N15, N11, N19, N20)
+- US-088 Spell cooldown tags + four bound HUD cooldown widgets — HEADLESS, P1, paired with US-089 (`cooldown_widgets`)
+- US-089 DA_Spell_* cooldown tags and durations — EDITOR, P1, paired with US-088 (`fireball_cooldown_state`, `cooldown_hud`)
+- US-091 HUD readouts: status names, weapon name, no debug text — HEADLESS, P1 (`stone_skin_indicator`, `weapon_hud_text`, `weapon_hud_updates`; Tier 3 screenshots free of debug text)
+- US-092 Enemy indicators — HEADLESS, P1 (`enemy_indicators`)
+- US-093 Pause menu Character / Skills / Feats contents — HEADLESS, P1 (`character_tab_content`, `skills_tab_content`, `feats_tab_content`)
+- US-095 Pause menu input: I closes, LB/RB switch tabs — HEADLESS, P1 (`i_closes`, `shoulder_switches_tab`, new `shoulder_rb_switches_tab`)
+- US-097 Gamepad move / look / sprint key names — HEADLESS, P1 (`gamepad_move`, `sprint_l3`)
+- US-096 Previous-weapon key + weapon effects reach the ASC — HEADLESS, P2, decision-gated (`cycle_prev_shift_tab`)
+- US-098 Facing and aim follow mouse / right stick — HEADLESS, P2, BLOCKED on decision (`facing_mouse`, `facing_stick`)
+- US-099 Player visible behind near walls — HEADLESS (EDITOR pair possible), P2, BLOCKED on decision (new `walk_sw_corner` + `sw_corner` screenshot in us001)
+- US-090 Spell point budget — HEADLESS, P2, BLOCKED on decision (new `all_spells_castable`)
+- Not storied: B1/B2 bridge gaps (tooling, not game bugs; `pickup_labels` stays known), cosmetic backlog items (rotated pickup labels, filter-bar overlap, Lyra loading screen), N22 (decision only, below).
+
+### Playable Status
+All lines from the sweep summary, condensed (failed checks, NEW first) @ `8ea853b`. Tier 3 boot of DevTestMap PASSed (`Saved/Playtests/20261022-184702-boot`), so the build and experience are fine; every feature below fails its Tier 4 run.
+- Playable status: movement — NOT PLAYABLE (playtest FAIL: move_a (NEW), walk_lane_wp1 (NEW), sprint_shift, sprint_l3, jump_space, facing_mouse, facing_stick, gamepad_move; Tier 4 Saved/Playtests/20261022-184725-us001 @ 8ea853b) → US-085, US-083, US-097, US-098
+- Playable status: camera — NOT PLAYABLE (same us001 run; camera_fixed / no_camera_rotation_input PASS, the run fails on movement/facing; plus N21 walls hide the player, explore run) → US-098, US-099
+- Playable status: sprint — NOT PLAYABLE (sprint_shift, sprint_l3; Tier 4 Saved/Playtests/20261022-184725-us001 @ 8ea853b) → US-083, US-097
+- Playable status: enemies — NOT PLAYABLE (playtest FAIL: enemies_present (NEW), enemy_indicators (NEW), enemy_damages_player (NEW), enemies_visible, dodge_lalt; Tier 4 Saved/Playtests/20261022-184803-us054 @ 8ea853b) → US-084/US-085
+- Playable status: enemy_ai — NOT PLAYABLE (same us054 run; aggro/approach PASS, enemy_damages_player NEW FAIL) → US-084/US-085
+- Playable status: combat_hud — NOT PLAYABLE (same us054 run; hud_visible/hud_layout PASS, run FAILs) → US-091, US-092
+- Playable status: melee_attack — NOT PLAYABLE (us054: melee_lmb PASS is a false positive (enemy 100 < 200 threshold), dodge_lalt; us078: light_attack_lmb, heavy_attack_hold; Tier 4 Saved/Playtests/20261022-184803-us054 + Saved/Playtests/20261022-184940-us078 @ 8ea853b) → US-083
+- Playable status: dodge — NOT PLAYABLE (dodge_lalt; Saved/Playtests/20261022-184803-us054 @ 8ea853b) → US-083
+- Playable status: block_parry — NOT PLAYABLE (unbound; PENDING TIER 4 (bridge cannot drive: B2 mouse hold)) → US-083
+- Playable status: death_respawn — NOT PLAYABLE (player_dies … respawn_moves SKIP: enemies never hit; death_screen known N2; Saved/Playtests/20261022-184803-us054 @ 8ea853b) → US-085, US-086
+- Playable status: kill_counter — NOT PLAYABLE (no kill path; kill_counter_text_matches only compares 'Kills: 0'; N1; Saved/Playtests/20261022-184803-us054 @ 8ea853b) → US-086
+- Playable status: enemy_indicators — NOT PLAYABLE (enemy_indicators (NEW); Saved/Playtests/20261022-184803-us054 @ 8ea853b) → US-092
+- Playable status: status_effects — NOT PLAYABLE (stone_skin_indicator (NEW) 'Status' not 'StoneSkin'; burning_on_hit SKIP; N19 Invulnerable tag sticks (explore); Saved/Playtests/20261022-184841-us057 + Saved/Playtests/20261022-184803-us054 @ 8ea853b) → US-091, US-087, US-085
+- Playable status: spells — NOT PLAYABLE (playtest FAIL: fireball_projectile (NEW), fireball_hits_enemy (NEW), stone_skin_indicator (NEW), cooldown_widgets, fireball_cooldown_state, cooldown_hud; N20 Blink 0 cm (explore); Tier 4 Saved/Playtests/20261022-184841-us057 @ 8ea853b) → US-087, US-088/089, US-090
+- Playable status: spell_hud — NOT PLAYABLE (cooldown_widgets, cooldown_hud, stone_skin_indicator (NEW); Saved/Playtests/20261022-184841-us057 @ 8ea853b) → US-088/089, US-091
+- Playable status: projectiles_aim — NOT PLAYABLE (fireball_projectile (NEW), fireball_hits_enemy (NEW); facing pinned; Saved/Playtests/20261022-184841-us057 @ 8ea853b) → US-087, US-098
+- Playable status: pause_menu — NOT PLAYABLE (us069: shoulder_switches_tab (NEW), character_tab_content, skills_tab_content, feats_tab_content, i_closes; us079: menu_rows (NEW) … filter_all (NEW), pickup_labels; Tier 4 Saved/Playtests/20261022-184913-us069 + Saved/Playtests/20261022-184957-us079 @ 8ea853b) → US-093, US-094, US-095
+- Playable status: character_sheet — NOT PLAYABLE (character_tab_content, N4; Saved/Playtests/20261022-184913-us069 @ 8ea853b) → US-093
+- Playable status: skill_tree_ui — NOT PLAYABLE (skills_tab_content, N5; Saved/Playtests/20261022-184913-us069 @ 8ea853b) → US-093
+- Playable status: feat_ui — NOT PLAYABLE (feats_tab_content, N5; Saved/Playtests/20261022-184913-us069 @ 8ea853b) → US-093
+- Playable status: weapons — NOT PLAYABLE (playtest FAIL: weapon_hud_text, cycle_prev_shift_tab, light_attack_lmb, heavy_attack_hold; Tier 4 Saved/Playtests/20261022-184940-us078 @ 8ea853b; cycling with Tab/BackSlash/Y PASSes) → US-091, US-096, US-083
+- Playable status: weapon_hud — NOT PLAYABLE (weapon_hud_text, N3; Saved/Playtests/20261022-184940-us078 @ 8ea853b) → US-091
+- Playable status: inventory — NOT PLAYABLE (playtest FAIL: menu_rows (NEW), unidentified_badge (NEW), menu_ledger_rows (NEW), identify_button (NEW), filter_weapons (NEW), filter_armor_empty (NEW), filter_all (NEW), pickup_labels; Tier 4 Saved/Playtests/20261022-184957-us079 @ 8ea853b) → US-094, then US-071/US-079
+- Playable status: pickups — NOT PLAYABLE (same us079 run; all six walk/focus/prompt/pickup checks PASS, pickup_labels known B1 bridge gap; the script fails on the menu) → US-094
+- Playable status: identification — NOT PLAYABLE (identify_button (NEW), identify_click/amulet_identified SKIP; Saved/Playtests/20261022-184957-us079 @ 8ea853b) → US-094
+- PENDING PAIR tracking: enemies (US-084 → US-085), spell cooldowns (US-088 → US-089)
+
+### Blockers / Decisions Needed (Jeff)
+- TODO(DECISION) N6 — spell point budget: MaxSP 10 vs loadout cost 12, no regen, no restore on respawn. Raise max / derive from INT-WIS, add regen, restore on respawn, or lower costs? (blocks US-090)
+- TODO(DECISION) facing — fixed +X facing (current) vs aim-driven facing from mouse / right stick (control_bindings, AC-2.1.2)? (blocks US-098)
+- TODO(DECISION) N21 — cutaway approach for walls that hide the player: fade/hide occluders, silhouette, or lower near-side walls by map rule? (blocks US-099)
+- TODO(DECISION) N9 — previous weapon: Shift+Tab (AC-078.7; conflicts with the Left Shift sprint toggle) or keep BackSlash and amend AC-078.7? Also: control_bindings lists Tab as "Weapon Set Swap", not a 5-weapon cycle (US-096)
+- TODO(DECISION) N18 — keep LB/RB pause-menu tab switching (AC-069.4) or drop it? (US-095 AC-095.3/095.4)
+- TODO(DECISION) gamepad spell buttons — AC-057.5 (Spell1 LB/Q, Spell2 RB/E, Spell3 LB+RB/R) vs control_bindings (Skill A RB/Q, Skill B LB/E); LB+RB is not mapped (US-097 note)
+- TODO(DECISION) Frontliner placement — enemies sit inside AggroRange (900 cm) of PlayerStart and swarm the spawn; move them out of aggro, or move us001's movement lanes? (US-085)
+- TODO(DECISION) enemy health readouts — once indicators work, remove the old `WBP_EnemyHealthBar` widget component (US-064 was a migration)? (US-092)
+- TODO(DECISION) heavy-attack hold threshold (control_bindings: "depends on weapon"); US-083 defaults to 0.4 s exposed as a UPROPERTY
+- TODO(DECISION) N22 (no story) — picked-up items have no Use or Equip action (Health Potion unusable, Rusty Sword cannot be equipped or added to the weapon cycle; explore run `Saved/Playtests/20261022-185207-explore/report.md`). Is item use/equip in scope before Epic 6 armor/equipment (US-072 equipment panel)?
+- TODO(DECISION) Settings tab — still "Coming Soon" (AC-069.3 accepts a placeholder); is a real Settings tab wanted now?
+- TODO(DECISION) "I — Inventory" is bound in code but missing from `Specs/control_bindings_v1.1.md`
+- Standing: scheduler for the worker/explorer is still undecided (`Specs/agent_playtest_plan_v1.md` Open decisions).
+
+### Next Session Recommendation
+- Worker: Batch 1 — US-083 (HEADLESS) → US-084 (HEADLESS) → US-085 (EDITOR, directly after its pair). Then US-094 (HEADLESS) so US-071/US-079 can resume, then US-086.
+- Each story: the named checks must go FAIL → PASS on a fresh package via `py Scripts/playtest_story.py US-0XX` of the owning story; remove the check's `known_issue` in the same commit as the fix (before packaging).
+- Re-run `py Scripts/playtest_story.py --all` on a fresh package after each batch and append the new Playable Status lines here; file every NEW failure (the death/respawn chain will run for the first time after US-085).
+- Ask Jeff for the decisions above; US-090, US-098, US-099 (and parts of US-095/US-096) cannot start without them.

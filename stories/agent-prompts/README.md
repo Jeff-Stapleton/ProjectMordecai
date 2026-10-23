@@ -4,6 +4,7 @@ These are the prompts the old OpenClaw crons fed to Claude Code for the nightly 
 
 - `planner-prompt.txt`: the nightly planner. It follows `stories/PLANNER.md`.
 - `worker-prompt.txt`: picks the next story and spawns a coding agent that follows the repo-root `CLAUDE.md`.
+- `explorer-prompt.txt`: the nightly exploratory playtest, run after the planner (`Specs/story_playtests_v1.md` §5.4). It runs `py Scripts/explore_playtest.py --minutes 20` on the existing package, then has Claude Code triage the report: open the screenshots behind every new finding, and file each confirmed bug in the Known issues backlog of `Specs/agent_playtest_plan_v1.md` or as a Playability Recovery story. Written for no particular scheduler; it was never an OpenClaw job.
 
 Steps that send to Discord through "the message tool" rely on OpenClaw's tooling. Under any other scheduler they need a replacement notification step.
 
