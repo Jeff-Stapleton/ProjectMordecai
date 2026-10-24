@@ -39,16 +39,20 @@ STORY_FILES = [os.path.join(os.path.dirname(SCRIPTS), "stories", d,
 TOKEN = "us083-token"
 INPUT_AND_READ_CMDS = {"ping", "state", "key", "axis", "click", "screenshot", "wait_until",
                        "wait"}
+LANE_CHECKS = ["walk_lane_wp1", "walk_lane_wp2", "walk_lane_start", "walk_lane_run_up",
+               "sprint_left_shift"]
 KB_MOUSE_CHECKS = ["light_attack_lmb_tap", "heavy_attack_lmb_hold", "dodge_left_alt",
-                   "jump_space_bar", "walk_lane_wp1", "walk_lane_wp2", "walk_lane_start",
-                   "sprint_left_shift"]
+                   "jump_space_bar"]
 # The Frontliners where the packaged game spawns them (us054 enemies_present on 01abb8b), as
 # blocks the size of their capsule (x0, x1, y0, y1).  Here they stay put; in the game they follow
 # the player and stand within 200 cm of it.
 FRONTLINERS_AT_SPAWN = tuple((x - 40.0, x + 40.0, y - 40.0, y + 40.0)
                              for x, y in ((196.0, 0.0), (-123.0, 153.0), (-123.0, -153.0)))
-# A wall across the arena between where the dodges leave the player and lane L1's first waypoint
+# A wall across the arena between the spawn and lane L1's first waypoint
 LANE_BLOCKER = (-470.0, -440.0, -975.0, 975.0)
+# A Frontliner that followed the player and cut the corner onto lane L1, just past the lane start
+# (Saved/Playtests/20261024-115717-us083: one stood on the lane line 160-200 cm east of the player)
+ENEMY_ON_THE_LANE = (-560.0, -480.0, -840.0, -760.0)
 
 
 def load_playtest():
@@ -307,12 +311,15 @@ class TestUs083Plan(unittest.TestCase):
         self.assertEqual(us083.main(["--plan"]), 0)
         rows = [line for line in out.getvalue().splitlines() if line.startswith("| ")]
         self.assertEqual(len(rows), 1 + len(us083.PLAN))
-        self.assertTrue(rows[1].startswith("| 1 | `block_lt_hold` |"))
-        # The gamepad half first (10 steps, unchanged), then the keyboard and mouse half
-        self.assertEqual(PLAN_CHECKS[10:], KB_MOUSE_CHECKS)
-        self.assertEqual(len(PLAN_CHECKS), 18)
-        self.assertTrue(rows[11].startswith("| 11 | `light_attack_lmb_tap` |"))
-        self.assertTrue(rows[-1].startswith("| 18 | `sprint_left_shift` |"))
+        # The lane walk and the sprint first (before any dodge), then the gamepad (10 steps), then
+        # the keyboard and mouse
+        self.assertTrue(rows[1].startswith("| 1 | `walk_lane_wp1` |"))
+        self.assertEqual(PLAN_CHECKS[:5], LANE_CHECKS)
+        self.assertEqual(PLAN_CHECKS[15:], KB_MOUSE_CHECKS)
+        self.assertEqual(len(PLAN_CHECKS), 19)
+        self.assertTrue(rows[6].startswith("| 6 | `block_lt_hold` |"))
+        self.assertTrue(rows[16].startswith("| 16 | `light_attack_lmb_tap` |"))
+        self.assertTrue(rows[-1].startswith("| 19 | `jump_space_bar` |"))
 
     def test_keyboard_and_mouse_steps_prove_ac_083_4_to_8(self):
         proves = {s.check: s.proves for s in us083.PLAN}
@@ -321,7 +328,7 @@ class TestUs083Plan(unittest.TestCase):
                           ("dodge_left_alt", "AC-083.6"), ("jump_space_bar", "AC-083.7"),
                           ("sprint_left_shift", "AC-083.8")):
             self.assertEqual(proves[check], (ac, "AC-083.3"), check)
-        for check in ("walk_lane_wp1", "walk_lane_wp2", "walk_lane_start"):
+        for check in ("walk_lane_wp1", "walk_lane_wp2", "walk_lane_start", "walk_lane_run_up"):
             self.assertEqual(proves[check], (), check)
         self.assertIn("sprint", us083.Us083Run.FEATURES)
 
@@ -379,21 +386,27 @@ class TestUs083AgainstTheFake(Us083Case):
             if m["cmd"] == "axis" and m.get("hold_s") is None:
                 held.update(m["values"])
         self.assertEqual({k: v for k, v in held.items() if v}, {})
-        # The lane walk starts where the two backward dodges left the player and its first pulse
-        # leads away from the Frontliners (S), not back through them (W+A to us001's (0, -650))
+        # The lane walk comes first, from the spawn and before any dodge; its first pulse leads
+        # west between the Frontliners' spawn points (S); then a run-up along the lane (+X)
         walks = [i for i, e in enumerate(entries)
                  if e["dir"] == "note" and e["msg"].get("note") == "walk_to"]
         self.assertEqual([entries[i]["msg"]["to"] for i in walks],
-                         [[-650.0, 0.0], [-700.0, -650.0], [-700.0, -800.0]])
+                         [[-650.0, 0.0], [-700.0, -650.0], [-700.0, -800.0], [-300.0, -800.0]])
         start = entries[walks[0]]["msg"]["from"]
-        self.assertLess(start[0], -250.0, "two 140 cm dodges backward")
+        self.assertLess(abs(start[0]), 30.0, "the spawn")
         self.assertLess(abs(start[1]), 30.0)
+        first_dodge = next(i for i, e in enumerate(entries)
+                           if e["dir"] == "send" and e["msg"]["cmd"] == "key"
+                           and e["msg"].get("key") in (us083.DODGE_KEY, us083.KB_DODGE_KEY))
+        self.assertLess(walks[-1], first_dodge, "every walk comes before the first dodge")
         first_pulse = next(e["msg"] for e in entries[walks[0]:]
                            if e["dir"] == "send" and e["msg"]["cmd"] == "key")
         self.assertEqual(first_pulse.get("keys") or [first_pulse.get("key")], ["S"])
-        self.assertEqual([s["label"] for s in rep["screenshots"]], ["blocking", "lane_start"])
+        self.assertEqual([s["label"] for s in rep["screenshots"]], ["lane_start", "blocking"])
         movement = {m["check"]: m for m in rep["movement"]}
         self.assertGreater(movement["sprint_left_shift"]["dx"], 700)
+        self.assertGreater(movement["sprint_left_shift"]["start"][0], -360.0,
+                           "the sprint starts at the run-up point, not the lane start")
         self.assertLess(movement["sprint_left_shift_toggle_back"]["dx"], -400)
         self.assertEqual(movement["sprint_left_shift_toggle_back"]["peak_speed"], 600.0)
         acs = {a["id"]: a for a in rep["acs"]}
@@ -494,8 +507,8 @@ class TestUs083AgainstTheFake(Us083Case):
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(self.statuses(rep, "FAIL"),
-                         ["light_attack_lmb_tap", "heavy_attack_lmb_hold", "dodge_left_alt",
-                          "jump_space_bar", "sprint_left_shift"])
+                         ["sprint_left_shift", "light_attack_lmb_tap", "heavy_attack_lmb_hold",
+                          "dodge_left_alt", "jump_space_bar"])
         self.assertEqual(self.statuses(rep, "SKIP"), [])
         self.assertEqual([s for s, _ in world.attacks_seen], ["RT", "RT", "RT"])
         acs = {a["id"]: a for a in rep["acs"]}
@@ -617,10 +630,11 @@ class TestUs083AgainstTheFake(Us083Case):
         checks = self.by_name(rep)
         self.assertIn("walk_lane_wp1", rep["new_failures"])
         for name in ("walk_lane_wp2", "walk_lane_start", "screenshot_lane_start",
-                     "sprint_left_shift"):
+                     "walk_lane_run_up", "sprint_left_shift"):
             self.assertEqual(checks[name]["status"], "SKIP", name)
         self.assertIn("previous waypoint was not reached", checks["walk_lane_wp2"]["detail"])
-        self.assertIn("not at the lane start", checks["sprint_left_shift"]["detail"])
+        self.assertIn("not at the lane start", checks["walk_lane_run_up"]["detail"])
+        self.assertIn("not at the run-up point", checks["sprint_left_shift"]["detail"])
         for name in ("light_attack_lmb_tap", "heavy_attack_lmb_hold", "dodge_left_alt",
                      "jump_space_bar"):
             self.assertEqual(checks[name]["status"], "PASS", name)
@@ -629,6 +643,20 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertEqual(acs["AC-083.3"]["status"], "NOT RUN")
         self.assertEqual(acs["AC-083.7"]["status"], "PASS")
         self.assertEqual(rep["movement"], [])
+
+    def test_an_enemy_that_cut_the_corner_onto_the_lane_does_not_stop_the_sprint(self):
+        # The run-up walks around it (side-steps), so the sprint starts past it on a clear lane.
+        # A sprint from the lane start would run into it (dx far below 700 cm)
+        _, server = self.serve(obstacles=fb.DEVTESTMAP_OBSTACLES + FRONTLINERS_AT_SPAWN
+                               + (ENEMY_ON_THE_LANE,))
+        code, rep = self.play(server)
+        self.assertEqual(self.statuses(rep, "FAIL"), [], self.log.getvalue()[-4000:])
+        self.assertEqual(code, 0)
+        self.assertNotRegex(self.by_name(rep)["walk_lane_run_up"]["detail"],
+                            r"(?<!\d)0 side-steps")
+        movement = {m["check"]: m for m in rep["movement"]}
+        self.assertGreater(movement["sprint_left_shift"]["start"][0], ENEMY_ON_THE_LANE[1])
+        self.assertGreater(movement["sprint_left_shift"]["dx"], 700)
 
 
 if __name__ == "__main__":

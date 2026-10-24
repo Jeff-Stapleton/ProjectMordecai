@@ -66,32 +66,33 @@ All fixes are C++ (ability granting, IMC mapping/binding, melee profile routing)
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: the story's own run `py Scripts/playtest_story.py US-083` (DevTestMap, same package), which accepts AC-083.3..AC-083.8 and AC-083.10, then the owning stories' scripts on the same package — `py Scripts/playtest_story.py US-001`, `py Scripts/playtest_story.py US-054`, `py Scripts/playtest_story.py US-078`
-- **Player steps:** `us083_combat_input.py`, gamepad: at the spawn hold LT (block), pull RT while blocking (parry), keep LT held until the guard returns, release LT; LT + RT at 0.3 (no parry); RT held, then LT (block, no parry); tap RT (light attack), hold RT 0.8 s (heavy), tap B (dodge), tap A (jump). Keyboard and mouse, still near the spawn: click LMB (light attack), hold LMB 0.8 s (heavy), tap Left Alt (dodge), tap Space (jump); walk to lane L1 and tap Left Shift then hold W 1 s (sprint), tap Left Shift again and hold S 1 s (back to a walk). The owning stories' scripts play the same keyboard/mouse inputs: us001 Space and Left Shift in lane L1; us054 LMB and Left Alt next to Frontliner_3; us078 LMB tap and hold
-- **Visible on screen:** the player in the diorama arena with the combat HUD; the attack/dodge are state-checked (tags, displacement) — us083 screenshots `blocking` (LT held at the spawn) and `lane_start` (the player at the lane L1 start); `us054` `near_enemy` shows the player next to the enemy
+- **Player steps:** `us083_combat_input.py`, first, from the spawn before any dodge: walk to lane L1, run up along it to (-300, -800), tap Left Shift then hold W 1 s (sprint), tap Left Shift again and hold S 1 s (back to a walk). The invisible enemies (N14) follow the player at 400 cm/s; walking first, and running up along the lane, keeps them behind it. Then the gamepad: hold LT (block), pull RT while blocking (parry), keep LT held until the guard returns, release LT; LT + RT at 0.3 (no parry); RT held, then LT (block, no parry); tap RT (light attack), hold RT 0.8 s (heavy), tap B (dodge), tap A (jump). Then the keyboard and mouse: click LMB (light attack), hold LMB 0.8 s (heavy), tap Left Alt (dodge), tap Space (jump). The owning stories' scripts play the same keyboard/mouse inputs: us001 Space and Left Shift in lane L1; us054 LMB and Left Alt next to Frontliner_3; us078 LMB tap and hold
+- **Visible on screen:** the player in the diorama arena with the combat HUD; the attack/dodge are state-checked (tags, displacement) — us083 screenshots `lane_start` (the player at the lane L1 start) and `blocking` (LT held, after the sprint); `us054` `near_enemy` shows the player next to the enemy
 - **Proof:** Tier 3 boot shows the arena and HUD; Tier 4 `Scripts/playtests/us083_combat_input.py` (the story's own run, exit 0) accepts AC-083.3..AC-083.8 and AC-083.10: gamepad block and parry (AC-083.10), the gamepad attack/dodge/jump keys, and the keyboard/mouse checks `light_attack_lmb_tap`, `heavy_attack_lmb_hold`, `dodge_left_alt`, `jump_space_bar`, `sprint_left_shift`; the owning stories' checks `jump_space`, `sprint_shift` (us001), `melee_lmb`, `dodge_lalt` (us054), `light_attack_lmb`, `heavy_attack_hold` (us078) play the same inputs; mouse block/parry (AC-083.11) PENDING TIER 4 (bridge cannot drive: B2 mouse hold)
 - **Tier 4 script:** `Scripts/playtests/us083_combat_input.py` (`py Scripts/playtest_story.py US-083`) for the gamepad AND the keyboard/mouse inputs (LMB tap/hold, LeftAlt, Space, LeftShift sprint in lane L1), plus the owning stories' scripts — `Scripts/playtests/us001_movement.py` (`py Scripts/playtest_story.py US-001`), `Scripts/playtests/us054_arena.py` (`py Scripts/playtest_story.py US-054`), `Scripts/playtests/us078_weapons.py` (`py Scripts/playtest_story.py US-078`); run them together with `py Scripts/playtest_story.py --all` on the same package (that also covers `gamepad_back_closes` of us069, Technical Notes)
 - **Steps:** `Scripts/playtests/us083_combat_input.py` (from `py Scripts/playtest_story.py US-083 --plan`):
 
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| 1 | `block_lt_hold` | axis Gamepad_LeftTriggerAxis=1 (held) -> 'Mordecai.State.Blocking' in player.tags within 1s | AC-083.10, AC-083.3 |
-| 2 | `parry_rt_while_blocking` | LT held, axis Gamepad_RightTriggerAxis=1 -> within 0.5s a parry tag (Mordecai.State.Parrying, Mordecai.State.ParryWhiff, Mordecai.State.Riposte) with no 'Mordecai.State.Blocking' and no 'Mordecai.State.Attacking'; then RT=0 | AC-083.10, AC-083.3 |
-| 3 | `guard_returns_after_parry` | LT still held -> 'Mordecai.State.Blocking' again without a parry tag within 2.5s, and no 'Mordecai.State.Attacking' at any read meanwhile | AC-083.10 |
-| 4 | `block_release_lt` | axis Gamepad_LeftTriggerAxis=0 -> 'Mordecai.State.Blocking' gone within 1s | AC-083.10 |
-| 5 | `partial_rt_no_parry` | LT held (Blocking), axis Gamepad_RightTriggerAxis=0.3 for 0.6s -> no parry tag and 'Mordecai.State.Blocking' at every read; then both 0 | AC-083.3 |
-| 6 | `block_over_held_rt_no_parry` | axis Gamepad_RightTriggerAxis=1, 0.15s later Gamepad_LeftTriggerAxis=1 -> 'Mordecai.State.Blocking' within 1s and no parry tag for 0.6s more; then both 0 | AC-083.3 |
-| 7 | `light_attack_rt_tap` | idle -> axis Gamepad_RightTriggerAxis=1 hold_s 0.1 -> 'Mordecai.State.Attacking' without 'Mordecai.Attack.Heavy' within 1s | AC-083.3 |
-| 8 | `heavy_attack_rt_hold` | idle -> axis Gamepad_RightTriggerAxis=1 hold_s 0.8 -> 'Mordecai.Attack.Heavy' in player.tags within 0.5s of the release | AC-083.3 |
-| 9 | `dodge_gamepad_b` | tap Gamepad_FaceButton_Right (B) -> a Dodging tag in player.tags within 0.5s | AC-083.3 |
-| 10 | `jump_gamepad_a` | wait until the dodge is over (no 'Mordecai.State.Dodging') and player.movement_mode=="Walking", tap Gamepad_FaceButton_Bottom (A) -> wait_until player.movement_mode=="Falling" within 1s | AC-083.3 |
-| 11 | `light_attack_lmb_tap` | idle -> click Left at (640, 360) (the bridge's default click) -> 'Mordecai.State.Attacking' without 'Mordecai.Attack.Heavy' within 1s | AC-083.4, AC-083.3 |
-| 12 | `heavy_attack_lmb_hold` | idle -> click Left at (640, 360) held 0.8s -> 'Mordecai.Attack.Heavy' in player.tags within 0.5s of the release | AC-083.5, AC-083.3 |
-| 13 | `dodge_left_alt` | idle (and no Dodging / DodgeCooldown tag left) -> tap LeftAlt -> a Dodging tag in player.tags within 0.5s | AC-083.6, AC-083.3 |
-| 14 | `jump_space_bar` | wait until the dodge is over (no 'Mordecai.State.Dodging') and player.movement_mode=="Walking", tap SpaceBar -> wait_until player.movement_mode=="Falling" within 1s | AC-083.7, AC-083.3 |
-| 15 | `walk_lane_wp1` | walk_to(-650, 0) -> within 60 cm (waypoint to lane L1: west along y=0, away from the enemies) | - |
-| 16 | `walk_lane_wp2` | walk_to(-700, -650) -> within 60 cm (waypoint to lane L1: south, west of Box_02, to us001's waypoint) | - |
-| 17 | `walk_lane_start` | walk_to(-700, -800) -> within 60 cm (lane L1 start) | - |
-| 18 | `sprint_left_shift` | at the lane start: tap LeftShift, hold W 1s -> dx > 700 cm; tap LeftShift again, hold S 1s reading player.speed every 0.05s -> back to a walk (peak 500..750 cm/s) | AC-083.8, AC-083.3 |
+| 1 | `walk_lane_wp1` | walk_to(-650, 0) -> within 60 cm (waypoint to lane L1: west along y=0, between the enemies' spawn points) | - |
+| 2 | `walk_lane_wp2` | walk_to(-700, -650) -> within 60 cm (waypoint to lane L1: south, west of Box_02, to us001's waypoint) | - |
+| 3 | `walk_lane_start` | walk_to(-700, -800) -> within 60 cm (lane L1 start) | - |
+| 4 | `walk_lane_run_up` | walk_to(-300, -800) -> within 60 cm (along lane L1, +X: the enemies that followed the player end up behind it) | - |
+| 5 | `sprint_left_shift` | at the run-up point: tap LeftShift, hold W 1s -> dx > 700 cm; tap LeftShift again, hold S 1s reading player.speed every 0.05s -> back to a walk (peak 500..750 cm/s) | AC-083.8, AC-083.3 |
+| 6 | `block_lt_hold` | axis Gamepad_LeftTriggerAxis=1 (held) -> 'Mordecai.State.Blocking' in player.tags within 1s | AC-083.10, AC-083.3 |
+| 7 | `parry_rt_while_blocking` | LT held, axis Gamepad_RightTriggerAxis=1 -> within 0.5s a parry tag (Mordecai.State.Parrying, Mordecai.State.ParryWhiff, Mordecai.State.Riposte) with no 'Mordecai.State.Blocking' and no 'Mordecai.State.Attacking'; then RT=0 | AC-083.10, AC-083.3 |
+| 8 | `guard_returns_after_parry` | LT still held -> 'Mordecai.State.Blocking' again without a parry tag within 2.5s, and no 'Mordecai.State.Attacking' at any read meanwhile | AC-083.10 |
+| 9 | `block_release_lt` | axis Gamepad_LeftTriggerAxis=0 -> 'Mordecai.State.Blocking' gone within 1s | AC-083.10 |
+| 10 | `partial_rt_no_parry` | LT held (Blocking), axis Gamepad_RightTriggerAxis=0.3 for 0.6s -> no parry tag and 'Mordecai.State.Blocking' at every read; then both 0 | AC-083.3 |
+| 11 | `block_over_held_rt_no_parry` | axis Gamepad_RightTriggerAxis=1, 0.15s later Gamepad_LeftTriggerAxis=1 -> 'Mordecai.State.Blocking' within 1s and no parry tag for 0.6s more; then both 0 | AC-083.3 |
+| 12 | `light_attack_rt_tap` | idle -> axis Gamepad_RightTriggerAxis=1 hold_s 0.1 -> 'Mordecai.State.Attacking' without 'Mordecai.Attack.Heavy' within 1s | AC-083.3 |
+| 13 | `heavy_attack_rt_hold` | idle -> axis Gamepad_RightTriggerAxis=1 hold_s 0.8 -> 'Mordecai.Attack.Heavy' in player.tags within 0.5s of the release | AC-083.3 |
+| 14 | `dodge_gamepad_b` | tap Gamepad_FaceButton_Right (B) -> a Dodging tag in player.tags within 0.5s | AC-083.3 |
+| 15 | `jump_gamepad_a` | wait until the dodge is over (no 'Mordecai.State.Dodging') and player.movement_mode=="Walking", tap Gamepad_FaceButton_Bottom (A) -> wait_until player.movement_mode=="Falling" within 1s | AC-083.3 |
+| 16 | `light_attack_lmb_tap` | idle -> click Left at (640, 360) (the bridge's default click) -> 'Mordecai.State.Attacking' without 'Mordecai.Attack.Heavy' within 1s | AC-083.4, AC-083.3 |
+| 17 | `heavy_attack_lmb_hold` | idle -> click Left at (640, 360) held 0.8s -> 'Mordecai.Attack.Heavy' in player.tags within 0.5s of the release | AC-083.5, AC-083.3 |
+| 18 | `dodge_left_alt` | idle (and no Dodging / DodgeCooldown tag left) -> tap LeftAlt -> a Dodging tag in player.tags within 0.5s | AC-083.6, AC-083.3 |
+| 19 | `jump_space_bar` | wait until the dodge is over (no 'Mordecai.State.Dodging') and player.movement_mode=="Walking", tap SpaceBar -> wait_until player.movement_mode=="Falling" within 1s | AC-083.7, AC-083.3 |
 
   The owning stories' rows (from `py Scripts/playtest_story.py US-0XX --plan`):
 

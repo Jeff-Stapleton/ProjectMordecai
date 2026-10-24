@@ -22,27 +22,34 @@ bridge.jsonl in the run dir is the audit trail.  The run framework is Scripts/pl
 (Specs/story_playtests_v1.md section 2).
 
 Steps (every step is a check; --plan prints them as the story's Steps table):
-  1-4   LT held: Blocking.  RT pressed while blocking: a parry (Parrying / ParryWhiff / Riposte)
+  1-4   First, from the spawn and before any dodge: walk to lane L1 (west along y=0 between the
+        enemies' spawn points to (-650, 0), south to us001's (-700, -650) and the lane start
+        (-700, -800); screenshot), then run up along the lane (+X) to (-300, -800).
+  5     Sprint: tap LeftShift, hold W 1.0 s: > 700 cm.  Tap LeftShift again, hold S 1.0 s while
+        reading player.speed: the peak must be a walk (500..750 cm/s), so the second tap ended the
+        sprint.
+  6-9   LT held: Blocking.  RT pressed while blocking: a parry (Parrying / ParryWhiff / Riposte)
         that drops the guard and does not attack.  LT still held: the guard comes back once the
         parry and its whiff end, with no attack in between.  LT released: Blocking gone.
-  5-6   LT held and RT pulled to 0.3 (below the 0.5 actuation): no parry, the guard stays.  RT
+  10-11 LT held and RT pulled to 0.3 (below the 0.5 actuation): no parry, the guard stays.  RT
         held first, then LT: a block, no parry.
-  7-10  RT tapped 0.1 s: a light attack (Attacking, no Mordecai.Attack.Heavy).  RT held 0.8 s: a
+  12-15 RT tapped 0.1 s: a light attack (Attacking, no Mordecai.Attack.Heavy).  RT held 0.8 s: a
         heavy attack on the release (Mordecai.Attack.Heavy).  Gamepad B: a dodge.  Once that dodge
         is over (no Dodging tag, Walking), Gamepad A: a jump (Falling).  Both triggers are released
         before the keyboard and mouse half.
-  11-14 Left click at the viewport centre (640, 360), the bridge's default click: a light attack.
+  16-19 Left click at the viewport centre (640, 360), the bridge's default click: a light attack.
         Left click held 0.8 s: a heavy attack on the release.  LeftAlt: a dodge.  Once that dodge
         is over (no Dodging tag, Walking), SpaceBar: a jump (Falling).
-  15-17 Walk to lane L1 from where the dodges left the player, away from the enemies that follow
-        it: west along y=0 to (-650, 0), then south to us001's (-700, -650) and the lane start
-        (-700, -800).  Screenshot.
-  18    Sprint: tap LeftShift, hold W 1.0 s: > 700 cm.  Tap LeftShift again, hold S 1.0 s while
-        reading player.speed: the peak must be a walk (500..750 cm/s), so the second tap ended the
-        sprint.
-Every attack and dodge starts from idle (no attack, block or parry tag left).  The player stays
-near the spawn until the lane walk; nothing needs an enemy.  A failed check SKIPs the checks that
-depend on it; independent checks still run.
+Why the walk and the sprint come first: the arena's invisible enemies (N14) follow the player at
+400 cm/s and stop about 200 cm from it (their AttackRange).  A player walking straight leaves them
+behind, but walks into any that stand ahead.  At the spawn, before any dodge, they stand at their
+spawn points (196, 0) and (-123, +/-153), clear of the route; the run-up along the lane leaves the
+ones that followed behind the player before its 1 s of W.  When the walk came after the combat
+steps, a backward dodge had pushed the player into one (boxed in at the spawn), or they had cut
+the corner onto the sprint line (Saved/Playtests/20261024-110250-us083, -115717-us083).
+Every attack and dodge starts from idle (no attack, block or parry tag left).  The combat steps
+read tags only, so they work wherever the sprint left the player; nothing needs an enemy.  A failed
+check SKIPs the checks that depend on it; independent checks still run.
 
 Usage:
   py Scripts/playtests/us083_combat_input.py                    fresh package: launch, play, quit
@@ -95,17 +102,17 @@ LMB_HEAVY_S = 0.8                  # > HeavyAttackHoldSeconds (0.4)
 KB_DODGE_KEY = "LeftAlt"
 KB_JUMP_KEY = "SpaceBar"
 SPRINT_KEY = "LeftShift"
-# Lane L1 (y=-800, x -750..+950 is clear).  The walk starts where the two dodges left the player:
-# a dodge with no move input goes backward (-X, the facing is +X), about 110-140 cm, so about
-# (-280, 0).  The Frontliners follow the player and stand within their 200 cm attack range on
-# the side they came from, +X (us054 on 01abb8b: 150-220 cm behind it).  So the route leads away
-# from them: west along y=0 (between their spawn points (-123, +/-153) if the player never left
-# the spawn), then south, west of Box_02, to us001's lane start, 100 cm off Cover_01.  us001's
-# first waypoint (0, -650) would walk W+A back through them from here (N14).
-LANE_WAYPOINTS = (("walk_lane_wp1", -650.0, 0.0, "west along y=0, away from the enemies"),
+# Lane L1 (y=-800, x -750..+950 is clear).  The walk starts at the spawn (0, 0), before any dodge:
+# the Frontliners still stand at their spawn points (196, 0) and (-123, +/-153), within their
+# 200 cm attack range, so the route leaves between the two western ones (west along y=0, 153 cm
+# from each), then goes south, west of Box_02, to us001's lane start, 100 cm off Cover_01.  They
+# follow at 400 cm/s (a walk is 600) and cut the corner of the turn into the lane, so the player
+# runs up along the lane (+X) before the sprint: anything that followed is then behind it.
+LANE_WAYPOINTS = (("walk_lane_wp1", -650.0, 0.0, "west along y=0, between the enemies' spawn "
+                   "points"),
                   ("walk_lane_wp2", -700.0, -650.0, "south, west of Box_02, to us001's waypoint"))
 LANE_START = (-700.0, -800.0)
-LAND_TIMEOUT_S = 3.0               # the jump before the lane walk lands (no check: a warning)
+RUN_UP = (-300.0, -800.0)          # the sprint covers ~750 cm + its stop from here: lane ends +950
 SETTLE_TIMEOUT_S = 2.0             # wait for the player to stop before measuring
 SPRINT_HOLD_S = 1.0
 SPRINT_MIN = 700.0                 # cm: more than any walk can cover in 1.0 s
@@ -141,13 +148,25 @@ KNOWN_ISSUES = (
     "same actions on the gamepad triggers.",
     "The arena's enemies are invisible, follow the player and can body-block it (N14, "
     "Specs/agent_playtest_plan_v1.md Known issues backlog): an enemy in the way can stop the "
-    "walk to lane L1 (walk_lane_*), which then SKIPs the sprint. No step expects that: the "
-    "walk starts about (-280, 0), where the two backward dodges leave the player, with the "
-    "enemies on its +X side, and leads away from them (west along y=0, then south), not back "
-    "through them as us001's first waypoint (0, -650) would from there.",
+    "walk to lane L1 (walk_lane_*), which then SKIPs the sprint, or shorten the sprint itself. "
+    "No step expects that: the walk and the sprint come first, from the spawn before any dodge, "
+    "between the enemies' spawn points, and the run-up along the lane leaves the ones that "
+    "followed behind the player before the sprint.",
 )
 
 PLAN = (
+    # --- first, from the spawn before any dodge: lane L1 and the LeftShift sprint (AC-083.8) ---
+    *[Step(check, f"walk_to({x:g}, {y:g}) -> within 60 cm (waypoint to lane L1: {why})")
+      for check, x, y, why in LANE_WAYPOINTS],
+    Step("walk_lane_start", f"walk_to({LANE_START[0]:g}, {LANE_START[1]:g}) -> within 60 cm "
+         "(lane L1 start)"),
+    Step("walk_lane_run_up", f"walk_to({RUN_UP[0]:g}, {RUN_UP[1]:g}) -> within 60 cm (along lane "
+         "L1, +X: the enemies that followed the player end up behind it)"),
+    Step("sprint_left_shift", f"at the run-up point: tap {SPRINT_KEY}, hold W {SPRINT_HOLD_S:g}s "
+         f"-> dx > {SPRINT_MIN:g} cm; tap {SPRINT_KEY} again, hold S {SPRINT_HOLD_S:g}s reading "
+         f"player.speed every {SPEED_POLL_S:g}s -> back to a walk (peak {WALK_SPEED_MIN:g}.."
+         f"{SPRINT_SPEED_MIN:g} cm/s)", proves=("AC-083.8", "AC-083.3")),
+    # --- the gamepad ---
     Step("block_lt_hold", f"axis {LT}=1 (held) -> '{TAG_BLOCKING}' in player.tags within "
          f"{GUARD_TIMEOUT_S:g}s", proves=("AC-083.10", "AC-083.3")),
     Step("parry_rt_while_blocking", f"LT held, axis {RT}=1 -> within {PARRY_TIMEOUT_S:g}s a parry "
@@ -173,8 +192,9 @@ PLAN = (
     Step("jump_gamepad_a", f"wait until the dodge is over (no '{TAG_DODGING}') and "
          f"player.movement_mode==\"Walking\", tap {JUMP_KEY} (A) -> wait_until "
          f"player.movement_mode==\"Falling\" within {JUMP_TIMEOUT_S:g}s", proves=("AC-083.3",)),
-    # --- keyboard and mouse: AC-083.4..AC-083.8 (the owning stories' scripts exit 1 on other
-    # stories' failures, so this script plays these inputs too) ---
+    # --- keyboard and mouse: AC-083.4..AC-083.7, with the LeftShift sprint above for AC-083.8
+    # (the owning stories' scripts exit 1 on other stories' failures, so this script plays these
+    # inputs too) ---
     Step("light_attack_lmb_tap", f"idle -> click Left at ({CLICK_POINT[0]}, {CLICK_POINT[1]}) "
          f"(the bridge's default click) -> '{TAG_ATTACKING}' without '{TAG_HEAVY}' within "
          f"{LIGHT_TIMEOUT_S:g}s", proves=("AC-083.4", "AC-083.3")),
@@ -188,14 +208,6 @@ PLAN = (
          f"player.movement_mode==\"Walking\", tap {KB_JUMP_KEY} -> wait_until "
          f"player.movement_mode==\"Falling\" within {JUMP_TIMEOUT_S:g}s",
          proves=("AC-083.7", "AC-083.3")),
-    *[Step(check, f"walk_to({x:g}, {y:g}) -> within 60 cm (waypoint to lane L1: {why})")
-      for check, x, y, why in LANE_WAYPOINTS],
-    Step("walk_lane_start", f"walk_to({LANE_START[0]:g}, {LANE_START[1]:g}) -> within 60 cm "
-         "(lane L1 start)"),
-    Step("sprint_left_shift", f"at the lane start: tap {SPRINT_KEY}, hold W {SPRINT_HOLD_S:g}s -> "
-         f"dx > {SPRINT_MIN:g} cm; tap {SPRINT_KEY} again, hold S {SPRINT_HOLD_S:g}s reading "
-         f"player.speed every {SPEED_POLL_S:g}s -> back to a walk (peak {WALK_SPEED_MIN:g}.."
-         f"{SPRINT_SPEED_MIN:g} cm/s)", proves=("AC-083.8", "AC-083.3")),
 )
 PENDING = {"AC-083.11": "bridge cannot drive: the playtest client cannot hold a mouse button "
                         "across state reads (B2), so RMB block and RMB+LMB parry are not played"}
@@ -241,11 +253,13 @@ class Us083Run(kit.PlaytestRun):
         self.measurements = []   # the sprint and its toggle-back (report_extra / md_sections)
 
     def steps(self):
+        # The walk and the sprint first, before any dodge has pushed the player into an enemy
+        # (module docstring)
+        self.step_lane_and_sprint()
         self.step_block_and_parry()
         self.step_parry_needs_a_fresh_press()
         self.step_attacks_dodge_jump()
         self.step_keyboard_mouse()
-        self.step_lane_and_sprint()
 
     # --- helpers ------------------------------------------------------------------------------
     def _poll(self, seconds, until=None):
@@ -350,7 +364,7 @@ class Us083Run(kit.PlaytestRun):
             return None, f"player section invalid after {key} ({raw.get('reason')})"
         return (p0, p1, peak), None
 
-    # --- 1-4: block and parry ------------------------------------------------------------
+    # --- 6-9: block and parry ------------------------------------------------------------
     def step_block_and_parry(self):
         def block():
             self.bridge.axis({LT: 1.0})
@@ -415,7 +429,7 @@ class Us083Run(kit.PlaytestRun):
         self.attempt("block_release_lt", release, needs=blocked, needs_why=why)
         self._release_triggers()
 
-    # --- 5-6: only a fresh RT press parries ---------------------------------------------------
+    # --- 10-11: only a fresh RT press parries ---------------------------------------------------
     def step_parry_needs_a_fresh_press(self):
         def partial():
             not_idle = self._wait_idle()
@@ -562,7 +576,7 @@ class Us083Run(kit.PlaytestRun):
 
         return self.attempt(check, fn)
 
-    # --- 7-10: gamepad attacks, dodge, jump ---------------------------------------------------
+    # --- 12-15: gamepad attacks, dodge, jump ---------------------------------------------------
     def step_attacks_dodge_jump(self):
         self._rt_attack("light_attack_rt_tap", RT_TAP_S, LIGHT_TIMEOUT_S, heavy=False)
         self._rt_attack("heavy_attack_rt_hold", RT_HEAVY_S, HEAVY_TIMEOUT_S, heavy=True)
@@ -571,7 +585,7 @@ class Us083Run(kit.PlaytestRun):
         # ground, once the dodge is over
         self._jump("jump_gamepad_a", JUMP_KEY)
 
-    # --- 11-14: keyboard and mouse attacks, dodge, jump (AC-083.4..AC-083.7) ---------------
+    # --- 16-19: keyboard and mouse attacks, dodge, jump (AC-083.4..AC-083.7) ---------------
     def step_keyboard_mouse(self):
         # Both triggers are 0 here: the gamepad steps release them (axis hold_s, _release_triggers)
         self._lmb_attack("light_attack_lmb_tap", None, LIGHT_TIMEOUT_S, heavy=False)
@@ -580,19 +594,7 @@ class Us083Run(kit.PlaytestRun):
         self._dodge("dodge_left_alt", KB_DODGE_KEY, _idle_no_dodge)
         self._jump("jump_space_bar", KB_JUMP_KEY)
 
-    # --- 15-18: lane L1 and the LeftShift sprint (AC-083.8) ---------------------------------
-    def _wait_landed(self):
-        """No check: the lane walk starts on the ground (the jump just before it is in the air).
-        A timeout is a warning; walk_lane_wp1 then shows what happens."""
-        if self.abort or self.blocked or self.bridge is None:
-            return
-        try:
-            self.bridge.wait_until('player.movement_mode=="Walking"', timeout_s=LAND_TIMEOUT_S)
-        except ab.BridgeError as e:
-            self.warnings.append(f"the player was not Walking {LAND_TIMEOUT_S:g}s after the jump, "
-                                 f"before the lane walk: {e}")
-            self._lost("the landing wait", e)
-
+    # --- 1-5: lane L1 and the LeftShift sprint (AC-083.8), first -------------------------
     def _sprint(self, check):
         """Tap LeftShift, hold W and measure; tap LeftShift again, then hold S as long and require
         a walk's speed back (the second tap ended the sprint).  As us001_movement.py sprint_shift
@@ -639,7 +641,6 @@ class Us083Run(kit.PlaytestRun):
         return fn
 
     def step_lane_and_sprint(self):
-        self._wait_landed()
         ok = True
         for check, x, y, _ in LANE_WAYPOINTS:
             ok, _ = self.walk(check, x, y, needs=ok, needs_why="not run: the previous waypoint "
@@ -648,8 +649,10 @@ class Us083Run(kit.PlaytestRun):
                             needs_why="not run: a lane waypoint was not reached")
         self.shot("lane_start", needs=lane, needs_why="not taken: the player is not at the lane "
                                                       "start")
-        self.attempt("sprint_left_shift", self._sprint("sprint_left_shift"), needs=lane,
-                     needs_why="not run: the player is not at the lane start")
+        run_up, _ = self.walk("walk_lane_run_up", *RUN_UP, needs=lane,
+                              needs_why="not run: the player is not at the lane start")
+        self.attempt("sprint_left_shift", self._sprint("sprint_left_shift"), needs=run_up,
+                     needs_why="not run: the player is not at the run-up point")
 
     # --- report hooks ------------------------------------------------------------------------
     def report_extra(self):
