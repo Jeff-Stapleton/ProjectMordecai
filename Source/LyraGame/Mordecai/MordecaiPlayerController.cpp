@@ -7,6 +7,12 @@
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
+#include "Mordecai/Combat/MordecaiGA_Block.h"
+#include "Mordecai/Combat/MordecaiGA_Dodge.h"
+#include "Mordecai/Combat/MordecaiGA_HeavyAttack.h"
+#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Combat/MordecaiGA_Parry.h"
+#include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/Magic/MordecaiGA_SpellBase.h"
 #include "Mordecai/Magic/MordecaiSpellDataAsset.h"
 #include "Mordecai/Magic/MordecaiGA_Fireball.h"
@@ -26,6 +32,19 @@ AMordecaiPlayerController::AMordecaiPlayerController(const FObjectInitializer& O
 {
 	// US-065: Create floating damage number component
 	DamagePopComponent = CreateDefaultSubobject<UMordecaiDamagePopComponent>(TEXT("DamagePopComponent"));
+
+	// AC-054.5 / US-083: the player's combat abilities, each with the input tag its bindings press
+	// (UMordecaiHeroComponent). Native class refs: no content, always cooked, never a CDO edit.
+	auto AddCombatAbility = [this](TSubclassOf<UGameplayAbility> AbilityClass, const FGameplayTag& InputTag)
+	{
+		DefaultCombatAbilities.Add(AbilityClass);
+		CombatAbilityInputTags.Add(AbilityClass, InputTag);
+	};
+	AddCombatAbility(UMordecaiGA_MeleeAttack::StaticClass(), MordecaiGameplayTags::Input_LightAttack);
+	AddCombatAbility(UMordecaiGA_HeavyAttack::StaticClass(), MordecaiGameplayTags::Input_HeavyAttack);
+	AddCombatAbility(UMordecaiGA_Dodge::StaticClass(), MordecaiGameplayTags::Input_Dodge);
+	AddCombatAbility(UMordecaiGA_Block::StaticClass(), MordecaiGameplayTags::Input_Block);
+	AddCombatAbility(UMordecaiGA_Parry::StaticClass(), MordecaiGameplayTags::Input_Parry);
 
 	// AC-057.6: Default spell loadout (Fireball, Blink, StoneSkin, Restoration)
 	DefaultSpellAbilities.Add(UMordecaiGA_Fireball::StaticClass());
@@ -143,6 +162,12 @@ void AMordecaiPlayerController::GrantCombatAbilities()
 		// This controller is the grant's SourceObject; a melee ability instance takes MeleeAttackProfiles from it
 		// in OnGiveAbility. Writing them into the CDO instead is a fatal GC error in packaged builds.
 		FGameplayAbilitySpec Spec(AbilityClass, 1, INDEX_NONE, this);
+
+		// US-083: the input tag the hero component's bindings press to activate this spec (Lyra input path)
+		if (const FGameplayTag* InputTag = CombatAbilityInputTags.Find(AbilityClass))
+		{
+			Spec.GetDynamicSpecSourceTags().AddTag(*InputTag);
+		}
 		ASC->GiveAbility(Spec);
 	}
 

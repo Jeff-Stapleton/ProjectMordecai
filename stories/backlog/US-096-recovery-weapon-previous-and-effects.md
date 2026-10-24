@@ -13,11 +13,11 @@ AC-078.7 promises Shift+Tab for "previous weapon", but the game maps only BackSl
 Programmatic IMC mapping (chord trigger) and the equipment component's ASC lookup, all C++.
 
 ## References
-- `Specs/agent_playtest_plan_v1.md` — N9 (`MordecaiHeroComponent.cpp:187-192`), "Weapon effects never reach the ASC" (`MordecaiEquipmentComponent.cpp:55-56`), B2 (no equip slot on `player.weapon`, AC-078.15)
+- `Specs/agent_playtest_plan_v1.md` — N9 (`MordecaiHeroComponent.cpp:227-232`), "Weapon effects never reach the ASC" (`MordecaiEquipmentComponent.cpp:55-56`), B2 (no equip slot on `player.weapon`, AC-078.15)
 - Sweep `Saved/Playtests/20261022-184702-sweep/summary.md`; run `Saved/Playtests/20261022-184940-us078`: `cycle_prev_shift_tab` FAIL known ("tapped LeftShift+Tab on 4 'Mace'; expected index 3 'Spear' ... the weapon is index 0/5 'Longsword'"); `cycle_prev_backslash` PASS; AC-078.15 PENDING (bridge cannot drive: no equip slot)
 - Done stories: US-078 AC-078.7 ("Bound to Shift+Tab (MKB) only"), AC-078.8, AC-078.15; US-077 AC-077.4; US-024 (weapon GrantedTags / StatModifiers via GAS)
 - `Specs/control_bindings_v1.1.md` — Tab = Weapon Set Swap; Left Shift = Sprint toggle; no "previous weapon" row
-- Existing code: `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:142-192,240-248`; `Source/LyraGame/Mordecai/Weapons/MordecaiEquipmentComponent.cpp:55-56`
+- Existing code: `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:105-107,220-232,343-351`; `Source/LyraGame/Mordecai/Weapons/MordecaiEquipmentComponent.cpp:55-56`
 
 ## Acceptance Criteria
 - [ ] AC-096.1 (per TODO(DECISION) N9): the previous-weapon input is what Jeff decides — Option A: Shift+Tab chord cycles to the previous weapon, Tab alone still cycles next, and the chord does NOT toggle sprint; Option B: BackSlash stays and AC-078.7 is amended (recorded in `Specs/design_decisions_log.md`) — verified by `Mordecai.Recovery.Weapons.PreviousWeaponInput`

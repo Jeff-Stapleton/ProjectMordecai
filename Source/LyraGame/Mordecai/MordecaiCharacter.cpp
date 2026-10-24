@@ -122,11 +122,24 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 
 void AMordecaiCharacter::SetSprinting(bool bNewSprinting)
 {
+	if (bIsSprinting == bNewSprinting)
+	{
+		return;
+	}
+
+	// Rescale the current speed rather than write WalkSpeed * multiplier: Block halves MaxWalkSpeed while held and
+	// doubles it on release, so sprint toggled mid-block must compose with that (US-083)
+	// TODO(DECISION): sprint is client-local (no RPC, nothing replicated): a remote client in networked play would be
+	// corrected on every sprinting move. Before networked play, carry it as a CharacterMovementComponent saved-move flag
+	// read in GetMaxSpeed (Block's slow-down with it). Standalone and a listen-server host are unaffected (N28).
+	const float OldFactor = bIsSprinting ? SprintSpeedMultiplier : 1.f;
+	const float NewFactor = bNewSprinting ? SprintSpeedMultiplier : 1.f;
 	bIsSprinting = bNewSprinting;
 
-	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
+	UCharacterMovementComponent* CMC = GetCharacterMovement();
+	if (CMC && OldFactor > KINDA_SMALL_NUMBER)
 	{
-		CMC->MaxWalkSpeed = bIsSprinting ? (WalkSpeed * SprintSpeedMultiplier) : WalkSpeed;
+		CMC->MaxWalkSpeed = CMC->MaxWalkSpeed / OldFactor * NewFactor;
 	}
 }
 

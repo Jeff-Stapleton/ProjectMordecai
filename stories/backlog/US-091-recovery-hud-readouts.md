@@ -20,8 +20,8 @@ Native widget code, log levels and an ini change (`Config/DefaultEngine.ini`); n
 - Done stories: US-055 AC-055.4-055.6 (indicator shows the status name + countdown, tint), US-057 AC-057.11 ("Burning"), US-077 AC-077.7/077.8, US-078 AC-078.11/078.12
 - Existing code:
   - `Source/LyraGame/Mordecai/UI/MordecaiStatusEffectBarWidget.cpp:89-92,110-126` — registers `RegisterGameplayTagEvent(Mordecai.Status, NewOrRemoved)`; that delegate reports the registered parent tag, so `AddIndicator` gets `Mordecai.Status` and `MordecaiStatusEffectIndicatorWidget.cpp:73-83` takes its last segment: "Status". It also means only one indicator can ever exist and buff/debuff tint is wrong
-  - `Source/LyraGame/Mordecai/UI/MordecaiEquippedWeaponWidget.*` (no widget tree), created at `Source/LyraGame/Mordecai/MordecaiCharacter.cpp:63,184-188`
-  - Debug output: `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:261`, `Source/LyraGame/Mordecai/MordecaiCharacter.cpp:195,238` (`UE_LOG(LogTemp, Warning, ...)`), `Config/DefaultEngine.ini` `SocketSubsystemSteamIP` keys
+  - `Source/LyraGame/Mordecai/UI/MordecaiEquippedWeaponWidget.*` (no widget tree), created at `Source/LyraGame/Mordecai/MordecaiCharacter.cpp:63,197-201`
+  - Debug output: `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:402`, `Source/LyraGame/Mordecai/MordecaiCharacter.cpp:208,251` (`UE_LOG(LogTemp, Warning, ...)`), `Config/DefaultEngine.ini` `SocketSubsystemSteamIP` keys
 
 ## Acceptance Criteria
 - [ ] AC-091.1: Gaining `Mordecai.Status.StoneSkin` creates an indicator reading "StoneSkin" (or its configured display name) with a green buff tint; two different statuses produce two indicators; each is removed when its own tag is removed — verified by `Mordecai.Recovery.StatusBar.IndicatorUsesChildTagName` and `Mordecai.Recovery.StatusBar.OneIndicatorPerStatus`

@@ -292,11 +292,28 @@ The soft reference stores the path and resolves it later when `LoadSynchronous()
 
 **Problem:** Gamepad move, gamepad look and L3 sprint can never work in Mordecai, and nothing reports it. The agent bridge's `axis` command on `Gamepad_LeftX`/`Gamepad_LeftY` moves nothing, so `walk_to` uses WASD. Found while mapping Phase 2.
 
-**Root cause:** `UMordecaiHeroComponent::EnsureMordecaiInputBound` maps `FKey(TEXT("Gamepad_LeftStick2D"))` (`MordecaiHeroComponent.cpp:103`), `FKey(TEXT("Gamepad_RightStick2D"))` (`:116`) and `FKey(TEXT("Gamepad_LeftThumbstickButton"))` (`:133`). None of these keys exist. The engine names are `Gamepad_Left2D`, `Gamepad_Right2D` and `Gamepad_LeftThumbstick` (`Engine/Source/Runtime/InputCore/Private/InputCoreTypes.cpp:169,172,178`), and no key redirect maps the wrong names. `FKey(TEXT("..."))` accepts any string and `MapKey` accepts the result, so the mapping exists but never matches an event: no error, no warning.
+**Root cause:** `UMordecaiHeroComponent::BuildAndBindRuntimeInput` (called from `EnsureMordecaiInputBound`) maps `FKey(TEXT("Gamepad_LeftStick2D"))` (`MordecaiHeroComponent.cpp:167`), `FKey(TEXT("Gamepad_RightStick2D"))` (`:180`) and `FKey(TEXT("Gamepad_LeftThumbstickButton"))` (`:197`). None of these keys exist. The engine names are `Gamepad_Left2D`, `Gamepad_Right2D` and `Gamepad_LeftThumbstick` (`Engine/Source/Runtime/InputCore/Private/InputCoreTypes.cpp:169,172,178`), and no key redirect maps the wrong names. `FKey(TEXT("..."))` accepts any string and `MapKey` accepts the result, so the mapping exists but never matches an event: no error, no warning.
 
 **Fix:** Use the `EKeys::` constants (`EKeys::Gamepad_Left2D`, …) instead of string names. Where a key must come from a string, check it with `FKey::IsValid()` and log or fail loudly (a headless test over the mapping list catches typos). The bridge resolves key names the same way and rejects unknown ones with `bad_key` (`MordecaiAgentBridgeProtocolTests.cpp:410` asserts the broken stick name is not a key).
 
 **Evidence:** the files and lines above; `Specs/agent_bridge_v1.md` §5 and §9.
+
+### Lyra binds the InputConfig's native tags for you: a wrong pairing in content silently rebinds a Mordecai key
+
+**Problem:** Every Left Shift press crouched the player (`Status.Crouching`, walk speed capped at 300 cm/s, jumping refused) although no Mordecai code mentions crouch. It would have broken the sprint and jump playtests once those were bound (N23, US-083).
+
+**Root cause:** `ULyraHeroComponent::InitializePlayerInput` binds `InputTag_Move`, `Look_Mouse`, `Look_Stick`, `Crouch` and `AutoRun` from `PawnData->InputConfig` onto the pawn's input component (`LyraHeroComponent.cpp:285-289`). The arena's `InputData_Mordecai` pairs `IA_Mordecai_Sprint` with `InputTag.Crouch`, and `MordecaiIMC_Runtime` maps Left Shift to that action, so Lyra's `Input_Crouch` -> `ToggleCrouch` fired on Triggered, every frame the key was held (the end state depended on the frame count).
+
+**Fix:** `UMordecaiHeroComponent` overrides `InitializePlayerInput`: after `Super`, `RemoveNativeBindingsForTag` removes the bindings of the config's crouch action to this component (`GetActionEventBindings` + `RemoveBindingByHandle`; collect the handles first). The content entry is still wrong (an EDITOR fix). When a Mordecai key does something unexplained, read the PawnData's `InputConfig` pairs first: Lyra binds them whether or not Mordecai code uses them.
+
+### Light and heavy attacks on one button, and parry on the same button while blocking (Enhanced Input)
+
+Findings from the engine source while binding US-083 (`EnhancedPlayerInput.cpp`, `InputTriggers.cpp`, `EnhancedInputSubsystemInterface.cpp`):
+- Put triggers on the **mappings** (`FEnhancedActionKeyMapping::Triggers`, `NewObject<...>(IMC)` right after each `MapKey`; the next `MapKey` invalidates the returned reference), never on the shared IA assets: action-level triggers are copied once per player and edits to an asset are shared state.
+- Two actions on one key in one context both fire. **Tap(T)** fires Triggered on the release when held < T; **Hold(T)** at T while held; **HoldAndRelease(T)** on the release when held >= T. Tap and Hold use the same accumulator, so equal thresholds split every press exactly. HoldAndRelease also counts the release frame's delta, so with Tap(T) both can fire on a release right at T: bind the light action first so it activates first and the heavy one is refused (`State.Attacking`). Both report Started on every press: bind Triggered, never Started.
+- **Chords:** a mapping with `UInputTriggerChordAction{ChordAction = Block}` is Triggered only while Block is Triggered (not Ongoing), so Block's trigger must sit on Block's mapping in the same (or a higher-priority) context. The engine injects a `UInputTriggerChordBlocker` into the later mappings of the same key, which blocks them only on frames the chorded action is Triggered. Add `UInputTriggerPressed` to the chord mapping so only a fresh press counts (else a held button plus a later block parries). Then the chord is Ongoing while held and ends in Canceled: bind the release on Canceled too.
+- A trigger-less Boolean mapping fires Triggered every held frame: bind toggles (sprint) and one-shot actions on Started, or give the mapping a `UInputTriggerPressed`.
+- A mouse button pressed and released inside one frame is invisible to Enhanced Input (only button-axis keys get the `KeysPressedThisTick` rescue). The agent bridge holds clicks for at least a frame.
 
 ---
 
@@ -424,6 +441,7 @@ When building widget trees programmatically:
 
 **Root cause:** Editor Python uses each class's `ScriptName` and strips prefixes:
 - `UWidgetBlueprintLibrary` is `unreal.WidgetLibrary` (`meta=(ScriptName="WidgetLibrary")`). Its `Create` is `BlueprintInternalUseOnly`, so Python can't create widgets with it at all.
+- `UAbilitySystemBlueprintLibrary` is `unreal.AbilitySystemLibrary`. Read granted abilities with `asc.get_all_abilities()` + `unreal.AbilitySystemLibrary.get_gameplay_ability_from_spec_handle(asc, handle)` (returns `(ability, is_instance)`); `asc` from `player_state.get_lyra_ability_system_component()`. `GetOwnedGameplayTags` is not a UFUNCTION.
 - `USubsystemBlueprintLibrary`'s getters are internal-only, and `GameInstance.get_subsystem` isn't exposed.
 - A bool UPROPERTY `bCanPauseGame` is `can_pause_game` in Python.
 - `get_all_widgets_of_class(world, cls, True)` returns only top-level widgets, so it misses anything nested in the HUD layout.

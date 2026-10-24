@@ -13,7 +13,7 @@ A fresh character has 10 SP, the arena loadout costs 12 (Fireball 3, Blink 2, St
 Attribute defaults / a regen GameplayEffect defined natively and respawn restoration are C++ (if Jeff's answer needs a tuned DataAsset/GE asset instead, split an EDITOR pair at that point).
 
 ## References
-- `Specs/agent_playtest_plan_v1.md` — N6 (`MordecaiAttributeSet.cpp:14-15` MaxSpellPoints 10; `MordecaiCharacter.cpp:344-346` respawn does not restore SP)
+- `Specs/agent_playtest_plan_v1.md` — N6 (`MordecaiAttributeSet.cpp:14-15` MaxSpellPoints 10; `MordecaiCharacter.cpp:357-359` respawn does not restore SP)
 - Sweep run `Saved/Playtests/20261022-184841-us057` — plan "10 -> 7 -> 5 -> 1 (Restoration refused at 1)"; Notes: "a fresh character cannot cast all four spells once (design question N6)"; us054 `restoration_heals` can never get SP after the player has cast anything
 - `Specs/character_attributes_v1.md`, `Specs/stat_formulas_v1.md`, `Specs/attribute_scaling_v1.md` (SpellPoints derivation), `Specs/ability_system_v1.md`
 - Done stories: US-057 AC-057.1-057.4 (costs), AC-057.12 (full magic loop: Fireball → ... → Restoration → Blink → Stone Skin in one session)

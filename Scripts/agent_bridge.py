@@ -93,7 +93,7 @@ READY_RETRY_S = 0.25          # pause before a ready-loop retry (reconnect, not_
 SCREENSHOT_COMPLETE_S = 5.0   # a screenshot reply's file must be complete within this
 QUIT_TIMEOUT_S = 30.0
 
-WALK_SPEED = 600.0            # AMordecaiCharacter MaxWalkSpeed (sprint is not bound)
+WALK_SPEED = 600.0            # AMordecaiCharacter MaxWalkSpeed, sprint off (LeftShift toggles x1.5)
 WALK_SECTIONS = ("player", "pause_menu")
 WALK_KEYS = ("W", "A", "S", "D")
 YAW_TOLERANCE_DEG = 1.0

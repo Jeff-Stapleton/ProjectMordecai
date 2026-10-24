@@ -7,18 +7,27 @@
 #include "Misc/ScopeExit.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
-#include "Engine/Engine.h"
-#include "Engine/World.h"
 #include "GameplayAbilitySpec.h"
-#include "GameModes/LyraGameState.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
+#include "Mordecai/Combat/MordecaiGA_Block.h"
+#include "Mordecai/Combat/MordecaiGA_Dodge.h"
+#include "Mordecai/Combat/MordecaiGA_HeavyAttack.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Combat/MordecaiGA_Parry.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
+#include "Mordecai/MordecaiCharacter.h"
+#include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiPlayerController.h"
 #include "Mordecai/MordecaiPlayerState.h"
+#include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
+#include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
+#include "Mordecai/Weapons/MordecaiWeaponProfileFactory.h"
+#include "Tests/Combat/MordecaiCombatGrantTestEnv.h"
 
 namespace MordecaiMeleeGrantTestHelpers
 {
+	using MordecaiCombatGrantTest::FMordecaiCombatGrantTestEnv;
+
 	/** A controller that grants melee with these profiles. A SourceObject needs no world. */
 	static AMordecaiPlayerController* MakeGranter(const TArray<UMordecaiAttackProfileDataAsset*>& Profiles)
 	{
@@ -30,81 +39,14 @@ namespace MordecaiMeleeGrantTestHelpers
 		return Granter;
 	}
 
-	/**
-	 * A game world with a Lyra game state (Lyra player states require one), a Mordecai player state (it owns
-	 * the ASC, as in the game) and a Mordecai player controller using it, so the controller's real grant path
-	 * runs. The controller is not spawned: it needs no camera or cheat manager, and it still has authority.
-	 */
-	struct FMordecaiCombatGrantTestEnv
+	/** An unequipped weapon instance of this data asset, as the equipment component stores them. */
+	static FMordecaiWeaponInstance MakeGrantTestWeapon(UMordecaiWeaponDataAsset* WeaponData)
 	{
-		UWorld* World = nullptr;
-		AMordecaiPlayerState* PlayerState = nullptr;
-		AMordecaiPlayerController* PC = nullptr;
-
-		bool Setup()
-		{
-			if (!GEngine)
-			{
-				return false;
-			}
-			World = UWorld::CreateWorld(EWorldType::Game, false);
-			if (!World)
-			{
-				return false;
-			}
-			FWorldContext& WorldContext = GEngine->CreateNewWorldContext(EWorldType::Game);
-			WorldContext.SetCurrentWorld(World);
-			World->InitializeActorsForPlay(FURL());
-
-			if (!World->SpawnActor<ALyraGameState>(ALyraGameState::StaticClass()))
-			{
-				return false;
-			}
-			PlayerState = World->SpawnActor<AMordecaiPlayerState>(AMordecaiPlayerState::StaticClass());
-			if (!PlayerState)
-			{
-				return false;
-			}
-			PC = NewObject<AMordecaiPlayerController>();
-			PC->PlayerState = PlayerState;
-			return true;
-		}
-
-		/** Grant through the controller with only the melee ability and these profiles; returns the melee spec. */
-		FGameplayAbilitySpec* GrantMeleeOnly(const TArray<UMordecaiAttackProfileDataAsset*>& Profiles)
-		{
-			PC->DefaultCombatAbilities.Reset();
-			PC->DefaultCombatAbilities.Add(UMordecaiGA_MeleeAttack::StaticClass());
-			PC->MeleeAttackProfiles.Reset();
-			for (UMordecaiAttackProfileDataAsset* Profile : Profiles)
-			{
-				PC->MeleeAttackProfiles.Add(Profile);
-			}
-			// No spells: their grant loads DA_Spell_* content, which these tests are not about
-			PC->DefaultSpellAbilities.Reset();
-
-			PC->GrantCombatAbilities();
-
-			UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(PlayerState);
-			return ASC ? ASC->FindAbilitySpecFromClass(UMordecaiGA_MeleeAttack::StaticClass()) : nullptr;
-		}
-
-		void Teardown()
-		{
-			if (PC)
-			{
-				PC->PlayerState = nullptr;
-			}
-			if (World && GEngine)
-			{
-				GEngine->DestroyWorldContext(World);
-				World->DestroyWorld(false);
-			}
-			World = nullptr;
-			PlayerState = nullptr;
-			PC = nullptr;
-		}
-	};
+		FMordecaiWeaponInstance Weapon;
+		Weapon.InstanceId = FGuid::NewGuid();
+		Weapon.WeaponDataAsset = WeaponData;
+		return Weapon;
+	}
 }
 
 // Mordecai.Combat.MeleeGrant.InstanceTakesProfilesFromSpec
@@ -272,5 +214,167 @@ bool FMordecai_Recovery_CombatNoMeleeCDOWrite::RunTest(const FString& Parameters
 		return true;
 	}
 	TestTrue("The controller is the grant's SourceObject", Spec->SourceObject.Get() == Env.PC);
+	return true;
+}
+
+// Mordecai.Recovery.Combat.AbilitiesGrantedFromNativeDefaults (US-083 AC-083.1)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_CombatAbilitiesGrantedFromNativeDefaults,
+	"Mordecai.Recovery.Combat.AbilitiesGrantedFromNativeDefaults",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_CombatAbilitiesGrantedFromNativeDefaults::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiMeleeGrantTestHelpers;
+
+	// Restore the CDOs whatever the grant does, so a failure here cannot leak into the other melee tests
+	UMordecaiGA_MeleeAttack* MeleeCDO = GetMutableDefault<UMordecaiGA_MeleeAttack>();
+	UMordecaiGA_HeavyAttack* HeavyCDO = GetMutableDefault<UMordecaiGA_HeavyAttack>();
+	const TArray<TObjectPtr<UMordecaiAttackProfileDataAsset>> MeleeCDOBefore = MeleeCDO->AttackProfiles;
+	const TArray<TObjectPtr<UMordecaiAttackProfileDataAsset>> HeavyCDOBefore = HeavyCDO->AttackProfiles;
+	ON_SCOPE_EXIT
+	{
+		MeleeCDO->AttackProfiles = MeleeCDOBefore;
+		HeavyCDO->AttackProfiles = HeavyCDOBefore;
+	};
+
+	FMordecaiCombatGrantTestEnv Env;
+	ON_SCOPE_EXIT { Env.Teardown(); };
+	if (!TestTrue("Test world set up", Env.Setup()))
+	{
+		return true;
+	}
+
+	struct FExpectedGrant
+	{
+		UClass* AbilityClass;
+		FGameplayTag InputTag;
+	};
+	const FExpectedGrant Expected[] = {
+		{ UMordecaiGA_MeleeAttack::StaticClass(), MordecaiGameplayTags::Input_LightAttack },
+		{ UMordecaiGA_HeavyAttack::StaticClass(), MordecaiGameplayTags::Input_HeavyAttack },
+		{ UMordecaiGA_Dodge::StaticClass(), MordecaiGameplayTags::Input_Dodge },
+		{ UMordecaiGA_Block::StaticClass(), MordecaiGameplayTags::Input_Block },
+		{ UMordecaiGA_Parry::StaticClass(), MordecaiGameplayTags::Input_Parry },
+	};
+
+	// A fresh controller holds only what its C++ constructor set: an instance of a native class copies no
+	// script-edited CDO values, and headless runs never ran Scripts/us054_10_configure_all.py anyway
+	for (const FExpectedGrant& Grant : Expected)
+	{
+		TestTrue(*FString::Printf(TEXT("DefaultCombatAbilities holds %s"), *Grant.AbilityClass->GetName()),
+			Env.PC->DefaultCombatAbilities.Contains(Grant.AbilityClass));
+	}
+
+	Env.GrantCombatOnly();
+	if (!TestNotNull("Player state has an ASC", Env.GetASC()))
+	{
+		return true;
+	}
+
+	for (const FExpectedGrant& Grant : Expected)
+	{
+		const FString Name = Grant.AbilityClass->GetName();
+		const FGameplayAbilitySpec* Spec = Env.FindSpec(Grant.AbilityClass);
+		if (!TestNotNull(*FString::Printf(TEXT("ASC holds a %s spec"), *Name), Spec))
+		{
+			continue;
+		}
+		TestTrue(*FString::Printf(TEXT("%s: the controller is the grant's SourceObject"), *Name), Spec->SourceObject.Get() == Env.PC);
+		TestTrue(*FString::Printf(TEXT("%s: spec carries %s"), *Name, *Grant.InputTag.ToString()),
+			Spec->GetDynamicSpecSourceTags().HasTagExact(Grant.InputTag));
+		TestEqual(*FString::Printf(TEXT("%s: spec carries one input tag"), *Name), Spec->GetDynamicSpecSourceTags().Num(), 1);
+	}
+
+	TestEqual("Melee CDO AttackProfiles still empty", GetDefault<UMordecaiGA_MeleeAttack>()->AttackProfiles.Num(), 0);
+	TestEqual("Heavy CDO AttackProfiles still empty", GetDefault<UMordecaiGA_HeavyAttack>()->AttackProfiles.Num(), 0);
+	return true;
+}
+
+// Mordecai.Recovery.Combat.MeleeUsesEquippedWeaponProfiles (US-083 AC-083.2)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_CombatMeleeUsesEquippedWeaponProfiles,
+	"Mordecai.Recovery.Combat.MeleeUsesEquippedWeaponProfiles",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_CombatMeleeUsesEquippedWeaponProfiles::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiMeleeGrantTestHelpers;
+
+	UMordecaiWeaponDataAsset* Longsword = UMordecaiWeaponProfileFactory::CreateLongsword(GetTransientPackage());
+	if (!TestNotNull("Factory longsword", Longsword)
+		|| !TestTrue("Longsword has light profiles", Longsword->LightAttackProfiles.Num() > 0)
+		|| !TestNotNull("Longsword has a heavy profile", Longsword->HeavyAttackProfile.Get()))
+	{
+		return true;
+	}
+	const UMordecaiAttackProfileDataAsset* LongswordL1 = Longsword->LightAttackProfiles[0];
+	const UMordecaiAttackProfileDataAsset* LongswordH = Longsword->HeavyAttackProfile;
+
+	// Equipped weapon: light reads its light combo, heavy its heavy attack
+	{
+		UMordecaiEquipmentComponent* Equipment = NewObject<UMordecaiEquipmentComponent>();
+		FMordecaiWeaponInstance Weapon = MakeGrantTestWeapon(Longsword);
+		TestTrue("Longsword equipped", Equipment->EquipWeapon(Weapon, EMordecaiEquipSlot::MainHand));
+
+		UMordecaiGA_MeleeAttack* Light = NewObject<UMordecaiGA_MeleeAttack>();
+		Light->SetEquipmentComponentOverride(Equipment);
+		UMordecaiGA_HeavyAttack* Heavy = NewObject<UMordecaiGA_HeavyAttack>();
+		Heavy->SetEquipmentComponentOverride(Equipment);
+
+		TestTrue("Light attack uses the weapon's first light profile", Light->GetActiveProfile() == LongswordL1);
+		TestTrue("Heavy attack uses the weapon's heavy profile", Heavy->GetActiveProfile() == LongswordH);
+		TestEqual("Heavy attack is a single step", Heavy->GetResolvedAttackProfiles().Num(), 1);
+		TestTrue("Heavy attack owns Mordecai.Attack.Heavy", Heavy->HasActivationOwnedTag(MordecaiGameplayTags::Attack_Heavy));
+		TestFalse("Light attack does not own Mordecai.Attack.Heavy", Light->HasActivationOwnedTag(MordecaiGameplayTags::Attack_Heavy));
+	}
+
+	// Nothing equipped: light falls back to the unarmed profiles; there is no unarmed heavy
+	{
+		UMordecaiEquipmentComponent* Bare = NewObject<UMordecaiEquipmentComponent>();
+		UMordecaiAttackProfileDataAsset* Punch = NewObject<UMordecaiAttackProfileDataAsset>();
+		Bare->UnarmedAttackProfiles.Add(Punch);
+
+		UMordecaiGA_MeleeAttack* Light = NewObject<UMordecaiGA_MeleeAttack>();
+		Light->SetEquipmentComponentOverride(Bare);
+		UMordecaiGA_HeavyAttack* Heavy = NewObject<UMordecaiGA_HeavyAttack>();
+		Heavy->SetEquipmentComponentOverride(Bare);
+
+		TestTrue("Unarmed light attack uses the unarmed profile", Light->GetActiveProfile() == Punch);
+		TestNull("Unarmed heavy attack has no profile", Heavy->GetActiveProfile());
+	}
+
+	// The real grant path: the granted instances read the avatar's equipped weapon
+	FMordecaiCombatGrantTestEnv Env;
+	ON_SCOPE_EXIT { Env.Teardown(); };
+	if (!TestTrue("Test world set up", Env.Setup()))
+	{
+		return true;
+	}
+	UMordecaiAttackProfileDataAsset* ControllerProfile = NewObject<UMordecaiAttackProfileDataAsset>();
+	Env.PC->MeleeAttackProfiles.Add(ControllerProfile);
+	Env.GrantCombatOnly();
+	AMordecaiCharacter* Avatar = Env.AttachAvatar();
+	UMordecaiEquipmentComponent* AvatarEquipment = Avatar ? Avatar->GetEquipmentComponent() : nullptr;
+	if (!TestNotNull("Avatar has an equipment component", AvatarEquipment))
+	{
+		return true;
+	}
+	FMordecaiWeaponInstance AvatarWeapon = MakeGrantTestWeapon(Longsword);
+	AvatarEquipment->EquipWeapon(AvatarWeapon, EMordecaiEquipSlot::MainHand);
+
+	const FGameplayAbilitySpec* LightSpec = Env.FindSpec(UMordecaiGA_MeleeAttack::StaticClass());
+	const FGameplayAbilitySpec* HeavySpec = Env.FindSpec(UMordecaiGA_HeavyAttack::StaticClass());
+	const UMordecaiGA_MeleeAttack* LightInstance = LightSpec ? Cast<UMordecaiGA_MeleeAttack>(LightSpec->GetPrimaryInstance()) : nullptr;
+	const UMordecaiGA_HeavyAttack* HeavyInstance = HeavySpec ? Cast<UMordecaiGA_HeavyAttack>(HeavySpec->GetPrimaryInstance()) : nullptr;
+	if (!TestNotNull("Granted light instance", LightInstance) || !TestNotNull("Granted heavy instance", HeavyInstance))
+	{
+		return true;
+	}
+	TestTrue("Granted light attack uses the equipped weapon", LightInstance->GetActiveProfile() == LongswordL1);
+	TestTrue("Granted heavy attack uses the equipped weapon's heavy profile", HeavyInstance->GetActiveProfile() == LongswordH);
+
+	// The controller's MeleeAttackProfiles are the light combo's fallback only
+	TestTrue("Light instance took the controller's profiles as its fallback",
+		LightInstance->AttackProfiles.Num() == 1 && LightInstance->AttackProfiles[0] == ControllerProfile);
+	TestEqual("Heavy instance did not take the controller's light profiles", HeavyInstance->AttackProfiles.Num(), 0);
 	return true;
 }

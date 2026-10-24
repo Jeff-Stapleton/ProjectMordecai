@@ -180,6 +180,14 @@ namespace MordecaiGameplayTags
 	// Attack tags (US-016)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Attack_Heavy, "Mordecai.Attack.Heavy", "Heavy/charged attack — partially bypasses Weakened penalty");
 
+	// Input tags (US-083)
+	// TODO(DECISION): tag namespace not approved (agent_rules_v2 Open Items 1); Lyra's own convention would be InputTag.Mordecai.*
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_LightAttack, "Mordecai.Input.LightAttack", "Light attack input (LMB / RT tap) — activates the light melee ability");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_HeavyAttack, "Mordecai.Input.HeavyAttack", "Heavy attack input (LMB / RT hold) — activates the heavy melee ability");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Block,       "Mordecai.Input.Block",       "Block input (RMB / LT hold) — activates block, release ends it");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Parry,       "Mordecai.Input.Parry",       "Parry input (LMB / RT pressed while blocking) — activates parry");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Dodge,       "Mordecai.Input.Dodge",       "Dodge input (Left Alt / Gamepad B) — activates dodge");
+
 	// Ability category tags (US-017)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Category_Spell,   "Mordecai.Ability.Category.Spell",   "Identifies an ability as a spell — blocked by Silenced");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Category_Magical, "Mordecai.Ability.Category.Magical", "Identifies an ability as magical — blocked by Silenced even if not a spell");

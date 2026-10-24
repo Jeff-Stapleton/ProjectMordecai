@@ -30,6 +30,10 @@ UMordecaiGA_Dodge::UMordecaiGA_Dodge(const FObjectInitializer& ObjectInitializer
 	// AC-007.8: Block dodge during knocked down
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_KnockedDown);
 
+	// AC-006.14: no dodging out of a parry whiff lock; US-083: none from a dead player
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_ParryWhiff);
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Dead);
+
 	// AC-005.12: Dodge is NOT blocked by Rooted
 	// (intentionally omitted from ActivationBlockedTags)
 }

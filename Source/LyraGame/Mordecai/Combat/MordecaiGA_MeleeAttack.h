@@ -44,6 +44,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Combo")
 	float ComboWindowTimeoutMs = 800.f;
 
+	/**
+	 * Which of the equipped weapon's attacks this ability performs (US-083): Light = the weapon's light combo,
+	 * Heavy = its heavy attack (UMordecaiGA_HeavyAttack).
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Attack")
+	EMordecaiInputSlot AttackSlot = EMordecaiInputSlot::Light;
+
 	// --- Public Getters (testable API) ---
 
 	/** Get the attack profile for the current combo step. Returns nullptr if invalid. */
@@ -123,8 +130,8 @@ public:
 
 	/**
 	 * Get the resolved attack profiles for the current weapon. First checks the
-	 * EquipmentComponent on the owning actor; falls back to the hardcoded
-	 * AttackProfiles array if no EquipmentComponent is present.
+	 * EquipmentComponent on the owning actor (its light combo, or its heavy attack for
+	 * AttackSlot Heavy); falls back to the hardcoded AttackProfiles array if that gives none.
 	 */
 	TArray<const UMordecaiAttackProfileDataAsset*> GetResolvedAttackProfiles() const;
 

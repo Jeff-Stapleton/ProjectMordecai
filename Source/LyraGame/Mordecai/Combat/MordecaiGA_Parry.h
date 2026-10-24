@@ -89,6 +89,9 @@ protected:
 	// --- Stamina ---
 	void ApplyStaminaCost();
 
+	// --- Block (AC-006.18) ---
+	void CancelActiveBlock();
+
 	// --- Tag Management ---
 	void ApplyParryingTag();
 	void RemoveParryingTag();

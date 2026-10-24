@@ -2,7 +2,8 @@
 
 A FakeWorld subclass stands in for the weapon arena: five weapons in the game's order, Tab /
 Gamepad_FaceButton_Top next, BackSlash previous, and switches for the known issues (Shift+Tab,
-the weapon HUD, bound attacks).  These prove the playtest's logic and reporting only; they say
+the weapon HUD) and for the attacks (bound since US-083: a short click is a light attack, a
+hold of at least 0.4 s a heavy attack on release).  These prove the playtest's logic and reporting only; they say
 nothing about the real game.  Nothing here launches the real game.
 Run: py Scripts/run_python_tests.py -k Us078
 """
@@ -45,8 +46,9 @@ GAME_WEAPONS = (("DA_Weapon_Longsword", "Longsword", "Longsword"),
                 ("DA_Weapon_Greatsword", "Greatsword", "Greatsword"),
                 ("DA_Weapon_Spear", "Spear", "Spear"),
                 ("DA_Weapon_Mace", "Mace", "Mace"))
-KNOWN_FAILS = ["weapon_hud_text", "cycle_prev_shift_tab", "light_attack_lmb",
-               "heavy_attack_hold"]
+KNOWN_FAILS = ["weapon_hud_text", "cycle_prev_shift_tab"]
+ATTACK_CHECKS = ["light_attack_lmb", "heavy_attack_hold"]
+HEAVY_HOLD_S = 0.4   # UMordecaiHeroComponent::HeavyAttackHoldSeconds
 
 
 class WeaponWorld(fb.FakeWorld):
@@ -54,14 +56,17 @@ class WeaponWorld(fb.FakeWorld):
 
     shift_tab_prev: Shift+Tab cycles back (False = today's N9: Tab still fires Next).
     hud_shows_weapon: a visible widget shows the weapon name (False = today's N3).
-    attacks_bound: a Left click starts an attack, Mordecai.State.Attacking for attack_s
-    (False = today: attacks are not bound).  next_works: Tab / Y cycle at all.
-    weapons: [(id, display_name, type)]; stuck_attacking: the tag never clears.
+    attacks_bound: a Left click starts an attack on its release, Mordecai.State.Attacking for
+    attack_s; a press held HEAVY_HOLD_S or longer is a heavy attack, which also owns
+    Mordecai.Attack.Heavy (False = the game before US-083: attacks are not bound).
+    heavy_as_light: a held press starts a light attack (a heavy input routed to the light one).
+    next_works: Tab / Y cycle at all.  weapons: [(id, display_name, type)];
+    stuck_attacking: the tag never clears.
     """
 
     def __init__(self, *, shift_tab_prev=True, hud_shows_weapon=True, attacks_bound=True,
                  next_works=True, weapons=GAME_WEAPONS, attack_s=0.6, stuck_attacking=False,
-                 **kwargs):
+                 heavy_as_light=False, **kwargs):
         super().__init__(**kwargs)
         self.shift_tab_prev = shift_tab_prev
         self.hud_shows_weapon = hud_shows_weapon
@@ -70,7 +75,10 @@ class WeaponWorld(fb.FakeWorld):
         self.weapons = tuple(weapons)
         self.attack_s = attack_s
         self.stuck_attacking = stuck_attacking
+        self.heavy_as_light = heavy_as_light
         self.attack_until = None
+        self.attack_heavy = False
+        self.left_down_at = None
         self.attacks = []
 
     def _cycle(self, delta):
@@ -93,12 +101,22 @@ class WeaponWorld(fb.FakeWorld):
                 return
         super()._on_key_pressed(key)
 
+    def mouse_down(self, conn_id, x, y, button):
+        with self.lock:
+            hit = super().mouse_down(conn_id, x, y, button)
+            if button == "Left":
+                self.left_down_at = self.real_time()
+            return hit
+
     def mouse_up(self, conn_id, x, y, button):
         with self.lock:
             hit = super().mouse_up(conn_id, x, y, button)
             if self.attacks_bound and button == "Left" and hit == "SViewport":
+                held = self.real_time() - (self.left_down_at or self.real_time())
+                self.attack_heavy = held >= HEAVY_HOLD_S and not self.heavy_as_light
                 self.attack_until = self.real_time() + self.attack_s
-                self.attacks.append(round(self.real_time(), 2))
+                self.attacks.append(("heavy" if self.attack_heavy else "light",
+                                     round(self.real_time(), 2)))
             return hit
 
     def attacking(self):
@@ -119,6 +137,8 @@ class WeaponWorld(fb.FakeWorld):
                              "index": self.weapon_index, "count": len(self.weapons)}
             if self.attacking():
                 out["tags"] = list(out["tags"]) + ["Mordecai.State.Attacking"]
+                if self.attack_heavy and not self.stuck_attacking:
+                    out["tags"].append("Mordecai.Attack.Heavy")
         return out
 
     def _s_widgets(self):
@@ -209,8 +229,11 @@ class TestUs078Pass(Us078Case):
         self.assertIn("-> 0 'Longsword'", checks["weapon_hud_updates"]["detail"])
         self.assertIn("the HUD shows 'Longsword'", checks["weapon_hud_updates"]["detail"])
         self.assertIn("Slate hit SViewport", checks["light_attack_lmb"]["detail"])
+        self.assertIn("Mordecai.State.Attacking without Mordecai.Attack.Heavy after",
+                      checks["light_attack_lmb"]["detail"])
         self.assertIn("held 0.8s", checks["heavy_attack_hold"]["detail"])
-        self.assertEqual(len(world.attacks), 2)
+        self.assertIn("Mordecai.Attack.Heavy after", checks["heavy_attack_hold"]["detail"])
+        self.assertEqual([kind for kind, _ in world.attacks], ["light", "heavy"])
         # Every known issue passed here: each is flagged as a fixed candidate.
         self.assertEqual(sorted(rep["fixed_candidates"]),
                          sorted(KNOWN_FAILS + ["weapon_hud_updates"]))
@@ -244,8 +267,7 @@ class TestUs078Pass(Us078Case):
 
 class TestUs078Failures(Us078Case):
     def test_todays_known_issues_fail_as_known(self):
-        _, server = self.serve(shift_tab_prev=False, hud_shows_weapon=False,
-                               attacks_bound=False)
+        _, server = self.serve(shift_tab_prev=False, hud_shows_weapon=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(KNOWN_FAILS))
@@ -263,15 +285,14 @@ class TestUs078Failures(Us078Case):
         self.assertIn("on 0 'Longsword' -> 1 'Dagger'", checks["cycle_gamepad_y"]["detail"])
         self.assertEqual(checks["weapon_hud_updates"]["status"], "SKIP")
         self.assertIn("weapon_hud_text failed", checks["weapon_hud_updates"]["detail"])
-        self.assertIn("Mordecai.State.Attacking not in player.tags within 1s",
-                      checks["light_attack_lmb"]["detail"])
-        self.assertIn("within 0.5s", checks["heavy_attack_hold"]["detail"])
+        for name in ATTACK_CHECKS:
+            self.assertEqual(checks[name]["status"], "PASS", name)
         acs = self.acs(rep)
         self.assertEqual(acs["AC-078.7"]["status"], "FAIL")
         self.assertIn("N9", acs["AC-078.7"]["known_issue"])
         self.assertEqual(acs["AC-078.11"]["status"], "FAIL")
-        self.assertEqual(acs["AC-078.13"]["status"], "FAIL")
-        self.assertEqual(acs["AC-078.14"]["status"], "FAIL")  # the attack is part of the loop
+        self.assertEqual(acs["AC-078.13"]["status"], "PASS")
+        self.assertEqual(acs["AC-078.14"]["status"], "NOT RUN")  # weapon_hud_updates is SKIPped
         self.assertEqual(acs["US-077:AC-077.8"]["status"], "NOT RUN")
         for ac_id in ("AC-078.6", "AC-078.8", "AC-078.9", "US-077:AC-077.3",
                       "US-077:AC-077.4", "US-077:AC-077.5"):
@@ -279,6 +300,32 @@ class TestUs078Failures(Us078Case):
         md = self.report_md()
         self.assertIn("FAIL (known)", md)
         self.assertNotIn("FAIL (NEW)", md)
+
+    def test_unbound_attacks_fail_new(self):
+        # The game before US-083
+        _, server = self.serve(shift_tab_prev=False, hud_shows_weapon=False, attacks_bound=False)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(sorted(rep["new_failures"]), sorted(ATTACK_CHECKS))
+        checks = self.by_name(rep)
+        self.assertIn("no Mordecai.State.Attacking without Mordecai.Attack.Heavy in player.tags "
+                      "within 1s", checks["light_attack_lmb"]["detail"])
+        self.assertIn("no Mordecai.Attack.Heavy in player.tags within 0.5s",
+                      checks["heavy_attack_hold"]["detail"])
+        self.assertEqual(self.acs(rep)["AC-078.13"]["status"], "FAIL")
+
+    def test_a_hold_that_starts_a_light_attack_fails_the_heavy_check(self):
+        # A heavy input routed to the light attack still shows Mordecai.State.Attacking; only
+        # the heavy attack's own tag passes heavy_attack_hold.
+        world, server = self.serve(heavy_as_light=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        self.assertEqual(checks["light_attack_lmb"]["status"], "PASS")
+        self.assertEqual(checks["heavy_attack_hold"]["status"], "FAIL")
+        self.assertIn("no Mordecai.Attack.Heavy", checks["heavy_attack_hold"]["detail"])
+        self.assertEqual(rep["new_failures"], ["heavy_attack_hold"])
+        self.assertEqual([kind for kind, _ in world.attacks], ["light", "light"])
 
     def test_a_wrong_weapon_name_is_a_new_fail(self):
         weapons = list(GAME_WEAPONS)
@@ -377,7 +424,8 @@ class TestUs078Plan(unittest.TestCase):
             self.assertIn("Specs/agent_playtest_plan_v1.md", issue, check)
         self.assertTrue(known["weapon_hud_text"].startswith("N3 "))
         self.assertTrue(known["cycle_prev_shift_tab"].startswith("N9 "))
-        self.assertIn("N10", known["light_attack_lmb"])
+        for name in ATTACK_CHECKS:
+            self.assertNotIn(name, known, "attacks are bound since US-083")
 
     def test_plan_prints_without_a_game(self):
         out = io.StringIO()

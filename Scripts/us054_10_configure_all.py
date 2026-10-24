@@ -1,55 +1,21 @@
 """US-054 Step 10: Final configuration of all assets.
 
 Configures:
-- MordecaiPlayerController CDO with combat abilities, melee profiles, and HUD class
 - Enemy BP with abilities and health bar
 - Loads DevTestMap and ensures arena setup is intact
 - Saves all dirty assets
+
+The player controller is NOT configured here.  This script used to write DefaultCombatAbilities,
+MeleeAttackProfiles and CombatHUDWidgetClass onto the native MordecaiPlayerController class
+default object: an edit that was never saved, never reached a spawned controller (an instance of
+a native class copies only Config properties from its CDO), and planted the packaged-build GC
+crash of writing loaded assets into a native CDO (N10, issue #15; unreal-tribal-knowledge).  The
+controller's C++ constructor sets its combat abilities (US-083); CreateCombatHUD loads
+WBP_CombatHUD itself.  Never write a native class default object from a script.
 """
 import unreal
 
 EAL = unreal.EditorAssetLibrary
-
-# === Configure Player Controller ===
-unreal.log('=== Configuring Player Controller ===')
-pc_cdo = unreal.get_default_object(unreal.MordecaiPlayerController)
-if pc_cdo:
-    # Set combat abilities (AC-054.5)
-    combat_abilities = [
-        unreal.MordecaiGA_MeleeAttack,
-        unreal.MordecaiGA_Dodge,
-        unreal.MordecaiGA_Block,
-        unreal.MordecaiGA_Parry,
-    ]
-    pc_cdo.set_editor_property('default_combat_abilities', combat_abilities)
-    unreal.log('Set DefaultCombatAbilities: MeleeAttack, Dodge, Block, Parry')
-
-    # Set melee attack profiles (AC-054.4)
-    profile_paths = [
-        '/MordecaiCore/Combat/Player/DA_PlayerAttack_LightSlash_1',
-        '/MordecaiCore/Combat/Player/DA_PlayerAttack_LightSlash_2',
-        '/MordecaiCore/Combat/Player/DA_PlayerAttack_LightSlash_3',
-    ]
-    profiles = []
-    for p in profile_paths:
-        asset = unreal.load_asset(p)
-        if asset:
-            profiles.append(asset)
-            unreal.log(f'  Loaded profile: {p}')
-        else:
-            unreal.log_warning(f'  Missing profile: {p}')
-    pc_cdo.set_editor_property('melee_attack_profiles', profiles)
-    unreal.log(f'Set MeleeAttackProfiles: {len(profiles)} profiles')
-
-    # Set HUD widget class (AC-054.8)
-    hud_path = '/MordecaiCore/UI/WBP_CombatHUD'
-    if EAL.does_asset_exist(hud_path):
-        hud_class = unreal.load_class(None, hud_path + '.WBP_CombatHUD_C')
-        if hud_class:
-            pc_cdo.set_editor_property('combat_hud_widget_class', hud_class)
-            unreal.log('Set CombatHUDWidgetClass = WBP_CombatHUD')
-else:
-    unreal.log_error('Could not get MordecaiPlayerController CDO')
 
 # === Configure Enemy BP ===
 unreal.log('=== Configuring Enemy BP ===')

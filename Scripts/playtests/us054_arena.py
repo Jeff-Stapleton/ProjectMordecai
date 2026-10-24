@@ -124,24 +124,20 @@ SCREENSHOTS = {
                  "health bars back at their spawn points",
 }
 KNOWN_ISSUES = (
-    "Block and parry (AC-054.6: RMB hold, RMB+LMB) are not tested: they need the right mouse "
-    "button held across state reads, and the bridge's click holds a button only inside one "
-    "blocking command (hold_s), so nothing can be read while it is held.",
+    "Block and parry on the mouse (AC-054.6: RMB hold, RMB+LMB) are not tested: they need the "
+    "right mouse button held across state reads, and the playtest client's click holds a button "
+    "only inside one blocking command (hold_s), so nothing can be read while it is held (B2). "
+    "The gamepad path (LT hold, LT+RT) is played by Scripts/playtests/us083_combat_input.py.",
     "The Frontliners have no mesh (invisible enemies, Known issues backlog: 'The three red bars "
     "are explained'); enemies_visible is expected to FAIL.",
-    "Attacks and dodge are not bound at runtime (Known issues backlog: 'Sprint, jump, attacks, "
-    "block and dodge are not bound at runtime'; N10: the player's combat abilities exist only "
-    "as an unsaved CDO edit); melee_lmb and dodge_lalt are expected to FAIL.",
     "The death screen is never created (Known issue N2); death_screen is expected to FAIL.",
-    "No kill path exists while attacks are unbound, so kill_counter_text_matches can only "
-    "compare 'Kills: 0' with player.kills == 0.",
+    "The run lands one light attack and kills no enemy, so kill_counter_text_matches can only "
+    "compare 'Kills: 0' with player.kills == 0 (the kill path is US-086's).",
     "Suspected NEW (unverified): in a 60 s us079 run the enemies never damaged the player; "
     "enemy_approaches and enemy_damages_player carry no known_issue.",
 )
 KI_INVISIBLE = ("Known issues backlog, 'The three red bars are explained': the three "
                 "Frontliners have no mesh, so the enemies are invisible")
-KI_UNBOUND = ("Known issue N10: the player's combat abilities are granted only by an unsaved CDO "
-              "edit; attacks, block and dodge are not bound at runtime (Known issues backlog)")
 KI_DEATH_SCREEN = "Known issue N2: the death screen is never created"
 
 PLAN = (
@@ -169,9 +165,9 @@ PLAN = (
     Step("melee_lmb", f"click Left at (640, 360) -> within {ATTACK_TIMEOUT_S:g}s "
          f"'{TAG_ATTACKING}' in player.tags or the nearest enemy's health below its value "
          "before the click",
-         proves=("AC-054.6", "AC-054.5"), known_issue=KI_UNBOUND),
+         proves=("AC-054.6", "AC-054.5")),
     Step("dodge_lalt", f"tap LeftAlt -> within {DODGE_TIMEOUT_S:g}s a Dodging tag in player.tags "
-         "or a displacement > 150 cm", proves=("AC-054.6", "AC-054.5"), known_issue=KI_UNBOUND),
+         "or a displacement > 150 cm", proves=("AC-054.6", "AC-054.5")),
     Step("enemy_damages_player", "stand next to the enemy -> wait_until player.attributes.health "
          f"< player.attributes.max_health within {DAMAGE_TIMEOUT_S:g}s",
          proves=("AC-054.13", "US-051:AC-051.5")),
@@ -298,6 +294,14 @@ def displacement(a):
 def enemy_nearest(st, point):
     es = enemies(st)
     return min(es, key=lambda a: dist(xy(a.get("location")), point)) if es else None
+
+
+def same_enemy(st, name, point):
+    """The enemy called `name` (actors[].name); without a name, the one nearest `point`.  None
+    when the named enemy is not in the state (another enemy never stands in for it)."""
+    if name:
+        return next((a for a in enemies(st) if a.get("name") == name), None)
+    return enemy_nearest(st, point)
 
 
 def fmt_xy(p):
@@ -549,14 +553,17 @@ class Us054Run(kit.PlaytestRun):
             pos0 = xy(p0.get("location"))
             # Damage is judged against the nearest enemy's health BEFORE the click, never against
             # the AC's max: the cooked enemies have 100 max health (N13), which is below 200.
+            # The same enemy is read after the click (by name), so another, already damaged enemy
+            # that becomes the nearest cannot pass the check.
             e0 = enemy_nearest(st0, pos0)
+            name0 = e0.get("name") if e0 else None
             h0 = (enemy_health(e0) or (None, None))[0] if e0 else None
             r = b.click(640, 360, button="Left")
             seen = {}
 
             def hit(st):
                 p = player(st)
-                e = enemy_nearest(st, xy((p or {}).get("location")) or pos0)
+                e = same_enemy(st, name0, xy((p or {}).get("location")) or pos0)
                 seen["tags"] = tags(p)
                 seen["enemy"] = enemy_health(e) if e else None
                 cur = (seen["enemy"] or (None, None))[0]
@@ -828,8 +835,8 @@ class Us054Run(kit.PlaytestRun):
             p = player(st)
             kills = (p or {}).get("kills")
             shown = kill_counts(st)
-            note = ("; note: no kill path exists while attacks are unbound (known issue), so "
-                    "this only compares the starting count")
+            note = ("; note: the run kills no enemy (one light attack), so this only compares the "
+                    "starting count")
             if p is None:
                 return "FAIL", f"no valid player section; 'Kills: N' texts {shown}", None
             # The HUD root may repeat its children's texts: one distinct value is expected.

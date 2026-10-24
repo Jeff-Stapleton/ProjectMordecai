@@ -343,8 +343,13 @@ The bridge replies `{"ok":true,"cmd":"quit"}`, flushes every connection, release
 | `Escape` | Open the pause menu |
 | `Q` / `E` / `R` / `One` | Spell slots 0-3 |
 | `Tab` / `BackSlash` | Next / previous weapon |
+| `LeftMouseButton` (a `click`) / `Gamepad_RightTriggerAxis` | Released before 0.4 s: light attack. Held 0.4 s or more: heavy attack on the release (`Mordecai.Attack.Heavy` in `player.tags`). Pressed while blocking: parry (US-083) |
+| `RightMouseButton` / `Gamepad_LeftTriggerAxis` (held) | Block; the release ends it |
+| `LeftAlt` / `Gamepad_FaceButton_Right` | Dodge |
+| `SpaceBar` / `Gamepad_FaceButton_Bottom` | Jump |
+| `LeftShift` | Sprint toggle (a second tap walks again) |
 
-  Sprint, jump, attacks, block and dodge are mapped or specified but **not bound** in the build. Gamepad sticks use invalid key names today (Known issues).
+  Block and parry on the mouse need the right mouse button held across reads, which the playtest client cannot do (B2); on the gamepad, `axis` without `hold_s` holds LT / RT across reads (`Scripts/playtests/us083_combat_input.py`). Gamepad sticks and L3 use invalid key names today (Known issues).
 
 ## 6. Python client (`Scripts/agent_bridge.py`)
 
@@ -433,6 +438,6 @@ These were found while mapping Phase 2. They are game bugs to file, and the brid
 - **The pause menu could not be closed with real input (confirmed 2026-10-20, `Saved/Playtests/20261020-144643-us079`, step `menu_closes_escape`).** While it is open, CommonUI's Menu input mode blocks every key without a UI action binding, and the widget was not a back handler. **Game fix (separate commit):** `UMordecaiPauseMenuWidget` sets `bIsBackHandler = true`, so CommonUI registers its default back action (`B_CommonInputData` → `DT_UniversalActions` row `DefaultBack`: keyboard `Escape`, gamepad `Gamepad_FaceButton_Right`; Enhanced Input support is off, so the data-table action is used). The default back handling deactivates the widget, and `NativeOnDeactivated` closes the menu through `UMordecaiPauseMenuSubsystem::ClosePauseMenu`. Verified with real input in the packaged game: `Saved/Playtests/20261020-192656-us079` (diagnostic build of the uncommitted tree), `menu_closes_escape` PASS. `I` still does not close the menu (it has no UI action binding).
 - **Gamepad stick and L3 mappings use invalid key names.** `Gamepad_LeftStick2D`, `Gamepad_RightStick2D` and `Gamepad_LeftThumbstickButton` do not exist; the real names are `Gamepad_Left2D`, `Gamepad_Right2D` and `Gamepad_LeftThumbstick`.
 - **Facing and aim are pinned to +X.** The diorama camera writes control rotation every frame.
-- **Not bound:** sprint, jump, attacks, block, dodge.
+- **Not bound (FIXED by US-083):** sprint, jump, attacks, block and dodge are bound since US-083 (§5). Left Shift no longer crouches (N23).
 - **Spells have no cooldown tag.**
 - **The three red bars** are the health bars of three invisible `BP_MordecaiEnemy_Frontliner` enemies. They have no mesh.

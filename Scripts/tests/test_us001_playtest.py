@@ -30,8 +30,8 @@ STORY_FILE = os.path.join(os.path.dirname(SCRIPTS), "stories", "done",
 TOKEN = "us001-token"
 INPUT_AND_READ_CMDS = {"ping", "state", "key", "axis", "mouse", "click", "screenshot",
                        "wait_until", "wait", "quit"}
-KNOWN_FAILS = ["sprint_shift", "sprint_l3", "jump_space", "facing_mouse", "facing_stick",
-               "gamepad_move"]
+KNOWN_FAILS = ["sprint_l3", "facing_mouse", "facing_stick", "gamepad_move"]
+FIXED_BY_US083 = ["sprint_shift", "jump_space"]
 
 
 def load_playtest():
@@ -47,10 +47,10 @@ us001 = load_playtest()
 # ---------------------------------------------------------------------------
 # Fake worlds
 # ---------------------------------------------------------------------------
-class HudWorld(fb.FakeWorld):
+class UnboundWorld(fb.FakeWorld):
     """The shared fake plus the combat HUD's bar widgets the real game shows (the shared fake
-    lists only WBP_CombatHUD_C and the pickup prompt).  Everything else is today's game:
-    sprint/jump unbound, facing pinned to +X, gamepad sticks dead."""
+    lists only WBP_CombatHUD_C and the pickup prompt).  Everything else is the game before
+    US-083: sprint/jump unbound, facing pinned to +X, gamepad sticks dead."""
 
     def _s_widgets(self):
         out = super()._s_widgets()
@@ -61,31 +61,66 @@ class HudWorld(fb.FakeWorld):
         return out
 
 
-class FixedWorld(HudWorld):
-    """A game with every known issue fixed: Shift / L3 toggle sprint (x1.5), SpaceBar jumps
-    (movement_mode Falling for 0.6 s), the mouse and the right stick turn the pawn, and the
-    left stick moves it."""
+class HudWorld(UnboundWorld):
+    """Today's game (US-083): LeftShift toggles sprint (x1.5) and SpaceBar jumps
+    (movement_mode Falling for 0.6 s).  The L3 key name is still invalid (US-097), facing is
+    pinned to +X and the gamepad sticks are dead."""
 
     SPRINT_MULT = 1.5
     JUMP_S = 0.6
+    SPRINT_KEYS = ("LeftShift",)
+    STICKY_SPRINT = False   # True: a second tap does not end the sprint
+    DROP_FIRST_SPRINT_TAP = False  # True: the first sprint tap is lost
 
     def __init__(self, **kw):
-        kw.setdefault("stick_moves", True)
         super().__init__(**kw)
         self.base_speed = self.speed
         self.sprinting = False
         self.jump_until = -1.0
-        self.yaw = 0.0
+        self.sprint_taps = 0
 
     def _on_key_pressed(self, key):
         super()._on_key_pressed(key)
         if not self.ready or self.menu_open or self.is_dead:
             return
-        if key in ("LeftShift", "Gamepad_LeftThumbstick"):
-            self.sprinting = not self.sprinting
+        if key in self.SPRINT_KEYS:
+            self.sprint_taps += 1
+            if self.DROP_FIRST_SPRINT_TAP and self.sprint_taps == 1:
+                return
+            self.sprinting = True if self.STICKY_SPRINT else not self.sprinting
             self.speed = self.base_speed * (self.SPRINT_MULT if self.sprinting else 1.0)
         elif key == "SpaceBar":
             self.jump_until = self.real_time() + self.JUMP_S
+
+    def _s_player(self):
+        out = super()._s_player()
+        if out.get("valid") and self.real_time() < self.jump_until:
+            out["movement_mode"] = "Falling"
+        return out
+
+
+class StickySprintWorld(HudWorld):
+    """LeftShift starts the sprint, but tapping it again does not end it."""
+
+    STICKY_SPRINT = True
+
+
+class DroppedSprintTapWorld(HudWorld):
+    """The first LeftShift tap is lost, so the second one starts the sprint."""
+
+    DROP_FIRST_SPRINT_TAP = True
+
+
+class FixedWorld(HudWorld):
+    """A game with every known issue fixed: Shift / L3 toggle sprint, SpaceBar jumps, the mouse
+    and the right stick turn the pawn, and the left stick moves it."""
+
+    SPRINT_KEYS = ("LeftShift", "Gamepad_LeftThumbstick")
+
+    def __init__(self, **kw):
+        kw.setdefault("stick_moves", True)
+        super().__init__(**kw)
+        self.yaw = 0.0
 
     def move_cursor(self, x, y):
         with self.lock:
@@ -106,8 +141,6 @@ class FixedWorld(HudWorld):
         out = super()._s_player()
         if out.get("valid"):
             out["rotation"] = [0.0, round(self.yaw, 2), 0.0]
-            if self.real_time() < self.jump_until:
-                out["movement_mode"] = "Falling"
         return out
 
 
@@ -201,7 +234,8 @@ class PlaytestCase(unittest.TestCase):
 # Runs against the fake
 # ---------------------------------------------------------------------------
 class TestUs001TodaysGame(PlaytestCase):
-    """HudWorld behaves like today's game: what works PASSes, the known issues FAIL as known."""
+    """HudWorld behaves like today's game: what works PASSes (sprint and jump since US-083),
+    the known issues FAIL as known."""
 
     def test_works_passes_and_the_known_issues_fail_as_known(self):
         world, server = self.serve()
@@ -212,7 +246,7 @@ class TestUs001TodaysGame(PlaytestCase):
                      "move_a", "move_w", "move_d", "move_s", "camera_fixed",
                      "no_camera_rotation_input", "walk_lane_wp1", "walk_lane_wp2",
                      "walk_lane_start", "walk_speed_baseline", "walk_lane_reset",
-                     "walk_lane_reset2", "no_crash"):
+                     "sprint_shift", "walk_lane_reset2", "jump_space", "no_crash"):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(self.statuses(rep, "FAIL"), KNOWN_FAILS)
         self.assertEqual(self.statuses(rep, "SKIP"), [])
@@ -220,11 +254,13 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertEqual(rep["new_failures"], [])
         self.assertEqual(rep["fixed_candidates"], [])
         self.assertEqual(rep["undeclared_checks"], [])
-        # What the details say about each known failure.
-        self.assertIn("dx", checks["sprint_shift"]["detail"])
+        # The sprint and its toggle-back were both measured.
         self.assertIn("need > 700", checks["sprint_shift"]["detail"])
-        self.assertIn("player.movement_mode", checks["jump_space"]["detail"])
-        self.assertIn('"Walking"', checks["jump_space"]["detail"])
+        self.assertIn("then held S 1s: peak speed 600 cm/s", checks["sprint_shift"]["detail"])
+        self.assertNotIn(" -- ", checks["sprint_shift"]["detail"])
+        self.assertFalse(world.sprinting, "the sprint was toggled back")
+        # What the details say about each known failure.
+        self.assertIn("need > 700", checks["sprint_l3"]["detail"])
         self.assertIn("yaw stayed 0", checks["facing_mouse"]["detail"])
         self.assertIn("yaw stayed 0", checks["facing_stick"]["detail"])
         self.assertIn("dx 0 cm", checks["gamepad_move"]["detail"])
@@ -249,17 +285,20 @@ class TestUs001TodaysGame(PlaytestCase):
             self.assertIn("move_w", acs[ac]["checks"])
             self.assertEqual(acs[ac]["known_issue"], us001.KI_STICKS)
         self.assertEqual(acs["AC-1.3.2"]["checks"][0], "imc_active")
-        for ac in ("AC-1.3.3", "AC-2.1.3", "AC-2.1.4", "AC-2.1.2"):
+        # Sprint needs both keys; L3 still fails (US-097).  Facing is still pinned.
+        for ac in ("AC-1.3.3", "AC-2.1.3", "AC-2.1.2"):
             self.assertEqual(acs[ac]["status"], "FAIL", ac)
             self.assertTrue(acs[ac]["known_issue"], ac)
         self.assertEqual(acs["AC-1.3.3"]["checks"], ["sprint_shift", "sprint_l3"])
+        self.assertEqual(acs["AC-2.1.4"]["status"], "PASS")
         self.assertEqual(acs["AC-1.2.1"]["status"], "PENDING")
         self.assertIn("no camera transform", acs["AC-1.2.1"]["pending"])
         self.assertEqual(acs["AC-2.1.5"]["status"], "PENDING")
         self.assertFalse([a for a in rep["acs"] if a["accepted"]],
                          "an attached run never accepts an AC")
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
-        self.assertIn("| AC-2.1.4 | jump_space | FAIL (known: Known issue: sprint, jump", md)
+        self.assertIn("| AC-2.1.4 | jump_space | PASS", md)
+        self.assertIn("FAIL (known: Known issue: facing", md)
         self.assertIn("| FAIL (known) |", md)
         self.assertNotIn("FAIL (NEW)", md)
         self.assertIn("## Movement measurements", md)
@@ -295,6 +334,49 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertLess(movement["move_a"]["dy"], -100)
         self.assertGreater(movement["move_w"]["dx"], 100)
         self.assertGreater(movement["walk_speed_baseline"]["dx"], 400)
+        self.assertGreater(movement["sprint_shift"]["dx"], 700)
+        self.assertLess(movement["sprint_shift_toggle_back"]["dx"], -400)
+
+
+class TestUs001BeforeUs083(PlaytestCase):
+    def test_unbound_sprint_and_jump_fail_new(self):
+        _, server = self.serve(UnboundWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        for name in FIXED_BY_US083:
+            self.assertEqual(checks[name]["status"], "FAIL", name)
+        self.assertEqual(rep["new_failures"], FIXED_BY_US083)
+        self.assertIn("need > 700", checks["sprint_shift"]["detail"])
+        self.assertIn("player.movement_mode", checks["jump_space"]["detail"])
+        self.assertIn('"Walking"', checks["jump_space"]["detail"])
+
+    def test_a_sprint_the_second_tap_does_not_end_fails(self):
+        world, server = self.serve(StickySprintWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["sprint_shift"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("the second tap did not end the sprint", check["detail"])
+        self.assertIn("sprint_shift", rep["new_failures"])
+        self.assertEqual(self.acs(rep)["AC-1.3.3"]["status"], "FAIL")
+        self.assertTrue(world.sprinting)
+        # The sprint left on cannot make the dead L3 key look fixed
+        l3 = self.by_name(rep)["sprint_l3"]
+        self.assertEqual(l3["status"], "SKIP", l3["detail"])
+        self.assertIn("LeftShift sprint is still on", l3["detail"])
+        self.assertEqual(rep["fixed_candidates"], [])
+
+    def test_a_lost_first_sprint_tap_is_reported_out_of_phase(self):
+        world, server = self.serve(DroppedSprintTapWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        self.assertEqual(checks["sprint_shift"]["status"], "FAIL")
+        self.assertIn("toggle out of phase", checks["sprint_shift"]["detail"])
+        self.assertEqual(checks["sprint_l3"]["status"], "SKIP")
+        self.assertEqual(rep["fixed_candidates"], [])
+        self.assertTrue(world.sprinting)
 
 
 class TestUs001FixedGame(PlaytestCase):

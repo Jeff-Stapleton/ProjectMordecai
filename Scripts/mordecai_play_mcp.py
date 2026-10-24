@@ -126,7 +126,9 @@ INSTRUCTIONS = (
     "get_state, act with press_key / hold_key / walk_to / click / click_button, look with "
     "screenshot, and end with quit_game. Keys are UE FKey names: W/A/S/D move (W=+X world, "
     "S=-X, D=+Y, A=-Y; the camera never rotates), F interact/pick up, I inventory, Escape pause "
-    "menu, Q/E/R/One spells, Tab/BackSlash weapons. Screen coordinates are viewport pixels "
+    "menu, Q/E/R/One spells, Tab/BackSlash weapons, a Left click on the arena attacks (click "
+    "with hold_s 0.4 or more: a heavy attack on the release), LeftAlt dodge, SpaceBar jump, "
+    "LeftShift sprint toggle. Screen coordinates are viewport pixels "
     "(1280x720, origin top-left, the same space as the screenshots). Debug keys with side "
     "effects (K, F1-F12, Insert, Delete, Home, End, PageUp, PageDown, Tilde, ...) are refused. "
     "File what a player would call a bug with report_finding; session_info tells you the run "
@@ -860,10 +862,14 @@ the same space as the screenshots), or at the current virtual cursor when x and 
 Slate hit-tests the point, as for a player; the result's 'hit' is the type of the deepest widget
 at that point (on a button usually its label, e.g. 'STextBlock'), not necessarily the button.
 The click still goes to the button under it; judge the effect from get_state or a screenshot.
-- button: Left (default), Right or Middle"""))
-    def click(x: float | None = None, y: float | None = None, button: str = "Left") -> str:
-        resp = session.run("click", {"x": x, "y": y, "button": button},
-                           lambda b: b.click(x, y, button=button))
+- button: Left (default), Right or Middle
+- hold_s: how long the button stays down before the release (0-30 s; default about one frame).
+  On the arena a Left click held 0.4 s or more is a heavy attack on the release, and a held Right
+  button blocks for that long. The result returns after the release."""))
+    def click(x: float | None = None, y: float | None = None, button: str = "Left",
+              hold_s: float | None = None) -> str:
+        resp = session.run("click", {"x": x, "y": y, "button": button, "hold_s": hold_s},
+                           lambda b: b.click(x, y, button=button, hold_s=hold_s))
         return session.text(_dumps(resp))
 
     @mcp.tool(name="click_button", structured_output=False, description=_desc("""
