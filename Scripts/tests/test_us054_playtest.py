@@ -47,17 +47,20 @@ class ArenaWorld(fb.FakeWorld):
     """The DevTestMap arena with fighting Frontliners.  Defaults model the game as it should be
     (every check passes); the options switch each behaviour off or break it."""
 
-    def __init__(self, *, visible_mesh=True, enemy_hp=200.0, aggro=True, aggro_s=0.3,
-                 approach=True, lunge_cm=120.0, damage=True, hit_damage=5.0, hit_interval=0.3,
-                 hit_range=200.0, burn_chance=1.0, burn_indicator=True, restoration=True,
-                 attacks=True, death_screen=True, dead_moves=False, arena_reset=True,
-                 indicators=True, enemy_bars=True, hud_layout_ok=True, kills_text=0,
-                 **kwargs):
+    def __init__(self, *, visible_mesh=True, enemy_hp=200.0, enemy_start_hp=None, aggro=True,
+                 aggro_s=0.3, approach=True, lunge_cm=120.0, damage=True, hit_damage=5.0,
+                 hit_interval=0.3, hit_range=200.0, burn_chance=1.0, burn_indicator=True,
+                 restoration=True, attacks=True, attack_tag=True, click_damage=0.0,
+                 death_screen=True, dead_moves=False, arena_reset=True, indicators=True,
+                 enemy_bars=True, hud_layout_ok=True, kills_text=0, **kwargs):
         kwargs.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES)
         kwargs.setdefault("respawn_s", us054.RESPAWN_DELAY_S)  # the game's 3 s
         super().__init__(enemies=False, **kwargs)
         self.visible_mesh = visible_mesh
         self.enemy_hp = float(enemy_hp)
+        # Current health at the start, when an enemy is already hurt (max stays enemy_hp)
+        self.enemy_start_hp = float(enemy_hp if enemy_start_hp is None else enemy_start_hp)
+        self.attack_tag, self.click_damage = attack_tag, float(click_damage)
         self.aggro, self.aggro_s = aggro, aggro_s
         self.approach, self.lunge_cm = approach, lunge_cm
         self.damage, self.hit_damage, self.hit_interval = damage, hit_damage, hit_interval
@@ -73,7 +76,7 @@ class ArenaWorld(fb.FakeWorld):
         self.arena = [self._fresh_enemy(s) for s in ARENA_SPAWNS]
 
     def _fresh_enemy(self, spawn):
-        return {"location": [spawn[0], spawn[1], 100.0], "health": self.enemy_hp,
+        return {"location": [spawn[0], spawn[1], 100.0], "health": self.enemy_start_hp,
                 "ai_state": "Idle", "next_hit": 0.0}
 
     # --- simulation -------------------------------------------------------------------------
@@ -147,7 +150,13 @@ class ArenaWorld(fb.FakeWorld):
         with self.lock:
             if (button == "Left" and self.attacks and self.game_input_allowed
                     and not self.is_dead):
-                self.timed_tags["Mordecai.State.Attacking"] = self.real_time() + 0.5
+                if self.attack_tag:
+                    self.timed_tags["Mordecai.State.Attacking"] = self.real_time() + 0.5
+                if self.click_damage and self.arena:
+                    px, py = self.pos
+                    target = min(self.arena, key=lambda e: math.hypot(
+                        e["location"][0] - px, e["location"][1] - py))
+                    target["health"] -= self.click_damage
         return hit
 
     # --- state --------------------------------------------------------------------------------
@@ -207,11 +216,16 @@ class ArenaWorld(fb.FakeWorld):
 
 
 def game_today(**kw):
-    """The packaged game as the brief describes it: invisible enemies, no attacks/dodge, no
-    death screen (known issues), everything else working."""
-    opts = dict(visible_mesh=False, attacks=False, death_screen=False)
+    """The packaged game as the brief describes it: invisible enemies and no death screen
+    (known issues), everything else working (attacks and dodge since US-083)."""
+    opts = dict(visible_mesh=False, death_screen=False)
     opts.update(kw)
     return opts
+
+
+def game_before_us083(**kw):
+    """The game before US-083: LMB and LeftAlt did nothing."""
+    return game_today(attacks=False, **kw)
 
 
 def read_jsonl(path):
@@ -286,11 +300,11 @@ class TestUs054Plan(Us054Case):
         plan = {s.check: s for s in us054.PLAN}
         self.assertEqual(plan["death_screen"].known_issue,
                          "Known issue N2: the death screen is never created")
-        self.assertIn("N10", plan["melee_lmb"].known_issue)
-        self.assertIn("N10", plan["dodge_lalt"].known_issue)
         self.assertIn("no mesh", plan["enemies_visible"].known_issue)
-        # Suspected NEW, unverified: no known_issue on the enemy-damage checks.
-        for name in ("enemy_approaches", "enemy_damages_player", "kill_counter_text_matches"):
+        # Suspected NEW, unverified: no known_issue on the enemy-damage checks.  Attacks and
+        # dodge are bound since US-083.
+        for name in ("enemy_approaches", "enemy_damages_player", "kill_counter_text_matches",
+                     "melee_lmb", "dodge_lalt"):
             self.assertIsNone(plan[name].known_issue, name)
         for s in us054.PLAN:
             for ac in s.proves:
@@ -309,6 +323,18 @@ class TestUs054Helpers(unittest.TestCase):
                          ["MordecaiHealthBarWidget"])
         self.assertEqual(us054.hud_widgets(st, "StaminaBar"), [])
         self.assertEqual(us054.widgets({"widgets": {"valid": False}}), [])
+
+    def test_same_enemy_follows_the_named_enemy(self):
+        def enemy(name, x, hp):
+            return {"kind": "enemy", "name": name, "location": [x, 0, 100],
+                    "health": {"current": hp, "max": 200.0}}
+        # Frontliner_0 was nearest at the click; now a hurt Frontliner_1 is nearer.
+        st = {"actors": [enemy("Frontliner_0", 300, 200.0), enemy("Frontliner_1", 50, 150.0)]}
+        e = us054.same_enemy(st, "Frontliner_0", (0, 0))
+        self.assertEqual(e["name"], "Frontliner_0")
+        self.assertEqual(us054.enemy_health(e), (200.0, 200.0))
+        self.assertIsNone(us054.same_enemy(st, "Frontliner_2", (0, 0)))
+        self.assertEqual(us054.same_enemy(st, None, (0, 0))["name"], "Frontliner_1")
 
     def test_kill_counts(self):
         st = {"widgets": [{"class": "A", "texts": ["Kills: 3", "10 / 10"]},
@@ -344,12 +370,12 @@ class TestUs054AgainstTheFake(Us054Case):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         # The known-issue checks that passed are flagged as possibly fixed.
         self.assertEqual(sorted(rep["fixed_candidates"]),
-                         sorted(["enemies_visible", "melee_lmb", "dodge_lalt", "death_screen"]))
+                         sorted(["enemies_visible", "death_screen"]))
         self.assertEqual([s["label"] for s in rep["screenshots"]],
                          ["start", "near_enemy", "hit", "dead", "respawned"])
         self.assertIn("the counter reads 'Kills: 0', player.kills=0",
                       checks["kill_counter_text_matches"]["detail"])
-        self.assertIn("no kill path exists", checks["kill_counter_text_matches"]["detail"])
+        self.assertIn("the run kills no enemy", checks["kill_counter_text_matches"]["detail"])
         # The world really went through the loop.
         self.assertEqual(world.spell_points, 7.0)
         self.assertFalse(world.is_dead)
@@ -375,7 +401,7 @@ class TestUs054AgainstTheFake(Us054Case):
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(sorted(rep["known_failures"]),
-                         sorted(["enemies_visible", "melee_lmb", "dodge_lalt", "death_screen"]))
+                         sorted(["enemies_visible", "death_screen"]))
         self.assertEqual(rep["new_failures"], [], self.log.getvalue()[-4000:])
         self.assertEqual(self.statuses(rep, "SKIP"), [])
         acs = {(a["story"], a["id"]): a for a in rep["acs"]}
@@ -386,12 +412,54 @@ class TestUs054AgainstTheFake(Us054Case):
         # Even after the full 1.5 s death-screen wait there is time to hold W before respawning.
         self.assertEqual(self.by_name(rep)["dead_no_move"]["status"], "PASS")
         self.assertEqual(acs[("US-063", "AC-063.1")]["status"], "PASS")
-        detail = self.by_name(rep)["melee_lmb"]["detail"]
-        self.assertIn("no 'Mordecai.State.Attacking' tag and no enemy damage", detail)
+        for name in ("melee_lmb", "dodge_lalt"):
+            self.assertEqual(self.by_name(rep)[name]["status"], "PASS", name)
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
         self.assertIn("FAIL (known)", md)
         self.assertNotIn("FAIL (NEW)", md)
         self.assertIn("Block and parry", md)
+
+    def test_the_game_before_us083_fails_melee_and_dodge_as_new(self):
+        _, server = self.serve(**game_before_us083())
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        for name in ("melee_lmb", "dodge_lalt"):
+            self.assertEqual(checks[name]["status"], "FAIL", name)
+            self.assertIn(name, rep["new_failures"])
+        self.assertIn("no 'Mordecai.State.Attacking' tag and no enemy damage",
+                      checks["melee_lmb"]["detail"])
+        self.assertIn("no Dodging tag and no displacement > 150 cm", checks["dodge_lalt"]["detail"])
+
+    # --- melee_lmb judges damage against the health read before the click (US-083 AC-083.9) ---
+    def test_melee_does_not_pass_on_enemies_below_200_health(self):
+        # The 8ea853b sweep's false PASS: the cooked enemies have 100/100 health (N13), which the
+        # old check read as "below 200" without any attack happening.
+        _, server = self.serve(**game_before_us083(enemy_hp=100.0))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["melee_lmb"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("nearest enemy health (100.0, 100.0)", check["detail"])
+        self.assertIn("melee_lmb", rep["new_failures"])
+
+    def test_melee_compares_with_the_health_before_the_click(self):
+        # An enemy that is already hurt (150/200) and takes no damage from the click: the old
+        # comparison with 200 would PASS it.
+        _, server = self.serve(attacks=False, enemy_start_hp=150.0)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["melee_lmb"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("nearest enemy health (150.0, 200.0)", check["detail"])
+
+    def test_melee_damage_alone_passes(self):
+        # No Attacking tag is seen, but the clicked enemy loses health: the attack landed.
+        _, server = self.serve(attack_tag=False, click_damage=10.0)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["melee_lmb"]
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertNotIn("Mordecai.State.Attacking", check["detail"])
 
     def test_no_enemy_damage_skips_the_death_loop(self):
         _, server = self.serve(**game_today(damage=False))

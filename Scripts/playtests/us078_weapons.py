@@ -19,14 +19,15 @@ Steps (every step is a check; --plan prints them as the story's Steps table):
   9. Tap Shift+Tab (the story's binding): previous weapon, the Spear.
   10. Tap Gamepad_FaceButton_Top (Y): next weapon.
   11. Tap Tab: the weapon HUD text follows the new weapon.
-  12. Left click on the arena: an attack starts (Mordecai.State.Attacking in player.tags).
-  13. Left click held 0.8 s (heavy): an attack starts.
+  12. Left click on the arena: a light attack starts (Mordecai.State.Attacking in player.tags,
+     no Mordecai.Attack.Heavy).
+  13. Left click held 0.8 s: a heavy attack starts on the release (Mordecai.Attack.Heavy, which
+     only the heavy attack owns, in player.tags).
 Each cycle step reads player.weapon.index first and expects the next/previous one (mod 5) with
 the matching display name, so one failure does not cascade into wrong expectations.  Weapon
 order (the AvailableWeapons list): Longsword, Dagger, Greatsword, Spear, Mace; names compare
 case-insensitively.  Known issues (Specs/agent_playtest_plan_v1.md, Known issues backlog): N3
-(the weapon HUD draws nothing), N9 (Shift+Tab is not mapped; Tab still fires Next), and "Sprint,
-jump, attacks, block and dodge are not bound at runtime" (root cause N10).
+(the weapon HUD draws nothing) and N9 (Shift+Tab is not mapped; Tab still fires Next).
 
 Usage (the kit's common options):
   py Scripts/playtests/us078_weapons.py                    fresh package: launch, play, quit
@@ -73,6 +74,7 @@ PREV_STORY_KEYS = ("LeftShift", "Tab")   # AC-078.7: Shift+Tab
 GAMEPAD_NEXT_KEY = "Gamepad_FaceButton_Top"  # Y
 ATTACK_POINT = (640, 360)                # the viewport centre: the arena, no widget
 ATTACKING_TAG = "Mordecai.State.Attacking"
+HEAVY_TAG = "Mordecai.Attack.Heavy"         # owned by the heavy attack only (US-083)
 HEAVY_HOLD_S = 0.8
 
 START_TIMEOUT_S = 5.0
@@ -86,8 +88,6 @@ N3 = ("N3 The weapon HUD draws nothing: UMordecaiEquippedWeaponWidget has no wid
       "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
 N9 = ("N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next "
       "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
-UNBOUND = ("Sprint, jump, attacks, block and dodge are not bound at runtime; root cause N10 "
-           "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
 
 SCREENSHOTS = {
     "start": "the Mordecai diorama arena with the player and the combat HUD; the weapon HUD "
@@ -95,7 +95,7 @@ SCREENSHOTS = {
     "cycled_mace": "the arena after four Tabs; the weapon HUD should read 'Mace' (known N3: no "
                    "weapon name anywhere on screen today)",
 }
-KNOWN_ISSUES = (N3, N9, UNBOUND)
+KNOWN_ISSUES = (N3, N9)
 
 PLAN = (
     Step("starting_weapon", f"state player -> player.weapon.index==0 && "
@@ -124,11 +124,11 @@ PLAN = (
          "widget text equals its display_name within 3 s (needs weapon_hud_text)",
          proves=("AC-078.12", "AC-078.14", "US-077:AC-077.8"), known_issue=N3),
     Step("light_attack_lmb", f"no {ATTACKING_TAG} -> click Left at {ATTACK_POINT} -> "
-         f"{ATTACKING_TAG} in player.tags within {LIGHT_TIMEOUT_S:g} s", proves=("AC-078.14",),
-         known_issue=UNBOUND),
+         f"{ATTACKING_TAG} without {HEAVY_TAG} in player.tags within {LIGHT_TIMEOUT_S:g} s",
+         proves=("AC-078.14",)),
     Step("heavy_attack_hold", f"no {ATTACKING_TAG} -> click Left at {ATTACK_POINT} held "
-         f"{HEAVY_HOLD_S:g} s -> {ATTACKING_TAG} in player.tags within {HEAVY_TIMEOUT_S:g} s",
-         proves=("AC-078.13",), known_issue=UNBOUND),
+         f"{HEAVY_HOLD_S:g} s -> {HEAVY_TAG} in player.tags within {HEAVY_TIMEOUT_S:g} s",
+         proves=("AC-078.13",)),
 )
 PENDING = {"AC-078.15": "bridge cannot drive: player.weapon has no equip slot (TwoHand "
                         "clearing both hand slots is not observable)"}
@@ -311,8 +311,17 @@ class Us078Run(kit.PlaytestRun):
                              "follow)")
 
     # --- 12-13: attacks ---------------------------------------------------------------------
-    def attack(self, check, hold_s, timeout_s):
+    def attack(self, check, hold_s, timeout_s, heavy):
+        """Click (held hold_s) from idle; PASS when the attack's tag shows: the heavy attack's
+        Mordecai.Attack.Heavy, or for a light attack Mordecai.State.Attacking without it."""
         x, y = ATTACK_POINT
+
+        def started(tags):
+            if heavy:
+                return HEAVY_TAG in tags
+            return ATTACKING_TAG in tags and HEAVY_TAG not in tags
+
+        want = HEAVY_TAG if heavy else f"{ATTACKING_TAG} without {HEAVY_TAG}"
 
         def fn():
             b = self.bridge
@@ -332,21 +341,21 @@ class Us078Run(kit.PlaytestRun):
                     + f"; Slate hit {r.get('hit')}")
             t0 = time.monotonic()
             try:
-                st = b.wait_for(lambda s: ATTACKING_TAG in _tags(s), timeout_s=timeout_s,
+                st = b.wait_for(lambda s: started(_tags(s)), timeout_s=timeout_s,
                                 sections=["player"], poll_s=0.05)
             except ab.BridgeError as e:
                 if e.code != "wait_for_timeout":
                     raise
-                return ("FAIL", f"{what}; {ATTACKING_TAG} not in player.tags within "
-                        f"{timeout_s:g}s (tags {_tags(e.response or {})})", None)
-            return ("PASS", f"{what}; {ATTACKING_TAG} after {time.monotonic() - t0:.2f}s "
-                    f"(tags {_tags(st)})", None)
+                return ("FAIL", f"{what}; no {want} in player.tags within {timeout_s:g}s (tags "
+                        f"{_tags(e.response or {})})", None)
+            return ("PASS", f"{what}; {want} after {time.monotonic() - t0:.2f}s (tags "
+                    f"{_tags(st)})", None)
 
         return self.attempt(check, fn)
 
     def step_attacks(self):
-        self.attack("light_attack_lmb", None, LIGHT_TIMEOUT_S)
-        self.attack("heavy_attack_hold", HEAVY_HOLD_S, HEAVY_TIMEOUT_S)
+        self.attack("light_attack_lmb", None, LIGHT_TIMEOUT_S, heavy=False)
+        self.attack("heavy_attack_hold", HEAVY_HOLD_S, HEAVY_TIMEOUT_S, heavy=True)
 
     # --- report hooks ---------------------------------------------------------------------
     def report_extra(self):

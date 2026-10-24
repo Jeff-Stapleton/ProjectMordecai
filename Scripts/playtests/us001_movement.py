@@ -22,8 +22,10 @@ Steps (every step is a check: PASS, FAIL, SKIP or WARN; --plan prints them as a 
      1.0 s: the walk covers 400..700 cm and the player stops within 0.75 s of the release.
   5. Sprint: tap LeftShift (then, from the lane start again, the L3 button) and hold W 1.0 s:
      > 700 cm.  Each toggle is tapped again afterwards so a working sprint does not leak into
-     later steps.  Expected to FAIL today (sprint is not bound at runtime).
-  6. Jump: tap SpaceBar -> player.movement_mode=="Falling" within 1 s.  Expected FAIL today.
+     later steps; after the LeftShift one, S held 1.0 s must reach only walking speed (the
+     second tap ended the sprint; a sprint left on SKIPs the L3 step).  L3 is expected to FAIL
+     today (invalid FKey name, US-097).
+  6. Jump: tap SpaceBar -> player.movement_mode=="Falling" within 1 s.
   7. Facing: the mouse at (1100, 360) (right of the player: +Y) turns the player to yaw ~90;
      the right stick held left (Gamepad_RightX=-1: -Y) turns it to yaw ~-90.  Screenshot.
      Expected FAIL today (facing is pinned to +X; the stick names are invalid).
@@ -49,13 +51,14 @@ screen.
 
 Exit codes:
   0 -- every check passed (WARN allowed)
-  1 -- a gameplay check FAILED (today: the known sprint / jump / facing / gamepad failures)
+  1 -- a gameplay check FAILED (today: the known L3 sprint / facing / gamepad failures)
   2 -- infrastructure problem (STALE BUILD, launch failure, no connection, crash)
 """
 
 import math
 import os
 import sys
+import time
 
 PLAYTEST_DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS_DIR = os.path.dirname(PLAYTEST_DIR)
@@ -104,6 +107,9 @@ BASELINE_RANGE = (400.0, 700.0)             # cm in 1.0 s at WalkSpeed 600 with 
 STOP_TIMEOUT_S = 0.75                       # responsive deceleration after the release
 SPRINT_HOLD_S = 1.0
 SPRINT_MIN = 700.0                          # more than any walk can cover in 1.0 s
+SPRINT_SPEED_MIN = 750.0                    # cm/s: above a walk (600), below a sprint (900)
+WALK_SPEED_MIN = 500.0                      # cm/s: a free walk reaches 600
+SPEED_POLL_S = 0.05
 SPRINT_KEY = "LeftShift"
 SPRINT_PAD_KEY = "Gamepad_LeftThumbstick"   # L3
 JUMP_KEY = "SpaceBar"
@@ -122,13 +128,11 @@ GAMEPAD_HOLD_S = 0.5
 GAMEPAD_MIN = 100.0
 GAMEPAD_TIMEOUT_S = 1.0
 
-KI_UNBOUND = ("Known issue: sprint, jump, attacks, block and dodge are not bound at runtime "
-              "(Specs/agent_playtest_plan_v1.md)")
 KI_FACING = ("Known issue: facing and aim are pinned to +X by the diorama camera "
              "(Specs/agent_playtest_plan_v1.md)")
 KI_STICKS = ("Known issue: gamepad stick and L3 mappings use invalid FKey names "
              "(Specs/agent_playtest_plan_v1.md)")
-KNOWN_ISSUES = (KI_UNBOUND, KI_FACING, KI_STICKS)
+KNOWN_ISSUES = (KI_FACING, KI_STICKS)
 
 SCREENSHOTS = {
     "start": "the Mordecai diorama arena (fixed overhead camera, pitch -50, looking +X), the "
@@ -183,14 +187,15 @@ PLAN = (
          f"within {STOP_TIMEOUT_S:g}s of the release", proves=("AC-2.1.6",)),
     Step("walk_lane_reset", f"walk_to({LANE_START[0]:g}, {LANE_START[1]:g}) -> within 60 cm"),
     Step("sprint_shift", f"tap {SPRINT_KEY}, hold W {SPRINT_HOLD_S:g}s -> dx > {SPRINT_MIN:g} "
-         f"cm (then tap {SPRINT_KEY} again to toggle back)", proves=("AC-1.3.3", "AC-2.1.3"),
-         known_issue=KI_UNBOUND),
+         f"cm; tap {SPRINT_KEY} again, hold S {SPRINT_HOLD_S:g}s -> back to a walk (peak "
+         f"player.speed {WALK_SPEED_MIN:g}..{SPRINT_SPEED_MIN:g} cm/s)",
+         proves=("AC-1.3.3", "AC-2.1.3")),
     Step("walk_lane_reset2", f"walk_to({LANE_START[0]:g}, {LANE_START[1]:g}) -> within 60 cm"),
     Step("sprint_l3", f"tap {SPRINT_PAD_KEY} (L3), hold W {SPRINT_HOLD_S:g}s -> dx > "
          f"{SPRINT_MIN:g} cm (then tap L3 again)", proves=("AC-1.3.3", "AC-2.1.3"),
-         known_issue=f"{KI_UNBOUND}; {KI_STICKS}"),
+         known_issue=KI_STICKS),
     Step("jump_space", f"tap {JUMP_KEY} -> wait_until player.movement_mode==\"Falling\" "
-         f"within {JUMP_TIMEOUT_S:g}s", proves=("AC-2.1.4",), known_issue=KI_UNBOUND),
+         f"within {JUMP_TIMEOUT_S:g}s", proves=("AC-2.1.4",)),
     Step("facing_mouse", f"mouse {FACING_MOUSE[0]:g} {FACING_MOUSE[1]:g} (right of the "
          f"player, +Y) -> wait_until player.rotation yaw {FACING_MOUSE_YAW:g} "
          f"(+-{FACING_TOL:g}) within {FACING_TIMEOUT_S:g}s", proves=("AC-2.1.2",),
@@ -448,7 +453,9 @@ class Us001Run(kit.PlaytestRun):
         return reset
 
     # --- step 5: sprint ------------------------------------------------------------------
-    def _sprint(self, check, toggle_key, label):
+    def _sprint(self, check, toggle_key, label, verify_toggle_back=False):
+        """Tap the toggle, hold W and measure; tap the toggle again.  With verify_toggle_back,
+        then hold S as long and require a walk's distance back (the second tap ended the sprint)."""
         def fn():
             b = self.bridge
             got, err = self._hold_and_measure(
@@ -465,18 +472,73 @@ class Us001Run(kit.PlaytestRun):
             vs = f" (walk baseline {walk:.0f} cm)" if walk is not None else ""
             detail = (f"tapped {label}, held W {held_s}s: dx {dx:.0f} cm (need > "
                       f"{SPRINT_MIN:g}){vs}; tapped {label} again to toggle back")
-            return ("PASS" if dx > SPRINT_MIN else "FAIL"), detail, rec
+            sprinted = dx > SPRINT_MIN
+            if not verify_toggle_back:
+                return ("PASS" if sprinted else "FAIL"), detail, rec
+
+            # The toggle-back is judged by speed, not distance: a speed reading cannot be shortened
+            # by a frame hitch or an enemy in the way, and a sprint (900 cm/s) and a walk
+            # (600 cm/s) are far apart.
+            back, err = self._hold_watching_speed("S", SPRINT_HOLD_S)
+            if back is None:
+                return "FAIL", f"{detail}; toggle-back not measured: {err}", rec
+            q0, q1, peak = back
+            self._record(f"{check}_toggle_back", f"hold S {SPRINT_HOLD_S:g}s after the second "
+                         f"{toggle_key} tap", q0, q1, {"peak_speed": round(peak, 1)})
+            rec["sprint_left_on"] = peak > SPRINT_SPEED_MIN
+            detail += (f"; then held S {SPRINT_HOLD_S:g}s: peak speed {peak:.0f} cm/s, "
+                       f"{q0[0] - q1[0]:.0f} cm back (need a walk: {WALK_SPEED_MIN:g}..."
+                       f"{SPRINT_SPEED_MIN:g} cm/s)")
+            if rec["sprint_left_on"]:
+                detail += (" -- the second tap did not end the sprint" if sprinted else
+                           " -- the first tap did not start the sprint but the second one did "
+                           "(toggle out of phase)")
+                return "FAIL", detail, rec
+            if peak < WALK_SPEED_MIN:
+                detail += (" -- the player never reached walking speed on the way back (blocked? "
+                           "N14), so the toggle-back is unverified")
+                return "FAIL", detail, rec
+            return ("PASS" if sprinted else "FAIL"), detail, rec
 
         return fn
 
+    def _hold_watching_speed(self, key, seconds):
+        """Press `key`, read player.speed every SPEED_POLL_S for `seconds`, release it, wait for
+        the player to stop.  Returns ((p0, p1, peak_speed), None) or (None, why)."""
+        b = self.bridge
+        p0, raw = self._player(b)
+        if p0 is None:
+            return None, f"player section invalid before {key} ({raw.get('reason')})"
+        peak = 0.0
+        b.press(key)
+        try:
+            deadline = time.monotonic() + seconds
+            while time.monotonic() < deadline:
+                speed = _section(b.state(["player"]), "player").get("speed")
+                if isinstance(speed, (int, float)):
+                    peak = max(peak, float(speed))
+                time.sleep(SPEED_POLL_S)
+        finally:
+            b.release(key)
+        self._settle(b, SETTLE_TIMEOUT_S)
+        p1, raw = self._player(b)
+        if p1 is None:
+            return None, f"player section invalid after {key} ({raw.get('reason')})"
+        return (p0, p1, peak), None
+
     def step_sprint(self, lane):
         why = "not run: the player is not at the lane start"
-        self.attempt("sprint_shift", self._sprint("sprint_shift", SPRINT_KEY, SPRINT_KEY),
-                     needs=lane, needs_why=why)
+        _, shift = self.attempt("sprint_shift", self._sprint("sprint_shift", SPRINT_KEY,
+                                                             SPRINT_KEY, verify_toggle_back=True),
+                                needs=lane, needs_why=why)
         reset, _ = self.walk("walk_lane_reset2", *LANE_START)
+        # A LeftShift sprint left on would make the L3 measurement pass on its own
+        leaked = bool((shift or {}).get("sprint_left_on"))
         self.attempt("sprint_l3", self._sprint("sprint_l3", SPRINT_PAD_KEY,
                                                f"{SPRINT_PAD_KEY} (L3)"),
-                     needs=reset, needs_why=why)
+                     needs=reset and not leaked,
+                     needs_why=(why if not reset else "not run: the LeftShift sprint is still on "
+                                "after sprint_shift, so an L3 sprint cannot be told apart from it"))
 
     # --- step 6: jump ----------------------------------------------------------------------
     def step_jump(self):

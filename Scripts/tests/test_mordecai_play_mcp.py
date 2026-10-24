@@ -152,7 +152,7 @@ class TestToolList(McpCase):
         self.assertEqual(props["hold_key"], {"key", "seconds"})
         self.assertEqual(props["release_key"], {"key"})
         self.assertEqual(props["walk_to"], {"x", "y", "tol", "timeout_s"})
-        self.assertEqual(props["click"], {"x", "y", "button"})
+        self.assertEqual(props["click"], {"x", "y", "button", "hold_s"})
         self.assertEqual(props["click_button"], {"label", "button_id"})
         self.assertEqual(props["screenshot"], set())
         self.assertEqual(props["wait_until"], {"condition", "timeout_s"})
@@ -295,6 +295,15 @@ class TestAttachedTools(AttachedCase):
         resp = first_json(self.ok_text(self.call("click", {"x": cx, "y": cy})))
         self.assertEqual((resp["hit"], resp["button"]), ("STextBlock", "Left"))
         self.assertTrue(self.world.inventory[0]["identified"])
+
+    def test_click_can_hold_the_button(self):
+        # A held Left click is the heavy attack's input; the tool passes hold_s to the bridge
+        self.ok_text(self.call("click", {"x": 640, "y": 360, "hold_s": 0.5}))
+        req = [r for r in self.bridge_server.received if r["cmd"] == "click"][-1]
+        self.assertEqual(req.get("hold_s"), 0.5)
+        self.ok_text(self.call("click", {"x": 640, "y": 360}))
+        req = [r for r in self.bridge_server.received if r["cmd"] == "click"][-1]
+        self.assertNotIn("hold_s", req)
 
     def test_click_needs_both_coordinates(self):
         self.assertIn("bad arguments", self.err_text(self.call("click", {"x": 10})))
