@@ -20,7 +20,7 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - `stories/done/US-057-playable-magic-arena.md` AC-057.7/AC-057.8: `DA_EnemyAttack_FireSlash` (Burning 40%) on one of the three Frontliners, `DA_EnemyAttack_BasicSlash` on the others
 - `Specs/enemy_archetypes_v1.md` (Frontliner), `Specs/combat_system_v1.md`
 - Existing assets: `/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner`, `/MordecaiCore/Combat/Enemies/DA_EnemyAttack_BasicSlash`, `/MordecaiCore/Combat/Enemies/DA_EnemyAttack_FireSlash`, `/MordecaiCore/Game/Maps/DevTestMap`
-- Existing scripts: `Scripts/us054_02_create_enemy_bp.py:40` (sets `default_max_health` 200), `Scripts/us057_03_create_fire_slash.py:103` (sets `enemy_attack_profiles`), `Scripts/us054_10_configure_all.py:54-86` (sets `default_abilities`, saves) — the cooked BP shows neither the 200 HP nor working profiles, so those edits were not saved (or the level instances override them)
+- Existing scripts: `Scripts/us054_02_create_enemy_bp.py:40` (sets `default_max_health` 200), `Scripts/us057_03_create_fire_slash.py:103` (sets `enemy_attack_profiles`), `Scripts/us054_10_configure_all.py:20-52` (sets `default_abilities`, saves) — the cooked BP shows neither the 200 HP nor working profiles, so those edits were not saved (or the level instances override them)
 
 ## Acceptance Criteria
 - [ ] AC-085.1: In the packaged build, the player sees three Frontliner bodies (a mesh under each red health bar) — verified by check `enemies_visible` of `Scripts/playtests/us054_arena.py` (Tier 4) and the us054 `start` screenshot

@@ -1,6 +1,7 @@
 // Project Mordecai — Parry Gameplay Ability (US-006)
 
 #include "Mordecai/Combat/MordecaiGA_Parry.h"
+#include "Mordecai/Combat/MordecaiGA_Block.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "AbilitySystemComponent.h"
@@ -26,8 +27,11 @@ UMordecaiGA_Parry::UMordecaiGA_Parry(const FObjectInitializer& ObjectInitializer
 	// Cannot parry while already in whiff recovery
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_ParryWhiff);
 
+	// US-083: no parry from a dead player
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Dead);
+
 	// AC-006.17/AC-006.18: Parry is NOT blocked by Blocking tag.
-	// Parry cancels an active block (handled by the input system / controller).
+	// Parry cancels an active block (ActivateAbility), and Block cannot activate while Parrying.
 	// (intentionally omitted from ActivationBlockedTags)
 }
 
@@ -104,6 +108,9 @@ void UMordecaiGA_Parry::ActivateAbility(
 	const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+	// AC-006.18: the parry drops an active guard (the player presses attack while blocking)
+	CancelActiveBlock();
 
 	bParrySuccessful = false;
 
@@ -203,6 +210,31 @@ void UMordecaiGA_Parry::ApplyStaminaCost()
 	if (!ASC) return;
 
 	ASC->ApplyModToAttribute(UMordecaiAttributeSet::GetStaminaAttribute(), EGameplayModOp::Additive, -ParryStaminaCost);
+}
+
+// ---------------------------------------------------------------------------
+// Block (AC-006.17, AC-006.18)
+// ---------------------------------------------------------------------------
+
+void UMordecaiGA_Parry::CancelActiveBlock()
+{
+	if (!CurrentActorInfo) return;
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!ASC) return;
+
+	TArray<FGameplayAbilitySpecHandle> ActiveBlocks;
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		if (Spec.IsActive() && Spec.Ability && Spec.Ability->IsA<UMordecaiGA_Block>())
+		{
+			ActiveBlocks.Add(Spec.Handle);
+		}
+	}
+	for (const FGameplayAbilitySpecHandle& BlockHandle : ActiveBlocks)
+	{
+		ASC->CancelAbilityHandle(BlockHandle);
+	}
 }
 
 // ---------------------------------------------------------------------------

@@ -182,6 +182,13 @@ namespace MordecaiGameplayTags
 	// Attack tags (US-016)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Attack_Heavy);
 
+	// Input tags (US-083): carried by the player's combat ability specs, pressed by the runtime input bindings
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_LightAttack);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_HeavyAttack);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Block);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Parry);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Dodge);
+
 	// Ability category tags (US-017)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Category_Spell);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Category_Magical);

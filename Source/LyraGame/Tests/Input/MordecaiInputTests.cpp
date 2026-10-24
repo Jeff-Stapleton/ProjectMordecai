@@ -68,7 +68,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiInput_SprintToggle,
 
 bool FMordecaiInput_SprintToggle::RunTest(const FString& Parameters)
 {
-	// Verify sprint input action exists (binding is configured in IMC_Mordecai blueprint)
+	// Verify sprint input action exists (mapped and bound in MordecaiIMC_Runtime: Mordecai.Recovery.Input.CombatActionsMappedAndBound)
 	const FString SprintPath = TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_Sprint.IA_Mordecai_Sprint");
 	UObject* SprintAction = FSoftObjectPath(SprintPath).TryLoad();
 	TestNotNull("Sprint input action exists", SprintAction);

@@ -33,6 +33,11 @@ UMordecaiGA_Block::UMordecaiGA_Block(const FObjectInitializer& ObjectInitializer
 	// AC-007.8: Block is blocked during knocked down
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_KnockedDown);
 
+	// AC-006.17: Block and Parry are mutually exclusive. The held block input re-presses every frame, so without this
+	// the guard would come straight back during a parry. US-083: no block from a dead player.
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Parrying);
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Dead);
+
 	// AC-006.8: Block is NOT blocked by Rooted
 	// (intentionally omitted from ActivationBlockedTags)
 }
@@ -243,6 +248,21 @@ void UMordecaiGA_Block::EndAbility(
 	BlockActivationTime = 0.0;
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UMordecaiGA_Block::InputReleased(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo)
+{
+	Super::InputReleased(Handle, ActorInfo, ActivationInfo);
+
+	// AC-006.1: block is held — letting go of the block input lowers the guard. A guard-break stagger runs its full
+	// duration whatever the input does (OnGuardBrokenComplete ends the ability).
+	if (IsActive() && CurrentBlockPhase == EMordecaiBlockPhase::Active)
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+	}
 }
 
 // ---------------------------------------------------------------------------

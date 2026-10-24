@@ -31,6 +31,12 @@ UMordecaiGA_MeleeAttack::UMordecaiGA_MeleeAttack(const FObjectInitializer& Objec
 	// AC-007.8: Cannot attack during posture broken or knocked down
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_PostureBroken);
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_KnockedDown);
+
+	// US-083: no attack out of a parry (the click that parried also reaches the attack input on release) or its whiff
+	// lock (AC-006.14), and none from a dead player
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Parrying);
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_ParryWhiff);
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Dead);
 }
 
 // ---------------------------------------------------------------------------
@@ -53,6 +59,12 @@ void UMordecaiGA_MeleeAttack::TakeAttackProfilesFromSpec(const FGameplayAbilityS
 
 	// Profiles set on the ability class (e.g. a Blueprint subclass) win over the controller's
 	if (AttackProfiles.Num() > 0)
+	{
+		return;
+	}
+
+	// The controller's MeleeAttackProfiles are a light combo; the heavy attack has no fallback from it
+	if (AttackSlot != EMordecaiInputSlot::Light)
 	{
 		return;
 	}
@@ -758,7 +770,18 @@ TArray<const UMordecaiAttackProfileDataAsset*> UMordecaiGA_MeleeAttack::GetResol
 {
 	// AC-024.10: Read combo chain from equipped weapon; fallback to hardcoded AttackProfiles
 	UMordecaiEquipmentComponent* EquipComp = FindEquipmentComponent();
-	if (EquipComp)
+	if (EquipComp && AttackSlot == EMordecaiInputSlot::Heavy)
+	{
+		// US-083: the heavy attack is the equipped weapon's single heavy profile.
+		// TODO(DECISION): the equipment component has no unarmed heavy profile (UMordecaiWeaponProfileFactory::
+		// CreateUnarmed builds one, but no unarmed set is wired into the component; skill_sheet_v1.1 mentions a palm
+		// strike); with nothing equipped the heavy attack has no profile and ends at once.
+		if (UMordecaiAttackProfileDataAsset* HeavyProfile = EquipComp->GetActiveHeavyAttackProfile())
+		{
+			return { HeavyProfile };
+		}
+	}
+	else if (EquipComp)
 	{
 		TArray<UMordecaiAttackProfileDataAsset*> WeaponProfiles = EquipComp->GetActiveLightAttackProfiles();
 		if (WeaponProfiles.Num() > 0)

@@ -35,7 +35,8 @@ All fixes are C++ (ability granting, IMC mapping/binding, melee profile routing)
 - [ ] AC-083.7: In the packaged build, the player taps Space and jumps (`movement_mode == Falling`) — verified by check `jump_space` of `Scripts/playtests/us001_movement.py` (Tier 4)
 - [ ] AC-083.8: In the packaged build, the player taps Left Shift and sprints (> 700 cm in 1 s of W), and a second tap toggles back — verified by check `sprint_shift` of `Scripts/playtests/us001_movement.py` (Tier 4)
 - [ ] AC-083.9: `melee_lmb` in `Scripts/playtests/us054_arena.py` compares the nearest enemy's health with its value read before the click (not the constant 200). Today it PASSes falsely (`FIXED?` in the sweep) only because the enemies have 100 max health (N13, US-085). Offline test of the script against `Scripts/tests/fake_bridge.py` (`py Scripts/run_python_tests.py`)
-- [ ] AC-083.10: Block (RMB hold) and parry (RMB+LMB) with real input: PENDING TIER 4 (bridge cannot drive: B2 — a mouse button cannot be held across state reads). Tier 1 covers the binding (AC-083.3); this AC is not claimed
+- [ ] AC-083.10: In the packaged build, block and parry work with real input on the gamepad: LT held blocks (`Mordecai.State.Blocking`), RT pressed while blocking parries and drops the guard without attacking, the guard comes back after the parry and its whiff while LT is held, and releasing LT ends the block — verified by checks `block_lt_hold`, `parry_rt_while_blocking`, `guard_returns_after_parry` and `block_release_lt` of `Scripts/playtests/us083_combat_input.py` (Tier 4). _(Split by the implementing agent: the bridge can hold a gamepad trigger across state reads, so the gamepad path is not B2; the mouse path is AC-083.11.)_
+- [ ] AC-083.11: Block (RMB hold) and parry (RMB+LMB) with real input on the mouse: PENDING TIER 4 (bridge cannot drive: B2 — the playtest client cannot hold a mouse button across state reads). Tier 1 covers the binding (AC-083.3); this AC is not claimed
 
 ## Technical Notes
 - Grant path: populate `DefaultCombatAbilities` in `AMordecaiPlayerController`'s constructor (`UMordecaiGA_MeleeAttack::StaticClass()`, Dodge, Block, Parry) — native class refs need no content and are always cooked. Remove the reliance on `Scripts/us054_10_configure_all.py`'s unsaved CDO edit; leave the script but stop it writing the CDO (or tag the commit `[no-content]` with the reason).
@@ -59,16 +60,32 @@ All fixes are C++ (ability granting, IMC mapping/binding, melee profile routing)
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- Existing checks (no new script): `sprint_shift`, `jump_space` of `Scripts/playtests/us001_movement.py`; `melee_lmb`, `dodge_lalt` of `Scripts/playtests/us054_arena.py`; `light_attack_lmb`, `heavy_attack_hold` of `Scripts/playtests/us078_weapons.py`
+- Existing checks: `sprint_shift`, `jump_space` of `Scripts/playtests/us001_movement.py`; `melee_lmb`, `dodge_lalt` of `Scripts/playtests/us054_arena.py`; `light_attack_lmb`, `heavy_attack_hold` of `Scripts/playtests/us078_weapons.py`
+- New script `Scripts/playtests/us083_combat_input.py` (gamepad block, parry and its input rules, RT light/heavy attack, B dodge, A jump; AC-083.10, AC-083.3)
 - `melee_lmb` fix (AC-083.9) tested offline: `py Scripts/run_python_tests.py`
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: the owning stories' scripts on the same package — `py Scripts/playtest_story.py US-001`, `py Scripts/playtest_story.py US-054`, `py Scripts/playtest_story.py US-078`
 - **Player steps:** at the spawn tap Space (jump); walk to lane L1 and tap Left Shift then hold W 1 s (sprint), tap Left Shift again; walk next to Frontliner_3, click LMB (light attack), hold LMB 0.8 s (heavy), tap Left Alt (dodge)
 - **Visible on screen:** the player in the diorama arena with the combat HUD; the attack/dodge are state-checked (tags, displacement) — screenshots `us054` `near_enemy` show the player next to the enemy
-- **Proof:** Tier 3 boot shows the arena and HUD; Tier 4 checks `jump_space`, `sprint_shift` (us001), `melee_lmb`, `dodge_lalt` (us054), `light_attack_lmb`, `heavy_attack_hold` (us078); block/parry PENDING TIER 4 (bridge cannot drive: B2 mouse hold)
-- **Tier 4 script:** existing scripts of the owning stories — `Scripts/playtests/us001_movement.py` (`py Scripts/playtest_story.py US-001`), `Scripts/playtests/us054_arena.py` (`py Scripts/playtest_story.py US-054`), `Scripts/playtests/us078_weapons.py` (`py Scripts/playtest_story.py US-078`). This story is not in any script's `COVERS`, so `py Scripts/playtest_story.py US-083` has no script; acceptance is read from the owning stories' runs
-- **Steps:** the owning stories' rows (from `py Scripts/playtest_story.py US-0XX --plan`):
+- **Proof:** Tier 3 boot shows the arena and HUD; Tier 4 checks `jump_space`, `sprint_shift` (us001), `melee_lmb`, `dodge_lalt` (us054), `light_attack_lmb`, `heavy_attack_hold` (us078); gamepad block and parry (AC-083.10) by `Scripts/playtests/us083_combat_input.py`; mouse block/parry (AC-083.11) PENDING TIER 4 (bridge cannot drive: B2 mouse hold)
+- **Tier 4 script:** `Scripts/playtests/us083_combat_input.py` (`py Scripts/playtest_story.py US-083`) for the gamepad path, plus the owning stories' scripts — `Scripts/playtests/us001_movement.py` (`py Scripts/playtest_story.py US-001`), `Scripts/playtests/us054_arena.py` (`py Scripts/playtest_story.py US-054`), `Scripts/playtests/us078_weapons.py` (`py Scripts/playtest_story.py US-078`); run them together with `py Scripts/playtest_story.py --all` on the same package (that also covers `gamepad_back_closes` of us069, Technical Notes)
+- **Steps:** `Scripts/playtests/us083_combat_input.py` (from `py Scripts/playtest_story.py US-083 --plan`):
+
+| # | Check | Player step (bridge calls) → expected | Proves |
+|---|---|---|---|
+| 1 | `block_lt_hold` | axis Gamepad_LeftTriggerAxis=1 (held) -> 'Mordecai.State.Blocking' in player.tags within 1s | AC-083.10, AC-083.3 |
+| 2 | `parry_rt_while_blocking` | LT held, axis Gamepad_RightTriggerAxis=1 -> within 0.5s a parry tag (Mordecai.State.Parrying, Mordecai.State.ParryWhiff, Mordecai.State.Riposte) with no 'Mordecai.State.Blocking' and no 'Mordecai.State.Attacking'; then RT=0 | AC-083.10, AC-083.3 |
+| 3 | `guard_returns_after_parry` | LT still held -> 'Mordecai.State.Blocking' again without a parry tag within 2.5s, and no 'Mordecai.State.Attacking' at any read meanwhile | AC-083.10 |
+| 4 | `block_release_lt` | axis Gamepad_LeftTriggerAxis=0 -> 'Mordecai.State.Blocking' gone within 1s | AC-083.10 |
+| 5 | `partial_rt_no_parry` | LT held (Blocking), axis Gamepad_RightTriggerAxis=0.3 for 0.6s -> no parry tag and 'Mordecai.State.Blocking' at every read; then both 0 | AC-083.3 |
+| 6 | `block_over_held_rt_no_parry` | axis Gamepad_RightTriggerAxis=1, 0.15s later Gamepad_LeftTriggerAxis=1 -> 'Mordecai.State.Blocking' within 1s and no parry tag for 0.6s more; then both 0 | AC-083.3 |
+| 7 | `light_attack_rt_tap` | idle -> axis Gamepad_RightTriggerAxis=1 hold_s 0.1 -> 'Mordecai.State.Attacking' without 'Mordecai.Attack.Heavy' within 1s | AC-083.3 |
+| 8 | `heavy_attack_rt_hold` | idle -> axis Gamepad_RightTriggerAxis=1 hold_s 0.8 -> 'Mordecai.Attack.Heavy' in player.tags within 0.5s of the release | AC-083.3 |
+| 9 | `dodge_gamepad_b` | tap Gamepad_FaceButton_Right (B) -> a Dodging tag in player.tags within 0.5s | AC-083.3 |
+| 10 | `jump_gamepad_a` | wait_until player.movement_mode=="Walking", tap Gamepad_FaceButton_Bottom (A) -> wait_until player.movement_mode=="Falling" within 1s | AC-083.3 |
+
+  The owning stories' rows (from `py Scripts/playtest_story.py US-0XX --plan`):
 
 | Script | Check | Player step (bridge calls) → expected | Sweep result (8ea853b) |
 |---|---|---|---|
@@ -82,13 +99,14 @@ All fixes are C++ (ability granting, IMC mapping/binding, melee profile routing)
 - **Playable alone:** YES
 
 ## Definition of Done
-- [ ] All ACs checked off (AC-083.10 stays unchecked: PENDING TIER 4, not claimed)
+- [ ] All ACs checked off (AC-083.11 stays unchecked: PENDING TIER 4, not claimed)
 - [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [ ] Content: no asset changes expected; `py Scripts/check_content_committed.py` exits 0
 - [ ] Code AND the script edits (`known_issue` removed from the six fixed Steps, `melee_lmb` made honest) committed FIRST, then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package: `py Scripts/playtest_story.py US-001`, `py Scripts/playtest_story.py US-054` and `py Scripts/playtest_story.py US-078` run; checks `sprint_shift`, `jump_space`, `melee_lmb`, `dodge_lalt`, `light_attack_lmb`, `heavy_attack_hold` go from FAIL (sweep `Saved/Playtests/20261022-184702-sweep`) to PASS; no check that PASSed in the sweep now FAILs; every remaining FAIL belongs to another Epic R story (cite which). `--lint` exits 0 for US-001, US-054 and US-078 — never `--allow-stale`
+- [ ] On that same fresh package: `py Scripts/playtest_story.py US-001`, `py Scripts/playtest_story.py US-054` and `py Scripts/playtest_story.py US-078` run (or `--all`, which also runs us069's `gamepad_back_closes`); checks `sprint_shift`, `jump_space`, `melee_lmb`, `dodge_lalt`, `light_attack_lmb`, `heavy_attack_hold` go from FAIL (sweep `Saved/Playtests/20261022-184702-sweep`) to PASS; no check that PASSed in the sweep now FAILs; every remaining FAIL belongs to another Epic R story (cite which). `--lint` exits 0 for US-001, US-054 and US-078 — never `--allow-stale`
+- [ ] On that same fresh package: `py Scripts/playtest_story.py US-083` (Tier 3 boot + `Scripts/playtests/us083_combat_input.py`) exits 0; `--lint` exits 0 for US-083
 - [ ] Known issues entries "Sprint, jump, attacks, block and dodge are not bound at runtime" and N10 marked FIXED in `Specs/agent_playtest_plan_v1.md` with the run dirs
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
 - [ ] Evidence cited: run dirs (Tier 3 `Saved/Playtests/<run>-boot/report.md`, Tier 4 `Saved/Playtests/<run>-us001|us054|us078/report.md`) in Completion Notes AND in the body of the `[US-083]` commit that closes the story

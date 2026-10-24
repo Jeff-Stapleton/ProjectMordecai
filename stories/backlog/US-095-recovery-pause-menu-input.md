@@ -17,7 +17,7 @@ CommonUI action bindings registered from C++ (`RegisterUIActionBinding` with `FB
 - Sweep `Saved/Playtests/20261022-184702-sweep/summary.md`; run `Saved/Playtests/20261022-184913-us069`: `i_opens_inventory` PASS, `i_closes` FAIL known ("tapped I; but pause_menu.open==false was not true within 3s"), `shoulder_switches_tab` FAIL NEW ("tapped Gamepad_LeftShoulder on the 'settings' tab; ... active_tab='settings'"); `escape_closes`, `gamepad_back_closes`, `start_button_opens` PASS (back handler works)
 - Done stories: US-069 AC-069.4 ("Tab switching via LB/RB (controller) or clicking tab headers (mouse)"), AC-069.10; US-079 (I opens the inventory)
 - `Specs/control_bindings_v1.1.md` — Pause / Menu: Start / Esc. It lists no "I" binding and no in-menu tab switching (LB/RB are Skill B / Skill A in game)
-- Existing code: `Source/LyraGame/Mordecai/UI/MordecaiPauseMenuWidget.cpp:34-45` (Menu input mode, back handler), `:108-113` (`SetActiveTab`); `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:149-153,206,259` (programmatic `IA_Mordecai_Inventory_Runtime` on I)
+- Existing code: `Source/LyraGame/Mordecai/UI/MordecaiPauseMenuWidget.cpp:34-45` (Menu input mode, back handler), `:108-113` (`SetActiveTab`); `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:113-119,246,362` (programmatic `IA_Mordecai_Inventory_Runtime` on I)
 
 ## Acceptance Criteria
 - [ ] AC-095.1: While the pause menu is open, I closes it (the same close path as Escape: `NativeOnDeactivated` → subsystem close, game unpaused) — verified by `Mordecai.Recovery.PauseMenu.InventoryKeyClosesMenu`

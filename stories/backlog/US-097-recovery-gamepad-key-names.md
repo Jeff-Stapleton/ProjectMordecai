@@ -13,11 +13,11 @@ A gamepad player cannot move, aim or sprint: the programmatic input context maps
 FKey names in `MordecaiHeroComponent.cpp` plus a validation test; no assets.
 
 ## References
-- `Specs/agent_playtest_plan_v1.md` — "Gamepad stick and L3 mappings use invalid FKey names" (`MordecaiHeroComponent.cpp:103,116,133`)
+- `Specs/agent_playtest_plan_v1.md` — "Gamepad stick and L3 mappings use invalid FKey names" (`MordecaiHeroComponent.cpp:167,180,197`)
 - Sweep `Saved/Playtests/20261022-184702-sweep/summary.md`; run `Saved/Playtests/20261022-184725-us001`: `gamepad_move` FAIL known ("Gamepad_LeftY=1 for 0.799s: (-379, -790) -> (-379, -790), dx 0 cm"), `sprint_l3` FAIL known (dx 282 cm), `facing_stick` FAIL known (also blocked by facing, US-098)
 - `Specs/control_bindings_v1.1.md` — Move: Left Stick; Look/Aim: Right Stick; Sprint toggle: L3; Use Skill A: RB / Q; Use Skill B: LB / E
 - Done stories: US-001 AC-1.3.2, AC-1.3.3, AC-2.1.1, AC-2.1.3; US-057 AC-057.5 (`IA_Spell_1` LB/Q, `IA_Spell_2` RB/E, `IA_Spell_3` LB+RB/R, `IA_Spell_4` DPadUp/1)
-- Existing code: `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:102-134,160-178`
+- Existing code: `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:166-198,200-218`
 
 ## Acceptance Criteria
 - [ ] AC-097.1: Every key in `MordecaiIMC_Runtime` is a valid engine `FKey` (`FKey::IsValid()`); the stick and L3 mappings use `Gamepad_Left2D`, `Gamepad_Right2D`, `Gamepad_LeftThumbstick` — verified by `Mordecai.Recovery.Input.AllRuntimeKeysValid`
@@ -27,7 +27,7 @@ FKey names in `MordecaiHeroComponent.cpp` plus a validation test; no assets.
 
 ## Technical Notes
 - AC-097.1's test iterates the IMC mappings and fails on any invalid key, so this class of bug cannot return silently.
-- TODO(DECISION) (Jeff): gamepad spell buttons — AC-057.5 maps Spell 1 = LB/Q, Spell 2 = RB/E, Spell 3 = LB+RB/R, but `control_bindings_v1.1.md` says Skill A = RB/Q and Skill B = LB/E, and LB+RB for Spell 3 is not mapped at all (R only, `MordecaiHeroComponent.cpp:170-173`). Which is authoritative? Do not change the spell gamepad mapping until decided; no Tier 4 check covers gamepad spells today (us057 Notes).
+- TODO(DECISION) (Jeff): gamepad spell buttons — AC-057.5 maps Spell 1 = LB/Q, Spell 2 = RB/E, Spell 3 = LB+RB/R, but `control_bindings_v1.1.md` says Skill A = RB/Q and Skill B = LB/E, and LB+RB for Spell 3 is not mapped at all (R only, `MordecaiHeroComponent.cpp:210-213`). Which is authoritative? Do not change the spell gamepad mapping until decided; no Tier 4 check covers gamepad spells today (us057 Notes).
 - Script bookkeeping (before packaging): remove the gamepad-FKey `known_issue` from `gamepad_move` and `sprint_l3` in `us001_movement.py`; `facing_stick` keeps its facing `known_issue` (US-098), drop only the FKey part.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 

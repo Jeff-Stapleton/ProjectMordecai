@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GameplayTagContainer.h"
 #include "Player/LyraPlayerController.h"
 
 #include "MordecaiPlayerController.generated.h"
@@ -31,9 +32,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|HUD")
 	TSubclassOf<UMordecaiCombatHUDWidget> CombatHUDWidgetClass;
 
-	/** Combat abilities to grant to the player on possession (AC-054.5). */
+	/** Combat abilities to grant to the player on possession (AC-054.5); the constructor sets them (US-083). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Combat")
 	TArray<TSubclassOf<UGameplayAbility>> DefaultCombatAbilities;
+
+	/**
+	 * Input tag each combat ability's spec carries (US-083). UMordecaiHeroComponent's bindings press these tags on the
+	 * Lyra ASC, which activates the matching spec (ULyraAbilitySystemComponent::AbilityInputTagPressed).
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Combat")
+	TMap<TSubclassOf<UGameplayAbility>, FGameplayTag> CombatAbilityInputTags;
 
 	/**
 	 * Attack profiles for the melee attack ability combo (AC-054.4). A granted melee ability instance takes them
