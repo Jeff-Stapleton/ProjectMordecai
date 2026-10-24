@@ -1,10 +1,17 @@
 """Tests for Scripts/playtests/us083_combat_input.py against tests/fake_bridge.py.
 
-PadWorld (below) adds the gamepad combat the shared FakeWorld lacks: LT held blocks, a fresh RT
+PadWorld (below) adds the combat the shared FakeWorld lacks.  Gamepad: LT held blocks, a fresh RT
 press past 0.5 while blocking parries (0.5 s Parrying, then 0.6 s ParryWhiff, the guard down), a
-RT release is a light attack (held < 0.4 s) or a heavy one, B dodges and A jumps.  Switches break
-each rule.  These prove the playtest's logic and reporting only; they say nothing about the real
-game.  Nothing here launches the real game.  Run: py Scripts/run_python_tests.py -k Us083
+RT release is a light attack (held < 0.4 s) or a heavy one, B dodges and A jumps.  Keyboard and
+mouse: a Left click released before 0.4 s is a light attack, one held longer a heavy attack (on
+the release), LeftAlt dodges, SpaceBar jumps (Falling) and LeftShift toggles a sprint (walk 600
+cm/s, sprint 900 cm/s).  An attack input while an attack runs is refused (State.Attacking blocks
+the melee ability).  A dodge moves the player 140 cm backward (-X), reports Falling for part of
+its active phase (its launch) and leaves a DodgeCooldown tag for 0.3 s.  The world has the
+DevTestMap blocks and the three Frontliners as blocks where the packaged game spawns them, so the
+lane L1 walk starts where the two dodges leave the player, as in the game.  Switches break each
+rule.  These prove the playtest's logic and reporting only; they say nothing about the real game.
+Nothing here launches the real game.  Run: py Scripts/run_python_tests.py -k Us083
 """
 
 import importlib.util
@@ -30,7 +37,18 @@ STORY_FILES = [os.path.join(os.path.dirname(SCRIPTS), "stories", d,
                             "US-083-recovery-combat-abilities-and-input.md")
                for d in ("in-progress", "done", "backlog")]
 TOKEN = "us083-token"
-INPUT_AND_READ_CMDS = {"ping", "state", "key", "axis", "screenshot", "wait_until", "wait"}
+INPUT_AND_READ_CMDS = {"ping", "state", "key", "axis", "click", "screenshot", "wait_until",
+                       "wait"}
+KB_MOUSE_CHECKS = ["light_attack_lmb_tap", "heavy_attack_lmb_hold", "dodge_left_alt",
+                   "jump_space_bar", "walk_lane_wp1", "walk_lane_wp2", "walk_lane_start",
+                   "sprint_left_shift"]
+# The Frontliners where the packaged game spawns them (us054 enemies_present on 01abb8b), as
+# blocks the size of their capsule (x0, x1, y0, y1).  Here they stay put; in the game they follow
+# the player and stand within 200 cm of it.
+FRONTLINERS_AT_SPAWN = tuple((x - 40.0, x + 40.0, y - 40.0, y + 40.0)
+                             for x, y in ((196.0, 0.0), (-123.0, 153.0), (-123.0, -153.0)))
+# A wall across the arena between where the dodges leave the player and lane L1's first waypoint
+LANE_BLOCKER = (-470.0, -440.0, -975.0, 975.0)
 
 
 def load_playtest():
@@ -46,20 +64,42 @@ PLAN_CHECKS = [s.check for s in us083.PLAN]
 
 
 class PadWorld(fb.FakeWorld):
-    """The arena with the US-083 gamepad combat bindings.  Defaults model the game as it should
-    be; the switches break one rule each.
+    """The arena with the US-083 combat bindings.  Defaults model the game as it should be; the
+    switches break one rule each.
 
-    parry_on_partial: a RT pull below 0.5 while blocking parries.  parry_on_block_over_rt: raising
-    the block over a held RT parries.  guard_through_parry: the parry leaves the guard up.
-    attack_out_of_parry: the RT release during a parry attacks.  no_guard_back: the guard stays
-    down after a parry.  heavy_as_light: a long RT hold is a light attack.  block, attacks, dodge,
-    jump: False = that input does nothing."""
+    Gamepad -- parry_on_partial: a RT pull below 0.5 while blocking parries.
+    parry_on_block_over_rt: raising the block over a held RT parries.  guard_through_parry: the
+    parry leaves the guard up.  attack_out_of_parry: the RT release during a parry attacks.
+    no_guard_back: the guard stays down after a parry.  heavy_as_light: a long RT hold is a light
+    attack.  block, attacks, dodge, jump: False = that gamepad input does nothing.
+
+    Keyboard and mouse -- lmb, alt_dodge, space_jump, shift_sprint: False = the Left click /
+    LeftAlt / SpaceBar / LeftShift does nothing.  lmb_heavy_as_light: a long Left click is a light
+    attack.  lmb_tap_as_heavy: a short Left click is a heavy attack.  sticky_sprint: a second
+    LeftShift tap does not end the sprint.
+
+    Timing -- attack_s: how long an attack runs (ATTACK_S).  dodge_cooldown_s: how long the
+    DodgeCooldown tag stays after a dodge (DODGE_COOLDOWN_S).
+
+    attacks_seen: (input, "light" | "heavy") per attack, in order.  attacks_refused: the input of
+    each attack refused because another one was running."""
 
     PARRY_S, WHIFF_S, ATTACK_S, HEAVY_HOLD_S, DODGE_S, JUMP_S = 0.5, 0.6, 0.6, 0.4, 0.4, 0.6
+    DODGE_COOLDOWN_S = 0.3
+    DODGE_CM = 140.0               # backward (-X); the game's B dodge + A jump reached x=-144
+    # Falling for this part of the dodge's active phase (LaunchCharacter).  It starts after the
+    # first read, so a read can see Dodging and Walking before the launch's Falling: a jump check
+    # must wait for the dodge to end, not only for Walking, or it takes that Falling for a jump.
+    DODGE_FALLING_S = (0.2, 0.35)
+    SPRINT_MULT = 1.5
 
     def __init__(self, *, block=True, attacks=True, dodge=True, jump=True,
                  parry_on_partial=False, parry_on_block_over_rt=False, guard_through_parry=False,
-                 attack_out_of_parry=False, no_guard_back=False, heavy_as_light=False, **kw):
+                 attack_out_of_parry=False, no_guard_back=False, heavy_as_light=False,
+                 lmb=True, alt_dodge=True, space_jump=True, shift_sprint=True,
+                 lmb_heavy_as_light=False, lmb_tap_as_heavy=False, sticky_sprint=False,
+                 attack_s=None, dodge_cooldown_s=None, **kw):
+        kw.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES + FRONTLINERS_AT_SPAWN)
         super().__init__(**kw)
         self.block, self.attacks, self.dodge, self.jump = block, attacks, dodge, jump
         self.parry_on_partial = parry_on_partial
@@ -68,14 +108,44 @@ class PadWorld(fb.FakeWorld):
         self.attack_out_of_parry = attack_out_of_parry
         self.no_guard_back = no_guard_back
         self.heavy_as_light = heavy_as_light
+        self.lmb, self.alt_dodge = lmb, alt_dodge
+        self.space_jump, self.shift_sprint = space_jump, shift_sprint
+        self.lmb_heavy_as_light = lmb_heavy_as_light
+        self.lmb_tap_as_heavy = lmb_tap_as_heavy
+        self.sticky_sprint = sticky_sprint
+        self.attack_s = self.ATTACK_S if attack_s is None else float(attack_s)
+        self.dodge_cooldown_s = (self.DODGE_COOLDOWN_S if dodge_cooldown_s is None
+                                 else float(dodge_cooldown_s))
+        self.base_speed = self.speed
+        self.sprinting = False
         self.prev_lt = self.prev_rt = 0.0
         self.rt_down_at = None
+        self.lmb_down_at = None
         self.blocking = False
         self.parried_once = False
         self.parry_until = self.whiff_until = -1.0
         self.attack_until = self.dodge_until = self.jump_until = -1.0
+        self.dodge_at = -10.0
         self.attack_heavy = False
         self.attacks_seen = []
+        self.attacks_refused = []
+
+    def _attack(self, source, heavy):
+        now = self.real_time()
+        if now < self.attack_until:   # ActivationBlockedTags: State.Attacking
+            self.attacks_refused.append(source)
+            return
+        self.attack_heavy = heavy
+        self.attack_until = now + self.attack_s
+        self.attacks_seen.append((source, "heavy" if heavy else "light"))
+
+    def _dodge_back(self):
+        """The dodge's displacement: no move input, so backward (-X, the facing is +X), DODGE_CM in
+        10 cm steps that stop at a block."""
+        for _ in range(int(self.DODGE_CM // 10)):
+            if self._blocked(self.pos[0] - 10.0, self.pos[1]):
+                break
+            self.pos[0] -= 10.0
 
     def tick(self, dt):
         super().tick(dt)
@@ -106,9 +176,7 @@ class PadWorld(fb.FakeWorld):
                 held_s = now - self.rt_down_at
                 self.rt_down_at = None
                 if self.attacks and (not in_parry or self.attack_out_of_parry):
-                    self.attack_heavy = held_s >= self.HEAVY_HOLD_S and not self.heavy_as_light
-                    self.attack_until = now + self.ATTACK_S
-                    self.attacks_seen.append("heavy" if self.attack_heavy else "light")
+                    self._attack("RT", held_s >= self.HEAVY_HOLD_S and not self.heavy_as_light)
             self.prev_lt, self.prev_rt = lt, rt
 
     def _on_key_pressed(self, key):
@@ -116,10 +184,36 @@ class PadWorld(fb.FakeWorld):
         if not self.ready or self.menu_open or self.is_dead:
             return
         now = self.real_time()
-        if key == us083.DODGE_KEY and self.dodge:
-            self.dodge_until = now + self.DODGE_S
-        elif key == us083.JUMP_KEY and self.jump:
+        if (key == us083.DODGE_KEY and self.dodge) or (key == us083.KB_DODGE_KEY
+                                                       and self.alt_dodge):
+            if now >= self.dodge_until + self.dodge_cooldown_s:   # Dodging / DodgeCooldown block it
+                self.dodge_at, self.dodge_until = now, now + self.DODGE_S
+                self._dodge_back()
+        elif (key == us083.JUMP_KEY and self.jump) or (key == us083.KB_JUMP_KEY
+                                                       and self.space_jump):
             self.jump_until = now + self.JUMP_S
+        elif key == us083.SPRINT_KEY and self.shift_sprint:
+            self.sprinting = True if self.sticky_sprint else not self.sprinting
+            self.speed = self.base_speed * (self.SPRINT_MULT if self.sprinting else 1.0)
+
+    # Left click: light attack when released before HEAVY_HOLD_S, else a heavy one on the release
+    def mouse_down(self, conn_id, x, y, button):
+        with self.lock:
+            hit = super().mouse_down(conn_id, x, y, button)
+            if button == "Left":
+                self.lmb_down_at = self.real_time()
+            return hit
+
+    def mouse_up(self, conn_id, x, y, button):
+        with self.lock:
+            hit = super().mouse_up(conn_id, x, y, button)
+            if (button == "Left" and hit == "SViewport" and self.lmb and self.ready
+                    and not self.is_dead and self.lmb_down_at is not None):
+                held_s = self.real_time() - self.lmb_down_at
+                self._attack("LMB", self.lmb_tap_as_heavy if held_s < self.HEAVY_HOLD_S
+                             else not self.lmb_heavy_as_light)
+            self.lmb_down_at = None
+            return hit
 
     def _s_player(self):
         out = super()._s_player()
@@ -138,9 +232,12 @@ class PadWorld(fb.FakeWorld):
             if self.attack_heavy:
                 tags.append(us083.TAG_HEAVY)
         if now < self.dodge_until:
-            tags.append("Mordecai.State.Dodging")
+            tags.append(us083.TAG_DODGING)
+        elif now < self.dodge_until + self.dodge_cooldown_s:
+            tags.append("Mordecai.State.DodgeCooldown")
         out["tags"] = tags
-        if now < self.jump_until:
+        fall0, fall1 = self.DODGE_FALLING_S
+        if now < self.jump_until or fall0 <= now - self.dodge_at < fall1:
             out["movement_mode"] = "Falling"
         return out
 
@@ -211,6 +308,22 @@ class TestUs083Plan(unittest.TestCase):
         rows = [line for line in out.getvalue().splitlines() if line.startswith("| ")]
         self.assertEqual(len(rows), 1 + len(us083.PLAN))
         self.assertTrue(rows[1].startswith("| 1 | `block_lt_hold` |"))
+        # The gamepad half first (10 steps, unchanged), then the keyboard and mouse half
+        self.assertEqual(PLAN_CHECKS[10:], KB_MOUSE_CHECKS)
+        self.assertEqual(len(PLAN_CHECKS), 18)
+        self.assertTrue(rows[11].startswith("| 11 | `light_attack_lmb_tap` |"))
+        self.assertTrue(rows[-1].startswith("| 18 | `sprint_left_shift` |"))
+
+    def test_keyboard_and_mouse_steps_prove_ac_083_4_to_8(self):
+        proves = {s.check: s.proves for s in us083.PLAN}
+        for check, ac in (("light_attack_lmb_tap", "AC-083.4"), ("heavy_attack_lmb_hold",
+                                                                 "AC-083.5"),
+                          ("dodge_left_alt", "AC-083.6"), ("jump_space_bar", "AC-083.7"),
+                          ("sprint_left_shift", "AC-083.8")):
+            self.assertEqual(proves[check], (ac, "AC-083.3"), check)
+        for check in ("walk_lane_wp1", "walk_lane_wp2", "walk_lane_start"):
+            self.assertEqual(proves[check], (), check)
+        self.assertIn("sprint", us083.Us083Run.FEATURES)
 
 
 class TestUs083AgainstTheFake(Us083Case):
@@ -220,17 +333,30 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertEqual(self.statuses(rep, "FAIL"), [], self.log.getvalue()[-4000:])
         self.assertEqual(self.statuses(rep, "SKIP"), [])
         self.assertEqual(code, 0)
+        self.assertEqual(rep["undeclared_checks"], [])
         checks = self.by_name(rep)
         for name in PLAN_CHECKS:
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertIn(us083.TAG_PARRYING, checks["parry_rt_while_blocking"]["detail"])
         self.assertIn("no attack at any of", checks["guard_returns_after_parry"]["detail"])
+        self.assertIn("Slate hit SViewport", checks["light_attack_lmb_tap"]["detail"])
+        self.assertIn("held 0.8s", checks["heavy_attack_lmb_hold"]["detail"])
+        self.assertIn("the dodge over, Walking; tapped SpaceBar: Falling",
+                      checks["jump_space_bar"]["detail"])
+        self.assertIn("the dodge over, Walking; tapped Gamepad_FaceButton_Bottom: Falling",
+                      checks["jump_gamepad_a"]["detail"])
+        self.assertIn("need > 700", checks["sprint_left_shift"]["detail"])
+        self.assertIn("then held S 1s: peak speed 600 cm/s", checks["sprint_left_shift"]["detail"])
+        self.assertNotIn(" -- ", checks["sprint_left_shift"]["detail"])
+        self.assertFalse(world.sprinting, "the sprint was toggled back")
         # The block-over-RT step ends with a heavy attack on the RT release; nothing else attacks
-        # out of turn: light (tap), then heavy (hold)
-        self.assertEqual(world.attacks_seen[-2:], ["light", "heavy"])
+        # out of turn: RT light (tap), RT heavy (hold), then LMB light (click), LMB heavy (held)
+        self.assertEqual(world.attacks_seen, [("RT", "heavy"), ("RT", "light"), ("RT", "heavy"),
+                                              ("LMB", "light"), ("LMB", "heavy")])
+        self.assertEqual(world.attacks_refused, [])
         # Real input only, and the triggers are released at the end
-        sent = [e["msg"] for e in read_jsonl(os.path.join(self.run_dir, "bridge.jsonl"))
-                if e["dir"] == "send"]
+        entries = read_jsonl(os.path.join(self.run_dir, "bridge.jsonl"))
+        sent = [e["msg"] for e in entries if e["dir"] == "send"]
         self.assertLessEqual({m["cmd"] for m in sent}, INPUT_AND_READ_CMDS)
         self.assertFalse([m for m in sent if str(m.get("cmd", "")).startswith("debug")
                           or m.get("route") == "viewport" or m.get("unsafe")])
@@ -238,12 +364,46 @@ class TestUs083AgainstTheFake(Us083Case):
         axes = [m["values"] for m in sent if m["cmd"] == "axis"]
         self.assertIn({LT: 1.0}, axes)
         self.assertIn({RT: us083.PARTIAL_RT}, axes)
-        self.assertEqual([s["label"] for s in rep["screenshots"]], ["blocking"])
+        clicks = [(m.get("x"), m.get("y"), m.get("button"), m.get("hold_s"))
+                  for m in sent if m["cmd"] == "click"]
+        self.assertEqual(clicks, [(640, 360, "Left", None), (640, 360, "Left", 0.8)])
+        keys = [m.get("key") or tuple(m.get("keys") or ()) for m in sent if m["cmd"] == "key"]
+        for k in ("Gamepad_FaceButton_Right", "Gamepad_FaceButton_Bottom", "LeftAlt", "SpaceBar",
+                  "W", "S"):
+            self.assertIn(k, keys)
+        self.assertEqual(keys.count("LeftShift"), 2, "the sprint toggle is tapped back")
+        # The trigger axes are all released before the first click
+        first_click = next(i for i, m in enumerate(sent) if m["cmd"] == "click")
+        held = {}
+        for m in sent[:first_click]:
+            if m["cmd"] == "axis" and m.get("hold_s") is None:
+                held.update(m["values"])
+        self.assertEqual({k: v for k, v in held.items() if v}, {})
+        # The lane walk starts where the two backward dodges left the player and its first pulse
+        # leads away from the Frontliners (S), not back through them (W+A to us001's (0, -650))
+        walks = [i for i, e in enumerate(entries)
+                 if e["dir"] == "note" and e["msg"].get("note") == "walk_to"]
+        self.assertEqual([entries[i]["msg"]["to"] for i in walks],
+                         [[-650.0, 0.0], [-700.0, -650.0], [-700.0, -800.0]])
+        start = entries[walks[0]]["msg"]["from"]
+        self.assertLess(start[0], -250.0, "two 140 cm dodges backward")
+        self.assertLess(abs(start[1]), 30.0)
+        first_pulse = next(e["msg"] for e in entries[walks[0]:]
+                           if e["dir"] == "send" and e["msg"]["cmd"] == "key")
+        self.assertEqual(first_pulse.get("keys") or [first_pulse.get("key")], ["S"])
+        self.assertEqual([s["label"] for s in rep["screenshots"]], ["blocking", "lane_start"])
+        movement = {m["check"]: m for m in rep["movement"]}
+        self.assertGreater(movement["sprint_left_shift"]["dx"], 700)
+        self.assertLess(movement["sprint_left_shift_toggle_back"]["dx"], -400)
+        self.assertEqual(movement["sprint_left_shift_toggle_back"]["peak_speed"], 600.0)
         acs = {a["id"]: a for a in rep["acs"]}
-        self.assertEqual(acs["AC-083.10"]["status"], "PASS")
-        self.assertEqual(acs["AC-083.3"]["status"], "PASS")
+        for ac in ("AC-083.3", "AC-083.4", "AC-083.5", "AC-083.6", "AC-083.7", "AC-083.8",
+                   "AC-083.10"):
+            self.assertEqual(acs[ac]["status"], "PASS", ac)
         self.assertEqual(acs["AC-083.11"]["status"], "PENDING")
         self.assertFalse(any(a["accepted"] for a in rep["acs"]), "an attached run accepts nothing")
+        md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
+        self.assertIn("## Sprint measurements", md)
 
     def test_no_block_fails_and_skips_what_needs_it(self):
         _, server = self.serve(block=False)
@@ -310,14 +470,165 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertIn("no 'Mordecai.Attack.Heavy'", checks["heavy_attack_rt_hold"]["detail"])
 
     def test_dead_buttons_fail(self):
-        _, server = self.serve(attacks=False, dodge=False, jump=False)
+        _, server = self.serve(attacks=False, dodge=False, jump=False, lmb=False,
+                               alt_dodge=False, space_jump=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         checks = self.by_name(rep)
         for name in ("light_attack_rt_tap", "heavy_attack_rt_hold", "dodge_gamepad_b",
-                     "jump_gamepad_a"):
+                     "jump_gamepad_a", "light_attack_lmb_tap", "heavy_attack_lmb_hold",
+                     "dodge_left_alt", "jump_space_bar"):
             self.assertEqual(checks[name]["status"], "FAIL", name)
-        self.assertIn("player.movement_mode stayed", checks["jump_gamepad_a"]["detail"])
+        for name in ("jump_gamepad_a", "jump_space_bar"):
+            self.assertIn("player.movement_mode stayed", checks[name]["detail"])
+        self.assertIn("no 'Mordecai.State.Attacking' without 'Mordecai.Attack.Heavy'",
+                      checks["light_attack_lmb_tap"]["detail"])
+        self.assertIn("tapped LeftAlt: no Dodging tag", checks["dodge_left_alt"]["detail"])
+        # LeftShift and the walk are independent of the dead buttons
+        for name in ("walk_lane_wp1", "walk_lane_wp2", "walk_lane_start", "sprint_left_shift"):
+            self.assertEqual(checks[name]["status"], "PASS", name)
+
+    def test_dead_keyboard_and_mouse_keys_fail_only_their_checks(self):
+        world, server = self.serve(lmb=False, alt_dodge=False, space_jump=False,
+                                   shift_sprint=False)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"),
+                         ["light_attack_lmb_tap", "heavy_attack_lmb_hold", "dodge_left_alt",
+                          "jump_space_bar", "sprint_left_shift"])
+        self.assertEqual(self.statuses(rep, "SKIP"), [])
+        self.assertEqual([s for s, _ in world.attacks_seen], ["RT", "RT", "RT"])
+        acs = {a["id"]: a for a in rep["acs"]}
+        for ac in ("AC-083.4", "AC-083.5", "AC-083.6", "AC-083.7", "AC-083.8", "AC-083.3"):
+            self.assertEqual(acs[ac]["status"], "FAIL", ac)
+        self.assertEqual(acs["AC-083.10"]["status"], "PASS")
+
+    def test_an_lmb_hold_that_starts_a_light_attack_fails_the_lmb_heavy_check(self):
+        world, server = self.serve(lmb_heavy_as_light=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["heavy_attack_lmb_hold"])
+        checks = self.by_name(rep)
+        self.assertEqual(checks["light_attack_lmb_tap"]["status"], "PASS")
+        self.assertEqual(checks["heavy_attack_rt_hold"]["status"], "PASS")
+        self.assertIn("no 'Mordecai.Attack.Heavy'", checks["heavy_attack_lmb_hold"]["detail"])
+        self.assertEqual(world.attacks_seen[-2:], [("LMB", "light"), ("LMB", "light")])
+        acs = {a["id"]: a for a in rep["acs"]}
+        self.assertEqual(acs["AC-083.5"]["status"], "FAIL")
+        self.assertEqual(acs["AC-083.4"]["status"], "PASS")
+
+    def test_a_short_lmb_click_that_starts_a_heavy_attack_fails_the_lmb_light_check(self):
+        world, server = self.serve(lmb_tap_as_heavy=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["light_attack_lmb_tap"])
+        checks = self.by_name(rep)
+        self.assertIn("no 'Mordecai.State.Attacking' without 'Mordecai.Attack.Heavy'",
+                      checks["light_attack_lmb_tap"]["detail"])
+        self.assertEqual(checks["heavy_attack_lmb_hold"]["status"], "PASS")
+        self.assertEqual(world.attacks_seen[-2:], [("LMB", "heavy"), ("LMB", "heavy")])
+        acs = {a["id"]: a for a in rep["acs"]}
+        self.assertEqual(acs["AC-083.4"]["status"], "FAIL")
+        self.assertEqual(acs["AC-083.5"]["status"], "PASS")
+
+    def test_each_attack_waits_for_the_previous_one_to_end(self):
+        # A running attack refuses the next attack input (State.Attacking blocks the melee
+        # ability).  With 1.2 s attacks, an attack step that did not wait for idle would press
+        # into the previous attack (the block-over-RT step ends with a heavy one) and be refused
+        world, server = self.serve(attack_s=1.2)
+        code, rep = self.play(server)
+        self.assertEqual(self.statuses(rep, "FAIL"), [], self.log.getvalue()[-4000:])
+        self.assertEqual(code, 0)
+        self.assertEqual(world.attacks_refused, [])
+        self.assertEqual(world.attacks_seen, [("RT", "heavy"), ("RT", "light"), ("RT", "heavy"),
+                                              ("LMB", "light"), ("LMB", "heavy")])
+
+    def test_a_dead_space_bar_does_not_pass_on_the_dodges_falling(self):
+        # The LeftAlt dodge reports Falling after a first Walking read (DODGE_FALLING_S):
+        # jump_space_bar waits for the dodge to end, not only for Walking, so a dead SpaceBar
+        # FAILs instead of passing on the dodge's launch
+        _, server = self.serve(space_jump=False)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["jump_space_bar"])
+        checks = self.by_name(rep)
+        self.assertEqual(checks["dodge_left_alt"]["status"], "PASS")
+        self.assertIn("the dodge over, Walking; tapped SpaceBar: player.movement_mode stayed",
+                      checks["jump_space_bar"]["detail"])
+        self.assertEqual({a["id"]: a for a in rep["acs"]}["AC-083.7"]["status"], "FAIL")
+
+    def test_a_dead_a_button_does_not_pass_on_the_dodges_falling(self):
+        # The same for the gamepad: the B dodge also reports Falling after a first Walking read, so
+        # jump_gamepad_a waits for that dodge to end; a dead A FAILs instead of passing on its launch
+        _, server = self.serve(jump=False)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["jump_gamepad_a"])
+        checks = self.by_name(rep)
+        self.assertEqual(checks["dodge_gamepad_b"]["status"], "PASS")
+        self.assertIn("the dodge over, Walking; tapped Gamepad_FaceButton_Bottom: "
+                      "player.movement_mode stayed", checks["jump_gamepad_a"]["detail"])
+        self.assertEqual(checks["jump_space_bar"]["status"], "PASS")
+
+    def test_a_dead_left_alt_does_not_pass_on_a_leftover_dodge_cooldown(self):
+        # The B dodge's DodgeCooldown lasts into the LeftAlt step here (3 s): dodge_left_alt waits
+        # for every dodge tag to go, so a dead LeftAlt FAILs instead of passing on that tag
+        _, server = self.serve(alt_dodge=False, dodge_cooldown_s=3.0)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["dodge_left_alt"])
+        self.assertIn("tapped LeftAlt: no Dodging tag",
+                      self.by_name(rep)["dodge_left_alt"]["detail"])
+        self.assertEqual({a["id"]: a for a in rep["acs"]}["AC-083.6"]["status"], "FAIL")
+
+    def test_a_left_shift_that_does_nothing_fails_the_sprint(self):
+        world, server = self.serve(shift_sprint=False)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["sprint_left_shift"])
+        check = self.by_name(rep)["sprint_left_shift"]
+        self.assertIn("need > 700", check["detail"])
+        self.assertIn("peak speed 600 cm/s", check["detail"])
+        self.assertNotIn(" -- ", check["detail"])
+        self.assertFalse(world.sprinting)
+        movement = {m["check"]: m for m in rep["movement"]}
+        self.assertLess(movement["sprint_left_shift"]["dx"], 700)
+        self.assertEqual({a["id"]: a for a in rep["acs"]}["AC-083.8"]["status"], "FAIL")
+
+    def test_a_sprint_the_second_tap_does_not_end_fails(self):
+        world, server = self.serve(sticky_sprint=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["sprint_left_shift"])
+        check = self.by_name(rep)["sprint_left_shift"]
+        self.assertIn("the second tap did not end the sprint", check["detail"])
+        self.assertIn("peak speed 900 cm/s", check["detail"])
+        self.assertTrue(world.sprinting)
+        movement = {m["check"]: m for m in rep["movement"]}
+        self.assertGreater(movement["sprint_left_shift"]["dx"], 700)
+        self.assertTrue(movement["sprint_left_shift"]["sprint_left_on"])
+
+    def test_a_blocked_lane_walk_fails_and_skips_the_sprint(self):
+        _, server = self.serve(obstacles=fb.DEVTESTMAP_OBSTACLES + FRONTLINERS_AT_SPAWN
+                               + (LANE_BLOCKER,))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["walk_lane_wp1"])
+        checks = self.by_name(rep)
+        self.assertIn("walk_lane_wp1", rep["new_failures"])
+        for name in ("walk_lane_wp2", "walk_lane_start", "screenshot_lane_start",
+                     "sprint_left_shift"):
+            self.assertEqual(checks[name]["status"], "SKIP", name)
+        self.assertIn("previous waypoint was not reached", checks["walk_lane_wp2"]["detail"])
+        self.assertIn("not at the lane start", checks["sprint_left_shift"]["detail"])
+        for name in ("light_attack_lmb_tap", "heavy_attack_lmb_hold", "dodge_left_alt",
+                     "jump_space_bar"):
+            self.assertEqual(checks[name]["status"], "PASS", name)
+        acs = {a["id"]: a for a in rep["acs"]}
+        self.assertEqual(acs["AC-083.8"]["status"], "NOT RUN")
+        self.assertEqual(acs["AC-083.3"]["status"], "NOT RUN")
+        self.assertEqual(acs["AC-083.7"]["status"], "PASS")
+        self.assertEqual(rep["movement"], [])
 
 
 if __name__ == "__main__":

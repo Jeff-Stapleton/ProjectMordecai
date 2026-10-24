@@ -1,29 +1,47 @@
 #!/usr/bin/env python3
-"""US-083 Combat Input Playtest -- Tier 4: block, parry, attacks, dodge and jump on the GAMEPAD,
-played with REAL input
+"""US-083 Combat Input Playtest -- Tier 4: block, parry, attacks, dodge, jump and sprint on the
+GAMEPAD and on the KEYBOARD AND MOUSE, played with REAL input
 
-US-083 binds the player's combat input (MordecaiIMC_Runtime).  The mouse and keyboard halves are
-played by the owning stories' scripts (us001 sprint/jump, us054 LMB/LeftAlt, us078 LMB tap/hold).
-Block and parry need a button held across state reads: the playtest client cannot hold a mouse
-button that way (B2), but it can hold a gamepad trigger (`axis` without hold_s keeps the value
-until the next `axis` for that key).  So this script plays block (LT held) and parry (RT pressed
-while LT blocks) for real, plus the parry's input rules (a fresh RT press only: a partly pulled RT,
-or a block raised over a held RT, must not parry), and the gamepad attack, dodge and jump keys.
+US-083 binds the player's combat input (MordecaiIMC_Runtime).  Block and parry need a button held
+across state reads: the playtest client cannot hold a mouse button that way (B2), but it can hold
+a gamepad trigger (`axis` without hold_s keeps the value until the next `axis` for that key).  So
+this script plays block (LT held) and parry (RT pressed while LT blocks) for real, plus the
+parry's input rules (a fresh RT press only: a partly pulled RT, or a block raised over a held RT,
+must not parry), and the gamepad attack, dodge and jump keys.
+
+Then it plays the keyboard and mouse inputs (AC-083.4..AC-083.8): LMB tap and hold, LeftAlt,
+SpaceBar, and the LeftShift sprint toggle in lane L1.  The owning stories' scripts play these too
+(us078 light_attack_lmb / heavy_attack_hold, us054 melee_lmb / dodge_lalt, us001 jump_space /
+sprint_shift), but those scripts exit 1 on other stories' known failures, and only an exit-0 run
+accepts an AC (CLAUDE.md Step 4d / 6), so the story's own script plays them as well.
 
 Drives the PACKAGED game through the in-game agent bridge (Scripts/agent_bridge.py): every action
-is an axis or key event injected into Slate (axis / key), every observation a state read or a
-screenshot.  Nothing calls game functions; bridge.jsonl in the run dir is the audit trail.  The
-run framework is Scripts/playtest_kit.py (Specs/story_playtests_v1.md section 2).
+is an axis, key or click event injected into Slate (axis / key / click; walk_to is W/A/S/D taps),
+every observation a state read, a wait or a screenshot.  Nothing calls game functions;
+bridge.jsonl in the run dir is the audit trail.  The run framework is Scripts/playtest_kit.py
+(Specs/story_playtests_v1.md section 2).
 
 Steps (every step is a check; --plan prints them as the story's Steps table):
-  1-4  LT held: Blocking.  RT pressed while blocking: a parry (Parrying / ParryWhiff / Riposte)
-       that drops the guard and does not attack.  LT still held: the guard comes back once the
-       parry and its whiff end, with no attack in between.  LT released: Blocking gone.
-  5-6  LT held and RT pulled to 0.3 (below the 0.5 actuation): no parry, the guard stays.  RT held
-       first, then LT: a block, no parry.
-  7-10 RT tapped 0.1 s: a light attack (Attacking, no Mordecai.Attack.Heavy).  RT held 0.8 s: a
-       heavy attack on the release (Mordecai.Attack.Heavy).  Gamepad B: a dodge.  Gamepad A: a jump.
-The player stays at the spawn; nothing needs an enemy.  A failed check SKIPs the checks that
+  1-4   LT held: Blocking.  RT pressed while blocking: a parry (Parrying / ParryWhiff / Riposte)
+        that drops the guard and does not attack.  LT still held: the guard comes back once the
+        parry and its whiff end, with no attack in between.  LT released: Blocking gone.
+  5-6   LT held and RT pulled to 0.3 (below the 0.5 actuation): no parry, the guard stays.  RT
+        held first, then LT: a block, no parry.
+  7-10  RT tapped 0.1 s: a light attack (Attacking, no Mordecai.Attack.Heavy).  RT held 0.8 s: a
+        heavy attack on the release (Mordecai.Attack.Heavy).  Gamepad B: a dodge.  Once that dodge
+        is over (no Dodging tag, Walking), Gamepad A: a jump (Falling).  Both triggers are released
+        before the keyboard and mouse half.
+  11-14 Left click at the viewport centre (640, 360), the bridge's default click: a light attack.
+        Left click held 0.8 s: a heavy attack on the release.  LeftAlt: a dodge.  Once that dodge
+        is over (no Dodging tag, Walking), SpaceBar: a jump (Falling).
+  15-17 Walk to lane L1 from where the dodges left the player, away from the enemies that follow
+        it: west along y=0 to (-650, 0), then south to us001's (-700, -650) and the lane start
+        (-700, -800).  Screenshot.
+  18    Sprint: tap LeftShift, hold W 1.0 s: > 700 cm.  Tap LeftShift again, hold S 1.0 s while
+        reading player.speed: the peak must be a walk (500..750 cm/s), so the second tap ended the
+        sprint.
+Every attack and dodge starts from idle (no attack, block or parry tag left).  The player stays
+near the spawn until the lane walk; nothing needs an enemy.  A failed check SKIPs the checks that
 depend on it; independent checks still run.
 
 Usage:
@@ -54,7 +72,7 @@ import playtest_kit as kit  # noqa: E402
 from playtest_kit import Step  # noqa: E402
 
 STORY = "US-083"
-TITLE = "US-083 gamepad combat input playtest (Tier 4, real input)"
+TITLE = "US-083 combat input playtest: gamepad, keyboard and mouse (Tier 4, real input)"
 TAP_S = 0.1
 
 LT = "Gamepad_LeftTriggerAxis"     # block (held)
@@ -69,6 +87,31 @@ PARRY_TAGS = (TAG_PARRYING, TAG_WHIFF, TAG_RIPOSTE)
 TAG_ATTACKING = "Mordecai.State.Attacking"
 TAG_HEAVY = "Mordecai.Attack.Heavy"
 TAG_DODGE_SUBSTR = "dodg"          # Mordecai.State.Dodging, then DodgeCooldown
+TAG_DODGING = "Mordecai.State.Dodging"   # the dodge's active phase (its launch)
+
+# --- keyboard and mouse (AC-083.4..AC-083.8) ------------------------------------------------
+CLICK_POINT = (640, 360)           # the viewport centre: the arena, no widget (as us078)
+LMB_HEAVY_S = 0.8                  # > HeavyAttackHoldSeconds (0.4)
+KB_DODGE_KEY = "LeftAlt"
+KB_JUMP_KEY = "SpaceBar"
+SPRINT_KEY = "LeftShift"
+# Lane L1 (y=-800, x -750..+950 is clear).  The walk starts where the two dodges left the player:
+# a dodge with no move input goes backward (-X, the facing is +X), about 110-140 cm, so about
+# (-280, 0).  The Frontliners follow the player and stand within their 200 cm attack range on
+# the side they came from, +X (us054 on 01abb8b: 150-220 cm behind it).  So the route leads away
+# from them: west along y=0 (between their spawn points (-123, +/-153) if the player never left
+# the spawn), then south, west of Box_02, to us001's lane start, 100 cm off Cover_01.  us001's
+# first waypoint (0, -650) would walk W+A back through them from here (N14).
+LANE_WAYPOINTS = (("walk_lane_wp1", -650.0, 0.0, "west along y=0, away from the enemies"),
+                  ("walk_lane_wp2", -700.0, -650.0, "south, west of Box_02, to us001's waypoint"))
+LANE_START = (-700.0, -800.0)
+LAND_TIMEOUT_S = 3.0               # the jump before the lane walk lands (no check: a warning)
+SETTLE_TIMEOUT_S = 2.0             # wait for the player to stop before measuring
+SPRINT_HOLD_S = 1.0
+SPRINT_MIN = 700.0                 # cm: more than any walk can cover in 1.0 s
+SPRINT_SPEED_MIN = 750.0           # cm/s: above a walk (600), below a sprint (900)
+WALK_SPEED_MIN = 500.0             # cm/s: a free walk reaches 600
+SPEED_POLL_S = 0.05
 
 PARTIAL_RT = 0.3                   # below the 0.5 actuation threshold of the parry's Pressed
 RT_LEAD_S = 0.15                   # RT down this long before LT goes up
@@ -88,11 +131,20 @@ JUMP_TIMEOUT_S = 1.0
 SCREENSHOTS = {
     "blocking": "the player in the diorama arena with LT held (blocking); there is no block "
                 "animation or guard visual, so the block itself is checked through player.tags",
+    "lane_start": "the same fixed camera angle with the player at the lane L1 start (-700, -800), "
+                  "near the south-west corner of the arena, and the combat HUD; the sprint "
+                  "starts here",
 }
 KNOWN_ISSUES = (
     "Block and parry on the mouse (RMB hold, RMB+LMB, AC-083.11) are not played: the playtest "
     "client holds a mouse button only inside one blocking click (B2). This script plays the "
     "same actions on the gamepad triggers.",
+    "The arena's enemies are invisible, follow the player and can body-block it (N14, "
+    "Specs/agent_playtest_plan_v1.md Known issues backlog): an enemy in the way can stop the "
+    "walk to lane L1 (walk_lane_*), which then SKIPs the sprint. No step expects that: the "
+    "walk starts about (-280, 0), where the two backward dodges leave the player, with the "
+    "enemies on its +X side, and leads away from them (west along y=0, then south), not back "
+    "through them as us001's first waypoint (0, -650) would from there.",
 )
 
 PLAN = (
@@ -118,9 +170,32 @@ PLAN = (
          f"in player.tags within {HEAVY_TIMEOUT_S:g}s of the release", proves=("AC-083.3",)),
     Step("dodge_gamepad_b", f"tap {DODGE_KEY} (B) -> a Dodging tag in player.tags within "
          f"{DODGE_TIMEOUT_S:g}s", proves=("AC-083.3",)),
-    Step("jump_gamepad_a", f"wait_until player.movement_mode==\"Walking\", tap {JUMP_KEY} (A) -> "
-         f"wait_until player.movement_mode==\"Falling\" within {JUMP_TIMEOUT_S:g}s",
-         proves=("AC-083.3",)),
+    Step("jump_gamepad_a", f"wait until the dodge is over (no '{TAG_DODGING}') and "
+         f"player.movement_mode==\"Walking\", tap {JUMP_KEY} (A) -> wait_until "
+         f"player.movement_mode==\"Falling\" within {JUMP_TIMEOUT_S:g}s", proves=("AC-083.3",)),
+    # --- keyboard and mouse: AC-083.4..AC-083.8 (the owning stories' scripts exit 1 on other
+    # stories' failures, so this script plays these inputs too) ---
+    Step("light_attack_lmb_tap", f"idle -> click Left at ({CLICK_POINT[0]}, {CLICK_POINT[1]}) "
+         f"(the bridge's default click) -> '{TAG_ATTACKING}' without '{TAG_HEAVY}' within "
+         f"{LIGHT_TIMEOUT_S:g}s", proves=("AC-083.4", "AC-083.3")),
+    Step("heavy_attack_lmb_hold", f"idle -> click Left at ({CLICK_POINT[0]}, {CLICK_POINT[1]}) "
+         f"held {LMB_HEAVY_S:g}s -> '{TAG_HEAVY}' in player.tags within {HEAVY_TIMEOUT_S:g}s of "
+         "the release", proves=("AC-083.5", "AC-083.3")),
+    Step("dodge_left_alt", f"idle (and no Dodging / DodgeCooldown tag left) -> tap {KB_DODGE_KEY} "
+         f"-> a Dodging tag in player.tags within {DODGE_TIMEOUT_S:g}s",
+         proves=("AC-083.6", "AC-083.3")),
+    Step("jump_space_bar", f"wait until the dodge is over (no '{TAG_DODGING}') and "
+         f"player.movement_mode==\"Walking\", tap {KB_JUMP_KEY} -> wait_until "
+         f"player.movement_mode==\"Falling\" within {JUMP_TIMEOUT_S:g}s",
+         proves=("AC-083.7", "AC-083.3")),
+    *[Step(check, f"walk_to({x:g}, {y:g}) -> within 60 cm (waypoint to lane L1: {why})")
+      for check, x, y, why in LANE_WAYPOINTS],
+    Step("walk_lane_start", f"walk_to({LANE_START[0]:g}, {LANE_START[1]:g}) -> within 60 cm "
+         "(lane L1 start)"),
+    Step("sprint_left_shift", f"at the lane start: tap {SPRINT_KEY}, hold W {SPRINT_HOLD_S:g}s -> "
+         f"dx > {SPRINT_MIN:g} cm; tap {SPRINT_KEY} again, hold S {SPRINT_HOLD_S:g}s reading "
+         f"player.speed every {SPEED_POLL_S:g}s -> back to a walk (peak {WALK_SPEED_MIN:g}.."
+         f"{SPRINT_SPEED_MIN:g} cm/s)", proves=("AC-083.8", "AC-083.3")),
 )
 PENDING = {"AC-083.11": "bridge cannot drive: the playtest client cannot hold a mouse button "
                         "across state reads (B2), so RMB block and RMB+LMB parry are not played"}
@@ -146,9 +221,13 @@ def _idle(tags):
     return TAG_ATTACKING not in tags and TAG_BLOCKING not in tags and not _parried(tags)
 
 
+def _idle_no_dodge(tags):
+    return _idle(tags) and not _dodging(tags)
+
+
 class Us083Run(kit.PlaytestRun):
     STORY = STORY
-    FEATURES = ("block_parry", "melee_attack", "dodge", "movement")
+    FEATURES = ("block_parry", "melee_attack", "dodge", "movement", "sprint")
     TITLE = TITLE
     SCREENSHOTS = SCREENSHOTS
     KNOWN_ISSUES = KNOWN_ISSUES
@@ -157,10 +236,16 @@ class Us083Run(kit.PlaytestRun):
     TAP_S = TAP_S
     SCRIPT = os.path.abspath(__file__)
 
+    def __init__(self, args):
+        super().__init__(args)
+        self.measurements = []   # the sprint and its toggle-back (report_extra / md_sections)
+
     def steps(self):
         self.step_block_and_parry()
         self.step_parry_needs_a_fresh_press()
         self.step_attacks_dodge_jump()
+        self.step_keyboard_mouse()
+        self.step_lane_and_sprint()
 
     # --- helpers ------------------------------------------------------------------------------
     def _poll(self, seconds, until=None):
@@ -185,13 +270,85 @@ class Us083Run(kit.PlaytestRun):
             self.warnings.append(f"could not release the triggers: {e}")
             self._lost("trigger release", e)
 
-    def _wait_idle(self):
-        """Wait until no attack, block or parry tag is left.  Returns None or why not."""
-        got, seen = self._poll(IDLE_TIMEOUT_S, _idle)
+    def _wait_idle(self, idle=_idle):
+        """Wait until no attack, block or parry tag is left (idle=_idle_no_dodge: no dodge tag
+        either).  Returns None or why not."""
+        got, seen = self._poll(IDLE_TIMEOUT_S, idle)
         if got is None:
             return (f"the player is not idle {IDLE_TIMEOUT_S:g}s after the previous step (tags "
                     f"{seen[-1]}), so this step cannot be told apart from it")
         return None
+
+    # --- reading the player (as us001_movement.py) ---------------------------------------
+    @staticmethod
+    def _player(b):
+        p = kit.section(b.state(["player"]), "player")
+        loc = p.get("location")
+        if p.get("valid") is not True or not (isinstance(loc, list) and len(loc) >= 2):
+            return None, p
+        return (float(loc[0]), float(loc[1])), p
+
+    @staticmethod
+    def _settle(b, timeout_s):
+        """wait_until the player stops.  Returns the seconds it took, or None on a timeout."""
+        try:
+            r = b.wait_until("player.speed<1", timeout_s=timeout_s)
+        except ab.BridgeError as e:
+            if e.code != "timeout":
+                raise
+            return None
+        return float(r.get("elapsed_s") or 0.0)
+
+    def _record(self, check, what, p0, p1, extra=None):
+        rec = {"check": check, "input": what, "start": list(p0) if p0 else None,
+               "end": list(p1) if p1 else None,
+               "dx": round(p1[0] - p0[0], 1) if p0 and p1 else None,
+               "dy": round(p1[1] - p0[1], 1) if p0 and p1 else None}
+        rec.update(extra or {})
+        self.measurements.append(rec)
+        return rec
+
+    def _hold_and_measure(self, key, seconds, before=None, after=None):
+        """Read the position, [before()], hold `key` for `seconds`, wait for the player to stop,
+        read again, [after()].  Returns ((p0, p1, held_s, stop_s), None) or (None, why)."""
+        b = self.bridge
+        p0, raw = self._player(b)
+        if p0 is None:
+            return None, f"player section invalid before the input ({raw.get('reason')})"
+        if before:
+            before()
+        r = b.hold(key, seconds)
+        stop_s = self._settle(b, SETTLE_TIMEOUT_S)
+        p1, raw = self._player(b)
+        if after:
+            after()
+        if p1 is None:
+            return None, f"player section invalid after the input ({raw.get('reason')})"
+        return (p0, p1, r.get("held_s"), stop_s), None
+
+    def _hold_watching_speed(self, key, seconds):
+        """Press `key`, read player.speed every SPEED_POLL_S for `seconds`, release it, wait for
+        the player to stop.  Returns ((p0, p1, peak_speed), None) or (None, why)."""
+        b = self.bridge
+        p0, raw = self._player(b)
+        if p0 is None:
+            return None, f"player section invalid before {key} ({raw.get('reason')})"
+        peak = 0.0
+        b.press(key)
+        try:
+            deadline = time.monotonic() + seconds
+            while time.monotonic() < deadline:
+                speed = kit.section(b.state(["player"]), "player").get("speed")
+                if isinstance(speed, (int, float)):
+                    peak = max(peak, float(speed))
+                time.sleep(SPEED_POLL_S)
+        finally:
+            b.release(key)
+        self._settle(b, SETTLE_TIMEOUT_S)
+        p1, raw = self._player(b)
+        if p1 is None:
+            return None, f"player section invalid after {key} ({raw.get('reason')})"
+        return (p0, p1, peak), None
 
     # --- 1-4: block and parry ------------------------------------------------------------
     def step_block_and_parry(self):
@@ -313,8 +470,11 @@ class Us083Run(kit.PlaytestRun):
 
         self.attempt("block_over_held_rt_no_parry", over_held)
 
-    # --- 7-10: gamepad attacks, dodge, jump ---------------------------------------------------
-    def _rt_attack(self, check, hold_s, timeout_s, heavy):
+    # --- shared: attacks, dodges and jumps -------------------------------------------------
+    def _attack(self, check, send, what, timeout_s, heavy):
+        """From idle, send() the input; PASS when the attack's tag shows: the heavy attack's
+        Mordecai.Attack.Heavy, or for a light attack Mordecai.State.Attacking without it.
+        what(response) describes the input for the detail."""
         def started(tags):
             return TAG_HEAVY in tags if heavy else (TAG_ATTACKING in tags and TAG_HEAVY not in tags)
 
@@ -324,58 +484,191 @@ class Us083Run(kit.PlaytestRun):
             not_idle = self._wait_idle()
             if not_idle:
                 return "FAIL", not_idle, None
-            self.bridge.axis({RT: 1.0}, hold_s=hold_s)
-            t0 = time.monotonic()
+            label = what(send())
+            t0 = time.monotonic()  # the input call returns after the release
             got, seen = self._poll(timeout_s, started)
             if got is None:
-                return ("FAIL", f"idle; {RT}=1 held {hold_s:g}s: no {want} in player.tags within "
-                        f"{timeout_s:g}s (tags {seen[-1]})", None)
-            return ("PASS", f"idle; {RT}=1 held {hold_s:g}s: {want} after "
-                    f"{time.monotonic() - t0:.2f}s (tags {got})", None)
+                return ("FAIL", f"idle; {label}: no {want} in player.tags within {timeout_s:g}s "
+                        f"(tags {seen[-1]})", None)
+            return ("PASS", f"idle; {label}: {want} after {time.monotonic() - t0:.2f}s (tags "
+                    f"{got})", None)
 
         return self.attempt(check, fn)
 
-    def step_attacks_dodge_jump(self):
-        self._rt_attack("light_attack_rt_tap", RT_TAP_S, LIGHT_TIMEOUT_S, heavy=False)
-        self._rt_attack("heavy_attack_rt_hold", RT_HEAVY_S, HEAVY_TIMEOUT_S, heavy=True)
+    def _rt_attack(self, check, hold_s, timeout_s, heavy):
+        return self._attack(check, lambda: self.bridge.axis({RT: 1.0}, hold_s=hold_s),
+                            lambda r: f"{RT}=1 held {hold_s:g}s", timeout_s, heavy)
 
-        def dodge():
-            not_idle = self._wait_idle()
+    def _lmb_attack(self, check, hold_s, timeout_s, heavy):
+        x, y = CLICK_POINT
+
+        def what(r):
+            return (f"Left click at ({x}, {y})" + (f" held {hold_s:g}s" if hold_s is not None
+                                                     else "") + f"; Slate hit {r.get('hit')}")
+
+        return self._attack(check, lambda: self.bridge.click(x, y, button="Left", hold_s=hold_s),
+                            what, timeout_s, heavy)
+
+    def _dodge(self, check, key, idle):
+        def fn():
+            not_idle = self._wait_idle(idle)
             if not_idle:
                 return "FAIL", not_idle, None
-            self.bridge.tap(DODGE_KEY, hold_s=self.TAP_S)
+            self.bridge.tap(key, hold_s=self.TAP_S)
             got, seen = self._poll(DODGE_TIMEOUT_S, _dodging)
             if got is None:
-                return ("FAIL", f"tapped {DODGE_KEY}: no Dodging tag within {DODGE_TIMEOUT_S:g}s "
+                return ("FAIL", f"tapped {key}: no Dodging tag within {DODGE_TIMEOUT_S:g}s "
                         f"(tags {seen[-1]})", None)
-            return "PASS", f"tapped {DODGE_KEY}: tags {got}", None
+            return "PASS", f"tapped {key}: tags {got}", None
 
-        self.attempt("dodge_gamepad_b", dodge)
+        return self.attempt(check, fn)
 
-        def jump():
-            # The dodge launches the player (Falling for a few frames): only judge the jump from
-            # the ground
-            try:
-                self.bridge.wait_until('player.movement_mode=="Walking"', timeout_s=IDLE_TIMEOUT_S)
-            except ab.BridgeError as e:
-                if e.code != "timeout":
-                    raise
-                return ("FAIL", f"the player is not Walking {IDLE_TIMEOUT_S:g}s after the dodge "
-                        f"(values {(e.response or {}).get('values')}), so a jump cannot be told "
-                        "apart", None)
-            self.bridge.tap(JUMP_KEY, hold_s=self.TAP_S)
+    def _on_the_ground(self):
+        """Before a jump: wait until the player is Walking and the dodge's active phase, whose
+        launch is Falling too, has ended (a read can show Dodging and Walking just before the
+        launch).  Returns (None, what) or (why not, None)."""
+        def grounded(st):
+            p = kit.section(st, "player")
+            return p.get("movement_mode") == "Walking" and TAG_DODGING not in _tags(st)
+
+        try:
+            self.bridge.wait_for(grounded, timeout_s=IDLE_TIMEOUT_S, sections=["player"],
+                                 poll_s=POLL_S)
+        except ab.BridgeError as e:
+            if e.code != "wait_for_timeout":
+                raise
+            p = kit.section(e.response or {}, "player")
+            return (f"the dodge is not over or the player is not Walking {IDLE_TIMEOUT_S:g}s "
+                    f"after it (movement_mode {p.get('movement_mode')!r}, tags "
+                    f"{_tags(e.response or {})}), so a jump cannot be told apart from the "
+                    "dodge's launch", None)
+        return None, "the dodge over, Walking"
+
+    def _jump(self, check, key):
+        def fn():
+            why, before = self._on_the_ground()
+            if why:
+                return "FAIL", why, None
+            self.bridge.tap(key, hold_s=self.TAP_S)
             try:
                 r = self.bridge.wait_until('player.movement_mode=="Falling"',
                                            timeout_s=JUMP_TIMEOUT_S)
             except ab.BridgeError as e:
                 if e.code != "timeout":
                     raise
-                return ("FAIL", f"Walking; tapped {JUMP_KEY}: player.movement_mode stayed "
+                return ("FAIL", f"{before}; tapped {key}: player.movement_mode stayed "
                         f"{(e.response or {}).get('values')} for {JUMP_TIMEOUT_S:g}s", None)
-            return ("PASS", f"Walking; tapped {JUMP_KEY}: Falling after {r.get('elapsed_s')}s",
-                    None)
+            return "PASS", f"{before}; tapped {key}: Falling after {r.get('elapsed_s')}s", None
 
-        self.attempt("jump_gamepad_a", jump)
+        return self.attempt(check, fn)
+
+    # --- 7-10: gamepad attacks, dodge, jump ---------------------------------------------------
+    def step_attacks_dodge_jump(self):
+        self._rt_attack("light_attack_rt_tap", RT_TAP_S, LIGHT_TIMEOUT_S, heavy=False)
+        self._rt_attack("heavy_attack_rt_hold", RT_HEAVY_S, HEAVY_TIMEOUT_S, heavy=True)
+        self._dodge("dodge_gamepad_b", DODGE_KEY, _idle)
+        # The dodge launches the player (Falling for a few frames): only judge the jump from the
+        # ground, once the dodge is over
+        self._jump("jump_gamepad_a", JUMP_KEY)
+
+    # --- 11-14: keyboard and mouse attacks, dodge, jump (AC-083.4..AC-083.7) ---------------
+    def step_keyboard_mouse(self):
+        # Both triggers are 0 here: the gamepad steps release them (axis hold_s, _release_triggers)
+        self._lmb_attack("light_attack_lmb_tap", None, LIGHT_TIMEOUT_S, heavy=False)
+        self._lmb_attack("heavy_attack_lmb_hold", LMB_HEAVY_S, HEAVY_TIMEOUT_S, heavy=True)
+        # No dodge tag left either: a DodgeCooldown from the B dodge would pass the check alone
+        self._dodge("dodge_left_alt", KB_DODGE_KEY, _idle_no_dodge)
+        self._jump("jump_space_bar", KB_JUMP_KEY)
+
+    # --- 15-18: lane L1 and the LeftShift sprint (AC-083.8) ---------------------------------
+    def _wait_landed(self):
+        """No check: the lane walk starts on the ground (the jump just before it is in the air).
+        A timeout is a warning; walk_lane_wp1 then shows what happens."""
+        if self.abort or self.blocked or self.bridge is None:
+            return
+        try:
+            self.bridge.wait_until('player.movement_mode=="Walking"', timeout_s=LAND_TIMEOUT_S)
+        except ab.BridgeError as e:
+            self.warnings.append(f"the player was not Walking {LAND_TIMEOUT_S:g}s after the jump, "
+                                 f"before the lane walk: {e}")
+            self._lost("the landing wait", e)
+
+    def _sprint(self, check):
+        """Tap LeftShift, hold W and measure; tap LeftShift again, then hold S as long and require
+        a walk's speed back (the second tap ended the sprint).  As us001_movement.py sprint_shift
+        with verify_toggle_back=True."""
+        def fn():
+            b = self.bridge
+            got, err = self._hold_and_measure(
+                "W", SPRINT_HOLD_S, before=lambda: b.tap(SPRINT_KEY, hold_s=self.TAP_S),
+                after=lambda: b.tap(SPRINT_KEY, hold_s=self.TAP_S))  # toggle back
+            if got is None:
+                return "FAIL", err, None
+            p0, p1, held_s, _ = got
+            dx = p1[0] - p0[0]
+            rec = self._record(check, f"tap {SPRINT_KEY}, hold W {SPRINT_HOLD_S:g}s", p0, p1,
+                               {"held_s": held_s})
+            detail = (f"tapped {SPRINT_KEY}, held W {held_s}s: dx {dx:.0f} cm (need > "
+                      f"{SPRINT_MIN:g}); tapped {SPRINT_KEY} again to toggle back")
+            sprinted = dx > SPRINT_MIN
+
+            # The toggle-back is judged by speed, not distance: a speed reading cannot be shortened
+            # by a frame hitch or an enemy in the way, and a sprint (900 cm/s) and a walk
+            # (600 cm/s) are far apart.
+            back, err = self._hold_watching_speed("S", SPRINT_HOLD_S)
+            if back is None:
+                return "FAIL", f"{detail}; toggle-back not measured: {err}", rec
+            q0, q1, peak = back
+            self._record(f"{check}_toggle_back", f"hold S {SPRINT_HOLD_S:g}s after the second "
+                         f"{SPRINT_KEY} tap", q0, q1, {"peak_speed": round(peak, 1)})
+            rec["sprint_left_on"] = peak > SPRINT_SPEED_MIN
+            detail += (f"; then held S {SPRINT_HOLD_S:g}s: peak speed {peak:.0f} cm/s, "
+                       f"{q0[0] - q1[0]:.0f} cm back (need a walk: {WALK_SPEED_MIN:g}..."
+                       f"{SPRINT_SPEED_MIN:g} cm/s)")
+            if rec["sprint_left_on"]:
+                detail += (" -- the second tap did not end the sprint" if sprinted else
+                           " -- the first tap did not start the sprint but the second one did "
+                           "(toggle out of phase)")
+                return "FAIL", detail, rec
+            if peak < WALK_SPEED_MIN:
+                detail += (" -- the player never reached walking speed on the way back (blocked? "
+                           "N14), so the toggle-back is unverified")
+                return "FAIL", detail, rec
+            return ("PASS" if sprinted else "FAIL"), detail, rec
+
+        return fn
+
+    def step_lane_and_sprint(self):
+        self._wait_landed()
+        ok = True
+        for check, x, y, _ in LANE_WAYPOINTS:
+            ok, _ = self.walk(check, x, y, needs=ok, needs_why="not run: the previous waypoint "
+                              "was not reached")
+        lane, _ = self.walk("walk_lane_start", *LANE_START, needs=ok,
+                            needs_why="not run: a lane waypoint was not reached")
+        self.shot("lane_start", needs=lane, needs_why="not taken: the player is not at the lane "
+                                                      "start")
+        self.attempt("sprint_left_shift", self._sprint("sprint_left_shift"), needs=lane,
+                     needs_why="not run: the player is not at the lane start")
+
+    # --- report hooks ------------------------------------------------------------------------
+    def report_extra(self):
+        return {"movement": self.measurements}
+
+    def md_sections(self):
+        md = kit.pb.md_cell
+        lines = ["", "## Sprint measurements", "",
+                 "| Check | Input | Start | End | dx | Peak speed |", "|---|---|---|---|---|---|"]
+
+        def pt(p):
+            return f"({p[0]:.0f}, {p[1]:.0f})" if p else "-"
+
+        for m in self.measurements:
+            lines.append(f"| {m['check']} | {md(m['input'])} | {pt(m['start'])} | "
+                         f"{pt(m['end'])} | {m['dx']} | {m.get('peak_speed', '-')} |")
+        if not self.measurements:
+            lines.append("| (none) | - | - | - | - | - |")
+        return lines
 
 
 Run = Us083Run  # the story runner (Scripts/playtest_story.py) reads a script's Run class
