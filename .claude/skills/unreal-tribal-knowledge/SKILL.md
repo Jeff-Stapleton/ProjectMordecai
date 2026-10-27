@@ -407,6 +407,22 @@ When building widget trees programmatically:
 - DO NOT describe a feature as "playable" or "working in game" from Tier 1/Tier 2 results.
 - Acceptance of a player-facing AC requires the player path: the Tier 3 packaged playtest for what is on screen, and for anything that needs input, a passing Tier 4 real-input playtest (`py Scripts/playtests/usXXX_<name>.py`, real key/mouse events through the in-game agent bridge) on the same fresh package. The Tier 4 version of this very script, `Scripts/playtests/us079_inventory.py`, presses F and I for real — see "Real-Input Playtests (Agent Bridge, Tier 4)".
 
+### Ticking FTimerManager by hand in a test: one tick per frame, and the first only activates timers
+
+**Problem:** A test activated a melee ability (its windup is a 0.1 s `SetTimer`) and called `World->GetTimerManager().Tick(0.15f)`; the windup never fired. A second `Tick` in the same test did nothing either.
+
+**Root cause:** A timer set before the manager's first tick of the current frame goes into `PendingTimerSet`, which is moved to the active heap only at the END of `FTimerManager::Tick`. And `Tick` returns at once when `HasBeenTickedThisFrame()` (`LastTickedFrame == GFrameCounter`), so a test that never advances frames gets exactly one effective tick.
+
+**Fix:** Advance the frame between ticks: `for (int32 Frame = 0; Frame < 2; ++Frame) { ++GFrameCounter; World->GetTimerManager().Tick(Dt); }` (see `Tests/Recovery/MordecaiRecoveryEnemyTests.cpp`). A test world from `UWorld::CreateWorld` has no game instance, so `GetTimerManager()` is the world's own manager.
+
+### Mordecai has no Lyra teams: every pawn is FGenericTeamId::NoTeam
+
+**Problem (issue #12, N7):** Enemies swarmed the player in Attack state and never did damage. Their attack profiles were fine (no "has no attack profiles" error in PIE).
+
+**Root cause:** The Mordecai experiences add no `ULyraTeamCreationComponent`, so the player and every enemy have `FGenericTeamId::NoTeam` (255). `UMordecaiHitDetectionSubsystem::AreActorsFriendly` compared the ids, found them equal, and filtered the player out of every enemy swing (and every enemy out of the player's).
+
+**Fix:** Sides come from the `Mordecai.Team.Enemy` tag first (both tagged = friends, one tagged = foes); the Lyra team id is only a fallback, and NoTeam is never friendly. Any new hostility check must do the same — never compare `GetGenericTeamId()` alone.
+
 ### UnrealEditor-Cmd exits 0 even when automation tests fail
 
 **Problem:** `Scripts\RunTests.bat` printed "ALL TESTS PASSED" while a test was failing. Its pass/fail decision was the editor's exit code.

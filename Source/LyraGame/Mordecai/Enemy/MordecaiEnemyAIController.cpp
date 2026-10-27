@@ -220,6 +220,12 @@ void AMordecaiEnemyAIController::Tick(float DeltaTime)
 		return;
 	}
 
+	// AC-060.3: Prefer decoy targets over player
+	UpdateStateMachine(DeltaTime, FindBestTarget());
+}
+
+void AMordecaiEnemyAIController::UpdateStateMachine(float DeltaTime, AActor* Target)
+{
 	// Dead state is permanent — no further actions (AC-051.8)
 	if (CurrentState == EMordecaiEnemyAIState::Dead)
 	{
@@ -238,8 +244,6 @@ void AMordecaiEnemyAIController::Tick(float DeltaTime)
 		return;
 	}
 
-	// AC-060.3: Prefer decoy targets over player
-	AActor* Target = FindBestTarget();
 	const float DistToTarget = Target
 		? FVector::Dist(ControlledPawn->GetActorLocation(), Target->GetActorLocation())
 		: MAX_FLT;
@@ -260,10 +264,14 @@ void AMordecaiEnemyAIController::Tick(float DeltaTime)
 		{
 			TransitionToState(EMordecaiEnemyAIState::Leash);
 		}
-		// AC-051.4: Attack when in range
+		// AC-051.4: Attack when in range (AC-084.4: only with an attack that can hit; else hold here, facing it)
 		else if (IsInAttackRange(DistToTarget))
 		{
-			TransitionToState(EMordecaiEnemyAIState::Attack);
+			if (!TryEnterAttackState())
+			{
+				SetFocus(Target, EAIFocusPriority::Gameplay);
+				StopMovement();
+			}
 		}
 		else
 		{
@@ -313,9 +321,9 @@ void AMordecaiEnemyAIController::Tick(float DeltaTime)
 			{
 				TransitionToState(EMordecaiEnemyAIState::Leash);
 			}
-			else if (Target && IsInAttackRange(DistToTarget))
+			else if (Target && IsInAttackRange(DistToTarget) && TryEnterAttackState())
 			{
-				TransitionToState(EMordecaiEnemyAIState::Attack);
+				// Attacking again; without an attack that can hit, fall through to Approach (AC-084.4)
 			}
 			else if (Target)
 			{
@@ -346,6 +354,48 @@ void AMordecaiEnemyAIController::Tick(float DeltaTime)
 	default:
 		break;
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Attack Availability (US-084, AC-084.4)
+// ---------------------------------------------------------------------------
+
+bool AMordecaiEnemyAIController::CanPerformMeleeAttack() const
+{
+	if (!CachedASC.IsValid() || !MeleeAttackAbilityClass)
+	{
+		return false;
+	}
+
+	FGameplayAbilitySpec* Spec = CachedASC->FindAbilitySpecFromClass(MeleeAttackAbilityClass);
+	if (!Spec)
+	{
+		return false;
+	}
+
+	// A melee attack without a profile ends on activation and hits nothing; other abilities are trusted to act
+	if (const UMordecaiGA_MeleeAttack* Melee = Cast<UMordecaiGA_MeleeAttack>(Spec->GetPrimaryInstance()))
+	{
+		return Melee->HasAnyAttackProfile();
+	}
+	return true;
+}
+
+bool AMordecaiEnemyAIController::TryEnterAttackState()
+{
+	if (!CanPerformMeleeAttack())
+	{
+		if (!bLoggedNoMeleeAttack)
+		{
+			UE_LOG(LogMordecaiEnemy, Error, TEXT("enemy %s cannot attack: its melee ability %s is not granted or has no attack profiles"),
+				*GetNameSafe(GetPawn()), *GetNameSafe(MeleeAttackAbilityClass.Get()));
+			bLoggedNoMeleeAttack = true;
+		}
+		return false;
+	}
+
+	TransitionToState(EMordecaiEnemyAIState::Attack);
+	return true;
 }
 
 // ---------------------------------------------------------------------------

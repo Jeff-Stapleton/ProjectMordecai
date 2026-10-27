@@ -6,6 +6,9 @@
 
 #include "MordecaiEnemyCharacter.generated.h"
 
+/** Enemy content and behaviour problems (US-084). Errors here surface in every playtest's log_errors check. */
+LYRAGAME_API DECLARE_LOG_CATEGORY_EXTERN(LogMordecaiEnemy, Log, All);
+
 class UMordecaiAbilitySystemComponent;
 class UMordecaiAttributeSet;
 class UMordecaiAttackProfileDataAsset;
@@ -64,6 +67,15 @@ public:
 	/** Returns true if the enemy has the Mordecai.State.Dead tag. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Enemy")
 	bool IsDead() const;
+
+	/** True when a visible skeletal or static mesh component has a mesh asset, so a player can see this enemy. */
+	bool HasVisibleMesh() const;
+
+	/**
+	 * US-084 (AC-084.3): log a LogMordecaiEnemy error for content a playable enemy needs and lacks: attack
+	 * profiles, a visible mesh. Called from BeginPlay. Returns true when nothing is missing.
+	 */
+	bool ValidateContent() const;
 
 	// --- Accessors ---
 

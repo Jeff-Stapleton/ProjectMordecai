@@ -135,6 +135,9 @@ public:
 	 */
 	TArray<const UMordecaiAttackProfileDataAsset*> GetResolvedAttackProfiles() const;
 
+	/** True when the attack has a profile to perform; without one, activation ends at once and nothing is hit. */
+	bool HasAnyAttackProfile() const { return GetResolvedAttackProfiles().Num() > 0; }
+
 	/** Override for equipment component (testing). */
 	void SetEquipmentComponentOverride(UMordecaiEquipmentComponent* InComp);
 
