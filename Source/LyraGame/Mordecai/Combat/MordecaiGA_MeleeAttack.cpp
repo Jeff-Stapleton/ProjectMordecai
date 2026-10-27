@@ -115,6 +115,23 @@ float UMordecaiGA_MeleeAttack::GetPhaseDurationSeconds(EMordecaiAttackPhase Phas
 	return BaseTimeMs / 1000.f;
 }
 
+float UMordecaiGA_MeleeAttack::GetAttackReach() const
+{
+	const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
+	if (!Profile) return 0.f;
+
+	// Mirrors UMordecaiHitDetectionSubsystem::PerformMeleeHitDetection's dispatch
+	const FMordecaiHitShapeParams& Shape = Profile->HitShapeParams;
+	switch (Profile->HitShapeType)
+	{
+	case EMordecaiHitShapeType::ArcSector: return Shape.Radius;
+	case EMordecaiHitShapeType::Circle:    return Shape.Length + Shape.Radius;
+	case EMordecaiHitShapeType::Capsule:
+	case EMordecaiHitShapeType::Box:       return Shape.Length;
+	default:                               return 0.f;
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Damage Computation (AC-004.5)
 // ---------------------------------------------------------------------------

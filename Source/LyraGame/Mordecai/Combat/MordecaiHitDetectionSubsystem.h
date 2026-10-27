@@ -122,7 +122,10 @@ public:
 	/** Returns true if the target actor has the Mordecai.State.Airborne gameplay tag. */
 	static bool IsTargetAirborne(const AActor* Target);
 
-	/** Returns true if Attacker and Target are on the same team via IGenericTeamAgentInterface. */
+	/**
+	 * Returns true if Attacker and Target are on the same side. The Mordecai.Team.Enemy tag decides when either
+	 * carries it (both = friends, one = foes); otherwise their IGenericTeamAgentInterface ids must match.
+	 */
 	static bool AreActorsFriendly(const AActor* Attacker, const AActor* Target);
 
 private:

@@ -407,6 +407,38 @@ When building widget trees programmatically:
 - DO NOT describe a feature as "playable" or "working in game" from Tier 1/Tier 2 results.
 - Acceptance of a player-facing AC requires the player path: the Tier 3 packaged playtest for what is on screen, and for anything that needs input, a passing Tier 4 real-input playtest (`py Scripts/playtests/usXXX_<name>.py`, real key/mouse events through the in-game agent bridge) on the same fresh package. The Tier 4 version of this very script, `Scripts/playtests/us079_inventory.py`, presses F and I for real — see "Real-Input Playtests (Agent Bridge, Tier 4)".
 
+### Ticking FTimerManager by hand in a test: one tick per frame, and the first only activates timers
+
+**Problem:** A test activated a melee ability (its windup is a 0.1 s `SetTimer`) and called `World->GetTimerManager().Tick(0.15f)`; the windup never fired. A second `Tick` in the same test did nothing either.
+
+**Root cause:** A timer set before the manager's first tick of the current frame goes into `PendingTimerSet`, which is moved to the active heap only at the END of `FTimerManager::Tick`. And `Tick` returns at once when `HasBeenTickedThisFrame()` (`LastTickedFrame == GFrameCounter`), so a test that never advances frames gets exactly one effective tick.
+
+**Fix:** Advance the frame between ticks: `for (int32 Frame = 0; Frame < 2; ++Frame) { ++GFrameCounter; World->GetTimerManager().Tick(Dt); }` (see `Tests/Recovery/MordecaiRecoveryEnemyTests.cpp`). A test world from `UWorld::CreateWorld` has no game instance, so `GetTimerManager()` is the world's own manager.
+
+### Mordecai has no Lyra teams: every pawn is FGenericTeamId::NoTeam
+
+**Problem (issue #12, N7):** Enemies swarmed the player in Attack state and never did damage. Their attack profiles were fine (no "has no attack profiles" error in PIE).
+
+**Root cause:** The Mordecai experiences add no `ULyraTeamCreationComponent`, so the player and every enemy have `FGenericTeamId::NoTeam` (255). `UMordecaiHitDetectionSubsystem::AreActorsFriendly` compared the ids, found them equal, and filtered the player out of every enemy swing (and every enemy out of the player's).
+
+**Fix:** Sides come from the `Mordecai.Team.Enemy` tag whenever an enemy is involved (both tagged = friends, one tagged = foes). Only when neither is an enemy does the Lyra team id decide, and there NoTeam == NoTeam is right: two co-op players are friends, and friendly fire stays off (AC-003.9). Any new hostility check must do the same — never compare `GetGenericTeamId()` alone for player vs enemy. (A first fix that also made "NoTeam never friendly" turned co-op friendly fire on; `Mordecai.Recovery.Enemy.PlayerSweepsSpareOtherPlayers` guards it.)
+
+### The player's ASC does not exist at BeginPlay or PossessedBy: bind in OnAbilitySystemInitialized
+
+**Problem (N31, found by the issue #12 playtest):** once enemies hit the player, Health sat at 0 for a minute and the player never died. `AMordecaiCharacter` bound its Health→death delegate in `BeginPlay` and `PossessedBy`.
+
+**Root cause:** the player's ASC lives on the PlayerState; the pawn reaches it through `ULyraPawnExtensionComponent`, which `ULyraHeroComponent` initializes on DataAvailable→DataInitialized. For a locally controlled pawn that step waits for `Pawn->InputComponent`, created by `APawn::PawnClientRestart` → `SetupPlayerInputComponent`, after `PossessedBy` (PlayerController.cpp: `PossessedBy` before `ClientRestart`). So `GetAbilitySystemComponent()` is null at both points and the `if (ASC)` bind silently did nothing. game.log order proves it: "Weapon loadout initialized" (PossessedBy) → "Removed 1 Lyra crouch binding" (InitializePlayerInput, right after InitializeAbilitySystem) → "SetupPlayerInputComponent called".
+
+**Fix:** override `ALyraCharacter::OnAbilitySystemInitialized` / `OnAbilitySystemUninitialized` (protected virtuals the base constructor already binds) and bind/unbind there, idempotently. Do not register a second delegate from the same object with `OnAbilitySystemInitialized_RegisterAndCall`: it de-dupes by object, so the second one is silently dropped. Anything else on the player pawn that needs the ASC must do the same or resolve it lazily (the HUD binds through the PlayerState in `AMordecaiPlayerController::CreateCombatHUD`). The US-053 tests missed it because they call `HandlePlayerDeath()` directly on a character without an ASC; `Mordecai.Recovery.Player.*` drives Health to 0 through a pawn-extension-attached PlayerState ASC.
+
+### An enemy that attacks from beyond its weapon's reach swings at air forever
+
+**Problem (issue #12, second cause):** with hostility fixed, a player standing at the spawn still sat at 100/100 for 60 s: all three Frontliners were in Attack and Rooted at ~195 cm.
+
+**Root cause:** the AI enters Attack at `AttackRange` (200, AC-054.2) and roots; the slash's hit shape reaches 150 cm (arc radius, measured centre to centre by `IsPointInArcSector`). Whether an enemy hits depended on where it happened to stop.
+
+**Fix:** `AMordecaiEnemyAIController::GetEffectiveAttackRange()` = `min(AttackRange, UMordecaiGA_MeleeAttack::GetAttackReach())` (arc radius; circle offset + radius; capsule/box length). Any new attacker AI must derive its engage distance from the attack's actual hit shape, never from a separate range number alone.
+
 ### UnrealEditor-Cmd exits 0 even when automation tests fail
 
 **Problem:** `Scripts\RunTests.bat` printed "ALL TESTS PASSED" while a test was failing. Its pass/fail decision was the editor's exit code.

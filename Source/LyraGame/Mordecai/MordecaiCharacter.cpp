@@ -150,7 +150,6 @@ void AMordecaiCharacter::SetSprinting(bool bNewSprinting)
 void AMordecaiCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	BindToASC();
 
 	// Override camera delegate to always use diorama camera (permanent, no asset dependency)
 	if (ULyraCameraComponent* CameraComp = FindComponentByClass<ULyraCameraComponent>())
@@ -233,7 +232,6 @@ TSubclassOf<ULyraCameraMode> AMordecaiCharacter::DetermineDioramaCameraMode() co
 void AMordecaiCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
-	BindToASC();
 
 	// US-078: Populate weapons and create HUD widget once we have a controller.
 	// PossessedBy runs after BeginPlay and after the controller is set.
@@ -268,19 +266,50 @@ void AMordecaiCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	}
 }
 
+void AMordecaiCharacter::OnAbilitySystemInitialized()
+{
+	Super::OnAbilitySystemInitialized();
+	BindToASC();
+}
+
+void AMordecaiCharacter::OnAbilitySystemUninitialized()
+{
+	UnbindFromASC();
+	Super::OnAbilitySystemUninitialized();
+}
+
 void AMordecaiCharacter::BindToASC()
 {
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (ASC)
+	if (!ASC || HealthBoundASC.Get() == ASC)
 	{
-		ASC->GetGameplayAttributeValueChangeDelegate(
-			UMordecaiAttributeSet::GetHealthAttribute()).AddUObject(
-				this, &AMordecaiCharacter::OnHealthChanged);
+		return;
 	}
+
+	UnbindFromASC();
+	HealthChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute())
+		.AddUObject(this, &AMordecaiCharacter::OnHealthChanged);
+	HealthBoundASC = ASC;
+}
+
+void AMordecaiCharacter::UnbindFromASC()
+{
+	if (UAbilitySystemComponent* ASC = HealthBoundASC.Get())
+	{
+		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute()).Remove(HealthChangedHandle);
+	}
+	HealthChangedHandle.Reset();
+	HealthBoundASC.Reset();
 }
 
 void AMordecaiCharacter::OnHealthChanged(const FOnAttributeChangeData& Data)
 {
+	// AC-053.11: death is decided on the server (clients bind too, once their PlayerState replicates)
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (Data.NewValue <= 0.f && !bDeathHandled)
 	{
 		HandlePlayerDeath();

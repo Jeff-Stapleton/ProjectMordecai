@@ -15,10 +15,14 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyCharacter)
+
+DEFINE_LOG_CATEGORY(LogMordecaiEnemy);
 
 // ---------------------------------------------------------------------------
 // Constructor
@@ -73,6 +77,71 @@ bool AMordecaiEnemyCharacter::IsDead() const
 	return false;
 }
 
+bool AMordecaiEnemyCharacter::HasVisibleMesh() const
+{
+	if (IsHidden())
+	{
+		return false;
+	}
+
+	TInlineComponentArray<UPrimitiveComponent*> Primitives(this);
+	for (const UPrimitiveComponent* Primitive : Primitives)
+	{
+		if (!Primitive || !Primitive->IsVisible() || Primitive->bHiddenInGame)
+		{
+			continue;
+		}
+		if (const UStaticMeshComponent* StaticMesh = Cast<UStaticMeshComponent>(Primitive))
+		{
+			if (StaticMesh->GetStaticMesh())
+			{
+				return true;
+			}
+		}
+		else if (const USkinnedMeshComponent* Skinned = Cast<USkinnedMeshComponent>(Primitive))
+		{
+			if (Skinned->GetSkinnedAsset())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool AMordecaiEnemyCharacter::ValidateContent() const
+{
+	bool bValid = true;
+
+	// The granted melee instance holds the profiles the attack uses (EnemyAttackProfiles, or the ability's own)
+	bool bHasAttackProfile = false;
+	if (EnemyAbilitySystemComponent)
+	{
+		for (const FGameplayAbilitySpec& Spec : EnemyAbilitySystemComponent->GetActivatableAbilities())
+		{
+			if (const UMordecaiGA_MeleeAttack* Melee = Cast<UMordecaiGA_MeleeAttack>(Spec.GetPrimaryInstance()))
+			{
+				bHasAttackProfile |= Melee->HasAnyAttackProfile();
+			}
+		}
+	}
+	if (!bHasAttackProfile)
+	{
+		UE_LOG(LogMordecaiEnemy, Error, TEXT("enemy %s has no attack profiles: its melee attack can never hit (set EnemyAttackProfiles on %s)"),
+			*GetName(), *GetClass()->GetName());
+		bValid = false;
+	}
+
+	if (!HasVisibleMesh())
+	{
+		UE_LOG(LogMordecaiEnemy, Error, TEXT("enemy %s has no visible mesh: players cannot see it (set a mesh on %s)"),
+			*GetName(), *GetClass()->GetName());
+		bValid = false;
+	}
+
+	return bValid;
+}
+
 // ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
@@ -82,6 +151,12 @@ void AMordecaiEnemyCharacter::BeginPlay()
 	Super::BeginPlay();
 	InitializeAbilitySystem();
 	CreateHealthBarWidget();
+
+	// US-084: missing content is an error in every log, not a silent enemy (abilities are granted on authority only)
+	if (HasAuthority())
+	{
+		ValidateContent();
+	}
 
 	// Register with GameMode for arena reset tracking (AC-054.13)
 	if (HasAuthority())

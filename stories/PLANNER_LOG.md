@@ -2983,3 +2983,22 @@ All lines from the sweep summary, condensed (failed checks, NEW first) @ `8ea853
 - Each story: the named checks must go FAIL → PASS on a fresh package via `py Scripts/playtest_story.py US-0XX` of the owning story; remove the check's `known_issue` in the same commit as the fix (before packaging).
 - Re-run `py Scripts/playtest_story.py --all` on a fresh package after each batch and append the new Playable Status lines here; file every NEW failure (the death/respawn chain will run for the first time after US-085).
 - Ask Jeff for the decisions above; US-090, US-098, US-099 (and parts of US-095/US-096) cannot start without them.
+
+## 2026-10-27 Issue #12 (N7): US-084
+Branch `fix/issue-12-enemy-damage`, delivered `c7e4b8d`.
+
+### Completed Since Last Run
+- **US-084** (HEADLESS) → `stories/done/`. Enemy hits reach the player: hostility from `Mordecai.Team.Enemy` (every pawn was `NoTeam`, so all were "friends"), and the AI closes to its slash's 150 cm reach before attacking (AttackRange 200 left enemies swinging at air). Enemy content guards log `LogMordecaiEnemy` errors. Also fixed N31 (the player never died at 0 Health). Tier 3 PASS `Saved/Playtests/20261027-085120-boot`.
+
+### Playable Status
+- Playable status: enemies — PENDING PAIR (waiting on US-085): enemies hit and kill the player (`enemy_damages_player` PASS, `Saved/Playtests/20261027-085212-us054` @ c7e4b8d), still invisible and at 100 HP.
+- Playable status: death_respawn — death and respawn work (`player_dies`, `respawn` PASS, same run); `death_screen` known N2 (US-086); `arena_reset` FAILs on N13 (100 HP) + in-aggro spawns (US-085).
+- Sweep `Saved/Playtests/20261027-085120-sweep` @ c7e4b8d: 14 checks that PASSed in the `01abb8b` sweep now FAIL because the arena kills the player (us001 ×5, us054 ×5, us057 ×1, us078 ×1, us083 ×2); 13 NEW-labelled failures are pre-existing without `known_issue` tags. No branch regression (per-check triage in `Specs/agent_playtest_plan_v1.md`, "Found by the issue #12 sweep").
+
+### Blockers / Decisions Needed (Jeff)
+- T1 enemy-free test maps are now blocking: every non-combat Tier 4 script on DevTestMap loses checks to a dead player. Build T1 (movement lanes + a combat-dummy pocket) or move the Frontliners out of aggro (US-085 placement TODO(DECISION)) before the next sweep.
+- TODO(DECISION) AC-054.2 AttackRange 200 vs AC-054.3 slash reach 150: the AI now closes to min(AttackRange, reach); align the content numbers or not? (US-085)
+
+### Next Session Recommendation
+- US-085 (EDITOR) next: Frontliner mesh, 200 HP, placement; it owns the remaining us054 enemy checks. Then T1, then re-sweep.
+- Add the missing `known_issue` tags (N13, N15, N16, N17, N18, US-094) to the us054/us057/us069/us079 PLANs in their owning stories.

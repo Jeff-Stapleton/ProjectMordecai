@@ -64,7 +64,13 @@ public:
 	// --- Distance Evaluation Helpers (public for testing) ---
 
 	bool IsInAggroRange(float Distance) const { return Distance <= AggroRange; }
-	bool IsInAttackRange(float Distance) const { return Distance <= AttackRange; }
+	bool IsInAttackRange(float Distance) const { return Distance <= GetEffectiveAttackRange(); }
+
+	/**
+	 * AttackRange, shortened to the melee attack's reach when that is less (issue #12 / N7): an enemy that roots
+	 * into Attack beyond its swing's reach swings at air forever. AttackRange alone without a melee ability.
+	 */
+	float GetEffectiveAttackRange() const;
 	bool IsOutsideLeashRange(float Distance) const { return Distance > LeashRange; }
 
 	// --- Arena Reset (US-053) ---
@@ -75,6 +81,15 @@ public:
 	// --- Attack Notification ---
 
 	void NotifyAttackCompleted();
+
+	/**
+	 * US-084 (AC-084.4): true when the possessed enemy's melee ability is granted and has an attack profile.
+	 * Without one, activating it ends at once and hits nothing, so the AI does not enter Attack.
+	 */
+	bool CanPerformMeleeAttack() const;
+
+	/** One step of the state machine against Target (nullptr = none). Tick runs it on authority; public for testing. */
+	void UpdateStateMachine(float DeltaTime, AActor* Target);
 
 	// --- Spawn Location ---
 
@@ -96,6 +111,9 @@ private:
 	AActor* FindPlayerTarget() const;
 	AActor* FindNearestDecoy() const;
 
+	/** Enter Attack if the melee attack can hit; otherwise log once (AC-084.4) and stay in the current state. */
+	bool TryEnterAttackState();
+
 	EMordecaiEnemyAIState CurrentState = EMordecaiEnemyAIState::Idle;
 	FVector SpawnLocation = FVector::ZeroVector;
 
@@ -104,4 +122,5 @@ private:
 
 	float RecoverElapsedTime = 0.f;
 	bool bAttackInProgress = false;
+	bool bLoggedNoMeleeAttack = false;
 };
