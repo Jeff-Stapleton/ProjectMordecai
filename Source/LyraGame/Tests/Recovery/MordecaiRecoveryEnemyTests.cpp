@@ -1,153 +1,15 @@
 // Project Mordecai — Recovery: enemy attacks reach the player (US-084, issue #12 / N7)
 
 #include "Misc/AutomationTest.h"
-#include "AbilitySystem/LyraAbilitySystemComponent.h"
-#include "AbilitySystemGlobals.h"
-#include "Character/LyraPawnData.h"
-#include "Character/LyraPawnExtensionComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/World.h"
-#include "GameModes/LyraGameState.h"
 #include "GameplayAbilitySpec.h"
 #include "TimerManager.h"
-#include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
-#include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
-#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
-#include "Mordecai/Enemy/MordecaiEnemyAIController.h"
-#include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
-#include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
-#include "Mordecai/MordecaiPlayerState.h"
+#include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
 
-namespace MordecaiRecoveryEnemyTest
-{
-	/** A quick arc sweep in front of the attacker: 120 degrees, 250 cm, 10 slash damage, 0.1 s per phase. */
-	UMordecaiAttackProfileDataAsset* MakeStubProfile()
-	{
-		UMordecaiAttackProfileDataAsset* Profile = NewObject<UMordecaiAttackProfileDataAsset>();
-		Profile->InputSlot = EMordecaiInputSlot::Light;
-		Profile->WindupTimeMs = 100.f;
-		Profile->ActiveTimeMs = 100.f;
-		Profile->RecoveryTimeMs = 100.f;
-		Profile->HitShapeType = EMordecaiHitShapeType::ArcSector;
-		Profile->HitShapeParams.Radius = 250.f;
-		Profile->HitShapeParams.Angle = 120.f;
-		Profile->DamageProfile.DamageType = EMordecaiDamageType::Slash;
-		Profile->DamageProfile.BasePower = 10.f;
-		return Profile;
-	}
-
-	/**
-	 * A game world with the player as the game builds it: a Mordecai player state owning the ASC (Lyra pattern)
-	 * and a Mordecai character whose pawn extension uses that ASC. No Lyra teams are created, as in the Mordecai
-	 * experiences, so the player and the enemies all have FGenericTeamId::NoTeam. Nothing ticks.
-	 */
-	struct FEnemyAttackTestEnv
-	{
-		UWorld* World = nullptr;
-		AMordecaiPlayerState* PlayerState = nullptr;
-		AMordecaiCharacter* Player = nullptr;
-
-		bool Setup(const FVector& PlayerLocation)
-		{
-			if (!GEngine)
-			{
-				return false;
-			}
-			World = UWorld::CreateWorld(EWorldType::Game, false);
-			if (!World)
-			{
-				return false;
-			}
-			FWorldContext& WorldContext = GEngine->CreateNewWorldContext(EWorldType::Game);
-			WorldContext.SetCurrentWorld(World);
-			World->InitializeActorsForPlay(FURL());
-
-			if (!World->SpawnActor<ALyraGameState>(ALyraGameState::StaticClass()))
-			{
-				return false;
-			}
-			PlayerState = World->SpawnActor<AMordecaiPlayerState>(AMordecaiPlayerState::StaticClass());
-			Player = World->SpawnActor<AMordecaiCharacter>(AMordecaiCharacter::StaticClass(), PlayerLocation, FRotator::ZeroRotator, AlwaysSpawn());
-			if (!PlayerState || !Player)
-			{
-				return false;
-			}
-
-			ULyraPawnExtensionComponent* PawnExt = ULyraPawnExtensionComponent::FindPawnExtensionComponent(Player);
-			if (!PawnExt || !PlayerState->GetLyraAbilitySystemComponent())
-			{
-				return false;
-			}
-			PawnExt->SetPawnData(NewObject<ULyraPawnData>(GetTransientPackage()));
-			PawnExt->InitializeAbilitySystem(PlayerState->GetLyraAbilitySystemComponent(), PlayerState);
-			return true;
-		}
-
-		/** An enemy spawned like a placed one (its AI controller possesses it) with the melee ability and these profiles. */
-		AMordecaiEnemyCharacter* SpawnEnemy(const FVector& Location, const TArray<UMordecaiAttackProfileDataAsset*>& Profiles) const
-		{
-			AMordecaiEnemyCharacter* Enemy = World->SpawnActorDeferred<AMordecaiEnemyCharacter>(
-				AMordecaiEnemyCharacter::StaticClass(), FTransform(FRotator::ZeroRotator, Location), nullptr, nullptr,
-				ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-			if (!Enemy)
-			{
-				return nullptr;
-			}
-			Enemy->DefaultAbilities.Add(UMordecaiGA_MeleeAttack::StaticClass());
-			for (UMordecaiAttackProfileDataAsset* Profile : Profiles)
-			{
-				Enemy->EnemyAttackProfiles.Add(Profile);
-			}
-			Enemy->FinishSpawning(FTransform(FRotator::ZeroRotator, Location));
-
-			if (!Enemy->GetController())
-			{
-				if (AMordecaiEnemyAIController* AI = World->SpawnActor<AMordecaiEnemyAIController>())
-				{
-					AI->Possess(Enemy);
-				}
-			}
-			Enemy->InitializeAbilitySystem();
-			return Enemy;
-		}
-
-		UAbilitySystemComponent* GetPlayerASC() const
-		{
-			return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Player);
-		}
-
-		float GetPlayerHealth() const
-		{
-			const UAbilitySystemComponent* ASC = GetPlayerASC();
-			return ASC ? ASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute()) : -1.f;
-		}
-
-		void Teardown()
-		{
-			if (World && GEngine)
-			{
-				GEngine->DestroyWorldContext(World);
-				World->DestroyWorld(false);
-			}
-			World = nullptr;
-			PlayerState = nullptr;
-			Player = nullptr;
-		}
-
-		static FActorSpawnParameters AlwaysSpawn()
-		{
-			FActorSpawnParameters Params;
-			Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-			return Params;
-		}
-	};
-}
-
-using namespace MordecaiRecoveryEnemyTest;
+using namespace MordecaiRecoveryTest;
 
 // ---------------------------------------------------------------------------
 // 1. Mordecai.Recovery.Enemy.AttackDamagesPlayerWithPlayerStateASC (AC-084.1)
@@ -160,7 +22,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_AttackDamagesPlayer,
 
 bool FMordecai_Recovery_Enemy_AttackDamagesPlayer::RunTest(const FString& Parameters)
 {
-	FEnemyAttackTestEnv Env;
+	FRecoveryTestEnv Env;
 	if (!TestTrue("test world with a player set up", Env.Setup(FVector(150.0, 0.0, 0.0))))
 	{
 		Env.Teardown();
@@ -217,7 +79,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_AttackTargetsPlayerNot
 
 bool FMordecai_Recovery_Enemy_AttackTargetsPlayerNotAllies::RunTest(const FString& Parameters)
 {
-	FEnemyAttackTestEnv Env;
+	FRecoveryTestEnv Env;
 	if (!TestTrue("test world with a player set up", Env.Setup(FVector(150.0, 80.0, 0.0))))
 	{
 		Env.Teardown();
@@ -267,8 +129,54 @@ bool FMordecai_Recovery_Enemy_AttackTargetsPlayerNotAllies::RunTest(const FStrin
 }
 
 // ---------------------------------------------------------------------------
-// 3. Mordecai.Recovery.Enemy.LogsMissingContent (AC-084.3)
-// An enemy without attack profiles, or without a visible mesh, logs a LogMordecaiEnemy error naming it.
+// 3. Mordecai.Recovery.Enemy.PlayerSweepsSpareOtherPlayers (AC-084.2, AC-003.9)
+// The enemy tag decides only when an enemy is involved: two players (both NoTeam, no enemy tag) stay friendly,
+// so a player's sweep does not hit a co-op partner with friendly fire off, and does hit an enemy.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_PlayerSweepsSpareOtherPlayers,
+	"Mordecai.Recovery.Enemy.PlayerSweepsSpareOtherPlayers",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Enemy_PlayerSweepsSpareOtherPlayers::RunTest(const FString& Parameters)
+{
+	FRecoveryTestEnv Env;
+	if (!TestTrue("test world with a player set up", Env.Setup(FVector::ZeroVector)))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	AMordecaiPlayerState* PartnerState = nullptr;
+	AMordecaiCharacter* Partner = nullptr;
+	UMordecaiAttackProfileDataAsset* Profile = MakeStubProfile();
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(FVector(150.0, -80.0, 0.0), { Profile });
+	UMordecaiHitDetectionSubsystem* HitDetection = Env.World->GetSubsystem<UMordecaiHitDetectionSubsystem>();
+	if (!TestTrue("partner player spawned", Env.SpawnPlayer(FVector(150.0, 80.0, 0.0), PartnerState, Partner))
+		|| !TestNotNull("enemy spawned", Enemy) || !TestNotNull("hit detection", HitDetection))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	TestTrue("two players are friendly", UMordecaiHitDetectionSubsystem::AreActorsFriendly(Env.Player, Partner));
+
+	TArray<AActor*> Hits;
+	for (const FMordecaiHitResult& Hit : HitDetection->PerformMeleeHitDetection(
+		Profile, Env.Player->GetActorLocation(), Env.Player->GetActorForwardVector(), Env.Player))
+	{
+		Hits.Add(Hit.HitActor.Get());
+	}
+	TestFalse("the player's sweep does not hit the partner", Hits.Contains(Partner));
+	TestTrue("the player's sweep hits the enemy", Hits.Contains(Enemy));
+
+	Env.Teardown();
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 4. Mordecai.Recovery.Enemy.LogsMissingContent (AC-084.3)
+// An enemy that begins play without attack profiles, or without a visible mesh, logs a LogMordecaiEnemy error
+// naming it, exactly once; a complete enemy begins play silently.
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_LogsMissingContent,
 	"Mordecai.Recovery.Enemy.LogsMissingContent",
@@ -276,7 +184,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_LogsMissingContent,
 
 bool FMordecai_Recovery_Enemy_LogsMissingContent::RunTest(const FString& Parameters)
 {
-	FEnemyAttackTestEnv Env;
+	FRecoveryTestEnv Env;
 	if (!TestTrue("test world with a player set up", Env.Setup(FVector(2000.0, 0.0, 0.0))))
 	{
 		Env.Teardown();
@@ -290,12 +198,15 @@ bool FMordecai_Recovery_Enemy_LogsMissingContent::RunTest(const FString& Paramet
 		Env.Teardown();
 		return true;
 	}
+	TestFalse("bare enemy has no visible mesh", Bare->HasVisibleMesh());
 	AddExpectedErrorPlain(FString::Printf(TEXT("enemy %s has no attack profiles"), *Bare->GetName()), EAutomationExpectedErrorFlags::Contains, 1);
 	AddExpectedErrorPlain(FString::Printf(TEXT("enemy %s has no visible mesh"), *Bare->GetName()), EAutomationExpectedErrorFlags::Contains, 1);
-	TestFalse("bare enemy has no visible mesh", Bare->HasVisibleMesh());
-	TestFalse("bare enemy fails content validation", Bare->ValidateContent());
 
-	// With a profile and a visible mesh it validates, silently
+	// The test world never begins play, so start the enemy's play the way the world would
+	FRecoveryTestEnv::BeginEnemyPlay(Bare);
+	TestTrue("bare enemy began play", Bare->HasActorBegunPlay());
+
+	// With a profile and a visible mesh it begins play silently (any error would fail this test)
 	AMordecaiEnemyCharacter* Complete = Env.SpawnEnemy(FVector(0.0, 500.0, 0.0), { MakeStubProfile() });
 	if (!TestNotNull("complete enemy spawned", Complete))
 	{
@@ -307,6 +218,8 @@ bool FMordecai_Recovery_Enemy_LogsMissingContent::RunTest(const FString& Paramet
 	Body->SetupAttachment(Complete->GetRootComponent());
 	Body->RegisterComponent();
 	TestTrue("complete enemy has a visible mesh", Complete->HasVisibleMesh());
+	FRecoveryTestEnv::BeginEnemyPlay(Complete);
+	TestTrue("complete enemy began play", Complete->HasActorBegunPlay());
 	TestTrue("complete enemy passes content validation", Complete->ValidateContent());
 
 	// A mesh hidden in game is not visible
@@ -318,7 +231,7 @@ bool FMordecai_Recovery_Enemy_LogsMissingContent::RunTest(const FString& Paramet
 }
 
 // ---------------------------------------------------------------------------
-// 4. Mordecai.Recovery.Enemy.NoSilentAttackLoop (AC-084.4)
+// 5. Mordecai.Recovery.Enemy.NoSilentAttackLoop (AC-084.4)
 // An enemy whose melee attack has no profile does not cycle Attack -> Recover: it logs once and stays in
 // Approach (chase) at the player.
 // ---------------------------------------------------------------------------
@@ -328,7 +241,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_NoSilentAttackLoop,
 
 bool FMordecai_Recovery_Enemy_NoSilentAttackLoop::RunTest(const FString& Parameters)
 {
-	FEnemyAttackTestEnv Env;
+	FRecoveryTestEnv Env;
 	if (!TestTrue("test world with a player set up", Env.Setup(FVector(150.0, 0.0, 0.0))))
 	{
 		Env.Teardown();

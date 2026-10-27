@@ -124,7 +124,7 @@ public:
 
 	/**
 	 * Returns true if Attacker and Target are on the same side. The Mordecai.Team.Enemy tag decides when either
-	 * carries it; otherwise IGenericTeamAgentInterface ids, where NoTeam is never friendly.
+	 * carries it (both = friends, one = foes); otherwise their IGenericTeamAgentInterface ids must match.
 	 */
 	static bool AreActorsFriendly(const AActor* Attacker, const AActor* Target);
 

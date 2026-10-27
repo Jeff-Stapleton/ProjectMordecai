@@ -149,8 +149,8 @@ bool UMordecaiHitDetectionSubsystem::AreActorsFriendly(const AActor* Attacker, c
 		return false;
 	}
 
-	// Issue #12 (N7): the Mordecai.Team.Enemy tag decides first. Mordecai experiences create no Lyra teams, so the
-	// player and every enemy carry FGenericTeamId::NoTeam, and comparing the ids made them all friends.
+	// Issue #12 (N7): the Mordecai.Team.Enemy tag decides whenever an enemy is involved. Mordecai experiences create
+	// no Lyra teams, so players and enemies all carry FGenericTeamId::NoTeam, and comparing the ids made them friends.
 	const UAbilitySystemComponent* AttackerASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Attacker);
 	const UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target);
 	const bool bAttackerIsEnemy = AttackerASC && AttackerASC->HasMatchingGameplayTag(MordecaiGameplayTags::Team_Enemy);
@@ -163,11 +163,10 @@ bool UMordecaiHitDetectionSubsystem::AreActorsFriendly(const AActor* Attacker, c
 	const IGenericTeamAgentInterface* AttackerTeam = Cast<IGenericTeamAgentInterface>(Attacker);
 	const IGenericTeamAgentInterface* TargetTeam = Cast<IGenericTeamAgentInterface>(Target);
 
+	// Neither is an enemy (e.g. two co-op players, both NoTeam): same team id, same side
 	if (AttackerTeam && TargetTeam)
 	{
-		// NoTeam is no team: two actors without one are not allies
-		const FGenericTeamId AttackerId = AttackerTeam->GetGenericTeamId();
-		return AttackerId != FGenericTeamId::NoTeam && AttackerId == TargetTeam->GetGenericTeamId();
+		return AttackerTeam->GetGenericTeamId() == TargetTeam->GetGenericTeamId();
 	}
 
 	// If either doesn't implement the interface, treat as not friendly (safe default)
