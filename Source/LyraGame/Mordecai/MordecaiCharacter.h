@@ -113,6 +113,10 @@ protected:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
+	//~ ALyraCharacter: the pawn's ASC (on the PlayerState) is attached or detached
+	virtual void OnAbilitySystemInitialized() override;
+	virtual void OnAbilitySystemUninitialized() override;
+
 private:
 	// Hero component — handles input binding and camera mode from PawnData
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Character", Meta = (AllowPrivateAccess = true))
@@ -153,8 +157,13 @@ private:
 	// Diorama camera — always returns MordecaiCameraMode_Diorama
 	TSubclassOf<ULyraCameraMode> DetermineDioramaCameraMode() const;
 
-	// Death handling (US-053)
+	// Death handling (US-053). The Health binding follows the pawn's ASC: for the local player the ASC is attached
+	// after BeginPlay and PossessedBy (ULyraHeroComponent does it from SetupPlayerInputComponent), so it is bound
+	// from OnAbilitySystemInitialized (N31).
 	void BindToASC();
+	void UnbindFromASC();
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
 	bool bDeathHandled = false;
+	FDelegateHandle HealthChangedHandle;
+	TWeakObjectPtr<UAbilitySystemComponent> HealthBoundASC;
 };

@@ -421,7 +421,15 @@ When building widget trees programmatically:
 
 **Root cause:** The Mordecai experiences add no `ULyraTeamCreationComponent`, so the player and every enemy have `FGenericTeamId::NoTeam` (255). `UMordecaiHitDetectionSubsystem::AreActorsFriendly` compared the ids, found them equal, and filtered the player out of every enemy swing (and every enemy out of the player's).
 
-**Fix:** Sides come from the `Mordecai.Team.Enemy` tag first (both tagged = friends, one tagged = foes); the Lyra team id is only a fallback, and NoTeam is never friendly. Any new hostility check must do the same — never compare `GetGenericTeamId()` alone.
+**Fix:** Sides come from the `Mordecai.Team.Enemy` tag whenever an enemy is involved (both tagged = friends, one tagged = foes). Only when neither is an enemy does the Lyra team id decide, and there NoTeam == NoTeam is right: two co-op players are friends, and friendly fire stays off (AC-003.9). Any new hostility check must do the same — never compare `GetGenericTeamId()` alone for player vs enemy. (A first fix that also made "NoTeam never friendly" turned co-op friendly fire on; `Mordecai.Recovery.Enemy.PlayerSweepsSpareOtherPlayers` guards it.)
+
+### The player's ASC does not exist at BeginPlay or PossessedBy: bind in OnAbilitySystemInitialized
+
+**Problem (N31, found by the issue #12 playtest):** once enemies hit the player, Health sat at 0 for a minute and the player never died. `AMordecaiCharacter` bound its Health→death delegate in `BeginPlay` and `PossessedBy`.
+
+**Root cause:** the player's ASC lives on the PlayerState; the pawn reaches it through `ULyraPawnExtensionComponent`, which `ULyraHeroComponent` initializes on DataAvailable→DataInitialized. For a locally controlled pawn that step waits for `Pawn->InputComponent`, created by `APawn::PawnClientRestart` → `SetupPlayerInputComponent`, after `PossessedBy` (PlayerController.cpp: `PossessedBy` before `ClientRestart`). So `GetAbilitySystemComponent()` is null at both points and the `if (ASC)` bind silently did nothing. game.log order proves it: "Weapon loadout initialized" (PossessedBy) → "Removed 1 Lyra crouch binding" (InitializePlayerInput, right after InitializeAbilitySystem) → "SetupPlayerInputComponent called".
+
+**Fix:** override `ALyraCharacter::OnAbilitySystemInitialized` / `OnAbilitySystemUninitialized` (protected virtuals the base constructor already binds) and bind/unbind there, idempotently. Do not register a second delegate from the same object with `OnAbilitySystemInitialized_RegisterAndCall`: it de-dupes by object, so the second one is silently dropped. Anything else on the player pawn that needs the ASC must do the same or resolve it lazily (the HUD binds through the PlayerState in `AMordecaiPlayerController::CreateCombatHUD`). The US-053 tests missed it because they call `HandlePlayerDeath()` directly on a character without an ASC; `Mordecai.Recovery.Player.*` drives Health to 0 through a pawn-extension-attached PlayerState ASC.
 
 ### UnrealEditor-Cmd exits 0 even when automation tests fail
 

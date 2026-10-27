@@ -241,6 +241,7 @@ The contract is `Specs/story_playtests_v1.md`.
   - From the first read, all three Frontliners sit next to the player at the spawn: around (−121, ±151) and (200, 0), `ai_state` Attack.
   - The player stays at 100/100 health for 20 s (`us054_arena.py` check `enemy_damages_player`).
   - The death, death-screen, respawn and arena-reset checks therefore cannot run.
+  - Root cause (issue #12, US-084): not the attack profiles (the cooked Frontliners have them). The Mordecai experiences create no Lyra teams, so the player and every enemy have `FGenericTeamId::NoTeam`, and `UMordecaiHitDetectionSubsystem::AreActorsFriendly` compared the ids and filtered the player out of every enemy hit (and the enemies out of the player's). The `Mordecai.Team.Enemy` tag now decides whenever an enemy is involved. On a fresh package of `6c858f5`, `enemy_damages_player` PASSes (`Saved/Playtests/20261027-055456-us054`); that exposed N31.
 - **N13 Enemies have 100 MaxHealth, not 200.** AC-054.2 specifies 200, but the cooked enemies report 100/100 (check `enemies_present`). The likely cause is that `DefaultMaxHealth` is still at its C++ default because the BP edit was not saved, as with N10.
 - **N14 The invisible enemies body-block the player.** They crowd the spawn and follow the player, so the player meets an invisible wall:
   - A 0.7 s hold of A moved the player only 93 cm (`us001_movement.py` `move_a`).
@@ -297,6 +298,10 @@ The contract is `Specs/story_playtests_v1.md`.
   - It then stayed at -50 (the AC-008.1 floor) for the rest of the run: 53 reads over 10 s.
   - The HUD's stamina bar shows it empty (grey) from then on (`bridge_01.png`, `bridge_02.png` of that run).
   - A player who fights for 15 s is exhausted for good.
+- **N31 The player never dies: Health sits at 0 (found by the issue #12 / US-084 playtest).** Hidden behind N7 until enemy hits landed.
+  - On a fresh package of `6c858f5` (`Saved/Playtests/20261027-055456-us054`), `enemy_damages_player` PASSed and the player's Mordecai Health read 0.0/100 for 169 state reads, but `player_dies` FAILed: `is_dead` never true, no `Mordecai.State.Dead`, movement never stopped.
+  - Root cause: `AMordecaiCharacter` bound its Health→death delegate only in `BeginPlay` and `PossessedBy`. For the local player the PlayerState ASC is attached to the pawn later, by `ULyraHeroComponent` from `SetupPlayerInputComponent` (it waits for the InputComponent), so `GetAbilitySystemComponent()` was null both times and the bind silently did nothing. Latent since US-053 (`0e29035`); its tests call `HandlePlayerDeath()` directly on a character without an ASC.
+  - Fix (issue #12 branch): bind from `ALyraCharacter::OnAbilitySystemInitialized`, unbind from `OnAbilitySystemUninitialized`; death decided on authority. Tier 1: `Mordecai.Recovery.Player.*` (3).
 
 **Bridge gaps found while writing the Phase 3 playtests.** These are missing bridge state, not game bugs; each blocks an assertion.
 - **B1 The bridge does not report pickup name labels.** `actors[].widgets` lists only `UWidgetComponent`s, but the pickup label is a `UTextRenderComponent` (`MordecaiItemPickup.cpp:36`). Check `pickup_labels` in `us079_inventory.py` (AC-079.10) fails on that. The fix is to report TextRender components (text, visibility) in `MakeActorEntry`.
