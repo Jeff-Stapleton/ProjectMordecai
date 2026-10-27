@@ -69,6 +69,91 @@ bool FMordecai_Recovery_Enemy_AttackDamagesPlayer::RunTest(const FString& Parame
 }
 
 // ---------------------------------------------------------------------------
+// 1b. Mordecai.Recovery.Enemy.ClosesToWeaponReachBeforeAttacking (AC-084.1)
+// The Frontliners' slash reaches 150 cm but their AttackRange is 200 (AC-054.2 vs AC-054.3). An enemy that
+// roots into Attack between the two swings at air forever (N7 at the spawn: enemies at ~195 cm, player at
+// 100/100). The AI keeps approaching until the target is inside its attack's reach, then attacks and hits.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_ClosesToWeaponReach,
+	"Mordecai.Recovery.Enemy.ClosesToWeaponReachBeforeAttacking",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Enemy_ClosesToWeaponReach::RunTest(const FString& Parameters)
+{
+	FRecoveryTestEnv Env;
+	if (!TestTrue("test world with a player set up", Env.Setup(FVector(180.0, 0.0, 0.0))))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	// DA_EnemyAttack_BasicSlash's shape: a 90 degree arc of 150 cm
+	UMordecaiAttackProfileDataAsset* Slash = MakeStubProfile();
+	Slash->HitShapeParams.Radius = 150.f;
+	Slash->HitShapeParams.Angle = 90.f;
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(FVector::ZeroVector, { Slash });
+	AMordecaiEnemyAIController* AI = Enemy ? Cast<AMordecaiEnemyAIController>(Enemy->GetController()) : nullptr;
+	if (!TestNotNull("enemy spawned", Enemy) || !TestNotNull("enemy AI controller possesses it", AI))
+	{
+		Env.Teardown();
+		return true;
+	}
+	TestEqual("AttackRange is the AC-054.2 default", AI->AttackRange, 200.f);
+	TestEqual("effective attack range is the slash's reach", AI->GetEffectiveAttackRange(), 150.f);
+
+	// 180 cm: inside AttackRange, outside the slash: keep approaching
+	for (int32 Step = 0; Step < 5; ++Step)
+	{
+		AI->UpdateStateMachine(0.016f, Env.Player);
+	}
+	TestEqual("at 180 cm the enemy still approaches", AI->GetCurrentState(), EMordecaiEnemyAIState::Approach);
+
+	// 140 cm: inside the slash: attack, and the swing lands
+	Env.Player->SetActorLocation(FVector(140.0, 0.0, 0.0));
+	AI->UpdateStateMachine(0.016f, Env.Player);
+	TestEqual("at 140 cm the enemy attacks", AI->GetCurrentState(), EMordecaiEnemyAIState::Attack);
+	AI->UpdateStateMachine(0.016f, Env.Player);
+	for (int32 Frame = 0; Frame < 2; ++Frame)
+	{
+		++GFrameCounter;
+		Env.World->GetTimerManager().Tick(0.15f);
+	}
+	TestTrue(FString::Printf(TEXT("the swing lands (health %.1f)"), Env.GetPlayerHealth()), Env.GetPlayerHealth() < 100.f);
+
+	Env.Teardown();
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 1c. Mordecai.Recovery.Enemy.AttackReachFollowsHitShape (AC-084.1)
+// The reach the AI closes to is the distance the hit query tests for each shape.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_AttackReachFollowsHitShape,
+	"Mordecai.Recovery.Enemy.AttackReachFollowsHitShape",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Enemy_AttackReachFollowsHitShape::RunTest(const FString& Parameters)
+{
+	UMordecaiGA_MeleeAttack* Melee = NewObject<UMordecaiGA_MeleeAttack>();
+	TestEqual("no profile, no reach", Melee->GetAttackReach(), 0.f);
+
+	UMordecaiAttackProfileDataAsset* Profile = MakeStubProfile();
+	Profile->HitShapeParams.Radius = 150.f;
+	Profile->HitShapeParams.Length = 120.f;
+	Melee->AttackProfiles.Add(Profile);
+
+	Profile->HitShapeType = EMordecaiHitShapeType::ArcSector;
+	TestEqual("arc: its radius", Melee->GetAttackReach(), 150.f);
+	Profile->HitShapeType = EMordecaiHitShapeType::Circle;
+	TestEqual("circle: its offset plus its radius", Melee->GetAttackReach(), 270.f);
+	Profile->HitShapeType = EMordecaiHitShapeType::Capsule;
+	TestEqual("capsule: its length", Melee->GetAttackReach(), 120.f);
+	Profile->HitShapeType = EMordecaiHitShapeType::Box;
+	TestEqual("box: its length", Melee->GetAttackReach(), 120.f);
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 // 2. Mordecai.Recovery.Enemy.AttackTargetsPlayerNotAllies (AC-084.2)
 // The enemy's melee hit query is hostile-filtered: it hits the player, not another enemy, with friendly fire
 // off; airborne rules still apply to the player.

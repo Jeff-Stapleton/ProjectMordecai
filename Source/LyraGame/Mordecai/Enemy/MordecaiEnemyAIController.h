@@ -64,7 +64,13 @@ public:
 	// --- Distance Evaluation Helpers (public for testing) ---
 
 	bool IsInAggroRange(float Distance) const { return Distance <= AggroRange; }
-	bool IsInAttackRange(float Distance) const { return Distance <= AttackRange; }
+	bool IsInAttackRange(float Distance) const { return Distance <= GetEffectiveAttackRange(); }
+
+	/**
+	 * AttackRange, shortened to the melee attack's reach when that is less (issue #12 / N7): an enemy that roots
+	 * into Attack beyond its swing's reach swings at air forever. AttackRange alone without a melee ability.
+	 */
+	float GetEffectiveAttackRange() const;
 	bool IsOutsideLeashRange(float Distance) const { return Distance > LeashRange; }
 
 	// --- Arena Reset (US-053) ---

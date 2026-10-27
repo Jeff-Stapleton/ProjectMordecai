@@ -138,6 +138,13 @@ public:
 	/** True when the attack has a profile to perform; without one, activation ends at once and nothing is hit. */
 	bool HasAnyAttackProfile() const { return GetResolvedAttackProfiles().Num() > 0; }
 
+	/**
+	 * How far from the attacker's centre the active profile's hit shape reaches a target's centre (cm), the
+	 * distance UMordecaiHitDetectionSubsystem tests: arc radius, circle offset + radius, capsule/box length.
+	 * 0 when there is no profile.
+	 */
+	float GetAttackReach() const;
+
 	/** Override for equipment component (testing). */
 	void SetEquipmentComponentOverride(UMordecaiEquipmentComponent* InComp);
 

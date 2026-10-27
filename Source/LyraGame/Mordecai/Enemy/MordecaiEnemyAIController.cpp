@@ -381,6 +381,25 @@ bool AMordecaiEnemyAIController::CanPerformMeleeAttack() const
 	return true;
 }
 
+float AMordecaiEnemyAIController::GetEffectiveAttackRange() const
+{
+	if (CachedASC.IsValid() && MeleeAttackAbilityClass)
+	{
+		if (const FGameplayAbilitySpec* Spec = CachedASC->FindAbilitySpecFromClass(MeleeAttackAbilityClass))
+		{
+			if (const UMordecaiGA_MeleeAttack* Melee = Cast<UMordecaiGA_MeleeAttack>(Spec->GetPrimaryInstance()))
+			{
+				const float Reach = Melee->GetAttackReach();
+				if (Reach > 0.f)
+				{
+					return FMath::Min(AttackRange, Reach);
+				}
+			}
+		}
+	}
+	return AttackRange;
+}
+
 bool AMordecaiEnemyAIController::TryEnterAttackState()
 {
 	if (!CanPerformMeleeAttack())
