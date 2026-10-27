@@ -431,6 +431,14 @@ When building widget trees programmatically:
 
 **Fix:** override `ALyraCharacter::OnAbilitySystemInitialized` / `OnAbilitySystemUninitialized` (protected virtuals the base constructor already binds) and bind/unbind there, idempotently. Do not register a second delegate from the same object with `OnAbilitySystemInitialized_RegisterAndCall`: it de-dupes by object, so the second one is silently dropped. Anything else on the player pawn that needs the ASC must do the same or resolve it lazily (the HUD binds through the PlayerState in `AMordecaiPlayerController::CreateCombatHUD`). The US-053 tests missed it because they call `HandlePlayerDeath()` directly on a character without an ASC; `Mordecai.Recovery.Player.*` drives Health to 0 through a pawn-extension-attached PlayerState ASC.
 
+### An enemy that attacks from beyond its weapon's reach swings at air forever
+
+**Problem (issue #12, second cause):** with hostility fixed, a player standing at the spawn still sat at 100/100 for 60 s: all three Frontliners were in Attack and Rooted at ~195 cm.
+
+**Root cause:** the AI enters Attack at `AttackRange` (200, AC-054.2) and roots; the slash's hit shape reaches 150 cm (arc radius, measured centre to centre by `IsPointInArcSector`). Whether an enemy hits depended on where it happened to stop.
+
+**Fix:** `AMordecaiEnemyAIController::GetEffectiveAttackRange()` = `min(AttackRange, UMordecaiGA_MeleeAttack::GetAttackReach())` (arc radius; circle offset + radius; capsule/box length). Any new attacker AI must derive its engage distance from the attack's actual hit shape, never from a separate range number alone.
+
 ### UnrealEditor-Cmd exits 0 even when automation tests fail
 
 **Problem:** `Scripts\RunTests.bat` printed "ALL TESTS PASSED" while a test was failing. Its pass/fail decision was the editor's exit code.
