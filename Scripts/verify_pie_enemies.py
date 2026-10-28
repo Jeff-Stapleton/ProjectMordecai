@@ -1,8 +1,9 @@
-# PIE Smoke Test: Frontliner enemies (US-085, issue #18 / N13)
+# PIE Smoke Test: Frontliner enemies (US-085, issue #18 / N13, issue #19 / N14)
 # Run during PIE via ue_remote_exec.py to verify the arena's three Frontliners start with the
-# Blueprint's AC-054.2 health (200) and that no placed instance overrides its class's stats.
+# Blueprint's AC-054.2 health (200), that no placed instance overrides its class's stats, and that
+# each has a visible body that does not collide (AC-085.1).
 # Reads state only: no gameplay function is called, so no check here is [LOGIC].
-# US-085 extends this file with the mesh and attack-profile checks.
+# US-085 extends this file with the attack-profile checks.
 #
 # Usage:
 #   py ue_remote_exec.py --file Scripts/verify_pie_enemies.py
@@ -41,6 +42,23 @@ def _run():
             raise RuntimeError(f"PIE enemies smoke test failed: {fail_count} failure(s)")
         print("ALL CHECKS PASSED")
 
+    def body_problems(body):
+        """Why a BodyMesh would not show a player a solid-looking, non-blocking body ([] = none)."""
+        if body is None:
+            return ["no BodyMesh component"]
+        problems = []
+        if body.get_editor_property("static_mesh") is None:
+            problems.append("no mesh")
+        if not body.is_visible() or body.get_editor_property("hidden_in_game"):
+            problems.append("hidden")
+        if body.get_collision_enabled() != unreal.CollisionEnabled.NO_COLLISION:
+            problems.append(f"collision {body.get_collision_enabled()}")
+        return problems
+
+    def body_detail(body, problems):
+        mesh = body.get_editor_property("static_mesh") if body else None
+        return "; ".join(problems) if problems else f"{mesh.get_name()}, no collision"
+
     def attribute(enemy, name):
         """Current value of a UMordecaiAttributeSet attribute (None when unreadable)."""
         attribute_set = enemy.get_mordecai_attribute_set()
@@ -59,6 +77,10 @@ def _run():
         bp_health = unreal.get_default_object(frontliner_class).get_editor_property("default_max_health")
         check("Frontliner Blueprint DefaultMaxHealth is 200", bp_health == EXPECTED_MAX_HEALTH,
               f"Got {bp_health}")
+        bp_body = unreal.get_default_object(frontliner_class).get_editor_property("body_mesh")
+        problems = body_problems(bp_body)
+        check("Frontliner Blueprint BodyMesh has a visible, non-colliding mesh", not problems,
+              body_detail(bp_body, problems))
 
     # --- PIE World ---
     world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_game_world()
@@ -85,6 +107,12 @@ def _run():
                 overrides.append(f"{stat} {value} (class {class_value})")
         check(f"{where} takes its stats from {enemy.get_class().get_name()}", not overrides,
               "; ".join(overrides) if overrides else "no instance override")
+
+        # Issue #19: a body players can see; the capsule alone blocks
+        body = enemy.get_editor_property("body_mesh")
+        problems = body_problems(body)
+        check(f"{where} has a visible body that does not collide", not problems,
+              body_detail(body, problems))
 
         try:
             health, max_health = attribute(enemy, "health"), attribute(enemy, "max_health")

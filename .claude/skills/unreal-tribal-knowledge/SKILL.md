@@ -110,6 +110,11 @@ ExperienceOverride=(PrimaryAssetType="LyraExperienceDefinition",PrimaryAssetName
 2. **Recreate the Blueprint** from the C++ class (nuclear but reliable)
 3. For GameFeature-style injection, add the component via `GameFeatureAction_AddComponents` on the Experience instead of the C++ constructor
 
+**Counterexample (issue #19, 2026-10-28): it can just work, so verify instead of assuming.** `AMordecaiEnemyCharacter` gained a `BodyMesh` (`CreateDefaultSubobject<UStaticMeshComponent>`) long after `BP_MordecaiEnemy_Frontliner` was created. After the C++ rebuild the BP and its three placed instances all had it. Python set the mesh on the BP's inherited component template, and it persisted:
+- `unreal.get_default_object(bp_class).get_editor_property('body_mesh').set_editor_property('static_mesh', ...)` (also `override_materials`, `relative_scale3d`, `relative_location`).
+- `unreal.BlueprintEditorLibrary.compile_blueprint(bp)`, then `EditorAssetLibrary.save_loaded_asset(bp, only_if_is_dirty=False)`.
+- It survived an editor restart, and the placed actors (no `BodyMesh` data of their own) took it with no level save. Proof: `Scripts/verify_pie_enemies.py` on a fresh editor, and the name `BodyMesh` absent from DevTestMap's `.umap` but present in the BP's `.uasset`. See `Scripts/us085_configure_frontliner.py`.
+
 ### BP assets referencing classes in the wrong module won't load
 
 **Problem:** `Failed to load Class /Script/MordecaiCoreRuntime.MordecaiCameraMode_Diorama as Parent for BlueprintGeneratedClass`
@@ -197,6 +202,14 @@ Then repopulate with valid C++ or Blueprint ability classes.
 Use `notify_mode=unreal.PropertyAccessChangeNotifyMode.NEVER` on the CDO writes and the Blueprint package stays clean. See `Scripts/us085_configure_frontliner.py`.
 
 **Guard:** `AMordecaiEnemyCharacter::ValidateContent` logs a `LogMordecaiEnemy` error when an enemy's base stats differ from its class's, so the next one shows in every playtest's `game.log`.
+
+### `MaterialEditingLibrary.set_material_instance_vector_parameter_value` always returns False
+
+**Problem:** A script that checked the result raised "BasicShapeMaterial has no 'Color' parameter", but the parameter exists (`get_vector_parameter_names` lists it), and the value had been set.
+
+**Root cause:** UE 5.7's `UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue` declares `bool bResult = false`, sets the value, and returns `bResult` without ever assigning it. `place_test_pickups.py` never noticed because it ignores the result.
+
+**Fix:** Ignore the bool. Read the value back with `get_material_instance_vector_parameter_value` and compare (see `Scripts/us085_configure_frontliner.py`).
 
 ### UInputModifier subobjects created via Python don't serialize
 
@@ -363,6 +376,18 @@ This binds the multicast listener to all interfaces, allowing external Python sc
 2. Disable Hyper-V/WSL virtual adapters temporarily
 3. Use the editor's built-in Python console (`Window > Developer Tools > Output Log > Cmd: Python`) to run smoke test scripts directly
 4. If running smoke tests, paste the script content directly into the Python console
+
+### Relative paths and `--file` fail for scripts sent to an editor you launched yourself
+
+**Problem:**
+- `py Scripts/ue_remote_exec.py "exec(open(r'Scripts/x.py').read())"` raised `FileNotFoundError` against an editor started with `Start-Process` (the CLAUDE.md launch command).
+- `--file Scripts/x.py` failed with `Could not load Python file '<engine>/Binaries/Win64/""<the docstring>'`.
+
+**Root cause:**
+- The editor's working directory is `Engine/Binaries/Win64`, not the project root.
+- `--file` sends the file's text in UE's `ExecuteFile` mode, which takes the first token as a file path. A script that opens with a docstring hands it the quoted docstring as the "path".
+
+**Fix:** Send `exec(open(r'<absolute path>').read())`, e.g. `py Scripts/ue_remote_exec.py "exec(open(r'C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\Scripts\us085_configure_frontliner.py').read())"`.
 
 ---
 
