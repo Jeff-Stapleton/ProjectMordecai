@@ -212,7 +212,9 @@ The contract is `Specs/story_playtests_v1.md`.
   - No `DA_Spell_*` asset sets a `CooldownTag`, so `ApplySpellCooldown` returns early (`MordecaiGA_SpellBase.cpp:445`).
   - The HUD cooldown widgets are never bound (`UMordecaiSpellCooldownWidget::BindToCooldownTag` has no callers), so they always show "ready".
 - **Weapon effects never reach the ASC.** `UMordecaiEquipmentComponent` looks for an ASC on the character (`MordecaiEquipmentComponent.cpp:55-56`), but the ASC lives on the PlayerState. Weapon `GrantedTags` and `StatModifiers` are never applied.
-- **The three red bars are explained.** They are the health bars of three `BP_MordecaiEnemy_Frontliner` enemies that have no mesh, so the enemies are invisible.
+- **The three red bars are explained.** They are the health bars of three `BP_MordecaiEnemy_Frontliner` enemies that have no mesh, so the enemies are invisible. **FIXED** (issue #19, US-085, `f21525f`): each Frontliner has a dark red cylinder body the size of its capsule under its bar. `AMordecaiEnemyCharacter::BodyMesh` is a non-colliding slot; the Blueprint sets its mesh. On a fresh package:
+  - Tier 3 `Saved/Playtests/20261028-085310-boot`: three red bodies under the three bars in `engine_01..03.png`, and 0 errors in `game.log` (before: three "no visible mesh").
+  - Tier 4 `enemies_visible` PASS, 3/3 `mesh=True`, in `Saved/Playtests/20261028-085332-us054` and the sweep's `20261028-090901-us054`.
 - **The inventory filter bar overlaps the "Stored Resources" header.** The category buttons (Materials, Quest) draw over the ledger heading (`Saved/Playtests/20261020-144643-us079/bridge_02.png`).
 - **On-screen debug text is shown to players.** "MORDECAI: Programmatic IMC created and input bound successfully (including 4 spell actions)." appears in yellow under the HUD bars (`bridge_02.png`; message from `MordecaiHeroComponent.cpp:402`).
 - **The CommonUI pool may leave inventory rows stale on a second menu open (latent).**
@@ -266,6 +268,11 @@ The contract is `Specs/story_playtests_v1.md`.
       - On the `5cdadd5` package, the walk came first, from the spawn before any dodge, and the player was still stuck at once, at (-8, -7) (`Saved/Playtests/20261024-133951-us083`).
   - How the enemies move: they follow at 400 cm/s (a walk is 600) and stop at their 200 cm AttackRange, so a straight walk leaves them behind, but a backward dodge or a turn puts them in the way. Since `5cdadd5` the us083 script walks and sprints first, from the spawn, with a run-up along the lane. That was not enough: the enemies close in from the very start.
   - The proper fix is a test map without enemies (T1).
+  - **Invisible part FIXED** (issue #19, US-085, `f21525f`): the enemies have visible bodies (see "The three red bars are explained"). The bodies never collide, and a dead enemy's body is hidden with its collision, so what the player sees is what blocks it.
+  - **Decision (Jeff, 2026-10-28):** issue #19 is fixed by the mesh only. The Frontliners keep their placement inside AggroRange of PlayerStart; the swarm at the spawn, and the body-blocking and deaths it causes, are T1's to solve (issue #46). This settles US-085's placement TODO(DECISION).
+  - On `f21525f` the two named us001 checks still depend on the swarm:
+    - Story run `Saved/Playtests/20261028-085852-us001`: `move_a` PASS (207 cm). `walk_lane_wp1` FAIL: the player was killed at (152, -109), not stopped by an invisible wall.
+    - Sweep run `20261028-090829-us001`: `walk_lane_wp1` PASS. `move_a` FAIL only on drift: 385 cm along -Y (an enemy shove; a walk covers about 240 cm), 37 cm across (limit 30).
 - **N15 Fireball spends SP but does nothing visible.**
   - SP drops 10 → 7.
   - No projectile appears in `actors` within 1.5 s.
@@ -319,8 +326,14 @@ The contract is `Specs/story_playtests_v1.md`.
   - us001: `move_s`, `walk_speed_baseline`, `walk_lane_reset`, `walk_lane_reset2`, `jump_space` (and `sprint_shift`/`sprint_l3` SKIP).
   - us054: `walk_to_frontliner3`, `melee_lmb`, `dodge_lalt`, `arena_reset`, `respawn_moves`. `arena_reset` also requires the AC-054.2 200 max health (N13): the first read after the respawn had all three enemies back at their spawns at 100/100 (ResetArena works), and they re-aggroed within ~1.5 s because every spawn is inside AggroRange of PlayerStart. Since issue #18 (`39500e2`) the health clause holds (200.0/200.0 after the reset); it FAILs on positions only, from the re-aggro.
   - us057: `walk_blink_lane`. us078: `light_attack_lmb`. us083: `block_over_held_rt_no_parry`, `light_attack_rt_tap` (its `_idle()` treats a dead player as idle).
-  - Remedy: T1 maps (movement lanes and a combat-dummy pocket without hostile AI), or out-of-aggro Frontliner placement (US-085 TODO(DECISION)). A death guard in the scripts would only hide the cause.
+  - Remedy: T1 maps (movement lanes and a combat-dummy pocket without hostile AI), or out-of-aggro Frontliner placement (US-085 TODO(DECISION)). A death guard in the scripts would only hide the cause. **Decided (Jeff, 2026-10-28, issue #19): T1.** The placement stays.
 - **13 NEW failures are pre-existing and identical in the `01abb8b` sweep, but their steps carry no `known_issue`:** us054 `enemies_present` (N13; since issue #18 only its spacing clause fails, so it needs no N13 tag), `enemy_indicators` (N17); us057 `fireball_projectile`, `fireball_hits_enemy` (N15), `stone_skin_indicator` (N16); us069 `shoulder_switches_tab` (N18); us079 `menu_rows`, `unidentified_badge`, `menu_ledger_rows`, `identify_button`, `filter_weapons`, `filter_armor_empty`, `filter_all` (the CommonUI pool bug, US-094). Tag them in the scripts' PLANs in the owning stories. `us054_arena.py`'s KNOWN_ISSUES text "Suspected NEW (unverified): ... the enemies never damaged the player" is obsolete since `c7e4b8d`.
+- **Issue #19 sweep** (2026-10-28, fresh package of `f21525f`, `Saved/Playtests/20261028-090808-sweep/summary.md`, triaged against the issue #18 sweep `Saved/Playtests/20261027-202756-sweep`): no regression from the enemy bodies.
+  - us054 `enemies_visible` is FAIL (known) → PASS. Every other us054 failure is unchanged.
+  - us057, us069, us078 and us079 have the same NEW and known failures as before.
+  - us001 and us083 changed only in checks that depend on where the swarm stands or when it kills the player.
+    - us083 `dodge_gamepad_b` FAILed because its B tap (09:11:27.268) reached a dead player: the first alive read is 0.2 s later (`20261028-091107-us083/bridge.jsonl`).
+    - us083 `block_over_held_rt_no_parry` went FAIL → PASS.
 - **N26 has real-input evidence now:** in `Saved/Playtests/20261027-085233-us057` the R tap cast Stone Skin while the player was dead (bridge.jsonl lines 220-245: SP 7 -> 3, `Mordecai.State.Dead` with `State.Casting` and then `Status.StoneSkin`).
 
 **Bridge gaps found while writing the Phase 3 playtests.** These are missing bridge state, not game bugs; each blocks an assertion.
@@ -328,7 +341,7 @@ The contract is `Specs/story_playtests_v1.md`.
 - **B2 Other missing state.** No camera transform (AC-1.2.1), no progress-bar fill or colour (HUD bars, stamina tiers, rarity colours), no equip slot on `player.weapon` (AC-078.15), no damage-pop events (US-065), no texts from world-space widget components (enemy bars). Mouse buttons cannot be held across reads by the playtest client, which blocks block and parry on the mouse (AC-083.11). The gamepad triggers can be held with `axis` (no `hold_s`), so `us083_combat_input.py` plays block and parry on LT/RT, and the heavy attack fires on release since US-083, so a held click checks it. The `wait_until` grammar has no "array contains", so tag checks need client-side predicates.
 
 **Playtest infrastructure (proposal).**
-- **T1 Dedicated test maps per playtest (Jeff, 2026-10-24).** Every Tier 4 script plays DevTestMap, whose invisible Frontliners follow the player and body-block it (N14). Movement checks (walks, sprint, dodge distance) are therefore hostage to where the enemies stand, and an exit-0 run of a story's own script can fail on another story's bug. US-083 closed with AC-083.4..AC-083.8 passing on real input but in no exit-0 run: the us083 script's lane walk was body-blocked in all three tries, on two packages.
+- **T1 Dedicated test maps per playtest (Jeff, 2026-10-24; issue #46).** Every Tier 4 script plays DevTestMap, whose Frontliners (invisible until issue #19) follow the player and body-block it (N14). Since 2026-10-28 (Jeff, issue #19) the swarm at the spawn is T1's to solve: the Frontliners keep their placement. Movement checks (walks, sprint, dodge distance) are therefore hostage to where the enemies stand, and an exit-0 run of a story's own script can fail on another story's bug. US-083 closed with AC-083.4..AC-083.8 passing on real input but in no exit-0 run: the us083 script's lane walk was body-blocked in all three tries, on two packages.
   - Proposal: small cooked maps per concern, each resolving the Mordecai experience: an enemy-free movement/sprint lane, a combat dummy that never moves, and the arena kept for the enemy stories. A script picks its map (`--map`, as `playtest_boot.py` does).
   - Needs: the maps (an EDITOR story), adding them to the package's maps-to-cook, and a `MAP` per playtest script in the kit.
 

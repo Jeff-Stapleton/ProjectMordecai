@@ -3019,3 +3019,27 @@ Branch `fix/issue-18-frontliner-max-health`, delivered `39500e2`.
 
 ### Next Session Recommendation
 - The rest of US-085: mesh (AC-085.1), FireSlash, placement. Extend `Scripts/us085_configure_frontliner.py` and `Scripts/verify_pie_enemies.py`.
+
+## 2026-10-28 Issue #19 (N14): US-085 (the bodies)
+Branch `fix/issue-19-invisible-enemies`, delivered `f21525f`.
+
+### Completed Since Last Run
+- **US-085** (EDITOR) stays in `stories/in-progress/`. AC-085.1 (visible bodies) and AC-085.5 (no enemy-content error) are accepted at Tier 3.
+  - Enemies have a non-colliding `BodyMesh` slot, hidden while dead.
+  - The Frontliner BP fills it with a dark red engine cylinder the size of its capsule.
+  - Tier 3 PASS `Saved/Playtests/20261028-085310-boot` (0 errors); us054 `enemies_visible` FAIL (known) → PASS.
+
+### Decisions (Jeff)
+- 2026-10-28: issue #19 is fixed by the mesh only; the Frontliners keep their placement; the swarm at the spawn is T1's (issue #46). This settles US-085's placement TODO(DECISION). AC-085.4 waits on T1.
+
+### Playable Status
+- Playable status: enemies — NOT PLAYABLE (playtest FAIL: enemies_present (NEW, spacing only), enemy_indicators (NEW), walk_to_frontliner3 (NEW), melee_lmb (NEW), dodge_lalt (NEW), death_screen (known); Tier 4 Saved/Playtests/20261028-085332-us054 @ f21525f65e). `enemies_visible` PASS: the enemies are visible.
+- Sweep `Saved/Playtests/20261028-090808-sweep` @ f21525f: no regression. Only us054 `enemies_visible` changes for good; us001/us083 vary with the swarm.
+
+### Blockers / Decisions Needed (Jeff)
+- New TODO(DECISION) (US-085): corpse visuals. A dead enemy's body is hidden with its collision for now.
+- Still open: FireSlash on one Frontliner (BP child or instance-editable profiles); AttackRange vs reach (#47).
+
+### Next Session Recommendation
+- T1 (issue #46): the movement and combat test maps. Every remaining us001/us054 swarm failure waits on it.
+- Then the rest of US-085: FireSlash.
