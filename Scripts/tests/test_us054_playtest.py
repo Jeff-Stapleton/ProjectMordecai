@@ -433,8 +433,8 @@ class TestUs054AgainstTheFake(Us054Case):
 
     # --- melee_lmb judges damage against the health read before the click (US-083 AC-083.9) ---
     def test_melee_does_not_pass_on_enemies_below_200_health(self):
-        # The 8ea853b sweep's false PASS: the cooked enemies have 100/100 health (N13), which the
-        # old check read as "below 200" without any attack happening.
+        # The 8ea853b sweep's false PASS: the cooked enemies had 100/100 health (N13, issue #18),
+        # which the old check read as "below 200" without any attack happening.
         _, server = self.serve(**game_before_us083(enemy_hp=100.0))
         code, rep = self.play(server)
         self.assertEqual(code, 1)

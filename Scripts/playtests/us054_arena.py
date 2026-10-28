@@ -552,7 +552,8 @@ class Us054Run(kit.PlaytestRun):
                 return "FAIL", "no valid player before the click", None
             pos0 = xy(p0.get("location"))
             # Damage is judged against the nearest enemy's health BEFORE the click, never against
-            # the AC's max: the cooked enemies have 100 max health (N13), which is below 200.
+            # the AC's max: in the 8ea853b sweep the cooked enemies had 100 max health (N13, issue
+            # #18), which passed a "< 200" check with no attack at all.
             # The same enemy is read after the click (by name), so another, already damaged enemy
             # that becomes the nearest cannot pass the check.
             e0 = enemy_nearest(st0, pos0)
