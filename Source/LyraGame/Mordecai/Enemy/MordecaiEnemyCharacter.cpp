@@ -139,6 +139,22 @@ bool AMordecaiEnemyCharacter::ValidateContent() const
 		bValid = false;
 	}
 
+	// US-085 (issue #18): the base stats are EditDefaultsOnly, so only the class sets them. A level that saved another
+	// value on a placed enemy overrides its Blueprint without a trace (DevTestMap's Frontliners: 100 vs the BP's 200).
+	const AMordecaiEnemyCharacter* ClassDefaults = GetDefault<AMordecaiEnemyCharacter>(GetClass());
+	auto CheckClassStat = [&](const TCHAR* StatName, float Value, float ClassValue)
+	{
+		if (Value != ClassValue)
+		{
+			UE_LOG(LogMordecaiEnemy, Error, TEXT("enemy %s overrides %s (%.1f on the instance, %.1f on %s): its level saved a stale value on the placed actor"),
+				*GetName(), StatName, Value, ClassValue, *GetClass()->GetName());
+			bValid = false;
+		}
+	};
+	CheckClassStat(TEXT("DefaultMaxHealth"), DefaultMaxHealth, ClassDefaults->DefaultMaxHealth);
+	CheckClassStat(TEXT("DefaultMaxPosture"), DefaultMaxPosture, ClassDefaults->DefaultMaxPosture);
+	CheckClassStat(TEXT("DefaultMoveSpeed"), DefaultMoveSpeed, ClassDefaults->DefaultMoveSpeed);
+
 	return bValid;
 }
 
