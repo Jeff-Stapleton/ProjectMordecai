@@ -73,7 +73,8 @@ public:
 
 	/**
 	 * US-084 (AC-084.3): log a LogMordecaiEnemy error for content a playable enemy needs and lacks: attack
-	 * profiles, a visible mesh. Called from BeginPlay. Returns true when nothing is missing.
+	 * profiles, a visible mesh. US-085 (issue #18): also for base stats that differ from its class's (a placed
+	 * instance override). Called from BeginPlay. Returns true when nothing is wrong.
 	 */
 	bool ValidateContent() const;
 

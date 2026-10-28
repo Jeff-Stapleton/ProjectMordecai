@@ -21,6 +21,7 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - `Specs/enemy_archetypes_v1.md` (Frontliner), `Specs/combat_system_v1.md`
 - Existing assets: `/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner`, `/MordecaiCore/Combat/Enemies/DA_EnemyAttack_BasicSlash`, `/MordecaiCore/Combat/Enemies/DA_EnemyAttack_FireSlash`, `/MordecaiCore/Game/Maps/DevTestMap`
 - Existing scripts: `Scripts/us054_02_create_enemy_bp.py:40` (sets `default_max_health` 200), `Scripts/us057_03_create_fire_slash.py:103` (sets `enemy_attack_profiles`), `Scripts/us054_10_configure_all.py:20-52` (sets `default_abilities`, saves) — the cooked BP shows neither the 200 HP nor working profiles, so those edits were not saved (or the level instances override them)
+  - Issue #18 (2026-10-27): it was the level instances. The saved BP has `DefaultMaxHealth` 200 and `EnemyAttackProfiles` [BasicSlash, FireSlash]; DevTestMap's three Frontliners overrode only `DefaultMaxHealth`, with 100. Fixed by `Scripts/us085_configure_frontliner.py` (see Completion Notes).
 
 ## Acceptance Criteria
 - [ ] AC-085.1: In the packaged build, the player sees three Frontliner bodies (a mesh under each red health bar) — verified by check `enemies_visible` of `Scripts/playtests/us054_arena.py` (Tier 4) and the us054 `start` screenshot
@@ -33,6 +34,8 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 ## Technical Notes
 - One script, `Scripts/us085_configure_frontliner.py`, that sets AND saves: the BP's mesh component (a skeletal mesh already in the project — e.g. the Lyra mannequin the player uses; look up its real path, do not assume one — or an engine basic shape — anything cooked and visible from the diorama camera), `default_max_health`/posture/speed/ranges per AC-054.2, `enemy_attack_profiles = [DA_EnemyAttack_BasicSlash]`; then the DevTestMap instance overrides (one Frontliner → `DA_EnemyAttack_FireSlash` per AC-057.8); `EditorAssetLibrary.save_asset` on the BP and `save_current_level()`.
 - Check that the level instances do not override the BP defaults with old values (N13 may be an instance override rather than the CDO).
+  - DONE for N13 (issue #18): it was an instance override (`DefaultMaxHealth` 100 on each placed Frontliner vs the BP's 200). `Scripts/us085_configure_frontliner.py` now holds the stat part of this story's script: it clears instance overrides of `DefaultMaxHealth`/`DefaultMaxPosture`/`DefaultMoveSpeed` and saves DevTestMap. The BP stats themselves already match AC-054.2 (MaxHealth 200 in the BP; MaxPosture 100, MoveSpeed 400 and the AI's 900/200/1800 ranges are native defaults). The mesh, attack-profile and placement parts are still to be added.
+  - `EnemyAttackProfiles` is `EditDefaultsOnly`, so "one Frontliner → `DA_EnemyAttack_FireSlash`" cannot be an instance override (Python refuses to write an `EditDefaultsOnly` property on a placed actor). Today every Frontliner has [BasicSlash, FireSlash]. TODO(DECISION) (Jeff): a Frontliner Blueprint child with FireSlash, or make `EnemyAttackProfiles` editable on instances.
 - TODO(DECISION) (Jeff): AC-054.2's `AttackRange` 200 is longer than the slash's 150 cm reach (AC-054.3, `DA_EnemyAttack_BasicSlash` / `FireSlash` arc radius). Since issue #12 the AI closes to `min(AttackRange, reach)`, so enemies attack from ≤ 150 cm and hit; whether the content should align the two numbers (raise the reach or lower AttackRange) is a design call, not decided here.
 - Since issue #12 (branch `fix/issue-12-enemy-damage`), enemies reliably hit and kill a player standing at the spawn, and the player dies and respawns (N31 fixed). The `arena_reset` check also requires the AC-054.2 200 max health (N13): on `48f60b2` the first read after the respawn had all three enemies back at their spawns at 100/100, and they re-aggroed onto the respawned player within ~1.5 s because every spawn is inside AggroRange of PlayerStart (the placement TODO(DECISION) above).
 - Collision: the capsule stays Pawn-blocking (enemies should be solid once visible). N14 "invisible wall" is resolved by visibility; the remaining question is the swarm at the spawn.
@@ -43,9 +46,11 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 
 ## Tests Required
 ### Tier 1 — Automation (headless)
-- No new logic; ALL `Mordecai.*` tests still pass (US-084's tests cover the code)
+- ALL `Mordecai.*` tests still pass (US-084's tests cover the code)
+- Issue #18: `Mordecai.Recovery.Enemy.LogsInstanceStatOverride` — an enemy whose base stats differ from its class's logs a `LogMordecaiEnemy` error naming the stat (the guard that makes N13 visible in every `game.log`)
 ### Tier 2 — PIE smoke (editor integration)
 - `Scripts/verify_pie_enemies.py` (new or extended): three Frontliners in DevTestMap, each with a visible mesh component, MaxHealth 200, non-empty `EnemyAttackProfiles`, one with FireSlash
+  - Issue #18 added it with the stat checks: three enemies, BP `DefaultMaxHealth` 200, no instance override of the base stats, each starts at 200/200. The mesh and profile checks are still to be added.
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
@@ -84,4 +89,55 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass. A failing playtest is reported honestly and the story stays in progress
 
 ## Completion Notes
-<Filled in by the coding agent.>
+
+### 2026-10-27 — N13 / issue #18 only (branch `fix/issue-18-frontliner-max-health`, delivered `39500e2`)
+Only the 200-HP part of this story is done. The mesh (AC-085.1), attack profiles, placement and N14 (AC-085.4) are not, so the story stays in progress and every AC stays unchecked.
+
+**Root cause.** The BP was fine: `BP_MordecaiEnemy_Frontliner` has saved `DefaultMaxHealth` 200. DevTestMap saved `DefaultMaxHealth` 100 on each placed Frontliner (an instance override, there since `f7fc80d`). Editor readback before the fix: CDO 200.0; Frontliner_1/2/3 100.0.
+
+**Fix.**
+- `870c1f0`: `Scripts/us085_configure_frontliner.py` writes the CDO to the stale value and back (notify NEVER); the placed actors follow it to 200; DevTestMap saved. Readback after: all three 200.0, no dirty packages; the saved `.umap` no longer contains the name `DefaultMaxHealth`. A second run: "nothing to save". The BP is unchanged.
+- `ad84cff`: `ValidateContent` logs a `LogMordecaiEnemy` error when a placed enemy's base stats differ from its class's.
+- `39500e2`: N13's real cause recorded (Specs N13, tribal knowledge, US-084's note).
+
+**Tier 1.** Project compiles. `Mordecai.Recovery.Enemy.LogsInstanceStatOverride` was red before the guard: all three `TestFalse` failed (`Saved/TestLogs/tests-20261027-174015.log`). All 703 Mordecai tests pass (`Saved/TestLogs/tests-20261027-185711.log`).
+
+**Tier 2.**
+- `Scripts/verify_pie_enemies.py`: 4 passed / 6 failed before the map fix (100/100 and `default_max_health 100.0 (class 200.0)` on each enemy), 10/10 after.
+- Full `py Scripts/run_pie_verify.py`: 12/12. The first attempt failed only because PIE was not ready within the runner's 30 s on a fresh editor launch; the `--no-launch` rerun passed. `verify_pie_enemies.py` has no `[LOGIC]` checks: it only reads state. The run also contains `verify_pie_inventory.py`'s untagged direct-call checks (`try_pickup_focused`, `toggle_pause_menu_to_tab`), which this story neither uses nor changed.
+- The PIE log has no override error, only the three "no visible mesh" errors (AC-085.1).
+
+**Offline Python tests.** `py Scripts/run_python_tests.py`: the first run (while the editor was launching) had 1 unnamed failure out of 446; the rerun passed 446/446. The only `Scripts/` changes the tests cover are comments.
+
+**Content.** `py Scripts/check_content_committed.py` PASS (1 asset-writing script, 1 `.umap`).
+
+**Tier 3** (fresh package of `39500e2`, clean tree, `Saved/Playtests/package-20261027-201937.log`): `Saved/Playtests/20261027-202616-boot` — PASS (exit 0).
+- build_fresh, launch, experience_identified/loaded (B_MordecaiArenaExperience at 8.2 s), no_crash, content_cooked, game_window and engine_screenshots PASS.
+- screenshots WARN: the desktop captures are black or covered.
+- log_errors INFO: 3 errors, all "has no visible mesh" for Frontliner_C_0/1/2, and no "overrides Default…" error.
+- `engine_01.png`: the diorama arena from the fixed overhead camera. The player capsule is at the centre with three red enemy health bars around it and no bodies under them (AC-085.1 not done). HUD top-left with the health bar at a thin green sliver; Kills: 0; the six pickups with their labels.
+- `engine_02.png`, `engine_03.png`: the same frame with the health bar empty: the standing player was killed during the boot.
+- `shot_01..03.png`: black, not evidence.
+- Not visible on any screenshot: whether an enemy has 100 or 200 health. The bars are world-space widgets and the bridge does not read their fill (B2), so the 200 is proven by the Tier 4 state reads.
+
+**Tier 4** (same package): `py Scripts/playtest_story.py US-054` → `Saved/Playtests/20261027-202640-us054` (summary `Saved/Playtests/20261027-202616-story-us054`). Exit 1, 0 ACs accepted.
+- `enemies_present` FAIL (NEW), now **only on spacing**: "(145, 0) hp 200.0/200.0; (-91, 113) hp 200.0/200.0; (-91, -113) hp 200.0/200.0", but 226–261 cm apart. The enemies have already closed on the spawn by the first read. Baseline `Saved/Playtests/20261027-085212-us054` @ `c7e4b8d`: 100.0/100.0 and the same spacing failure. So AC-085.2's health clause holds on real state, but the check, and therefore AC-085.2, is not accepted. It needs the placement TODO(DECISION) or Jeff's call.
+- `arena_reset` FAIL: 200.0/200.0 after the reset (the health clause holds; it was 100.0/100.0), positions 454–494 cm from the spawns (re-aggro).
+- Every other check has the same status as the `c7e4b8d` baseline:
+  - PASS: hud_visible, hud_layout, enemy_health_bars, enemy_aggro, enemy_approaches, enemy_damages_player, player_dies, respawn, kill_counter_text_matches.
+  - FAIL: enemies_visible (known), enemy_indicators (N17), walk_to_frontliner3 / melee_lmb / dodge_lalt (the player was killed on the walk), death_screen (known, N2), respawn_moves (+66 cm).
+  - WARN: burning_on_hit, restoration_heals, dead_no_move.
+- `bridge_01.png` (start): the arena with the player at the centre at ~40% health, three red bars around them, no bodies.
+- `bridge_02.png` (near_enemy): the player in the lower-left part of the arena near the inner wall, three red bars stacked on them, health bar empty: dead before reaching Frontliner_3.
+- `bridge_03.png` (hit), `bridge_04.png` (dead): the same view. The player is dead with the health bar empty and no death screen (N2). The on-screen red debug line reads "enemy BP_MordecaiEnemy_Frontliner_C_0 has no visible mesh".
+- `bridge_05.png` (respawned): the player back at the centre with a full health bar; one red bar just above the player and two below it on either side: the enemies are already back on the player, not at their spawns (the `arena_reset` position failure).
+- `py Scripts/playtest_story.py US-054 --lint`: PASS.
+
+**Sweep** (same package): `Saved/Playtests/20261027-202756-sweep`. us054 (`20261027-202849-us054`: 200.0/200.0 again), us057, us069, us078, us079 and us083 have the same check statuses as the `c7e4b8d` sweep (`Saved/Playtests/20261027-085120-sweep`). us001 varies with where the enemies stand (N14):
+- `move_d` PASS→FAIL: 11 cm, with the player already at 55 health from adjacent enemies.
+- `walk_lane_reset` FAIL→PASS and `sprint_shift` SKIP→PASS.
+- Enemy max health cannot change how enemies move; us001 never attacks.
+
+**Not done here** (open TODO(DECISION)s for Jeff above): the mesh, FireSlash on one Frontliner, the placement out of aggro (which `enemies_present`'s spacing clause and `arena_reset` need), AttackRange vs reach (#47).
+
+**Playable Status:** enemies — NOT PLAYABLE. 200 HP now (N13 fixed), still invisible (AC-085.1), and they swarm the spawn (placement / T1).

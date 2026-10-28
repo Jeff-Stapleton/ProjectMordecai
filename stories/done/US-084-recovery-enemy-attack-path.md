@@ -21,7 +21,7 @@ C++ only: the enemy melee activation/hit path and BeginPlay content validation; 
   - `Source/LyraGame/Mordecai/Enemy/MordecaiEnemyCharacter.cpp:376-387` — melee ability instance gets `EnemyAttackProfiles` ("set in Blueprint; otherwise no profiles")
   - `Source/LyraGame/Mordecai/Combat/MordecaiGA_MeleeAttack.cpp:292-296` — empty profiles → the attack does nothing (suspected root of N7)
   - `Source/LyraGame/Mordecai/Enemy/MordecaiEnemyCharacter.h:42` — `DefaultMaxHealth = 100.f` (C++ default the cooked enemies report, N13)
-  - `Scripts/us057_03_create_fire_slash.py:103` sets `enemy_attack_profiles` and `Scripts/us054_02_create_enemy_bp.py:40` sets `default_max_health = 200` on the BP CDO; the cooked enemies show neither (unsaved, like N10 — see US-085)
+  - `Scripts/us057_03_create_fire_slash.py:103` sets `enemy_attack_profiles` and `Scripts/us054_02_create_enemy_bp.py:40` sets `default_max_health = 200` on the BP CDO; the cooked enemies show neither (unsaved, like N10 — see US-085). _Corrected by issue #18: the edits were saved. The cooked Frontliners have their profiles (N7 had another cause), and the 100 HP came from DevTestMap overriding `DefaultMaxHealth` with 100 on the placed actors; see N13 in `Specs/agent_playtest_plan_v1.md`._
 
 ## Acceptance Criteria
 - [x] AC-084.1: An enemy with one attack profile, in its Attack state within AttackRange of a player pawn whose ASC lives on the PlayerState (Lyra pattern), applies health damage to that player — verified by `Mordecai.Recovery.Enemy.AttackDamagesPlayerWithPlayerStateASC`

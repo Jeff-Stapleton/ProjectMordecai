@@ -177,7 +177,26 @@ Then repopulate with valid C++ or Blueprint ability classes.
 
 **Root cause:** UE5 Python enforces `EditDefaultsOnly` restrictions. World Settings actors in levels are considered instances.
 
-**Fix:** Set the property on the CDO via `unreal.get_default_object(ClassName)`, or find an alternative property/config that achieves the same goal (e.g. `LyraDeveloperSettings.ExperienceOverride` instead of `WorldSettings.DefaultGameplayExperience` — but that one is PIE-only; see "Packaged builds load B_LyraDefaultExperience on Mordecai maps").
+**Fix:** Set the property on the CDO via `unreal.get_default_object(ClassName)`, or find an alternative property/config that achieves the same goal (e.g. `LyraDeveloperSettings.ExperienceOverride` instead of `WorldSettings.DefaultGameplayExperience` — but that one is PIE-only; see "Packaged builds load B_LyraDefaultExperience on Mordecai maps"). A CDO write does not fix placed actors that already override the property: read the instances, and see the next entry.
+
+### A placed actor can override its Blueprint's EditDefaultsOnly value, invisibly (N13, issue #18)
+
+**Problem:** The packaged Frontliners had 100/100 health. Their Blueprint's CDO had `DefaultMaxHealth` 200 (AC-054.2), saved and committed, and every script that checked it read 200. The first guess, "the BP edit was not saved" (like N10), was wrong.
+
+**Root cause:** DevTestMap saved `DefaultMaxHealth` 100 on each placed Frontliner, an instance override. A level saves every property in which a placed actor differs from its archetype, the Blueprint CDO. The placed actors never received the CDO writes of the script that set 200: in the map's first commit they also held the native `AIControllerClass` that the same script had set on the CDO. That one was later repaired on the instances, because it is EditAnywhere. `EditDefaultsOnly` hides the property on placed actors in the Details panel and blocks Python writes there, so the stale value can't be seen in the editor UI and can't be written directly on the instance. Reading the CDO says nothing about the placed actors.
+
+**Diagnose:**
+- Read the instances, not the CDO: `get_editor_property` works on placed actors. Only writes are refused.
+- Or offline: a property name in a `.umap`'s name table means some actor in it serializes that property. DevTestMap (before the fix) had `DefaultMaxHealth` and nothing else of the enemy's.
+
+**Fix (Python, no re-placing):** A Python write to a template (a CDO) also writes every loaded instance that holds the template's current value (`PyWrapperObject.cpp` -> `PropertyAccessUtil::GetArchetypeInstancesInheritingPropertyValue`, whatever the notify mode). So:
+1. Set the CDO to the stale value: now every placed actor matches it.
+2. Set the CDO back: they all follow, and equal their archetype again.
+3. `actor.modify()` each actor first (the propagated write does not dirty the level), then `save_current_level()`.
+
+Use `notify_mode=unreal.PropertyAccessChangeNotifyMode.NEVER` on the CDO writes and the Blueprint package stays clean. See `Scripts/us085_configure_frontliner.py`.
+
+**Guard:** `AMordecaiEnemyCharacter::ValidateContent` logs a `LogMordecaiEnemy` error when an enemy's base stats differ from its class's, so the next one shows in every playtest's `game.log`.
 
 ### UInputModifier subobjects created via Python don't serialize
 

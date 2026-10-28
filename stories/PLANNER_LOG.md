@@ -3002,3 +3002,20 @@ Branch `fix/issue-12-enemy-damage`, delivered `c7e4b8d`.
 ### Next Session Recommendation
 - US-085 (EDITOR) next: Frontliner mesh, 200 HP, placement; it owns the remaining us054 enemy checks. Then T1, then re-sweep.
 - Add the missing `known_issue` tags (N13, N15, N16, N17, N18, US-094) to the us054/us057/us069/us079 PLANs in their owning stories.
+
+## 2026-10-27 Issue #18 (N13): US-085 (N13 part only)
+Branch `fix/issue-18-frontliner-max-health`, delivered `39500e2`.
+
+### Completed Since Last Run
+- **US-085** (EDITOR) → `stories/in-progress/`, N13 part only. The Frontliner BP always had 200 MaxHealth. DevTestMap overrode it with 100 on the three placed actors, an instance override of an `EditDefaultsOnly` stat. Cleared by `Scripts/us085_configure_frontliner.py` (CDO bounce, DevTestMap saved). `ValidateContent` now logs an error for that kind of override. Tier 3 PASS `Saved/Playtests/20261027-202616-boot`.
+
+### Playable Status
+- Playable status: enemies — NOT PLAYABLE (playtest FAIL: enemies_present (NEW, spacing only: 200.0/200.0 now), enemy_indicators (NEW), walk_to_frontliner3 (NEW), melee_lmb (NEW), dodge_lalt (NEW), arena_reset (NEW, positions only), respawn_moves (NEW), enemies_visible (known), death_screen (known); Tier 4 Saved/Playtests/20261027-202640-us054 @ 39500e2cf4)
+- Sweep `Saved/Playtests/20261027-202756-sweep` @ 39500e2: same check statuses as the `c7e4b8d` sweep except us001, which varies with where the enemies stand (N14: `move_d` FAIL; `walk_lane_reset`, `sprint_shift` PASS).
+
+### Blockers / Decisions Needed (Jeff)
+- `enemies_present` and `arena_reset` now fail on positions only: the placement TODO(DECISION) (out-of-aggro Frontliners) or T1 decides them.
+- New TODO(DECISION) (US-085): FireSlash on one Frontliner cannot be a placed-instance override (`EnemyAttackProfiles` is `EditDefaultsOnly`). Use a Blueprint child, or make it instance-editable?
+
+### Next Session Recommendation
+- The rest of US-085: mesh (AC-085.1), FireSlash, placement. Extend `Scripts/us085_configure_frontliner.py` and `Scripts/verify_pie_enemies.py`.

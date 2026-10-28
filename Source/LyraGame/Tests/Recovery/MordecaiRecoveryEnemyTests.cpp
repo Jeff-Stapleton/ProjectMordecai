@@ -316,6 +316,78 @@ bool FMordecai_Recovery_Enemy_LogsMissingContent::RunTest(const FString& Paramet
 }
 
 // ---------------------------------------------------------------------------
+// 4b. Mordecai.Recovery.Enemy.LogsInstanceStatOverride (US-085 AC-085.2/AC-085.5, issue #18 / N13)
+// DevTestMap saved DefaultMaxHealth = 100 on each placed Frontliner, so they spawned with 100 health against their
+// Blueprint's 200, with nothing in the log. An enemy whose base stats differ from its class's logs a LogMordecaiEnemy
+// error naming the stat when it begins play; one whose stats are its class's begins play silently.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_LogsInstanceStatOverride,
+	"Mordecai.Recovery.Enemy.LogsInstanceStatOverride",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Enemy_LogsInstanceStatOverride::RunTest(const FString& Parameters)
+{
+	FRecoveryTestEnv Env;
+	if (!TestTrue("test world with a player set up", Env.Setup(FVector(2000.0, 0.0, 0.0))))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	// Profiles and a visible mesh, so a stat override is the only content error possible
+	auto SpawnComplete = [&Env](const FVector& Location)
+	{
+		AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(Location, { MakeStubProfile() });
+		if (Enemy)
+		{
+			UStaticMeshComponent* Body = NewObject<UStaticMeshComponent>(Enemy);
+			Body->SetStaticMesh(NewObject<UStaticMesh>(GetTransientPackage()));
+			Body->SetupAttachment(Enemy->GetRootComponent());
+			Body->RegisterComponent();
+		}
+		return Enemy;
+	};
+
+	AMordecaiEnemyCharacter* Matching = SpawnComplete(FVector::ZeroVector);
+	AMordecaiEnemyCharacter* Overridden = SpawnComplete(FVector(0.0, 500.0, 0.0));
+	if (!TestNotNull("matching enemy spawned", Matching) || !TestNotNull("overriding enemy spawned", Overridden))
+	{
+		Env.Teardown();
+		return true;
+	}
+	const AMordecaiEnemyCharacter* ClassDefaults = GetDefault<AMordecaiEnemyCharacter>();
+
+	// Stats equal to the class's: begins play silently (any error would fail this test)
+	FRecoveryTestEnv::BeginEnemyPlay(Matching);
+	TestTrue("matching enemy began play", Matching->HasActorBegunPlay());
+	TestTrue("an enemy whose stats are its class's passes content validation", Matching->ValidateContent());
+
+	// The N13 mismatch: the instance holds another max health than its class (logged by BeginPlay, then by the call)
+	Overridden->DefaultMaxHealth = ClassDefaults->DefaultMaxHealth + 100.f;
+	AddExpectedErrorPlain(FString::Printf(TEXT("enemy %s overrides DefaultMaxHealth (%.1f on the instance, %.1f on MordecaiEnemyCharacter)"),
+		*Overridden->GetName(), Overridden->DefaultMaxHealth, ClassDefaults->DefaultMaxHealth), EAutomationExpectedErrorFlags::Contains, 2);
+	FRecoveryTestEnv::BeginEnemyPlay(Overridden);
+	TestTrue("overriding enemy began play", Overridden->HasActorBegunPlay());
+	TestFalse("a max health override fails content validation", Overridden->ValidateContent());
+	Overridden->DefaultMaxHealth = ClassDefaults->DefaultMaxHealth;
+
+	Overridden->DefaultMaxPosture = ClassDefaults->DefaultMaxPosture + 50.f;
+	AddExpectedErrorPlain(FString::Printf(TEXT("enemy %s overrides DefaultMaxPosture"), *Overridden->GetName()), EAutomationExpectedErrorFlags::Contains, 1);
+	TestFalse("a max posture override fails content validation", Overridden->ValidateContent());
+	Overridden->DefaultMaxPosture = ClassDefaults->DefaultMaxPosture;
+
+	Overridden->DefaultMoveSpeed = ClassDefaults->DefaultMoveSpeed + 50.f;
+	AddExpectedErrorPlain(FString::Printf(TEXT("enemy %s overrides DefaultMoveSpeed"), *Overridden->GetName()), EAutomationExpectedErrorFlags::Contains, 1);
+	TestFalse("a move speed override fails content validation", Overridden->ValidateContent());
+	Overridden->DefaultMoveSpeed = ClassDefaults->DefaultMoveSpeed;
+
+	TestTrue("with its class's stats again it passes content validation", Overridden->ValidateContent());
+
+	Env.Teardown();
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 // 5. Mordecai.Recovery.Enemy.NoSilentAttackLoop (AC-084.4)
 // An enemy whose melee attack has no profile does not cycle Attack -> Recover: it logs once and stays in
 // Approach (chase) at the player.
