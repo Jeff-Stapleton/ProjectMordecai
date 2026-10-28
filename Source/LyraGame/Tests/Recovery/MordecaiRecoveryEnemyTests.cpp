@@ -1,6 +1,7 @@
 // Project Mordecai — Recovery: enemy attacks reach the player (US-084, issue #12 / N7)
 
 #include "Misc/AutomationTest.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "GameplayAbilitySpec.h"
@@ -382,6 +383,100 @@ bool FMordecai_Recovery_Enemy_LogsInstanceStatOverride::RunTest(const FString& P
 	Overridden->DefaultMoveSpeed = ClassDefaults->DefaultMoveSpeed;
 
 	TestTrue("with its class's stats again it passes content validation", Overridden->ValidateContent());
+
+	Env.Teardown();
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 4c. Mordecai.Recovery.Enemy.BodyMeshSlot (US-085 AC-085.1, issue #19 / N14)
+// The packaged Frontliners had no mesh: only their red health bars showed, and their capsules made an invisible
+// wall. Every enemy has an empty BodyMesh for its Blueprint to fill: it rides the capsule, never collides (the
+// capsule alone blocks, as before), and makes the enemy visible once it has a mesh. A native enemy leaves it empty,
+// so an enemy Blueprint without a body still logs the "no visible mesh" content error.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_BodyMeshSlot,
+	"Mordecai.Recovery.Enemy.BodyMeshSlot",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Enemy_BodyMeshSlot::RunTest(const FString& Parameters)
+{
+	FRecoveryTestEnv Env;
+	if (!TestTrue("test world with a player set up", Env.Setup(FVector(2000.0, 0.0, 0.0))))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(FVector::ZeroVector, { MakeStubProfile() });
+	if (!TestNotNull("enemy spawned", Enemy))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	// Found by name: the Frontliner Blueprint saves its mesh on the component called BodyMesh
+	UStaticMeshComponent* Body = FindObject<UStaticMeshComponent>(Enemy, TEXT("BodyMesh"));
+	if (!TestNotNull("the enemy has a BodyMesh static mesh component", Body))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	TestTrue("BodyMesh rides the capsule", Body->GetAttachParent() == Enemy->GetCapsuleComponent());
+	TestNull("a native enemy's BodyMesh is empty: its Blueprint sets the mesh", Body->GetStaticMesh());
+	TestFalse("so a native enemy has no visible mesh", Enemy->HasVisibleMesh());
+
+	TestEqual("BodyMesh never collides", Body->GetCollisionEnabled(), ECollisionEnabled::NoCollision);
+	TestFalse("BodyMesh generates no overlaps", Body->GetGenerateOverlapEvents());
+	TestFalse("BodyMesh does not affect navigation", Body->CanEverAffectNavigation());
+	TestEqual("the capsule still blocks pawns", Enemy->GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Pawn), ECR_Block);
+
+	TestTrue("BodyMesh is visible in game", Body->IsVisible() && !Body->bHiddenInGame);
+	Body->SetStaticMesh(NewObject<UStaticMesh>(GetTransientPackage()));
+	TestTrue("with a mesh in BodyMesh the enemy is visible", Enemy->HasVisibleMesh());
+
+	Env.Teardown();
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 4d. Mordecai.Recovery.Enemy.BodyHiddenWhileDead (issue #19 / N14)
+// A dead enemy stops colliding (AC-050.6). Its body goes with it, so the player never sees a standing enemy it can
+// walk through; the arena reset brings both back.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_BodyHiddenWhileDead,
+	"Mordecai.Recovery.Enemy.BodyHiddenWhileDead",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Enemy_BodyHiddenWhileDead::RunTest(const FString& Parameters)
+{
+	FRecoveryTestEnv Env;
+	if (!TestTrue("test world with a player set up", Env.Setup(FVector(2000.0, 0.0, 0.0))))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(FVector::ZeroVector, { MakeStubProfile() });
+	UStaticMeshComponent* Body = Enemy ? FindObject<UStaticMeshComponent>(Enemy, TEXT("BodyMesh")) : nullptr;
+	if (!TestNotNull("enemy spawned", Enemy) || !TestNotNull("the enemy has a BodyMesh", Body))
+	{
+		Env.Teardown();
+		return true;
+	}
+	Body->SetStaticMesh(NewObject<UStaticMesh>(GetTransientPackage()));
+	TestTrue("a living enemy shows its body", Enemy->HasVisibleMesh());
+
+	Enemy->EnterDeathState();
+	TestTrue("the enemy is dead", Enemy->IsDead());
+	TestFalse("a dead enemy no longer collides", Enemy->GetActorEnableCollision());
+	TestFalse("a dead enemy shows no body", Enemy->HasVisibleMesh());
+
+	Enemy->ResetForArena();
+	TestFalse("the reset enemy is alive", Enemy->IsDead());
+	TestTrue("the reset enemy collides again", Enemy->GetActorEnableCollision());
+	TestTrue("the reset enemy shows its body again", Enemy->HasVisibleMesh());
 
 	Env.Teardown();
 	return true;
