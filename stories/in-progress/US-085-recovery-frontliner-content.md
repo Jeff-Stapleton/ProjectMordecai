@@ -21,6 +21,7 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - `Specs/enemy_archetypes_v1.md` (Frontliner), `Specs/combat_system_v1.md`
 - Existing assets: `/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner`, `/MordecaiCore/Combat/Enemies/DA_EnemyAttack_BasicSlash`, `/MordecaiCore/Combat/Enemies/DA_EnemyAttack_FireSlash`, `/MordecaiCore/Game/Maps/DevTestMap`
 - Existing scripts: `Scripts/us054_02_create_enemy_bp.py:40` (sets `default_max_health` 200), `Scripts/us057_03_create_fire_slash.py:103` (sets `enemy_attack_profiles`), `Scripts/us054_10_configure_all.py:20-52` (sets `default_abilities`, saves) — the cooked BP shows neither the 200 HP nor working profiles, so those edits were not saved (or the level instances override them)
+  - Issue #18 (2026-10-27): it was the level instances. The saved BP has `DefaultMaxHealth` 200 and `EnemyAttackProfiles` [BasicSlash, FireSlash]; DevTestMap's three Frontliners overrode only `DefaultMaxHealth`, with 100. Fixed by `Scripts/us085_configure_frontliner.py` (see Completion Notes).
 
 ## Acceptance Criteria
 - [ ] AC-085.1: In the packaged build, the player sees three Frontliner bodies (a mesh under each red health bar) — verified by check `enemies_visible` of `Scripts/playtests/us054_arena.py` (Tier 4) and the us054 `start` screenshot
@@ -33,6 +34,8 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 ## Technical Notes
 - One script, `Scripts/us085_configure_frontliner.py`, that sets AND saves: the BP's mesh component (a skeletal mesh already in the project — e.g. the Lyra mannequin the player uses; look up its real path, do not assume one — or an engine basic shape — anything cooked and visible from the diorama camera), `default_max_health`/posture/speed/ranges per AC-054.2, `enemy_attack_profiles = [DA_EnemyAttack_BasicSlash]`; then the DevTestMap instance overrides (one Frontliner → `DA_EnemyAttack_FireSlash` per AC-057.8); `EditorAssetLibrary.save_asset` on the BP and `save_current_level()`.
 - Check that the level instances do not override the BP defaults with old values (N13 may be an instance override rather than the CDO).
+  - DONE for N13 (issue #18): it was an instance override (`DefaultMaxHealth` 100 on each placed Frontliner vs the BP's 200). `Scripts/us085_configure_frontliner.py` now holds the stat part of this story's script: it clears instance overrides of `DefaultMaxHealth`/`DefaultMaxPosture`/`DefaultMoveSpeed` and saves DevTestMap. The BP stats themselves already match AC-054.2 (MaxHealth 200 in the BP; MaxPosture 100, MoveSpeed 400 and the AI's 900/200/1800 ranges are native defaults). The mesh, attack-profile and placement parts are still to be added.
+  - `EnemyAttackProfiles` is `EditDefaultsOnly`, so "one Frontliner → `DA_EnemyAttack_FireSlash`" cannot be an instance override (Python refuses to write an `EditDefaultsOnly` property on a placed actor). Today every Frontliner has [BasicSlash, FireSlash]. TODO(DECISION) (Jeff): a Frontliner Blueprint child with FireSlash, or make `EnemyAttackProfiles` editable on instances.
 - TODO(DECISION) (Jeff): AC-054.2's `AttackRange` 200 is longer than the slash's 150 cm reach (AC-054.3, `DA_EnemyAttack_BasicSlash` / `FireSlash` arc radius). Since issue #12 the AI closes to `min(AttackRange, reach)`, so enemies attack from ≤ 150 cm and hit; whether the content should align the two numbers (raise the reach or lower AttackRange) is a design call, not decided here.
 - Since issue #12 (branch `fix/issue-12-enemy-damage`), enemies reliably hit and kill a player standing at the spawn, and the player dies and respawns (N31 fixed). The `arena_reset` check also requires the AC-054.2 200 max health (N13): on `48f60b2` the first read after the respawn had all three enemies back at their spawns at 100/100, and they re-aggroed onto the respawned player within ~1.5 s because every spawn is inside AggroRange of PlayerStart (the placement TODO(DECISION) above).
 - Collision: the capsule stays Pawn-blocking (enemies should be solid once visible). N14 "invisible wall" is resolved by visibility; the remaining question is the swarm at the spawn.
@@ -43,9 +46,11 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 
 ## Tests Required
 ### Tier 1 — Automation (headless)
-- No new logic; ALL `Mordecai.*` tests still pass (US-084's tests cover the code)
+- ALL `Mordecai.*` tests still pass (US-084's tests cover the code)
+- Issue #18: `Mordecai.Recovery.Enemy.LogsInstanceStatOverride` — an enemy whose base stats differ from its class's logs a `LogMordecaiEnemy` error naming the stat (the guard that makes N13 visible in every `game.log`)
 ### Tier 2 — PIE smoke (editor integration)
 - `Scripts/verify_pie_enemies.py` (new or extended): three Frontliners in DevTestMap, each with a visible mesh component, MaxHealth 200, non-empty `EnemyAttackProfiles`, one with FireSlash
+  - Issue #18 added it with the stat checks: three enemies, BP `DefaultMaxHealth` 200, no instance override of the base stats, each starts at 200/200. The mesh and profile checks are still to be added.
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
