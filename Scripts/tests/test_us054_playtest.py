@@ -216,9 +216,9 @@ class ArenaWorld(fb.FakeWorld):
 
 
 def game_today(**kw):
-    """The packaged game as the brief describes it: invisible enemies and no death screen
-    (known issues), everything else working (attacks and dodge since US-083)."""
-    opts = dict(visible_mesh=False, death_screen=False)
+    """The packaged game as the brief describes it: no death screen (known issue N2),
+    everything else working (attacks and dodge since US-083, enemy bodies since issue #19)."""
+    opts = dict(death_screen=False)
     opts.update(kw)
     return opts
 
@@ -300,11 +300,10 @@ class TestUs054Plan(Us054Case):
         plan = {s.check: s for s in us054.PLAN}
         self.assertEqual(plan["death_screen"].known_issue,
                          "Known issue N2: the death screen is never created")
-        self.assertIn("no mesh", plan["enemies_visible"].known_issue)
         # Suspected NEW, unverified: no known_issue on the enemy-damage checks.  Attacks and
-        # dodge are bound since US-083.
+        # dodge are bound since US-083; the Frontliners have a body since issue #19.
         for name in ("enemy_approaches", "enemy_damages_player", "kill_counter_text_matches",
-                     "melee_lmb", "dodge_lalt"):
+                     "melee_lmb", "dodge_lalt", "enemies_visible"):
             self.assertIsNone(plan[name].known_issue, name)
         for s in us054.PLAN:
             for ac in s.proves:
@@ -369,8 +368,7 @@ class TestUs054AgainstTheFake(Us054Case):
         for name in self.plan_names():
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         # The known-issue checks that passed are flagged as possibly fixed.
-        self.assertEqual(sorted(rep["fixed_candidates"]),
-                         sorted(["enemies_visible", "death_screen"]))
+        self.assertEqual(rep["fixed_candidates"], ["death_screen"])
         self.assertEqual([s["label"] for s in rep["screenshots"]],
                          ["start", "near_enemy", "hit", "dead", "respawned"])
         self.assertIn("the counter reads 'Kills: 0', player.kills=0",
@@ -400,13 +398,11 @@ class TestUs054AgainstTheFake(Us054Case):
         _, server = self.serve(**game_today())
         code, rep = self.play(server)
         self.assertEqual(code, 1)
-        self.assertEqual(sorted(rep["known_failures"]),
-                         sorted(["enemies_visible", "death_screen"]))
+        self.assertEqual(rep["known_failures"], ["death_screen"])
         self.assertEqual(rep["new_failures"], [], self.log.getvalue()[-4000:])
         self.assertEqual(self.statuses(rep, "SKIP"), [])
         acs = {(a["story"], a["id"]): a for a in rep["acs"]}
-        self.assertEqual(acs[("US-054", "AC-054.13")]["status"], "FAIL")
-        self.assertIn("no mesh", acs[("US-054", "AC-054.13")]["known_issue"])
+        self.assertEqual(acs[("US-054", "AC-054.13")]["status"], "PASS")
         self.assertEqual(acs[("US-062", "AC-062.1")]["status"], "FAIL")
         self.assertEqual(acs[("US-053", "AC-053.4")]["status"], "PASS")
         # Even after the full 1.5 s death-screen wait there is time to hold W before respawning.
@@ -418,6 +414,17 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertIn("FAIL (known)", md)
         self.assertNotIn("FAIL (NEW)", md)
         self.assertIn("Block and parry", md)
+
+    def test_invisible_enemies_fail_enemies_visible_as_new(self):
+        # The game before issue #19: the Frontliners had no mesh.  Now that is a regression.
+        _, server = self.serve(**game_today(visible_mesh=False))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["enemies_visible"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("enemies_visible", rep["new_failures"])
+        acs = {(a["story"], a["id"]): a for a in rep["acs"]}
+        self.assertEqual(acs[("US-054", "AC-054.13")]["status"], "FAIL")
 
     def test_the_game_before_us083_fails_melee_and_dodge_as_new(self):
         _, server = self.serve(**game_before_us083())

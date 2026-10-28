@@ -15,6 +15,7 @@ class UMordecaiAttackProfileDataAsset;
 class UMordecaiPostureSystem;
 class UMordecaiEnemyHealthBarWidget;
 class UMordecaiEnemyIndicatorComponent;
+class UStaticMeshComponent;
 class UWidgetComponent;
 class UGameplayAbility;
 struct FOnAttributeChangeData;
@@ -130,6 +131,13 @@ private:
 	/** Enemy indicator component for world-space health/status display (US-064). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Enemy", Meta = (AllowPrivateAccess = true))
 	TObjectPtr<UMordecaiEnemyIndicatorComponent> EnemyIndicatorComponent;
+
+	/**
+	 * The body players see (US-085, issue #19). Empty on the native class: each enemy Blueprint sets its mesh. It never
+	 * collides; the capsule alone blocks and takes hits. Hidden while the enemy is dead.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Enemy", Meta = (AllowPrivateAccess = true))
+	TObjectPtr<UStaticMeshComponent> BodyMesh;
 
 	bool bAbilitySystemInitialized = false;
 	FTimerHandle PostureBrokenTimerHandle;

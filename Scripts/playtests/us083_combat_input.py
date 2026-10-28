@@ -40,7 +40,7 @@ Steps (every step is a check; --plan prints them as the story's Steps table):
   16-19 Left click at the viewport centre (640, 360), the bridge's default click: a light attack.
         Left click held 0.8 s: a heavy attack on the release.  LeftAlt: a dodge.  Once that dodge
         is over (no Dodging tag, Walking), SpaceBar: a jump (Falling).
-Why the walk and the sprint come first: the arena's invisible enemies (N14) follow the player at
+Why the walk and the sprint come first: the arena's enemies (N14) follow the player at
 400 cm/s and stop about 200 cm from it (their AttackRange).  A player walking straight leaves them
 behind, but walks into any that stand ahead.  At the spawn, before any dodge, they stand at their
 spawn points (196, 0) and (-123, +/-153), clear of the route; the run-up along the lane leaves the
@@ -146,8 +146,9 @@ KNOWN_ISSUES = (
     "Block and parry on the mouse (RMB hold, RMB+LMB, AC-083.11) are not played: the playtest "
     "client holds a mouse button only inside one blocking click (B2). This script plays the "
     "same actions on the gamepad triggers.",
-    "The arena's enemies are invisible, follow the player and can body-block it (N14, "
-    "Specs/agent_playtest_plan_v1.md Known issues backlog): an enemy in the way can stop the "
+    "The arena's enemies spawn inside aggro range of the player, follow it and can body-block it "
+    "(N14, Specs/agent_playtest_plan_v1.md Known issues backlog; the swarm is left to the T1 "
+    "test maps, issue #46): an enemy in the way can stop the "
     "walk to lane L1 (walk_lane_*), which then SKIPs the sprint, or shorten the sprint itself. "
     "No step expects that: the walk and the sprint come first, from the spawn before any dodge, "
     "between the enemies' spawn points, and the run-up along the lane leaves the ones that "

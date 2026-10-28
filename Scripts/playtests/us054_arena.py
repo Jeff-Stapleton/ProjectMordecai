@@ -113,10 +113,9 @@ POLL_S = 0.1
 SCREENSHOTS = {
     "start": "the Mordecai diorama arena from the fixed overhead camera, the player at the centre, "
              "the combat HUD (health, stamina, posture and SP bars top-left, 'Kills: 0') and "
-             "three floating enemy health bars with NO enemy bodies under them (invisible "
-             "Frontliners, known issue)",
-    "near_enemy": "the player in the lower-left part of the arena, next to the floating health "
-                  "bar of the Frontliner placed at (-400, -500)",
+             "the three Frontliners: a red cylinder body under each floating enemy health bar",
+    "near_enemy": "the player in the lower-left part of the arena, next to the Frontliner placed "
+                  "at (-400, -500) (a red cylinder under its floating health bar)",
     "hit": "the player after the first enemy hit: the health bar below full",
     "dead": "the player dead (health bar empty); a 'You Died' death screen with a countdown if "
             "the death screen exists (known issue N2: it is never created)",
@@ -128,16 +127,12 @@ KNOWN_ISSUES = (
     "right mouse button held across state reads, and the playtest client's click holds a button "
     "only inside one blocking command (hold_s), so nothing can be read while it is held (B2). "
     "The gamepad path (LT hold, LT+RT) is played by Scripts/playtests/us083_combat_input.py.",
-    "The Frontliners have no mesh (invisible enemies, Known issues backlog: 'The three red bars "
-    "are explained'); enemies_visible is expected to FAIL.",
     "The death screen is never created (Known issue N2); death_screen is expected to FAIL.",
     "The run lands one light attack and kills no enemy, so kill_counter_text_matches can only "
     "compare 'Kills: 0' with player.kills == 0 (the kill path is US-086's).",
     "Suspected NEW (unverified): in a 60 s us079 run the enemies never damaged the player; "
     "enemy_approaches and enemy_damages_player carry no known_issue.",
 )
-KI_INVISIBLE = ("Known issues backlog, 'The three red bars are explained': the three "
-                "Frontliners have no mesh, so the enemies are invisible")
 KI_DEATH_SCREEN = "Known issue N2: the death screen is never created"
 
 PLAN = (
@@ -150,7 +145,7 @@ PLAN = (
          f"{{{ENEMY_MAX_HEALTH:g}, {ENEMY_MAX_HEALTH:g}}}, pairwise > {MIN_ENEMY_SPACING:g} cm apart",
          proves=("AC-054.11", "AC-054.2", "US-050:AC-050.3")),
     Step("enemies_visible", "state actors -> every enemy has_visible_mesh==true",
-         proves=("AC-054.13",), known_issue=KI_INVISIBLE),
+         proves=("AC-054.13",)),
     Step("enemy_health_bars", f"state actors -> every enemy has a visible widget whose class "
          f"contains {ENEMY_BAR_CLASS}", proves=("AC-054.9", "US-052:AC-052.10")),
     Step("enemy_indicators", f"state widgets -> one {INDICATOR_CLASS} widget per enemy in aggro "

@@ -80,7 +80,7 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 1 | `hud_visible` | state widgets -> HealthBar, StaminaBar, PostureBar, SpellPointsBar and KillCounter widgets on screen, a text 'Kills: 0' | AC-054.7, AC-054.8, US-063:AC-063.3, US-063:AC-063.4 |
 | 2 | `hud_layout` | state widgets rects -> HealthBar top-left (x<300, y<60), StaminaBar below it, PostureBar below that | AC-054.7 |
 | 3 | `enemies_present` | state actors (radius 3000) -> 3 kind=='enemy', health {200, 200}, pairwise > 300 cm apart | AC-054.11, AC-054.2, US-050:AC-050.3 |
-| 4 | `enemies_visible` | state actors -> every enemy has_visible_mesh==true _(known issue: Known issues backlog, 'The three red bars are explained': the three Frontliners have no mesh, so the enemies are invisible)_ | AC-054.13 |
+| 4 | `enemies_visible` | state actors -> every enemy has_visible_mesh==true | AC-054.13 |
 | 5 | `enemy_health_bars` | state actors -> every enemy has a visible widget whose class contains EnemyHealthBar | AC-054.9, US-052:AC-052.10 |
 | 6 | `enemy_indicators` | state widgets -> one EnemyIndicator widget per enemy in aggro range within 3s | US-064:AC-064.2, US-064:AC-064.10 |
 | 7 | `enemy_aggro` | stand at the spawn -> every enemy ai_state != 'Idle' within 3s | US-051:AC-051.3 |

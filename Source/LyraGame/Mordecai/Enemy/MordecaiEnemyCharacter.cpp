@@ -15,9 +15,11 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Engine/CollisionProfile.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyCharacter)
@@ -49,6 +51,14 @@ AMordecaiEnemyCharacter::AMordecaiEnemyCharacter(const FObjectInitializer& Objec
 
 	// Enemy indicator component for world-space health/status display (US-064)
 	EnemyIndicatorComponent = CreateDefaultSubobject<UMordecaiEnemyIndicatorComponent>(TEXT("EnemyIndicator"));
+
+	// US-085 (issue #19): the body players see. Left empty, so an enemy Blueprint without a body still logs
+	// "no visible mesh"; it never collides, so blocking and hits stay the capsule's
+	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
+	BodyMesh->SetupAttachment(GetCapsuleComponent());
+	BodyMesh->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	BodyMesh->SetGenerateOverlapEvents(false);
+	BodyMesh->SetCanEverAffectNavigation(false);
 
 	// Enable tick for posture regeneration
 	PrimaryActorTick.bCanEverTick = true;
@@ -134,7 +144,7 @@ bool AMordecaiEnemyCharacter::ValidateContent() const
 
 	if (!HasVisibleMesh())
 	{
-		UE_LOG(LogMordecaiEnemy, Error, TEXT("enemy %s has no visible mesh: players cannot see it (set a mesh on %s)"),
+		UE_LOG(LogMordecaiEnemy, Error, TEXT("enemy %s has no visible mesh: players cannot see it (set BodyMesh's mesh on %s)"),
 			*GetName(), *GetClass()->GetName());
 		bValid = false;
 	}
@@ -336,6 +346,13 @@ void AMordecaiEnemyCharacter::EnterDeathState()
 	// AC-050.6: Change collision to NoCollision
 	SetActorEnableCollision(false);
 
+	// Issue #19: the body goes with the collision, so no standing enemy is left to walk through.
+	// TODO(DECISION): corpse visuals (death animation, ragdoll, fade-out); until then a dead enemy shows only its empty bar
+	if (BodyMesh)
+	{
+		BodyMesh->SetVisibility(false);
+	}
+
 	// AC-050.6: Broadcast Event_Death gameplay event
 	FGameplayEventData EventData;
 	EventData.EventTag = MordecaiGameplayTags::Event_Death;
@@ -423,8 +440,12 @@ void AMordecaiEnemyCharacter::ResetForArena()
 		PostureSystem->ExitPostureBroken(MaxPosture);
 	}
 
-	// Re-enable collision
+	// Re-enable collision, and show the body again (issue #19)
 	SetActorEnableCollision(true);
+	if (BodyMesh)
+	{
+		BodyMesh->SetVisibility(true);
+	}
 
 	// Re-enable movement
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
