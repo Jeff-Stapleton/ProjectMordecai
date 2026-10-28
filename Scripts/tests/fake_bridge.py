@@ -603,7 +603,7 @@ class FakeWorld:
                            invalid, see Known issues)
       map, experience      reported names
       pickups              None = all six, or a list of labels to place
-      enemies              place the three invisible Frontliners (True; they never move)
+      enemies              place the three Frontliners (True; they never move)
       lose_pawn_on_f       F loses the pawn instead of picking up (as if it died or was
                            unpossessed that frame): nothing is picked up and every pawn section
                            (player, pickups, inventory) turns valid:false "no pawn yet" (False)
@@ -1251,7 +1251,7 @@ class FakeWorld:
                           "space": "World", "visible": True}])
         for e in self.enemies:
             add(e["label"], "BP_MordecaiEnemy_Frontliner_C", "MordecaiEnemyCharacter", "enemy",
-                e["location"], has_visible_mesh=False, health={"current": 100.0, "max": 100.0},
+                e["location"], has_visible_mesh=True, health={"current": 100.0, "max": 100.0},
                 is_dead=False, ai_state="Approach",
                 widgets=[{"component": "HealthBarWidget", "class": "WBP_EnemyHealthBar_C",
                           "space": "Screen", "visible": True}])

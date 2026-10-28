@@ -423,7 +423,7 @@ class TestBridgeCommands(FakeServerCase):
         everything = bridge.state(["actors"], radius=5000)["actors"]
         kinds = [a["kind"] for a in everything]
         self.assertEqual((kinds.count("pickup"), kinds.count("enemy")), (6, 3))
-        self.assertFalse([a for a in everything if a["kind"] == "enemy"][0]["has_visible_mesh"])
+        self.assertTrue([a for a in everything if a["kind"] == "enemy"][0]["has_visible_mesh"])
         walls = bridge.state(["actors"], radius=5000, include_all_actors=True)["actors"]
         self.assertEqual(sum(1 for a in walls if a["kind"] == "other"), 4)
 

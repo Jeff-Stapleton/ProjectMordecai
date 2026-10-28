@@ -107,8 +107,8 @@ KI_N8 = ("N8 (suspected NEW, Known issues backlog of Specs/agent_playtest_plan_v
          "(SpellCooldownA/B), not 4")
 
 SCREENSHOTS = {
-    "fireball_hit": "the diorama arena, the player about 300 cm -X of Frontliner_3 (an invisible "
-                    "enemy: only its red health bar shows) and an orange damage number near that "
+    "fireball_hit": "the diorama arena, the player about 300 cm -X of Frontliner_3 (a red "
+                    "cylinder under its red health bar) and an orange damage number near that "
                     "bar; the SP bar reads '7 / 10'. The ONLY damage-number evidence of the run",
     "after_blink": "the player on lane L1 (south edge, y = -800) about 500 cm further +X than "
                    "before the Blink; SP bar '5 / 10'",
@@ -125,8 +125,6 @@ KNOWN_ISSUES = (
     "N6 (design question): max SP is 10 and SP does not regenerate, but one cast of each "
     "loadout spell costs 12 (3 + 2 + 4 + 3); this run spends 10 -> 7 -> 5 -> 1 and expects "
     "Restoration to be refused.",
-    "The Frontliners have no mesh (invisible): only their health bars show (Known issues "
-    "backlog).",
 )
 NOTES = (
     "SP 10 vs a loadout cost of 12 with no SP regeneration: a fresh character cannot cast all "

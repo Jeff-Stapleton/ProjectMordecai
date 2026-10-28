@@ -66,9 +66,9 @@ Movement
 - After each move check `player.location` and that the camera still frames the player.
 
 Spells (Q, E, R, One are spell slots 0-3)
-- Cast each slot once near the enemies and once far away from them. There are three INVISIBLE
-  Frontliner enemies (known issue: no mesh, only their red health bars show) at about (600, 0),
-  (-400, 500) and (-400, -500). Walk to about 150 cm from one, cast, and check spell points
+- Cast each slot once near the enemies and once far away from them. There are three Frontliner
+  enemies (dark red cylinders under red health bars) placed at about (600, 0), (-400, 500) and
+  (-400, -500); they close on the player from the start. Walk to about 150 cm from one, cast, and check spell points
   (`player.attributes.spell_points`), the enemy's health (`actors`, `health`) and the screen.
 - Spend all spell points, then press each spell key again: with no spell points nothing should be
   cast and nothing should break.
