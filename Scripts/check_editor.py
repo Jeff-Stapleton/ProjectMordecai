@@ -13,17 +13,13 @@ Usage:
 """
 
 import argparse
-import json
-import socket
-import struct
+import os
 import subprocess
 import sys
 import time
-import uuid
 
-MCAST_GRP = "239.0.0.1"
-MCAST_PORT = 6766
-NODE_ID = str(uuid.uuid4())
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ue_remote_exec  # noqa: E402  (shares its multi-interface discovery)
 
 
 def is_editor_process_running():
@@ -38,81 +34,25 @@ def is_editor_process_running():
         return False
 
 
-def _try_ping_on_interface(interface, timeout):
-    """Try multicast ping on a specific network interface. Returns True if pong received."""
-    try:
-        send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        send_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-        if interface != "0.0.0.0":
-            send_sock.setsockopt(
-                socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(interface)
-            )
-
-        recv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        recv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        recv_sock.bind(("", MCAST_PORT))
-        mreq = struct.pack("4s4s", socket.inet_aton(MCAST_GRP), socket.inet_aton(interface))
-        recv_sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-        recv_sock.settimeout(timeout)
-    except OSError:
-        return False
-
-    msg = json.dumps({
-        "version": 1,
-        "magic": "ue_py",
-        "type": "ping",
-        "source": NODE_ID,
-        "data": {}
-    }).encode("utf-8")
-
-    try:
-        send_sock.sendto(msg, (MCAST_GRP, MCAST_PORT))
-        start = time.time()
-        while time.time() - start < timeout:
-            try:
-                data, addr = recv_sock.recvfrom(4096)
-                resp = json.loads(data.decode("utf-8"))
-                if resp.get("type") == "pong" and resp.get("magic") == "ue_py":
-                    return True
-            except socket.timeout:
-                break
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                continue
-        return False
-    except Exception:
-        return False
-    finally:
-        send_sock.close()
-        recv_sock.close()
-
-
 def ping_remote_exec(timeout=3.0):
     """Ping the UE remote execution endpoint. Returns True if we get a pong.
 
-    Tries the default interface first, then falls back to loopback and each
-    local interface. On Windows with multiple NICs (Hyper-V, WSL, Docker),
-    the default multicast interface may not match what UE is listening on.
+    Uses ue_remote_exec's discovery: the ping goes out of the default interface,
+    loopback and each local interface in turn, and the pong is heard on any of
+    them. On Windows with multiple NICs (Hyper-V, WSL, Docker) the editor may
+    answer only a loopback ping, with the pong arriving on another adapter.
     """
-    # Try default interface first
-    if _try_ping_on_interface("0.0.0.0", timeout):
-        return True
-
-    # Fallback: try loopback and each local interface
-    interfaces = ["127.0.0.1"]
     try:
-        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            ip = info[4][0]
-            if ip not in interfaces:
-                interfaces.append(ip)
+        recv_sock = ue_remote_exec.make_recv_socket()
     except OSError:
-        pass
-
-    per_iface_timeout = max(1.0, timeout / len(interfaces)) if interfaces else timeout
-    for iface in interfaces:
-        if _try_ping_on_interface(iface, per_iface_timeout):
-            return True
-
-    return False
+        return False
+    try:
+        node_id, send_socks = ue_remote_exec.discover(recv_sock, timeout=timeout)
+        for send_sock in send_socks:
+            send_sock.close()
+        return node_id is not None
+    finally:
+        recv_sock.close()
 
 
 def main():
