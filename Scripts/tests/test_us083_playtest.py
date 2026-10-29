@@ -7,16 +7,17 @@ mouse: a Left click released before 0.4 s is a light attack, one held longer a h
 the release), LeftAlt dodges, SpaceBar jumps (Falling) and LeftShift toggles a sprint (walk 600
 cm/s, sprint 900 cm/s).  An attack input while an attack runs is refused (State.Attacking blocks
 the melee ability).  A dodge moves the player 140 cm backward (-X), reports Falling for part of
-its active phase (its launch) and leaves a DodgeCooldown tag for 0.3 s.  The world has the
-DevTestMap blocks and the three Frontliners as blocks where the packaged game spawns them, so the
-lane L1 walk starts where the two dodges leave the player, as in the game.  Switches break each
+its active phase (its launch) and leaves a DodgeCooldown tag for 0.3 s.  The world is
+MovementTestMap (fb.MAP_PRESETS[fb.MOVEMENT_TEST_MAP]: open floor, boundary walls at +-2000, the
+jump step at +Y, no pickups, no enemies), the map the script launches.  Switches break each
 rule.  These prove the playtest's logic and reporting only; they say nothing about the real game.
-Nothing here launches the real game.  Run: py Scripts/run_python_tests.py -k Us083
+Nothing here launches the real game.  Run: py Scripts/run_python_tests.py -k us083
 """
 
 import importlib.util
 import io
 import json
+import math
 import os
 import sys
 import tempfile
@@ -43,16 +44,9 @@ LANE_CHECKS = ["walk_lane_wp1", "walk_lane_wp2", "walk_lane_start", "walk_lane_r
                "sprint_left_shift"]
 KB_MOUSE_CHECKS = ["light_attack_lmb_tap", "heavy_attack_lmb_hold", "dodge_left_alt",
                    "jump_space_bar"]
-# The Frontliners where the packaged game spawns them (us054 enemies_present on 01abb8b), as
-# blocks the size of their capsule (x0, x1, y0, y1).  Here they stay put; in the game they follow
-# the player and stand within 200 cm of it.
-FRONTLINERS_AT_SPAWN = tuple((x - 40.0, x + 40.0, y - 40.0, y + 40.0)
-                             for x, y in ((196.0, 0.0), (-123.0, 153.0), (-123.0, -153.0)))
-# A wall across the arena between the spawn and lane L1's first waypoint
-LANE_BLOCKER = (-470.0, -440.0, -975.0, 975.0)
-# A Frontliner that followed the player and cut the corner onto lane L1, just past the lane start
-# (Saved/Playtests/20261024-115717-us083: one stood on the lane line 160-200 cm east of the player)
-ENEMY_ON_THE_LANE = (-560.0, -480.0, -840.0, -760.0)
+DODGE_CHECKS = ["dodge_gamepad_b", "dodge_left_alt"]
+# A wall across the whole floor between the spawn and lane L1's first waypoint
+LANE_BLOCKER = (-470.0, -440.0, -2000.0, 2000.0)
 
 
 def load_playtest():
@@ -68,8 +62,8 @@ PLAN_CHECKS = [s.check for s in us083.PLAN]
 
 
 class PadWorld(fb.FakeWorld):
-    """The arena with the US-083 combat bindings.  Defaults model the game as it should be; the
-    switches break one rule each.
+    """MovementTestMap with the US-083 combat bindings.  Defaults model the game as it should be;
+    the switches break one rule each.
 
     Gamepad -- parry_on_partial: a RT pull below 0.5 while blocking parries.
     parry_on_block_over_rt: raising the block over a held RT parries.  guard_through_parry: the
@@ -92,8 +86,11 @@ class PadWorld(fb.FakeWorld):
     DODGE_COOLDOWN_S = 0.3
     DODGE_CM = 140.0               # backward (-X); the game's B dodge + A jump reached x=-144
     # Falling for this part of the dodge's active phase (LaunchCharacter).  It starts after the
-    # first read, so a read can see Dodging and Walking before the launch's Falling: a jump check
-    # must wait for the dodge to end, not only for Walking, or it takes that Falling for a jump.
+    # first read, so a read can see Dodging and Walking before the launch's Falling: a jump judged
+    # then would take that Falling for a jump.  The dodge step's displacement measurement waits the
+    # Dodging tag out, so the jump step normally starts after it; _on_the_ground's own Dodging
+    # guard covers a dodge step that returned early (test_the_jump_waits_out_the_dodging_tag_* and
+    # the *_even_when_the_dodge_step_did_not_wait tests).  The window lies inside DODGE_S.
     DODGE_FALLING_S = (0.2, 0.35)
     SPRINT_MULT = 1.5
 
@@ -103,7 +100,8 @@ class PadWorld(fb.FakeWorld):
                  lmb=True, alt_dodge=True, space_jump=True, shift_sprint=True,
                  lmb_heavy_as_light=False, lmb_tap_as_heavy=False, sticky_sprint=False,
                  attack_s=None, dodge_cooldown_s=None, **kw):
-        kw.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES + FRONTLINERS_AT_SPAWN)
+        for key, value in fb.MAP_PRESETS[fb.MOVEMENT_TEST_MAP].items():
+            kw.setdefault(key, value)
         super().__init__(**kw)
         self.block, self.attacks, self.dodge, self.jump = block, attacks, dodge, jump
         self.parry_on_partial = parry_on_partial
@@ -246,6 +244,22 @@ class PadWorld(fb.FakeWorld):
         return out
 
 
+class DiesAfterTheBlockWorld(PadWorld):
+    """The player dies the moment LT is first released (block_release_lt) and never respawns:
+    every later step finds a dead player."""
+
+    def __init__(self, **kw):
+        kw.setdefault("respawn_s", None)
+        super().__init__(**kw)
+
+    def tick(self, dt):
+        with self.lock:
+            was_blocking = self.prev_lt >= 0.5
+            super().tick(dt)
+            if was_blocking and self.prev_lt < 0.5:
+                self.kill_player()
+
+
 def read_jsonl(path):
     with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
@@ -265,8 +279,8 @@ class Us083Case(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.run_dir = os.path.join(self.tmp, "run")
 
-    def serve(self, **world_kwargs):
-        world = PadWorld(**world_kwargs)
+    def serve(self, world_class=None, **world_kwargs):
+        world = (world_class or PadWorld)(**world_kwargs)
         server = fb.FakeBridgeServer(world, token=TOKEN, shot_dir=self.tmp).start()
         self.addCleanup(server.stop)
         return world, server
@@ -321,6 +335,42 @@ class TestUs083Plan(unittest.TestCase):
         self.assertTrue(rows[16].startswith("| 16 | `light_attack_lmb_tap` |"))
         self.assertTrue(rows[-1].startswith("| 19 | `jump_space_bar` |"))
 
+    def test_the_script_launches_the_movement_test_map(self):
+        self.assertEqual(us083.Us083Run.launch_map(), kit.MOVEMENT_TEST_MAP)
+        self.assertEqual(kit.MOVEMENT_TEST_MAP, fb.MOVEMENT_TEST_MAP)
+        self.assertEqual(us083.Us083Run.expected_experience(), kit.DEFAULT_EXPERIENCE)
+        self.assertNotIn("N14", " ".join(us083.KNOWN_ISSUES))
+        self.assertNotIn("Frontliner", us083.__doc__)
+
+    def test_the_route_and_the_sprint_lane_are_clear_on_the_movement_map(self):
+        # The waypoints are DevTestMap's (the check names are kept); on MovementTestMap they and
+        # the sprint along lane L1 must be open floor, far from the walls and the jump step
+        boxes = ([b for _, b in fb.MOVEMENT_TEST_MAP_WALLS]
+                 + list(fb.MOVEMENT_TEST_MAP_OBSTACLES))
+
+        def clearance(px, py):
+            return min(math.hypot(px - min(max(px, x0), x1), py - min(max(py, y0), y1))
+                       for x0, x1, y0, y1 in boxes)
+
+        points = ([(0.0, 0.0)] + [(x, y) for _, x, y, _ in us083.LANE_WAYPOINTS]
+                  + [us083.LANE_START, us083.RUN_UP])
+        for px, py in points:
+            self.assertGreater(clearance(px, py), 4 * fb.CAPSULE_RADIUS, f"({px:.0f}, {py:.0f})")
+        self.assertEqual(us083.LANE_START[1], fb.MOVEMENT_TEST_MAP_LANE_Y)
+        self.assertEqual(us083.RUN_UP[1], fb.MOVEMENT_TEST_MAP_LANE_Y)
+        # A long sprint from the run-up point (900 cm/s for 1.1 s plus its stop) stays on lane
+        # L1.  After the shortest passing sprint, the S hold (600 cm/s for 1.1 s plus its stop)
+        # and two full 400 cm backward dodges (N27 fixed) stay on open floor along y=-800
+        far = us083.RUN_UP[0] + 900.0 * 1.1 + 300.0
+        near = (us083.RUN_UP[0] + us083.SPRINT_MIN - (600.0 * 1.1 + 100.0)
+                - 2 * us083.DODGE_DISTANCE_CM)
+        self.assertLessEqual(far, 1600.0, "past the end of lane L1")
+        x = near
+        while x <= far:
+            self.assertGreater(clearance(x, fb.MOVEMENT_TEST_MAP_LANE_Y), 4 * fb.CAPSULE_RADIUS,
+                               f"y=-800 at x={x:.0f}")
+            x += 50.0
+
     def test_keyboard_and_mouse_steps_prove_ac_083_4_to_8(self):
         proves = {s.check: s.proves for s in us083.PLAN}
         for check, ac in (("light_attack_lmb_tap", "AC-083.4"), ("heavy_attack_lmb_hold",
@@ -342,8 +392,9 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertEqual(code, 0)
         self.assertEqual(rep["undeclared_checks"], [])
         checks = self.by_name(rep)
-        for name in PLAN_CHECKS:
+        for name in PLAN_CHECKS + ["experience", "map"]:
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
+        self.assertIn(fb.MOVEMENT_TEST_MAP, checks["map"]["detail"])
         self.assertIn(us083.TAG_PARRYING, checks["parry_rt_while_blocking"]["detail"])
         self.assertIn("no attack at any of", checks["guard_returns_after_parry"]["detail"])
         self.assertIn("Slate hit SViewport", checks["light_attack_lmb_tap"]["detail"])
@@ -387,7 +438,7 @@ class TestUs083AgainstTheFake(Us083Case):
                 held.update(m["values"])
         self.assertEqual({k: v for k, v in held.items() if v}, {})
         # The lane walk comes first, from the spawn and before any dodge; its first pulse leads
-        # west between the Frontliners' spawn points (S); then a run-up along the lane (+X)
+        # west along y=0 (S); then along the lane (+X) to the sprint start
         walks = [i for i, e in enumerate(entries)
                  if e["dir"] == "note" and e["msg"].get("note") == "walk_to"]
         self.assertEqual([entries[i]["msg"]["to"] for i in walks],
@@ -409,6 +460,19 @@ class TestUs083AgainstTheFake(Us083Case):
                            "the sprint starts at the run-up point, not the lane start")
         self.assertLess(movement["sprint_left_shift_toggle_back"]["dx"], -400)
         self.assertEqual(movement["sprint_left_shift_toggle_back"]["peak_speed"], 600.0)
+        # Each dodge's displacement is measured (N27), not judged: the fake dodges 140 cm -X
+        self.assertEqual([m["check"] for m in rep["movement"]],
+                         ["sprint_left_shift", "sprint_left_shift_toggle_back"] + DODGE_CHECKS)
+        for name in DODGE_CHECKS:
+            m = movement[name]
+            self.assertEqual(m["kind"], "dodge", name)
+            self.assertAlmostEqual(m["distance"], PadWorld.DODGE_CM, delta=1.0, msg=name)
+            self.assertAlmostEqual(m["dx"], -PadWorld.DODGE_CM, delta=1.0, msg=name)
+            self.assertAlmostEqual(m["dy"], 0.0, delta=1.0, msg=name)
+            self.assertEqual(m["expected_cm"], us083.DODGE_DISTANCE_CM)
+            self.assertIsNotNone(m["settle_s"], name)
+            self.assertIn("displacement 140 cm", checks[name]["detail"])
+            self.assertIn("N27: DodgeDistanceCm 400; measured, not judged", checks[name]["detail"])
         acs = {a["id"]: a for a in rep["acs"]}
         for ac in ("AC-083.3", "AC-083.4", "AC-083.5", "AC-083.6", "AC-083.7", "AC-083.8",
                    "AC-083.10"):
@@ -417,6 +481,9 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertFalse(any(a["accepted"] for a in rep["acs"]), "an attached run accepts nothing")
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
         self.assertIn("## Sprint measurements", md)
+        self.assertIn("## Dodge measurements (N27, not judged)", md)
+        self.assertIn("| dodge_left_alt | tap LeftAlt (dodge, no move key) |", md)
+        self.assertLess(md.index("## Sprint measurements"), md.index("## Dodge measurements"))
 
     def test_no_block_fails_and_skips_what_needs_it(self):
         _, server = self.serve(block=False)
@@ -557,9 +624,9 @@ class TestUs083AgainstTheFake(Us083Case):
                                               ("LMB", "light"), ("LMB", "heavy")])
 
     def test_a_dead_space_bar_does_not_pass_on_the_dodges_falling(self):
-        # The LeftAlt dodge reports Falling after a first Walking read (DODGE_FALLING_S):
-        # jump_space_bar waits for the dodge to end, not only for Walking, so a dead SpaceBar
-        # FAILs instead of passing on the dodge's launch
+        # The LeftAlt dodge reports Falling after a first Walking read (DODGE_FALLING_S): the
+        # dodge step waits for the dodge to end (Dodging gone) before the jump step, so a dead
+        # SpaceBar FAILs instead of passing on the dodge's launch
         _, server = self.serve(space_jump=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
@@ -571,8 +638,9 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertEqual({a["id"]: a for a in rep["acs"]}["AC-083.7"]["status"], "FAIL")
 
     def test_a_dead_a_button_does_not_pass_on_the_dodges_falling(self):
-        # The same for the gamepad: the B dodge also reports Falling after a first Walking read, so
-        # jump_gamepad_a waits for that dodge to end; a dead A FAILs instead of passing on its launch
+        # The same for the gamepad: the B dodge also reports Falling after a first Walking read;
+        # the dodge step waits for that dodge to end before jump_gamepad_a, so a dead A FAILs
+        # instead of passing on its launch
         _, server = self.serve(jump=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
@@ -582,6 +650,49 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertIn("the dodge over, Walking; tapped Gamepad_FaceButton_Bottom: "
                       "player.movement_mode stayed", checks["jump_gamepad_a"]["detail"])
         self.assertEqual(checks["jump_space_bar"]["status"], "PASS")
+
+    def test_the_jump_waits_out_the_dodging_tag_not_only_walking(self):
+        # _on_the_ground on its own, with no dodge step before it: right after the B tap a read
+        # shows Dodging and Walking (the launch's Falling comes later, DODGE_FALLING_S), so it
+        # must keep waiting until the Dodging tag is gone, not return on that Walking
+        world, server = self.serve()
+        os.makedirs(self.run_dir, exist_ok=True)
+        run = us083.Us083Run(us083.parse_args(["--attach-port", str(server.port), "--token",
+                                               TOKEN, "--run-dir", self.run_dir]))
+        run.bridge = ab.Bridge.attach(server.port, token=TOKEN, run_dir=self.run_dir,
+                                      wait_ready=True, timeout=10)
+        self.addCleanup(run.bridge.close)
+        run.bridge.tap(us083.DODGE_KEY, hold_s=run.TAP_S)
+        self.assertLess(world.real_time(), world.dodge_until, "the tap outlasted the dodge")
+        why, what = run._on_the_ground()
+        self.assertIsNone(why, why)
+        self.assertEqual(what, "the dodge over, Walking")
+        self.assertGreaterEqual(world.real_time(), world.dodge_until)
+
+    def test_a_dead_space_bar_fails_even_when_the_dodge_step_did_not_wait(self):
+        # _dodge_displacement returns at once when there is no position before the tap: the dodge
+        # step then ends on its first Dodging read, and jump_space_bar's own wait (no Dodging tag,
+        # Walking) must keep a dead SpaceBar from passing on the LeftAlt dodge's launch Falling
+        _, server = self.serve(space_jump=False)
+        with mock.patch.object(us083.Us083Run, "_dodge_displacement",
+                               lambda self, check, key, p0: ""):
+            code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["jump_space_bar"])
+        self.assertIn("the dodge over, Walking; tapped SpaceBar: player.movement_mode stayed",
+                      self.by_name(rep)["jump_space_bar"]["detail"])
+
+    def test_a_dead_a_button_fails_even_when_the_dodge_step_did_not_wait(self):
+        # The same for the gamepad: jump_gamepad_a's own wait keeps a dead A from passing on the
+        # B dodge's launch Falling
+        _, server = self.serve(jump=False)
+        with mock.patch.object(us083.Us083Run, "_dodge_displacement",
+                               lambda self, check, key, p0: ""):
+            code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["jump_gamepad_a"])
+        self.assertIn("the dodge over, Walking; tapped Gamepad_FaceButton_Bottom: "
+                      "player.movement_mode stayed", self.by_name(rep)["jump_gamepad_a"]["detail"])
 
     def test_a_dead_left_alt_does_not_pass_on_a_leftover_dodge_cooldown(self):
         # The B dodge's DodgeCooldown lasts into the LeftAlt step here (3 s): dodge_left_alt waits
@@ -622,8 +733,7 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertTrue(movement["sprint_left_shift"]["sprint_left_on"])
 
     def test_a_blocked_lane_walk_fails_and_skips_the_sprint(self):
-        _, server = self.serve(obstacles=fb.DEVTESTMAP_OBSTACLES + FRONTLINERS_AT_SPAWN
-                               + (LANE_BLOCKER,))
+        _, server = self.serve(obstacles=fb.MOVEMENT_TEST_MAP_OBSTACLES + (LANE_BLOCKER,))
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(self.statuses(rep, "FAIL"), ["walk_lane_wp1"])
@@ -642,21 +752,51 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertEqual(acs["AC-083.8"]["status"], "NOT RUN")
         self.assertEqual(acs["AC-083.3"]["status"], "NOT RUN")
         self.assertEqual(acs["AC-083.7"]["status"], "PASS")
-        self.assertEqual(rep["movement"], [])
+        # No sprint was measured; the dodges still were
+        self.assertEqual([m["check"] for m in rep["movement"]], DODGE_CHECKS)
 
-    def test_an_enemy_that_cut_the_corner_onto_the_lane_does_not_stop_the_sprint(self):
-        # The run-up walks around it (side-steps), so the sprint starts past it on a clear lane.
-        # A sprint from the lane start would run into it (dx far below 700 cm)
-        _, server = self.serve(obstacles=fb.DEVTESTMAP_OBSTACLES + FRONTLINERS_AT_SPAWN
-                               + (ENEMY_ON_THE_LANE,))
+    def test_the_movement_map_has_nothing_in_the_way(self):
+        # MovementTestMap has no enemies and no pickups (DevTestMap's Frontliners stood on this
+        # route and body-blocked it, N14): the walk to the sprint start needs no side-step
+        world, server = self.serve()
+        self.assertEqual(world.map, fb.MOVEMENT_TEST_MAP)
+        self.assertEqual(world.enemies, [])
+        self.assertEqual(world.world_pickups, [])
         code, rep = self.play(server)
-        self.assertEqual(self.statuses(rep, "FAIL"), [], self.log.getvalue()[-4000:])
-        self.assertEqual(code, 0)
-        self.assertNotRegex(self.by_name(rep)["walk_lane_run_up"]["detail"],
-                            r"(?<!\d)0 side-steps")
-        movement = {m["check"]: m for m in rep["movement"]}
-        self.assertGreater(movement["sprint_left_shift"]["start"][0], ENEMY_ON_THE_LANE[1])
-        self.assertGreater(movement["sprint_left_shift"]["dx"], 700)
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        checks = self.by_name(rep)
+        for name in LANE_CHECKS[:4]:
+            self.assertRegex(checks[name]["detail"], r"(?<!\d)0 side-steps", name)
+
+    def test_a_dead_player_is_not_idle(self):
+        # The player dies when LT is released (block_release_lt) and stays dead: every later step
+        # FAILs saying the player is dead, and no attack, dodge or jump input is sent to it
+        world, server = self.serve(DiesAfterTheBlockWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertTrue(world.is_dead)
+        checks = self.by_name(rep)
+        dead_checks = ["partial_rt_no_parry", "block_over_held_rt_no_parry", "light_attack_rt_tap",
+                       "heavy_attack_rt_hold", "dodge_gamepad_b", "jump_gamepad_a",
+                       "light_attack_lmb_tap", "heavy_attack_lmb_hold", "dodge_left_alt",
+                       "jump_space_bar"]
+        self.assertEqual(self.statuses(rep, "FAIL"), dead_checks)
+        for name in dead_checks:
+            self.assertIn("the player is dead", checks[name]["detail"], name)
+            self.assertIn(us083.TAG_DEAD, checks[name]["detail"], name)
+        for name in LANE_CHECKS + ["block_lt_hold", "parry_rt_while_blocking",
+                                   "guard_returns_after_parry", "block_release_lt"]:
+            self.assertEqual(checks[name]["status"], "PASS", name)
+        self.assertEqual(world.attacks_seen, [])
+        sent = [e["msg"] for e in read_jsonl(os.path.join(self.run_dir, "bridge.jsonl"))
+                if e["dir"] == "send"]
+        self.assertFalse([m for m in sent if m["cmd"] == "click"], "no click on a dead player")
+        keys = [m.get("key") for m in sent if m["cmd"] == "key"]
+        for k in (us083.DODGE_KEY, us083.JUMP_KEY, us083.KB_DODGE_KEY, us083.KB_JUMP_KEY):
+            self.assertNotIn(k, keys)
+        # No dodge was played, so none was measured
+        self.assertEqual([m["check"] for m in rep["movement"]],
+                         ["sprint_left_shift", "sprint_left_shift_toggle_back"])
 
 
 if __name__ == "__main__":

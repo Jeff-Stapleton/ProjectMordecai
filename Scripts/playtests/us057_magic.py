@@ -2,8 +2,8 @@
 """US-057 Magic Playtest -- Tier 4: the playable magic arena, played with REAL input
 
 Casts the four loadout spells (Q Fireball, E Blink, R Stone Skin, One Restoration) in the
-PACKAGED DevTestMap through the in-game agent bridge and checks what a player sees: the SP bar
-text, the spell loadout, the Fireball projectile and its damage on a Frontliner, the Blink
+PACKAGED CombatTestMap through the in-game agent bridge and checks what a player sees: the SP bar
+text, the spell loadout, the Fireball projectile and its damage on the TestDummy, the Blink
 teleport, the Stone Skin buff and its HUD indicator, the refusal of a spell the player cannot
 afford, and the spell cooldowns (state and HUD).  Every action is a key tap (or walk_to, built
 from W/A/S/D taps) injected into Slate; nothing calls game functions.  The run framework is
@@ -13,13 +13,16 @@ steps.  --plan prints the Steps table.
 SP plan (max SP 10, no regeneration): 10 -> Fireball 7 -> Blink 5 -> Stone Skin 1 -> Restoration
 (cost 3) refused.  The loadout costs 12 per round, more than the pool (design question N6).
 
-Route (DevTestMap; facing is pinned to +X, so every spell goes +X):
-  - spawn (0, 0) -> (-150, -650) -> (-700, -650) -> (ex - 300, ey) of Frontliner_3 (its live
-    location, about (-700, -500)), re-walked once when the enemy moved more than 40 cm in Y.
-    Fireball is never cast +X from spawn: the projectile may die on the Health Potion's pickup
-    trigger at (400, 0) (suspected bug).
-  - Fireball at Frontliner_3 (300 cm, +X), then walk to (0, -800) on lane L1 (y = -800, x -750..
-    +950 is clear) and Blink +X there.
+Route (CombatTestMap, issue #46 T1; facing is pinned to +X, so every spell goes +X):
+  - spawn (0, 0) -> (ex - 300, ey) of the TestDummy (its live location; it never moves and spawns
+    at (600, 600), so the shot spot is (300, 600)), re-walked once when the dummy is more than
+    40 cm off the player's line in Y.  The TestDummy is found by its label, else it is the enemy
+    nearest (600, 600).  The map has no pickups, so nothing on the shot line can stop the
+    projectile (the suspected pickup-trigger bug N11).
+  - Fireball at the TestDummy (300 cm, +X), then walk to (0, -600), the start of the Blink lane
+    (y = -600, clear +X to x 1100), and Blink +X there.
+  - The TestAttacker (2100, 0) stays out of its 900 cm aggro range on the whole route: nothing
+    attacks the player in this run.
 The Fireball checks (cast, projectile, hit, cooldown state, cooldown HUD) come from ONE fast
 poll of player, actors (radius 3000) and widgets right after the Q tap, so a short-lived
 projectile or a 2 s cooldown cannot be missed between steps.
@@ -32,7 +35,7 @@ Usage (the kit's common options):
 
 Output: Saved/Playtests/<YYYYmmdd-HHMMSS>-us057/ (report.md, report.json, game.log,
 bridge.jsonl, bridge_NN.png).  Open every screenshot and say what is on screen: the damage
-number near Frontliner_3's health bar (fireball_hit) is the only damage-number evidence.
+number near the TestDummy's health bar (fireball_hit) is the only damage-number evidence.
 
 Exit codes: 0 every check passed (WARN allowed), 1 a gameplay FAIL, 2 infrastructure.
 """
@@ -83,12 +86,12 @@ FIREBALL, BLINK, STONE_SKIN, RESTORATION = SPELLS
 SP_START = 10
 SP_PLAN = (10, 7, 5, 1)  # after Fireball, Blink, Stone Skin; Restoration is refused at 1
 
-TARGET_ENEMY = "Frontliner_3"     # spawns at (-400, -500)
-SHOT_WAYPOINTS = ((-150.0, -650.0), (-700.0, -650.0))
-SHOT_OFFSET_X = 300.0             # stand 300 cm -X of the enemy: the Fireball flies +X
+TARGET_ENEMY = "TestDummy"        # BP_MordecaiEnemy_TestDummy: never moves, never aggroes
+TARGET_SPAWN = (600.0, 600.0)     # its placement: the fallback when no label matches
+SHOT_OFFSET_X = 300.0             # stand 300 cm -X of the dummy: the Fireball flies +X
 REWALK_DY = 40.0
 SHOT_TOL = 25.0                   # the shot position: tighter than WALK_TOL (|dy| <= 40)
-LANE_POINT = (0.0, -800.0)        # lane L1: y = -800, x -750..+950 clear
+LANE_POINT = (0.0, -600.0)        # the Blink lane: y = -600, clear +X to x 1100
 BLINK_MIN_DX = 400.0              # Blink moves up to 500 along +X
 BLINK_MAX_DY = 50.0
 
@@ -107,11 +110,12 @@ KI_N8 = ("N8 (suspected NEW, Known issues backlog of Specs/agent_playtest_plan_v
          "(SpellCooldownA/B), not 4")
 
 SCREENSHOTS = {
-    "fireball_hit": "the diorama arena, the player about 300 cm -X of Frontliner_3 (a red "
-                    "cylinder under its red health bar) and an orange damage number near that "
-                    "bar; the SP bar reads '7 / 10'. The ONLY damage-number evidence of the run",
-    "after_blink": "the player on lane L1 (south edge, y = -800) about 500 cm further +X than "
-                   "before the Blink; SP bar '5 / 10'",
+    "fireball_hit": "CombatTestMap's grid floor, the player about 300 cm -X of the TestDummy (a "
+                    "blue-grey cylinder under its red health bar) and an orange damage number "
+                    "near that bar; the SP bar reads '7 / 10'. The ONLY damage-number evidence "
+                    "of the run",
+    "after_blink": "the player on the Blink lane (y = -600, left of the PlayerStart) about 500 cm "
+                   "further +X than before the Blink, on open grid floor; SP bar '5 / 10'",
     "stone_skin": "the Stone Skin buff indicator in the status bar (bottom-left): 'StoneSkin' and "
                   "a decimal countdown, green tint; SP bar '1 / 10'",
     "spell_hud": "the SP bar reading '1 / 10' after the refused Restoration, and the spell "
@@ -133,8 +137,11 @@ NOTES = (
     "Gamepad spell bindings (LB / RB / LB+RB / DPadUp, AC-057.5) are NOT exercised: only the "
     "keyboard keys Q / E / R / One are played.",
     "AC-057.7 / AC-057.8 / AC-057.11 (the fire Frontliner and the Burning indicator) and "
-    "Restoration's heal (AC-057.4) are not covered: the Frontliners do not attack today, and "
-    "the SP plan leaves no SP for Restoration.",
+    "Restoration's heal (AC-057.4) are not covered by this script: nothing attacks the player "
+    "here (the route stays out of the TestAttacker's aggro range), and the SP plan leaves no SP "
+    "for Restoration. Scripts/playtests/us054_combat.py plays Restoration's heal and watches "
+    "for Burning while the TestAttacker hits the player (it swings BasicSlash, so Burning is "
+    "not expected there).",
 )
 EXIT_PASS, EXIT_FAIL, EXIT_INFRA = kit.EXIT_PASS, kit.EXIT_FAIL, kit.EXIT_INFRA
 
@@ -162,10 +169,10 @@ PLAN = (
          proves=("AC-057.1", "AC-057.2", "AC-057.3", "AC-057.4", "AC-057.6")),
     Step("cooldown_widgets", f"state widgets -> {COOLDOWN_WIDGETS_EXPECTED} {COOLDOWN_WIDGET} "
          "widgets on the HUD (one per spell)", proves=("AC-057.9",), known_issue=KI_N8),
-    Step("walk_shot_line", ", ".join(f"walk_to({x:g}, {y:g})" for x, y in SHOT_WAYPOINTS)
-         + ", walk_to(ex-"
-         f"{SHOT_OFFSET_X:g}, ey) of {TARGET_ENEMY} (live location, actors radius "
-         f"{ACTOR_RADIUS}) within {SHOT_TOL:g} cm; walk again if |player.y - ey| > {REWALK_DY:g}"),
+    Step("walk_shot_line", f"walk_to(ex-{SHOT_OFFSET_X:g}, ey) of the {TARGET_ENEMY} (live "
+         f"location, actors radius {ACTOR_RADIUS}; label match, else the enemy nearest "
+         f"({TARGET_SPAWN[0]:g}, {TARGET_SPAWN[1]:g})) within {SHOT_TOL:g} cm; walk again if "
+         f"|player.y - ey| > {REWALK_DY:g}"),
     Step("fireball_cast", f"tap Q -> player.attributes.spell_points 10 -> 7 within "
          f"{SP_TIMEOUT_S:g}s (fast poll of player, actors, widgets)",
          proves=("AC-057.1", "AC-057.5", "AC-057.10", "US-055:AC-055.2")),
@@ -180,7 +187,8 @@ PLAN = (
          f"{COOLDOWN_WINDOW_S:g}s of the tap", proves=("AC-057.1",), known_issue=KI_NO_COOLDOWNS),
     Step("cooldown_hud", f"same poll -> a {COOLDOWN_WIDGET} widget renders a numeric remaining "
          "time", proves=("US-055:AC-055.8", "US-055:AC-055.9"), known_issue=KI_NO_COOLDOWNS),
-    Step("walk_blink_lane", f"walk_to({LANE_POINT[0]:g}, {LANE_POINT[1]:g}) -> within {WALK_TOL:g} cm (lane L1)"),
+    Step("walk_blink_lane", f"walk_to({LANE_POINT[0]:g}, {LANE_POINT[1]:g}) -> within "
+         f"{WALK_TOL:g} cm (the start of the Blink lane, clear +X)"),
     Step("blink", f"tap E -> player.location.x rises > {BLINK_MIN_DX:g} and spell_points 7 -> 5 "
          f"within {BLINK_TIMEOUT_S:g}s, |dy| < {BLINK_MAX_DY:g}",
          proves=("AC-057.2", "AC-057.5")),
@@ -323,6 +331,17 @@ def _find_enemy(st, fragment):
     return None
 
 
+def _find_target(st):
+    """The TestDummy: by label (or name), else the enemy nearest its placement TARGET_SPAWN (in a
+    package the bridge's label is the actor's object name, not its editor label)."""
+    found = _find_enemy(st, TARGET_ENEMY)
+    if found is not None:
+        return found
+    placed = [e for e in _enemies(st) if _loc(e) is not None]
+    return min(placed, key=lambda e: math.hypot(_loc(e)[0] - TARGET_SPAWN[0],
+                                                _loc(e)[1] - TARGET_SPAWN[1]), default=None)
+
+
 def _fmt(v, nd=0):
     return "?" if v is None else f"{v:.{nd}f}"
 
@@ -341,6 +360,7 @@ class Us057Run(kit.PlaytestRun):
     PLAN = PLAN
     WALK_TOL = WALK_TOL
     TAP_S = TAP_S
+    MAP = kit.COMBAT_TEST_MAP
     SCRIPT = os.path.abspath(__file__)
 
     def __init__(self, args):
@@ -427,24 +447,24 @@ class Us057Run(kit.PlaytestRun):
     def walk_shot_line(self):
         b = self.bridge
         walks = []
-        for wx, wy in SHOT_WAYPOINTS:
-            r = b.walk_to(wx, wy, tol=WALK_TOL)
-            walks.append(f"({r['final'][0]:.0f}, {r['final'][1]:.0f})")
         detail = None
         for attempt_n in (1, 2):
             st = b.state(["player", "actors"], radius=ACTOR_RADIUS)
-            enemy = _find_enemy(st, TARGET_ENEMY)
+            enemy = _find_target(st)
             if enemy is None:
-                return ("FAIL", f"no enemy '{TARGET_ENEMY}' in actors (radius {ACTOR_RADIUS}); "
-                        f"enemies: {[e.get('label') for e in _enemies(st)]}", None)
+                return ("FAIL", f"no enemy '{TARGET_ENEMY}' in actors (radius {ACTOR_RADIUS}) "
+                        f"and no enemy near ({TARGET_SPAWN[0]:g}, {TARGET_SPAWN[1]:g}); enemies: "
+                        f"{[e.get('label') for e in _enemies(st)]}", None)
             if _loc(enemy) is None:
                 return "FAIL", f"{enemy.get('label')} has no location: {_dumps(enemy, 400)}", None
+            label = enemy.get("label")
             ex, ey = _loc(enemy)
             tx, ty = ex - SHOT_OFFSET_X, ey
             r = b.walk_to(tx, ty, tol=SHOT_TOL)
             walks.append(f"({r['final'][0]:.0f}, {r['final'][1]:.0f})")
             st = b.state(["player", "actors"], radius=ACTOR_RADIUS)
-            enemy = _find_enemy(st, TARGET_ENEMY) or enemy
+            enemy = next((e for e in _enemies(st) if label is not None
+                          and e.get("label") == label and _loc(e) is not None), None) or enemy
             ex2, ey2 = _loc(enemy) or (ex, ey)
             if _xy(st) is None:
                 return "FAIL", f"no player location: {_player(st).get('reason')}", None

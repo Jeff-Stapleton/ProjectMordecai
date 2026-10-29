@@ -1,10 +1,11 @@
 """Tests for Scripts/playtests/us078_weapons.py against tests/fake_bridge.py.
 
-A FakeWorld subclass stands in for the weapon arena: five weapons in the game's order, Tab /
-Gamepad_FaceButton_Top next, BackSlash previous, and switches for the known issues (Shift+Tab,
-the weapon HUD) and for the attacks (bound since US-083: a short click is a light attack, a
-hold of at least 0.4 s a heavy attack on release).  These prove the playtest's logic and reporting only; they say
-nothing about the real game.  Nothing here launches the real game.
+A FakeWorld subclass stands in for the weapon arena on CombatTestMap (fb.MAP_PRESETS): five
+weapons in the game's order, Tab / Gamepad_FaceButton_Top next, BackSlash previous, and switches
+for the known issues (Shift+Tab, the weapon HUD) and for the attacks (bound since US-083: a
+short click is a light attack, a hold of at least 0.4 s a heavy attack on release).  These prove
+the playtest's logic and reporting only; they say nothing about the real game.  Nothing here
+launches the real game.
 Run: py Scripts/run_python_tests.py -k Us078
 """
 
@@ -52,7 +53,7 @@ HEAVY_HOLD_S = 0.4   # UMordecaiHeroComponent::HeavyAttackHoldSeconds
 
 
 class WeaponWorld(fb.FakeWorld):
-    """The fake DevTestMap with the US-078 weapon list.
+    """The fake CombatTestMap with the US-078 weapon list.
 
     shift_tab_prev: Shift+Tab cycles back (False = today's N9: Tab still fires Next).
     hud_shows_weapon: a visible widget shows the weapon name (False = today's N3).
@@ -61,13 +62,18 @@ class WeaponWorld(fb.FakeWorld):
     Mordecai.Attack.Heavy (False = the game before US-083: attacks are not bound).
     heavy_as_light: a held press starts a light attack (a heavy input routed to the light one).
     next_works: Tab / Y cycle at all.  weapons: [(id, display_name, type)];
-    stuck_attacking: the tag never clears.
+    stuck_attacking: the tag never clears.  die_after_keys: the player dies on that key press
+    (counted from the first; with respawn_s=None it stays dead), as the DevTestMap swarm did.
     """
 
     def __init__(self, *, shift_tab_prev=True, hud_shows_weapon=True, attacks_bound=True,
                  next_works=True, weapons=GAME_WEAPONS, attack_s=0.6, stuck_attacking=False,
-                 heavy_as_light=False, **kwargs):
+                 heavy_as_light=False, die_after_keys=None, **kwargs):
+        for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
+            kwargs.setdefault(name, value)
         super().__init__(**kwargs)
+        self.die_after_keys = die_after_keys
+        self.key_presses = 0
         self.shift_tab_prev = shift_tab_prev
         self.hud_shows_weapon = hud_shows_weapon
         self.attacks_bound = attacks_bound
@@ -85,6 +91,12 @@ class WeaponWorld(fb.FakeWorld):
         self.weapon_index = (self.weapon_index + delta) % len(self.weapons)
 
     def _on_key_pressed(self, key):
+        self._handle_key(key)
+        self.key_presses += 1
+        if self.die_after_keys is not None and self.key_presses >= self.die_after_keys:
+            self.kill_player()
+
+    def _handle_key(self, key):
         if self.ready and not self.menu_open and not self.is_dead:
             if key == "Tab":
                 if self.shift_tab_prev and "LeftShift" in self._held_union():
@@ -214,6 +226,8 @@ class TestUs078Pass(Us078Case):
         for step in us078.PLAN:
             self.assertEqual(checks[step.check]["status"], "PASS",
                              f"{step.check}: {checks[step.check]['detail']}")
+        self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
+        self.assertIn(fb.COMBAT_TEST_MAP, checks["map"]["detail"])
         self.assertIn("index 0/5 'Longsword'", checks["starting_weapon"]["detail"])
         self.assertIn("'Longsword' is on screen in MordecaiEquippedWeaponWidget",
                       checks["weapon_hud_text"]["detail"])
@@ -364,6 +378,24 @@ class TestUs078Failures(Us078Case):
         self.assertIn("index 0/2 'Longsword'", check["detail"])
         self.assertIn("starting_weapon", rep["new_failures"])
 
+    def test_a_dead_player_before_the_click_is_an_explicit_fail(self):
+        # The f21525f DevTestMap run: the swarm killed the player and light_attack_lmb clicked a
+        # dead player (no Attacking tag read as idle).  The 10th key press (the last Tab) kills
+        # the player here, who never respawns.
+        world, server = self.serve(die_after_keys=10, respawn_s=None)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertTrue(world.is_dead)
+        checks = self.by_name(rep)
+        for name in ATTACK_CHECKS:
+            self.assertEqual(checks[name]["status"], "FAIL", name)
+            self.assertIn("player dead before the click", checks[name]["detail"])
+            self.assertIn("player.is_dead=True", checks[name]["detail"])
+            self.assertIn("nothing was clicked", checks[name]["detail"])
+        self.assertEqual(sorted(rep["new_failures"]), sorted(ATTACK_CHECKS))
+        self.assertFalse([m for m in self.sent() if m["cmd"] == "click"])
+        self.assertEqual(world.attacks, [])
+
     def test_an_attack_tag_that_never_clears_cannot_pass_an_attack(self):
         world, server = self.serve(stuck_attacking=True)
         code, rep = self.play(server)
@@ -415,7 +447,7 @@ class TestUs078Plan(unittest.TestCase):
         self.assertEqual(kit.plan_problems(us078.Us078Run), [])
         self.assertIs(us078.Run, us078.Us078Run)
         self.assertEqual(us078.Us078Run.expected_experience(), kit.DEFAULT_EXPERIENCE)
-        self.assertEqual(us078.Us078Run.launch_map(), kit.DEFAULT_MAP)
+        self.assertEqual(us078.Us078Run.launch_map(), kit.COMBAT_TEST_MAP)
 
     def test_known_issues_cite_the_backlog(self):
         known = {s.check: s.known_issue for s in us078.PLAN if s.known_issue}

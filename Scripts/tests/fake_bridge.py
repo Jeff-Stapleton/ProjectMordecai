@@ -554,6 +554,70 @@ DEVTESTMAP_OBSTACLES = (
     (-1000.0, -800.0, -715.0, -685.0),  # Cover_01
     (485.0, 515.0, 800.0, 1000.0),     # Cover_02
 )
+
+# ---------------------------------------------------------------------------
+# The fake test maps (US-100, issue #46)
+# ---------------------------------------------------------------------------
+# Mirrors Scripts/us100_02_create_test_maps.py; the Tier 1 tests in
+# Source/LyraGame/Tests/Level/MordecaiTestMapTests.cpp pin the same numbers in the .umaps.  Both
+# maps: floor top at z=0, one PlayerStart at (0, 0, 100) facing +X, 100 cm boundary walls 50 cm
+# thick whose inner faces are the floor edges, no pickups.
+MOVEMENT_TEST_MAP = "/MordecaiCore/Game/Maps/MovementTestMap"
+COMBAT_TEST_MAP = "/MordecaiCore/Game/Maps/CombatTestMap"
+# MovementTestMap: floor x, y in [-2000, 2000]; no enemies.  Lane L1 (y=-800, x -1000..+1600) is
+# clear.  Two steps sit at +Y, off every scripted route: T1_Step_Walk30 (x 600..1000, y 800..1200,
+# top z=30, walkable: under the 45 cm MaxStepHeight) and T1_Step_Jump60 (x 1200..1600,
+# y 800..1200, top z=60: only a jump gets on it, apex ~105 cm).
+MOVEMENT_TEST_MAP_WALLS = (
+    ("T1_Wall_N", (-2050.0, 2050.0, 2000.0, 2050.0)),
+    ("T1_Wall_S", (-2050.0, 2050.0, -2050.0, -2000.0)),
+    ("T1_Wall_E", (2000.0, 2050.0, -2050.0, 2050.0)),
+    ("T1_Wall_W", (-2050.0, -2000.0, -2050.0, 2050.0)),
+)
+MOVEMENT_TEST_MAP_OBSTACLES = (
+    (1200.0, 1600.0, 800.0, 1200.0),   # T1_Step_Jump60 (the 30 cm step is walked over)
+)
+# CombatTestMap: floor x in [-1500, 2700], y in [-1600, 1600]; a built navmesh.
+#   TestDummy    (600, 600): BP_MordecaiEnemy_TestDummy, 200 HP, never moves (DefaultMoveSpeed 0)
+#                and never aggroes (BP_MordecaiEnemyAI_TestDummy: AggroRange 0), ai_state Idle.
+#   TestAttacker (2100, 0):  BP_MordecaiEnemy_TestAttacker, 200 HP, holds its spot
+#                (DefaultMoveSpeed 0) with the native AI: AggroRange 900, so it is Idle until the
+#                player comes within 900 cm; it swings BasicSlash (15 Slash, 150 cm / 90 deg arc,
+#                500 ms windup) at <= 150 cm, one swing per ~2.6 s (1.1 s ability + 1500 ms
+#                cooldown).  A dead player stays its target (it swings on); with the player
+#                beyond LeashRange 1800 it goes Leash, then Idle, by itself.  2100 cm from
+#                PlayerStart, >= 900 cm from every scripted spot but COMBAT_ATTACKER_FIGHT_SPOT.
+# Scripted spots: the dummy melee spot 160 cm -X of the dummy and the Fireball shot spot 300 cm -X
+# of it; the attacker fight spot (2000, 0), 100 cm -X of the attacker (inside its 150 cm swing even
+# when walk_to stops 25 cm off; it was (1980, 0)); the Blink lane from (0, -600) along +X (clear
+# to 1100).
+MOVEMENT_TEST_MAP_LANE_Y = -800.0
+COMBAT_TEST_MAP_WALLS = (
+    ("T1_Wall_N", (-1550.0, 2750.0, 1600.0, 1650.0)),
+    ("T1_Wall_S", (-1550.0, 2750.0, -1650.0, -1600.0)),
+    ("T1_Wall_E", (2700.0, 2750.0, -1650.0, 1650.0)),
+    ("T1_Wall_W", (-1550.0, -1500.0, -1650.0, 1650.0)),
+)
+TEST_DUMMY_SPEC = {"label": "TestDummy", "class": "BP_MordecaiEnemy_TestDummy_C",
+                   "location": [600.0, 600.0, 100.0], "max_health": 200.0, "ai_state": "Idle"}
+TEST_ATTACKER_SPEC = {"label": "TestAttacker", "class": "BP_MordecaiEnemy_TestAttacker_C",
+                      "location": [2100.0, 0.0, 100.0], "max_health": 200.0, "ai_state": "Idle"}
+COMBAT_TEST_MAP_ENEMY_SPECS = (TEST_DUMMY_SPEC, TEST_ATTACKER_SPEC)
+COMBAT_DUMMY_MELEE_SPOT = (440.0, 600.0)
+COMBAT_DUMMY_SHOT_SPOT = (300.0, 600.0)
+COMBAT_ATTACKER_FIGHT_SPOT = (2000.0, 0.0)
+COMBAT_BLINK_LANE_START = (0.0, -600.0)
+# FakeWorld options per map: FakeWorld(**MAP_PRESETS[map]) models that map's walls, blocks,
+# pickups and enemies (stationary; a story test subclasses FakeWorld for enemy behaviour).
+MAP_PRESETS = {
+    DEFAULT_MAP: {"map": DEFAULT_MAP, "obstacles": DEVTESTMAP_OBSTACLES},
+    MOVEMENT_TEST_MAP: {"map": MOVEMENT_TEST_MAP, "arena_walls": MOVEMENT_TEST_MAP_WALLS,
+                        "obstacles": MOVEMENT_TEST_MAP_OBSTACLES, "pickups": [],
+                        "enemies": False},
+    COMBAT_TEST_MAP: {"map": COMBAT_TEST_MAP, "arena_walls": COMBAT_TEST_MAP_WALLS,
+                      "obstacles": (), "pickups": [], "enemies": COMBAT_TEST_MAP_ENEMY_SPECS},
+}
+
 PAUSE_TABS = (("character", "Character"), ("skills", "Skills"), ("feats", "Feats"),
               ("inventory", "Inventory"), ("settings", "Settings"))
 INVENTORY_FILTERS = ("All", "Weapons", "Armor", "Trinkets", "Consumables", "Materials", "Quest",
@@ -586,7 +650,8 @@ class FakeWorld:
       speed                walk speed, uu/s (600)
       start                spawn XY (0, 0); control_yaw: control rotation yaw (0)
       obstacles            extra (x0, x1, y0, y1) boxes, e.g. DEVTESTMAP_OBSTACLES
-      arena_walls          include the +/-975 arena walls (True)
+      arena_walls          include the +/-975 arena walls (True), or a sequence of
+                           (name, (x0, x1, y0, y1)) walls, e.g. MOVEMENT_TEST_MAP_WALLS
       hazards              boxes that kill the pawn on entry
       focus_range          pickup focus distance, XY (120)
       escape_closes_menu   Escape closes an open pause menu (True, as in the game: the CommonUI
@@ -603,7 +668,10 @@ class FakeWorld:
                            invalid, see Known issues)
       map, experience      reported names
       pickups              None = all six, or a list of labels to place
-      enemies              place the three Frontliners (True; they never move)
+      enemies              place the three Frontliners (True; they never move), or a sequence of
+                           enemy specs ({label, location, class, max_health, ai_state}), e.g.
+                           COMBAT_TEST_MAP_ENEMY_SPECS
+      MAP_PRESETS[map] holds the options that model each map
       lose_pawn_on_f       F loses the pawn instead of picking up (as if it died or was
                            unpossessed that frame): nothing is picked up and every pawn section
                            (player, pickups, inventory) turns valid:false "no pawn yet" (False)
@@ -625,7 +693,8 @@ class FakeWorld:
         self.speed = float(speed)
         self.start = (float(start[0]), float(start[1]))
         self.control_yaw = float(control_yaw)
-        self.wall_boxes = [(name, _box(b)) for name, b in ARENA_WALLS] if arena_walls else []
+        walls = ARENA_WALLS if arena_walls is True else (arena_walls or ())
+        self.wall_boxes = [(name, _box(b)) for name, b in walls]
         self.obstacles = [b for _, b in self.wall_boxes] + [_box(b) for b in (obstacles or ())]
         self.hazards = [_box(b) for b in (hazards or ())]
         self.focus_range = float(focus_range)
@@ -643,7 +712,8 @@ class FakeWorld:
         self.experience = experience
         self.world_pickups = [dict(p, location=list(p["location"])) for p in PICKUP_SPECS
                               if pickups is None or p["label"] in pickups]
-        self.enemies = [dict(e, location=list(e["location"])) for e in ENEMY_SPECS] if enemies else []
+        specs = ENEMY_SPECS if enemies is True else (enemies or ())
+        self.enemies = [dict(e, location=list(e["location"])) for e in specs]
         self.lose_pawn_on_f = bool(lose_pawn_on_f)
         self.pickup_adds_nothing = bool(pickup_adds_nothing)
         self.pawn_lost = False
@@ -1252,9 +1322,11 @@ class FakeWorld:
                 text_labels=[{"component": "NameLabel", "text": p["display_name"], "visible": True,
                               "facing": 1.0, "upright": 1.0}])
         for e in self.enemies:
-            add(e["label"], "BP_MordecaiEnemy_Frontliner_C", "MordecaiEnemyCharacter", "enemy",
-                e["location"], has_visible_mesh=True, health={"current": 100.0, "max": 100.0},
-                is_dead=False, ai_state="Approach",
+            max_health = float(e.get("max_health", 100.0))
+            add(e["label"], e.get("class", "BP_MordecaiEnemy_Frontliner_C"),
+                "MordecaiEnemyCharacter", "enemy", e["location"], has_visible_mesh=True,
+                health={"current": float(e.get("health", max_health)), "max": max_health},
+                is_dead=bool(e.get("is_dead", False)), ai_state=e.get("ai_state", "Approach"),
                 widgets=[{"component": "HealthBarWidget", "class": "WBP_EnemyHealthBar_C",
                           "space": "Screen", "visible": True}])
         if include_all:

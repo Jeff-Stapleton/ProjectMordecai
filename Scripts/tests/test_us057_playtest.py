@@ -1,8 +1,10 @@
 """Tests for Scripts/playtests/us057_magic.py against tests/fake_bridge.py (FakeWorld).
 
-MagicWorld below adds what the shared fake lacks: Fireball projectiles that fly +X and damage
-the Frontliners (200 HP), the Blink teleport, the Stone Skin / Restoration status tags, the
-SP bar, the spell cooldown widgets and the status indicator widgets, and optional cooldowns.
+MagicWorld below models CombatTestMap (fb.MAP_PRESETS: the TestDummy at (600, 600), the
+TestAttacker at (2100, 0), both stationary) and adds what the shared fake lacks: Fireball
+projectiles that fly +X and damage the enemies (200 HP), the Blink teleport, the Stone Skin /
+Restoration status tags, the SP bar, the spell cooldown widgets and the status indicator
+widgets, and optional cooldowns.
 These prove the playtest's logic and reporting only; they say nothing about the real game.
 Nothing here launches the real game.  Run: py Scripts/run_python_tests.py -k Us057
 """
@@ -62,7 +64,8 @@ class MagicWorld(fb.FakeWorld):
                  projectile_speed=1000.0, fireball_damage=25.0, cast_delay_s=0.3,
                  blink_distance=500.0, stone_skin_s=2.5, restoration_s=5.0, sp_bar=True,
                  indicators=True, restoration_ignores_cost=False, enemy_hp=200.0, **kwargs):
-        kwargs.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES)
+        for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
+            kwargs.setdefault(name, value)
         super().__init__(**kwargs)
         self.cooldowns = cooldowns
         self.cooldown_widget_count = cooldown_widgets
@@ -211,7 +214,8 @@ class MagicWorld(fb.FakeWorld):
 
 
 class SteppingEnemyWorld(MagicWorld):
-    """Frontliner_3 moves 120 cm +Y the first time the player stands near (-700, -500)."""
+    """The TestDummy moves 120 cm +Y the first time the player stands near the shot spot
+    (300, 600).  (The real dummy never moves; this exercises the re-walk.)"""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -220,12 +224,18 @@ class SteppingEnemyWorld(MagicWorld):
     def tick(self, dt):
         super().tick(dt)
         with self.lock:
-            if not self.enemy_moved and math.hypot(self.pos[0] + 700.0,
-                                                   self.pos[1] + 500.0) < 80.0:
+            sx, sy = fb.COMBAT_DUMMY_SHOT_SPOT
+            if not self.enemy_moved and math.hypot(self.pos[0] - sx, self.pos[1] - sy) < 80.0:
                 for e in self.enemies:
-                    if e["label"].endswith("Frontliner_3"):
+                    if e["label"] == "TestDummy":
                         e["location"][1] += 120.0
                 self.enemy_moved = True
+
+
+# CombatTestMap's enemies under object names that do not say which is which: the target is the
+# enemy nearest the TestDummy's placement (600, 600).
+UNNAMED_ENEMIES = (dict(fb.TEST_DUMMY_SPEC, label="BP_MordecaiEnemy_C_1"),
+                   dict(fb.TEST_ATTACKER_SPEC, label="BP_MordecaiEnemy_C_0"))
 
 
 def read_jsonl(path):
@@ -291,9 +301,12 @@ class TestUs057PassPath(PlaytestCase):
         self.assertEqual(world.spell_points, 1.0)
         self.assertEqual([(s["spell"], s["before"], s["after"]) for s in rep["spell_points"]],
                          [("Fireball", 10.0, 7.0), ("Blink", 7.0, 5.0), ("Stone Skin", 5.0, 1.0)])
-        self.assertEqual(world.enemy_hp["BP_MordecaiEnemy_Frontliner_3"], 175.0)
+        self.assertEqual(world.enemy_hp["TestDummy"], 175.0)
+        self.assertEqual(world.enemy_hp["TestAttacker"], 200.0)
         self.assertIn("25 damage", checks["fireball_hits_enemy"]["detail"])
-        self.assertIn("BP_MordecaiEnemy_Frontliner_3", checks["fireball_hits_enemy"]["detail"])
+        self.assertIn("TestDummy health 200 -> 175", checks["fireball_hits_enemy"]["detail"])
+        self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
+        self.assertIn(fb.COMBAT_TEST_MAP, checks["map"]["detail"])
         # The known issues all passed: each is flagged FIXED? (re-check the backlog).
         self.assertEqual(sorted(rep["fixed_candidates"]), sorted(TODAY_KNOWN))
         self.assertIn("PASS (FIXED?)", self.md())
@@ -305,14 +318,37 @@ class TestUs057PassPath(PlaytestCase):
         self.play(server)
         key, spell_id, (x, y) = world.cast_log[0]
         self.assertEqual((key, spell_id), ("Q", "Fireball"))
-        self.assertLess(abs(y - (-500.0)), us057.SHOT_TOL + 1)
-        self.assertLess(abs(x - (-700.0)), us057.SHOT_TOL + 1)
+        # The shot spot: 300 cm -X of the TestDummy (600, 600).
+        sx, sy = fb.COMBAT_DUMMY_SHOT_SPOT
+        self.assertEqual((sx, sy), (300.0, 600.0))
+        self.assertLess(abs(y - sy), us057.SHOT_TOL + 1)
+        self.assertLess(abs(x - sx), us057.SHOT_TOL + 1)
+        # Blink from the start of the Blink lane (0, -600), along +X.
         blink = world.cast_log[1]
         self.assertEqual(blink[1], "Blink")
-        self.assertLess(math.hypot(blink[2][0] - 0.0, blink[2][1] + 800.0), us057.WALK_TOL + 1)
+        self.assertEqual(us057.LANE_POINT, fb.COMBAT_BLINK_LANE_START)
+        bx, by = fb.COMBAT_BLINK_LANE_START
+        self.assertLess(math.hypot(blink[2][0] - bx, blink[2][1] - by), us057.WALK_TOL + 1)
+        # Every cast spot is out of the TestAttacker's 900 cm aggro range.
+        ax, ay = fb.TEST_ATTACKER_SPEC["location"][:2]
+        for _, _, (cx, cy) in world.cast_log:
+            self.assertGreater(math.hypot(cx - ax, cy - ay), 900.0)
+
+    def test_the_target_falls_back_to_the_enemy_nearest_the_dummy_placement(self):
+        # Packaged labels are object names: no 'TestDummy' in them.  The enemy nearest (600, 600)
+        # is the target, never the attacker.
+        world, server = self.serve(enemies=UNNAMED_ENEMIES)
+        code, rep = self.play(server)
+        checks = self.by_name(rep)
+        self.assertEqual(checks["walk_shot_line"]["status"], "PASS",
+                         checks["walk_shot_line"]["detail"])
+        self.assertIn("BP_MordecaiEnemy_C_1 at (600, 600)", checks["walk_shot_line"]["detail"])
+        self.assertEqual(checks["fireball_hits_enemy"]["status"], "PASS")
+        self.assertEqual(world.enemy_hp["BP_MordecaiEnemy_C_1"], 175.0)
+        self.assertEqual(world.enemy_hp["BP_MordecaiEnemy_C_0"], 200.0)
 
     def test_rewalks_when_the_enemy_moved(self):
-        # Frontliner_3 steps 120 cm +Y as soon as the player reaches the first shot position.
+        # The TestDummy steps 120 cm +Y as soon as the player reaches the first shot position.
         world = SteppingEnemyWorld()
         server = fb.FakeBridgeServer(world, token=TOKEN, shot_dir=self.tmp).start()
         self.addCleanup(server.stop)
@@ -431,7 +467,8 @@ class TestUs057Failures(PlaytestCase):
         self.assertEqual(code, 1)
         checks = self.by_name(rep)
         self.assertEqual(checks["walk_shot_line"]["status"], "FAIL")
-        self.assertIn("no enemy 'Frontliner_3'", checks["walk_shot_line"]["detail"])
+        self.assertIn("no enemy 'TestDummy'", checks["walk_shot_line"]["detail"])
+        self.assertIn("no enemy near (600, 600)", checks["walk_shot_line"]["detail"])
         self.assertEqual(checks["fireball_hits_enemy"]["status"], "SKIP")
         self.assertIn("walk_shot_line failed", checks["fireball_hits_enemy"]["detail"])
         self.assertEqual(checks["fireball_cast"]["status"], "PASS")

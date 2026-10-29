@@ -21,10 +21,17 @@ every observation a state read, a wait or a screenshot.  Nothing calls game func
 bridge.jsonl in the run dir is the audit trail.  The run framework is Scripts/playtest_kit.py
 (Specs/story_playtests_v1.md section 2).
 
+The map is MovementTestMap (/MordecaiCore/Game/Maps/MovementTestMap, B_MordecaiArenaExperience):
+an open 4000 x 4000 cm grid floor with 100 cm boundary walls at +-2000, the PlayerStart at (0, 0)
+facing +X, lane L1 (y=-800, x -1000..+1600: plain floor) and two steps at +Y, off the route.  No
+enemies and no pickups: nothing body-blocks the walk or the sprint, and nothing can kill the
+player between the combat steps.  None of the checks needs an enemy (they read player.tags,
+movement_mode and positions).
+
 Steps (every step is a check; --plan prints them as the story's Steps table):
-  1-4   First, from the spawn and before any dodge: walk to lane L1 (west along y=0 between the
-        enemies' spawn points to (-650, 0), south to us001's (-700, -650) and the lane start
-        (-700, -800); screenshot), then run up along the lane (+X) to (-300, -800).
+  1-4   First, from the spawn: walk to lane L1 (west along y=0 to (-650, 0), south to us001's
+        (-700, -650) and the lane start (-700, -800); screenshot), then along the lane (+X) to the
+        sprint start (-300, -800).
   5     Sprint: tap LeftShift, hold W 1.0 s: > 700 cm.  Tap LeftShift again, hold S 1.0 s while
         reading player.speed: the peak must be a walk (500..750 cm/s), so the second tap ended the
         sprint.
@@ -40,16 +47,13 @@ Steps (every step is a check; --plan prints them as the story's Steps table):
   16-19 Left click at the viewport centre (640, 360), the bridge's default click: a light attack.
         Left click held 0.8 s: a heavy attack on the release.  LeftAlt: a dodge.  Once that dodge
         is over (no Dodging tag, Walking), SpaceBar: a jump (Falling).
-Why the walk and the sprint come first: the arena's enemies (N14) follow the player at
-400 cm/s and stop about 200 cm from it (their AttackRange).  A player walking straight leaves them
-behind, but walks into any that stand ahead.  At the spawn, before any dodge, they stand at their
-spawn points (196, 0) and (-123, +/-153), clear of the route; the run-up along the lane leaves the
-ones that followed behind the player before its 1 s of W.  When the walk came after the combat
-steps, a backward dodge had pushed the player into one (boxed in at the spawn), or they had cut
-the corner onto the sprint line (Saved/Playtests/20261024-110250-us083, -115717-us083).
-Every attack and dodge starts from idle (no attack, block or parry tag left).  The combat steps
-read tags only, so they work wherever the sprint left the player; nothing needs an enemy.  A failed
-check SKIPs the checks that depend on it; independent checks still run.
+Every attack and dodge starts from idle (no attack, block or parry tag left); a dead player is
+never idle, so a step that finds the player dead FAILs saying so instead of pressing into a death.
+The combat steps read tags only, so they work wherever the sprint left the player.  Each dodge's
+displacement (from before the tap to where the player settles) is recorded in the report's
+movement measurements, not judged: it measures N27 (DodgeDistanceCm 400, ~110 cm travelled;
+Specs/agent_playtest_plan_v1.md).  A failed check SKIPs the checks that depend on it; independent
+checks still run.
 
 Usage:
   py Scripts/playtests/us083_combat_input.py                    fresh package: launch, play, quit
@@ -95,24 +99,25 @@ TAG_ATTACKING = "Mordecai.State.Attacking"
 TAG_HEAVY = "Mordecai.Attack.Heavy"
 TAG_DODGE_SUBSTR = "dodg"          # Mordecai.State.Dodging, then DodgeCooldown
 TAG_DODGING = "Mordecai.State.Dodging"   # the dodge's active phase (its launch)
+TAG_DEAD = "Mordecai.State.Dead"
+DODGE_DISTANCE_CM = 400.0          # UMordecaiGA_Dodge DodgeDistanceCm (N27: ~110 cm travelled)
 
 # --- keyboard and mouse (AC-083.4..AC-083.8) ------------------------------------------------
-CLICK_POINT = (640, 360)           # the viewport centre: the arena, no widget (as us078)
+CLICK_POINT = (640, 360)           # the viewport centre: the floor, no widget (as us078)
 LMB_HEAVY_S = 0.8                  # > HeavyAttackHoldSeconds (0.4)
 KB_DODGE_KEY = "LeftAlt"
 KB_JUMP_KEY = "SpaceBar"
 SPRINT_KEY = "LeftShift"
-# Lane L1 (y=-800, x -750..+950 is clear).  The walk starts at the spawn (0, 0), before any dodge:
-# the Frontliners still stand at their spawn points (196, 0) and (-123, +/-153), within their
-# 200 cm attack range, so the route leaves between the two western ones (west along y=0, 153 cm
-# from each), then goes south, west of Box_02, to us001's lane start, 100 cm off Cover_01.  They
-# follow at 400 cm/s (a walk is 600) and cut the corner of the turn into the lane, so the player
-# runs up along the lane (+X) before the sprint: anything that followed is then behind it.
-LANE_WAYPOINTS = (("walk_lane_wp1", -650.0, 0.0, "west along y=0, between the enemies' spawn "
-                   "points"),
-                  ("walk_lane_wp2", -700.0, -650.0, "south, west of Box_02, to us001's waypoint"))
+# Lane L1 (y=-800, x -1000..+1600 is plain floor).  The walk starts at the spawn (0, 0): west
+# along y=0, then south to us001's lane waypoint and the lane start, then along the lane (+X) to
+# the sprint start.  These are the waypoints the DevTestMap runs used (the check names are kept);
+# on the open floor they are plain positioning.  The sprint and its stop (~1000 cm) end near
+# x=+700, far from the east wall (x=2000); the S hold of the toggle-back and the two backward (-X)
+# dodges stay on the lane.
+LANE_WAYPOINTS = (("walk_lane_wp1", -650.0, 0.0, "west along y=0 from the spawn"),
+                  ("walk_lane_wp2", -700.0, -650.0, "south to us001's waypoint"))
 LANE_START = (-700.0, -800.0)
-RUN_UP = (-300.0, -800.0)          # the sprint covers ~750 cm + its stop from here: lane ends +950
+RUN_UP = (-300.0, -800.0)          # the sprint start, 400 cm along the lane
 SETTLE_TIMEOUT_S = 2.0             # wait for the player to stop before measuring
 SPRINT_HOLD_S = 1.0
 SPRINT_MIN = 700.0                 # cm: more than any walk can cover in 1.0 s
@@ -136,33 +141,30 @@ DODGE_TIMEOUT_S = 0.5
 JUMP_TIMEOUT_S = 1.0
 
 SCREENSHOTS = {
-    "blocking": "the player in the diorama arena with LT held (blocking); there is no block "
-                "animation or guard visual, so the block itself is checked through player.tags",
-    "lane_start": "the same fixed camera angle with the player at the lane L1 start (-700, -800), "
-                  "near the south-west corner of the arena, and the combat HUD; the sprint "
-                  "starts here",
+    "blocking": "the player on MovementTestMap's open grid floor with LT held (blocking); there "
+                "is no block animation or guard visual, so the block itself is checked through "
+                "player.tags",
+    "lane_start": "the fixed camera angle with the player at the lane L1 start (-700, -800) on "
+                  "the open grid floor, no enemies, and the combat HUD; the walk along the lane "
+                  "to the sprint start begins here",
 }
 KNOWN_ISSUES = (
     "Block and parry on the mouse (RMB hold, RMB+LMB, AC-083.11) are not played: the playtest "
     "client holds a mouse button only inside one blocking click (B2). This script plays the "
     "same actions on the gamepad triggers.",
-    "The arena's enemies spawn inside aggro range of the player, follow it and can body-block it "
-    "(N14, Specs/agent_playtest_plan_v1.md Known issues backlog; the swarm is left to the T1 "
-    "test maps, issue #46): an enemy in the way can stop the "
-    "walk to lane L1 (walk_lane_*), which then SKIPs the sprint, or shorten the sprint itself. "
-    "No step expects that: the walk and the sprint come first, from the spawn before any dodge, "
-    "between the enemies' spawn points, and the run-up along the lane leaves the ones that "
-    "followed behind the player before the sprint.",
+    "The dodge travels about 110 cm, not its DodgeDistanceCm 400 (N27, "
+    "Specs/agent_playtest_plan_v1.md Known issues backlog). No check judges the distance: each "
+    "dodge's displacement is recorded in the report's dodge measurements.",
 )
 
 PLAN = (
-    # --- first, from the spawn before any dodge: lane L1 and the LeftShift sprint (AC-083.8) ---
+    # --- first, from the spawn: lane L1 and the LeftShift sprint (AC-083.8) ---
     *[Step(check, f"walk_to({x:g}, {y:g}) -> within 60 cm (waypoint to lane L1: {why})")
       for check, x, y, why in LANE_WAYPOINTS],
     Step("walk_lane_start", f"walk_to({LANE_START[0]:g}, {LANE_START[1]:g}) -> within 60 cm "
          "(lane L1 start)"),
     Step("walk_lane_run_up", f"walk_to({RUN_UP[0]:g}, {RUN_UP[1]:g}) -> within 60 cm (along lane "
-         "L1, +X: the enemies that followed the player end up behind it)"),
+         "L1, +X: the sprint start)"),
     Step("sprint_left_shift", f"at the run-up point: tap {SPRINT_KEY}, hold W {SPRINT_HOLD_S:g}s "
          f"-> dx > {SPRINT_MIN:g} cm; tap {SPRINT_KEY} again, hold S {SPRINT_HOLD_S:g}s reading "
          f"player.speed every {SPEED_POLL_S:g}s -> back to a walk (peak {WALK_SPEED_MIN:g}.."
@@ -189,7 +191,8 @@ PLAN = (
     Step("heavy_attack_rt_hold", f"idle -> axis {RT}=1 hold_s {RT_HEAVY_S:g} -> '{TAG_HEAVY}' "
          f"in player.tags within {HEAVY_TIMEOUT_S:g}s of the release", proves=("AC-083.3",)),
     Step("dodge_gamepad_b", f"tap {DODGE_KEY} (B) -> a Dodging tag in player.tags within "
-         f"{DODGE_TIMEOUT_S:g}s", proves=("AC-083.3",)),
+         f"{DODGE_TIMEOUT_S:g}s (the displacement is recorded, not judged: N27)",
+         proves=("AC-083.3",)),
     Step("jump_gamepad_a", f"wait until the dodge is over (no '{TAG_DODGING}') and "
          f"player.movement_mode==\"Walking\", tap {JUMP_KEY} (A) -> wait_until "
          f"player.movement_mode==\"Falling\" within {JUMP_TIMEOUT_S:g}s", proves=("AC-083.3",)),
@@ -203,8 +206,8 @@ PLAN = (
          f"held {LMB_HEAVY_S:g}s -> '{TAG_HEAVY}' in player.tags within {HEAVY_TIMEOUT_S:g}s of "
          "the release", proves=("AC-083.5", "AC-083.3")),
     Step("dodge_left_alt", f"idle (and no Dodging / DodgeCooldown tag left) -> tap {KB_DODGE_KEY} "
-         f"-> a Dodging tag in player.tags within {DODGE_TIMEOUT_S:g}s",
-         proves=("AC-083.6", "AC-083.3")),
+         f"-> a Dodging tag in player.tags within {DODGE_TIMEOUT_S:g}s (the displacement is "
+         "recorded, not judged: N27)", proves=("AC-083.6", "AC-083.3")),
     Step("jump_space_bar", f"wait until the dodge is over (no '{TAG_DODGING}') and "
          f"player.movement_mode==\"Walking\", tap {KB_JUMP_KEY} -> wait_until "
          f"player.movement_mode==\"Falling\" within {JUMP_TIMEOUT_S:g}s",
@@ -230,8 +233,15 @@ def _dodging(tags):
     return any(TAG_DODGE_SUBSTR in t.lower() for t in tags)
 
 
+def _dead(tags):
+    return TAG_DEAD in tags
+
+
 def _idle(tags):
-    return TAG_ATTACKING not in tags and TAG_BLOCKING not in tags and not _parried(tags)
+    """No attack, block or parry tag left, and alive (a dead player has none of those tags but
+    cannot attack, dodge or jump either)."""
+    return (not _dead(tags) and TAG_ATTACKING not in tags and TAG_BLOCKING not in tags
+            and not _parried(tags))
 
 
 def _idle_no_dodge(tags):
@@ -242,6 +252,8 @@ class Us083Run(kit.PlaytestRun):
     STORY = STORY
     FEATURES = ("block_parry", "melee_attack", "dodge", "movement", "sprint")
     TITLE = TITLE
+    MAP = kit.MOVEMENT_TEST_MAP
+    EXPERIENCE = kit.DEFAULT_EXPERIENCE
     SCREENSHOTS = SCREENSHOTS
     KNOWN_ISSUES = KNOWN_ISSUES
     PLAN = PLAN
@@ -251,11 +263,12 @@ class Us083Run(kit.PlaytestRun):
 
     def __init__(self, args):
         super().__init__(args)
-        self.measurements = []   # the sprint and its toggle-back (report_extra / md_sections)
+        # The sprint and its toggle-back, then each dodge's displacement (kind "dodge"; N27)
+        # (report_extra / md_sections)
+        self.measurements = []
 
     def steps(self):
-        # The walk and the sprint first, before any dodge has pushed the player into an enemy
-        # (module docstring)
+        # The walk and the sprint first, from the spawn on the open floor (module docstring)
         self.step_lane_and_sprint()
         self.step_block_and_parry()
         self.step_parry_needs_a_fresh_press()
@@ -287,8 +300,11 @@ class Us083Run(kit.PlaytestRun):
 
     def _wait_idle(self, idle=_idle):
         """Wait until no attack, block or parry tag is left (idle=_idle_no_dodge: no dodge tag
-        either).  Returns None or why not."""
-        got, seen = self._poll(IDLE_TIMEOUT_S, idle)
+        either).  A dead player is not idle: the wait stops at once.  Returns None or why not."""
+        got, seen = self._poll(IDLE_TIMEOUT_S, lambda t: idle(t) or _dead(t))
+        if got is not None and _dead(got):
+            return (f"the player is dead (tags {got}), so this step's input was not sent: a dead "
+                    "player cannot attack, dodge or jump")
         if got is None:
             return (f"the player is not idle {IDLE_TIMEOUT_S:g}s after the previous step (tags "
                     f"{seen[-1]}), so this step cannot be told apart from it")
@@ -525,30 +541,63 @@ class Us083Run(kit.PlaytestRun):
                             what, timeout_s, heavy)
 
     def _dodge(self, check, key, idle):
+        """From idle, tap `key`: PASS on a Dodging tag.  The displacement from before the tap to
+        where the player settles is recorded (N27), never judged."""
         def fn():
             not_idle = self._wait_idle(idle)
             if not_idle:
                 return "FAIL", not_idle, None
+            p0, _ = self._player(self.bridge)
             self.bridge.tap(key, hold_s=self.TAP_S)
             got, seen = self._poll(DODGE_TIMEOUT_S, _dodging)
+            moved = self._dodge_displacement(check, key, p0)
             if got is None:
                 return ("FAIL", f"tapped {key}: no Dodging tag within {DODGE_TIMEOUT_S:g}s "
-                        f"(tags {seen[-1]})", None)
-            return "PASS", f"tapped {key}: tags {got}", None
+                        f"(tags {seen[-1]}){moved}", None)
+            return "PASS", f"tapped {key}: tags {got}{moved}", None
 
         return self.attempt(check, fn)
+
+    def _dodge_displacement(self, check, key, p0):
+        """Wait for the dodge's active phase to end and the player to stop, and record how far
+        it went from p0 (a measurement for N27, not a check).  Returns the text for the check's
+        detail."""
+        note = f"N27: DodgeDistanceCm {DODGE_DISTANCE_CM:g}; measured, not judged"
+        if p0 is None:
+            return f"; displacement not measured (no position before the tap; {note})"
+        try:
+            # The first Dodging read can come before the launch moves the player (speed 0), so
+            # wait for the tag to go before waiting for the stop
+            self._poll(IDLE_TIMEOUT_S, lambda t: TAG_DODGING not in t)
+            settle_s = self._settle(self.bridge, SETTLE_TIMEOUT_S)
+            p1, _ = self._player(self.bridge)
+        except ab.BridgeError as e:
+            self.warnings.append(f"{check}: could not measure the dodge displacement: {e}")
+            self._lost(f"{check} displacement", e)
+            return f"; displacement not measured ({e.code}; {note})"
+        if p1 is None:
+            return f"; displacement not measured (no position after the dodge; {note})"
+        dist = ((p1[0] - p0[0]) ** 2 + (p1[1] - p0[1]) ** 2) ** 0.5
+        self._record(check, f"tap {key} (dodge, no move key)", p0, p1,
+                     {"kind": "dodge", "distance": round(dist, 1),
+                      "expected_cm": DODGE_DISTANCE_CM, "settle_s": settle_s})
+        return (f"; displacement {dist:.0f} cm ({p0[0]:.0f}, {p0[1]:.0f}) -> ({p1[0]:.0f}, "
+                f"{p1[1]:.0f})" + ("" if settle_s is not None else
+                                   f", still moving {SETTLE_TIMEOUT_S:g}s after the dodge")
+                + f" ({note})")
 
     def _on_the_ground(self):
         """Before a jump: wait until the player is Walking and the dodge's active phase, whose
         launch is Falling too, has ended (a read can show Dodging and Walking just before the
-        launch).  Returns (None, what) or (why not, None)."""
+        launch).  A dead player stops the wait at once.  Returns (None, what) or (why not, None)."""
         def grounded(st):
             p = kit.section(st, "player")
-            return p.get("movement_mode") == "Walking" and TAG_DODGING not in _tags(st)
+            return _dead(_tags(st)) or (p.get("movement_mode") == "Walking"
+                                        and TAG_DODGING not in _tags(st))
 
         try:
-            self.bridge.wait_for(grounded, timeout_s=IDLE_TIMEOUT_S, sections=["player"],
-                                 poll_s=POLL_S)
+            st = self.bridge.wait_for(grounded, timeout_s=IDLE_TIMEOUT_S, sections=["player"],
+                                      poll_s=POLL_S)
         except ab.BridgeError as e:
             if e.code != "wait_for_timeout":
                 raise
@@ -557,6 +606,9 @@ class Us083Run(kit.PlaytestRun):
                     f"after it (movement_mode {p.get('movement_mode')!r}, tags "
                     f"{_tags(e.response or {})}), so a jump cannot be told apart from the "
                     "dodge's launch", None)
+        if _dead(_tags(st)):
+            return (f"the player is dead (tags {_tags(st)}), so the jump input was not sent: a "
+                    "dead player cannot jump", None)
         return None, "the dodge over, Walking"
 
     def _jump(self, check, key):
@@ -616,7 +668,7 @@ class Us083Run(kit.PlaytestRun):
             sprinted = dx > SPRINT_MIN
 
             # The toggle-back is judged by speed, not distance: a speed reading cannot be shortened
-            # by a frame hitch or an enemy in the way, and a sprint (900 cm/s) and a walk
+            # by a frame hitch or anything in the way, and a sprint (900 cm/s) and a walk
             # (600 cm/s) are far apart.
             back, err = self._hold_watching_speed("S", SPRINT_HOLD_S)
             if back is None:
@@ -634,8 +686,8 @@ class Us083Run(kit.PlaytestRun):
                            "(toggle out of phase)")
                 return "FAIL", detail, rec
             if peak < WALK_SPEED_MIN:
-                detail += (" -- the player never reached walking speed on the way back (blocked? "
-                           "N14), so the toggle-back is unverified")
+                detail += (" -- the player never reached walking speed on the way back "
+                           "(blocked?), so the toggle-back is unverified")
                 return "FAIL", detail, rec
             return ("PASS" if sprinted else "FAIL"), detail, rec
 
@@ -661,17 +713,29 @@ class Us083Run(kit.PlaytestRun):
 
     def md_sections(self):
         md = kit.pb.md_cell
+        sprint = [m for m in self.measurements if m.get("kind") != "dodge"]
+        dodges = [m for m in self.measurements if m.get("kind") == "dodge"]
         lines = ["", "## Sprint measurements", "",
                  "| Check | Input | Start | End | dx | Peak speed |", "|---|---|---|---|---|---|"]
 
         def pt(p):
             return f"({p[0]:.0f}, {p[1]:.0f})" if p else "-"
 
-        for m in self.measurements:
+        for m in sprint:
             lines.append(f"| {m['check']} | {md(m['input'])} | {pt(m['start'])} | "
                          f"{pt(m['end'])} | {m['dx']} | {m.get('peak_speed', '-')} |")
-        if not self.measurements:
+        if not sprint:
             lines.append("| (none) | - | - | - | - | - |")
+        lines += ["", "## Dodge measurements (N27, not judged)", "",
+                  f"DodgeDistanceCm is {DODGE_DISTANCE_CM:g}; each row is the displacement from "
+                  "before the tap to where the player settled.", "",
+                  "| Check | Input | Start | End | dx | dy | Distance |",
+                  "|---|---|---|---|---|---|---|"]
+        for m in dodges:
+            lines.append(f"| {m['check']} | {md(m['input'])} | {pt(m['start'])} | "
+                         f"{pt(m['end'])} | {m['dx']} | {m['dy']} | {m['distance']} |")
+        if not dodges:
+            lines.append("| (none) | - | - | - | - | - | - |")
         return lines
 
 

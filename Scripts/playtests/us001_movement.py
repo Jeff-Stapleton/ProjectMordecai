@@ -9,17 +9,23 @@ trail of every request.  The run framework (launch, STALE gate, checks, plan enf
 acceptance, reports, exit codes) is Scripts/playtest_kit.py (Specs/story_playtests_v1.md
 section 2); this file is the PLAN and the steps.
 
+The map is MovementTestMap (/MordecaiCore/Game/Maps/MovementTestMap, B_MordecaiArenaExperience):
+an open 4000 x 4000 cm floor with a measuring grid, 100 cm boundary walls at +-2000, the
+PlayerStart at (0, 0) facing +X, lane L1 (y=-800, x -1000..+1600: plain floor) and two steps at
++Y (x 600..1600, y 800..1200), off every route here.  No enemies and no pickups, so nothing
+shoves, blocks or kills the player mid-measurement.
+
 Steps (every step is a check: PASS, FAIL, SKIP or WARN; --plan prints them as a table):
-  1. Boot DevTestMap: the combat HUD with its Health / Stamina bars and the SP text '10 / 10'
-     is on screen; the player is a live MordecaiCharacter at the spawn (0, 0); the runtime
-     input mapping context is active.  Screenshot.
-  2. WASD from the spawn, A -> W -> D -> S (a square that ends back at the spawn and keeps
-     more than 120 cm from every pickup): each key held 0.4 s moves the player > 100 cm the
-     right way along its world axis (W=+X, S=-X, D=+Y, A=-Y) and < 30 cm along the other.
+  1. Boot MovementTestMap: the combat HUD with its Health / Stamina bars and the SP text
+     '10 / 10' is on screen; the player is a live MordecaiCharacter at the spawn (0, 0); the
+     runtime input mapping context is active.  Screenshot.
+  2. WASD from the spawn, A -> W -> D -> S (a square on the open floor that ends back at the
+     spawn): each key held 0.4 s moves the player > 100 cm the right way along its world axis
+     (W=+X, S=-X, D=+Y, A=-Y) and < 30 cm along the other.
   3. The camera: control_rotation stays [-50, 0, 0] after the moves, and while the right
      stick is held and the mouse moves around the screen.
-  4. Walk to the clear lane L1 (y=-800) via (0,-650) and (-700,-650).  Screenshot.  Hold W
-     1.0 s: the walk covers 400..700 cm and the player stops within 0.75 s of the release.
+  4. Walk to lane L1 (y=-800) via (0,-650) and (-700,-650).  Screenshot.  Hold W 1.0 s: the
+     walk covers 400..700 cm and the player stops within 0.75 s of the release.
   5. Sprint: tap LeftShift (then, from the lane start again, the L3 button) and hold W 1.0 s:
      > 700 cm.  Each toggle is tapped again afterwards so a working sprint does not leak into
      later steps; after the LeftShift one, S held 1.0 s must reach only walking speed (the
@@ -85,8 +91,7 @@ CAMERA_TOL = 0.5                            # degrees
 
 # --- movement ------------------------------------------------------------------------------
 # A -> W -> D -> S: a square from the spawn that returns to it.  0.4 s at 600 cm/s is ~240 cm,
-# so the corners are (0,-240), (240,-240), (240,0): every one more than 120 cm (the pickup
-# focus range) from every pickup and clear of every obstacle.
+# so the corners are (0,-240), (240,-240), (240,0): open floor, far from the walls and steps.
 MOVE_HOLD_S = 0.4
 MOVE_MIN = 100.0                            # cm along the key's axis
 CROSS_MAX = 30.0                            # cm along the other axis
@@ -98,8 +103,10 @@ MOVES = (  # (check, key, axis index 0=X 1=Y, sign, world direction)
 )
 SETTLE_TIMEOUT_S = 2.0                      # wait for the player to stop before measuring
 
-# Lane L1 (y=-800, x -750..+950 is clear).  The waypoints go around Box_02 and the sword
-# pickup (-300,-300) and keep 100 cm off Cover_01 (x -1000..-800, y -715..-685).
+# Lane L1 (y=-800, x -1000..+1600 is plain floor).  The two waypoints are the route the
+# DevTestMap runs used (the check names are cited by other stories, e.g. AC-085.4); on the open
+# floor they are plain positioning.  From the lane start a 1 s sprint, its stop, the L3 sprint and
+# the gamepad move all stay well inside the lane (east wall at x=2000).
 LANE_WAYPOINTS = (("walk_lane_wp1", 0.0, -650.0), ("walk_lane_wp2", -700.0, -650.0))
 LANE_START = (-700.0, -800.0)
 BASELINE_HOLD_S = 1.0
@@ -135,12 +142,13 @@ KI_STICKS = ("Known issue: gamepad stick and L3 mappings use invalid FKey names 
 KNOWN_ISSUES = (KI_FACING, KI_STICKS)
 
 SCREENSHOTS = {
-    "start": "the Mordecai diorama arena (fixed overhead camera, pitch -50, looking +X), the "
-             "player at the centre, the combat HUD (Health / Stamina / Posture / SP bars "
-             "top-left with '10 / 10', 'Kills: 0' top-right)",
+    "start": "MovementTestMap from the fixed overhead camera (pitch -50, looking +X): the open "
+             "grid floor, the player at the centre, no enemies or pickups, the combat HUD "
+             "(Health / Stamina / Posture / SP bars top-left with '10 / 10', 'Kills: 0' "
+             "top-right)",
     "after_moves": "the same camera angle (no rotation) with the player at the lane start "
-                   "(-700, -800), near the south-west corner: the camera followed, so the "
-                   "player is still near the screen centre and the arena has shifted",
+                   "(-700, -800): the camera followed, so the player is still near the screen "
+                   "centre and the floor grid has shifted under it",
     "facing_arrow": "the player after the mouse and right-stick facing attempts: is a facing "
                     "arrow visible on the player, and which way does the player face? (the "
                     "UArrowComponent is probably hidden in game; facing is pinned to +X today)",
@@ -224,7 +232,7 @@ class Us001Run(kit.PlaytestRun):
     FEATURES = ("movement", "camera", "sprint")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX
-    MAP = kit.DEFAULT_MAP
+    MAP = kit.MOVEMENT_TEST_MAP
     EXPERIENCE = kit.DEFAULT_EXPERIENCE
     SCREENSHOTS = SCREENSHOTS
     KNOWN_ISSUES = KNOWN_ISSUES
@@ -477,7 +485,7 @@ class Us001Run(kit.PlaytestRun):
                 return ("PASS" if sprinted else "FAIL"), detail, rec
 
             # The toggle-back is judged by speed, not distance: a speed reading cannot be shortened
-            # by a frame hitch or an enemy in the way, and a sprint (900 cm/s) and a walk
+            # by a frame hitch or anything in the way, and a sprint (900 cm/s) and a walk
             # (600 cm/s) are far apart.
             back, err = self._hold_watching_speed("S", SPRINT_HOLD_S)
             if back is None:
@@ -495,8 +503,8 @@ class Us001Run(kit.PlaytestRun):
                            "(toggle out of phase)")
                 return "FAIL", detail, rec
             if peak < WALK_SPEED_MIN:
-                detail += (" -- the player never reached walking speed on the way back (blocked? "
-                           "N14), so the toggle-back is unverified")
+                detail += (" -- the player never reached walking speed on the way back "
+                           "(blocked?), so the toggle-back is unverified")
                 return "FAIL", detail, rec
             return ("PASS" if sprinted else "FAIL"), detail, rec
 
