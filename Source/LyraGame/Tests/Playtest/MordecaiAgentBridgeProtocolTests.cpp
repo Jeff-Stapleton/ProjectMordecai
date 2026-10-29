@@ -1036,6 +1036,153 @@ bool FMordecai_Playtest_AgentBridge_Repeat_GamepadButtonsRepeatIndependently::Ru
 }
 
 // ===========================================================================
+// Hold clock (§4 key / axis / click hold_s: the time the game simulated with the input down, B3)
+// ===========================================================================
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_AgentBridge_HoldClock_CountsOnlyFramesSimulatedWithTheInputDown,
+	"Mordecai.Playtest.AgentBridge.HoldClock.CountsOnlyFramesSimulatedWithTheInputDown",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_AgentBridge_HoldClock_CountsOnlyFramesSimulatedWithTheInputDown::RunTest(const FString& Parameters)
+{
+	// The bridge ticks at the end of a frame, after the world: the input goes down after frame 10's
+	// world tick, so frame 10's delta was simulated without it
+	FMordecaiAgentBridgeHoldClock Clock(0.1, 2, 100.0, 10);
+	TestFalse("not up in the frame it went down", Clock.Advance(100.0, 10, 0.5));
+	TestEqual("the start frame's delta does not count", Clock.GetSimulatedSeconds(), 0.0);
+	TestFalse("one later frame", Clock.Advance(100.05, 11, 0.05));
+	TestFalse("a second tick in the same frame", Clock.Advance(100.06, 11, 0.05));
+	TestEqual("each frame counts once", Clock.GetSimulatedSeconds(), 0.05);
+	TestTrue("up once the simulated time reaches hold_s", Clock.Advance(100.1, 12, 0.05));
+	TestEqual("two frames", Clock.GetFrames(), 2);
+	TestEqual("simulated time", Clock.GetSimulatedSeconds(), 0.1);
+	TestEqual("real time", Clock.GetRealSeconds(100.1), 0.1, 1e-9);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_AgentBridge_HoldClock_AHitchInsideTheHoldIsSimulatedBeforeTheRelease,
+	"Mordecai.Playtest.AgentBridge.HoldClock.AHitchInsideTheHoldIsSimulatedBeforeTheRelease",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_AgentBridge_HoldClock_AHitchInsideTheHoldIsSimulatedBeforeTheRelease::RunTest(const FString& Parameters)
+{
+	// 60 fps, then frame 13 takes 0.4 s to process: those 0.4 s are frame 14's delta, which the world
+	// simulates in frame 14. A real-time clock let the key up at the end of frame 13 (0.43 s of wall
+	// time >= hold_s), so frame 14 simulated the 0.4 s without it: W held 0.464 s over 3 frames moved
+	// the player 3 cm (Saved/Playtests/20261029-132452-us054combat, respawn_moves).
+	const double Frame = 1.0 / 60.0;
+	FMordecaiAgentBridgeHoldClock Clock(0.4, 2, 0.0, 10);
+	TestFalse("frame 10 (down)", Clock.Advance(0.0, 10, Frame));
+	TestFalse("frame 11", Clock.Advance(Frame, 11, Frame));
+	TestFalse("frame 12", Clock.Advance(2.0 * Frame, 12, Frame));
+	const double AfterHitch = 2.0 * Frame + 0.4;
+	TestTrue("the wall-clock hold is already over", Clock.GetRealSeconds(AfterHitch) >= 0.4);
+	// Frame 13 has taken 0.4 s so far: frame 14 will simulate at least that much, and 0.05 + 0.4 is
+	// nearer to hold_s than 0.05, so the input stays down
+	TestFalse("still down at the end of the long frame 13", Clock.Advance(AfterHitch, 13, Frame, 0.4));
+	TestTrue("up after frame 14 simulated the hitch", Clock.Advance(AfterHitch + Frame, 14, 0.4, 0.01));
+	TestEqual("simulated with the input down", Clock.GetSimulatedSeconds(), 3.0 * Frame + 0.4, 1e-9);
+	TestEqual("frames", Clock.GetFrames(), 4);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_AgentBridge_HoldClock_AShortTapIsUpBeforeAHitchIsSimulated,
+	"Mordecai.Playtest.AgentBridge.HoldClock.AShortTapIsUpBeforeAHitchIsSimulated",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_AgentBridge_HoldClock_AShortTapIsUpBeforeAHitchIsSimulated::RunTest(const FString& Parameters)
+{
+	// A 0.05 s click (a light attack) whose first frame hitches for 0.43 s: the input goes up at the
+	// boundary nearest to hold_s, before the next frame simulates the hitch, as a player's quick tap
+	// would (held through the hitch it would read as a 0.4 s hold: a heavy attack)
+	const double Frame = 1.0 / 60.0;
+	FMordecaiAgentBridgeHoldClock Clock(0.05, 1, 0.0, 10);
+	TestFalse("frame 10 (down)", Clock.Advance(0.0, 10, Frame, Frame));
+	TestTrue("up at the end of the hitching frame 11", Clock.Advance(0.43, 11, Frame, 0.43));
+	TestEqual("one frame simulated with it down", Clock.GetSimulatedSeconds(), Frame, 1e-9);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_AgentBridge_HoldClock_ReleasesAtTheNearestFrameBoundary,
+	"Mordecai.Playtest.AgentBridge.HoldClock.ReleasesAtTheNearestFrameBoundary",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_AgentBridge_HoldClock_ReleasesAtTheNearestFrameBoundary::RunTest(const FString& Parameters)
+{
+	// 60 fps, 12 ms of each frame gone at the bridge tick: hold_s 0.1 ends after 6 frames (0.1 s), not 5
+	// (0.083 s, further from 0.1 than 0.1 + half a frame)
+	const double Frame = 1.0 / 60.0;
+	FMordecaiAgentBridgeHoldClock Clock(0.1, 2, 0.0, 0);
+	TestFalse("start frame", Clock.Advance(0.012, 0, Frame, 0.012));
+	int32 Released = 0;
+	for (int32 F = 1; F <= 10 && Released == 0; ++F)
+	{
+		if (Clock.Advance(F * Frame + 0.012, F, Frame, 0.012))
+		{
+			Released = F;
+		}
+	}
+	TestEqual("up after 6 frames", Released, 6);
+	TestEqual("0.1 s simulated", Clock.GetSimulatedSeconds(), 6.0 * Frame, 1e-9);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_AgentBridge_HoldClock_CapsEachFrameAtTheWorldsMaxFrameTime,
+	"Mordecai.Playtest.AgentBridge.HoldClock.CapsEachFrameAtTheWorldsMaxFrameTime",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_AgentBridge_HoldClock_CapsEachFrameAtTheWorldsMaxFrameTime::RunTest(const FString& Parameters)
+{
+	// AWorldSettings::FixupDeltaSeconds simulates at most MaxUndilatedFrameTime (0.4 s) of a frame: a
+	// 1.5 s first-launch hitch inside a 1.0 s hold counts 0.4 s, so the hold continues
+	const double Frame = 1.0 / 60.0;
+	FMordecaiAgentBridgeHoldClock Clock(1.0, 2, 0.0, 0, 10.0, 0.4);
+	TestFalse("start frame", Clock.Advance(0.0, 0, Frame));
+	TestFalse("frame 1", Clock.Advance(Frame, 1, Frame));
+	TestFalse("the 1.5 s frame counts 0.4 s", Clock.Advance(1.5 + Frame, 2, 1.5));
+	TestEqual("capped", Clock.GetSimulatedSeconds(), Frame + 0.4, 1e-9);
+	int32 Released = 0;
+	for (int32 F = 3; F <= 60 && Released == 0; ++F)
+	{
+		if (Clock.Advance(1.5 + F * Frame, F, Frame))
+		{
+			Released = F;
+		}
+	}
+	TestTrue("up once 1.0 s was simulated", Released > 0 && Clock.GetSimulatedSeconds() >= 1.0 - 1e-9);
+	TestTrue("not more than a frame past it", Clock.GetSimulatedSeconds() < 1.0 + Frame);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_AgentBridge_HoldClock_MinimumFramesAndTheRealTimeCap,
+	"Mordecai.Playtest.AgentBridge.HoldClock.MinimumFramesAndTheRealTimeCap",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_AgentBridge_HoldClock_MinimumFramesAndTheRealTimeCap::RunTest(const FString& Parameters)
+{
+	// hold_s 0 still holds MinFrames frames (a tap is down for at least 2)
+	FMordecaiAgentBridgeHoldClock Tap(0.0, 2, 0.0, 5);
+	TestFalse("start frame", Tap.Advance(0.0, 5, 0.01));
+	TestFalse("one frame", Tap.Advance(0.01, 6, 0.01));
+	TestTrue("two frames", Tap.Advance(0.02, 7, 0.01));
+
+	// Frames whose delta never advances (no simulated time): up anyway RealCapSeconds of wall time
+	// past hold_s, so a key cannot stay down for good
+	FMordecaiAgentBridgeHoldClock Stalled(0.4, 1, 0.0, 5, 5.0);
+	TestFalse("start frame", Stalled.Advance(0.0, 5, 0.0));
+	TestFalse("no simulated time", Stalled.Advance(1.0, 6, 0.0));
+	TestFalse("just before the cap", Stalled.Advance(5.39, 7, 0.0));
+	TestTrue("at the cap", Stalled.Advance(5.4, 8, 0.0));
+	TestEqual("nothing was simulated", Stalled.GetSimulatedSeconds(), 0.0);
+
+	// A negative delta counts as none
+	FMordecaiAgentBridgeHoldClock Negative(0.1, 1, 0.0, 0);
+	TestFalse("negative delta", Negative.Advance(0.05, 1, -1.0));
+	TestEqual("not counted", Negative.GetSimulatedSeconds(), 0.0);
+	return true;
+}
+
+// ===========================================================================
 // Input union (§2 Connections: Slate sees one keyboard, pad and mouse)
 // ===========================================================================
 

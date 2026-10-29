@@ -9,11 +9,13 @@
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
+#include "GameFramework/WorldSettings.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "SocketSubsystem.h"
@@ -42,6 +44,28 @@ namespace MordecaiAgentBridgeServerPrivate
 	static ISocketSubsystem* Sockets()
 	{
 		return ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	}
+
+	/** The most of one frame the world simulates (AWorldSettings::FixupDeltaSeconds; 0.4 s by default). */
+	static double MaxFrameSeconds(const UGameViewportClient* ViewportClient)
+	{
+		const UWorld* World = ViewportClient ? ViewportClient->GetWorld() : nullptr;
+		const AWorldSettings* Settings = World ? World->GetWorldSettings() : nullptr;
+		return Settings && Settings->MaxUndilatedFrameTime > 0.f ? Settings->MaxUndilatedFrameTime : 0.4;
+	}
+
+	/** Feeds a hold clock this frame: its delta, and how long the frame has taken so far. */
+	static bool AdvanceHold(FMordecaiAgentBridgeHoldClock& Clock, double TickNow)
+	{
+		return Clock.Advance(TickNow, GFrameCounter, FApp::GetDeltaTime(), TickNow - FApp::GetCurrentTime());
+	}
+
+	/** A finished hold: held_s (wall time), simulated_s (the game time it was down for) and frames. */
+	static void AddHoldFields(const TSharedRef<FJsonObject>& Response, const FMordecaiAgentBridgeHoldClock& Clock, double Now)
+	{
+		Response->SetField(TEXT("held_s"), MordecaiAgentBridge::MakeNumber(Clock.GetRealSeconds(Now)));
+		Response->SetField(TEXT("simulated_s"), MordecaiAgentBridge::MakeNumber(Clock.GetSimulatedSeconds()));
+		Response->SetNumberField(TEXT("frames"), static_cast<double>(Clock.GetFrames()));
 	}
 }
 
@@ -613,22 +637,23 @@ void FMordecaiAgentBridgeServer::HandleKey(FConnection& Connection, const FMorde
 		return;
 	}
 
-	// Tap: all keys down this frame, all up together after max(hold_s, 2 frames)
+	// Tap: all keys down this frame, all up together once the game has simulated hold_s with them
+	// down, after 2 frames at least (FMordecaiAgentBridgeHoldClock)
 	for (const FKey& Key : Args.Keys)
 	{
 		PressKey(Connection, Key, Args.Route, Now);
 	}
-	const uint64 StartFrame = GFrameCounter;
-	const double HoldSeconds = Args.HoldSeconds;
+	FMordecaiAgentBridgeHoldClock Clock(Args.HoldSeconds, 2, Now, GFrameCounter, 10.0,
+		MordecaiAgentBridgeServerPrivate::MaxFrameSeconds(ViewportClient));
 	const TArray<FKey> Keys = Args.Keys;
 	FConnection* ConnectionPtr = &Connection;
 
 	TUniquePtr<FPendingCommand> Pending = MakeUnique<FPendingCommand>();
 	Pending->Id = Request.Id;
 	Pending->Cmd = Request.Cmd;
-	Pending->Advance = [this, ConnectionPtr, Response, Keys, Now, StartFrame, HoldSeconds](double TickNow)
+	Pending->Advance = [this, ConnectionPtr, Response, Keys, Clock](double TickNow) mutable
 	{
-		if (TickNow - Now < HoldSeconds || GFrameCounter - StartFrame < 2)
+		if (!MordecaiAgentBridgeServerPrivate::AdvanceHold(Clock, TickNow))
 		{
 			return false;
 		}
@@ -636,8 +661,7 @@ void FMordecaiAgentBridgeServer::HandleKey(FConnection& Connection, const FMorde
 		{
 			ReleaseKey(*ConnectionPtr, Key);
 		}
-		Response->SetField(TEXT("held_s"), MordecaiAgentBridge::MakeNumber(TickNow - Now));
-		Response->SetNumberField(TEXT("frames"), static_cast<double>(GFrameCounter - StartFrame));
+		MordecaiAgentBridgeServerPrivate::AddHoldFields(Response, Clock, TickNow);
 		Send(*ConnectionPtr, Response);
 		return true;
 	};
@@ -690,7 +714,8 @@ void FMordecaiAgentBridgeServer::HandleAxis(FConnection& Connection, const FMord
 
 	const double HoldSeconds = Args.HoldSeconds.GetValue();
 	Response->SetField(TEXT("hold_s"), MakeNumber(HoldSeconds));
-	const uint64 StartFrame = GFrameCounter;
+	FMordecaiAgentBridgeHoldClock Clock(HoldSeconds, 1, Now, GFrameCounter, 10.0,
+		MordecaiAgentBridgeServerPrivate::MaxFrameSeconds(ViewportClient));
 	const TArray<FKey> Keys = Args.Keys;
 	const ERoute Route = Args.Route;
 	FConnection* ConnectionPtr = &Connection;
@@ -698,9 +723,9 @@ void FMordecaiAgentBridgeServer::HandleAxis(FConnection& Connection, const FMord
 	TUniquePtr<FPendingCommand> Pending = MakeUnique<FPendingCommand>();
 	Pending->Id = Request.Id;
 	Pending->Cmd = Request.Cmd;
-	Pending->Advance = [this, ConnectionPtr, Response, Keys, Route, Now, StartFrame, HoldSeconds](double TickNow)
+	Pending->Advance = [this, ConnectionPtr, Response, Keys, Route, Clock](double TickNow) mutable
 	{
-		if (TickNow - Now < HoldSeconds || GFrameCounter - StartFrame < 1)
+		if (!MordecaiAgentBridgeServerPrivate::AdvanceHold(Clock, TickNow))
 		{
 			return false;
 		}
@@ -708,8 +733,7 @@ void FMordecaiAgentBridgeServer::HandleAxis(FConnection& Connection, const FMord
 		{
 			SetAxis(*ConnectionPtr, Key, 0.f, Route);
 		}
-		Response->SetField(TEXT("held_s"), MordecaiAgentBridge::MakeNumber(TickNow - Now));
-		Response->SetNumberField(TEXT("frames"), static_cast<double>(GFrameCounter - StartFrame));
+		MordecaiAgentBridgeServerPrivate::AddHoldFields(Response, Clock, TickNow);
 		Send(*ConnectionPtr, Response);
 		return true;
 	};
@@ -797,29 +821,28 @@ void FMordecaiAgentBridgeServer::HandleClick(FConnection& Connection, const FMor
 	Response->SetField(TEXT("hit"), MakeStringOrNull(Hit, Hit.IsEmpty()));
 	AddInputFields(Response, bReady, Env);
 
-	const uint64 StartFrame = GFrameCounter;
-	const double HoldSeconds = Args.HoldSeconds;
+	FMordecaiAgentBridgeHoldClock Clock(Args.HoldSeconds, 1, Now, GFrameCounter, 10.0,
+		MordecaiAgentBridgeServerPrivate::MaxFrameSeconds(ViewportClient));
 	const FKey Button = Args.Button;
 	FConnection* ConnectionPtr = &Connection;
 
 	TUniquePtr<FPendingCommand> Pending = MakeUnique<FPendingCommand>();
 	Pending->Id = Request.Id;
 	Pending->Cmd = Request.Cmd;
-	Pending->Advance = [this, ConnectionPtr, Response, Env, Button, Absolute, Now, StartFrame, HoldSeconds](double TickNow) mutable
+	Pending->Advance = [this, ConnectionPtr, Response, Env, Button, Absolute, Clock](double TickNow) mutable
 	{
-		if (TickNow - Now < HoldSeconds || GFrameCounter - StartFrame < 1)
+		if (!MordecaiAgentBridgeServerPrivate::AdvanceHold(Clock, TickNow))
 		{
 			// Keep the in-memory cursor on the button while it is down (UpdateHeldInput does it too)
 			Input.ReassertVirtualCursor(Absolute);
 			return false;
 		}
-		// After max(hold_s, 1 frame): a real move to the same position, then the up there
+		// Once hold_s is simulated (1 frame at least): a real move to the same position, then the up there
 		Input.ReleaseMouseButton(Button, Absolute, CurrentModifiers());
 		ConnectionPtr->HeldButtons.RemoveAll([&](const FHeldButton& Held) { return Held.Key == Button; });
 		Env.bVirtualCursor = Env.bVirtualCursor && FMordecaiAgentBridgeInput::IsVirtualCursorActive();
 		Response->SetObjectField(TEXT("env"), Env.ToJson());
-		Response->SetField(TEXT("held_s"), MordecaiAgentBridge::MakeNumber(TickNow - Now));
-		Response->SetNumberField(TEXT("frames"), static_cast<double>(GFrameCounter - StartFrame));
+		MordecaiAgentBridgeServerPrivate::AddHoldFields(Response, Clock, TickNow);
 		Send(*ConnectionPtr, Response);
 		return true;
 	};

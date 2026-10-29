@@ -1932,9 +1932,16 @@ class FakeBridgeServer:
             yield
         for k in keys:
             w.key_up(c.id, k)
-        base.update({"held_s": _r(time.monotonic() - t_start, 3), "frames": w.frame - f_start})
+        base.update(self._hold_fields(t_start, f_start))
         base.update(self._input_fields())
         return base
+
+    def _hold_fields(self, t_start, f_start):
+        """held_s, simulated_s and frames of a finished hold.  The game's FMordecaiAgentBridgeHoldClock
+        counts simulated time (summed frame deltas with the input down); the fake ticks steadily
+        and never hitches, so its simulated time is its wall time."""
+        held = _r(time.monotonic() - t_start, 3)
+        return {"held_s": held, "simulated_s": held, "frames": self.world.frame - f_start}
 
     def _h_axis(self, c, req):
         self._require_viewport()
@@ -1968,8 +1975,8 @@ class FakeBridgeServer:
             yield
         for k in parsed:
             w.set_axis(c.id, k, 0.0)
-        base.update({"hold_s": hold_s, "held_s": _r(time.monotonic() - t_start, 3),
-                     "frames": w.frame - f_start})
+        base.update({"hold_s": hold_s})
+        base.update(self._hold_fields(t_start, f_start))
         base.update(self._input_fields())
         return base
 
@@ -2014,8 +2021,8 @@ class FakeBridgeServer:
         while time.monotonic() - t_start < hold_s or w.frame - f_start < 1:
             yield
         w.mouse_up(c.id, x, y, button)
-        resp = {"x": x, "y": y, "button": button, "hit": hit,
-                "held_s": _r(time.monotonic() - t_start, 3), "frames": w.frame - f_start}
+        resp = {"x": x, "y": y, "button": button, "hit": hit}
+        resp.update(self._hold_fields(t_start, f_start))
         resp.update(self._input_fields())
         return resp
 

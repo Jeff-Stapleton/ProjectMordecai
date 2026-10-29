@@ -378,14 +378,21 @@ The contract is `Specs/story_playtests_v1.md`.
   - Tier 1: `Mordecai.Playtest.AgentBridge.State.PickupEntries`, `.ActorsMeasureLabelsAgainstTheLocalCamera` (red before the fix).
   - Verified on `92e7575` (fresh package): `pickup_labels` FAIL (known) → PASS in `Saved/Playtests/20261028-232550-us079`: 6/6 labels visible, text = display name, facing/upright 1.000. That us079 run exited 0 (55/55, 15/15 ACs accepted): the player outran the swarm (T1) that time.
 - **B2 Other missing state.** No camera transform (AC-1.2.1), no progress-bar fill or colour (HUD bars, stamina tiers, rarity colours), no equip slot on `player.weapon` (AC-078.15), no damage-pop events (US-065), no texts from world-space widget components (enemy bars). Mouse buttons cannot be held across reads by the playtest client, which blocks block and parry on the mouse (AC-083.11). The gamepad triggers can be held with `axis` (no `hold_s`), so `us083_combat_input.py` plays block and parry on LT/RT, and the heavy attack fires on release since US-083, so a held click checks it. The `wait_until` grammar has no "array contains", so tag checks need client-side predicates.
-- **B3 A key hold is timed in real time, so a frame hitch can cut it short (found 2026-10-29, US-100).**
-  - What happens: the packaged game hitches for a few hundred ms after a `screenshot`. Taps right after one report only 2-9 frames over a 0.4 s hold (`frames` / `held_s` in the `key` response).
-  - Why it matters: the bridge releases the key once `hold_s` of real time has passed, at the start of a frame. A long frame's delta is simulated in the frame after it, so a hitch inside a hold leaves the character almost no input. In `Saved/Playtests/20261029-132452-us054combat`, `respawn_moves` held W 0.464 s over 3 frames and moved 3 cm, after the 'respawned' screenshot.
-  - Workaround in `us054_combat.py` `respawn_moves`:
-    - Wait 0.5 s before the hold.
-    - Measure once more when the hold ran under 20 fps. A clean hold that does not move still FAILs.
-  - Other scripts that judge a timed hold's displacement right after a screenshot can hit the same thing. us001's move checks passed in the same sweep, but some of them held for only 2-9 frames.
-  - Root fix (bridge): hold for simulated time. Release when the summed delta of the frames that had the key down at input time reaches `hold_s`, or report a hitched hold as `hitched: true`.
+- **B3 A hold was timed in wall time, so a frame hitch cut it short (FIXED 2026-10-29, US-100).**
+  - What happened: the packaged game hitches for a few hundred ms after a `screenshot`, and often during its first launches after a package. us001 runs first in a sweep, and 31-46% of its 0.4 s holds ran at under 30 fps, in every sweep since Phase 3, on DevTestMap as on MovementTestMap.
+  - The bridge let a held input up once `hold_s` of wall time had passed, at the end of a frame. A long frame's delta is simulated by the frame after it, so a hitch inside a hold left the character almost no input. Evidence (ad62476 and ea0205f sweeps):
+    - `respawn_moves`: W held 0.464 s over 3 frames moved 3 cm (`Saved/Playtests/20261029-132452-us054combat`).
+    - us001 `move_w`: 0.496 s over 5 frames moved 9 cm (`Saved/Playtests/20261029-164423-us001`).
+    - These are the random us001 `move_*` failures of the earlier sweeps too.
+  - Fix: `FMordecaiAgentBridgeHoldClock` (`MordecaiAgentBridgeProtocol.h`).
+    - `key` tap, `axis` and `click` holds go up at the frame boundary nearest to the point where the simulated frames with the input down add up to `hold_s`.
+    - Each frame counts at most the world's `MaxUndilatedFrameTime` of 0.4 s, so a long hold stays down through a hitch and a quick tap goes up before the hitch is simulated.
+    - Responses add `simulated_s`. See `Specs/agent_bridge_v1.md` §2 Hold time.
+  - Tier 1: `Mordecai.Playtest.AgentBridge.HoldClock.*`. They were red first against a wall-time clock, which let the key up at the end of the long frame, and then against an uncapped clock without the nearest-boundary rule.
+  - Found in the review of this fix:
+    - A frame longer than 0.4 s counted in full, though the world simulates only 0.4 s of it.
+    - A 0.05 s click held through a hitch would have read as a heavy attack.
+  - Left as is: auto-repeat still runs on wall time. No playtest reads repeats.
 
 **Playtest infrastructure (proposal).**
 - **T1 Dedicated test maps per playtest (Jeff, 2026-10-24; issue #46). IN PROGRESS: US-100** (`stories/in-progress/US-100-recovery-playtest-test-maps.md`, branch `fix/issue-46-test-maps`, 2026-10-29). Evidence to come: it is delivered only when a fresh package boots both maps and the sweep passes the 14 checks listed under "Found by the issue #12 sweep" above.

@@ -1081,6 +1081,43 @@ namespace MordecaiAgentBridge
 }
 
 // ---------------------------------------------------------------------------
+// Hold clock
+// ---------------------------------------------------------------------------
+
+FMordecaiAgentBridgeHoldClock::FMordecaiAgentBridgeHoldClock(double InHoldSeconds, int32 InMinFrames, double InRealStart, uint64 InStartFrame,
+	double InRealCapSeconds, double InMaxFrameSeconds)
+	: HoldSeconds(InHoldSeconds)
+	, MinFrames(InMinFrames)
+	, RealStart(InRealStart)
+	, StartFrame(InStartFrame)
+	, RealCapSeconds(InRealCapSeconds)
+	, MaxFrameSeconds(InMaxFrameSeconds)
+	, LastFrame(InStartFrame)
+{
+}
+
+bool FMordecaiAgentBridgeHoldClock::Advance(double RealNow, uint64 Frame, double FrameDeltaSeconds, double ElapsedInFrameSeconds)
+{
+	// Each frame after the start frame counts its delta once, as much of it as the world simulates;
+	// the start frame's delta was simulated before the input went down
+	if (Frame > LastFrame)
+	{
+		SimulatedSeconds += FMath::Clamp(FrameDeltaSeconds, 0.0, MaxFrameSeconds);
+		LastFrame = Frame;
+	}
+	Frames = Frame > StartFrame ? static_cast<int32>(Frame - StartFrame) : 0;
+	if (Frames < MinFrames)
+	{
+		return false;
+	}
+	// Up now if that is nearer to HoldSeconds than after the next frame, which simulates at least
+	// the time this frame has taken so far
+	const double NextFrameSeconds = FMath::Clamp(ElapsedInFrameSeconds, 0.0, MaxFrameSeconds);
+	return SimulatedSeconds + 0.5 * NextFrameSeconds >= HoldSeconds - 1e-9
+		|| GetRealSeconds(RealNow) >= HoldSeconds + RealCapSeconds;
+}
+
+// ---------------------------------------------------------------------------
 // Auto-repeat
 // ---------------------------------------------------------------------------
 

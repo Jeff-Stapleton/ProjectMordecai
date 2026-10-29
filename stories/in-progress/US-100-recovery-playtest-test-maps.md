@@ -270,7 +270,7 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
 | us054_combat | `melee_lmb` | CombatTestMap | click Left at (640, 360) -> within 1s 'Mordecai.State.Attacking' or the dummy's health falls | FAIL (NEW): tags ['Mordecai.State.Dead'] | PASS |
 | us054_combat | `dodge_lalt` | CombatTestMap | tap LeftAlt -> within 0.5s a Dodging tag or > 150 cm displacement | FAIL (NEW): tags ['Mordecai.State.Dead'] | PASS |
 | us054_combat | `arena_reset` | CombatTestMap | at the respawn: both enemies alive, full health, within 100 cm of their spawns, Idle, and the reset observed | FAIL (NEW): re-aggro, 450-497 cm from the spawns | SKIP (no death); PASS in `20261028-085332-us054` |
-| us054_combat | `respawn_moves` | CombatTestMap | wait 0.5s, hold W 0.4s -> x grows >= 80 cm (measured once more if the hold ran under 20 fps: B3) | FAIL (NEW): +70 cm | SKIP (no death); PASS (+175 cm) in `20261028-085332-us054` |
+| us054_combat | `respawn_moves` | CombatTestMap | hold W 0.4s (simulated time, B3) -> x grows >= 80 cm | FAIL (NEW): +70 cm | SKIP (no death); PASS (+175 cm) in `20261028-085332-us054` |
 | us057 | `walk_blink_lane` | CombatTestMap | walk_to(0, -600) -> within 60 cm (Blink lane start) | FAIL (NEW): the player dead at (-599, -551) | PASS |
 | us078 | `light_attack_lmb` | CombatTestMap | idle and alive -> click Left at (640, 360) -> Attacking without Heavy within 1s | FAIL (NEW): the click reached a dead player | PASS |
 | us083 | `block_over_held_rt_no_parry` | MovementTestMap | RT=1, 0.15s later LT=1 -> Blocking within 1s, no parry tag for 0.6s | PASS | PASS |

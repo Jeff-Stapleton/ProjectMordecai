@@ -1022,7 +1022,9 @@ class Bridge:
         return self.request("key", action="release", **self._key_args(key))
 
     def tap(self, key_or_keys, hold_s=0.1, unsafe=False):
-        """Down, hold max(hold_s, 2 frames), up.  A list goes down and up together."""
+        """Down, hold until the game has simulated hold_s with it down (2 frames at least), up.  A
+        list goes down and up together.  The response has held_s (wall time), simulated_s and
+        frames (Specs/agent_bridge_v1.md section 2, Hold time)."""
         args = self._key_args(key_or_keys)
         if unsafe:
             args["unsafe"] = True

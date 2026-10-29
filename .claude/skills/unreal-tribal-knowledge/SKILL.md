@@ -803,6 +803,21 @@ Use it read-only. Prefer a public API whenever one exists.
 
 **Evidence:** `Scripts/mordecai_play_mcp.py:64-65` (imports), `:496` (`MCPServer(...)`), `:500` (first `@mcp.tool`); `Scripts/requirements.txt`.
 
+### A bridge hold must count simulated time: wall time lets a frame hitch eat the input (B3, US-100)
+
+**Problem:** us001's `move_*` and us054's `respawn_moves` failed now and then with a few cm of movement after a 0.4 s hold. The `key` response had the evidence: `"held_s":0.464,"frames":3`. The packaged game hitches for a few hundred ms after a `screenshot`, and often in its first launches after a package (us001 runs first in a sweep: 31-46% of its holds ran under 30 fps in every sweep).
+
+**Root cause:** the bridge ticks on the core ticker, at the END of the frame, after the world tick (`LaunchEngineLoop.cpp`: `GEngine->Tick` ... `FTSTicker::GetCoreTicker().Tick`). A long frame's duration is the NEXT frame's delta. A hold released on wall time went up at the end of the long frame, so the frame that simulated those 400 ms had the key up.
+
+**Fix:** `FMordecaiAgentBridgeHoldClock`.
+- It sums `FApp::GetDeltaTime()` of each frame after the input went down, never the start frame's.
+- Each delta is capped at the world's `MaxUndilatedFrameTime` (0.4 s), because `AWorldSettings::FixupDeltaSeconds` simulates no more.
+- It releases at the frame boundary nearest to `hold_s`. The time the current frame has taken so far (`FPlatformTime::Seconds() - FApp::GetCurrentTime()`) is a lower bound on the next delta. So a long hold stays down through a hitch, and a 0.05 s click goes up before it (held through it, the click would read as a heavy attack).
+- A wall-time cap of `hold_s` + 10 s keeps a key from staying down for good.
+- Responses carry `simulated_s` next to `held_s`.
+
+Rule: any bridge timing that must match what the game simulated counts capped frame deltas, not `FPlatformTime`.
+
 ### Test maps per playtest: DevTestMap's swarm kills the player, and a new map needs its own GameMode Override (T1, issue #46)
 
 **Problem:** Every Tier 4 script played DevTestMap.

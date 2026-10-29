@@ -851,38 +851,13 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         for name in ("burning_on_hit", "dead_no_move", "kill_counter_text_matches"):
             self.assertIn(name, rep["new_failures"])
 
-    def test_a_hold_cut_by_a_frame_hitch_is_measured_again(self):
-        # The packaged game hitches after the 'respawned' screenshot: 20261029-132452-us054combat
-        # held W 0.464 s over 3 frames and moved 3 cm.  That hold is not judged; a clean one is.
-        world, server = self.serve(**game_today())
-        real_hold, cut = ab.Bridge.hold, []
-
-        def hold(bridge, key, seconds, unsafe=False):
-            if key == "W" and world.respawns and not cut:
-                cut.append(seconds)   # the game never saw this hold
-                return {"ok": True, "cmd": "key", "held_s": 0.464, "frames": 3}
-            return real_hold(bridge, key, seconds, unsafe=unsafe)
-
-        with mock.patch.object(ab.Bridge, "hold", hold):
-            _, rep = self.play(server)
-        check = self.by_name(rep)["respawn_moves"]
-        self.assertEqual(cut, [us054c.MOVE_HOLD_S])
-        self.assertEqual(check["status"], "PASS", check["detail"])
-        self.assertIn("attempt 1 not judged: held W 0.4s (0.464s, 3 frames)", check["detail"])
-        self.assertIn("a 6 fps hold (a frame hitch), so it was measured again", check["detail"])
-        self.assertNotIn("respawn_moves", rep["new_failures"])
-        # Each attempt waits for the game to settle first
-        waits = [r.get("seconds") for r in server.received if r.get("cmd") == "wait"]
-        self.assertGreaterEqual(waits.count(us054c.MOVE_SETTLE_S), 2)
-
     def test_movement_still_ignored_after_the_respawn_fails_respawn_moves(self):
-        # A clean hold (the fake runs at 60 fps) that moves nothing is judged at once: FAIL
         _, server = self.serve(**game_today(moves_after_respawn=False))
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         check = self.by_name(rep)["respawn_moves"]
         self.assertEqual(check["status"], "FAIL", check["detail"])
-        self.assertNotIn("not judged", check["detail"])
+        self.assertIn("s simulated", check["detail"])
         self.assertIn("respawn_moves", rep["new_failures"])
         self.assertEqual(self.acs(rep)[("US-053", "AC-053.6")]["status"], "FAIL")
 
