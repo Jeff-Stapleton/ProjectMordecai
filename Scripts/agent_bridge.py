@@ -20,6 +20,8 @@ Library use (standard library only; Pillow is optional):
 
 CLI (prints JSON on stdout, logs on stderr):
   py Scripts/agent_bridge.py launch [--map M | --frontend] [--allow-stale]
+        (default map DevTestMap; the test maps /MordecaiCore/Game/Maps/MovementTestMap and
+        /MordecaiCore/Game/Maps/CombatTestMap load the same arena experience)
   py Scripts/agent_bridge.py ping | state [--sections a,b] [--radius R]
   py Scripts/agent_bridge.py press F [--hold 0.1]     (a tap: the bridge times the hold, then releases)
   py Scripts/agent_bridge.py axis Gamepad_LeftY=1 --hold 0.5
@@ -1423,7 +1425,10 @@ def build_parser():
     p = sub.add_parser("launch", parents=[common], help="launch the game detached, write the "
                                                         "session file")
     where = p.add_mutually_exclusive_group()
-    where.add_argument("--map", default=None, help=f"map (default {DEFAULT_MAP})")
+    where.add_argument("--map", default=None,
+                       help=f"map (default {DEFAULT_MAP}; the playtest test maps "
+                            f"{pb.MOVEMENT_TEST_MAP} and {pb.COMBAT_TEST_MAP} load the same "
+                            "experience)")
     where.add_argument("--frontend", action="store_true", help="no map: boot the front end")
     p.add_argument("--expect-experience", default=None)
     p.add_argument("--allow-stale", action="store_true",

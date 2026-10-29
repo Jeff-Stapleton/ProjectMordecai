@@ -118,9 +118,10 @@ class TestKitRun(KitCase):
         self.assertEqual(self.statuses(rep, "FAIL"), [])
         self.assertEqual(self.statuses(rep, "SKIP"), [])
         checks = self.by_name(rep)
-        for name in ("attach", "bridge_ready", "experience", "cycle_next", "cycle_prev",
+        for name in ("attach", "bridge_ready", "experience", "map", "cycle_next", "cycle_prev",
                      "no_crash"):
             self.assertEqual(checks[name]["status"], "PASS", name)
+        self.assertEqual(checks["map"]["detail"], f"loaded {kit.DEFAULT_MAP}")
         self.assertIn(checks["screenshot_start"]["status"], ("PASS", "WARN"))
         self.assertIn("tapped Tab; player.weapon.index==1 after", checks["cycle_next"]["detail"])
         self.assertEqual(world.weapon_index, 0)
@@ -284,6 +285,7 @@ class TestKitRun(KitCase):
             self.assertEqual(checks[name]["status"], "SKIP", name)
             self.assertIn("wrong experience", checks[name]["detail"])
         self.assertEqual({a["status"] for a in rep["acs"]}, {"NOT RUN"})
+        self.assertNotIn("map", checks)  # the plan is blocked before the map is compared
 
     def test_no_bridge_to_attach_is_infra(self):
         code = kit.main(make_run(cycle_steps()), ["--attach-port", str(ab.free_port()),
@@ -309,6 +311,93 @@ class TestKitRun(KitCase):
         front = make_run(cycle_steps(), FRONTEND=True)
         self.assertEqual(front.expected_experience(), kit.FRONTEND_EXPERIENCE)
         self.assertIsNone(front.launch_map())
+
+
+class TestKitMapCheck(KitCase):
+    """The 'map' kit check: ping.map must be the run's launch_map() (the test maps load the same
+    experience as DevTestMap, so the experience check cannot tell them apart)."""
+
+    def test_the_map_constants(self):
+        self.assertEqual(kit.DEFAULT_MAP, "/MordecaiCore/Game/Maps/DevTestMap")
+        self.assertEqual(kit.MOVEMENT_TEST_MAP, "/MordecaiCore/Game/Maps/MovementTestMap")
+        self.assertEqual(kit.COMBAT_TEST_MAP, "/MordecaiCore/Game/Maps/CombatTestMap")
+        self.assertEqual(kit.TEST_MAPS, (kit.MOVEMENT_TEST_MAP, kit.COMBAT_TEST_MAP))
+        for name in ("MOVEMENT_TEST_MAP", "COMBAT_TEST_MAP", "TEST_MAPS"):
+            self.assertEqual(getattr(kit, name), getattr(pb, name), name)  # one source: pb
+        # the offline fake models the same maps
+        self.assertEqual((fb.MOVEMENT_TEST_MAP, fb.COMBAT_TEST_MAP), kit.TEST_MAPS)
+        self.assertIn("map", kit.KIT_CHECKS)
+
+    def test_map_key_normalizes_suffix_and_case(self):
+        want = "/mordecaicore/game/maps/movementtestmap"
+        for value in (kit.MOVEMENT_TEST_MAP, kit.MOVEMENT_TEST_MAP + ".MovementTestMap",
+                      "/MORDECAICORE/Game/Maps/movementtestmap", f"  {kit.MOVEMENT_TEST_MAP} "):
+            self.assertEqual(kit.map_key(value), want, value)
+        self.assertEqual(kit.map_key(None), "")
+        self.assertNotEqual(kit.map_key(kit.DEFAULT_MAP), kit.map_key(kit.MOVEMENT_TEST_MAP))
+
+    def test_the_map_the_script_asked_for_passes(self):
+        for map_ in kit.TEST_MAPS:
+            with self.subTest(map=map_):
+                self.run_dir = os.path.join(self.tmp, "run-" + map_.rsplit("/", 1)[-1])
+                _, server = self.serve(**fb.MAP_PRESETS[map_])
+                code, rep = self.play(make_run(cycle_steps(), MAP=map_), server)
+                self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+                checks = self.by_name(rep)
+                self.assertEqual(checks["map"]["status"], "PASS")
+                self.assertEqual(checks["map"]["kind"], "gameplay")
+                self.assertEqual(checks["map"]["detail"], f"loaded {map_}")
+                names = [c["name"] for c in rep["checks"]]
+                self.assertEqual(names.index("map"), names.index("experience") + 1)
+                self.assertEqual(rep["map"], map_)
+                self.assertEqual(rep["ping"]["map"], map_)
+                self.assertIn(f"- Map: {map_}  Expected experience: {kit.DEFAULT_EXPERIENCE}",
+                              self.report_md())
+
+    def test_a_wrong_map_fails_and_blocks_the_plan(self):
+        # The script asks for CombatTestMap; the game runs DevTestMap (same experience).
+        _, server = self.serve()
+        code, rep = self.play(make_run(cycle_steps(), MAP=kit.COMBAT_TEST_MAP), server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["map"])
+        checks = self.by_name(rep)
+        self.assertEqual(checks["experience"]["status"], "PASS")
+        self.assertEqual(checks["map"]["kind"], "gameplay")
+        self.assertEqual(checks["map"]["detail"],
+                         f"loaded {kit.DEFAULT_MAP}, expected {kit.COMBAT_TEST_MAP}")
+        for name in ("cycle_next", "cycle_prev", "screenshot_start"):
+            self.assertEqual(checks[name]["status"], "SKIP", name)
+            self.assertIn("wrong map", checks[name]["detail"])
+        self.assertEqual({a["status"] for a in rep["acs"]}, {"NOT RUN"})
+        self.assertEqual(rep["new_failures"], ["map"])
+        self.assertIn(f"loaded {kit.DEFAULT_MAP}, expected {kit.COMBAT_TEST_MAP}",
+                      self.report_md())
+
+    def test_a_default_map_script_on_a_test_map_fails(self):
+        _, server = self.serve(**fb.MAP_PRESETS[kit.MOVEMENT_TEST_MAP])
+        code, rep = self.play(make_run(cycle_steps()), server)  # MAP = DEFAULT_MAP
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["map"])
+        self.assertEqual(self.by_name(rep)["cycle_next"]["status"], "SKIP")
+
+    def test_object_suffix_and_case_are_normalized(self):
+        _, server = self.serve(map=kit.MOVEMENT_TEST_MAP.lower())
+        code, rep = self.play(make_run(cycle_steps(),
+                                       MAP=kit.MOVEMENT_TEST_MAP + ".MovementTestMap"), server)
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        self.assertEqual(self.by_name(rep)["map"]["status"], "PASS")
+
+    def test_a_front_end_run_is_not_compared(self):
+        _, server = self.serve(map="/Game/System/FrontEnd/Maps/L_LyraFrontEnd",
+                               experience=kit.FRONTEND_EXPERIENCE)
+        code, rep = self.play(make_run(cycle_steps(), FRONTEND=True), server)
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        check = self.by_name(rep)["map"]
+        self.assertEqual(check["status"], "INFO")
+        self.assertIn("not compared", check["detail"])
+        self.assertIn("L_LyraFrontEnd", check["detail"])
+        self.assertEqual(self.by_name(rep)["cycle_next"]["status"], "PASS")
+        self.assertIsNone(rep["map"])
 
 
 class TestKitAcceptance(KitCase):

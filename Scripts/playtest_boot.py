@@ -25,6 +25,8 @@ content (dirty_fingerprint) changed in a packaged file.
 Usage:
   py Scripts/playtest_boot.py                     # DevTestMap, expect B_MordecaiArenaExperience
   py Scripts/playtest_boot.py --frontend          # no map arg: boot to L_LyraFrontEnd like a player
+  py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap   # a test map (arena experience)
+  py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap
   py Scripts/playtest_boot.py --map /Game/Foo --expect-experience B_FooExperience
   py Scripts/playtest_boot.py --allow-stale       # run an out-of-date package (warning in report)
   py Scripts/playtest_boot.py --keep-running      # leave the game open afterwards
@@ -82,6 +84,11 @@ PLAYTESTS_DIR = os.path.join(PROJECT_ROOT, "Saved", "Playtests")
 # Defaults
 # ---------------------------------------------------------------------------
 DEFAULT_MAP = "/MordecaiCore/Game/Maps/DevTestMap"
+# The playtest test maps (issue #46). Both resolve B_MordecaiArenaExperience like DevTestMap
+# (World Settings GameMode = MordecaiGameMode, no World Settings experience).
+MOVEMENT_TEST_MAP = "/MordecaiCore/Game/Maps/MovementTestMap"   # open floor, steps, no enemies
+COMBAT_TEST_MAP = "/MordecaiCore/Game/Maps/CombatTestMap"       # TestDummy + TestAttacker
+TEST_MAPS = (MOVEMENT_TEST_MAP, COMBAT_TEST_MAP)
 DEFAULT_EXPERIENCE = "B_MordecaiArenaExperience"
 FRONTEND_EXPERIENCE = "B_LyraFrontEnd_Experience"
 RES_X, RES_Y = 1280, 720
@@ -1382,7 +1389,9 @@ def parse_args():
                         help=f"Game binary (default: {DEFAULT_EXE})")
     where = parser.add_mutually_exclusive_group()
     where.add_argument("--map", default=None,
-                       help=f"Map to launch (default: {DEFAULT_MAP})")
+                       help=f"Map to launch (default: {DEFAULT_MAP}). The playtest test maps "
+                            f"{MOVEMENT_TEST_MAP} and {COMBAT_TEST_MAP} load "
+                            f"{DEFAULT_EXPERIENCE} too")
     where.add_argument("--frontend", action="store_true",
                        help="Launch with NO map argument (boots to L_LyraFrontEnd like a player); "
                             f"expects {FRONTEND_EXPERIENCE} unless --expect-experience is given")
