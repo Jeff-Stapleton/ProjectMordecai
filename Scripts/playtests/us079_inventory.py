@@ -15,8 +15,8 @@ Steps (every step is a check: PASS, FAIL, SKIP or WARN; --plan prints them as a 
      Every pickup actor (state.actors kind "pickup") has a visible widget component (its
      in-world name label, AC-079.10).
   1b. Before any pickup, tap I: the pause menu opens with the inventory tab's 'Inventory is
-     empty.' placeholder (screenshot), then tap Escape: it closes.  This opens the menu a
-     second time later on (step 4): see the latent CommonUI pool issue in the plan's backlog.
+     empty.' placeholder (screenshot), then tap Escape: it closes.  Step 4 then reopens the
+     menu CommonUI pooled here, so its tab must show the current items (issue #28, US-094).
   2. The 6 pickups, route Potion (400,0) -> IronOre (300,300) -> TownStone (0,420) ->
      UpgradeKey (-300,300) -> Amulet (-400,0) -> waypoint (-250,-150) -> RustySword (-300,-300).
      For each: walk_to it, wait until it is the focused pickup, assert the HUD prompt renders
