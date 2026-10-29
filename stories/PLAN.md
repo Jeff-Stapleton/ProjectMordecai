@@ -109,7 +109,7 @@ The first Phase 3 sweep (`py Scripts/playtest_story.py --all` on a fresh package
 - US-099: Player visible behind near walls (HEADLESS, maybe + EDITOR pair — N21, BLOCKED on TODO(DECISION) cutaway approach)
 - US-090: Spell point budget (HEADLESS — N6, BLOCKED on TODO(DECISION))
 
-Note: US-079 and US-071 remain in `stories/in-progress/`. US-079's Tier 4 FAILED on the second-open CommonUI pool bug (`Saved/Playtests/20261022-184957-us079`: `menu_rows` etc.). That bug is fixed in code by US-094 (`a8aaa51`). On its package, the DevTestMap swarm (T1) kills the player on the pickup route, so US-079's own acceptance still waits on T1 (and on B1 for `pickup_labels`).
+Note: US-079 and US-071 remain in `stories/in-progress/`. US-079's Tier 4 FAILED on the second-open CommonUI pool bug (`Saved/Playtests/20261022-184957-us079`: `menu_rows` etc.). That bug is fixed in code by US-094 (`a8aaa51`). On its package, the DevTestMap swarm (T1) kills the player on the pickup route, so US-079's own acceptance still waits on T1. B1 (`pickup_labels`) is fixed (issues #30 and #38, `92e7575`). On the fresh package of `92e7575` (which includes `a8aaa51`) `py Scripts/playtest_story.py US-079` exited 0 for the first time, 55/55 checks and 15/15 ACs accepted (`Saved/Playtests/20261028-232530-story-us079`): the player outran the swarm that run. Whether that closes US-094, US-079 and US-071 is Jeff's call (T1 still makes the route a coin flip).
 
 ### Epic 8: World & Exploration
 Authored-cell world framework, movement/exploration skills, Metroidvania gating.
