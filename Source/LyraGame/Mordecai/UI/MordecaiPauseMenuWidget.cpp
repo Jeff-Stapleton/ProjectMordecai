@@ -68,8 +68,21 @@ void UMordecaiPauseMenuWidget::InitializeTabs()
 	UMordecaiInventoryWidget::RegisterWithPauseMenu(this);
 }
 
+void UMordecaiPauseMenuWidget::NativeOnActivated()
+{
+	// CommonUI pools this widget on UI.Layer.Menu: a reopen reuses this instance without NativeOnInitialized, and
+	// SetActiveTab keeps the content instance of an unchanged tab. Rebind the active tab to the current pawn on
+	// every activation, or a reopened inventory shows the last open's rows (US-094, issue #28).
+	BindTabContent(CurrentContentWidget);
+
+	Super::NativeOnActivated();
+}
+
 void UMordecaiPauseMenuWidget::NativeOnDeactivated()
 {
+	// A closed menu does not listen to the pawn; the next activation rebinds (US-094)
+	UnbindTabContent(CurrentContentWidget);
+
 	// When CommonUI back action deactivates this widget, notify the subsystem (AC-069.10)
 	if (UGameInstance* GI = GetGameInstance())
 	{
@@ -229,6 +242,7 @@ void UMordecaiPauseMenuWidget::RebuildContentArea()
 	const FMordecaiPauseMenuTabEntry* ActiveTab = TabModel.FindTab(TabModel.ActiveTabId);
 	if (!ActiveTab || !ActiveTab->ContentWidgetClass)
 	{
+		UnbindTabContent(CurrentContentWidget);
 		TabContentBorder->ClearChildren();
 		CurrentContentWidget = nullptr;
 		return;
@@ -240,6 +254,7 @@ void UMordecaiPauseMenuWidget::RebuildContentArea()
 		return;
 	}
 
+	UnbindTabContent(CurrentContentWidget); // the replaced tab stops listening
 	TabContentBorder->ClearChildren();
 	CurrentContentWidget = CreateWidget<UUserWidget>(this, ActiveTab->ContentWidgetClass);
 	if (CurrentContentWidget)
@@ -272,6 +287,18 @@ void UMordecaiPauseMenuWidget::BindTabContent(UUserWidget* ContentWidget)
 			}
 		}
 		CharacterSheet->BindToASC(ASC);
+	}
+}
+
+void UMordecaiPauseMenuWidget::UnbindTabContent(UUserWidget* ContentWidget)
+{
+	if (UMordecaiInventoryWidget* Inventory = Cast<UMordecaiInventoryWidget>(ContentWidget))
+	{
+		Inventory->Unbind();
+	}
+	else if (UMordecaiCharacterSheetWidget* CharacterSheet = Cast<UMordecaiCharacterSheetWidget>(ContentWidget))
+	{
+		CharacterSheet->UnbindFromASC();
 	}
 }
 

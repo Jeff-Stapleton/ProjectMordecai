@@ -19,6 +19,13 @@ Exit codes:
   0 — all smoke tests passed
   1 — one or more smoke tests failed
   2 — infrastructure error (editor won't start, PIE won't launch, etc.)
+
+Multi-phase smoke tests: a verify script that prints a line starting with
+PIE_NEXT_PHASE is run again (up to MAX_PHASES runs) after the editor has
+ticked for PHASE_DELAY_S. One remote exec runs inside a single editor frame,
+so this is how a script checks something that only happens on a later frame
+(e.g. CommonUI releasing a closed menu's Slate tree, US-094). The script
+derives its phase from PIE state; it keeps nothing between runs.
 """
 
 import argparse
@@ -41,6 +48,10 @@ EDITOR_EXE = os.path.join(
     "Documents", "Gamedev", "UnrealEngine", "Engine", "Binaries", "Win64", "UnrealEditor.exe",
 )
 UPROJECT = os.path.join(PROJECT_ROOT, "ProjectMordecai.uproject")
+
+PHASE_MARKER = "PIE_NEXT_PHASE"  # printed by a verify script that must run again on a later editor frame
+MAX_PHASES = 8
+PHASE_DELAY_S = 2.0
 
 
 def log(msg):
@@ -207,14 +218,27 @@ def main():
     results = {}
     for test_path in tests:
         test_name = os.path.basename(test_path)
-        log(f"Running: {test_name}")
-        success, output = remote_exec(test_path, timeout=30)
-        results[test_name] = success
+        success = True
+        phase = 1
+        while True:
+            log(f"Running: {test_name}" + (f" (phase {phase})" if phase > 1 else ""))
+            ok, output = remote_exec(test_path, timeout=30)
+            success = success and ok
 
-        # Print the test output indented
-        for line in output.strip().splitlines():
-            print(f"    {line}")
-        print("")
+            # Print the test output indented
+            for line in output.strip().splitlines():
+                print(f"    {line}")
+            print("")
+
+            if not ok or PHASE_MARKER not in output:
+                break
+            if phase >= MAX_PHASES:
+                log(f"ERROR: {test_name} still asks for another phase after {MAX_PHASES} runs")
+                success = False
+                break
+            phase += 1
+            time.sleep(PHASE_DELAY_S)  # let the editor tick before the next phase
+        results[test_name] = success
 
     # --- Step 4: Stop PIE ---
     if not args.no_pie_stop:

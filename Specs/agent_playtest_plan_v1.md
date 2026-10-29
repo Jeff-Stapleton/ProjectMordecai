@@ -217,10 +217,17 @@ The contract is `Specs/story_playtests_v1.md`.
   - Tier 4 `enemies_visible` PASS, 3/3 `mesh=True`, in `Saved/Playtests/20261028-085332-us054` and the sweep's `20261028-090901-us054`.
 - **The inventory filter bar overlaps the "Stored Resources" header.** The category buttons (Materials, Quest) draw over the ledger heading (`Saved/Playtests/20261020-144643-us079/bridge_02.png`).
 - **On-screen debug text is shown to players.** "MORDECAI: Programmatic IMC created and input bound successfully (including 4 spell actions)." appears in yellow under the HUD bars (`bridge_02.png`; message from `MordecaiHeroComponent.cpp:402`).
-- **The CommonUI pool may leave inventory rows stale on a second menu open (latent).**
-  - CommonUI pools the pause-menu widget.
-  - On a second open, `RebuildContentArea` can short-circuit because the content class is unchanged, so the rows of the unbound inventory widget go stale and Identify silently fails.
-  - The us079 flow opens the menu only once, so it does not hit this.
+- **The CommonUI pool left inventory rows stale on a second menu open.** Confirmed by the first Phase 3 sweep (below). **FIXED in code** (issue #28, US-094, `a8aaa51`).
+  - CommonUI pools the pause-menu widget. On close, the menu's Slate tree is released one core tick later, and the content's `NativeDestruct` unbinds the inventory tab.
+  - A reopen reuses the same instance. `NativeOnInitialized` does not run again, and `RebuildContentArea` short-circuits on the unchanged content class, so the tab stayed unbound: stale rows, '--' after a filter click, and Identify silently failing.
+  - us079 opens the menu twice (`empty_state`, then `menu_opens_inventory`), so it hits this on the second open.
+  - Fix: `UMordecaiPauseMenuWidget::NativeOnActivated` rebinds the active tab to the current pawn on every activation, and `NativeOnDeactivated` unbinds it.
+  - Tier 1: `Mordecai.Recovery.PauseMenu.RebindsContentOnReactivate`, `Mordecai.Recovery.Inventory.*` (red before the fix).
+  - Tier 2: `verify_pie_inventory.py` reopens the pooled menu across `PIE_NEXT_PHASE` runs (red on the unfixed binary).
+  - Tier 4 on a fresh package of `a8aaa51`: every pooled reopen drew exactly what the player held.
+    - `menu_ledger_rows` PASS, with "Iron Ore  x1" and "Town Stone  x1" (`Saved/Playtests/20261028-195608-us079`).
+    - `filter_armor_empty` PASS, and `menu_rows` drew ['Health Potion'] (`20261028-195731-us079`).
+  - The swarm killed the player on the pickup route in all three runs (T1), so the checks that need all 4 items have not run yet. US-094 stays in progress until Jeff's call or T1.
 
 **Found by the Phase 3 source audit** (2026-10-22, read-only, while planning the per-story playtests; `Specs/story_playtests_v1.md`). The playtests cite these by id in `known_issue`. N7, N11 and N12 are suspected: the sweep confirms or clears them.
 - **N1 The kill counter can never go up.** `UMordecaiKillCounterWidget` waits for `Mordecai.Event.EnemyKill` tag-count changes on the player ASC (`MordecaiKillCounterWidget.cpp:68`), but nothing ever grants that tag. `AMordecaiGameMode` counts kills elsewhere (`MordecaiGameMode.cpp:115-118`). Melee is bound since US-083, but no playtest kills an enemy yet (the kill path is US-086's), and at most 3 Fireballs (75 damage) fit the SP budget.
@@ -281,7 +288,7 @@ The contract is `Specs/story_playtests_v1.md`.
 - **N16 The status-effect indicator shows "Status", not the status name.** Stone Skin's indicator reads "Status 10.0" bottom-left (`stone_skin_indicator`, `bridge_03.png`).
 - **N17 There are no enemy indicators.** No `EnemyIndicator` widget is on screen with three enemies within aggro range (`us054_arena.py` `enemy_indicators`; US-064).
 - **N18 LB/RB do not switch pause-menu tabs.** AC-069.4 specifies them (`us069_pause_menu.py` `shoulder_switches_tab`). Needs triage: possibly missing by design (no CommonUI tab-list action).
-- **The CommonUI pool bug is CONFIRMED** (it was latent).
+- **The CommonUI pool bug is CONFIRMED** (it was latent). **FIXED in code** (issue #28, US-094, `a8aaa51`); see "The CommonUI pool left inventory rows stale" above.
   - Open the inventory before any pickup ("Inventory is empty.", correct), close it, then pick up all six items: the second open still shows "Inventory is empty." and "No resources stored." (`us079_inventory.py` checks `menu_rows`, `menu_ledger_rows`, `identify_button`, `filter_*`; `bridge_03.png`).
   - A player who opens the inventory twice sees a stale, empty list.
 - **A false PASS in that sweep, now fixed.** `us054_arena.py` `melee_lmb` passed only because it compared enemy health (100, N13) against the AC's 200. It now compares against the nearest enemy's health before the click, so a sweep before US-083 would show it FAIL (attacks were not bound). Since US-083 `melee_lmb` and `dodge_lalt` carry no `known_issue` and are expected to PASS: a FAIL there is NEW.
@@ -327,7 +334,7 @@ The contract is `Specs/story_playtests_v1.md`.
   - us054: `walk_to_frontliner3`, `melee_lmb`, `dodge_lalt`, `arena_reset`, `respawn_moves`. `arena_reset` also requires the AC-054.2 200 max health (N13): the first read after the respawn had all three enemies back at their spawns at 100/100 (ResetArena works), and they re-aggroed within ~1.5 s because every spawn is inside AggroRange of PlayerStart. Since issue #18 (`39500e2`) the health clause holds (200.0/200.0 after the reset); it FAILs on positions only, from the re-aggro.
   - us057: `walk_blink_lane`. us078: `light_attack_lmb`. us083: `block_over_held_rt_no_parry`, `light_attack_rt_tap` (its `_idle()` treats a dead player as idle).
   - Remedy: T1 maps (movement lanes and a combat-dummy pocket without hostile AI), or out-of-aggro Frontliner placement (US-085 TODO(DECISION)). A death guard in the scripts would only hide the cause. **Decided (Jeff, 2026-10-28, issue #19): T1.** The placement stays.
-- **13 NEW failures are pre-existing and identical in the `01abb8b` sweep, but their steps carry no `known_issue`:** us054 `enemies_present` (N13; since issue #18 only its spacing clause fails, so it needs no N13 tag), `enemy_indicators` (N17); us057 `fireball_projectile`, `fireball_hits_enemy` (N15), `stone_skin_indicator` (N16); us069 `shoulder_switches_tab` (N18); us079 `menu_rows`, `unidentified_badge`, `menu_ledger_rows`, `identify_button`, `filter_weapons`, `filter_armor_empty`, `filter_all` (the CommonUI pool bug, US-094). Tag them in the scripts' PLANs in the owning stories. `us054_arena.py`'s KNOWN_ISSUES text "Suspected NEW (unverified): ... the enemies never damaged the player" is obsolete since `c7e4b8d`.
+- **13 NEW failures are pre-existing and identical in the `01abb8b` sweep, but their steps carry no `known_issue`:** us054 `enemies_present` (N13; since issue #18 only its spacing clause fails, so it needs no N13 tag), `enemy_indicators` (N17); us057 `fireball_projectile`, `fireball_hits_enemy` (N15), `stone_skin_indicator` (N16); us069 `shoulder_switches_tab` (N18); us079 `menu_rows`, `unidentified_badge`, `menu_ledger_rows`, `identify_button`, `filter_weapons`, `filter_armor_empty`, `filter_all` (the CommonUI pool bug, US-094; fixed in code in `a8aaa51`, so they need no tag). Tag them in the scripts' PLANs in the owning stories. `us054_arena.py`'s KNOWN_ISSUES text "Suspected NEW (unverified): ... the enemies never damaged the player" is obsolete since `c7e4b8d`.
 - **Issue #19 sweep** (2026-10-28, fresh package of `f21525f`, `Saved/Playtests/20261028-090808-sweep/summary.md`, triaged against the issue #18 sweep `Saved/Playtests/20261027-202756-sweep`): no regression from the enemy bodies.
   - us054 `enemies_visible` is FAIL (known) → PASS. Every other us054 failure is unchanged.
   - us057, us069, us078 and us079 have the same NEW and known failures as before.
@@ -342,6 +349,7 @@ The contract is `Specs/story_playtests_v1.md`.
 
 **Playtest infrastructure (proposal).**
 - **T1 Dedicated test maps per playtest (Jeff, 2026-10-24; issue #46).** Every Tier 4 script plays DevTestMap, whose Frontliners (invisible until issue #19) follow the player and body-block it (N14). Since 2026-10-28 (Jeff, issue #19) the swarm at the spawn is T1's to solve: the Frontliners keep their placement. Movement checks (walks, sprint, dodge distance) are therefore hostage to where the enemies stand, and an exit-0 run of a story's own script can fail on another story's bug. US-083 closed with AC-083.4..AC-083.8 passing on real input but in no exit-0 run: the us083 script's lane walk was body-blocked in all three tries, on two packages.
+  - It now blocks the inventory slice too. On the fresh package of `a8aaa51` (issue #28), the swarm killed the player on us079's pickup route in 3 of 3 runs (`Saved/Playtests/20261028-195457-us079`, `-195608-us079`, `-195731-us079`), after 0, 2 and 1 pickups. The earlier packages had survived the route 3 of 3 times at 25 HP. So US-094's four-item checks, and US-079's own acceptance, wait on T1.
   - Proposal: small cooked maps per concern, each resolving the Mordecai experience: an enemy-free movement/sprint lane, a combat dummy that never moves, and the arena kept for the enemy stories. A script picks its map (`--map`, as `playtest_boot.py` does).
   - Needs: the maps (an EDITOR story), adding them to the package's maps-to-cook, and a `MAP` per playtest script in the kit.
 
