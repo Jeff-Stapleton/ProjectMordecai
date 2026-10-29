@@ -29,6 +29,12 @@ class UMordecaiPauseMenuSubsystem;
  * combat HUD pattern. The active tab's content widget class is
  * instantiated into the content area and — for known content types —
  * bound to the owning player's data sources.
+ *
+ * CommonUI pools this widget (US-094, issue #28): a reopen reuses the same
+ * instance without NativeOnInitialized, after the close released its Slate
+ * tree (the content's NativeDestruct unbinds it). So the active tab's content
+ * is rebound to the current pawn on every activation and unbound on every
+ * deactivation.
  */
 UCLASS()
 class LYRAGAME_API UMordecaiPauseMenuWidget : public ULyraActivatableWidget
@@ -76,6 +82,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 
 	// --- Programmatic fallback layout (US-079) ---
@@ -100,6 +107,9 @@ private:
 
 	/** Wire known content widget types to the owning player's data sources. */
 	void BindTabContent(UUserWidget* ContentWidget);
+
+	/** Drop a content widget's data-source subscriptions (its last drawn state stays). */
+	void UnbindTabContent(UUserWidget* ContentWidget);
 
 	FMordecaiPauseMenuTabModel TabModel;
 
