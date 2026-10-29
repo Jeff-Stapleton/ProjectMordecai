@@ -12,8 +12,9 @@ playtest_kit.py (Specs/story_playtests_v1.md section 2); this file is the PLAN a
 Steps (every step is a check: PASS, FAIL, SKIP or WARN; --plan prints them as a table):
   1. Launch DevTestMap (STALE gate first).  Expect B_MordecaiArenaExperience, the bridge ready,
      and the combat HUD on screen with its '[I] Inventory' hint.  Record state.focus, screenshot.
-     Every pickup actor (state.actors kind "pickup") has a visible widget component (its
-     in-world name label, AC-079.10).
+     Every pickup actor (state.actors kind "pickup") has a visible in-world name label
+     (actors[].text_labels) that reads its display name, square to the camera and reading left
+     to right (AC-079.10; issues #30 and #38).
   1b. Before any pickup, tap I: the pause menu opens with the inventory tab's 'Inventory is
      empty.' placeholder (screenshot), then tap Escape: it closes.  Step 4 then reopens the
      menu CommonUI pooled here, so its tab must show the current items (issue #28, US-094).
@@ -101,6 +102,12 @@ IDENTIFY_TIMEOUT_S = 3.0
 ESCAPE_TIMEOUT_S = 3.0
 FILTER_TIMEOUT_S = 3.0
 PICKUP_LOOP_LIMIT_S = 30.0  # AC-079.6: "collect them all in under 30 seconds"
+# A readable name label (actors[].text_labels, Specs/agent_bridge_v1.md section 4): its face
+# against the camera's backward vector, and the way its text runs against the camera's right.
+# The billboard reads 1.0 on both; 0.99 is about 8 degrees.  The old fixed rotation read 0.542
+# and 0.000 (turned 90 degrees, issue #38).
+LABEL_FACING_MIN = 0.99
+LABEL_UPRIGHT_MIN = 0.99
 
 # UMordecaiInventoryWidget::GetListPlaceholderText (MordecaiInventoryWidget.cpp), AC-071.15.
 EMPTY_PLACEHOLDER = "Inventory is empty."
@@ -139,7 +146,7 @@ IDENTIFY_LABEL = "Identify"
 SCREENSHOTS = {
     "start": "the Mordecai diorama arena (fixed overhead camera), the player at the centre, the "
              "combat HUD (bars top-left, 'Kills: 0' top-right, '[I] Inventory' bottom-centre) "
-             "and the six coloured pickups",
+             "and the six coloured pickups, each with its name label reading left to right",
     "empty": "the pause menu ('Paused', tab bar) on the Inventory tab before any pickup: no item "
              "rows, 'Inventory is empty.' under the filter bar and 'No resources stored.' under "
              "'Stored Resources'",
@@ -167,6 +174,54 @@ def log(msg):
     kit.log(msg, STORY)
 
 
+def _is_number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def read_pickup_label(actor, expected_text):
+    """(label, problem): a pickup actor's readable in-world name label, or why there is none.
+
+    The label is one of actor["text_labels"] (Specs/agent_bridge_v1.md section 4): visible, its
+    text the pickup's display name (expected_text; None = any non-empty text), square to the
+    camera (facing) and reading left to right (upright).  Exactly one of the two is None.
+    """
+    labels = actor.get("text_labels")
+    if not isinstance(labels, list):
+        return None, ("the bridge reports no actors[].text_labels (a package without the "
+                      "issue #30 bridge fix?)")
+    labels = [lbl for lbl in labels if isinstance(lbl, dict)]
+    if not labels:
+        return None, "no text label"
+
+    def reads(lbl):
+        text = lbl.get("text")
+        if not isinstance(text, str):
+            return False
+        return text == expected_text if expected_text is not None else bool(text.strip())
+
+    named = [lbl for lbl in labels if reads(lbl)]
+    if not named:
+        want = repr(expected_text) if expected_text is not None else "any text"
+        return None, f"no label reads {want} (texts: {[lbl.get('text') for lbl in labels]})"
+    shown = [lbl for lbl in named if lbl.get("visible") is True]
+    if not shown:
+        return None, f"its label {named[0].get('text')!r} ({named[0].get('component')}) is hidden"
+    lbl = shown[0]
+    facing, upright = lbl.get("facing"), lbl.get("upright")
+    if not _is_number(facing) or not _is_number(upright):
+        return None, (f"its label {lbl.get('text')!r}: facing={facing!r}, upright={upright!r} "
+                      "(no local camera to measure against)")
+    problems = []
+    if facing < LABEL_FACING_MIN:
+        problems.append(f"facing {facing:.3f} < {LABEL_FACING_MIN:g} (not square to the camera)")
+    if upright < LABEL_UPRIGHT_MIN:
+        problems.append(f"upright {upright:.3f} < {LABEL_UPRIGHT_MIN:g} (not reading left to "
+                        "right)")
+    if problems:
+        return None, f"its label {lbl.get('text')!r}: {', '.join(problems)}"
+    return lbl, None
+
+
 def _pickup_steps(stop):
     """The PLAN steps of one pickup: its waypoints, walk, focus, prompt, pickup."""
     name, label = stop["name"], stop["label"]
@@ -190,12 +245,11 @@ def _pickup_steps(stop):
 PLAN = (
     Step("hud_visible", f"wait_until pickups.prompt.hint_visible==true && "
          f"pickups.prompt.hint_text=={lit(HUD_HINT)} -> a combat HUD widget in state.widgets"),
-    Step("pickup_labels", 'state actors -> every actors[] with kind=="pickup" has a widget '
-         "component with actors[].widgets[].visible==true (its in-world name label)",
-         proves=("AC-079.10",),
-         known_issue="bridge gap B1: actors[].widgets lists only UWidgetComponents, but the "
-                     "pickup name label is a UTextRenderComponent (MordecaiItemPickup.cpp:36); "
-                     "the 'start' screenshot is the evidence until the bridge reports it"),
+    Step("pickup_labels", 'state actors -> every actors[] with kind=="pickup" has an '
+         "actors[].text_labels[] entry (its in-world name label) with visible==true, text== its "
+         f"display name, facing>={LABEL_FACING_MIN:g} and upright>={LABEL_UPRIGHT_MIN:g} "
+         "(square to the camera, reading left to right)",
+         proves=("AC-079.10",)),
     Step("empty_state", "before any pickup: tap I -> wait_until pause_menu.open==true && "
          f"pause_menu.inventory_tab.list_placeholder=={lit(EMPTY_PLACEHOLDER)}; screenshot; "
          "tap Escape -> wait_until pause_menu.open==false",
@@ -316,23 +370,24 @@ class Us079Run(kit.PlaytestRun):
             if not pickups:
                 return ("FAIL", "no actor with kind 'pickup' in state.actors (radius 1500): "
                         "nothing to check", None)
+            expected = {s["label"]: s["display_name"] for s in ROUTE}
             bad, good = [], []
             for a in pickups:
-                widgets = [w for w in a.get("widgets") or [] if isinstance(w, dict)]
-                shown = [w for w in widgets if w.get("visible") is True]
-                if shown:
-                    good.append(f"{a.get('label')}={shown[0].get('component')}"
-                                f"({shown[0].get('class')})")
+                lbl, problem = read_pickup_label(a, expected.get(a.get("label")))
+                if problem:
+                    bad.append(f"{a.get('label')}: {problem}")
                 else:
-                    bad.append(f"{a.get('label')} (widgets: {_dumps(widgets, 300)})")
+                    good.append(f"{a.get('label')}={lbl.get('text')!r} (facing "
+                                f"{lbl['facing']:.3f}, upright {lbl['upright']:.3f})")
             seen = {a.get("label") for a in pickups}
             absent = [s["label"] for s in ROUTE if s["label"] not in seen]
             note = f"; not in state.actors: {', '.join(absent)}" if absent else ""
             if bad:
-                return ("FAIL", f"{len(bad)} of {len(pickups)} pickup actor(s) have no visible "
-                        f"widget component: {'; '.join(bad)}{note}", None)
-            return ("PASS", f"{len(pickups)} pickup actor(s), each with a visible widget: "
-                    f"{', '.join(good)}{note}", None)
+                return ("FAIL", f"{len(bad)} of {len(pickups)} pickup name label(s) are not "
+                        f"readable: {'; '.join(bad)}{note}", None)
+            return ("PASS", f"{len(pickups)} pickup name label(s) visible, each reading its "
+                    f"display name square to the camera, left to right: {', '.join(good)}{note}",
+                    None)
 
         self.attempt("pickup_labels", labels)
 

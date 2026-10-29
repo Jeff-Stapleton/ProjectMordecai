@@ -102,7 +102,7 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
 | 1 | `hud_visible` | wait_until pickups.prompt.hint_visible==true && pickups.prompt.hint_text=="[I] Inventory" -> a combat HUD widget in state.widgets | - |
-| 2 | `pickup_labels` | state actors -> every actors[] with kind=="pickup" has a widget component with actors[].widgets[].visible==true (its in-world name label) _(known issue: bridge gap B1: actors[].widgets lists only UWidgetComponents, but the pickup name label is a UTextRenderComponent (MordecaiItemPickup.cpp:36); the 'start' screenshot is the evidence until the bridge reports it)_ | AC-079.10 |
+| 2 | `pickup_labels` | state actors -> every actors[] with kind=="pickup" has an actors[].text_labels[] entry (its in-world name label) with visible==true, text== its display name, facing>=0.99 and upright>=0.99 (square to the camera, reading left to right) | AC-079.10 |
 | 3 | `empty_state` | before any pickup: tap I -> wait_until pause_menu.open==true && pause_menu.inventory_tab.list_placeholder=="Inventory is empty."; screenshot; tap Escape -> wait_until pause_menu.open==false | AC-079.9, US-071:AC-071.15 |
 | 4 | `walk_HealthPotion` | walk_to(400, 0) -> within 60 cm | AC-079.6 |
 | 5 | `focus_HealthPotion` | wait_until pickups.focused.label=="TestPickup_HealthPotion" | - |

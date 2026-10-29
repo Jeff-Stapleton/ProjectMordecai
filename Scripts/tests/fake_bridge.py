@@ -1237,7 +1237,7 @@ class FakeWorld:
             entry = {"label": label, "name": label, "class": cls, "native_class": native,
                      "kind": kind, "location": [_r(v) for v in loc], "distance": _r(d, 1),
                      "hidden": False, "has_visible_mesh": True, "health": None, "is_dead": None,
-                     "ai_state": None, "tags": [], "widgets": []}
+                     "ai_state": None, "tags": [], "widgets": [], "text_labels": []}
             entry.update(extra)
             entries.append(entry)
 
@@ -1246,9 +1246,11 @@ class FakeWorld:
                 [px, py, PAWN_Z], health={"current": self.health, "max": self.max_health},
                 is_dead=self.is_dead, tags=["Mordecai.State.Dead"] if self.is_dead else [])
         for p in self.world_pickups:
+            # The name label is a UTextRenderComponent: text_labels, never widgets (issue #30); the
+            # game turns it square to the camera every frame (issue #38)
             add(p["label"], "MordecaiItemPickup", "MordecaiItemPickup", "pickup", p["location"],
-                widgets=[{"component": "NameLabel", "class": "TextRenderComponent",
-                          "space": "World", "visible": True}])
+                text_labels=[{"component": "NameLabel", "text": p["display_name"], "visible": True,
+                              "facing": 1.0, "upright": 1.0}])
         for e in self.enemies:
             add(e["label"], "BP_MordecaiEnemy_Frontliner_C", "MordecaiEnemyCharacter", "enemy",
                 e["location"], has_visible_mesh=True, health={"current": 100.0, "max": 100.0},

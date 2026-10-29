@@ -6,6 +6,7 @@
 #include "AbilitySystemGlobals.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "Camera/PlayerCameraManager.h"
 #include "CommonActivatableWidget.h"
 #include "CommonInputSubsystem.h"
 #include "CommonInputTypeEnum.h"
@@ -15,6 +16,7 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextBlock.h"
+#include "Components/TextRenderComponent.h"
 #include "Components/VerticalBox.h"
 #include "Components/WidgetComponent.h"
 #include "EngineUtils.h"
@@ -232,6 +234,18 @@ namespace MordecaiAgentBridge::State
 				return Context.PlayerController->GetLocalPlayer();
 			}
 			return Context.GameInstance ? Context.GameInstance->GetFirstGamePlayer() : nullptr;
+		}
+
+		/** The local player's camera rotation as last computed; false while it has never updated (no view is invented). */
+		static bool GetLocalViewRotation(const FMordecaiAgentBridgeStateContext& Context, FRotator& OutRotation)
+		{
+			const APlayerCameraManager* Camera = Context.PlayerController ? Context.PlayerController->PlayerCameraManager.Get() : nullptr;
+			if (!Camera || Camera->GetCameraCacheTime() <= 0.f)
+			{
+				return false;
+			}
+			OutRotation = Camera->GetCameraRotation();
+			return true;
 		}
 
 		// --- Sections ---
@@ -622,6 +636,8 @@ namespace MordecaiAgentBridge::State
 			}
 			const bool bHasOrigin = Context.Pawn != nullptr;
 			const FVector Origin = bHasOrigin ? Context.Pawn->GetActorLocation() : FVector::ZeroVector;
+			FRotator ViewRotation;
+			const bool bHasView = GetLocalViewRotation(Context, ViewRotation);
 
 			TArray<TPair<double, TSharedPtr<FJsonValue>>> Sorted;
 			for (TActorIterator<AActor> It(Context.World); It; ++It)
@@ -640,7 +656,7 @@ namespace MordecaiAgentBridge::State
 				{
 					continue;
 				}
-				Sorted.Add({ Distance, MakeShared<FJsonValueObject>(MakeActorEntry(Actor, bHasOrigin ? &Origin : nullptr)) });
+				Sorted.Add({ Distance, MakeShared<FJsonValueObject>(MakeActorEntry(Actor, bHasOrigin ? &Origin : nullptr, bHasView ? &ViewRotation : nullptr)) });
 			}
 			Sorted.Sort([](const TPair<double, TSharedPtr<FJsonValue>>& A, const TPair<double, TSharedPtr<FJsonValue>>& B) { return A.Key < B.Key; });
 			TArray<TSharedPtr<FJsonValue>> Actors;
@@ -801,7 +817,34 @@ namespace MordecaiAgentBridge::State
 		return Entry;
 	}
 
-	TSharedRef<FJsonObject> MakeActorEntry(const AActor* Actor, const FVector* Origin)
+	TSharedRef<FJsonObject> MakeTextLabelEntry(const UTextRenderComponent* Label, const AActor* Owner, const FRotator* ViewRotation)
+	{
+		using namespace StatePrivate;
+		const TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+		if (!Label)
+		{
+			return Entry;
+		}
+		Entry->SetStringField(TEXT("component"), Label->GetName());
+		Entry->SetStringField(TEXT("text"), Label->Text.ToString());
+		Entry->SetBoolField(TEXT("visible"), Label->IsRegistered() && Label->IsVisible() && !Label->bHiddenInGame && !(Owner && Owner->IsHidden()));
+		if (ViewRotation)
+		{
+			// A TextRender's readable face is its local +X and its text runs along local -Y (engine
+			// TextRenderComponent.cpp lays glyphs out at local (0, -x, -y))
+			const FRotationMatrix View(*ViewRotation);
+			Entry->SetField(TEXT("facing"), MakeNumber(FVector::DotProduct(Label->GetForwardVector(), -View.GetUnitAxis(EAxis::X))));
+			Entry->SetField(TEXT("upright"), MakeNumber(FVector::DotProduct(-Label->GetRightVector(), View.GetUnitAxis(EAxis::Y))));
+		}
+		else
+		{
+			Entry->SetField(TEXT("facing"), NullValue());
+			Entry->SetField(TEXT("upright"), NullValue());
+		}
+		return Entry;
+	}
+
+	TSharedRef<FJsonObject> MakeActorEntry(const AActor* Actor, const FVector* Origin, const FRotator* ViewRotation)
 	{
 		using namespace StatePrivate;
 		const TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
@@ -889,6 +932,17 @@ namespace MordecaiAgentBridge::State
 			Widgets.Add(MakeShared<FJsonValueObject>(Widget));
 		}
 		Entry->SetArrayField(TEXT("widgets"), Widgets);
+
+		TArray<TSharedPtr<FJsonValue>> TextLabels;
+		TInlineComponentArray<UTextRenderComponent*> TextComponents(Actor);
+		for (const UTextRenderComponent* TextComponent : TextComponents)
+		{
+			if (TextComponent)
+			{
+				TextLabels.Add(MakeShared<FJsonValueObject>(MakeTextLabelEntry(TextComponent, Actor, ViewRotation)));
+			}
+		}
+		Entry->SetArrayField(TEXT("text_labels"), TextLabels);
 		return Entry;
 	}
 
