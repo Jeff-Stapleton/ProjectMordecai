@@ -1,7 +1,7 @@
 # Agent Bridge v1: protocol and design
 
 **Status:** Phase 2 of `Specs/agent_playtest_plan_v1.md`. This is the contract between the in-game bridge (C++), the Python client (`Scripts/agent_bridge.py`), the MCP server (`Scripts/mordecai_play_mcp.py`) and the Tier 4 playtests (`Scripts/playtests/`).
-**Last updated:** 2026-10-20.
+**Last updated:** 2026-10-28 (`actors[].text_labels`, issues #30 and #38).
 
 ## 1. Purpose and the one rule
 
@@ -162,7 +162,8 @@ pause_menu:{valid, open, active_tab, tabs:[{id,name}],
 widgets:   [{class, name, rect:[x,y,w,h], texts:[str], buttons:[{id,label,center:[x,y],enabled}]}]
 actors:    [{label, name, class, native_class, kind:"enemy"|"pickup"|"pawn"|"projectile"|"illusion"|"other",
              location, distance, hidden, has_visible_mesh, health:{current,max}|null, is_dead|null,
-             ai_state|null, tags:[...], widgets:[{component,class,space,visible}]}]
+             ai_state|null, tags:[...], widgets:[{component,class,space,visible}],
+             text_labels:[{component,text,visible,facing|null,upright|null}]}]
 ```
 
 **Notes**
@@ -170,6 +171,14 @@ actors:    [{label, name, class, native_class, kind:"enemy"|"pickup"|"pawn"|"pro
 - **Player HP and attributes** come from `UMordecaiAttributeSet` on the PlayerState ASC. Never use `ULyraHealthComponent` for the player: it reads an unrelated set and always shows 100. For enemies, health comes from their own ASC's `UMordecaiAttributeSet`.
 - **`pickups.prompt.text`** is the text actually rendered in the HUD prompt widget's `PromptText` text block, and `visible` is its real visibility. They are not the widget's cached model.
 - **`widgets`** lists only user widgets whose native class name starts with `Mordecai` and whose Slate widget chain is visible all the way up to an `SWindow`. Pooled and stale CommonUI instances fail that test and are skipped.
+- **`actors[].widgets` and `actors[].text_labels`.** `widgets` lists the actor's `UWidgetComponent`s (enemy health bars); `visible` is `IsWidgetVisible()`. `text_labels` lists its `UTextRenderComponent`s (a pickup's `NameLabel`), in component order, `[]` when it has none. A component is in only one of the two lists. The actor filter is unchanged: a text label alone does not make an actor interesting.
+  - `component`: the component's object name (`NameLabel`).
+  - `text`: the text the component renders. A pickup's label is its `UMordecaiItemLibrary::GetDisplayName`, so an unidentified item reads its partial name (`Unidentified Purple Amulet`).
+  - `visible`: the label is drawn: the component is registered and visible, not hidden in game, and its actor is not hidden. A visible label with empty `text` draws nothing; check both.
+  - `facing`: the label's readable face (its world +X axis) dotted with the camera's backward vector. 1 = square to the screen, 0 = edge-on, below 0 = the camera sees its back (mirrored).
+  - `upright`: the direction its text runs (its world −Y axis) dotted with the camera's right vector. 1 = reads left to right, 0 = runs up or down the screen (turned 90°), −1 = upside down.
+  - Why those axes: a TextRender lays its glyphs out at local (0, −x, −y) (engine `TextRenderComponent.cpp`), so its face is local +X, its text runs along local −Y and its up is local +Z.
+  - `facing` and `upright` are cosines in [−1, 1] (3 decimals), measured against the rotation of the local player's camera as last computed (`APlayerCameraManager::GetCameraRotation()` of the `player` section's controller), not against its position. Both are `null` while there is no camera manager or it has never updated: the bridge never assumes the diorama default. The camera transform itself is still not reported (B2).
 - **`pause_menu.inventory_tab.rows`** are the rows rendered in `ItemListBox`, so `text` is exactly what is drawn. `identify_button.center` is in viewport pixels and becomes valid one frame after the menu has painted.
 - **`input.held`** has one entry per held input across all connections (§2 union): `value` is the union value (1 for keys and buttons, the largest-magnitude value for an axis) and `holders` is how many connections hold it. The threshold buttons the bridge synthesizes from axes (`axis` below) are not listed in `held`.
 - **`input.pressed`** lists the keys `UPlayerInput::IsPressed` reports among the bridge-held keys, the synthesized threshold buttons and the live Mordecai keys. A key the bridge holds but PlayerInput does not see means the input was eaten upstream.
@@ -439,5 +448,6 @@ These were found while mapping Phase 2. They are game bugs to file, and the brid
 - **Gamepad stick and L3 mappings use invalid key names.** `Gamepad_LeftStick2D`, `Gamepad_RightStick2D` and `Gamepad_LeftThumbstickButton` do not exist; the real names are `Gamepad_Left2D`, `Gamepad_Right2D` and `Gamepad_LeftThumbstick`.
 - **Facing and aim are pinned to +X.** The diorama camera writes control rotation every frame.
 - **Not bound (FIXED by US-083):** sprint, jump, attacks, block and dodge are bound since US-083 (§5). Left Shift no longer crouches (N23).
+- **Pickup name labels were turned 90° and unreported (FIXED, issues #30 and #38).** The bridge did not report `UTextRenderComponent`s (B1), and the label's fixed rotation (45, 90, 0) made its text run up the screen under the diorama camera (yaw 0, looking along +X). The label is now a billboard that turns to the local camera every frame, and `actors[].text_labels[].facing` / `upright` expose any label that is not square and level to the camera; us079 `pickup_labels` asserts both.
 - **Spells have no cooldown tag.**
 - **The three red bars** are the health bars of three invisible `BP_MordecaiEnemy_Frontliner` enemies. They have no mesh.

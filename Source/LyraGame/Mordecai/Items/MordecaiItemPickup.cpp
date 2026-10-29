@@ -2,9 +2,12 @@
 
 #include "Mordecai/Items/MordecaiItemPickup.h"
 
+#include "Camera/PlayerCameraManager.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
 #include "Mordecai/Items/MordecaiItemDefinition.h"
 #include "Mordecai/Items/MordecaiItemInstance.h"
@@ -15,7 +18,11 @@
 
 AMordecaiItemPickup::AMordecaiItemPickup()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	// Ticks only to turn the name label to the local camera: after the camera update (engine LevelTick.cpp
+	// updates cameras between TG_PostPhysics and TG_PostUpdateWork), and never on a server without one
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickGroup = TG_PostUpdateWork;
+	PrimaryActorTick.bAllowTickOnDedicatedServer = false;
 	bReplicates = true;
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
@@ -36,8 +43,10 @@ AMordecaiItemPickup::AMordecaiItemPickup()
 	NameLabel = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameLabel"));
 	NameLabel->SetupAttachment(Root);
 	NameLabel->SetRelativeLocation(FVector(0.f, 0.f, 70.f));
-	// Diorama camera looks down from the south — tilt the label up toward it
-	NameLabel->SetRelativeRotation(FRotator(45.f, 90.f, 0.f));
+	// A billboard: its rotation is a world rotation, whatever the actor's. Until Tick turns it to the live
+	// camera it faces the default diorama camera (pitch -50, yaw 0: ComputeNameLabelRotation of that view).
+	NameLabel->SetUsingAbsoluteRotation(true);
+	NameLabel->SetRelativeRotation(FRotator(50.f, 180.f, 0.f));
 	NameLabel->SetHorizontalAlignment(EHTA_Center);
 	NameLabel->SetWorldSize(22.f);
 	NameLabel->SetTextRenderColor(FColor::White);
@@ -131,6 +140,41 @@ void AMordecaiItemPickup::OnTriggerEndOverlap(UPrimitiveComponent* OverlappedCom
 	{
 		Interaction->UnregisterPickup(this);
 	}
+}
+
+void AMordecaiItemPickup::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	// The first local player's camera (a listen server's first controller may be a remote one)
+	const APlayerCameraManager* LocalCamera = nullptr;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It && !LocalCamera; ++It)
+	{
+		const APlayerController* Controller = It->Get();
+		if (Controller && Controller->IsLocalController())
+		{
+			LocalCamera = Controller->PlayerCameraManager.Get();
+		}
+	}
+	FaceNameLabelTo(LocalCamera);
+}
+
+FRotator AMordecaiItemPickup::ComputeNameLabelRotation(const FRotator& CameraRotation)
+{
+	const FRotationMatrix View(CameraRotation);
+	return FRotationMatrix::MakeFromXZ(-View.GetUnitAxis(EAxis::X), View.GetUnitAxis(EAxis::Z)).Rotator();
+}
+
+bool AMordecaiItemPickup::FaceNameLabelTo(const APlayerCameraManager* Camera)
+{
+	// A camera that never updated has no view yet (the rule APlayerController::GetPlayerViewPoint uses)
+	if (!NameLabel || !Camera || Camera->GetCameraCacheTime() <= 0.f)
+	{
+		return false;
+	}
+	// Absolute rotation: the relative rotation is the world rotation, and setting an unchanged one is free
+	NameLabel->SetRelativeRotation(ComputeNameLabelRotation(Camera->GetCameraRotation()));
+	return true;
 }
 
 void AMordecaiItemPickup::RefreshNameLabel()

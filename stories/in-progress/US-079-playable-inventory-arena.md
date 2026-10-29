@@ -102,7 +102,7 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
 | 1 | `hud_visible` | wait_until pickups.prompt.hint_visible==true && pickups.prompt.hint_text=="[I] Inventory" -> a combat HUD widget in state.widgets | - |
-| 2 | `pickup_labels` | state actors -> every actors[] with kind=="pickup" has a widget component with actors[].widgets[].visible==true (its in-world name label) _(known issue: bridge gap B1: actors[].widgets lists only UWidgetComponents, but the pickup name label is a UTextRenderComponent (MordecaiItemPickup.cpp:36); the 'start' screenshot is the evidence until the bridge reports it)_ | AC-079.10 |
+| 2 | `pickup_labels` | state actors -> every actors[] with kind=="pickup" has an actors[].text_labels[] entry (its in-world name label) with visible==true, text== its display name, facing>=0.99 and upright>=0.99 (square to the camera, reading left to right) | AC-079.10 |
 | 3 | `empty_state` | before any pickup: tap I -> wait_until pause_menu.open==true && pause_menu.inventory_tab.list_placeholder=="Inventory is empty."; screenshot; tap Escape -> wait_until pause_menu.open==false | AC-079.9, US-071:AC-071.15 |
 | 4 | `walk_HealthPotion` | walk_to(400, 0) -> within 60 cm | AC-079.6 |
 | 5 | `focus_HealthPotion` | wait_until pickups.focused.label=="TestPickup_HealthPotion" | - |
@@ -145,3 +145,5 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 42 | `identify_click` | re-read the amulet row's 'Identify' button (rows rebuild on a filter click), click Left at its center | - |
 | 43 | `amulet_identified` | state pause_menu, inventory -> the amulet row reads 'Mysterious Amulet' with no Identify button and the item is identified | US-071:AC-071.12, US-071:AC-071.13 |
 | 44 | `menu_closes_escape` | tap Escape -> wait_until pause_menu.open==false | US-069:AC-069.10 |
+
+- **2026-10-28 (issues #30 and #38, not a US-079 closing run):** `pickup_labels` reads `actors[].text_labels` and has no known issue. The labels are billboards that face the camera and read left to right. On the fresh package of `92e7575`, `py Scripts/playtest_story.py US-079` exited 0 for the first time: Tier 3 `Saved/Playtests/20261028-232530-boot`, Tier 4 `Saved/Playtests/20261028-232550-us079`, 55/55 checks PASS, 15/15 ACs accepted. The player outran the swarm (T1) that run. AC-079.10 still names a `BP_MordecaiItemPickup` that does not exist (the label is the native `AMordecaiItemPickup::NameLabel`), and closing US-079 is Jeff's call, so no box is ticked here.

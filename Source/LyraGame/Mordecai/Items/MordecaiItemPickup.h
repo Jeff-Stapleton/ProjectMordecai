@@ -7,6 +7,7 @@
 
 #include "MordecaiItemPickup.generated.h"
 
+class APlayerCameraManager;
 class UMordecaiItemDefinition;
 class USceneComponent;
 class USphereComponent;
@@ -27,8 +28,10 @@ class UTextRenderComponent;
  *
  * Visuals: optional display mesh (assigned per-instance by placement scripts
  * or a BP subclass) plus an in-world name label so pickups are readable at a
- * glance. Both use the identification-aware display name — unidentified
- * magical items show partial info, never their true name.
+ * glance. The label shows the identification-aware display name — unidentified
+ * magical items show partial info, never their true name — and is a billboard:
+ * every frame it turns square to the local player's camera, reading left to
+ * right, whatever the actor's own rotation.
  */
 UCLASS(BlueprintType)
 class LYRAGAME_API AMordecaiItemPickup : public AActor
@@ -67,6 +70,19 @@ public:
 	USphereComponent* GetPickupTrigger() const { return PickupTrigger; }
 	UStaticMeshComponent* GetDisplayMesh() const { return DisplayMesh; }
 	UTextRenderComponent* GetNameLabel() const { return NameLabel; }
+
+	/** Turns the name label to the local player's camera (runs after the camera update, never on a dedicated server). */
+	virtual void Tick(float DeltaSeconds) override;
+
+	/**
+	 * World rotation that puts a UTextRenderComponent square to a camera at CameraRotation, reading left to right.
+	 * A TextRender's readable face is its local +X, its text runs along local -Y and its up is local +Z, so the
+	 * label's X is the camera's backward vector and its Z is the camera's up (its -Y is then the camera's right).
+	 */
+	static FRotator ComputeNameLabelRotation(const FRotator& CameraRotation);
+
+	/** Turns the name label square to Camera's current view. False, label untouched, when Camera is null or has never updated. */
+	bool FaceNameLabelTo(const APlayerCameraManager* Camera);
 
 protected:
 	virtual void BeginPlay() override;

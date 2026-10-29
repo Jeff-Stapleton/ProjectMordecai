@@ -146,6 +146,23 @@ The `DefaultPawnClass` on the GameMode is a fallback. In practice, Lyra resolves
 
 Camera mode comes from `PawnData->DefaultCameraMode`, read by `LyraHeroComponent::DetermineCameraMode()`.
 
+### A UTextRenderComponent faces local +X and its text runs along local −Y: a hand-picked rotation turned the pickup labels 90° (issues #30, #38)
+
+**Problem:** The pickup name labels (`AMordecaiItemPickup::NameLabel`) read up the screen in every packaged screenshot since Phase 1. Nothing caught it: the bridge did not report TextRender components (B1), and no test knew which way a TextRender faces.
+
+**Root cause:** A TextRender lays its glyphs out at local (0, −x, −y) (engine `TextRenderComponent.cpp`, `FTextRenderSceneProxy` vertex build): its readable face is local +X, its text runs along local −Y and its up is local +Z. The label had a fixed relative rotation (45, 90, 0), commented "camera looks down from the south". The Mordecai camera (`UMordecaiCameraMode_Diorama`, the C++ class from `PawnData_Mordecai`; `BP_CameraMode_Diorama` cannot load, entry above) is at (PitchAngle −50, yaw 0): it looks along +X, so screen right is +Y and screen up is roughly +X. With yaw 90 the text ran along world +X, straight up the screen.
+
+**Fix:** A billboard. For a camera at rotation R, the label's world rotation is `FRotationMatrix::MakeFromXZ(-ViewForward, ViewUp).Rotator()` (X = the camera's backward vector, Z = its up, so −Y = its right); for the diorama that is (50, 180, 0). `AMordecaiItemPickup`:
+- `NameLabel->SetUsingAbsoluteRotation(true)`, so the actor's rotation never turns it; with absolute rotation, `SetRelativeRotation` is the world rotation and returns early when unchanged (cheaper than `SetWorldRotation`).
+- Ticks in `TG_PostUpdateWork` (cameras update between `TG_PostPhysics` and `TG_PostUpdateWork`, `LevelTick.cpp`; any earlier group is a frame late), with `bAllowTickOnDedicatedServer = false`.
+- Takes the camera of the first LOCAL player controller (`IsLocalController()`), never `GetFirstPlayerController()`, which can be a remote player's on a listen server. A camera manager with `GetCameraCacheTime() <= 0` has never updated: no view yet, leave the label alone.
+
+**Testing it:**
+- Compare axis vectors, not rotator components (yaw comes back as 180 or −180).
+- In a test world without a net driver a player controller is local only when it has a `ULocalPlayer` (`APlayerController::IsLocalController`): set `PC->Player = NewObject<ULocalPlayer>(...)`, or a "find the local camera" path silently finds nothing.
+- `APlayerController::PostInitializeComponents` spawns the camera manager once the world ran `InitializeActorsForPlay`. Make its view "known" with `World->TimeSeconds = 1; PC->PlayerCameraManager->FillCameraCache(View)` (public; `SetCameraCachePOV` does not stamp the time). See `Mordecai.Items.ItemPickup.NameLabelFollowsTheLocalCamera`.
+- The bridge reports `actors[].text_labels[].facing` (face · −camera forward) and `upright` (text direction · camera right). A readable label reads 1.0 on both; the old rotation read 0.542 and 0.000. A screenshot alone let this ship for weeks.
+
 ---
 
 ## Ability Sets

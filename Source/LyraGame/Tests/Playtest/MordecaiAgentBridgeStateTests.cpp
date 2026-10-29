@@ -5,7 +5,9 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Blueprint/WidgetTree.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Components/TextBlock.h"
+#include "Components/TextRenderComponent.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "Engine/Engine.h"
@@ -192,6 +194,13 @@ namespace MordecaiAgentBridgeStateTestHelpers
 		FString Out;
 		return Object.IsValid() && Object->TryGetStringField(Field, Out) ? Out : FString(TEXT("<missing>"));
 	}
+
+	/** An actors[] entry's first text_labels[] object, or null (a missing label fails its checks instead of crashing the run). */
+	static TSharedPtr<FJsonObject> FirstTextLabel(const TSharedPtr<FJsonObject>& ActorEntry)
+	{
+		const TArray<TSharedPtr<FJsonValue>> Labels = ArrayAt(ActorEntry, TEXT("text_labels"));
+		return Labels.Num() > 0 && Labels[0].IsValid() && Labels[0]->Type == EJson::Object ? Labels[0]->AsObject() : nullptr;
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_AgentBridge_State_InventoryAndLedger,
@@ -358,6 +367,7 @@ bool FMordecai_Playtest_AgentBridge_State_PickupEntries::RunTest(const FString& 
 		return true;
 	}
 	Pickup->ItemDefinition = MakeDef(TEXT("TestItem_HealthPotion"), TEXT("Health Potion"), EMordecaiItemType::Consumable);
+	Pickup->DispatchBeginPlay(); // writes the display name into the name label
 #if WITH_EDITOR
 	Pickup->SetActorLabel(TEXT("TestPickup_HealthPotion"), /*bMarkDirty*/ false);
 	const FString ExpectedLabel = TEXT("TestPickup_HealthPotion");
@@ -388,6 +398,44 @@ bool FMordecai_Playtest_AgentBridge_State_PickupEntries::RunTest(const FString& 
 	TestFalse("not hidden", Actor->GetBoolField(TEXT("hidden")));
 	TestFalse("display mesh without a mesh is not visible", Actor->GetBoolField(TEXT("has_visible_mesh")));
 	TestTrue("pickups are listed by default", MordecaiAgentBridge::State::IsInterestingActor(Pickup));
+
+	// Its in-world name label is a UTextRenderComponent: text_labels, not widgets (issue #30)
+	TestEqual("a TextRender is not a widget component", ArrayAt(Actor, TEXT("widgets")).Num(), 0);
+	const TArray<TSharedPtr<FJsonValue>> Labels = ArrayAt(Actor, TEXT("text_labels"));
+	if (TestEqual("one text label", Labels.Num(), 1))
+	{
+		const TSharedPtr<FJsonObject> Label = Labels[0]->AsObject();
+		TestEqualSensitive("component", StringAt(Label, TEXT("component")), FString(TEXT("NameLabel")));
+		TestEqualSensitive("text is the rendered display name", StringAt(Label, TEXT("text")), FString(TEXT("Health Potion")));
+		TestTrue("visible", Label.IsValid() && Label->GetBoolField(TEXT("visible")));
+		TestTrue("facing is null without a camera", IsNullField(Label, TEXT("facing")));
+		TestTrue("upright is null without a camera", IsNullField(Label, TEXT("upright")));
+	}
+
+	// Measured against a view rotation: the label's face (+X) against the way back to the camera, and the
+	// way its text runs (-Y) against the camera's right. The old fixed (45, 90, 0) reads 0.542 / 0 (issue #38).
+	const FRotator DioramaView(-50.0, 0.0, 0.0);
+	UTextRenderComponent* NameLabel = Pickup->GetNameLabel();
+	NameLabel->SetWorldRotation(FRotator(45.0, 90.0, 0.0));
+	TSharedPtr<FJsonObject> Measured = FirstTextLabel(MordecaiAgentBridge::State::MakeActorEntry(Pickup, &Origin, &DioramaView));
+	TestEqual("a label turned 90 degrees: facing", Number(Measured, TEXT("facing")), 0.542, 0.001);
+	TestEqual("a label turned 90 degrees: upright", Number(Measured, TEXT("upright")), 0.0, 0.001);
+	NameLabel->SetWorldRotation(FRotator(50.0, 180.0, 0.0));
+	Measured = FirstTextLabel(MordecaiAgentBridge::State::MakeActorEntry(Pickup, &Origin, &DioramaView));
+	TestEqual("a label square to the camera: facing", Number(Measured, TEXT("facing")), 1.0, 0.001);
+	TestEqual("a label reading left to right: upright", Number(Measured, TEXT("upright")), 1.0, 0.001);
+	NameLabel->SetWorldRotation(FRotator(-50.0, 0.0, 0.0));
+	Measured = FirstTextLabel(MordecaiAgentBridge::State::MakeActorEntry(Pickup, &Origin, &DioramaView));
+	TestEqual("the camera sees the label's back: facing", Number(Measured, TEXT("facing")), -1.0, 0.001);
+	TestEqual("its text runs right to left: upright", Number(Measured, TEXT("upright")), -1.0, 0.001);
+
+	Pickup->SetActorHiddenInGame(true);
+	Measured = FirstTextLabel(MordecaiAgentBridge::State::MakeActorEntry(Pickup, &Origin));
+	TestTrue("a hidden pickup's label is not visible", Measured.IsValid() && !Measured->GetBoolField(TEXT("visible")));
+	Pickup->SetActorHiddenInGame(false);
+	NameLabel->SetVisibility(false);
+	Measured = FirstTextLabel(MordecaiAgentBridge::State::MakeActorEntry(Pickup, &Origin));
+	TestTrue("a hidden label is not visible", Measured.IsValid() && !Measured->GetBoolField(TEXT("visible")));
 
 	AActor* Plain = Env.World->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, FActorSpawnParameters());
 	TestEqual("plain actor kind", MordecaiAgentBridge::State::ClassifyActorKind(Plain), FString(TEXT("other")));
@@ -439,6 +487,8 @@ bool FMordecai_Playtest_AgentBridge_State_EnemyActorEntry::RunTest(const FString
 	TestFalse("no mesh asset -> not visible", Entry->GetBoolField(TEXT("has_visible_mesh")));
 	TestTrue("tags array", Entry->HasTypedField<EJson::Array>(TEXT("tags")));
 	TestTrue("widgets array", Entry->HasTypedField<EJson::Array>(TEXT("widgets")));
+	TestTrue("text_labels array", Entry->HasTypedField<EJson::Array>(TEXT("text_labels")));
+	TestEqual("an enemy has no text labels", ArrayAt(Entry, TEXT("text_labels")).Num(), 0);
 	TestTrue("enemies are listed by default", MordecaiAgentBridge::State::IsInterestingActor(Enemy));
 
 	Enemy->EnterDeathState();
@@ -681,6 +731,84 @@ bool FMordecai_Playtest_AgentBridge_State_EnemyHealthFromItsOwnASC::RunTest(cons
 
 	ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetHealthAttribute(), 25.f);
 	TestEqual("health follows the ASC", Number(ObjectAt(MordecaiAgentBridge::State::MakeActorEntry(Enemy, &Origin), TEXT("health")), TEXT("current")), 25.0);
+
+	Env.Teardown();
+	return true;
+}
+
+// ===========================================================================
+// actors[].text_labels[].facing / upright are measured against the local player's camera (issues #30, #38)
+// ===========================================================================
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_AgentBridge_State_ActorsMeasureLabelsAgainstTheLocalCamera,
+	"Mordecai.Playtest.AgentBridge.State.ActorsMeasureLabelsAgainstTheLocalCamera",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_AgentBridge_State_ActorsMeasureLabelsAgainstTheLocalCamera::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiAgentBridgeStateTestHelpers;
+	FBridgeGameTestEnv Env;
+	if (!TestTrue("test world", Env.Setup(/*bWithGameState*/ false)) || !TestNotNull("camera manager", Env.PC->PlayerCameraManager.Get()))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	AMordecaiItemPickup* Pickup = Env.World->SpawnActor<AMordecaiItemPickup>(
+		AMordecaiItemPickup::StaticClass(), FVector(400.0, 0.0, 30.0), FRotator::ZeroRotator, FActorSpawnParameters());
+	if (!TestNotNull("pickup spawned", Pickup))
+	{
+		Env.Teardown();
+		return true;
+	}
+	// A rotation the test controls: the old fixed label rotation, turned 90 degrees under the diorama camera
+	Pickup->GetNameLabel()->SetWorldRotation(FRotator(45.0, 90.0, 0.0));
+
+	FMordecaiAgentBridgeStateContext Context;
+	Context.World = Env.World;
+	Context.PlayerController = Env.PC;
+
+	auto PickupLabel = [&Context]() -> TSharedPtr<FJsonObject>
+	{
+		const TSharedPtr<FJsonValue> Actors = MordecaiAgentBridge::State::GatherSection(Context, TEXT("actors"), 1500.0, false);
+		const TArray<TSharedPtr<FJsonValue>>* Array = nullptr;
+		if (Actors.IsValid() && Actors->TryGetArray(Array))
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *Array)
+			{
+				const TSharedPtr<FJsonObject> Entry = Value.IsValid() && Value->Type == EJson::Object ? Value->AsObject() : nullptr;
+				if (Entry.IsValid() && StringAt(Entry, TEXT("kind")) == TEXT("pickup"))
+				{
+					return FirstTextLabel(Entry);
+				}
+			}
+		}
+		return nullptr;
+	};
+
+	// The camera has never updated: no view, so nothing is measured (never a default camera)
+	TSharedPtr<FJsonObject> Label = PickupLabel();
+	TestTrue("label reported", Label.IsValid());
+	TestTrue("facing null before the camera's first update", IsNullField(Label, TEXT("facing")));
+	TestTrue("upright null before the camera's first update", IsNullField(Label, TEXT("upright")));
+
+	// The camera's view as last computed (what APlayerCameraManager::UpdateCamera caches each frame)
+	Env.World->TimeSeconds = 1.0;
+	FMinimalViewInfo View;
+	View.Rotation = FRotator(-50.0, 0.0, 0.0);
+	Env.PC->PlayerCameraManager->FillCameraCache(View);
+	Label = PickupLabel();
+	TestEqual("facing against the local camera", Number(Label, TEXT("facing")), 0.542, 0.001);
+	TestEqual("upright against the local camera", Number(Label, TEXT("upright")), 0.0, 0.001);
+
+	// Another camera, the same label: the bridge follows the camera, not a fixed diorama default. A camera
+	// looking down along -Y (the one the old label comment assumed) sees that label square and level.
+	Env.World->TimeSeconds = 2.0;
+	View.Rotation = FRotator(-45.0, -90.0, 0.0);
+	Env.PC->PlayerCameraManager->FillCameraCache(View);
+	Label = PickupLabel();
+	TestEqual("facing against the moved camera", Number(Label, TEXT("facing")), 1.0, 0.001);
+	TestEqual("upright against the moved camera", Number(Label, TEXT("upright")), 1.0, 0.001);
 
 	Env.Teardown();
 	return true;

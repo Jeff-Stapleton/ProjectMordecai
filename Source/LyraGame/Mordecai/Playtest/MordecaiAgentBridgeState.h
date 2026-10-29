@@ -23,6 +23,7 @@ class UMordecaiInventoryWidget;
 class UMordecaiPauseMenuWidget;
 class UMordecaiPickupPromptWidget;
 class UMordecaiResourceLedger;
+class UTextRenderComponent;
 class UWidget;
 class UWorld;
 struct FGeometry;
@@ -108,8 +109,11 @@ namespace MordecaiAgentBridge::State
 	/** {label,item_id,display_name,location,distance}; distance is null without an origin. */
 	TSharedRef<FJsonObject> MakePickupEntry(const AMordecaiItemPickup* Pickup, const FVector* Origin);
 
-	/** One actors[] entry. Distance is null without an origin. */
-	TSharedRef<FJsonObject> MakeActorEntry(const AActor* Actor, const FVector* Origin);
+	/** One actors[] entry. Distance is null without an origin; text_labels[].facing/upright are null without a view rotation. */
+	TSharedRef<FJsonObject> MakeActorEntry(const AActor* Actor, const FVector* Origin, const FRotator* ViewRotation = nullptr);
+
+	/** One actors[].text_labels[] entry: {component, text, visible, facing, upright}; facing/upright are null without a view rotation. */
+	TSharedRef<FJsonObject> MakeTextLabelEntry(const UTextRenderComponent* Label, const AActor* Owner, const FRotator* ViewRotation);
 
 	/** Mordecai health for any actor: ASC attribute set, enemy set, illusion HP, then Lyra health. */
 	bool GetActorHealth(const AActor* Actor, float& OutCurrent, float& OutMax);

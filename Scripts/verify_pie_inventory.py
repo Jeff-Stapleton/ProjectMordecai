@@ -10,7 +10,9 @@
 # run_pie_verify.py runs the script again, after the editor has ticked,
 # whenever it prints PIE_NEXT_PHASE. The phase comes from PIE state (pickups
 # left, pause menu instances); nothing is kept between runs:
-#   1. Fresh PIE, no pause menu yet: open the inventory before any pickup
+#   1. Fresh PIE, no pause menu yet: every pickup's name label reads its
+#      display name, square to the PIE camera and left to right (issues #30,
+#      #38; read-only, untagged). Then open the inventory before any pickup
 #      ("Inventory is empty."), close it.
 #   2. Pickups left, a pooled (closed) menu exists: pick everything up, then
 #      reopen. CommonUI hands back the SAME menu instance; its tab must show
@@ -182,6 +184,39 @@ def _run():
     # Phase 1: the inventory before any pickup (issue #28 repro step 1)
     # =======================================================================
     if phase == 1:
+        # The name labels as the PIE camera sees them (read-only). A TextRender's readable face
+        # is its +X and its text runs along -Y, so: facing = face . -camera forward, upright =
+        # text direction . camera right (1.0 each for a billboard; the old fixed rotation read
+        # 0.542 and 0.000, issue #38).
+        def dot(a, b):
+            return a.x * b.x + a.y * b.y + a.z * b.z
+
+        def neg(v):
+            return unreal.Vector(-v.x, -v.y, -v.z)
+
+        camera = unreal.GameplayStatics.get_player_camera_manager(world, 0)
+        check("PIE player camera manager exists", camera is not None)
+        if camera:
+            view = camera.get_camera_rotation()
+            back = neg(view.get_forward_vector())
+            right = view.get_right_vector()
+            print(f"  INFO: camera rotation {view}")
+            for pickup in pickups:
+                label = pickup.get_actor_label()
+                name_label = pickup.get_editor_property('name_label')
+                check(f"{label}: has a name label", name_label is not None)
+                if not name_label:
+                    continue
+                item_name = str(pickup.get_item_display_name())
+                text = str(name_label.get_editor_property('text'))
+                facing = dot(name_label.get_forward_vector(), back)
+                upright = dot(neg(name_label.get_right_vector()), right)
+                print(f"  INFO: {label}: name label world rotation {name_label.get_world_rotation()}")
+                check(f"{label}: name label visible", name_label.is_visible())
+                check(f"{label}: name label reads '{item_name}'", text == item_name, f"Got '{text}'")
+                check(f"{label}: name label square to the camera (facing {facing:.3f})", facing >= 0.99)
+                check(f"{label}: name label reads left to right (upright {upright:.3f})", upright >= 0.99)
+
         try:
             menu, tab = open_inventory_tab("Open 1 (before pickups)")
             if menu:

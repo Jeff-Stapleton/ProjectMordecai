@@ -52,15 +52,21 @@ def make_realistic_world(base):
     Options (keyword, JSON-friendly for fake_game.py): escape_budget (None = Escape always closes
     the menu as configured; N = only the first N Escapes close it, then the fix "regresses"),
     filters_work (False = filter clicks change nothing on screen), labels_visible (False = the
-    pickups' name-label widgets are hidden).
+    pickups' name labels are hidden), label_facing / label_upright (what the bridge measures
+    for every pickup label; 0.542 / 0.0 is the old fixed rotation, issue #38; None = no camera),
+    labels_reported (False = no actors[].text_labels, a bridge without the issue #30 fix).
     """
 
     class RealisticWorld(base):
-        def __init__(self, *, escape_budget=None, filters_work=True, labels_visible=True, **kw):
+        def __init__(self, *, escape_budget=None, filters_work=True, labels_visible=True,
+                     label_facing=1.0, label_upright=1.0, labels_reported=True, **kw):
             super().__init__(**kw)
             self.escape_budget = escape_budget
             self.filters_work = bool(filters_work)
             self.labels_visible = bool(labels_visible)
+            self.label_facing = label_facing
+            self.label_upright = label_upright
+            self.labels_reported = bool(labels_reported)
 
         def _on_key_pressed(self, key):
             if key == "Escape" and self.menu_open and self.escape_budget is not None:
@@ -91,10 +97,15 @@ def make_realistic_world(base):
 
         def _actors(self, radius, include_all):
             entries = super()._actors(radius, include_all)
-            if not self.labels_visible:
-                for e in entries:
-                    if e["kind"] == "pickup":
-                        e["widgets"] = [dict(w, visible=False) for w in e["widgets"]]
+            for e in entries:
+                if e["kind"] != "pickup":
+                    continue
+                if not self.labels_reported:
+                    del e["text_labels"]
+                    continue
+                e["text_labels"] = [dict(lbl, visible=lbl["visible"] and self.labels_visible,
+                                         facing=self.label_facing, upright=self.label_upright)
+                                    for lbl in e["text_labels"]]
             return entries
 
     return RealisticWorld
@@ -178,8 +189,10 @@ class TestUs079AgainstTheFake(PlaytestCase):
             self.assertEqual(checks[name]["status"], "PASS", name)
         self.assertIn("'Inventory is empty.' shown", checks["empty_state"]["detail"])
         self.assertIn("the menu closed", checks["empty_state"]["detail"])
-        self.assertIn("6 pickup actor(s), each with a visible widget",
-                      checks["pickup_labels"]["detail"])
+        self.assertIn("6 pickup name label(s) visible, each reading its display name square to "
+                      "the camera", checks["pickup_labels"]["detail"])
+        self.assertIn("TestPickup_MysteriousAmulet='Unidentified Purple Amulet' (facing 1.000, "
+                      "upright 1.000)", checks["pickup_labels"]["detail"])
         self.assertIn("to the confirmed 6th pickup (limit 30s", checks["pickup_loop_time"]["detail"])
         self.assertIn("'? Unidentified Purple Amulet'", checks["unidentified_badge"]["detail"])
         self.assertIn("clicked 'Weapons'", checks["filter_weapons"]["detail"])
@@ -359,7 +372,35 @@ class TestUs079AgainstTheFake(PlaytestCase):
         self.assertEqual(code, 1)
         check = self.by_name(rep)["pickup_labels"]
         self.assertEqual(check["status"], "FAIL")
-        self.assertIn("6 of 6 pickup actor(s) have no visible widget component", check["detail"])
+        self.assertIn("6 of 6 pickup name label(s) are not readable", check["detail"])
+        self.assertIn("TestPickup_HealthPotion: its label 'Health Potion' (NameLabel) is hidden",
+                      check["detail"])
+        self.assertEqual(self.statuses(rep, "FAIL"), ["pickup_labels"])
+
+    def test_labels_turned_90_degrees_fail_as_new(self):
+        # Issue #38: the old fixed rotation (45, 90, 0) under the diorama camera.
+        world, server = self.serve(label_facing=0.542, label_upright=0.0)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["pickup_labels"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("6 of 6 pickup name label(s) are not readable", check["detail"])
+        self.assertIn("TestPickup_IronOre: its label 'Iron Ore': facing 0.542 < 0.99 (not square "
+                      "to the camera), upright 0.000 < 0.99 (not reading left to right)",
+                      check["detail"])
+        self.assertEqual(self.statuses(rep, "FAIL"), ["pickup_labels"])
+        self.assertEqual(rep["new_failures"], ["pickup_labels"])
+        self.assertEqual(rep["known_failures"], [])
+        acs = {(a["story"], a["id"]): a for a in rep["acs"]}
+        self.assertEqual(acs[("US-079", "AC-079.10")]["status"], "FAIL")
+
+    def test_a_bridge_without_text_labels_fails(self):
+        world, server = self.serve(labels_reported=False)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["pickup_labels"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("the bridge reports no actors[].text_labels", check["detail"])
         self.assertEqual(self.statuses(rep, "FAIL"), ["pickup_labels"])
 
     def test_a_slow_pickup_loop_fails(self):
@@ -690,8 +731,8 @@ class TestUs079PlanAndAcceptance(PlaytestCase):
         self.assertEqual(rep["undeclared_checks"], [])
         self.assertEqual(rep["new_failures"], ["menu_closes_escape"])
         self.assertEqual(rep["known_failures"], [])
-        # The fake reports pickup labels, so the bridge-gap check passes there (FIXED? flag).
-        self.assertEqual(rep["fixed_candidates"], ["pickup_labels"])
+        # pickup_labels lost its known issue (issues #30, #38): a PASS there is no FIXED? candidate.
+        self.assertEqual(rep["fixed_candidates"], [])
         acs = {(a["story"], a["id"]): a for a in rep["acs"]}
         self.assertEqual(acs[("US-069", "AC-069.10")]["status"], "FAIL")
         self.assertEqual(acs[("US-069", "AC-069.10")]["checks"], ["menu_closes_escape"])
@@ -743,6 +784,62 @@ class TestUs079Helpers(unittest.TestCase):
         # Box_02 grown by the capsule radius: X -490..-310, Y -390..-210.
         (wx, wy), = [s for s in us079.ROUTE if s["name"] == "RustySword"][0]["waypoints"]
         self.assertFalse(-490 <= wx <= -310 and -390 <= wy <= -210)
+
+
+class TestUs079PickupLabel(unittest.TestCase):
+    """read_pickup_label: what makes an actors[].text_labels[] entry a readable name label."""
+
+    @staticmethod
+    def actor(**label):
+        entry = {"component": "NameLabel", "text": "Iron Ore", "visible": True, "facing": 1.0,
+                 "upright": 1.0}
+        entry.update(label)
+        return {"label": "TestPickup_IronOre", "kind": "pickup", "text_labels": [entry]}
+
+    def problem(self, actor, expected="Iron Ore"):
+        lbl, problem = us079.read_pickup_label(actor, expected)
+        self.assertTrue((lbl is None) != (problem is None), (lbl, problem))
+        return problem
+
+    def test_a_square_upright_label_reading_the_display_name_is_readable(self):
+        lbl, problem = us079.read_pickup_label(self.actor(), "Iron Ore")
+        self.assertIsNone(problem)
+        self.assertEqual(lbl["component"], "NameLabel")
+
+    def test_the_thresholds_are_inclusive(self):
+        self.assertIsNone(self.problem(self.actor(facing=0.99, upright=0.99)))
+        self.assertIn("facing 0.989 < 0.99", self.problem(self.actor(facing=0.989)))
+        self.assertIn("upright 0.989 < 0.99", self.problem(self.actor(upright=0.989)))
+
+    def test_a_label_seen_from_behind_or_upside_down_is_not_readable(self):
+        self.assertIn("facing -1.000", self.problem(self.actor(facing=-1.0)))
+        self.assertIn("upright -1.000", self.problem(self.actor(upright=-1.0)))
+
+    def test_the_text_must_be_the_display_name(self):
+        problem = self.problem(self.actor(text="Mysterious Amulet"), "Unidentified Purple Amulet")
+        self.assertIn("no label reads 'Unidentified Purple Amulet'", problem)
+        self.assertIn("'Mysterious Amulet'", problem)
+        # A pickup outside the route only needs some text
+        self.assertIsNone(self.problem(self.actor(text="Anything"), None))
+        self.assertIn("no label reads any text", self.problem(self.actor(text="  "), None))
+
+    def test_a_label_without_a_camera_measurement_is_not_readable(self):
+        problem = self.problem(self.actor(facing=None, upright=None))
+        self.assertIn("facing=None, upright=None (no local camera to measure against)", problem)
+        self.assertIn("no local camera", self.problem(self.actor(facing=True)))
+
+    def test_hidden_missing_and_unreported_labels(self):
+        self.assertIn("is hidden", self.problem(self.actor(visible=False)))
+        self.assertEqual(self.problem({"label": "X", "text_labels": []}), "no text label")
+        self.assertIn("the bridge reports no actors[].text_labels", self.problem({"label": "X"}))
+
+    def test_a_readable_label_among_others_is_found(self):
+        actor = self.actor()
+        actor["text_labels"].insert(0, {"component": "Other", "text": "Iron Ore",
+                                        "visible": False, "facing": 1.0, "upright": 1.0})
+        lbl, problem = us079.read_pickup_label(actor, "Iron Ore")
+        self.assertIsNone(problem)
+        self.assertEqual(lbl["component"], "NameLabel")
 
 
 if __name__ == "__main__":
