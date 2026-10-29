@@ -885,7 +885,10 @@ bool FMordecai_Level_TestMaps_OneUmap::RunTest(const FString& Parameters)
 			continue;
 		}
 		TestNull(FString::Printf(TEXT("%s is not World Partition (its World Settings hold no UWorldPartition)"), MapPath), Settings->GetWorldPartition());
+#if WITH_EDITOR
+		// ULevel::IsUsingExternalActors exists only in editor builds; the packaged game target compiles this file too
 		TestFalse(FString::Printf(TEXT("%s keeps its actors in the .umap (no external actors)"), MapPath), World->PersistentLevel->IsUsingExternalActors());
+#endif
 	}
 	return true;
 }
