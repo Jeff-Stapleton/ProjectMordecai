@@ -94,7 +94,7 @@ The first Phase 3 sweep (`py Scripts/playtest_story.py --all` on a fresh package
 - US-083: Player combat abilities granted at runtime + attack/dodge/block/sprint/jump bound (HEADLESS — N10, unbound input) — P0
 - US-084: Enemy attacks reach the player (code) + enemy content guards (HEADLESS — N7) — P0, pair of US-085
 - US-085: Frontliner content: visible mesh, 200 HP, attack profiles, placement (EDITOR — invisible enemies, N13, N7, N14) — P0, pair of US-084. In progress: 200 HP (N13) done, issue #18 (`39500e2`); visible bodies (N14's invisible part) done, issue #19 (`f21525f`); the spawn swarm is T1's (#46, Jeff 2026-10-28)
-- US-094: Inventory tab current on every menu open (HEADLESS — CommonUI pool) — P0, unblocks in-progress US-071 / US-079
+- US-094: Inventory tab current on every menu open (HEADLESS — CommonUI pool) — P0, unblocks in-progress US-071 / US-079. IN PROGRESS: fixed in code (issue #28, `a8aaa51`, Tier 1/2 green); its four-item Tier 4 checks wait on T1 or Jeff's call
 - US-086: Death screen shown on death + kill counter counts kills (HEADLESS — N1, N2; adds kill checks to us054) — after US-083/084/085
 - US-087: Fireball projectile flies and hits; Blink moves and ends its invulnerability (HEADLESS — N15, N11, N19, N20)
 - US-088: Spell cooldown tags + four bound HUD cooldown widgets (HEADLESS — cooldowns, N8) — pair of US-089
@@ -109,7 +109,7 @@ The first Phase 3 sweep (`py Scripts/playtest_story.py --all` on a fresh package
 - US-099: Player visible behind near walls (HEADLESS, maybe + EDITOR pair — N21, BLOCKED on TODO(DECISION) cutaway approach)
 - US-090: Spell point budget (HEADLESS — N6, BLOCKED on TODO(DECISION))
 
-Note: US-079 and US-071 remain in `stories/in-progress/`. US-079's Tier 4 now FAILS on the second-open CommonUI pool bug (`Saved/Playtests/20261022-184957-us079`: `menu_rows` etc.); they resume after US-094.
+Note: US-079 and US-071 remain in `stories/in-progress/`. US-079's Tier 4 FAILED on the second-open CommonUI pool bug (`Saved/Playtests/20261022-184957-us079`: `menu_rows` etc.). That bug is fixed in code by US-094 (`a8aaa51`). On its package, the DevTestMap swarm (T1) kills the player on the pickup route, so US-079's own acceptance still waits on T1 (and on B1 for `pickup_labels`).
 
 ### Epic 8: World & Exploration
 Authored-cell world framework, movement/exploration skills, Metroidvania gating.

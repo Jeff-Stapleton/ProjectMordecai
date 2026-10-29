@@ -424,6 +424,28 @@ When building widget trees programmatically:
 
 **Evidence:** `Saved/Playtests/20261020-144643-us079/report.md` check 44 and `bridge_03.png` (bug); `Saved/Playtests/20261020-192656-us079/report.md` (fix); the files and lines above; `Specs/agent_bridge_v1.md` §9.
 
+### CommonUI pools activatable widgets: a reopened menu is the same instance, and its content was unbound by NativeDestruct (issue #28, US-094)
+
+**Problem:** In the packaged game, opening the inventory before any pickup showed "Inventory is empty." (correct). After closing it (Escape) and picking up six items, the second open still showed "Inventory is empty." and "No resources stored.". After a filter click it showed "--", the unbound placeholder. Every sweep from `8ea853b` to `f21525f` failed us079 `menu_rows`, `menu_ledger_rows`, `identify_button` and `filter_*`. Tier 2 never noticed, because `verify_pie_inventory.py` opened the menu only once.
+
+**Root cause:** `UPrimaryGameLayout::PushWidgetToLayerStack` → `UCommonActivatableWidgetContainerBase::AddWidget` takes the widget from an `FUserWidgetPool`. A closed widget goes back to the pool, and the next push of the same class gets the SAME UObject back (`UserWidgetPool.h` `GetOrCreateInstance`).
+- `NativeOnInitialized` runs once per UObject: on creation (`UUserWidget::Initialize`, guarded by `bInitialized`), never on a pooled reuse.
+- On close, `ReleaseWidget` drops the widget's Slate tree. `ReleasedWidgets` holds it until the next core ticker tick (`CommonActivatableWidgetContainer.cpp`). Then `~SObjectWidget` → `ResetWidget` runs `NativeDestruct` on the widget AND on every child `UUserWidget` in its tree. `UMordecaiInventoryWidget::NativeDestruct` → `Unbind()`.
+- On reopen, the Slate tree is rebuilt (`NativeConstruct` runs again), then the widget is activated (`NativeOnActivated`). Lyra forces every layer's transition duration to 0 (`PrimaryGameLayout.cpp` `RegisterLayer`), so this is synchronous, inside `PushWidgetToLayerStack`.
+- The pause menu bound its tab only in `NativeOnInitialized` / `RebuildContentArea`. `SetActiveTab` keeps the content instance when the class is unchanged, so nothing rebound it. `Unbind()` keeps the caches and does not redraw, so the stale empty list stayed on screen until the next redraw drew "--".
+
+**Fix:** Bind data sources in `NativeOnActivated` (every push, fresh or pooled), not only in `NativeOnInitialized`, and unbind in `NativeOnDeactivated`. `UMordecaiPauseMenuWidget::NativeOnActivated` rebinds the current tab to the CURRENT pawn before `Super`, and `NativeOnDeactivated` unbinds it. Both binders are rebind-safe (they unbind first), so a double bind never trips the duplicate-`AddDynamic` ensure.
+
+**Testing it:**
+- Tier 1, headless: build the real menu with a player context and `Initialize()` (`NewObject` + `SetPlayerContext` + `Initialize`, see `Tests/Recovery/MordecaiRecoveryInventoryMenuTests.cpp`). Then drive it as the stack does: `ActivateWidget` on push, `DeactivateWidget` on close, the same object on reopen. There is no Slate tree to release headless, so call the content's unbind yourself to stand in for `~SObjectWidget`; without that, every reopen assertion is a false green.
+- Tier 2: one remote exec runs inside one editor frame, and the release happens on a later tick. A single-exec close and reopen can never reproduce this. See "One remote exec is one editor frame" below.
+- Tier 4: `us079_inventory.py` opens the menu twice (`empty_state`, then `menu_opens_inventory`).
+
+**Evidence:**
+- Bug: `Saved/Playtests/20261028-091034-us079` (`bridge_03.png`, second open).
+- Tier 1 red log: `Saved/TestLogs/tests-20261028-173042.log`.
+- Fix on real input: `Saved/Playtests/20261028-195608-us079` (`menu_ledger_rows` PASS) and `20261028-195731-us079` (`filter_armor_empty` PASS).
+
 ---
 
 ## Testing Gaps
@@ -559,6 +581,20 @@ def _run():
 _run()
 del _run
 ```
+
+### One remote exec is one editor frame: a PIE check that needs a later frame must be phased (`PIE_NEXT_PHASE`)
+
+**Problem:** Some behaviour only happens on a later frame: CommonUI releasing a closed menu's Slate tree (issue #28), timers, latent actions. A smoke script that closes and reopens a menu in one exec always gets the still-alive Slate tree back, so it passes even with the bug.
+
+**Root cause:** `ue_remote_exec.py` runs the whole script on the game thread inside one editor tick. Nothing else ticks until it returns.
+
+**Fix:**
+- A script that needs another frame prints `PIE_NEXT_PHASE: <reason>` and returns. `run_pie_verify.py` then runs it again after `PHASE_DELAY_S` (2 s), up to `MAX_PHASES` times.
+- Derive the phase from PIE state (actors left, widgets that exist, menu open), and keep no Python globals between runs. `verify_pie_inventory.py` uses `WidgetLibrary.get_all_widgets_of_class(world, unreal.MordecaiPauseMenuWidget, False)`, which also finds the pooled, closed menu.
+- Print `ALL CHECKS PASSED` only in the last phase, so a single manual run does not look complete.
+- Prove the check can fail: run it once on the unfixed binary.
+
+**Do not use painted geometry as evidence in PIE:** with the desktop locked or the editor hidden, the editor ticks PIE (game time advances) but paints no Slate. Every PIE widget, including the always-visible HUD, then reports `get_cached_geometry()` 0x0, so "was painted" checks FAIL and "Slate released" (size 0) checks pass vacuously. The Python name of `USlateBlueprintLibrary` is `unreal.SlateLibrary` (`ScriptName`), not `SlateBlueprintLibrary`.
 
 ---
 
@@ -747,3 +783,11 @@ The loop never fails the build, so watch the UAT log for `Low on memory` and sto
 **Root cause:** Assigning `TWeakObjectPtr<T> = T*` requires `T` to be a complete type (the conversion goes through `UObject*`). A forward declaration compiles the member fine but fails at the assignment site.
 
 **Fix:** Include the actor's real header in any header whose inline functions assign into a `TWeakObjectPtr` of it.
+
+### Restoring source files with `Copy-Item` keeps their old timestamps: UBT says "Target is up to date" and you test a stale binary
+
+**Problem:** To prove a Tier 2 check red, the fix was parked in a scratch folder, HEAD's files were restored and built, and then the fix was copied back with `Copy-Item`. The next `Build.bat` printed `Target is up to date`, so the editor still ran the UNFIXED code.
+
+**Root cause:** `Copy-Item` (and `cp -p`, robocopy by default) keeps the source file's `LastWriteTime`. The parked copies were older than the object files from the intermediate build, and UBT's dependency check compares timestamps.
+
+**Fix:** After copying sources back, touch them (`(Get-Item $f).LastWriteTime = Get-Date`), or use `git stash` / `git stash pop`, which write fresh files. Distrust `Target is up to date` right after you swapped sources. Also, Live Coding blocks `Build.bat` while an editor is open (`Unable to build while Live Coding is active`), and `run_pie_verify.py` leaves the editor running: close it before you build.

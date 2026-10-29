@@ -3043,3 +3043,22 @@ Branch `fix/issue-19-invisible-enemies`, delivered `f21525f`.
 ### Next Session Recommendation
 - T1 (issue #46): the movement and combat test maps. Every remaining us001/us054 swarm failure waits on it.
 - Then the rest of US-085: FireSlash.
+
+## 2026-10-28 Issue #28: US-094 (the CommonUI pool)
+Branch `fix/issue-28-inventory-reopen`, delivered `a8aaa51`.
+
+### Completed Since Last Run
+- **US-094** (HEADLESS) moved to `stories/in-progress/` and stays there. AC-094.1 and AC-094.2 are accepted at Tier 1/2. AC-094.3 and AC-094.4 (Tier 4) are not accepted.
+  - Fix: `UMordecaiPauseMenuWidget::NativeOnActivated` rebinds the active tab to the current pawn on every activation, and `NativeOnDeactivated` unbinds it. CommonUI reuses the pooled menu without `NativeOnInitialized`, after its Slate release unbound the tab.
+  - Tier 1: 708/0, with 3 new `Mordecai.Recovery.*` tests that were red before the fix. Tier 2: 12/12; `verify_pie_inventory.py` now reopens the pooled menu across `PIE_NEXT_PHASE` runs and was red on the unfixed binary.
+  - Tier 3 PASS: `Saved/Playtests/20261028-195434-boot`.
+  - Tier 4: 3 us079 runs, all exit 1. The swarm killed the player on the route each time. Every pooled reopen drew what the player held: `menu_ledger_rows` PASS in `20261028-195608-us079`, `filter_armor_empty` PASS in `20261028-195731-us079`.
+
+### Playable Status
+- Playable status: inventory: NOT PLAYABLE (playtest FAIL: route checks lost to the swarm (T1); pickup_labels (known, B1); Tier 4 Saved/Playtests/20261028-195731-us079 @ a8aaa51910). The pooled reopen is fixed: it shows the current items.
+
+### Blockers / Decisions Needed (Jeff)
+- Close US-094 at Jeff's call, as with US-083? Its code is verified at Tier 1/2, and every pooled reopen in the 3 runs was correct on real input. Or wait for T1 to give the four-item checks a clean route.
+
+### Next Session Recommendation
+- T1 (issue #46): the swarm now also blocks the inventory slice (US-094, US-079, US-071).
