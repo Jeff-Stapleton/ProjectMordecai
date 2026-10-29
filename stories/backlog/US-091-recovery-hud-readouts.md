@@ -49,7 +49,7 @@ Native widget code, log levels and an ini change (`Config/DefaultEngine.ini`); n
 - `Scripts/playtests/us057_magic.py` `stone_skin_indicator`; `Scripts/playtests/us078_weapons.py` `weapon_hud_text`, `weapon_hud_updates`
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-057` and `py Scripts/playtest_story.py US-078` on the same package
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience; us057's and us078's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-057` and `py Scripts/playtest_story.py US-078` on the same package
 - **Player steps:** tap R (Stone Skin); tap Tab (next weapon)
 - **Visible on screen:** Tier 3 `engine_NN.png`: the HUD with the weapon name "Longsword" and NO yellow "MORDECAI: ..." lines or Steam warnings. Tier 4: us057 `stone_skin` screenshot shows "StoneSkin" + countdown bottom-left; us078 `bridge_01.png` shows "Longsword", `bridge_02.png` "Mace"
 - **Proof:** Tier 3 screenshots (AC-091.5); Tier 4 checks `stone_skin_indicator` (us057), `weapon_hud_text`, `weapon_hud_updates` (us078)
@@ -70,7 +70,7 @@ Native widget code, log levels and an ini change (`Config/DefaultEngine.ini`); n
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code, config, script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`; every `engine_NN.png` free of debug text
+- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`; every `engine_NN.png` free of debug text
 - [ ] On that same fresh package: `stone_skin_indicator`, `weapon_hud_text`, `weapon_hud_updates` go from FAIL/SKIP to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 for US-057 and US-078 — never `--allow-stale`
 - [ ] Known issues N16, N3, the debug-text entries and the Steam warning marked FIXED in `Specs/agent_playtest_plan_v1.md`
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"

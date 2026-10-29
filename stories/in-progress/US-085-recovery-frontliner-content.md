@@ -29,11 +29,18 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
   - `enemies_visible` PASS (3/3 `mesh=True`) and the us054 `start` screenshot (`bridge_01.png`) show the same. That run exits 1 on other checks (the spawn swarm, N2, N17), so the kit accepts none of its ACs.
 - [ ] AC-085.2: The three Frontliners report 200/200 health (AC-054.2 stats: MaxHealth 200, MaxPosture 100, MoveSpeed 400, AggroRange 900, AttackRange 200, LeashRange 1800) — verified by check `enemies_present` of `Scripts/playtests/us054_arena.py` (Tier 4)
 - [ ] AC-085.3: Standing next to a Frontliner, the player takes damage within 20 s — verified by check `enemy_damages_player` of `Scripts/playtests/us054_arena.py` (Tier 4); the chain that was SKIPped behind it now runs: `player_dies`, `dead_no_move`, `respawn`, `arena_reset`, `respawn_moves` (US-053 ACs) and `burning_on_hit` (US-057 AC-057.8/057.11). Each must PASS, or its FAIL is filed as a new Epic R story / Known issues entry before this story closes (`death_screen` is US-086)
+  - US-100 (T1, issue #46, 2026-10-29; not yet run on a package): `enemy_damages_player` stays in `us054_arena.py` on DevTestMap, next to the Frontliners. The chain this AC names moves to the new `Scripts/playtests/us054_combat.py` on CombatTestMap: `player_dies`, `dead_no_move`, `respawn`, `arena_reset`, `respawn_moves`, `burning_on_hit`.
+    - That chain now runs against the `TestAttacker` (a fixed-spot BasicSlash attacker), not a Frontliner.
+    - The attacker swings BasicSlash only, so `burning_on_hit` can only WARN there (the FireSlash TODO(DECISION) below).
+    - Not accepted, not ticked.
 - [ ] AC-085.4: The player is no longer stopped by invisible bodies at the spawn: checks `move_a` and `walk_lane_wp1` of `Scripts/playtests/us001_movement.py` (Tier 4) PASS (see the placement TODO(DECISION))
   - Issue #19: the bodies are no longer invisible (AC-085.1). The two checks still depend on the spawn swarm. Jeff decided (2026-10-28) that the swarm is T1's (issue #46), so this AC waits on T1.
   - Results on `f21525f`:
     - story run `Saved/Playtests/20261028-085852-us001`: `move_a` PASS; `walk_lane_wp1` FAIL, the player killed at (152, -109);
     - sweep run `20261028-090829-us001`: `walk_lane_wp1` PASS; `move_a` FAIL on 37 cm drift after an enemy shove.
+  - US-100 (T1, issue #46, 2026-10-29; not yet run on a package): `move_a` and `walk_lane_wp1` now run on the enemy-free MovementTestMap, with the same PlayerStart (0, 0), waypoints and check names. They no longer depend on the Frontliners' placement.
+    - us001 still exits 1 on its known facing and stick checks (US-097/US-098), so no us001 run can accept this AC through the kit. Closing on the two checks' results is Jeff's call.
+    - Not accepted, not ticked.
 - [x] AC-085.5: No `LogMordecai` enemy-content error (US-084 AC-084.3) in the packaged `game.log`
   - Issue #19, `f21525f`: 0 errors in the Tier 3 `game.log` (`Saved/Playtests/20261028-085310-boot`, exit 0) and in every Tier 4 run of the sweep `Saved/Playtests/20261028-090808-sweep`. Before: three "has no visible mesh" errors.
 - [ ] AC-085.6: every asset is saved and committed; `py Scripts/check_content_committed.py` passes
@@ -75,6 +82,7 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-054` and `py Scripts/playtest_story.py US-001` on the same package
+  - Note (US-100, 2026-10-29): `py Scripts/playtest_story.py US-054` now also boots CombatTestMap and runs `us054_combat.py` there (the death chain, against the TestAttacker). `py Scripts/playtest_story.py US-001` boots and plays MovementTestMap (`move_a`, `walk_lane_wp1`). The Frontliner checks of AC-085.1/AC-085.2 and `enemy_damages_player` stay on DevTestMap.
 - **Player steps:** stand at the spawn (enemies aggro and approach); walk next to Frontliner_3 (WASD); stand until hit, keep standing until dead; wait for respawn; hold W
 - **Visible on screen:** Tier 3 `engine_NN.png`: three enemy bodies under the three red health bars in the diorama arena. Tier 4: `bridge_01.png` (us054 start) three visible Frontliners; the hit / dead / respawned screenshots of us054
 - **Proof:** Tier 3 boot screenshots for the visible bodies; Tier 4 checks `enemies_present`, `enemies_visible`, `enemy_damages_player`, `player_dies`, `dead_no_move`, `respawn`, `arena_reset`, `respawn_moves`, `burning_on_hit` (us054), `move_a`, `walk_lane_wp1` (us001)

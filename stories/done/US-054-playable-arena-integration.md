@@ -71,9 +71,14 @@ This story does not have headless automation tests — it is verified via manual
 ## Playtest
 Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtests_v1.md`).
 
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience)
-- **Tier 4 script:** `Scripts/playtests/us054_arena.py` — run: `py Scripts/playtest_story.py US-054`
+- **Launch path:** two maps, two scripts (split by US-100, T1, issue #46). `py Scripts/playtest_story.py US-054` boots both and runs both on the same package.
+  - `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience) for `Scripts/playtests/us054_arena.py`: the HUD and the enemy AI with the three Frontliners (present, visible, health bars, indicators, aggro, approach, damage to the player).
+  - `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience) for `Scripts/playtests/us054_combat.py`, the melee, dodge, damage, death, respawn and reset chain. The player walks to (440, 600) beside the `TestDummy` (never moves or attacks), clicks LMB and taps Left Alt. Then it walks via (440, 0) to (2000, 0), 100 cm -X of the `TestAttacker` (holds its spot, swings BasicSlash about every 2.6 s), stands until hit, taps One (Restoration), stands until dead, waits for the respawn at (0, 0) and holds W.
+  - On DevTestMap the Frontliners swarmed the spawn and killed the player before the walk, melee and dodge (`walk_to_frontliner3` became `walk_to_dummy`). After the respawn they re-aggroed before `arena_reset` could read them.
+- **Tier 4 script:** `Scripts/playtests/us054_arena.py` and `Scripts/playtests/us054_combat.py` — run: `py Scripts/playtest_story.py US-054`
 - **Steps:** (generated: `py Scripts/playtest_story.py US-054 --plan`; checked: `--lint`)
+
+<!-- Scripts/playtests/us054_arena.py -->
 
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
@@ -85,16 +90,24 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 6 | `enemy_indicators` | state widgets -> one EnemyIndicator widget per enemy in aggro range within 3s | US-064:AC-064.2, US-064:AC-064.10 |
 | 7 | `enemy_aggro` | stand at the spawn -> every enemy ai_state != 'Idle' within 3s | US-051:AC-051.3 |
 | 8 | `enemy_approaches` | stand -> some enemy > 100 cm from every spawn within 6s | US-051:AC-051.4 |
-| 9 | `walk_to_frontliner3` | walk_to(-150, -650), walk_to(ex-300, -650), walk_to(ex-160, ey) where (ex, ey) is the live enemy nearest (-400, -500) -> within 60 cm of each | - |
-| 10 | `melee_lmb` | click Left at (640, 360) -> within 1s 'Mordecai.State.Attacking' in player.tags or the nearest enemy's health < 200 _(known issue: Known issue N10: the player's combat abilities are granted only by an unsaved CDO edit; attacks, block and dodge are not bound at runtime (Known issues backlog))_ | AC-054.6, AC-054.5 |
-| 11 | `dodge_lalt` | tap LeftAlt -> within 0.5s a Dodging tag in player.tags or a displacement > 150 cm _(known issue: Known issue N10: the player's combat abilities are granted only by an unsaved CDO edit; attacks, block and dodge are not bound at runtime (Known issues backlog))_ | AC-054.6, AC-054.5 |
-| 12 | `enemy_damages_player` | stand next to the enemy -> wait_until player.attributes.health < player.attributes.max_health within 20s | AC-054.13, US-051:AC-051.5 |
-| 13 | `burning_on_hit` | keep standing -> within 25s 'Mordecai.Status.Burning' in player.tags and a widget text 'Burning' (WARN if Burning never procs: 40%) | US-057:AC-057.11, US-057:AC-057.8 |
-| 14 | `restoration_heals` | tap One -> within 6s health rises, spell_points drops by 3 and 'Mordecai.Status.Restoration' is in player.tags | US-057:AC-057.4, US-057:AC-057.5, US-057:AC-057.12 |
-| 15 | `player_dies` | keep standing -> wait_until player.is_dead==true within 60s, 'Mordecai.State.Dead' in player.tags | US-053:AC-053.1 |
-| 16 | `death_screen` | state widgets -> within 1.5s one widget with 'You Died', a countdown digit and 'Kills: N' _(known issue: Known issue N2: the death screen is never created)_ | US-062:AC-062.1, US-062:AC-062.2 |
-| 17 | `dead_no_move` | while dead: hold W 0.5s -> moved < 5 cm | US-053:AC-053.2 |
-| 18 | `respawn` | wait -> within 6s player.is_dead==false, health == max_health, within 150 cm of (0, 0), no 'Mordecai.State.Dead' tag | US-053:AC-053.4, US-053:AC-053.5 |
-| 19 | `arena_reset` | state actors at the respawn -> every enemy within 100 cm of a distinct spawn, health == max, not dead (WARN if no enemy had moved before the death: nothing to reset) | US-053:AC-053.8, US-053:AC-053.9 |
-| 20 | `respawn_moves` | hold W 0.4s -> player x grows by >= 80 cm | US-053:AC-053.6 |
-| 21 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills | US-063:AC-063.1 |
+| 9 | `enemy_damages_player` | stand at the spawn -> wait_until player.attributes.health < player.attributes.max_health within 20s | AC-054.13, US-051:AC-051.5 |
+
+<!-- Scripts/playtests/us054_combat.py -->
+
+| # | Check | Player step (bridge calls) → expected | Proves |
+|---|---|---|---|
+| 1 | `combat_targets_present` | state player, actors (radius 3000) -> the TestDummy and the TestAttacker (by label, else class name) alive, health 200/200, within 100 cm of (600, 600) and (2100, 0), ai_state 'Idle'; the TestAttacker >= 900 cm from the player | - |
+| 2 | `walk_to_dummy` | walk_to(440, 600) -> within 25 cm (the melee spot, 160 cm -X of the TestDummy) | - |
+| 3 | `melee_lmb` | click Left at (640, 360) -> within 1s 'Mordecai.State.Attacking' in player.tags or the TestDummy's health below its value before the click | AC-054.6, AC-054.5 |
+| 4 | `dodge_lalt` | tap LeftAlt -> within 0.5s a Dodging tag in player.tags or a displacement > 150 cm | AC-054.6, AC-054.5 |
+| 5 | `walk_to_attacker` | walk_to(440, 0), walk_to(2000, 0) -> within 60 cm, then within 25 cm (the fight spot, 100 cm -X of the TestAttacker) | - |
+| 6 | `attacker_damages_player` | stand at the fight spot -> player.attributes.health < player.attributes.max_health within 20s | - |
+| 7 | `restoration_heals` | tap One -> within 6s health rises, spell_points drops by 3 and 'Mordecai.Status.Restoration' is in player.tags | US-057:AC-057.4, US-057:AC-057.5, US-057:AC-057.12 |
+| 8 | `burning_on_hit` | keep standing -> within 25s 'Mordecai.Status.Burning' in player.tags and a widget text 'Burning' (WARN if Burning never procs: the TestAttacker swings BasicSlash; ends at once, WARN, when the player dies) | US-057:AC-057.11, US-057:AC-057.8 |
+| 9 | `player_dies` | keep standing -> player.is_dead==true within 60s (or already seen dead by an earlier step), 'Mordecai.State.Dead' in player.tags | US-053:AC-053.1 |
+| 10 | `death_screen` | state widgets -> within 1.5s one widget with 'You Died', a countdown digit and 'Kills: N' _(known issue: Known issue N2: the death screen is never created)_ | US-062:AC-062.1, US-062:AC-062.2 |
+| 11 | `dead_no_move` | while dead: hold W 0.5s -> moved < 5 cm | US-053:AC-053.2 |
+| 12 | `respawn` | wait -> within 6s player.is_dead==false, health == max_health, within 150 cm of (0, 0), no 'Mordecai.State.Dead' tag | US-053:AC-053.4, US-053:AC-053.5 |
+| 13 | `arena_reset` | the first read that shows the respawned player (state actors) -> the TestDummy and the TestAttacker alive, health == max, within 100 cm of their spawns, ai_state 'Idle' in that read; PASS only when that read shows the reset (the TestDummy below max before the death and full at the respawn, or the TestAttacker out of Idle before the death and Idle at the respawn), else WARN | US-053:AC-053.8, US-053:AC-053.9 |
+| 14 | `respawn_moves` | hold W 0.4s -> player x grows by >= 80 cm | US-053:AC-053.6 |
+| 15 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills | US-063:AC-063.1 |

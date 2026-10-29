@@ -75,7 +75,7 @@ Build the C++ pause menu framework using Lyra's CommonUI integration. A tabbed m
 ## Playtest
 Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtests_v1.md`).
 
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience)
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → B_MordecaiArenaExperience). Moved off DevTestMap by US-100 (Jeff, 2026-10-29). The pause menu needs no enemies, and on DevTestMap a death to the spawn swarm disables input while the menu is closed.
 - **Tier 4 script:** `Scripts/playtests/us069_pause_menu.py` — run: `py Scripts/playtest_story.py US-069`
 - **Steps:** (generated: `py Scripts/playtest_story.py US-069 --plan`; checked: `--lint`)
 

@@ -1,7 +1,7 @@
 # Agent Playtest Plan v1: agents play the packaged game
 
 **Status:** Phase 1 DONE (PR #2, branch `feature/playtest-phase1`). Phase 2 DONE on `feature/playtest-phase2`: acceptance 2.4 passed on a fresh package of `a40955b` on a locked machine (`Saved/Playtests/20261020-205856-us079`). Phase 3 IN PROGRESS on `feature/playtest-phase3` (kit, story runner, six feature scripts, exploratory agent; contract `Specs/story_playtests_v1.md`).
-**Owner:** Jeff. **Last updated:** 2026-10-20.
+**Owner:** Jeff. **Last updated:** 2026-10-29 (T1 test maps, US-100, issue #46).
 
 ## Problem
 
@@ -156,7 +156,7 @@ The contract is `Specs/story_playtests_v1.md`.
   - `--list` shows the stories, their scripts and their latest runs.
 - **Feature scripts (the recovery sweep):**
   - `us001_movement.py`: movement, camera, sprint, jump, facing, gamepad.
-  - `us054_arena.py`: HUD, enemies, AI, melee, dodge, damage, death, respawn, reset, kill counter.
+  - `us054_arena.py`: HUD, enemies, AI, melee, dodge, damage, death, respawn, reset, kill counter. Since US-100 (T1) it keeps only the HUD and enemy-AI checks on DevTestMap. Melee, dodge, damage, death, respawn, reset and the kill counter moved to `us054_combat.py` on CombatTestMap.
   - `us057_magic.py`: the four spells, SP, cooldowns, projectiles, status indicator.
   - `us069_pause_menu.py`: menu, tabs, tab contents, gamepad open and close.
   - `us078_weapons.py`: weapon cycling, weapon HUD, attacks.
@@ -231,7 +231,8 @@ The contract is `Specs/story_playtests_v1.md`.
   - Tier 4 on a fresh package of `a8aaa51`: every pooled reopen drew exactly what the player held.
     - `menu_ledger_rows` PASS, with "Iron Ore  x1" and "Town Stone  x1" (`Saved/Playtests/20261028-195608-us079`).
     - `filter_armor_empty` PASS, and `menu_rows` drew ['Health Potion'] (`20261028-195731-us079`).
-  - The swarm killed the player on the pickup route in all three runs (T1), so the checks that need all 4 items have not run yet. US-094 stays in progress until Jeff's call or T1.
+  - The swarm killed the player on the pickup route in all three runs, so the checks that need all 4 items had not run yet. Only on the `92e7575` package did they run: `Saved/Playtests/20261028-232550-us079` exited 0, because the player outran the swarm.
+  - T1 does not change this. Jeff decided on 2026-10-29 that us079 and its six pickups stay on DevTestMap (`Specs/design_decisions_log.md`), so the inventory route still races the swarm. US-094 stays in progress until Jeff's call.
 
 **Found by the Phase 3 source audit** (2026-10-22, read-only, while planning the per-story playtests; `Specs/story_playtests_v1.md`). The playtests cite these by id in `known_issue`. N7, N11 and N12 are suspected: the sweep confirms or clears them.
 - **N1 The kill counter can never go up.** `UMordecaiKillCounterWidget` waits for `Mordecai.Event.EnemyKill` tag-count changes on the player ASC (`MordecaiKillCounterWidget.cpp:68`), but nothing ever grants that tag. `AMordecaiGameMode` counts kills elsewhere (`MordecaiGameMode.cpp:115-118`). Melee is bound since US-083, but no playtest kills an enemy yet (the kill path is US-086's), and at most 3 Fireballs (75 damage) fit the SP budget.
@@ -284,6 +285,11 @@ The contract is `Specs/story_playtests_v1.md`.
   - On `f21525f` the two named us001 checks still depend on the swarm:
     - Story run `Saved/Playtests/20261028-085852-us001`: `move_a` PASS (207 cm). `walk_lane_wp1` FAIL: the player was killed at (152, -109), not stopped by an invisible wall.
     - Sweep run `20261028-090829-us001`: `walk_lane_wp1` PASS. `move_a` FAIL only on drift: 385 cm along -Y (an enemy shove; a walk covers about 240 cm), 37 cm across (limit 30).
+  - **T1 in progress** (US-100, issue #46, 2026-10-29; evidence to come). The scripts that do not test the enemy AI leave DevTestMap:
+    - us001, us083 and us069 run on `/MordecaiCore/Game/Maps/MovementTestMap`, which has no enemies. It keeps DevTestMap's frame (PlayerStart (0, 0), lane L1 at y = -800), so their waypoints and check names are unchanged.
+    - The melee/dodge/death chain of us054, and us057 and us078, run on `/MordecaiCore/Game/Maps/CombatTestMap`: a TestDummy that never moves or attacks, and a TestAttacker that holds its spot more than 900 cm from every scripted spot except its fight spot.
+    - DevTestMap keeps its Frontliners for the enemy-AI checks (`us054_arena.py`) and for us079.
+    - This entry is closed only by a fresh-package sweep in which `move_a` and `walk_lane_wp1` PASS on MovementTestMap.
 - **N15 Fireball spends SP but does nothing visible.**
   - SP drops 10 → 7.
   - No projectile appears in `actors` within 1.5 s.
@@ -315,6 +321,7 @@ The contract is `Specs/story_playtests_v1.md`.
     - the first read after the Left Alt tap: 98 cm, still moving at 358 cm/s (the displacement the check reports);
     - the next read: the player at rest about 111 cm from the start.
   - The check passes on the Dodging tag, so a dodge that is too short does not fail it.
+  - From US-100 (T1) on, `us083_combat_input.py` records each dodge's displacement as a measurement on MovementTestMap, with no enemy in the way. The script records it without FAILing, so N27 does not block us083's exit 0. The measurements come with US-100's sweep (evidence to come).
 - **N28 Sprint is client-local.** `AMordecaiCharacter::SetSprinting` writes `MaxWalkSpeed` on the machine that handled the input (no RPC, nothing replicated), so a remote client in networked play would be corrected on every sprinting move (and while blocking, Block's speed change runs on both sides). Standalone and a listen-server host are fine. `TODO(DECISION)` at `SetSprinting`: a CharacterMovementComponent saved-move flag read in `GetMaxSpeed`, with Block's slow-down moved there too.
 - **N29 Unarmed attacks have no profiles in the game (latent).** With nothing equipped, the light attack reads `UMordecaiEquipmentComponent::UnarmedAttackProfiles` and the heavy attack gets no profile from `GetActiveHeavyAttackProfile()` (`MordecaiGA_MeleeAttack.cpp` `GetResolvedAttackProfiles`).
   - `UnarmedAttackProfiles` is never set: it has no native default, no asset sets it, and there is no `DA_AP_Unarmed_*`. The ability's own fallback `AttackProfiles` is empty too. So an unarmed player's light and heavy attacks both end at once.
@@ -338,6 +345,13 @@ The contract is `Specs/story_playtests_v1.md`.
   - us054: `walk_to_frontliner3`, `melee_lmb`, `dodge_lalt`, `arena_reset`, `respawn_moves`. `arena_reset` also requires the AC-054.2 200 max health (N13): the first read after the respawn had all three enemies back at their spawns at 100/100 (ResetArena works), and they re-aggroed within ~1.5 s because every spawn is inside AggroRange of PlayerStart. Since issue #18 (`39500e2`) the health clause holds (200.0/200.0 after the reset); it FAILs on positions only, from the re-aggro.
   - us057: `walk_blink_lane`. us078: `light_attack_lmb`. us083: `block_over_held_rt_no_parry`, `light_attack_rt_tap` (its `_idle()` treats a dead player as idle).
   - Remedy: T1 maps (movement lanes and a combat-dummy pocket without hostile AI), or out-of-aggro Frontliner placement (US-085 TODO(DECISION)). A death guard in the scripts would only hide the cause. **Decided (Jeff, 2026-10-28, issue #19): T1.** The placement stays.
+  - **In progress: US-100** (issue #46, 2026-10-29; evidence to come). The 14 checks move to the test maps:
+    - MovementTestMap: us001 `move_s`, `walk_speed_baseline`, `walk_lane_reset`, `walk_lane_reset2`, `jump_space`; us083 `block_over_held_rt_no_parry`, `light_attack_rt_tap`.
+    - CombatTestMap, in the new `Scripts/playtests/us054_combat.py`: `walk_to_dummy` (the renamed `walk_to_frontliner3`), `melee_lmb`, `dodge_lalt`, `arena_reset`, `respawn_moves`.
+    - CombatTestMap: us057 `walk_blink_lane`, us078 `light_attack_lmb`.
+    - us083 and us078 now FAIL with an explicit "player dead" detail instead of treating a dead player as idle. That is not a death guard: the cause stays visible.
+    - Acceptance: all 14 PASS on a fresh package, and no check that PASSed in the `f21525f` sweep, the `01abb8b` sweep or the `92e7575` us079 run (`Saved/Playtests/20261028-232550-us079`) FAILs.
+    - `arena_reset` and `respawn_moves` were SKIP in the `01abb8b` sweep (no death); they PASSed in `Saved/Playtests/20261028-085332-us054` @ `f21525f`.
 - **13 NEW failures are pre-existing and identical in the `01abb8b` sweep, but their steps carry no `known_issue`:** us054 `enemies_present` (N13; since issue #18 only its spacing clause fails, so it needs no N13 tag), `enemy_indicators` (N17); us057 `fireball_projectile`, `fireball_hits_enemy` (N15), `stone_skin_indicator` (N16); us069 `shoulder_switches_tab` (N18); us079 `menu_rows`, `unidentified_badge`, `menu_ledger_rows`, `identify_button`, `filter_weapons`, `filter_armor_empty`, `filter_all` (the CommonUI pool bug, US-094; fixed in code in `a8aaa51`, so they need no tag). Tag them in the scripts' PLANs in the owning stories. `us054_arena.py`'s KNOWN_ISSUES text "Suspected NEW (unverified): ... the enemies never damaged the player" is obsolete since `c7e4b8d`.
 - **Issue #19 sweep** (2026-10-28, fresh package of `f21525f`, `Saved/Playtests/20261028-090808-sweep/summary.md`, triaged against the issue #18 sweep `Saved/Playtests/20261027-202756-sweep`): no regression from the enemy bodies.
   - us054 `enemies_visible` is FAIL (known) → PASS. Every other us054 failure is unchanged.
@@ -347,6 +361,17 @@ The contract is `Specs/story_playtests_v1.md`.
     - us083 `block_over_held_rt_no_parry` went FAIL → PASS.
 - **N26 has real-input evidence now:** in `Saved/Playtests/20261027-085233-us057` the R tap cast Stone Skin while the player was dead (bridge.jsonl lines 220-245: SP 7 -> 3, `Mordecai.State.Dead` with `State.Casting` and then `Status.StoneSkin`).
 
+**Found by the issue #46 source audit** (2026-10-29, read-only, while planning CombatTestMap's attacker for US-100).
+- **N32 Block, parry, dodge i-frames and Blink invulnerability do not reduce enemy melee damage.**
+  - `UMordecaiGA_MeleeAttack::PerformHitDetectionAndApplyDamage` calls `ApplyDamageToTarget` (`MordecaiGA_MeleeAttack.cpp`) for every hit. That function applies the health and posture damage as instant GEs straight to the target ASC, then the on-hit payloads and status effects. Nothing in it reads `Mordecai.State.Blocking`, `State.Dodging`, `State.Invulnerable` or `State.Parrying`.
+  - The hit query filters only the attacker itself and friendly targets. Its airborne filter (`JumpAvoidable` via `UMordecaiHitDetectionSubsystem::IsTargetAirborne`) never fires in game: nothing in Source/, Config/ or content grants `Mordecai.State.Airborne` (only a test adds it; the jump is a bare `ACharacter::Jump`, which only gets Lyra's `Movement.Mode.Falling` tag). The arc test also ignores Z (`IsPointInArcSector` zeroes it), so a jumping player inside the reach is still hit.
+  - `UMordecaiGA_Block::ReceiveBlockedHit` holds the block mitigation (`ComputeBlockedDamage`), the stamina drain and the perfect-block posture damage. Its only caller is a test (`MordecaiCombatInputAbilityTests.cpp`).
+  - `UMordecaiAttributeSet` only clamps (`PreAttributeChange`); it has no damage-execution hook.
+  - So a player who blocks, parries, dodges, Blinks or jumps through an enemy swing takes the full 15 damage. Only leaving the 150 cm reach avoids it. N19 (the Invulnerable tag sticking after Blink) therefore has no gameplay effect today.
+  - Why the done stories missed it: US-005 AC-005.3 says the damage pipeline checks `Mordecai.State.Dodging`, but its test `Mordecai.Dodge.GrantsIFramesDuringDodge` only checks the tag and applies no damage. US-006's block tests (`Mordecai.Block.MitigatesDamage` and the perfect-block tests, AC-006.3/006.9/006.10) call `ComputeBlockedDamage` and the block functions directly, never an enemy hit.
+  - The us083 block and parry checks are tag-only, so they stay valid. A playtest check that asserts mitigation (for example blocking the CombatTestMap attacker) would FAIL as a real bug.
+  - Not fixed by US-100; it needs a recovery story. Its scope must include granting `Mordecai.State.Airborne` while the character is falling (for example from the movement-mode change), or the AC-003.7 jump-avoid rule stays dead against `DA_EnemyAttack_BasicSlash` (`JumpAvoidable` = true).
+
 **Bridge gaps found while writing the Phase 3 playtests.** These are missing bridge state, not game bugs; each blocks an assertion.
 - **B1 The bridge did not report pickup name labels (FIXED, issue #30).** `actors[].widgets` lists only `UWidgetComponent`s, but the pickup label is a `UTextRenderComponent`, so check `pickup_labels` in `us079_inventory.py` (AC-079.10) failed (known issue B1).
   - Fix: `MakeActorEntry` reports every `UTextRenderComponent` as `actors[].text_labels[]`: `component`, `text`, `visible`, and `facing` / `upright` against the local camera (`Specs/agent_bridge_v1.md` §4 `state`). `pickup_labels` reads it and lost its `known_issue`; it also requires each label to read its pickup's display name, square to the camera and left to right (issue #38).
@@ -355,8 +380,21 @@ The contract is `Specs/story_playtests_v1.md`.
 - **B2 Other missing state.** No camera transform (AC-1.2.1), no progress-bar fill or colour (HUD bars, stamina tiers, rarity colours), no equip slot on `player.weapon` (AC-078.15), no damage-pop events (US-065), no texts from world-space widget components (enemy bars). Mouse buttons cannot be held across reads by the playtest client, which blocks block and parry on the mouse (AC-083.11). The gamepad triggers can be held with `axis` (no `hold_s`), so `us083_combat_input.py` plays block and parry on LT/RT, and the heavy attack fires on release since US-083, so a held click checks it. The `wait_until` grammar has no "array contains", so tag checks need client-side predicates.
 
 **Playtest infrastructure (proposal).**
-- **T1 Dedicated test maps per playtest (Jeff, 2026-10-24; issue #46).** Every Tier 4 script plays DevTestMap, whose Frontliners (invisible until issue #19) follow the player and body-block it (N14). Since 2026-10-28 (Jeff, issue #19) the swarm at the spawn is T1's to solve: the Frontliners keep their placement. Movement checks (walks, sprint, dodge distance) are therefore hostage to where the enemies stand, and an exit-0 run of a story's own script can fail on another story's bug. US-083 closed with AC-083.4..AC-083.8 passing on real input but in no exit-0 run: the us083 script's lane walk was body-blocked in all three tries, on two packages.
-  - It now blocks the inventory slice too. On the fresh package of `a8aaa51` (issue #28), the swarm killed the player on us079's pickup route in 3 of 3 runs (`Saved/Playtests/20261028-195457-us079`, `-195608-us079`, `-195731-us079`), after 0, 2 and 1 pickups. The earlier packages had survived the route 3 of 3 times at 25 HP. So US-094's four-item checks, and US-079's own acceptance, wait on T1.
+- **T1 Dedicated test maps per playtest (Jeff, 2026-10-24; issue #46). IN PROGRESS: US-100** (`stories/in-progress/US-100-recovery-playtest-test-maps.md`, branch `fix/issue-46-test-maps`, 2026-10-29). Evidence to come: it is delivered only when a fresh package boots both maps and the sweep passes the 14 checks listed under "Found by the issue #12 sweep" above.
+  - **What US-100 delivers:**
+    - `/MordecaiCore/Game/Maps/MovementTestMap`: no enemies, no pickups; 4000 × 4000 cm grid floor; PlayerStart (0, 0, 100); lane L1 at y = -800; a 30 cm walk-up step and a 60 cm jump step at +Y.
+    - `/MordecaiCore/Game/Maps/CombatTestMap`: `TestDummy` (`BP_MordecaiEnemy_TestDummy`) at (600, 600), 200 HP; it never moves and never aggroes (AI BP with AggroRange 0). `TestAttacker` (`BP_MordecaiEnemy_TestAttacker`) at (2100, 0), 200 HP; it holds its spot (`DefaultMoveSpeed` 0) and swings BasicSlash about every 2.6 s within 150 cm. It is more than 900 cm from every scripted spot except its fight spot (2000, 0), 100 cm -X of it. The navmesh is built.
+    - Both maps get the Mordecai experience as DevTestMap does: World Settings GameMode Override = `MordecaiGameMode`, no World Settings experience. Both are in `package_playtest.py` `DEFAULT_MAPS` and `+MapsToCook`. Built by `Scripts/us100_01_create_test_enemies.py` and `Scripts/us100_02_create_test_maps.py`.
+  - **Each script declares its `MAP`, and the kit's `map` check FAILs a run whose loaded map differs:**
+    - MovementTestMap: us001, us083, us069.
+    - CombatTestMap: the new `us054_combat.py` (US-054's melee/dodge/death/respawn/reset chain), us057, us078.
+    - DevTestMap: `us054_arena.py` (enemy AI) and us079 (Jeff, 2026-10-29: its six pickups stay there).
+    - `playtest_story.py` supports a story with several scripts (marker-keyed Steps tables, a unique `RUN_SUFFIX`, a FAIL of an AC's check in any run beats a PASS).
+  - Out of scope: crouch (Jeff, 2026-10-29: it is "Sneak (Toggle)", blocked US-034), and the inventory route (us079 stays on DevTestMap).
+
+  The original proposal follows. Every Tier 4 script plays DevTestMap, whose Frontliners (invisible until issue #19) follow the player and body-block it (N14). Since 2026-10-28 (Jeff, issue #19) the swarm at the spawn is T1's to solve: the Frontliners keep their placement. Movement checks (walks, sprint, dodge distance) are therefore hostage to where the enemies stand, and an exit-0 run of a story's own script can fail on another story's bug. US-083 closed with AC-083.4..AC-083.8 passing on real input but in no exit-0 run: the us083 script's lane walk was body-blocked in all three tries, on two packages.
+  - It now blocks the inventory slice too. On the fresh package of `a8aaa51` (issue #28), the swarm killed the player on us079's pickup route in 3 of 3 runs (`Saved/Playtests/20261028-195457-us079`, `-195608-us079`, `-195731-us079`), after 0, 2 and 1 pickups. The earlier packages had survived the route 3 of 3 times at 25 HP. So US-094's four-item checks, and US-079's own acceptance, waited on T1.
+    - Jeff decided on 2026-10-29 that us079 stays on DevTestMap, so T1 does not unblock them. Their acceptance still races the swarm; closing them is Jeff's call. On `92e7575` the race was won once: `Saved/Playtests/20261028-232550-us079`, exit 0.
   - Proposal: small cooked maps per concern, each resolving the Mordecai experience: an enemy-free movement/sprint lane, a combat dummy that never moves, and the arena kept for the enemy stories. A script picks its map (`--map`, as `playtest_boot.py` does).
   - Needs: the maps (an EDITOR story), adding them to the package's maps-to-cook, and a `MAP` per playtest script in the kit.
 
@@ -374,3 +412,7 @@ The contract is `Specs/story_playtests_v1.md`.
      - non-interactive `claude -p` / SDK sessions may load it without asking, depending on their settings.
      - Per-user pre-approval can go in personal settings: `enabledMcpjsonServers: ["mordecai-play"]`, and allow `mcp__mordecai-play__*`.
    - **Setup:** install the SDK once with `py -m pip install -r Scripts/requirements.txt`.
+7. ~~Crouch on the movement test map (issue #46)?~~ **Decided 2026-10-29 (Jeff): out of scope.**
+   - Mordecai's crouch is the spec'd "Sneak (Toggle)" (Ctrl / R3, `Specs/control_bindings_v1.1.md`). The Sneaking skill is "crouched movement" (`Specs/skill_sheet_v1.1.md`), owned by US-034, which is blocked on placeholder skill values.
+   - T1 builds no crouch geometry or check. No crouch control is bound today: N23's C++ fix removed Lyra's crouch binding, and no C++ maps or binds `IA_Mordecai_Sneak`.
+   - Recorded in `Specs/design_decisions_log.md` (2026-10-29).

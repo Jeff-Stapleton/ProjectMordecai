@@ -22,7 +22,7 @@ Attribute defaults / a regen GameplayEffect defined natively and respawn restora
 - [ ] AC-090.1: TODO(DECISION) N6 is answered by Jeff and recorded in `Specs/design_decisions_log.md` (options below) before any code is written
 - [ ] AC-090.2: The chosen SP rule is implemented natively (exact values from the decision) — verified by `Mordecai.Recovery.SpellPoints.<Rule>` tests named after the decision (e.g. `RegenPerSecond`, `RestoredOnRespawn`, `MaxFromAttributes`)
 - [ ] AC-090.3: In the packaged build, the player casts Fireball (Q), Blink (E), Stone Skin (R) and Restoration (1) in one session, each accepted — verified by NEW check `all_spells_castable` added to `Scripts/playtests/us057_magic.py` (Tier 4), which replaces the `restoration_refused_low_sp` expectation (or keeps a refusal check at whatever SP the new rule leaves)
-- [ ] AC-090.4: If the decision includes respawn restoration: after a respawn the SP bar reads max — verified by NEW check `sp_restored_on_respawn` in `Scripts/playtests/us054_arena.py` (after `respawn`)
+- [ ] AC-090.4: If the decision includes respawn restoration: after a respawn the SP bar reads max — verified by NEW check `sp_restored_on_respawn` in `Scripts/playtests/us054_combat.py` (CombatTestMap, after `respawn`; `restoration_heals` has spent SP before the death there). Since US-100, `us054_arena.py` (DevTestMap) has no death or respawn.
 
 ## Technical Notes
 - TODO(DECISION) N6 — options for Jeff (do not pick one):
@@ -42,13 +42,13 @@ Attribute defaults / a regen GameplayEffect defined natively and respawn restora
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- `Scripts/playtests/us057_magic.py` new `all_spells_castable`; `Scripts/playtests/us054_arena.py` new `sp_restored_on_respawn` (if decided)
+- `Scripts/playtests/us057_magic.py` new `all_spells_castable`; `Scripts/playtests/us054_combat.py` new `sp_restored_on_respawn` after `respawn` (if decided)
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-057` (and US-054 if respawn restoration is decided) on the same package
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience; us057 and us054_combat play it since US-100); Tier 4: `py Scripts/playtest_story.py US-057` (and US-054 if respawn restoration is decided) on the same package
 - **Player steps:** tap Q, E, R, 1 in order (with the movement the us057 plan already does)
 - **Visible on screen:** the SP bar never blocks the 4th spell; `spell_hud` screenshot shows the SP bar value implied by the decision
-- **Proof:** Tier 4 checks `all_spells_castable` (us057), `sp_restored_on_respawn` (us054, if decided)
+- **Proof:** Tier 4 checks `all_spells_castable` (us057), `sp_restored_on_respawn` (us054_combat, if decided)
 - **Tier 4 script:** `Scripts/playtests/us057_magic.py` — run: `py Scripts/playtest_story.py US-057`
 - **Steps:** paste the new rows from `py Scripts/playtest_story.py US-057 --plan` after the decision
 - **Playable alone:** YES (after the decision)
@@ -59,7 +59,7 @@ Attribute defaults / a regen GameplayEffect defined natively and respawn restora
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [ ] Content: `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-057` (and US-054): the new checks PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
 - [ ] Known issue N6 marked resolved in `Specs/agent_playtest_plan_v1.md`
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen

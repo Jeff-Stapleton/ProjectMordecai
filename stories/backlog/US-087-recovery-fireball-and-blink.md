@@ -42,7 +42,8 @@ All fixes are C++ (projectile spawn/initialisation and overlap filtering, Blink 
 - N11: filter in `OnProjectileOverlap` — skip actors with no ASC (`UAbilitySystemGlobals::GetAbilitySystemComponentFromActor`) unless they are WorldStatic blockers.
 - Blink (N20): trace with a channel/object query that excludes Pawns, then if the destination overlaps a pawn, step back along the line to the first free capsule position; decide "no movement possible" before committing cost. (N19): grant invulnerability through a duration `UGameplayEffect` (granted tag, Duration = `GetInvulnerabilityDuration()`), so GAS removes it; Stone Skin's own grant stays separate.
 - New us057 checks (script edit committed with the code BEFORE packaging; added to `PLAN` with `proves` = `US-087:AC-087.8` / `US-087:AC-087.9`, US-087 added to `COVERS`; offline test against `Scripts/tests/fake_bridge.py`):
-  - `blink_past_enemy`: walk to ~100 cm -X of a live enemy on its line (like `walk_shot_line`), tap E → `player.location.x` rises > 300 within 2 s. Mind the SP plan (10 → 7 → 5 → 1 today, N6): budget the extra Blink (it may need its own launch segment or a second run).
+  - `blink_past_enemy`: walk to ~100 cm -X of the TestDummy (`TARGET_ENEMY`, (600, 600)) on its line, about (500, 600) (found like `walk_shot_line` does), tap E → `player.location.x` rises > 300 within 2 s. Never use the TestAttacker (2100, 0): its 900 cm AggroRange and 150 cm BasicSlash would hit or kill the player, and us057's route stays out of its range (US-100). Mind the SP plan (10 → 7 → 5 → 1 today, N6): budget the extra Blink (it may need its own launch segment or a second run).
+- Since US-100 us057 plays CombatTestMap (`MAP = kit.COMBAT_TEST_MAP`): it shoots the TestDummy from the shot spot (300, 600) and Blinks along the lane from (0, -600). CombatTestMap has no pickups, so N11 (pickup trigger spheres) is covered by AC-087.2's Tier 1 test only.
   - `blink_invulnerability_ends`: after the existing `blink` step, wait_until `Mordecai.State.Invulnerable` not in `player.tags` within 1.5 s (before Stone Skin is cast).
 - Script bookkeeping: `fireball_projectile` and `fireball_hits_enemy` were NEW (no `known_issue`). `fireball_hits_enemy`'s `does` text says "pre-cast value (200)"; it compares with the pre-cast reading, keep it that way.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
@@ -62,9 +63,9 @@ All fixes are C++ (projectile spawn/initialisation and overlap filtering, Blink 
 - `Scripts/playtests/us057_magic.py`: existing `fireball_projectile`, `fireball_hits_enemy`; new `blink_past_enemy`, `blink_invulnerability_ends`
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-057` (or `US-087` once in `COVERS`) on the same package
-- **Player steps:** walk (WASD) onto Frontliner_3's line ~300 cm -X of it, tap Q (Fireball); walk ~100 cm -X of an enemy, tap E (Blink); wait 1.5 s
-- **Visible on screen:** `fireball_hit` screenshot: the projectile or its impact near the enemy and the SP bar at "7 / 10"; after Blink the player on the far side of the enemy
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience; us057's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-057` (or `US-087` once in `COVERS`) on the same package, which boots the script's map
+- **Player steps:** walk (WASD) to the shot spot (300, 600), 300 cm -X of the TestDummy (600, 600), tap Q (Fireball); walk to (0, -600) and tap E (the existing `blink`); for `blink_past_enemy` walk to about (500, 600), ~100 cm -X of the TestDummy on its line, tap E (Blink); wait 1.5 s
+- **Visible on screen:** `fireball_hit` screenshot: the projectile or its impact near the TestDummy (blue-grey cylinder) and the SP bar at "7 / 10"; after `blink_past_enemy` the player on the far (+X) side of the TestDummy
 - **Proof:** Tier 4 checks `fireball_projectile`, `fireball_hits_enemy`, `blink_past_enemy`, `blink_invulnerability_ends` of `Scripts/playtests/us057_magic.py`
 - **Tier 4 script:** `Scripts/playtests/us057_magic.py` — run: `py Scripts/playtest_story.py US-057`; `py Scripts/playtest_story.py US-087` after US-087 is added to `COVERS`
 - **Steps:** (from `py Scripts/playtest_story.py US-057 --plan`; paste the new rows after implementing)
@@ -73,7 +74,7 @@ All fixes are C++ (projectile spawn/initialisation and overlap filtering, Blink 
 |---|---|---|---|
 | us057 | `fireball_projectile` | same poll -> an actors[] entry with kind=="projectile" within 1.5s of the tap | FAIL (NEW) |
 | us057 | `fireball_hits_enemy` | same poll -> the nearest enemy's health drops below its pre-cast value within 2.5s | FAIL (NEW) |
-| us057 | `blink_past_enemy` (new) | walk ~100 cm -X of an enemy on its line, tap E -> player.location.x rises > 300 within 2 s | explore: moved 0 cm (N20) |
+| us057 | `blink_past_enemy` (new) | walk ~100 cm -X of the TestDummy on its line, tap E -> player.location.x rises > 300 within 2 s | explore: moved 0 cm (N20) |
 | us057 | `blink_invulnerability_ends` (new) | after `blink`: wait_until Mordecai.State.Invulnerable not in player.tags within 1.5 s | explore: tag stuck 6+ s (N19) |
 
 - **Playable alone:** YES
@@ -84,7 +85,7 @@ All fixes are C++ (projectile spawn/initialisation and overlap filtering, Blink 
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [ ] Content: none expected; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + us057 script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
 - [ ] `py Scripts/playtest_story.py US-087` (Tier 3 + Tier 4) on that same fresh package: `fireball_projectile`, `fireball_hits_enemy` go from FAIL (sweep `Saved/Playtests/20261022-184702-sweep`) to PASS, the new `blink_past_enemy` and `blink_invulnerability_ends` PASS, and the summary's Acceptance criteria table shows AC-087.4/.5/.8/.9 accepted; no check that PASSed in the sweep now FAILs; `--lint` exits 0 for US-087 and US-057 — never `--allow-stale`
 - [ ] Known issues N15, N11, N19, N20 marked FIXED (or N11 cleared) in `Specs/agent_playtest_plan_v1.md` with the run dir
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"

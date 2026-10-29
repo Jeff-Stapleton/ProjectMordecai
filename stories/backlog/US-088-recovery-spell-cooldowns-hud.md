@@ -47,7 +47,7 @@ Native gameplay tags, the C++ default HUD layout (`WBP_CombatHUD` has no widget 
 - `Scripts/playtests/us057_magic.py` check `cooldown_widgets` (state read, no input)
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-057` on the same package
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience; us057's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-057` on the same package
 - **Player steps:** none for this half (casting with cooldowns is US-089)
 - **Visible on screen:** Tier 3 `engine_NN.png`: four cooldown indicators under the SP bar (top-left)
 - **Proof:** Tier 3 screenshots; Tier 4 check `cooldown_widgets` of `Scripts/playtests/us057_magic.py`
@@ -66,7 +66,7 @@ Native gameplay tags, the C++ default HUD layout (`WBP_CombatHUD` has no widget 
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + script edit), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-057`: `cooldown_widgets` goes from FAIL to PASS; no check that PASSed in the sweep now FAILs; `fireball_cooldown_state`/`cooldown_hud` still FAIL (known, pending US-089); `--lint` exits 0 — never `--allow-stale`
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen
 - [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-088]` closing commit; planner log tracks cooldowns as `PENDING PAIR (waiting on US-089)`

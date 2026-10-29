@@ -58,7 +58,7 @@ Requires an Editor restart after changing. Maps and playlists in the plugin need
 [/Script/UnrealEd.ProjectPackagingSettings]
 +MapsToCook=(FilePath="/MordecaiCore/Game/Maps/DevTestMap")
 ```
-Restart the editor, then run `Scripts/create_arena_playlist.py` in the editor (via `ue_remote_exec`; idempotent) to create `/MordecaiCore/System/Playlists/DA_Mordecai_Arena` (`MapID=Map:/MordecaiCore/Game/Maps/DevTestMap`, `ExperienceID=LyraExperienceDefinition:B_MordecaiArenaExperience`, `bShowInFrontEnd=True`). The `Map` primary asset name is the FULL package path (Lyra's own playlists use e.g. `Map:/ShooterCore/Maps/L_ShooterGym`); a short `Map:DevTestMap` never resolves, and the front-end tile fails with "Can't find asset data for MapID". Unlike experiences, playlists are plain DataAsset instances (`bHasBlueprintClasses=False`), so `DataAssetFactory` is correct here. The script FAILS if the map or experience is registered under a different id, and only WARNs if the AssetManager does not list the playlist/map/experience yet — that means the editor has not been restarted since the ini change. Commit the new `.uasset` (see "Python-created content that is never saved and committed does not exist"). Every new Mordecai map needs a playlist (or another player-reachable route) to count as playable.
+Restart the editor, then run `Scripts/create_arena_playlist.py` in the editor (via `ue_remote_exec`; idempotent) to create `/MordecaiCore/System/Playlists/DA_Mordecai_Arena` (`MapID=Map:/MordecaiCore/Game/Maps/DevTestMap`, `ExperienceID=LyraExperienceDefinition:B_MordecaiArenaExperience`, `bShowInFrontEnd=True`). The `Map` primary asset name is the FULL package path (Lyra's own playlists use e.g. `Map:/ShooterCore/Maps/L_ShooterGym`); a short `Map:DevTestMap` never resolves, and the front-end tile fails with "Can't find asset data for MapID". Unlike experiences, playlists are plain DataAsset instances (`bHasBlueprintClasses=False`), so `DataAssetFactory` is correct here. The script FAILS if the map or experience is registered under a different id, and only WARNs if the AssetManager does not list the playlist/map/experience yet — that means the editor has not been restarted since the ini change. Commit the new `.uasset` (see "Python-created content that is never saved and committed does not exist"). Every new Mordecai map that a player is meant to reach needs a playlist (or another player-reachable route) to count as playable. Test fixture maps (`MovementTestMap`, `CombatTestMap`) are the exception: playtests launch them by `--map`, players never reach them, and they need no playlist. See "Test maps per playtest" under Real-Input Playtests.
 
 ### ExperienceOverride for PIE (Developer Settings)
 
@@ -192,6 +192,14 @@ Then repopulate with valid C++ or Blueprint ability classes.
 **Root cause:** When running `exec(open(r'path').read())` in the Editor Python console, triple-quoted docstrings containing `\U` (from Windows paths like `\Users`) are interpreted as unicode escapes.
 
 **Fix:** Use `#` comments instead of docstrings in scripts meant for `exec()`, or ensure all paths in docstrings use forward slashes.
+
+### `unreal.Rotator(a, b, c)` is (roll, pitch, yaw), not C++'s (pitch, yaw, roll)
+
+**Problem:** `Scripts/us054_04_setup_arena.py` spawns DevTestMap's sun with `unreal.Rotator(-50, 30, 0)`, meant as pitch -50, yaw 30. The sun got roll -50, pitch 30, yaw 0. Nothing errors; the light just points another way.
+
+**Root cause:** The Python constructor is FRotator's native make function, `UKismetMathLibrary::MakeRotator(Roll, Pitch, Yaw)` (`HasNativeMake` in `NoExportTypes.h`), so its positional order is `Rotator(roll, pitch, yaw)`, unlike `FRotator(Pitch, Yaw, Roll)` in C++.
+
+**Fix:** Always pass keywords: `unreal.Rotator(pitch=-50.0, yaw=30.0, roll=0.0)` (as `Scripts/us100_02_create_test_maps.py` does). DevTestMap's sun was left as is (DevTestMap is not modified by US-100).
 
 ### EditDefaultsOnly properties can't be set via Python on instances
 
@@ -394,6 +402,23 @@ This binds the multicast listener to all interfaces, allowing external Python sc
 3. Use the editor's built-in Python console (`Window > Developer Tools > Output Log > Cmd: Python`) to run smoke test scripts directly
 4. If running smoke tests, paste the script content directly into the Python console
 
+Since US-100, `ue_remote_exec.py` handles several adapters itself (next entry), so try it before these workarounds.
+
+### `ue_remote_exec.py` found the editor and then failed with WinError 10038, or never got a pong, on a multi-adapter machine (US-100)
+
+**Problem:** Remote exec failed while the editor was up and answering:
+- `OSError: [WinError 10038] An operation was attempted on something that is not a socket` right after discovery succeeded.
+- Or "No UE editor found via multicast ping" while the editor was running and idle.
+
+**Root cause:**
+- The old fallback discovery closed the default send and receive sockets before trying each interface, then `execute()` sent `open_connection` on the send socket it had already closed: WinError 10038.
+- With several adapters (Hyper-V, WSL, Docker), the editor may answer only a ping sent out of loopback, while its pong arrives on another adapter. A receive socket that joined the group on one interface never sees it, and a late pong cannot be tied to the interface whose ping caused it.
+
+**Fix (in `Scripts/ue_remote_exec.py`, shared by `check_editor.py`):**
+- The receive socket joins the multicast group on every local interface (`0.0.0.0`, loopback and each local address).
+- The ping goes out of each interface in turn, and every send socket stays open.
+- `open_connection` and `close_connection` go out of all of them (`broadcast()`). The editor ignores an `open_connection` for a node and endpoint it is already connected to, and a `close_connection` after the first, so the copies are harmless.
+
 ### Relative paths and `--file` fail for scripts sent to an editor you launched yourself
 
 **Problem:**
@@ -405,6 +430,16 @@ This binds the multicast listener to all interfaces, allowing external Python sc
 - `--file` sends the file's text in UE's `ExecuteFile` mode, which takes the first token as a file path. A script that opens with a docstring hands it the quoted docstring as the "path".
 
 **Fix:** Send `exec(open(r'<absolute path>').read())`, e.g. `py Scripts/ue_remote_exec.py "exec(open(r'C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\Scripts\us085_configure_frontliner.py').read())"`.
+
+### Git Bash rewrites `/MordecaiCore/...` arguments into Windows paths
+
+**Problem:** `py Scripts/run_pie_verify.py --map /MordecaiCore/Game/Maps/MovementTestMap`, run from Git Bash, failed with `MAP_FAILED: could not load C:/Program Files/Git/MordecaiCore/Game/Maps/MovementTestMap` (`LevelEditorSubsystem: Error: LoadLevel ... contains invalid characters`).
+
+**Root cause:** MSYS path conversion: Git Bash turns any argument that looks like an absolute POSIX path into a Windows path under its install directory before the program sees it. UE package paths (`/MordecaiCore/...`, `/Game/...`, `/Script/...`) look like POSIX paths. The same happens to `playtest_boot.py --map`, `agent_bridge.py launch --map` and any script that takes a package path.
+
+**Fix:** Pass package paths from PowerShell, or prefix the Git Bash command with `MSYS_NO_PATHCONV=1` (`MSYS_NO_PATHCONV=1 py Scripts/run_pie_verify.py --map /MordecaiCore/Game/Maps/MovementTestMap`). A path that reaches a script as `C:/Program Files/Git/...` is this bug, not a missing map.
+
+**Evidence:** `Saved/Logs/ProjectMordecai-backup-2026.10.29-13.29.17.log` (13.28.58).
 
 ---
 
@@ -599,6 +634,16 @@ _run()
 del _run
 ```
 
+**A leftover global can also crash the next map load.** Every smoke script runs in the editor's `__main__` namespace, so module-level names outlive it. `verify_pie_weapon.py` keeps `pie_world`, `pawn` and others as globals. After PIE ends they still hold the PIE world, and the next map load (`EditorDestroyWorld` → `CheckForWorldGCLeaks`) dies with the fatal "World Memory Leaks". US-100 hit it when `run_pie_verify.py --map` opened MovementTestMap right after the default DevTestMap suite (`Saved/Logs/ProjectMordecai-backup-2026.10.29-13.29.17.log`, 13.29.15-17: `UEditorEngine::CheckForWorldGCLeaks` from `LoadMap`). Since then `run_pie_verify.py` drops every editor-Python global that references a world's objects (`DROP_WORLD_REFS_CODE`) before it stops PIE and before it opens a map, and logs the names it dropped. Still write new scripts with `_run()`.
+
+### A navigation path query from Python during PIE trips an ensure: check paths in the editor world
+
+**Problem:** `unreal.NavigationSystemV1.find_path_to_location_synchronously(world, start, end)` called from a smoke script during PIE logs a handled ensure (`NavigationSystem.h:297`) instead of quietly returning a path.
+
+**Root cause:** It is a static call on `UNavigationSystemV1` (a `Within=World` class); during PIE the editor resolves its world through the class default object, not the PIE world you passed.
+
+**Fix:** Check navigation paths in the editor world, from the editor script that builds the map (`Scripts/us100_02_create_test_maps.py`). In PIE, check only that navigation data exists (a `RecastNavMesh` actor), as `Scripts/verify_pie_test_maps.py` does.
+
 ### One remote exec is one editor frame: a PIE check that needs a later frame must be phased (`PIE_NEXT_PHASE`)
 
 **Problem:** Some behaviour only happens on a later frame: CommonUI releasing a closed menu's Slate tree (issue #28), timers, latent actions. A smoke script that closes and reopens a menu in one exec always gets the still-alive Slate tree back, so it passes even with the bug.
@@ -663,7 +708,7 @@ Content counts only when saved AND committed: `py Scripts/check_content_committe
 **Root cause:** Nothing in the loop produced a packaged build, and nothing tied a build to the commit being delivered. A stale exe or an editor session keeps "working" while the shipped code/content diverges.
 
 **Fix:**
-- Package from the commit you are delivering: `py Scripts/package_playtest.py` (Development Win64, iterative cook, cooks `L_LyraFrontEnd` + `DevTestMap`). Flags: `--clean` (full cook, no `-iterate`), `--all-maps` (adds `-CookAll -CookMapsOnly`: every map, plus the two defaults), `--config Development|DebugGame|Shipping` (Shipping strips dev features; DebugGame's binary is `LyraGame-Win64-DebugGame.exe`, run it with `playtest_boot.py --exe`), `--dry-run` (print the UAT command). Commit first so the build is not dirty.
+- Package from the commit you are delivering: `py Scripts/package_playtest.py` (Development Win64, iterative cook, cooks `L_LyraFrontEnd`, `DevTestMap`, `MovementTestMap` and `CombatTestMap`). Flags: `--clean` (full cook, no `-iterate`), `--all-maps` (adds `-CookAll -CookMapsOnly`: every map, plus the four defaults), `--config Development|DebugGame|Shipping` (Shipping strips dev features; DebugGame's binary is `LyraGame-Win64-DebugGame.exe`, run it with `playtest_boot.py --exe`), `--dry-run` (print the UAT command). Commit first so the build is not dirty.
 - It writes `PackagedBuilds/Playtest/build_info.json` (`commit`, `branch`, `dirty`, `dirty_files`, `dirty_count`, `dirty_fingerprint`, `source_changed_during_build`, `built_at`, `config`, `maps`, `all_maps`, `game_exe`, `uat_log`) only on success, and logs UAT to `Saved/Playtests/package-<YYYYmmdd-HHMMSS>.log`. On failure, read that log — do not guess.
 - Boot it with `py Scripts/playtest_boot.py` (`--map`, `--frontend`, `--expect-experience`, `--timeout`, `--settle`, `--shots`, `--shot-interval`, `--fail-on-errors`, `--keep-running`, `--exe`). Its staleness gate exits 2 with `STALE BUILD` if `build_info.json` is missing/unreadable, the build commit != `git rev-parse HEAD`, the tree changed while UAT ran, packaged binaries/paks are newer than `built_at`, a clean build now has uncommitted changes under `Source/`, `Plugins/`, `Content/`, `Config/` or the `.uproject`, or a dirty build's dirty-file list or uncommitted content no longer matches. Fix it by committing and re-packaging. `--allow-stale` only downgrades the gate to a warning in the report — use it for diagnosis, NEVER as evidence for a story.
 - Exit codes: `0` all checks pass; `1` the game failed (wrong experience, crash, timeout) — fix the game; `2` infrastructure (exe missing, stale build, window not found, git error) — fix the build/environment.
@@ -757,6 +802,54 @@ Use it read-only. Prefer a public API whenever one exists.
 - Pin it: `Scripts/requirements.txt` has `mcp>=2.3,<3`. Install once with `py -m pip install -r Scripts/requirements.txt`; `mordecai_play_mcp.py` exits 2 with that hint when the SDK is missing.
 
 **Evidence:** `Scripts/mordecai_play_mcp.py:64-65` (imports), `:496` (`MCPServer(...)`), `:500` (first `@mcp.tool`); `Scripts/requirements.txt`.
+
+### Test maps per playtest: DevTestMap's swarm kills the player, and a new map needs its own GameMode Override (T1, issue #46)
+
+**Problem:** Every Tier 4 script played DevTestMap.
+- Its three Frontliners stand 600-640 cm from the PlayerStart, inside the AI's 900 cm AggroRange. From the first frame they swarm the spawn, shove and body-block the player, and since issue #12 they kill a standing player in about 10 s.
+- So movement, sprint, dodge, attack and spell checks that need no enemy failed on a dead or shoved player: 14 checks in the `c7e4b8d` sweep (`Saved/Playtests/20261027-085120-sweep`). Which check died changed from run to run.
+- A death guard in the scripts would only hide the cause.
+
+**Root cause:** one map served every concern, and a script plays exactly one map. `PlaytestRun.MAP` is launched once and there is no travel, so moving checks off the swarm means giving them their own maps.
+
+**Fix (US-100):**
+- Two test maps under `/MordecaiCore/Game/Maps`, in the default cook:
+  - `MovementTestMap`: no enemies. It keeps DevTestMap's frame (PlayerStart (0, 0), lane L1 at y = -800), so us001's and us083's waypoints did not change.
+  - `CombatTestMap`: a dummy that never moves or aggroes, and an attacker that holds its spot.
+- Every script declares its `MAP`, and the kit's `map` check FAILs a run that loaded another map. The experience check alone cannot tell the maps apart, because they all load `B_MordecaiArenaExperience`.
+
+How to make a map that works in the package (`Scripts/us100_02_create_test_maps.py`):
+1. **World Settings GameMode Override = `MordecaiGameMode`.** Python can write it: `ws.set_editor_property('default_game_mode', unreal.MordecaiGameMode)`, because `DefaultGameMode` is EditAnywhere.
+   - `GlobalDefaultGameMode` is `B_LyraGameMode` (`Config/DefaultEngine.ini`). Without the override the map gets no `AMordecaiGameMode`. In the package it then loads `B_LyraDefaultExperience`, and there is no respawn, arena reset or kill count (`player.kills` is null).
+   - Set no World Settings experience. `AMordecaiGameMode::InitGame` appends `?Experience=B_MordecaiArenaExperience` only when nothing else names one, and `DefaultGameplayExperience` is EditDefaultsOnly anyway.
+2. **PIE hides a missing override.** The PIE-only `ExperienceOverride` applies to every map in PIE. Only a Tier 1 test that reads the map's World Settings, or the Tier 3 boot (`py Scripts/playtest_boot.py --map <map>`), catches it.
+3. **`LevelEditorSubsystem.new_level(path, False)` is destructive and not idempotent.**
+   - It returns False (and logs an error) when the asset already exists.
+   - When it succeeds it destroys the open editor world without a save prompt, so unsaved edits there are lost silently.
+   - So check `EditorAssetLibrary.does_asset_exist` first. On a re-run, load the map and delete only the script's own actors. Make sure nothing is dirty before creating a map.
+   - `is_partitioned_world=False` keeps the map one `.umap` with no `__ExternalActors__`.
+4. **Build the navmesh and save it in the map.** No project ini overrides navigation, so the engine default `RuntimeGeneration=Static` applies and the packaged game never builds a navmesh.
+   - `RebuildNavigation` is a no-op until the world has navigation data: `FNavigationSystemExec::Exec_Runtime` runs `Build()` only when `NavDataSet.Num() > 0` (`NavigationSystem.cpp`). A NavMeshBoundsVolume spawned in the same Python call only queues a bounds update, which a nav tick or a map load processes; one remote exec is one editor frame, so that never happens before your save. On a map just made with `new_level`, the first run of us100_02 saved a CombatTestMap with a volume and no navmesh (no `UNavigationSystemV1::Build started` in the log).
+   - So: add the volume, save the map, reload it (`load_level`; the load spawns `RecastNavMesh-Default` from the saved volume), fetch the editor world again (the old one's Python wrappers are gone), then build blocking: `unreal.SystemLibrary.execute_console_command(world, 'RebuildNavigation')`. Reload on every run, not only on a new map: a rerun replaces the volume, and the reload drops the old one's registered bounds.
+   - Assert `not unreal.NavigationSystemV1.is_navigation_being_built(world)`, a RecastNavMesh actor, and a valid, non-partial `find_path_to_location_synchronously` (in the editor world, not in PIE: see "A navigation path query from Python during PIE trips an ensure"), raise on any failure, then `save_current_level()`.
+   - Rebuild after any geometry change.
+5. **Never build lighting.** The project is Lumen-only, so use Movable lights, no reflection captures and no `_BuiltData`. `*_BuiltData.uasset` is gitignored: it would reach the cook from the working tree but never the commit.
+6. **Reload DevTestMap at the end of a map script.** `run_pie_verify.py` PIEs whatever map the editor has open. The DevTestMap smoke tests (`verify_pie_enemies.py`, `verify_pie_inventory.py`, ...) fail on any other map. A test map's Tier 2 run names it: `py Scripts/run_pie_verify.py --map <map> --tests spawn,hud,test_maps`.
+7. **Enemy stats are EditDefaultsOnly, so a test enemy is a Blueprint subclass, never an instance override.**
+   - `BP_MordecaiEnemy_TestDummy` and `BP_MordecaiEnemy_TestAttacker` hold `DefaultMoveSpeed` 0 and `DefaultMaxHealth` 200 on their CDOs.
+   - AI ranges live on an AI-controller Blueprint subclass: `BP_MordecaiEnemyAI_TestDummy`, AggroRange 0.
+   - An override on a placed actor is invisible in the editor and logs a `LogMordecaiEnemy` error (N13).
+   - Keep `DefaultAbilities` and `EnemyAttackProfiles` on an inert dummy (make the AI inert instead). Otherwise `ValidateContent` and `TryEnterAttackState` log errors in every run.
+8. **Exactly one PlayerStart.** Respawn goes to `FindPlayerStart`, which picks among several PlayerStarts at random, so a "respawned within 150 cm of the spawn" check would become a coin flip.
+9. **Place a fixed attacker more than its AggroRange (3D) from the PlayerStart and from every scripted spot except the one where the script means to fight.** After a respawn, `ResetArena` puts every enemy back at its spawn. A spawn inside AggroRange of the PlayerStart re-aggroes at once, which is DevTestMap's `arena_reset` failure.
+
+Test fixture maps need no playlist: they are launched by `--map` (`playtest_boot.py`, the kit's `MAP`, `agent_bridge.py launch --map`), never by a player.
+
+**Evidence:**
+- Sweeps `Saved/Playtests/20261027-085120-sweep` (`c7e4b8d`, the 14 checks lost to the swarm) and `20261028-090808-sweep` (`f21525f`).
+- The research behind steps 1-9: `Config/DefaultEngine.ini` (`GlobalDefaultGameMode`), `MordecaiGameMode.cpp` (`InitGame`), `LevelEditorSubsystem.cpp` (`new_level`), `NavigationSystem.cpp` (`FNavigationSystemExec::Exec_Runtime`: `RebuildNavigation` → `Build` only with `NavDataSet.Num() > 0`; `PerformNavigationBoundsUpdate`).
+- Step 4's first-run failure: `Saved/Logs/ProjectMordecai-backup-2026.10.29-13.29.17.log` (13.24.55, `Cmd: RebuildNavigation` with no Build after it; the 13.25.04 rerun on the existing map built).
+- US-100's packaged boots of both maps are the proof that the recipe works in the package (evidence to come; `stories/in-progress/US-100-recovery-playtest-test-maps.md`).
 
 ---
 

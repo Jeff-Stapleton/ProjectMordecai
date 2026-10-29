@@ -3062,3 +3062,40 @@ Branch `fix/issue-28-inventory-reopen`, delivered `a8aaa51`.
 
 ### Next Session Recommendation
 - T1 (issue #46): the swarm now also blocks the inventory slice (US-094, US-079, US-071).
+
+## 2026-10-29 Issue #46: US-100 (T1 test maps)
+Branch `fix/issue-46-test-maps`, in progress (not yet delivered; no package of this work yet).
+
+### Completed Since Last Run
+- **US-100** (EDITOR, no pair) is new in `stories/in-progress/`.
+  - Two cooked test maps: `/MordecaiCore/Game/Maps/MovementTestMap` (no enemies; lane L1; a 30 cm and a 60 cm step) and `/MordecaiCore/Game/Maps/CombatTestMap`. CombatTestMap has `TestDummy`, which never moves or aggroes, and `TestAttacker`, which holds its spot and swings BasicSlash about every 2.6 s within 150 cm, more than 900 cm from every scripted spot except its fight spot.
+  - The test enemies are data-only Blueprints: no C++ gameplay change.
+  - Both maps are in the default cook (`package_playtest.py` `DEFAULT_MAPS`, `+MapsToCook`).
+  - Every Tier 4 script declares its `MAP`, and the kit's new `map` check FAILs a run on the wrong map:
+    - MovementTestMap: us001, us083, us069.
+    - CombatTestMap: us054_combat (new; US-054's melee/dodge/death/respawn/reset chain), us057, us078.
+    - DevTestMap: us054_arena (enemy AI) and us079.
+  - `playtest_story.py` handles a story with several scripts (US-054).
+  - In progress: no story moved to done.
+- Docs updated: `Specs/agent_playtest_plan_v1.md` (T1, N14, the issue #12 sweep entry, N27, new N32, Open decision 7), `Specs/story_playtests_v1.md`, `Specs/design_decisions_log.md`, `CLAUDE.md`, `README.md`, `stories/PLANNER.md`, the unreal-testing and tribal-knowledge skills, and the Playtest launch paths of US-001/054/057/069/078/083. After review, the backlog stories whose scripts moved were re-targeted too: US-086 and US-090 (death, kill and SP checks in `us054_combat.py`), US-087 (TestDummy), US-099 (its corner check needs DevTestMap's 200 cm wall), and the launch paths of US-088/089/091/096 (CombatTestMap) and US-093/095/097/098 (MovementTestMap).
+
+### Playable Status
+- Pending packaged evidence. No feature's status changes until a fresh package of the delivered commit passes `py Scripts/playtest_boot.py --map` for both test maps and `py Scripts/playtest_story.py --all`.
+- The statuses of the 2026-10-28 entries stand. Expected to change once that sweep runs: movement, sprint, melee_attack, dodge, death_respawn, spells, weapons and pause_menu, whose swarm failures move to the test maps.
+
+### Blockers / Decisions Needed (Jeff)
+- Decided 2026-10-29 (Jeff; `Specs/design_decisions_log.md`):
+  - Crouch is out of scope for T1. It is the spec'd Sneak (Toggle), Ctrl / R3, owned by blocked US-034.
+  - us069 moves to MovementTestMap.
+  - us079 stays on DevTestMap with its six pickups. Consequence: US-094, US-079 and US-071 still race the swarm, and closing them stays Jeff's call.
+- New Known issue N32 (source audit): block, parry, dodge i-frames and Blink invulnerability do not reduce enemy melee damage. `ApplyDamageToTarget` reads none of those tags, and `UMordecaiGA_Block::ReceiveBlockedHit` has no caller outside a test. A jump does not avoid it either: nothing grants `Mordecai.State.Airborne`, so the `JumpAvoidable` filter never fires. It needs a recovery story; US-100 does not fix it.
+- Still open: FireSlash on one Frontliner and AttackRange vs reach (#47), both US-085. The CombatTestMap attacker swings BasicSlash only, so us054_combat's `burning_on_hit` can only WARN.
+
+### Next Session Recommendation
+- Finish US-100 (EDITOR):
+  - Run `Scripts/us100_01_create_test_enemies.py` and `Scripts/us100_02_create_test_maps.py` in the editor, then commit the assets with the code.
+  - Tier 1 `Mordecai.Level.TestMaps.*` and Tier 2 `py Scripts/run_pie_verify.py --map <map> --tests spawn,hud,test_maps`.
+  - Package, then the three Tier 3 boots, then `py Scripts/playtest_story.py --all`.
+  - Record the 14 checks against the baselines (`20261028-090808-sweep`, `20261023-192402-sweep`, `20261028-232550-us079`).
+- Then US-085: that sweep gives AC-085.4 its checks without the swarm (us001 `move_a`, `walk_lane_wp1` on MovementTestMap), and AC-085.3 its death chain against the TestAttacker. us001 still exits 1 on its known facing and stick failures (US-097/US-098), so the kit cannot accept AC-085.4 from an exit-0 run. Closing on the check results is Jeff's call, as with US-083. AC-085.2's spacing clause, FireSlash and #47 remain.
+- Scope a recovery story for N32 (enemy melee ignores block, parry and i-frames, and no jump is ever Airborne) before any CombatTestMap check asserts mitigation or jump avoidance. Its scope includes granting `Mordecai.State.Airborne` while the character is falling.

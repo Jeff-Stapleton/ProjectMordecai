@@ -44,7 +44,7 @@ Camera mode and character rotation logic in C++ (`UMordecaiCameraMode_Diorama`, 
 - `Scripts/playtests/us001_movement.py` checks `facing_mouse`, `facing_stick`, `camera_fixed`, `no_camera_rotation_input`
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-001` on the same package
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → B_MordecaiArenaExperience; us001's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-001` on the same package
 - **Player steps:** move the mouse to the right of the player; hold the right stick left
 - **Visible on screen:** us001 `bridge_03.png` (`facing_arrow`): the character (and its facing arrow) turned toward the last aim direction, camera angle unchanged
 - **Proof:** Tier 4 checks `facing_mouse`, `facing_stick`, `camera_fixed`, `no_camera_rotation_input` of `Scripts/playtests/us001_movement.py`
@@ -64,7 +64,7 @@ Camera mode and character rotation logic in C++ (`UMordecaiCameraMode_Diorama`, 
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-001`: `facing_mouse`, `facing_stick` go from FAIL to PASS (option a) or are rewritten per the decision; `camera_fixed`, `no_camera_rotation_input` still PASS; `--lint` exits 0 — never `--allow-stale`
 - [ ] Known issues "Facing and aim are pinned to +X" and N12 marked FIXED/decided in `Specs/agent_playtest_plan_v1.md`
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen

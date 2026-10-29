@@ -57,3 +57,21 @@ Decisions made by Jeff, recorded for reference across stories and epics.
 - UI assist hint shows "[I] Inventory"; pickup prompt shows "[F] Pick up <item>"
 - Device-aware key glyphs (controller glyphs when on gamepad) deferred — prompts show keyboard keys for the slice
 - Source: Jeff via "initial-inventory" pipeline request (2026-07-10)
+
+---
+
+## 2026-10-29 — Test maps (T1, issue #46)
+
+Context: T1 (`Specs/agent_playtest_plan_v1.md`) gives the Tier 4 playtests their own cooked maps. MovementTestMap has no enemies; CombatTestMap has a dummy and a fixed-cadence attacker. Implemented by US-100. The choice of T1 over moving the Frontliners out of aggro was made earlier (Jeff, 2026-10-28, issue #19; plan entry N14).
+
+### Crouch is out of scope
+- Issue #46 asked whether the movement test map should test crouch. Decided: **no**. T1 builds no crouch geometry or check.
+- Mordecai's crouch is the spec'd **Sneak (Toggle)**: Ctrl / R3, "reduces detection + footstep noise; reduces move speed" (`control_bindings_v1.1.md`). The Sneaking skill is crouched movement (`skill_sheet_v1.1.md`).
+- It belongs to US-034 (Movement Skills), which is blocked on placeholder skill values. No crouch control is bound today: Lyra's crouch binding was removed in US-083 (N23).
+- Source: Jeff via Claude Code session (2026-10-29)
+
+### Which playtest runs on which map
+- **us069 (pause menu) moves to MovementTestMap**, alongside us001 (movement) and us083 (combat input), which issue #46 and US-100 already put there. Issue #46 had not listed us069.
+- **us079 (inventory) stays on DevTestMap.** Its six test pickups stay where US-079 placed them, and US-079's "reuse the existing arena, do not create a new level" note stands. Consequence: the inventory route still races the Frontliner swarm, so US-094, US-079 and US-071 still close at Jeff's call (one exit-0 run so far: `Saved/Playtests/20261028-232550-us079`).
+- Source: Jeff via Claude Code session (2026-10-29)
+- For reference (from issue #46 and US-100, not part of this decision): us054's melee/dodge/death/respawn chain (new script `us054_combat.py`), us057 (magic) and us078 (weapons) run on CombatTestMap. us054's enemy-AI checks (`us054_arena.py`) stay on DevTestMap.
