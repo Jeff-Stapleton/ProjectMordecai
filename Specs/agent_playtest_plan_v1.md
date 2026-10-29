@@ -378,6 +378,14 @@ The contract is `Specs/story_playtests_v1.md`.
   - Tier 1: `Mordecai.Playtest.AgentBridge.State.PickupEntries`, `.ActorsMeasureLabelsAgainstTheLocalCamera` (red before the fix).
   - Verified on `92e7575` (fresh package): `pickup_labels` FAIL (known) → PASS in `Saved/Playtests/20261028-232550-us079`: 6/6 labels visible, text = display name, facing/upright 1.000. That us079 run exited 0 (55/55, 15/15 ACs accepted): the player outran the swarm (T1) that time.
 - **B2 Other missing state.** No camera transform (AC-1.2.1), no progress-bar fill or colour (HUD bars, stamina tiers, rarity colours), no equip slot on `player.weapon` (AC-078.15), no damage-pop events (US-065), no texts from world-space widget components (enemy bars). Mouse buttons cannot be held across reads by the playtest client, which blocks block and parry on the mouse (AC-083.11). The gamepad triggers can be held with `axis` (no `hold_s`), so `us083_combat_input.py` plays block and parry on LT/RT, and the heavy attack fires on release since US-083, so a held click checks it. The `wait_until` grammar has no "array contains", so tag checks need client-side predicates.
+- **B3 A key hold is timed in real time, so a frame hitch can cut it short (found 2026-10-29, US-100).**
+  - What happens: the packaged game hitches for a few hundred ms after a `screenshot`. Taps right after one report only 2-9 frames over a 0.4 s hold (`frames` / `held_s` in the `key` response).
+  - Why it matters: the bridge releases the key once `hold_s` of real time has passed, at the start of a frame. A long frame's delta is simulated in the frame after it, so a hitch inside a hold leaves the character almost no input. In `Saved/Playtests/20261029-132452-us054combat`, `respawn_moves` held W 0.464 s over 3 frames and moved 3 cm, after the 'respawned' screenshot.
+  - Workaround in `us054_combat.py` `respawn_moves`:
+    - Wait 0.5 s before the hold.
+    - Measure once more when the hold ran under 20 fps. A clean hold that does not move still FAILs.
+  - Other scripts that judge a timed hold's displacement right after a screenshot can hit the same thing. us001's move checks passed in the same sweep, but some of them held for only 2-9 frames.
+  - Root fix (bridge): hold for simulated time. Release when the summed delta of the frames that had the key down at input time reaches `hold_s`, or report a hitched hold as `hitched: true`.
 
 **Playtest infrastructure (proposal).**
 - **T1 Dedicated test maps per playtest (Jeff, 2026-10-24; issue #46). IN PROGRESS: US-100** (`stories/in-progress/US-100-recovery-playtest-test-maps.md`, branch `fix/issue-46-test-maps`, 2026-10-29). Evidence to come: it is delivered only when a fresh package boots both maps and the sweep passes the 14 checks listed under "Found by the issue #12 sweep" above.

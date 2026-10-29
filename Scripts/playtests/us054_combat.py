@@ -113,6 +113,8 @@ DEAD_MAX_MOVE_CM = 5.0
 RESPAWN_TIMEOUT_S = 6.0
 MOVE_HOLD_S = 0.4
 MOVE_MIN_CM = 80.0
+MOVE_SETTLE_S = 0.5                    # the packaged game hitches for a few hundred ms after a screenshot
+MOVE_MIN_FPS = 20.0                    # a hold that ran under this frame rate was cut by a frame hitch
 POLL_S = 0.1
 
 SCREENSHOTS = {
@@ -187,8 +189,9 @@ PLAN = (
          f"{DUMMY} below max before the death and full at the respawn, or the {ATTACKER} out of "
          f"{IDLE} before the death and {IDLE} at the respawn), else WARN",
          proves=("US-053:AC-053.8", "US-053:AC-053.9")),
-    Step("respawn_moves", f"hold W {MOVE_HOLD_S:g}s -> player x grows by >= {MOVE_MIN_CM:g} cm",
-         proves=("US-053:AC-053.6",)),
+    Step("respawn_moves", f"wait {MOVE_SETTLE_S:g}s, hold W {MOVE_HOLD_S:g}s -> player x grows by "
+         f">= {MOVE_MIN_CM:g} cm (measured once more if the hold ran under {MOVE_MIN_FPS:g} fps: a "
+         "frame hitch)", proves=("US-053:AC-053.6",)),
     Step("kill_counter_text_matches", "state widgets, player -> the 'Kills: N' text equals "
          "player.kills", proves=("US-063:AC-063.1",)),
 )
@@ -826,16 +829,33 @@ class Us054CombatRun(kit.PlaytestRun):
         self.measure("arena_reset", reset, needs=ok, needs_why=why)
 
         def moves(b):
-            p0 = player(b.state(["player"]))
-            if p0 is None:
-                return "FAIL", "no valid player after the respawn", None
-            x0 = xy(p0.get("location"))[0]
-            b.hold("W", MOVE_HOLD_S)
-            p1 = player(b.state(["player"])) or {}
-            x1 = (xy(p1.get("location")) or (x0, 0))[0]
-            return ("PASS" if x1 - x0 >= MOVE_MIN_CM else "FAIL",
-                    f"held W {MOVE_HOLD_S:g}s: x {x0:.0f} -> {x1:.0f} (+{x1 - x0:.0f} cm, need "
-                    f">= {MOVE_MIN_CM:g})", None)
+            # The 'respawned' screenshot just before hitches the packaged game for a few hundred
+            # ms.  The bridge times a hold in real time and lets the key up before the input of
+            # the frame that follows a long frame, so a hitch inside the hold leaves the
+            # character almost no simulated input (20261029-132452-us054combat: W held 0.464 s
+            # over 3 frames moved it 3 cm).  So settle first, and measure once more when the
+            # bridge reports the hold itself ran under MOVE_MIN_FPS: the game never saw that
+            # hold.  Input that is really ignored after the respawn fails the clean hold too.
+            notes = []
+            for attempt in (1, 2):
+                b.wait(MOVE_SETTLE_S)
+                p0 = player(b.state(["player"]))
+                if p0 is None:
+                    return "FAIL", "no valid player after the respawn", None
+                x0 = xy(p0.get("location"))[0]
+                r = b.hold("W", MOVE_HOLD_S) or {}
+                p1 = player(b.state(["player"])) or {}
+                x1 = (xy(p1.get("location")) or (x0, 0))[0]
+                frames, held_s = r.get("frames"), r.get("held_s")
+                fps = frames / held_s if frames and held_s else None
+                result = (f"held W {MOVE_HOLD_S:g}s ({held_s}s, {frames} frames): x {x0:.0f} -> "
+                          f"{x1:.0f} (+{x1 - x0:.0f} cm, need >= {MOVE_MIN_CM:g})")
+                if x1 - x0 >= MOVE_MIN_CM or fps is None or fps >= MOVE_MIN_FPS or attempt == 2:
+                    break
+                notes.append(f"attempt 1 not judged: {result}, a {fps:.0f} fps hold (a frame "
+                             f"hitch), so it was measured again")
+            return ("PASS" if x1 - x0 >= MOVE_MIN_CM else "FAIL", "; ".join(notes + [result]),
+                    None)
 
         self.measure("respawn_moves", moves, needs=ok, needs_why=why)
 

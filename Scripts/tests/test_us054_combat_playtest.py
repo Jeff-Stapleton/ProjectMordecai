@@ -104,7 +104,8 @@ class CombatWorld(fb.FakeWorld):
     (3 SP).  burn_chance: 1.0 every hit burns, 0 never (BasicSlash).  arena_reset: ResetArena on
     the respawn; reset_ai=False: that reset restores location, health and is_dead but leaves the
     AI state.  ai_reported=False: every enemy's ai_state reads 'Idle' (a broken report).
-    ai_log: (label, real time, ai_state) of every AI state change.
+    moves_after_respawn=False: movement input stays ignored after the respawn (a broken
+    HandlePlayerRespawn).  ai_log: (label, real time, ai_state) of every AI state change.
     """
 
     def __init__(self, *, click_damage=12.0, click_damage_delay_s=0.2, melee_reach=200.0,
@@ -113,7 +114,7 @@ class CombatWorld(fb.FakeWorld):
                  restoration=True, heal_per_s=8.0, restoration_s=5.0, burn_chance=0.0,
                  burn_indicator=True, attacks=True, attack_tag=True, death_screen=True,
                  dead_moves=False, arena_reset=True, reset_ai=True, ai_reported=True,
-                 kills_text=0, **kwargs):
+                 moves_after_respawn=True, kills_text=0, **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         kwargs.setdefault("respawn_s", us054c.RESPAWN_DELAY_S)  # the game's 3 s
@@ -132,6 +133,7 @@ class CombatWorld(fb.FakeWorld):
         self.death_screen, self.dead_moves = death_screen, dead_moves
         self.arena_reset, self.reset_ai = arena_reset, reset_ai
         self.ai_reported, self.kills_text = ai_reported, kills_text
+        self.moves_after_respawn = moves_after_respawn
         self.timed_tags = {}
         self.burn_rolls = 0
         self.hits = []             # (real time, health after) of every attacker hit
@@ -229,6 +231,9 @@ class CombatWorld(fb.FakeWorld):
             self.kill_player()
 
     def _move(self, dt):
+        if not self.moves_after_respawn and self.respawns and not self.is_dead:
+            self.vel = [0.0, 0.0]
+            return
         if self.dead_moves and self.is_dead:
             dead, self.dead_since = self.dead_since, None
             try:
@@ -845,6 +850,41 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertEqual(checks["kill_counter_text_matches"]["status"], "FAIL")
         for name in ("burning_on_hit", "dead_no_move", "kill_counter_text_matches"):
             self.assertIn(name, rep["new_failures"])
+
+    def test_a_hold_cut_by_a_frame_hitch_is_measured_again(self):
+        # The packaged game hitches after the 'respawned' screenshot: 20261029-132452-us054combat
+        # held W 0.464 s over 3 frames and moved 3 cm.  That hold is not judged; a clean one is.
+        world, server = self.serve(**game_today())
+        real_hold, cut = ab.Bridge.hold, []
+
+        def hold(bridge, key, seconds, unsafe=False):
+            if key == "W" and world.respawns and not cut:
+                cut.append(seconds)   # the game never saw this hold
+                return {"ok": True, "cmd": "key", "held_s": 0.464, "frames": 3}
+            return real_hold(bridge, key, seconds, unsafe=unsafe)
+
+        with mock.patch.object(ab.Bridge, "hold", hold):
+            _, rep = self.play(server)
+        check = self.by_name(rep)["respawn_moves"]
+        self.assertEqual(cut, [us054c.MOVE_HOLD_S])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertIn("attempt 1 not judged: held W 0.4s (0.464s, 3 frames)", check["detail"])
+        self.assertIn("a 6 fps hold (a frame hitch), so it was measured again", check["detail"])
+        self.assertNotIn("respawn_moves", rep["new_failures"])
+        # Each attempt waits for the game to settle first
+        waits = [r.get("seconds") for r in server.received if r.get("cmd") == "wait"]
+        self.assertGreaterEqual(waits.count(us054c.MOVE_SETTLE_S), 2)
+
+    def test_movement_still_ignored_after_the_respawn_fails_respawn_moves(self):
+        # A clean hold (the fake runs at 60 fps) that moves nothing is judged at once: FAIL
+        _, server = self.serve(**game_today(moves_after_respawn=False))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["respawn_moves"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertNotIn("not judged", check["detail"])
+        self.assertIn("respawn_moves", rep["new_failures"])
+        self.assertEqual(self.acs(rep)[("US-053", "AC-053.6")]["status"], "FAIL")
 
     def test_restoration_that_does_nothing_fails(self):
         _, server = self.serve(**game_today(restoration=False))

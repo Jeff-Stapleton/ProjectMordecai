@@ -878,6 +878,14 @@ py Scripts/package_playtest.py
 ```
 The loop never fails the build, so watch the UAT log for `Low on memory` and stop early instead of waiting out the timeout.
 
+### The packaged game target compiles the automation tests: editor-only engine APIs break the package
+
+**Problem:** US-100's first `package_playtest.py` failed at UAT's `LyraGame` compile (`Saved/Playtests/package-20261029-130812.log`): `MordecaiTestMapTests.cpp(888): error C2039: 'IsUsingExternalActors': is not a member of 'ULevel'`. The editor build and `py Scripts/run_tests.py` (727/727) had both passed.
+
+**Root cause:** `Source/LyraGame/Tests/` is part of the `LyraGame` module, which the packaged (non-editor) Development target builds too, because automation tests exist outside Shipping. `ULevel::IsUsingExternalActors()` is declared inside `#if WITH_EDITOR` in `Level.h`, so it exists only in editor builds. The `LyraEditor` compile that Step 4 runs cannot catch this.
+
+**Fix:** Put any editor-only engine call in a test under `#if WITH_EDITOR` (most of `ULevel`'s and `AActor`'s editor helpers, `GetActorLabel`, asset-registry editor data). To check before packaging, also build the game target: `Build.bat LyraGame Win64 Development -Project=... -WaitMutex -FromMsBuild`. It takes about a minute when the editor build is current, compared with a failed 3-minute UAT run.
+
 ### Unity builds leak file-scope `using namespace` across test cpp files
 
 **Problem:** Adding a new automation test file with a file-scope `using namespace MyNewTestHelpers;` broke compilation of an *unrelated, untouched* test file (`error C2668: ambiguous call to overloaded function` for helper names like `MakeWidget`/`MakeDef` that exist in several test-helper namespaces).
