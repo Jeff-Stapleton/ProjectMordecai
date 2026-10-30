@@ -9,6 +9,7 @@
 
 class UMordecaiCombatHUDWidget;
 class UMordecaiDamagePopComponent;
+class UMordecaiDeathScreenComponent;
 class UGameplayAbility;
 class UMordecaiAttackProfileDataAsset;
 class UMordecaiSpellDataAsset;
@@ -17,7 +18,7 @@ class UMordecaiSpellDataAsset;
  * AMordecaiPlayerController
  *
  *	Player controller for Project Mordecai. Extends Lyra's base controller.
- *	Creates and manages the combat HUD widget (AC-054.8).
+ *	Creates and manages the combat HUD widget (AC-054.8) and the death screen (US-086).
  *	Grants combat abilities to the player (AC-054.5).
  */
 UCLASS()
@@ -83,6 +84,10 @@ private:
 	/** Floating damage number component (US-065). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|DamagePop", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMordecaiDamagePopComponent> DamagePopComponent;
+
+	/** Shows the death screen while the player is dead (US-086, issue #7). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|HUD", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UMordecaiDeathScreenComponent> DeathScreenComponent;
 
 	bool bAbilitiesGranted = false;
 };

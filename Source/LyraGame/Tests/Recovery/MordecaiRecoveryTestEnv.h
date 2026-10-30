@@ -4,10 +4,13 @@
 
 #include "AbilitySystem/LyraAbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "Blueprint/UserWidget.h"
 #include "Character/LyraPawnData.h"
 #include "Character/LyraPawnExtensionComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 #include "GameModes/LyraGameState.h"
 #include "GameplayEffect.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
@@ -199,6 +202,63 @@ namespace MordecaiRecoveryTest
 			FActorSpawnParameters Params;
 			Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			return Params;
+		}
+	};
+
+	/**
+	 * FRecoveryTestEnv's player (pawn with inventory + ledger, player state with the ASC) controlled by a spawned
+	 * player controller with a ULocalPlayer, so user widgets get a valid player context and GetOwningPlayer()
+	 * resolves the pawn and player state the way the game's widgets do. The ULocalPlayer is a plain one, not a
+	 * UCommonLocalPlayer: the controller has no primary game layout.
+	 */
+	struct FRecoveryControlledTestEnv : FRecoveryTestEnv
+	{
+		APlayerController* PC = nullptr;
+		ULocalPlayer* LocalPlayer = nullptr;
+
+		bool SetupWithController()
+		{
+			if (!Setup(FVector::ZeroVector))
+			{
+				return false;
+			}
+			PC = World->SpawnActor<APlayerController>(APlayerController::StaticClass());
+			if (!PC)
+			{
+				return false;
+			}
+			LocalPlayer = NewObject<ULocalPlayer>(GEngine, ULocalPlayer::StaticClass());
+			PC->Player = LocalPlayer;
+			LocalPlayer->PlayerController = PC;
+			PC->PlayerState = PlayerState;
+			PC->SetPawn(Player);
+			return FLocalPlayerContext(LocalPlayer, World).IsValid() && PC->GetPawn() == Player;
+		}
+
+		/** CreateWidget's path for a native widget: player context, then Initialize (runs NativeOnInitialized). */
+		template <typename WidgetT>
+		WidgetT* MakeWidget() const
+		{
+			WidgetT* Widget = NewObject<WidgetT>(World);
+			Widget->SetPlayerContext(FLocalPlayerContext(LocalPlayer, World));
+			Widget->Initialize();
+			return Widget;
+		}
+
+		void TeardownWithController()
+		{
+			if (PC)
+			{
+				PC->Player = nullptr;
+				PC->PlayerState = nullptr;
+			}
+			if (LocalPlayer)
+			{
+				LocalPlayer->PlayerController = nullptr;
+			}
+			PC = nullptr;
+			LocalPlayer = nullptr;
+			Teardown();
 		}
 	};
 }
