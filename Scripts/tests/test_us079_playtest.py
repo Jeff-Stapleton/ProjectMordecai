@@ -677,8 +677,8 @@ class TestUs079Evidence(PlaytestCase):
 class TestUs079PlanAndAcceptance(PlaytestCase):
     """The PLAN (playtest_kit) and the report's Phase 3 fields."""
 
-    STORIES = {"US-079": "in-progress/US-079-playable-inventory-arena.md",
-               "US-071": "in-progress/US-071-inventory-widget.md",
+    STORIES = {"US-079": "done/US-079-playable-inventory-arena.md",
+               "US-071": "done/US-071-inventory-widget.md",
                "US-069": "done/US-069-pause-menu-framework.md"}
 
     def story_ac_ids(self, story):
