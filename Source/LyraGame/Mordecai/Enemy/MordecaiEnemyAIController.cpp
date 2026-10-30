@@ -389,10 +389,11 @@ float AMordecaiEnemyAIController::GetEffectiveAttackRange() const
 		{
 			if (const UMordecaiGA_MeleeAttack* Melee = Cast<UMordecaiGA_MeleeAttack>(Spec->GetPrimaryInstance()))
 			{
+				// Issue #47: the attack profile decides the engage distance, so it can never outrange the swing
 				const float Reach = Melee->GetAttackReach();
 				if (Reach > 0.f)
 				{
-					return FMath::Min(AttackRange, Reach);
+					return Reach;
 				}
 			}
 		}

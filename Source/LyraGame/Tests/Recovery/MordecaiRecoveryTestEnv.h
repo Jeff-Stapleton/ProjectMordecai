@@ -119,6 +119,27 @@ namespace MordecaiRecoveryTest
 			return Enemy;
 		}
 
+		/** An enemy Blueprint spawned like a placed one, with the abilities, profiles and AI its class defaults give it. */
+		AMordecaiEnemyCharacter* SpawnEnemyOfClass(UClass* EnemyClass, const FVector& Location) const
+		{
+			AMordecaiEnemyCharacter* Enemy = World->SpawnActor<AMordecaiEnemyCharacter>(
+				EnemyClass, Location, FRotator::ZeroRotator, AlwaysSpawn());
+			if (!Enemy)
+			{
+				return nullptr;
+			}
+			if (!Enemy->GetController())
+			{
+				UClass* AIClass = Enemy->AIControllerClass ? Enemy->AIControllerClass.Get() : AMordecaiEnemyAIController::StaticClass();
+				if (AController* AI = World->SpawnActor<AController>(AIClass))
+				{
+					AI->Possess(Enemy);
+				}
+			}
+			Enemy->InitializeAbilitySystem();
+			return Enemy;
+		}
+
 		/**
 		 * Begin the enemy's play the way the world would (the test world never begins play). Lyra's pawn extension
 		 * needs the game instance's UGameFrameworkComponentManager in BeginPlay and this world has no game instance;

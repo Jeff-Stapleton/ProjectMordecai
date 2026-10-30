@@ -54,7 +54,8 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - Check that the level instances do not override the BP defaults with old values (N13 may be an instance override rather than the CDO).
   - DONE for N13 (issue #18): it was an instance override (`DefaultMaxHealth` 100 on each placed Frontliner vs the BP's 200). `Scripts/us085_configure_frontliner.py` now holds the stat part of this story's script: it clears instance overrides of `DefaultMaxHealth`/`DefaultMaxPosture`/`DefaultMoveSpeed` and saves DevTestMap. The BP stats themselves already match AC-054.2 (MaxHealth 200 in the BP; MaxPosture 100, MoveSpeed 400 and the AI's 900/200/1800 ranges are native defaults). The mesh, attack-profile and placement parts are still to be added.
   - `EnemyAttackProfiles` is `EditDefaultsOnly`, so "one Frontliner → `DA_EnemyAttack_FireSlash`" cannot be an instance override (Python refuses to write an `EditDefaultsOnly` property on a placed actor). Today every Frontliner has [BasicSlash, FireSlash]. TODO(DECISION) (Jeff): a Frontliner Blueprint child with FireSlash, or make `EnemyAttackProfiles` editable on instances.
-- TODO(DECISION) (Jeff): AC-054.2's `AttackRange` 200 is longer than the slash's 150 cm reach (AC-054.3, `DA_EnemyAttack_BasicSlash` / `FireSlash` arc radius). Since issue #12 the AI closes to `min(AttackRange, reach)`, so enemies attack from ≤ 150 cm and hit; whether the content should align the two numbers (raise the reach or lower AttackRange) is a design call, not decided here.
+- DECIDED (Jeff, 2026-10-30, issue #47): derive the attack range from the attack profile. `AMordecaiEnemyAIController::GetEffectiveAttackRange()` is now the active profile's reach (`UMordecaiGA_MeleeAttack::GetAttackReach`); `AttackRange` (200, AC-054.2) is only the fallback for a melee attack without a profile. The Frontliners attack from their slash's 150 cm (AC-054.3). No content change: the numbers can no longer disagree. Tier 1: `Mordecai.Recovery.Enemy.AttackRangeDerivedFromProfile` and `Mordecai.Recovery.Enemy.BlueprintAttackRangeWithinReach` (the saved Frontliner and TestAttacker Blueprints). Target capsule radius in hit detection stays as is (not part of this decision).
+- ~~TODO(DECISION)~~ (Jeff): AC-054.2's `AttackRange` 200 is longer than the slash's 150 cm reach (AC-054.3, `DA_EnemyAttack_BasicSlash` / `FireSlash` arc radius). Since issue #12 the AI closes to `min(AttackRange, reach)`, so enemies attack from ≤ 150 cm and hit; whether the content should align the two numbers (raise the reach or lower AttackRange) is a design call, not decided here.
 - Since issue #12 (branch `fix/issue-12-enemy-damage`), enemies reliably hit and kill a player standing at the spawn, and the player dies and respawns (N31 fixed). The `arena_reset` check also requires the AC-054.2 200 max health (N13): on `48f60b2` the first read after the respawn had all three enemies back at their spawns at 100/100, and they re-aggroed onto the respawned player within ~1.5 s because every spawn is inside AggroRange of PlayerStart (the placement TODO(DECISION) above).
 - Collision: the capsule stays Pawn-blocking (enemies should be solid once visible). N14 "invisible wall" is resolved by visibility; the remaining question is the swarm at the spawn.
   - Issue #19: `BodyMesh` is NoCollision, makes no overlaps and does not affect navigation, so blocking and hits stay the capsule's. A dead enemy's collision is off (AC-050.6), so its body is hidden too; the arena reset shows it again.
@@ -242,6 +243,32 @@ The Frontliners are visible (AC-085.1) and the packaged `game.log` has no enemy-
   - The frames that do not match their description are all existing issues: us054 `hit` taken after the death; us057 no projectile or damage number (N15) and no Stone Skin text (N16); us079 empty inventory rows (US-094).
   - The boot `shot_NN.png` show the lock-screen wallpaper (covered window).
 
-**Not done here:** FireSlash on one Frontliner (TODO(DECISION)), AttackRange vs reach (#47), AC-085.2/AC-085.3 (their us054 checks still fail on the swarm), AC-085.4 (T1), the DoD's exit-0 runs.
+**Not done here:** FireSlash on one Frontliner (TODO(DECISION)), AttackRange vs reach (#47, done 2026-10-30 below), AC-085.2/AC-085.3 (their us054 checks still fail on the swarm), AC-085.4 (T1), the DoD's exit-0 runs.
 
 **Playable Status:** enemies — NOT PLAYABLE. Visible now (AC-085.1) at 200 HP, but they swarm the spawn (T1, #46), and `enemy_indicators` (N17) and `death_screen` (N2) fail.
+
+### Issue #47: attack range derived from the attack profile (2026-10-30, `a1d72f4`, branch `fix/issue-47-attack-range`)
+
+Jeff's decision on #47 (Technical Notes): `GetEffectiveAttackRange()` is the active profile's reach, and `AttackRange` is only the fallback for a melee attack without a profile. No content change. The Frontliners still attack from 150 cm.
+
+- Tier 1: 735/735 (`py Scripts/run_tests.py`). The new tests are `Mordecai.Recovery.Enemy.AttackRangeDerivedFromProfile` and `Mordecai.Recovery.Enemy.BlueprintAttackRangeWithinReach`. The second spawns the saved Frontliner and TestAttacker Blueprints with their AI; each attacks from no farther than any of its profiles reaches.
+- Tier 2: `py Scripts/run_pie_verify.py`, all 13 smoke tests PASS.
+- Fresh package of `a1d72f4` (dirty=False). `py Scripts/playtest_story.py US-054` (US-085 has no script of its own). Summary: `C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\Saved\Playtests\20261030-003353-story-us054\summary.md`.
+  - Tier 3 DevTestMap `C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\Saved\Playtests\20261030-003353-boot`: exit 0, every check PASS, 0 log errors.
+    - `engine_01`/`engine_02`: the arena; three red Frontliner bodies under their red bars pressed against the player at the spawn, and the player's health bar almost empty (01), then empty (02).
+    - `engine_03`: the player respawned at full health; the Frontliners back at their spawns.
+    - `shot_01..03` match.
+  - Tier 3 CombatTestMap `C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\Saved\Playtests\20261030-003413-boot`: exit 0, every check PASS.
+    - `engine_01..03`: the player on the grid floor, the blue-grey TestDummy under its bar up-right, and the HUD.
+  - Tier 4 `us054_arena.py` `C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\Saved\Playtests\20261030-003433-us054`: exit 1.
+    - **`enemy_damages_player` PASS** (the check #47 names).
+    - `enemies_present` FAIL (spacing, the spawn swarm) and `enemy_indicators` FAIL (N17). Both are labelled NEW, but they are identical in the run on main before this change (`20261029-175636-us054`), so they are not caused by it.
+    - `bridge_01`/`bridge_02`: the three Frontliners against the player at the spawn, its health bar almost empty.
+  - Tier 4 `us054_combat.py` `C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\Saved\Playtests\20261030-003445-us054combat`: exit 1, only on `death_screen` (known N2).
+    - `attacker_damages_player` PASS; `player_dies`, `respawn`, `arena_reset` and `respawn_moves` PASS; `burning_on_hit` WARN (BasicSlash only).
+    - `bridge_01`: the player at the start, the TestDummy up-right.
+    - `bridge_02`: the player next to the TestDummy.
+    - `bridge_03`: the player against the orange TestAttacker, its health bar below full.
+    - `bridge_04`: the player's health bar empty next to the TestAttacker, and no death screen (N2).
+    - `bridge_05`: a motion-blurred frame of the camera moving back after the respawn: the TestAttacker at the top edge, the TestDummy bottom-right, and the player out of frame. It does not show the respawned player.
+- #47's ACs: the specs and content state consistent numbers (one source: the profile); the Tier 1 Blueprint test; and `enemy_damages_player` PASS on a fresh package. All three are met. The us054 runs still exit 1 on the swarm, N17 and N2, which are not #47's.

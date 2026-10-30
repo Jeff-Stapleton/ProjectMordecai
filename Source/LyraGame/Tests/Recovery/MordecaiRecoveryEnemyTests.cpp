@@ -6,6 +6,7 @@
 #include "Engine/StaticMesh.h"
 #include "GameplayAbilitySpec.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
@@ -73,7 +74,8 @@ bool FMordecai_Recovery_Enemy_AttackDamagesPlayer::RunTest(const FString& Parame
 // 1b. Mordecai.Recovery.Enemy.ClosesToWeaponReachBeforeAttacking (AC-084.1)
 // The Frontliners' slash reaches 150 cm but their AttackRange is 200 (AC-054.2 vs AC-054.3). An enemy that
 // roots into Attack between the two swings at air forever (N7 at the spawn: enemies at ~195 cm, player at
-// 100/100). The AI keeps approaching until the target is inside its attack's reach, then attacks and hits.
+// 100/100). The AI attacks from its profile's reach (issue #47), so it keeps approaching until the target is
+// inside it, then attacks and hits.
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_ClosesToWeaponReach,
 	"Mordecai.Recovery.Enemy.ClosesToWeaponReachBeforeAttacking",
@@ -151,6 +153,107 @@ bool FMordecai_Recovery_Enemy_AttackReachFollowsHitShape::RunTest(const FString&
 	TestEqual("capsule: its length", Melee->GetAttackReach(), 120.f);
 	Profile->HitShapeType = EMordecaiHitShapeType::Box;
 	TestEqual("box: its length", Melee->GetAttackReach(), 120.f);
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 1d. Mordecai.Recovery.Enemy.AttackRangeDerivedFromProfile (issue #47)
+// The engage distance comes from the attack profile, not from AttackRange: a swing that reaches farther than
+// AttackRange is swung from its own reach too. AttackRange is only the fallback for a melee attack without a profile.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_AttackRangeDerivedFromProfile,
+	"Mordecai.Recovery.Enemy.AttackRangeDerivedFromProfile",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Enemy_AttackRangeDerivedFromProfile::RunTest(const FString& Parameters)
+{
+	FRecoveryTestEnv Env;
+	if (!TestTrue("test world with a player set up", Env.Setup(FVector(230.0, 0.0, 0.0))))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	// The stub sweep reaches 250 cm, past the 200 cm AttackRange
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(FVector::ZeroVector, { MakeStubProfile() });
+	AMordecaiEnemyCharacter* Bare = Env.SpawnEnemy(FVector(0.0, 1000.0, 0.0), {});
+	AMordecaiEnemyAIController* AI = Enemy ? Cast<AMordecaiEnemyAIController>(Enemy->GetController()) : nullptr;
+	AMordecaiEnemyAIController* BareAI = Bare ? Cast<AMordecaiEnemyAIController>(Bare->GetController()) : nullptr;
+	if (!TestNotNull("enemy AI", AI) || !TestNotNull("profile-less enemy AI", BareAI))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	TestEqual("AttackRange is the AC-054.2 default", AI->AttackRange, 200.f);
+	TestEqual("effective attack range is the profile's reach, past AttackRange", AI->GetEffectiveAttackRange(), 250.f);
+	TestEqual("without a profile it falls back to AttackRange", BareAI->GetEffectiveAttackRange(), BareAI->AttackRange);
+
+	// 230 cm: outside AttackRange, inside the sweep: attack
+	AI->UpdateStateMachine(0.016f, Env.Player);
+	AI->UpdateStateMachine(0.016f, Env.Player);
+	TestEqual("at 230 cm the enemy attacks", AI->GetCurrentState(), EMordecaiEnemyAIState::Attack);
+
+	Env.Teardown();
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 1e. Mordecai.Recovery.Enemy.BlueprintAttackRangeWithinReach (issue #47)
+// The saved enemy Blueprints, spawned as the game spawns them: the range their AI attacks from is no longer than
+// the reach of any of their attacks, so they never root into Attack where their swing cannot land.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Enemy_BlueprintAttackRangeWithinReach,
+	"Mordecai.Recovery.Enemy.BlueprintAttackRangeWithinReach",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Enemy_BlueprintAttackRangeWithinReach::RunTest(const FString& Parameters)
+{
+	const TCHAR* const ClassPaths[] = {
+		TEXT("/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner.BP_MordecaiEnemy_Frontliner_C"),
+		TEXT("/MordecaiCore/Enemies/BP_MordecaiEnemy_TestAttacker.BP_MordecaiEnemy_TestAttacker_C"),
+	};
+
+	FRecoveryTestEnv Env;
+	if (!TestTrue("test world with a player set up", Env.Setup(FVector(5000.0, 0.0, 0.0))))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	double SpawnY = 0.0;
+	for (const TCHAR* ClassPath : ClassPaths)
+	{
+		UClass* EnemyClass = FSoftClassPath(ClassPath).TryLoadClass<AMordecaiEnemyCharacter>();
+		if (!TestNotNull(FString::Printf(TEXT("%s loads as an AMordecaiEnemyCharacter class"), ClassPath), EnemyClass))
+		{
+			continue;
+		}
+		AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemyOfClass(EnemyClass, FVector(0.0, SpawnY, 0.0));
+		SpawnY += 1000.0;
+		AMordecaiEnemyAIController* AI = Enemy ? Cast<AMordecaiEnemyAIController>(Enemy->GetController()) : nullptr;
+		if (!TestNotNull(FString::Printf(TEXT("%s spawns with an enemy AI controller"), *EnemyClass->GetName()), AI))
+		{
+			continue;
+		}
+		if (!TestTrue(FString::Printf(TEXT("%s has attack profiles"), *EnemyClass->GetName()), Enemy->EnemyAttackProfiles.Num() > 0))
+		{
+			continue;
+		}
+
+		const float Range = AI->GetEffectiveAttackRange();
+		UMordecaiGA_MeleeAttack* Melee = NewObject<UMordecaiGA_MeleeAttack>();
+		for (const TObjectPtr<UMordecaiAttackProfileDataAsset>& Profile : Enemy->EnemyAttackProfiles)
+		{
+			Melee->AttackProfiles = { Profile };
+			const float Reach = Melee->GetAttackReach();
+			TestTrue(FString::Printf(TEXT("%s's attack range %.0f is no longer than %s's reach %.0f"),
+					*EnemyClass->GetName(), Range, *GetNameSafe(Profile), Reach),
+				Reach > 0.f && Range <= Reach);
+		}
+	}
+
+	Env.Teardown();
 	return true;
 }
 

@@ -35,6 +35,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|AI")
 	float AggroRange = 900.f;
 
+	/**
+	 * Fallback engage distance, used only when the melee ability has no attack profile to measure (issue #47).
+	 * With one, the AI attacks from the profile's reach: see GetEffectiveAttackRange.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|AI")
 	float AttackRange = 200.f;
 
@@ -67,8 +71,9 @@ public:
 	bool IsInAttackRange(float Distance) const { return Distance <= GetEffectiveAttackRange(); }
 
 	/**
-	 * AttackRange, shortened to the melee attack's reach when that is less (issue #12 / N7): an enemy that roots
-	 * into Attack beyond its swing's reach swings at air forever. AttackRange alone without a melee ability.
+	 * The distance the AI attacks from: the active attack profile's reach (UMordecaiGA_MeleeAttack::GetAttackReach),
+	 * derived from the profile so the two can never disagree (issue #47; an enemy that roots into Attack beyond its
+	 * swing's reach swings at air forever, issue #12 / N7). AttackRange only without a melee profile.
 	 */
 	float GetEffectiveAttackRange() const;
 	bool IsOutsideLeashRange(float Distance) const { return Distance > LeashRange; }
