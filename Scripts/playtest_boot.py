@@ -35,7 +35,8 @@ Usage:
 Prereq: py Scripts/package_playtest.py  (writes PackagedBuilds/Playtest + build_info.json)
 
 Output: Saved/Playtests/<YYYYmmdd-HHMMSS>-boot/
-  game.log, engine_01.png .., shot_01.png .., report.json, report.md
+  game.log, engine_loading.png (the loading screen, issue #39), engine_01.png .., shot_01.png ..,
+  report.json, report.md
   (hidden --run-dir DIR writes the run there instead; Scripts/playtest_story.py uses it)
 
 Library use (importing has no side effects; Scripts/agent_bridge.py reuses these):
@@ -110,6 +111,17 @@ RE_SEVERITY = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*): (Error|Warning): ")
 MARKER_FALLBACK = "falling back to the default"
 MARKER_FAILED_IDENTIFY = "Failed to identify experience"
 CRASH_MARKERS = ("Fatal error", "Unhandled Exception", "Assertion failed", "=== Critical error: ===")
+
+# The loading screen (CommonLoadingScreen's ULoadingScreenManager; issue #39). The manager logs the first line each
+# time it puts its widget on screen (the engine's own pre-load screen is not up), and the second when the configured
+# widget class does not load (it shows a bare throbber instead). UMordecaiLoadingScreenWidget logs the regex's line
+# when it goes on screen: a shown loading screen without it is another widget, e.g. Lyra's W_LoadingScreen_Host.
+MARKER_LOADING_SHOWN = "Showing loading screen when 'IsShowingInitialLoadingScreen()' is false"
+MARKER_LOADING_WIDGET_FAILED = "Failed to load the loading screen widget"
+RE_MORDECAI_LOADING_SCREEN = re.compile(r"MordecaiLoadingScreen: shown \((\w+)\)")
+RE_LOADING_VISIBLE = re.compile(r"LoadingScreen was visible for ([0-9.]+)s")
+# UMordecaiPlaytestCaptureSubsystem saves this frame when the loading screen first shows (-PlaytestCapture)
+LOADING_SHOT_NAME = "engine_loading.png"
 
 # After a known experience failure, keep watching this long for load-complete so the
 # screenshots show what DID load (e.g. the Lyra shooter HUD) as evidence.
@@ -593,12 +605,27 @@ class BootState:
         self.other_fallback_lines = []  # 'falling back to the default' from non-experience code
         self.failed_identify_line = None
         self.crash_lines = []
+        self.loading_shown = []           # [t] each time the loading screen manager showed its widget
+        self.mordecai_loading = []        # [{"class", "t"}] the Mordecai loading screen went on screen
+        self.loading_visible_s = []       # 'LoadingScreen was visible for <s>s'
+        self.loading_widget_failed = None  # the configured widget did not load
 
     def scan(self, lines, t):
         for raw in lines:
             line = strip_timestamp(raw)
             if not line:
                 continue
+            if MARKER_LOADING_SHOWN in line:
+                self.loading_shown.append(round(t, 1))
+            if MARKER_LOADING_WIDGET_FAILED in line and self.loading_widget_failed is None:
+                self.loading_widget_failed = line[:400]
+                log(f"!! {line[:200]}")
+            m = RE_MORDECAI_LOADING_SCREEN.search(line)
+            if m:
+                self.mordecai_loading.append({"class": m.group(1), "t": round(t, 1)})
+            m = RE_LOADING_VISIBLE.search(line)
+            if m:
+                self.loading_visible_s.append(float(m.group(1)))
             if MARKER_FALLBACK in line:
                 # Lyra: "LogLyraExperience: Error: EXPERIENCE: Wanted to use X but couldn't
                 # find it, falling back to the default)".  The same phrase is logged by unrelated
@@ -1244,12 +1271,55 @@ def find_missing_content(path):
     return sorted(missing)
 
 
+def read_engine_shot(path):
+    """analyze_image() of a PNG the game saved, plus path/width/height. Raises if it is unreadable."""
+    from PIL import Image
+    with Image.open(path) as img:
+        img.load()
+        info = analyze_image(img)
+        info.update({"path": path, "width": img.width, "height": img.height})
+    return info
+
+
+def evaluate_loading_screen(state, capture, shot):
+    """(status, detail) of the loading_screen check (issue #39).
+
+    FAIL when the manager could not load its widget, or showed a loading screen that was not the Mordecai one
+    (Lyra's W_LoadingScreen_Host logs no 'MordecaiLoadingScreen: shown'). WARN when no loading screen showed at all,
+    or (capture: -PlaytestCapture was on) when engine_loading.png is missing or near-uniform: no visual evidence.
+    shot is read_engine_shot()'s dict for engine_loading.png, or None.
+    """
+    if state.loading_widget_failed:
+        return "FAIL", ("the configured loading screen widget did not load, so the manager showed a bare "
+                        f"throbber: {state.loading_widget_failed}")
+    shown = len(state.loading_shown)
+    if not shown:
+        return "WARN", "no loading screen was shown (no LogLoadingScreen 'Showing loading screen' line)"
+    mordecai = len(state.mordecai_loading)
+    if mordecai < shown:
+        return "FAIL", (f"{shown} loading screen(s) shown, {mordecai} of them the Mordecai one: game.log has no "
+                        "'MordecaiLoadingScreen: shown' line for the rest. Another widget is configured "
+                        "(CommonLoadingScreenSettings.LoadingScreenWidget), e.g. Lyra's W_LoadingScreen_Host")
+    classes = ", ".join(sorted({m["class"] for m in state.mordecai_loading}))
+    detail = f"the Mordecai loading screen ({classes}) shown {shown}x"
+    if state.loading_visible_s:
+        detail += ", visible " + ", ".join(f"{s:.2f}s" for s in state.loading_visible_s)
+    if not capture:
+        return "PASS", detail
+    if shot is None:
+        return "WARN", f"{detail}; no {LOADING_SHOT_NAME}: no visual evidence (see 'PlaytestCapture' in game.log)"
+    if shot.get("uniform"):
+        return "WARN", (f"{detail}; {LOADING_SHOT_NAME} is near-uniform{' black' if shot.get('black') else ''} "
+                        f"(mean {shot['mean']}, stddev {shot['stddev']}): the frame does not show it")
+    return "PASS", f"{detail}; frame {LOADING_SHOT_NAME}"
+
+
 # ---------------------------------------------------------------------------
 # Reports
 # ---------------------------------------------------------------------------
 CHECK_ORDER = ("build_fresh", "launch", "experience_identified", "experience_loaded", "no_crash",
-               "content_cooked", "game_window", "engine_screenshots", "screenshots", "log_errors",
-               "completed")
+               "content_cooked", "loading_screen", "game_window", "engine_screenshots", "screenshots",
+               "log_errors", "completed")
 
 
 def add_check(checks, name, status, detail, kind="gameplay"):
@@ -1343,6 +1413,27 @@ def write_reports(run_dir, report):
             lines.append(f"{i}. (x{e['count']}) `{e['line']}`")
     if report["result"] != "PASS" and logsum.get("tail"):
         lines += ["", "### Log tail", "", "```"] + logsum["tail"] + ["```"]
+
+    loading = report.get("loading_screen") or {}
+    lines += ["", "## Loading screen", "",
+              f"The frame the game saved when the loading screen first showed ({LOADING_SHOT_NAME}): "
+              "it must be the Mordecai loading screen, not Lyra's.", ""]
+    mordecai = loading.get("mordecai") or []
+    lines.append(f"- Shown: {len(loading.get('shown_t') or [])}x; the Mordecai one: {len(mordecai)}x"
+                 + (f" ({', '.join(sorted({m['class'] for m in mordecai}))})" if mordecai else "")
+                 + (f"; visible {', '.join(f'{s:.2f}s' for s in loading['visible_s'])}"
+                    if loading.get("visible_s") else ""))
+    if loading.get("widget_failed"):
+        lines.append(f"- Widget failed to load: `{loading['widget_failed']}`")
+    shot = loading.get("screenshot")
+    if shot:
+        flag = ""
+        if shot.get("uniform"):
+            flag = (f"  **WARNING: near-uniform{' black' if shot.get('black') else ''} frame "
+                    f"(mean {shot['mean']}, stddev {shot['stddev']})**")
+        lines.append(f"- {shot['path']}{flag}")
+    else:
+        lines.append(f"- (no {LOADING_SHOT_NAME})")
 
     lines += ["", "## Engine screenshots", "",
               "The game's own frames (engine_NN.png): the primary visual evidence.", ""]
@@ -1621,11 +1712,7 @@ def main():
                     if not os.path.isfile(path):
                         continue
                     try:
-                        from PIL import Image
-                        with Image.open(path) as img:
-                            img.load()
-                            info = analyze_image(img)
-                            info.update({"path": path, "width": img.width, "height": img.height})
+                        info = read_engine_shot(path)
                     except Exception as e:  # truncated or unreadable PNG
                         warnings.append(f"{os.path.basename(path)} unreadable: {e}")
                         continue
@@ -1730,6 +1817,20 @@ def main():
                   f"{len(missing_content)} /MordecaiCore package(s) requested but not in the build: "
                   + ", ".join(missing_content[:8]) + (" ..." if len(missing_content) > 8 else "")
                   if missing_content else "no missing /MordecaiCore packages in game.log")
+
+    # The loading screen is gone ~2 s after the experience loads: the game saved its frame when it first showed
+    capture = args.shots > 0
+    loading_shot = None
+    loading_shot_path = os.path.join(run_dir, LOADING_SHOT_NAME)
+    if capture and os.path.isfile(loading_shot_path):
+        try:
+            loading_shot = read_engine_shot(loading_shot_path)
+            log(f"Loading screen shot {loading_shot_path} ({loading_shot['width']}x"
+                f"{loading_shot['height']}, mean {loading_shot['mean']}, stddev {loading_shot['stddev']})")
+        except Exception as e:  # truncated or unreadable PNG
+            warnings.append(f"{LOADING_SHOT_NAME} unreadable: {e}")
+    if proc is not None and outcome not in ("interrupted", "script_error"):
+        add_check(checks, "loading_screen", *evaluate_loading_screen(state, capture, loading_shot))
     if args.fail_on_errors:
         add_check(checks, "log_errors", "FAIL" if logsum["errors"] else "PASS",
                   f"{logsum['errors']} error(s), {logsum['warnings']} warning(s)")
@@ -1772,6 +1873,13 @@ def main():
         "window": window,
         "screenshots": screenshots,
         "engine_screenshots": engine_screenshots,
+        "loading_screen": {
+            "shown_t": state.loading_shown,
+            "mordecai": state.mordecai_loading,
+            "visible_s": state.loading_visible_s,
+            "widget_failed": state.loading_widget_failed,
+            "screenshot": loading_shot,
+        },
         "log": logsum,
         "checks": checks,
         "warnings": warnings,
@@ -1792,11 +1900,13 @@ def main():
             print(f"    (x{e['count']}) {e['line'][:160]}")
     print(f"\nRun dir: {run_dir}")
     print(f"Report:  {md_path}")
+    if loading_shot:
+        print(f"Loading screen shot: {loading_shot['path']}")
     for s in engine_screenshots:
         print(f"Engine screenshot: {s['path']}")
     for s in screenshots:
         print(f"Desktop screenshot: {s['path']}")
-    if screenshots or engine_screenshots:
+    if screenshots or engine_screenshots or loading_shot:
         print(AGENT_LINE)
     return code
 

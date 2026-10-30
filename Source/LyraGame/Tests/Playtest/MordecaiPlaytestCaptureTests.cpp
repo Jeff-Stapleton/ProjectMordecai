@@ -74,3 +74,18 @@ bool FMordecai_Playtest_CaptureShotPathsAndSchedule::RunTest(const FString& Para
 	TestEqual("Third shot two intervals later", Config.GetShotTime(2), 10.f);
 	return true;
 }
+
+// Mordecai.Playtest.Capture.LoadingShotPath (issue #39)
+// The frame taken when the loading screen first shows: it is gone before the first scheduled shot.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_CaptureLoadingShotPath,
+	"Mordecai.Playtest.Capture.LoadingShotPath",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_CaptureLoadingShotPath::RunTest(const FString& Parameters)
+{
+	const FMordecaiPlaytestCaptureConfig Config = FMordecaiPlaytestCaptureConfig::FromCommandLine(
+		TEXT("-PlaytestCapture -PlaytestShotDir=C:/Shots"));
+	TestEqualSensitive("Loading screen shot path", Config.GetLoadingShotPath(), FString(TEXT("C:/Shots/engine_loading.png")));
+	TestFalse("Not one of the scheduled shots", Config.GetLoadingShotPath() == Config.GetShotPath(0));
+	return true;
+}

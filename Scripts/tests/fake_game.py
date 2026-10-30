@@ -21,7 +21,9 @@ Fake-only switches (UE style, case-insensitive):
                            B_LyraFrontEnd_Experience when no map is given)
   -FakeBootDelay=<s>       seconds before the experience is identified (0.2)
   -FakeLoadDelay=<s>       seconds from identify to OnExperienceLoadComplete (0.1)
-  -FakeLoadingS=<s>        loading screen stays up this long after load (0.3): ping.ready false
+  -FakeLoadingS=<s>        loading screen stays up this long after load (0.3): ping.ready false; 0 = no
+                           loading screen (no LogLoadingScreen lines)
+  -FakeLyraLoadingScreen   the loading screen is not the Mordecai one: no 'MordecaiLoadingScreen: shown' line
   -FakeCrash               log a fatal error after identify and exit 3
   -FakeNoExperience        log 'Failed to identify experience' and keep running
   -FakeExitAfterLoad=<n>   exit with code n right after the experience loads
@@ -126,6 +128,12 @@ def main(argv=None):
     log = GameLog(opt.get("abslog") if isinstance(opt.get("abslog"), str) else None)
     log.raw("LogInit: Command Line:  " + " ".join(argv))
     log.line("LogInit: Display: Engine is initialized. Leaving FEngineLoop::Init()")
+    if loading_s > 0:
+        # ULoadingScreenManager puts its widget up while the experience loads (issue #39)
+        log.line("LogLoadingScreen: Showing loading screen when 'IsShowingInitialLoadingScreen()' is false.")
+        log.line("LogLoadingScreen: Experience still loading")
+        if not opt.get("fakelyraloadingscreen"):
+            log.line("LogMordecaiLoadingScreen: MordecaiLoadingScreen: shown (MordecaiLoadingScreenWidget)")
 
     try:
         world_options = dict(_load_json(opt.get("fakeworldjson")) or {})

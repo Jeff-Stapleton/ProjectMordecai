@@ -764,6 +764,7 @@ class Runner:
         code, note = classify(child, report)
         engine = [s.get("path") for s in (report or {}).get("engine_screenshots") or []
                   if s.get("path")]
+        loading = (((report or {}).get("loading_screen") or {}).get("screenshot") or {}).get("path")
         desktop = [s.get("path") for s in (report or {}).get("screenshots") or []
                    if s.get("path") and not s.get("uniform")]
         fails = [c for c in (report or {}).get("checks") or [] if c.get("status") == "FAIL"]
@@ -777,8 +778,8 @@ class Runner:
                 "result": result_word(code), "evidence": boot_evidence(report, code),
                 "failed_checks": [{"name": c.get("name"), "detail": c.get("detail")}
                                   for c in fails],
-                "engine_screenshots": engine, "desktop_screenshots": desktop,
-                "report_found": report is not None}
+                "engine_screenshots": engine, "loading_screenshot": loading,
+                "desktop_screenshots": desktop, "report_found": report is not None}
 
     def run_tier4(self, script, summary_dir):
         run_dir = pb.new_run_dir(script.suffix, base=self.saved_dir)
@@ -965,6 +966,10 @@ def screenshot_list(boots, t4s):
     for b in boots:
         if b is None:
             continue
+        if b.get("loading_screenshot"):
+            shots.append({"path": b["loading_screenshot"], "tier": 3, "run": b["launch"],
+                          "expect": "the loading screen while the experience loads (engine_loading.png): "
+                                    "the Mordecai one, not Lyra's LYRA logo"})
         for p in b["engine_screenshots"]:
             shots.append({"path": p, "tier": 3, "run": b["launch"],
                           "expect": "the game's own frame after boot (engine_NN.png)"})

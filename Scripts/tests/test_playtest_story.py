@@ -95,6 +95,8 @@ BOOT_STUB = textwrap.dedent('''\
     run_dir = argv[argv.index("--run-dir") + 1]
     shot = os.path.join(run_dir, "engine_01.png")
     open(shot, "wb").close()
+    loading = os.path.join(run_dir, "engine_loading.png")
+    open(loading, "wb").close()
     checks = [{"name": "experience_loaded", "status": "FAIL" if code == 1 else "PASS",
                "detail": "x", "kind": "gameplay"}]
     if code == 2:
@@ -104,7 +106,8 @@ BOOT_STUB = textwrap.dedent('''\
            "build": {"fresh": b.get("fresh", True), "build": {"commit": "abc1234567",
                                                               "dirty": False}},
            "options": {"allow_stale": "--allow-stale" in argv}, "checks": checks,
-           "engine_screenshots": [{"path": shot, "uniform": False}], "screenshots": []}
+           "engine_screenshots": [{"path": shot, "uniform": False}], "screenshots": [],
+           "loading_screen": {"screenshot": {"path": loading, "uniform": False}}}
     with open(os.path.join(run_dir, "report.json"), "w", encoding="utf-8") as f:
         json.dump(rep, f)
     sys.exit(code)
@@ -703,10 +706,14 @@ class TestStoryRun(StoryCase):
         t3 = ps.rel(js["tier3"][0]["run_dir"])
         self.assertEqual(lines[0], f"- Playable status: weapons — PLAYABLE (input) (Tier 4 {t4}"
                                    f"/report.md + Tier 3 {t3}/report.md @ abc1234567)")
-        # every screenshot to open: the engine frame and the bridge frame
+        # every screenshot to open: the loading screen frame, the engine frame and the bridge frame
         paths = [s["path"] for s in js["screenshots"]]
+        self.assertTrue(any(p.endswith("engine_loading.png") for p in paths))
         self.assertTrue(any(p.endswith("engine_01.png") for p in paths))
         self.assertTrue(any(p.endswith("bridge_01.png") for p in paths))
+        loading = next(s for s in js["screenshots"] if s["path"].endswith("engine_loading.png"))
+        self.assertEqual(loading["tier"], 3)
+        self.assertIn("not Lyra's", loading["expect"])
         for p in paths:
             self.assertIn(p, md)
         self.assertIn("| AC-901.1 | step_one | PASS | yes |", md)
