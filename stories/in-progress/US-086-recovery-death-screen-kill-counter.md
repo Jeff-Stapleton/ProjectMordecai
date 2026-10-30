@@ -25,10 +25,10 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
   - `Source/LyraGame/Mordecai/Enemy/MordecaiEnemyCharacter.cpp:233-235` (death path)
 
 ## Acceptance Criteria
-- [ ] AC-086.1: When the player dies, a `UMordecaiDeathScreenWidget` is pushed to the Lyra UI layer stack showing "You Died", a respawn countdown (ceiling integer) and "Kills: N"; it is removed on respawn — verified by `Mordecai.Recovery.DeathScreen.ShownOnDeathRemovedOnRespawn`
-- [ ] AC-086.2: The death screen builds a default widget tree when its Blueprint/class has none (no blank widget) — verified by `Mordecai.Recovery.DeathScreen.BuildsDefaultContent`
+- [x] AC-086.1: When the player dies, a `UMordecaiDeathScreenWidget` is pushed to the Lyra UI layer stack showing "You Died", a respawn countdown (ceiling integer) and "Kills: N"; it is removed on respawn — verified by `Mordecai.Recovery.DeathScreen.ShownOnDeathRemovedOnRespawn`
+- [x] AC-086.2: The death screen builds a default widget tree when its Blueprint/class has none (no blank widget) — verified by `Mordecai.Recovery.DeathScreen.BuildsDefaultContent`
 - [ ] AC-086.3: When an enemy killed by the player dies, the kill counter widget increments from the game mode's kill event (one source of truth: the counter shows the same number as `AMordecaiGameMode`'s count / `player.kills`), and resets on `Mordecai.Event.PlayerDeath` per AC-063.2 — verified by `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath`
-- [ ] AC-086.4: In the packaged build, after the enemies have killed the player, the player sees the death screen within 1.5 s — verified by check `death_screen` of `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap: the TestAttacker kills the player)
+- [x] AC-086.4: In the packaged build, after the enemies have killed the player, the player sees the death screen within 1.5 s — verified by check `death_screen` of `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap: the TestAttacker kills the player)
 - [ ] AC-086.5: In the packaged build, the player kills the TestDummy (200 HP, never attacks) with light attacks (LMB) and the HUD reads "Kills: 1" — verified by NEW checks `kill_enemy_melee` and `kill_counter_increments` added to `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap), and `kill_counter_text_matches` still PASSes
 
 ## Technical Notes
@@ -119,4 +119,37 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
-<Filled in by the coding agent.>
+
+### Issue #7 half: the death screen (N2), 2026-10-30
+**Status: AC-086.1, AC-086.2 and AC-086.4 done.** AC-086.3 and AC-086.5 (the kill counter, N1, issue #6) are still open, so the story stays in progress. As built: see "Death screen as built" in the Technical Notes. Delivered commit `8486aa1` (code `892cb1d`) on `fix/issue-7-death-screen`.
+
+**Tier 1.** `py Scripts/run_tests.py`: 739/739 (`Saved/TestLogs/tests-20261030-112526.log`).
+- `Mordecai.Recovery.DeathScreen.ShownOnDeathRemovedOnRespawn`, `BuildsDefaultContent`, `CountdownHoldsWhilePaused` and `KeepsTheViewportCaptureMode` were each red before their fix.
+- The `LyraGame` game target builds too, so the tests compile there.
+
+**Tier 2.** `py Scripts/run_pie_verify.py`: 14/14. The new `verify_pie_death_screen.py` passes: the component is on the controller and bound in `OnPossess`; the player was alive, and no death screen was showing.
+
+**Content.** None. `check_content_committed.py` exits 0. Python tooling: 515/515. `--lint` passes for US-086 and US-054.
+
+**Package.** `py Scripts/package_playtest.py` exit 0 for `8486aa1`: dirty=False, no source change during the build (`Saved/Playtests/package-20261030-120418.log`).
+
+**Tier 3 + Tier 4.** `py Scripts/playtest_story.py US-086` exit 0 (`Saved/Playtests/20261030-122547-story-us086/summary.md`).
+- **Tier 3**, CombatTestMap: `Saved/Playtests/20261030-122547-boot`, exit 0, every check PASS. B_MordecaiArenaExperience identified and loaded, no crash, `content_cooked` PASS, 3/3 engine screenshots, 0 errors.
+  - `engine_01`–`03` (and `shot_01`–`03`): the overhead view of the grey grid floor. The player is at the spawn, with the pale-blue TestDummy under its red health bar up and to the right. The Mordecai HUD is top-left with SP 10/10, "Kills: 0" is top-right, and the "[I] Inventory" prompt is at the bottom. No death screen, since the player is alive. The yellow Steam config messages are issue #29.
+- **Tier 4**, `us054_combat.py`: `Saved/Playtests/20261030-122609-us054combat`, exit 0 (the first exit 0 of this script). 27 PASS, 1 WARN, 0 FAIL.
+  - `death_screen` PASS: one `MordecaiDeathScreenWidget` with 'You Died', '3' and 'Kills: 0' on the first read after the death.
+  - `death_screen_removed` PASS: no 'You Died' after the respawn.
+  - `dead_no_move`, `respawn`, `arena_reset`, `respawn_moves` and `kill_counter_text_matches` PASS.
+  - `burning_on_hit` WARN: BasicSlash applies no Burning, as known.
+  - Accepted: US-086 AC-086.1 and AC-086.4, and US-062 AC-062.1 and AC-062.2, plus the US-053, US-054, US-057 and US-063 ACs listed in the report.
+  - `bridge_01` (start): the player at the spawn, the TestDummy up and to the right, the HUD.
+  - `bridge_02` (near_dummy): the player just -X of the TestDummy.
+  - `bridge_03` (hit): the player against the yellow TestAttacker, health bar at about 85%.
+  - `bridge_04` (dead): **the death screen**. The arena is dimmed, with a red "You Died", a white "3" and "Kills: 0" in the middle over the dead player and the TestAttacker. The health bar is empty and the HUD is still visible.
+  - `bridge_05` (respawned): a motion-blurred frame as the camera returns to the spawn. Health is full, the TestAttacker's bar is at the top, and there is **no death screen and no dimming**.
+  - Against "Visible on screen": the `dead` and `respawned` frames match. The "Kills: 1" parts wait for issue #6.
+
+**Regression sweep.** `py Scripts/playtest_story.py --all` on the same package: `Saved/Playtests/20261030-122726-sweep`.
+- us054_combat: 27/0, exit 0 (`20261030-122858-us054combat`). Its `bridge_04` shows the same death screen, and its `bridge_05` none.
+- Every other script has the same PASS/FAIL counts and the same failing checks as the 2026-10-29 sweep (`20261029-175504-sweep`): us001 27/4, us054_arena 16/2, us057 21/6, us069 26/5, us078 19/2, us079 56/0, us083 28/0. No check went PASS → FAIL. Only the two us054_combat frames above were opened from this sweep.
+- Seen in passing, not this issue's: in the sweep run's `bridge_05` the TestDummy's floating health bar still shows about 92% (its 184/200 before the death), while the state read at the respawn reports 200/200. The enemy health bar may not redraw after `ResetForArena`.
