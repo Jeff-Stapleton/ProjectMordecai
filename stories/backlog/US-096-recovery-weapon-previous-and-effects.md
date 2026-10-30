@@ -44,7 +44,7 @@ Programmatic IMC mapping (chord trigger) and the equipment component's ASC looku
 - `Scripts/playtests/us078_weapons.py` check `cycle_prev_shift_tab` (Option A)
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-078` on the same package
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience; us078's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-078` on the same package
 - **Player steps:** tap Tab four times (Mace), press Shift+Tab (Option A) or BackSlash (Option B)
 - **Visible on screen:** the weapon HUD (after US-091) reads "Spear"; the player is not sprinting
 - **Proof:** Tier 4 check `cycle_prev_shift_tab` (Option A) / `cycle_prev_backslash` (Option B) of `Scripts/playtests/us078_weapons.py`
@@ -64,7 +64,7 @@ Programmatic IMC mapping (chord trigger) and the equipment component's ASC looku
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-078`: `cycle_prev_shift_tab` goes from FAIL to PASS (Option A) or is removed per the recorded decision (Option B); no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
 - [ ] Known issues N9 and "Weapon effects never reach the ASC" marked FIXED/decided in `Specs/agent_playtest_plan_v1.md`
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen

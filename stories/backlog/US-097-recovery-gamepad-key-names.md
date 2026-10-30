@@ -43,7 +43,7 @@ FKey names in `MordecaiHeroComponent.cpp` plus a validation test; no assets.
 - `Scripts/playtests/us001_movement.py` checks `gamepad_move`, `sprint_l3`
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-001` on the same package
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → B_MordecaiArenaExperience; us001's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-001` on the same package
 - **Player steps:** push the left stick forward 0.5 s; on lane L1 click L3 and push forward 1 s, click L3 again
 - **Visible on screen:** the player moves in the diorama arena (state-checked); us001 screenshots unchanged
 - **Proof:** Tier 4 checks `gamepad_move`, `sprint_l3` of `Scripts/playtests/us001_movement.py`
@@ -63,7 +63,7 @@ FKey names in `MordecaiHeroComponent.cpp` plus a validation test; no assets.
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-001`: `gamepad_move` and `sprint_l3` go from FAIL to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
 - [ ] Known issue "Gamepad stick and L3 mappings use invalid FKey names" marked FIXED in `Specs/agent_playtest_plan_v1.md`
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen

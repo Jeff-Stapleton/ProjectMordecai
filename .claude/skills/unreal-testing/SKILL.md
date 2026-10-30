@@ -81,9 +81,9 @@ py Scripts/check_content_committed.py --base main --json # other base ref, machi
 ### Packaging: `package_playtest.py`
 
 ```
-py Scripts/package_playtest.py                     # Development Win64, iterative cook, L_LyraFrontEnd + DevTestMap
+py Scripts/package_playtest.py                     # Development Win64, iterative cook, L_LyraFrontEnd + DevTestMap + MovementTestMap + CombatTestMap
 py Scripts/package_playtest.py --clean             # full cook (no -iterate): after cook oddities or big content moves
-py Scripts/package_playtest.py --all-maps          # adds -CookAll -CookMapsOnly: every map, in addition to the two playtest maps
+py Scripts/package_playtest.py --all-maps          # adds -CookAll -CookMapsOnly: every map, in addition to the four default maps
 py Scripts/package_playtest.py --config DebugGame  # Development (default) / DebugGame (binary LyraGame-Win64-DebugGame.exe: pass it to playtest_boot.py --exe) / Shipping (strips dev features; don't playtest it)
 py Scripts/package_playtest.py --dry-run           # print the RunUAT BuildCookRun command, exit 0
 ```
@@ -97,6 +97,8 @@ py Scripts/package_playtest.py --dry-run           # print the RunUAT BuildCookR
 
 ```
 py Scripts/playtest_boot.py                       # DevTestMap, expects B_MordecaiArenaExperience
+py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap   # test map (no enemies), same experience
+py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap     # test map (dummy + fixed-cadence attacker), same experience
 py Scripts/playtest_boot.py --frontend            # no map arg: real player entry (L_LyraFrontEnd), expects B_LyraFrontEnd_Experience
 py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/<Map> --expect-experience <ExperienceName>
 py Scripts/playtest_boot.py --settle 10 --shots 5 --shot-interval 1.0 --timeout 400
@@ -146,6 +148,11 @@ py Scripts/run_python_tests.py [-k walk_to] [-v]      # offline tests of the too
 ```
 
 - **Library:** `import agent_bridge; b = agent_bridge.Bridge.launch(); b.walk_to(400, 0); b.tap("F"); b.wait_until("inventory.count>=1", timeout_s=5); b.screenshot(); b.quit()` (or `Bridge.attach(port, token)`). `BridgeError.kind` is `"gameplay"` or `"infra"`.
+- **One map per script** (US-100). Every `Scripts/playtests/us*.py` declares the map it launches (`MAP`, from the constants in `playtest_boot.py`, re-exported by the kit). The kit's `map` check FAILs the run, and SKIPs the plan, when the loaded map (`ping.map`) differs.
+  - `kit.MOVEMENT_TEST_MAP` (`/MordecaiCore/Game/Maps/MovementTestMap`: no enemies, lane L1, a 30 cm and a 60 cm step): us001, us083, us069.
+  - `kit.COMBAT_TEST_MAP` (`/MordecaiCore/Game/Maps/CombatTestMap`: TestDummy at (600, 600) that never moves or attacks, TestAttacker at (2100, 0) that holds its spot and swings about every 2.6 s within 150 cm): us054_combat, us057, us078.
+  - `kit.DEFAULT_MAP` (DevTestMap: three Frontliners that swarm the spawn, the six test pickups): us054_arena (enemy AI), us079.
+  - Every map is in the default cook and resolves `B_MordecaiArenaExperience`. A new script picks the map whose contents its checks need. A story that needs two maps owns two scripts, each with a distinct `RUN_SUFFIX` (`Specs/story_playtests_v1.md` §3). `py Scripts/playtest_story.py US-XXX` and `--all` boot each script's map at Tier 3.
 - **MCP:** the `mordecai-play` stdio server (`Scripts/mordecai_play_mcp.py`) is registered project-scoped in the committed `.mcp.json`; tools `mcp__mordecai-play__launch_game`, `get_state`, `press_key`, `hold_key`, `release_key`, `walk_to`, `click`, `click_button`, `screenshot` (returns the image), `wait_until`, `quit_game`. Claude Code asks once to approve the project server; non-interactive `claude -p`/SDK sessions may load it without asking, depending on their settings (per-user pre-approval: `enabledMcpjsonServers: ["mordecai-play"]` and allow `mcp__mordecai-play__*` in personal settings). It owns one game in a kill-on-close job; a STALE build is refused unless `allow_stale` is passed, and then every result carries `STALE BUILD — not evidence`. CLI and MCP sessions are for exploring and writing the script; acceptance is the story's `Scripts/playtests/*.py` on a fresh package.
 - **Port:** the client picks a free `127.0.0.1` port per launch and passes `-AgentBridgePort=` (game default 47777) plus `-AgentBridgeToken=` (echoed by `ping`, so the client knows it reached the process it launched).
 - **Readiness:** `Bridge.launch()` waits for the experience in `game.log`, then polls `ping` until `ready` (`experience_loaded && !loading_screen && has_pawn`). Send no input before that.

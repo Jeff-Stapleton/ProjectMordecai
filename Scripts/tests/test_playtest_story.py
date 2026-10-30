@@ -43,9 +43,11 @@ T4_STUB = textwrap.dedent('''\
         COVERS = {covers!r}
         FEATURES = {features!r}
         FRONTEND = {frontend!r}
+        MAP = {map!r}
+        RUN_SUFFIX = {suffix!r}
         PLAN = (
-            Step("step_one", "tap Tab -> player.weapon.index==1", proves={proves1!r}),
-            Step("step_two", "tap BackSlash -> player.weapon.index==0", proves={proves2!r},
+            Step({check1!r}, "tap Tab -> player.weapon.index==1", proves={proves1!r}),
+            Step({check2!r}, "tap BackSlash -> player.weapon.index==0", proves={proves2!r},
                  known_issue={known!r}),
         )
         PENDING = {pending!r}
@@ -180,7 +182,8 @@ class StoryCase(unittest.TestCase):
             json.dump(behavior, f)
 
     def stub(self, name, story, behavior=None, covers=(), features=("weapons",), frontend=False,
-             proves1=None, proves2=None, known=None, pending=None):
+             proves1=None, proves2=None, known=None, pending=None, map=None, suffix=None,
+             checks=("step_one", "step_two")):
         num = story.split("-")[1]
         proves1 = proves1 if proves1 is not None else (f"AC-{num}.1",)
         proves2 = proves2 if proves2 is not None else (f"AC-{num}.2",)
@@ -188,6 +191,8 @@ class StoryCase(unittest.TestCase):
         with open(path, "w", encoding="utf-8") as f:
             f.write(T4_STUB.format(scripts=SCRIPTS, story=story, covers=tuple(covers),
                                    features=tuple(features), frontend=frontend,
+                                   map=map or pb.DEFAULT_MAP, suffix=suffix,
+                                   check1=checks[0], check2=checks[1],
                                    proves1=tuple(proves1), proves2=tuple(proves2), known=known,
                                    pending=pending or {}))
         if behavior is not None:
@@ -330,7 +335,43 @@ class TestStoryParsing(unittest.TestCase):
             st = ps.parse_story(path)
         self.assertEqual(st["playtest"]["scripts"], ["us500_x.py"])
         self.assertEqual(st["playtest"]["steps"], ["a_check", "b_check"])
+        self.assertEqual(st["playtest"]["script_steps"], {})  # no markers
         self.assertEqual(st["title"], "US-500: Stub story")
+
+    def test_marker_keyed_steps_tables(self):
+        lines = textwrap.dedent("""\
+            - **Tier 4 scripts:** `Scripts/playtests/us500_a.py`, `Scripts/playtests/us500_b.py`
+
+            <!-- Scripts/playtests/us500_a.py -->
+            | # | Check | Step | Proves |
+            |---|---|---|---|
+            | 1 | `a_one` | x | AC-500.1 |
+
+            Some prose between the tables.
+
+            <!-- C:/some dir/with space/playtests/us500_b.py -->
+
+            | # | Not a steps table |
+            |---|---|
+            | 1 | x |
+
+            | # | Check | Step | Proves |
+            |---|---|---|---|
+            | 1 | `b_one` | x | - |
+            | 2 | `b_two` | x | - |
+
+            <!-- Scripts/playtests/us500_c.py -->
+            <!-- Scripts/playtests/us500_d.py -->
+            | # | Check | Step | Proves |
+            |---|---|---|---|
+            | 1 | `d_one` | x | - |
+            <!-- an ordinary comment: not a marker -->
+            """).splitlines()
+        self.assertEqual(ps.parse_script_steps(lines),
+                         {"us500_a.py": ["a_one"], "us500_b.py": ["b_one", "b_two"],
+                          "us500_c.py": None, "us500_d.py": ["d_one"]})
+        self.assertEqual(ps.parse_steps_table(lines), ["a_one"])  # no markers: the first table
+        self.assertEqual(ps.parse_script_steps(["| # | Check |", "|---|---|", "| 1 | `x` |"]), {})
 
 
 # ---------------------------------------------------------------------------
@@ -487,6 +528,127 @@ class TestLint(StoryCase):
         self.assertEqual(code, 1)
         self.assertIn("not in PLAN: ghost", out)
 
+    # --- a story with several scripts (one per test map) --------------------------------------
+    def two_scripts(self):
+        """US-901 owns two scripts on two maps, with their own checks and RUN_SUFFIX values."""
+        self.stub("us901_arena.py", "US-901", checks=("a_one", "a_two"))
+        self.stub("us901_combat.py", "US-901", map=pb.COMBAT_TEST_MAP, suffix="us901combat",
+                  checks=("c_one", "c_two"), proves1=("AC-901.3",), proves2=())
+        scripts, errors = ps.discover(self.pdir)
+        self.assertEqual(errors, [])
+        return {s.name: kit.plan_table(s.run_class) for s in scripts}
+
+    NAMES = "- **Tier 4 scripts:** `Scripts/playtests/us901_arena.py`, " \
+            "`Scripts/playtests/us901_combat.py`\n\n"
+
+    def test_lint_two_scripts_with_marker_keyed_tables(self):
+        tables = self.two_scripts()
+        self.story_file("US-901", playtest=self.NAMES
+                        + "<!-- Scripts/playtests/us901_arena.py -->\n" + tables["us901_arena.py"]
+                        + "\n\n<!-- Scripts/playtests/us901_combat.py -->\n"
+                        + tables["us901_combat.py"])
+        code, out = self.main("US-901", "--lint")
+        self.assertEqual(code, 0, out)
+        for name in ("us901_arena.py", "us901_combat.py"):
+            self.assertIn(f"PASS {name}: steps_table: lists the plan's 2 checks in order (the "
+                          "table after its marker)", out)
+            self.assertIn(f"PASS {name}: run_suffix", out)
+        self.assertIn("Lint US-901: PASS", out)
+
+    def test_lint_accepts_the_plan_output_as_is(self):
+        self.two_scripts()
+        _, plan = self.main("US-901", "--plan")
+        # --plan's output is stable: a marker before each script's table
+        self.assertEqual(len(re.findall(r"^<!-- .*us901_(?:arena|combat)\.py -->$", plan,
+                                        flags=re.M)), 2, plan)
+        self.story_file("US-901", playtest=self.NAMES + plan.strip())
+        code, out = self.main("US-901", "--lint")
+        self.assertEqual(code, 0, out)
+
+    def test_lint_marker_keyed_table_that_does_not_match_its_script(self):
+        tables = self.two_scripts()
+        # each marker is followed by the OTHER script's table
+        self.story_file("US-901", playtest=self.NAMES
+                        + "<!-- Scripts/playtests/us901_arena.py -->\n" + tables["us901_combat.py"]
+                        + "\n\n<!-- Scripts/playtests/us901_combat.py -->\n"
+                        + tables["us901_arena.py"])
+        code, out = self.main("US-901", "--lint")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL us901_arena.py: steps_table: the Steps table after the <!-- "
+                      "Scripts/playtests/us901_arena.py --> marker does not match the PLAN", out)
+        self.assertIn("not in PLAN: c_one, c_two; missing: a_one, a_two", out)
+        self.assertIn("FAIL us901_combat.py: steps_table", out)
+
+    def test_lint_marker_missing_for_one_script(self):
+        tables = self.two_scripts()
+        self.story_file("US-901", playtest=self.NAMES
+                        + "<!-- Scripts/playtests/us901_arena.py -->\n" + tables["us901_arena.py"]
+                        + "\n\n" + tables["us901_combat.py"])
+        code, out = self.main("US-901", "--lint")
+        self.assertEqual(code, 1, out)
+        self.assertIn("PASS us901_arena.py: steps_table", out)
+        self.assertIn("FAIL us901_combat.py: steps_table: the Playtest section has one Steps "
+                      "table per script (<!-- --> markers for us901_arena.py) but no marker for "
+                      "Scripts/playtests/us901_combat.py", out)
+
+    def test_lint_marker_without_a_table(self):
+        tables = self.two_scripts()
+        self.story_file("US-901", playtest=self.NAMES
+                        + "<!-- Scripts/playtests/us901_combat.py -->\n\n"
+                        + "<!-- Scripts/playtests/us901_arena.py -->\n" + tables["us901_arena.py"])
+        code, out = self.main("US-901", "--lint")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL us901_combat.py: steps_table: no Steps table after the <!-- "
+                      "Scripts/playtests/us901_combat.py --> marker", out)
+
+    def test_lint_two_scripts_without_markers_keeps_the_first_table(self):
+        tables = self.two_scripts()
+        self.story_file("US-901", playtest=self.NAMES + tables["us901_arena.py"] + "\n\n"
+                        + tables["us901_combat.py"])
+        code, out = self.main("US-901", "--lint")
+        self.assertEqual(code, 1, out)
+        self.assertIn("PASS us901_arena.py: steps_table: lists the plan's 2 checks in order\n",
+                      out)
+        self.assertIn("FAIL us901_combat.py: steps_table: the Steps table does not match the "
+                      "PLAN", out)
+
+    def test_lint_fails_on_a_shared_run_suffix(self):
+        self.stub("us901_one.py", "US-901")
+        self.stub("us902_two.py", "US-902", suffix="US901")  # case-insensitive clash
+        self.stub("us903_three.py", "US-903")
+        scripts, _ = ps.discover(self.pdir)
+        self.story_file("US-901", playtest="`Scripts/playtests/us901_one.py`\n\n"
+                        + kit.plan_table(scripts[0].run_class))
+        code, out = self.main("US-901", "--lint")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL us901_one.py: run_suffix: RUN_SUFFIX 'us901' is also the run suffix "
+                      "of us902_two.py", out)
+        self.assertIn("tier4-us901.log", out)
+        self.assertIn("Lint US-901: FAIL (1 problem(s))", out)
+        # the other story's script is not a problem of US-903
+        self.story_file("US-903", playtest="`Scripts/playtests/us903_three.py`\n\n"
+                        + kit.plan_table(scripts[2].run_class))
+        code, out = self.main("US-903", "--lint")
+        self.assertEqual(code, 0, out)
+        self.assertIn("PASS us903_three.py: run_suffix: RUN_SUFFIX 'us903' is unique among the 3 "
+                      "discovered script(s)", out)
+
+    def test_the_real_scripts_have_unique_run_suffixes(self):
+        scripts, _ = ps.discover()
+        suffixes = [s.suffix.lower() for s in scripts]
+        self.assertEqual(len(suffixes), len(set(suffixes)),
+                         {s.name: s.suffix for s in scripts})
+
+    def test_every_real_script_declares_its_map(self):
+        # AC-100.4: each script names its map (or the front end) in its own class, so a change of
+        # the kit default (DevTestMap) can never silently move a script to another map
+        scripts, errors = ps.discover()
+        self.assertEqual(errors, [])
+        self.assertTrue(scripts)
+        undeclared = [s.name for s in scripts if "MAP" not in s.run_class.__dict__
+                      and "FRONTEND" not in s.run_class.__dict__]
+        self.assertEqual(undeclared, [], {s.name: s.map for s in scripts})
+
 
 # ---------------------------------------------------------------------------
 # One story run
@@ -633,6 +795,47 @@ class TestStoryRun(StoryCase):
         self.assertIn("--frontend", boots[0]["argv"])
         self.assertIn("--run-dir", boots[0]["argv"])
 
+    def test_two_scripts_on_two_maps_and_a_fail_anywhere_wins(self):
+        # US-901 owns a DevTestMap script and a CombatTestMap script; both prove AC-901.1.  The
+        # first passes (accepted on its own), the second FAILs it: the AC is not accepted.
+        self.stub("us901_arena.py", "US-901", checks=("a_one", "a_two"),
+                  behavior={"exit": 0, "report": t4_report(
+                      "US-901", 0, [ac("US-901", "AC-901.1", checks=("a_one",)),
+                                    ac("US-901", "AC-901.2", checks=("a_two",))])})
+        self.stub("us901_combat.py", "US-901", map=pb.COMBAT_TEST_MAP, suffix="us901combat",
+                  checks=("c_one", "c_two"), proves1=("AC-901.1",), proves2=(),
+                  behavior={"exit": 1, "report": t4_report(
+                      "US-901", 1, [ac("US-901", "AC-901.1", status="FAIL", accepted=False,
+                                       checks=("c_one",))], new=["c_one"])})
+        self.story_file("US-901")
+        with self.gate(self.fresh()):
+            code, out = self.main("US-901", skip=False)
+        self.assertEqual(code, ps.EXIT_FAIL, out)
+        d, js, md = self.summary()
+        # one Tier 3 boot per map, one Tier 4 run per script, distinct console logs
+        boots = [c["argv"] for c in self.calls() if c["who"] == "boot"]
+        self.assertEqual(len(boots), 2)
+        self.assertTrue(any("--map" not in a for a in boots))  # DevTestMap: the default boot
+        self.assertTrue(any(a[:4] == ["--map", pb.COMBAT_TEST_MAP, "--expect-experience",
+                                      pb.DEFAULT_EXPERIENCE] for a in boots), boots)
+        self.assertEqual([t["script"].rsplit("/", 1)[-1] for t in js["tier4"]],
+                         ["us901_arena.py", "us901_combat.py"])
+        logs = [os.path.basename(t["console_log"]) for t in js["tier4"]]
+        self.assertEqual(logs, ["tier4-us901.log", "tier4-us901combat.log"])
+        self.assertTrue(js["tier4"][1]["run_dir"].endswith("-us901combat"))
+        self.assertTrue(all(os.path.isfile(t["console_log"]) for t in js["tier4"]))
+        rows = {a["qualified"]: a for a in js["acs"]}
+        self.assertEqual(rows["AC-901.1"]["status"], "FAIL")
+        self.assertFalse(rows["AC-901.1"]["accepted"])
+        self.assertEqual(rows["AC-901.1"]["checks"], ["c_one", "a_one"])
+        self.assertEqual([(r["script"].rsplit("/", 1)[-1], r["status"], r["accepted"])
+                          for r in rows["AC-901.1"]["results"]],
+                         [("us901_arena.py", "PASS", True), ("us901_combat.py", "FAIL", False)])
+        self.assertTrue(rows["AC-901.2"]["accepted"])  # proven by one script only: it passed
+        self.assertIn("| AC-901.1 | c_one, a_one | FAIL (per script: us901_arena.py PASS, "
+                      "us901_combat.py FAIL) | no |", md)
+        self.assertIn("| AC-901.2 | a_two | PASS | yes |", md)
+
     def test_tier4_only_skips_the_boot(self):
         self.setup_pass()
         with self.gate(self.fresh()):
@@ -694,6 +897,58 @@ class TestStoryRun(StoryCase):
         _, js, _ = self.summary()
         self.assertTrue(js["tier4"][0]["timed_out"])
         self.assertIn("timed out after 3s", js["tier4"][0]["note"])
+
+
+class TestAcRollup(unittest.TestCase):
+    """story_acs_table over several scripts' acs: a FAIL in any script beats a PASS elsewhere."""
+
+    INFO = {"acs": [{"id": "AC-901.1", "checked": False}, {"id": "AC-901.2", "checked": True}]}
+
+    @staticmethod
+    def t4(script, *acs):
+        return {"acs": [dict(a, script=f"Scripts/playtests/{script}") for a in acs]}
+
+    def test_a_fail_wins_in_either_order(self):
+        passed = self.t4("a.py", ac("US-901", "AC-901.1", checks=("a_one",)))
+        failed = self.t4("b.py", ac("US-901", "AC-901.1", status="FAIL", accepted=False,
+                                    checks=("b_one",)))
+        for order in ((passed, failed), (failed, passed)):
+            with self.subTest(first=order[0]["acs"][0]["script"]):
+                rows, others = ps.story_acs_table("US-901", self.INFO, list(order))
+                row = rows[0]
+                self.assertEqual((row["id"], row["status"], row["accepted"]),
+                                 ("AC-901.1", "FAIL", False))
+                self.assertEqual(row["script"], "Scripts/playtests/b.py")
+                self.assertEqual(row["checks"], ["b_one", "a_one"])
+                self.assertEqual(len(row["results"]), 2)
+                self.assertEqual(rows[1]["status"], "NOT PROVEN BY A STEP")
+                self.assertEqual(others, [])
+                md = "\n".join(ps.md_ac_rows(rows))
+                self.assertIn("| AC-901.1 | b_one, a_one | FAIL (per script: ", md)
+                self.assertIn("a.py PASS", md)
+                self.assertIn("b.py FAIL", md)
+                self.assertIn("| no |", md)
+
+    def test_an_accepted_pass_still_beats_a_not_run_and_a_single_script_is_unchanged(self):
+        not_run = self.t4("a.py", ac("US-901", "AC-901.1", status="NOT RUN", accepted=False))
+        passed = self.t4("b.py", ac("US-901", "AC-901.1"),
+                         ac("US-902", "AC-902.1", checks=("b_two",)))
+        rows, others = ps.story_acs_table("US-901", self.INFO, [not_run, passed])
+        self.assertEqual((rows[0]["status"], rows[0]["accepted"]), ("PASS", True))
+        self.assertEqual(rows[0]["script"], "Scripts/playtests/b.py")
+        # one script: the row is the script's entry as it is (no 'results')
+        self.assertNotIn("results", others[0])
+        self.assertEqual(others[0]["qualified"], "US-902:AC-902.1")
+        self.assertTrue(others[0]["accepted"])
+        rows, _ = ps.story_acs_table("US-901", self.INFO, [passed])
+        self.assertNotIn("results", rows[0])
+        self.assertEqual(ps.md_ac_rows(rows)[2], "| AC-901.1 | step_one | PASS | yes |")
+
+    def test_a_fail_in_another_story_ac_wins_too(self):
+        rows, others = ps.story_acs_table("US-901", self.INFO, [
+            self.t4("a.py", ac("US-902", "AC-902.1")),
+            self.t4("b.py", ac("US-902", "AC-902.1", status="FAIL", accepted=False))])
+        self.assertEqual((others[0]["status"], others[0]["accepted"]), ("FAIL", False))
 
 
 # ---------------------------------------------------------------------------

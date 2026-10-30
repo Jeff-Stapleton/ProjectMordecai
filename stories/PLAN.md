@@ -84,18 +84,22 @@ Implement unlimited-carry inventory with town gating (per agent_rules_v2).
 - US-031: Flat Inventory & Auto-Store System (HEADLESS — UMordecaiInventoryComponent, UMordecaiResourceLedger, pickup routing) ✅
 - US-033: Unidentified Items & Identification Service (HEADLESS — per-instance ID state, partial-info API, equip gating, service subsystem) ✅
 
-### Epic 7.5: Playable Inventory Slice (integration milestone — 2/2 scoped)
+### Epic 7.5: Playable Inventory Slice (integration milestone — 2/2 done, 2026-10-29) ✅
 Wire inventory, auto-store, and identification into the playable arena per Playability-First Rule.
-- US-071: Inventory UI — Flat List, Filter & Ledger Widget (HEADLESS — UMordecaiInventoryWidget, category filter, rarity colors, identify action, ledger panel)
-- US-079: Playable Inventory Arena Integration (EDITOR — pickup actor, 6 test DataAssets, arena placement, pause-menu tab wiring, PIE smoke test)
+- US-071: Inventory UI — Flat List, Filter & Ledger Widget (HEADLESS — UMordecaiInventoryWidget, category filter, rarity colors, identify action, ledger panel) ✅
+- US-079: Playable Inventory Arena Integration (EDITOR — pickup actor, 6 test DataAssets, arena placement, pause-menu tab wiring, PIE smoke test) ✅ (closed at Jeff's call on us079 exit 0, `Saved/Playtests/20261029-175841-us079`)
 
 ### Epic R: Playability Recovery ⚡ CURRENT PRIORITY (scoped 2026-10-22)
 The first Phase 3 sweep (`py Scripts/playtest_story.py --all` on a fresh package of `8ea853b`, `Saved/Playtests/20261022-184702-sweep/summary.md`) and the first exploratory-agent run (`Saved/Playtests/20261022-185207-explore/report.md`) show that every player-facing feature marked done is NOT PLAYABLE in the packaged build (6/6 Tier 4 scripts FAIL; Tier 3 boot PASS). Per `stories/PLANNER.md` §5.1 this epic outranks every system epic. One recovery story per broken feature; each AC names the failing Tier 4 check of the owning story's existing script, and is done only when that check goes FAIL → PASS on a fresh package. Dependency order (combat abilities and enemies first: they unblock the death/respawn/kill checks):
 - US-083: Player combat abilities granted at runtime + attack/dodge/block/sprint/jump bound (HEADLESS — N10, unbound input) — P0
 - US-084: Enemy attacks reach the player (code) + enemy content guards (HEADLESS — N7) — P0, pair of US-085
-- US-085: Frontliner content: visible mesh, 200 HP, attack profiles, placement (EDITOR — invisible enemies, N13, N7, N14) — P0, pair of US-084. In progress: 200 HP (N13) done, issue #18 (`39500e2`); visible bodies (N14's invisible part) done, issue #19 (`f21525f`); the spawn swarm is T1's (#46, Jeff 2026-10-28)
-- US-094: Inventory tab current on every menu open (HEADLESS — CommonUI pool) — P0, unblocks in-progress US-071 / US-079. IN PROGRESS: fixed in code (issue #28, `a8aaa51`, Tier 1/2 green); its four-item Tier 4 checks wait on T1 or Jeff's call
-- US-086: Death screen shown on death + kill counter counts kills (HEADLESS — N1, N2; adds kill checks to us054) — after US-083/084/085
+- US-085: Frontliner content: visible mesh, 200 HP, attack profiles, placement (EDITOR — invisible enemies, N13, N7, N14) — P0, pair of US-084. In progress:
+  - 200 HP (N13) done, issue #18 (`39500e2`); visible bodies (N14's invisible part) done, issue #19 (`f21525f`).
+  - The spawn swarm is T1's (#46, Jeff 2026-10-28). With US-100, AC-085.4's checks (us001 `move_a`, `walk_lane_wp1`) run on MovementTestMap, and AC-085.3's death chain runs against the CombatTestMap TestAttacker, not a Frontliner. Neither is accepted yet.
+  - Still open: AC-085.2's spacing clause (DevTestMap), FireSlash, #47.
+- US-094: Inventory tab current on every menu open (HEADLESS — CommonUI pool) — P0. DONE (closed at Jeff's call, 2026-10-29): fixed in code (issue #28, `a8aaa51`); its nine Tier 4 checks PASS in `Saved/Playtests/20261029-175841-us079` (exit 0, fresh package of `9904cde`). US-071 and US-079 closed with it.
+- US-100: Playtest test maps — MovementTestMap (no enemies) and CombatTestMap (a dummy and a fixed-cadence attacker); each Tier 4 script declares its `MAP` (EDITOR — T1, issue #46; data-only test enemies, no pair) — P0. DONE (2026-10-29, branch `fix/issue-46-test-maps`, delivered `9904cde`: the 14 checks PASS on a fresh package, sweep `Saved/Playtests/20261029-175504-sweep`). Moves the 14 swarm-blocked checks off DevTestMap. The backlog Playtest sections follow each script's `MAP`: us001/us069/us083 → MovementTestMap (US-093, 095, 097, 098), us054_combat/us057/us078 → CombatTestMap (US-086..091, US-096); US-099's corner check needs DevTestMap's 200 cm wall, so it gets a DevTestMap script of its own.
+- US-086: Death screen shown on death + kill counter counts kills (HEADLESS — N1, N2; adds kill checks to us054_combat on CombatTestMap) — after US-083/084/085
 - US-087: Fireball projectile flies and hits; Blink moves and ends its invulnerability (HEADLESS — N15, N11, N19, N20)
 - US-088: Spell cooldown tags + four bound HUD cooldown widgets (HEADLESS — cooldowns, N8) — pair of US-089
 - US-089: DA_Spell_* cooldown tags and durations (EDITOR) — pair of US-088
@@ -109,7 +113,7 @@ The first Phase 3 sweep (`py Scripts/playtest_story.py --all` on a fresh package
 - US-099: Player visible behind near walls (HEADLESS, maybe + EDITOR pair — N21, BLOCKED on TODO(DECISION) cutaway approach)
 - US-090: Spell point budget (HEADLESS — N6, BLOCKED on TODO(DECISION))
 
-Note: US-079 and US-071 remain in `stories/in-progress/`. US-079's Tier 4 FAILED on the second-open CommonUI pool bug (`Saved/Playtests/20261022-184957-us079`: `menu_rows` etc.). That bug is fixed in code by US-094 (`a8aaa51`). On its package, the DevTestMap swarm (T1) kills the player on the pickup route, so US-079's own acceptance still waits on T1. B1 (`pickup_labels`) is fixed (issues #30 and #38, `92e7575`). On the fresh package of `92e7575` (which includes `a8aaa51`) `py Scripts/playtest_story.py US-079` exited 0 for the first time, 55/55 checks and 15/15 ACs accepted (`Saved/Playtests/20261028-232530-story-us079`): the player outran the swarm that run. Whether that closes US-094, US-079 and US-071 is Jeff's call (T1 still makes the route a coin flip).
+Note: US-094, US-079 and US-071 were closed at Jeff's call on 2026-10-29, on `Saved/Playtests/20261029-175841-us079` (exit 0, 56/56, fresh package of `9904cde`). History: US-079's Tier 4 FAILED on the second-open CommonUI pool bug (`Saved/Playtests/20261022-184957-us079`: `menu_rows` etc.). That bug is fixed in code by US-094 (`a8aaa51`). On its package, the DevTestMap swarm (T1) kills the player on the pickup route, so US-079's own acceptance still waits on T1. B1 (`pickup_labels`) is fixed (issues #30 and #38, `92e7575`). On the fresh package of `92e7575` (which includes `a8aaa51`) `py Scripts/playtest_story.py US-079` exited 0 for the first time, 55/55 checks and 15/15 ACs accepted (`Saved/Playtests/20261028-232530-story-us079`): the player outran the swarm that run. Whether that closes US-094, US-079 and US-071 is Jeff's call. T1 (US-100) does not change the route: Jeff decided on 2026-10-29 that us079 and its six pickups stay on DevTestMap, so the route remains a coin flip against the swarm.
 
 ### Epic 8: World & Exploration
 Authored-cell world framework, movement/exploration skills, Metroidvania gating.
@@ -156,8 +160,8 @@ Delegated town systems.
 - US-075: Status Effect VFX (Niagara) ← after Epic 4 complete
 
 **Future (blocked on later epics)**
-- US-071: Inventory UI — Flat List, Filter & Ledger Widget (HEADLESS) ← scoped under Epic 7.5
-- US-079: Playable Inventory Arena Integration (EDITOR) ← scoped under Epic 7.5
+- US-071: Inventory UI — Flat List, Filter & Ledger Widget (HEADLESS) ← scoped under Epic 7.5 ✅
+- US-079: Playable Inventory Arena Integration (EDITOR) ← scoped under Epic 7.5 ✅
 - US-072: Equipment Panel — Weapon Sets & Armor ← after Epic 6+7
 - US-073: Map — Metroidvania World Map ← after Epic 8
 - US-074: Town Management UI ← after Epic 9
@@ -178,15 +182,14 @@ Delegated town systems.
 11. **Epic 7 — Inventory** ✅
 12. **Epic R — Playability Recovery** ⚡ **CURRENT PRIORITY** (ahead of everything below, incl. Epic 7.5; `stories/PLANNER.md` §5.1)
     - Batch 1 (combat + enemies, unblock death/respawn/kill): US-083 (HEADLESS) → US-084 (HEADLESS) → US-085 (EDITOR, pair of US-084)
-    - Batch 2: US-094 (HEADLESS, unblocks US-079/US-071) → US-086 (HEADLESS, needs US-083/084/085)
+    - Batch 1b (T1 test maps, DONE 2026-10-29): US-100 (EDITOR, no pair). It moves every script except the enemy-AI checks and us079 off the DevTestMap swarm, so the following batches' Tier 4 runs fail only on their own bugs.
+    - Batch 2: US-094 (HEADLESS, DONE 2026-10-29 at Jeff's call, with US-079/US-071) → US-086 (HEADLESS, needs US-083/084/085; its death-screen, kill and kill-counter checks go in `us054_combat.py` on CombatTestMap, with the TestDummy as the kill target; `us054_arena.py` has no death chain since US-100 split it)
     - Batch 3 (spells): US-087 (HEADLESS) → US-088 (HEADLESS) → US-089 (EDITOR, pair of US-088)
     - Batch 4 (HUD + menus): US-091 → US-092 → US-093 → US-095 (all HEADLESS; US-095's LB/RB ACs wait on N18)
     - Batch 5 (input): US-097 (HEADLESS, after US-083) → US-096 (HEADLESS, N9 decision)
     - Blocked on Jeff's decisions: US-098 (facing), US-099 (cutaway), US-090 (SP budget)
     - Re-run `py Scripts/playtest_story.py --all` on a fresh package after each batch; every NEW failure becomes a recovery story or a Known issues entry
-13. **Epic 7.5 — Playable Inventory Slice** (in progress; resumes after US-094)
-    - Batch 1: US-071 (Inventory Widget, HEADLESS) — foundation, go first
-    - Batch 2: US-079 (Playable Inventory Arena, EDITOR) — after US-071
+13. **Epic 7.5 — Playable Inventory Slice** ✅ (US-071, US-079; closed 2026-10-29 at Jeff's call, with US-094)
 14. **Epic 6 (ranged weapons)** — US-027/028/029/030 — needs design input for crossbow/throwables/wands/two-weapon/armor/shields
 15. **Epic 8 Phase 1 — Cell Framework Foundation** (US-080 → US-081 → US-082) — HEADLESS, no blockers, good pipeline filler after Epic 7.5. Strict order: US-080 (types) → US-081 (markup, depends on US-080 enums) → US-082 (validation, depends on both).
 16. **Epic 10 Phase 4** — Blueprint polish, VFX (US-070, US-076, US-075)
@@ -204,5 +207,8 @@ Delegated town systems.
 - Epic 6.5 added as integration milestone: US-077 (weapon cycling C++) + US-078 (playable weapon arena EDITOR)
 - US-027–030 marked as needing design input: crossbow, throwables, wands, two-weapon fighting, armor, and shields have insufficient design detail in current docs
 - Epic 7 (Inventory) implementation order: US-032 → US-031 → US-033. US-032 delivers item definition foundation; US-031 and US-033 depend on it.
+- 2026-10-29: US-100 (T1 test maps, issue #46) added to Epic R. Decisions (Jeff, 2026-10-29): crouch out of scope (Sneak, US-034); us069 to MovementTestMap; us079 stays on DevTestMap (`Specs/design_decisions_log.md`).
+- 2026-10-29: US-100 DONE (delivered `9904cde`). The issue's 14 checks PASS on MovementTestMap / CombatTestMap on a fresh package; bridge gap B3 (holds timed in wall time) fixed along the way.
+- 2026-10-29: US-094, US-079 and US-071 closed at Jeff's call on the us079 exit-0 run of the US-100 package (`Saved/Playtests/20261029-175841-us079`). Epic 7.5 is complete. N32 (enemy melee ignores block, parry, i-frames and jump) filed as issue #53; it needs a recovery story.
 - 2026-10-22: Epic R (Playability Recovery, US-083…US-099) scoped from the first Phase 3 sweep and exploratory run. "✅ complete" on the epics above records that their stories were closed under the old (PIE-only) rules; it does not mean the features are playable — see the Playable Status lines in `stories/PLANNER_LOG.md`.
 - Per Playability-First Rule: Epic 6.5 was the last integration milestone. Epic 7 was pure system work. Epic 7.5 (US-071 + US-079) is the integration milestone that turns the inventory plumbing into something Jeff can pick up, filter, and identify in PIE.

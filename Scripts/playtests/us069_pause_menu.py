@@ -23,6 +23,12 @@ Covers US-069 (pause menu framework) and the three tab contents that plug into i
 A failed check SKIPs the checks that depend on it (every dependency reads the menu's real state
 first); a lost bridge connection SKIPs everything after it.
 
+The map is MovementTestMap (/MordecaiCore/Game/Maps/MovementTestMap, B_MordecaiArenaExperience):
+an open grid floor with the PlayerStart at (0, 0), no enemies and no pickups.  The script uses
+no coordinates; on this map nothing can attack or kill the player while the menu is closed (a
+death disables the player's input and could fail a step for the wrong reason).  The
+'[I] Inventory' hint is part of the combat HUD on every arena-experience map.
+
 Usage:
   py Scripts/playtests/us069_pause_menu.py                 fresh package: launch, play, quit
   py Scripts/playtests/us069_pause_menu.py --allow-stale   STALE package: diagnostic only
@@ -102,7 +108,8 @@ SCREENSHOTS = {
                    "rows with 'rank / 20' (known issue N5: 'Coming Soon')",
     "menu_feats": "the pause menu on the Feats tab: the 'Feats: N unlocked' summary header "
                   "(known issue N5: 'Coming Soon')",
-    "menu_closed": "the arena with the combat HUD, no pause menu (closed by Escape)",
+    "menu_closed": "MovementTestMap's open grid floor with the player and the combat HUD, no "
+                   "pause menu (closed by Escape)",
 }
 EXIT_PASS, EXIT_FAIL, EXIT_INFRA = kit.EXIT_PASS, kit.EXIT_FAIL, kit.EXIT_INFRA
 
@@ -227,6 +234,8 @@ class Us069Run(kit.PlaytestRun):
     FEATURES = ("pause_menu", "character_sheet", "skill_tree_ui", "feat_ui")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX
+    MAP = kit.MOVEMENT_TEST_MAP
+    EXPERIENCE = kit.DEFAULT_EXPERIENCE
     SCREENSHOTS = SCREENSHOTS
     KNOWN_ISSUES = KNOWN_ISSUES
     PLAN = PLAN

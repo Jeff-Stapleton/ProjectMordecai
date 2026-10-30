@@ -1,5 +1,7 @@
 """Tests for Scripts/playtests/us001_movement.py against tests/fake_bridge.py.
 
+The fake world models MovementTestMap (fb.MAP_PRESETS[fb.MOVEMENT_TEST_MAP]: open floor, boundary
+walls at +-2000, the jump step, no pickups, no enemies), the map the script launches.
 These prove the playtest's logic and reporting only; they say nothing about the real game.
 Nothing here launches the real game.  Run: py Scripts/run_python_tests.py -k Us001
 """
@@ -202,7 +204,10 @@ class PlaytestCase(unittest.TestCase):
         self.run_dir = os.path.join(self.tmp, "run")
 
     def serve(self, world_class=HudWorld, faults=None, **world_kwargs):
-        world_kwargs.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES)
+        # MovementTestMap: open floor, boundary walls at +-2000, the jump step, no pickups or
+        # enemies (the map us001 launches, so the kit's map check passes)
+        for key, value in fb.MAP_PRESETS[fb.MOVEMENT_TEST_MAP].items():
+            world_kwargs.setdefault(key, value)
         world = world_class(**world_kwargs)
         server = fb.FakeBridgeServer(world, token=TOKEN, shot_dir=self.tmp, faults=faults).start()
         self.addCleanup(server.stop)
@@ -242,7 +247,7 @@ class TestUs001TodaysGame(PlaytestCase):
         code, rep = self.play(server)
         self.assertEqual(code, 1, self.log.getvalue()[-3000:])
         checks = self.by_name(rep)
-        for name in ("attach", "experience", "hud_visible", "spawn_state", "imc_active",
+        for name in ("attach", "experience", "map", "hud_visible", "spawn_state", "imc_active",
                      "move_a", "move_w", "move_d", "move_s", "camera_fixed",
                      "no_camera_rotation_input", "walk_lane_wp1", "walk_lane_wp2",
                      "walk_lane_start", "walk_speed_baseline", "walk_lane_reset",
@@ -264,9 +269,11 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertIn("yaw stayed 0", checks["facing_mouse"]["detail"])
         self.assertIn("yaw stayed 0", checks["facing_stick"]["detail"])
         self.assertIn("dx 0 cm", checks["gamepad_move"]["detail"])
-        # The square of moves came back to the spawn and touched no pickup.
+        # MovementTestMap has no pickups or enemies: nothing was picked up, nothing was in the way.
+        self.assertIn(fb.MOVEMENT_TEST_MAP, checks["map"]["detail"])
+        self.assertEqual(world.world_pickups, [])
         self.assertEqual(world.picked, [])
-        self.assertEqual(len(world.world_pickups), 6)
+        self.assertEqual(world.enemies, [])
         # Nothing is left held: the axis holds were released.
         self.assertEqual(world._held_union(), {})
 
@@ -476,6 +483,19 @@ class TestUs001Failures(PlaytestCase):
         for name in ("hud_visible", "move_w", "sprint_shift", "gamepad_move"):
             self.assertEqual(checks[name]["status"], "SKIP", name)
 
+    def test_the_wrong_map_blocks_the_rest(self):
+        # The same experience on DevTestMap: the kit's map check FAILs and nothing is played
+        # there (its enemies would shove and kill the player)
+        _, server = self.serve(**fb.MAP_PRESETS[fb.DEFAULT_MAP])
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["map"])
+        checks = self.by_name(rep)
+        self.assertEqual(checks["experience"]["status"], "PASS")
+        self.assertIn(fb.MOVEMENT_TEST_MAP, checks["map"]["detail"])
+        for name in ("hud_visible", "move_w", "sprint_shift", "gamepad_move"):
+            self.assertEqual(checks[name]["status"], "SKIP", name)
+
     def test_a_lost_connection_is_infra_and_skips_the_rest(self):
         _, server = self.serve(faults=fb.Faults(drop_on_cmd="mouse"))
         code, rep = self.play(server)
@@ -526,7 +546,23 @@ class TestUs001Plan(unittest.TestCase):
         self.assertEqual(len(rows), 1 + len(us001.PLAN))
         self.assertTrue(any(r.startswith("| 18 | `jump_space` |") for r in rows))
 
-    def test_the_route_stays_clear_of_pickups_and_obstacles(self):
+    def test_the_script_launches_the_movement_test_map(self):
+        self.assertEqual(us001.Us001Run.launch_map(), kit.MOVEMENT_TEST_MAP)
+        self.assertEqual(kit.MOVEMENT_TEST_MAP, fb.MOVEMENT_TEST_MAP)
+        self.assertEqual(us001.Us001Run.expected_experience(), kit.DEFAULT_EXPERIENCE)
+        self.assertNotIn("DevTestMap", us001.__doc__)
+
+    def test_the_route_and_the_lane_stay_clear_on_the_movement_map(self):
+        boxes = ([b for _, b in fb.MOVEMENT_TEST_MAP_WALLS]
+                 + list(fb.MOVEMENT_TEST_MAP_OBSTACLES))
+
+        def clearance(px, py):
+            out = []
+            for x0, x1, y0, y1 in boxes:
+                cx, cy = min(max(px, x0), x1), min(max(py, y0), y1)
+                out.append(math.hypot(px - cx, py - cy))
+            return min(out)
+
         step = us001.MOVE_HOLD_S * fb.WALK_SPEED * 1.1   # a little long, as a real hold can be
         pos, corners = (0.0, 0.0), []
         dirs = {"A": (0, -1), "W": (1, 0), "D": (0, 1), "S": (-1, 0)}
@@ -536,13 +572,17 @@ class TestUs001Plan(unittest.TestCase):
             corners.append(pos)
         points = corners + [(x, y) for _, x, y in us001.LANE_WAYPOINTS] + [us001.LANE_START]
         for px, py in points:
-            for spec in fb.PICKUP_SPECS:
-                lx, ly = spec["location"][:2]
-                self.assertGreater(math.hypot(px - lx, py - ly), fb.FOCUS_RANGE,
-                                   f"({px:.0f}, {py:.0f}) is in range of {spec['label']}")
-            for x0, x1, y0, y1 in fb.DEVTESTMAP_OBSTACLES:
-                cx, cy = min(max(px, x0), x1), min(max(py, y0), y1)
-                self.assertGreater(math.hypot(px - cx, py - cy), fb.CAPSULE_RADIUS)
+            self.assertGreater(clearance(px, py), 4 * fb.CAPSULE_RADIUS, f"({px:.0f}, {py:.0f})")
+        # Lane L1: the lane start is on it, and from there a long sprint (900 cm/s for 1.1 s plus
+        # its stop), then the gamepad move, never reach a wall or the steps
+        self.assertEqual(us001.LANE_START[1], fb.MOVEMENT_TEST_MAP_LANE_Y)
+        reach = us001.LANE_START[0] + 900.0 * 1.1 + 300.0 + us001.GAMEPAD_HOLD_S * 900.0
+        x = us001.LANE_START[0]
+        while x <= reach:
+            self.assertGreater(clearance(x, fb.MOVEMENT_TEST_MAP_LANE_Y), 4 * fb.CAPSULE_RADIUS,
+                               f"lane L1 at x={x:.0f}")
+            x += 50.0
+        self.assertLess(reach, 1600.0, "past the end of lane L1")
 
 
 if __name__ == "__main__":

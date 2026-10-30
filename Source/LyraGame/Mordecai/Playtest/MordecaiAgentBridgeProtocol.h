@@ -327,6 +327,52 @@ namespace MordecaiAgentBridge
 }
 
 /**
+ * When a held input goes up (§4 key tap, axis and click hold_s; B3): once the frames the game
+ * simulated with it down add up to HoldSeconds, and at least MinFrames frames after the frame it
+ * went down. The bridge ticks at the end of a frame (FTSTicker, after the world tick), so the input
+ * goes down after its first frame's world tick and each later frame simulates that frame's delta
+ * (FApp::GetDeltaTime) with it down. Wall time is the wrong clock: a long frame's delta is
+ * simulated by the frame after it, so a hold judged on wall time went up before the game had
+ * simulated a frame hitch inside it. RealCapSeconds of wall time past HoldSeconds the input goes up
+ * anyway, so it cannot stay down for good. Pure: the bridge feeds it each tick.
+ */
+class FMordecaiAgentBridgeHoldClock
+{
+public:
+	FMordecaiAgentBridgeHoldClock(double InHoldSeconds, int32 InMinFrames, double InRealStart, uint64 InStartFrame,
+		double InRealCapSeconds = 10.0, double InMaxFrameSeconds = 0.4);
+
+	/**
+	 * Called every bridge tick from the frame the input went down on; true once it should go up.
+	 * FrameDeltaSeconds: this frame's delta (FApp::GetDeltaTime); it counts at most MaxFrameSeconds,
+	 * the world's MaxUndilatedFrameTime (AWorldSettings::FixupDeltaSeconds simulates no more).
+	 * ElapsedInFrameSeconds: how long this frame has taken so far, a lower bound on the next frame's
+	 * delta: the input goes up at the frame boundary nearest to HoldSeconds, so a quick tap is up
+	 * before a hitch is simulated and a long hold stays down through it.
+	 */
+	bool Advance(double RealNow, uint64 Frame, double FrameDeltaSeconds, double ElapsedInFrameSeconds = 0.0);
+
+	/** The summed delta of the frames simulated with the input down. */
+	double GetSimulatedSeconds() const { return SimulatedSeconds; }
+
+	double GetRealSeconds(double RealNow) const { return RealNow - RealStart; }
+
+	/** Frames since the frame the input went down. */
+	int32 GetFrames() const { return Frames; }
+
+private:
+	double HoldSeconds;
+	int32 MinFrames;
+	double RealStart;
+	uint64 StartFrame;
+	double RealCapSeconds;
+	double MaxFrameSeconds;
+	uint64 LastFrame;
+	double SimulatedSeconds = 0.0;
+	int32 Frames = 0;
+};
+
+/**
  * Auto-repeat the way real devices produce it (§4 key):
  * - Keyboard (Windows typematic): only the most recently pressed key repeats, first after
  *   KeyboardDelay, then every KeyboardInterval. Pressing another key moves the repeat to it; the

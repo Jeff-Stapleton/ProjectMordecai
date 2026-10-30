@@ -16,14 +16,14 @@ C++ only: content-area refresh on activation and inventory-widget change subscri
 - `Specs/agent_playtest_plan_v1.md` — "The CommonUI pool may leave inventory rows stale" and "The CommonUI pool bug is CONFIRMED"
 - Sweep `Saved/Playtests/20261022-184702-sweep/summary.md`; run `Saved/Playtests/20261022-184957-us079`: `empty_state` PASS, all six pickups PASS, `inventory_count`==4 and `ledger_count`==2 PASS (the data is right), then `menu_rows` FAIL NEW ("0 rendered rows (expected 4)"), `unidentified_badge`, `menu_ledger_rows`, `identify_button`, `filter_weapons`, `filter_armor_empty` (placeholder '--'), `filter_all` FAIL NEW; `identify_click`/`amulet_identified` SKIP
 - Exploratory run `Saved/Playtests/20261022-185207-explore/report.md` — after several reopens the tab shows "--" placeholders (`bridge_14.png`)
-- In-progress stories: `stories/in-progress/US-071-inventory-widget.md`, `stories/in-progress/US-079-playable-inventory-arena.md` (ACs AC-079.9, AC-079.11; US-071 AC-071.4/.7/.8/.10/.12/.13/.15)
+- Unblocked stories (closed with this one, 2026-10-29): `stories/done/US-071-inventory-widget.md`, `stories/done/US-079-playable-inventory-arena.md` (ACs AC-079.9, AC-079.11; US-071 AC-071.4/.7/.8/.10/.12/.13/.15)
 - Existing code: `Source/LyraGame/Mordecai/UI/MordecaiPauseMenuWidget.cpp:237-241` (keeps the existing content instance when the class is unchanged), `:252-262` (`BindTabContent` → `UMordecaiInventoryWidget::BindToInventory`), `MordecaiInventoryWidget.*`, `MordecaiInventoryComponent.*`, `MordecaiResourceLedger.*`
 
 ## Acceptance Criteria
 - [x] AC-094.1: Each time the pause menu is activated (including a CommonUI pooled reuse), the active tab's content widget is rebound to the current pawn's components and refreshed — verified by `Mordecai.Recovery.PauseMenu.RebindsContentOnReactivate`
 - [x] AC-094.2: `UMordecaiInventoryWidget` refreshes its rows and ledger rows when the inventory or ledger changes while it is bound, and unbinds cleanly on deactivation (no "--" placeholders after repeated opens) — verified by `Mordecai.Recovery.Inventory.WidgetRefreshesOnChange` and `Mordecai.Recovery.Inventory.RepeatedOpenStaysBound`
-- [ ] AC-094.3: In the packaged build, the player opens the inventory (I) before any pickup, closes it (Escape), picks up all six items (walk + F), presses I again and sees 4 item rows including "? Unidentified Purple Amulet" and 2 stored resources — verified by checks `menu_rows`, `unidentified_badge`, `menu_ledger_rows` of `Scripts/playtests/us079_inventory.py` (Tier 4)
-- [ ] AC-094.4: In that second open, the amulet row has an enabled Identify button and the filter buttons work (Weapons → only Rusty Sword; Armor → "No items match this filter."; All → 4 rows), and identifying renames the amulet — verified by checks `identify_button`, `filter_weapons`, `filter_armor_empty`, `filter_all`, `identify_click`, `amulet_identified` of `Scripts/playtests/us079_inventory.py` (Tier 4)
+- [x] AC-094.3: In the packaged build, the player opens the inventory (I) before any pickup, closes it (Escape), picks up all six items (walk + F), presses I again and sees 4 item rows including "? Unidentified Purple Amulet" and 2 stored resources — verified by checks `menu_rows`, `unidentified_badge`, `menu_ledger_rows` of `Scripts/playtests/us079_inventory.py` (Tier 4) _(PASS in `Saved/Playtests/20261029-175841-us079`, exit 0 on a fresh package of `9904cde`; accepted at Jeff's call, 2026-10-29)_
+- [x] AC-094.4: In that second open, the amulet row has an enabled Identify button and the filter buttons work (Weapons → only Rusty Sword; Armor → "No items match this filter."; All → 4 rows), and identifying renames the amulet — verified by checks `identify_button`, `filter_weapons`, `filter_armor_empty`, `filter_all`, `identify_click`, `amulet_identified` of `Scripts/playtests/us079_inventory.py` (Tier 4) _(PASS in the same run; accepted at Jeff's call, 2026-10-29)_
 
 ## Technical Notes
 - Override `NativeOnActivated` in `UMordecaiPauseMenuWidget` to re-run `BindTabContent(CurrentContentWidget)` (and refresh) for the active tab; keep the "same class → keep instance" optimisation for tab clicks, but never skip the rebind on activation.
@@ -67,21 +67,40 @@ C++ only: content-area refresh on activation and inventory-widget change subscri
 - **Playable alone:** YES
 
 ## Definition of Done
-- [ ] All ACs checked off
+- [x] All ACs checked off
 - [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
 - [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [x] Content: none; `py Scripts/check_content_committed.py` exits 0
 - [x] Work committed FIRST, then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [x] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py US-079`: the nine checks above PASS (from FAIL/SKIP in sweep `Saved/Playtests/20261022-184702-sweep`); no check that PASSed in the sweep now FAILs; `pickup_labels` may remain FAIL (known: bridge gap B1); `--lint` exits 0 — never `--allow-stale`
-- [ ] The CommonUI pool known issue marked FIXED in `Specs/agent_playtest_plan_v1.md`; the planner/worker is told US-079 and US-071 can resume
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-094]` closing commit
-- [ ] Pushed; story moved to `stories/done/` only after all of the above pass
+- [x] On that same fresh package `py Scripts/playtest_story.py US-079`: the nine checks above PASS (from FAIL/SKIP in sweep `Saved/Playtests/20261022-184702-sweep`); no check that PASSed in the sweep now FAILs; `pickup_labels` may remain FAIL (known: bridge gap B1); `--lint` exits 0 — never `--allow-stale` _(not on the `a8aaa51` package, where the swarm killed the player 3 of 3 times. Met on later fresh packages that include `a8aaa51`: `92e7575` (`Saved/Playtests/20261028-232530-story-us079`, exit 0, 55/55) and `9904cde` (`Saved/Playtests/20261029-175841-us079`, exit 0, 56/56, `pickup_labels` PASS). Accepted at Jeff's call, 2026-10-29.)_
+- [x] The CommonUI pool known issue marked FIXED in `Specs/agent_playtest_plan_v1.md`; the planner/worker is told US-079 and US-071 can resume _(both closed with this story)_
+- [x] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
+- [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-094]` closing commit
+- [x] Pushed; story moved to `stories/done/` only after all of the above pass _(moved at Jeff's call, 2026-10-29)_
 
 ## Completion Notes
 
-**Status: stays in `stories/in-progress/` (2026-10-28).**
+**Closed at Jeff's call (2026-10-29).** The acceptance run is `Saved/Playtests/20261029-175841-us079`: it exited 0 on a fresh package of `9904cde`, which includes this story's fix `a8aaa51`. Its Tier 3 boot, on the same package, is `Saved/Playtests/20261029-175504-boot`, also exit 0.
+- All nine checks of this story PASS in that run, with four items held:
+  - `menu_rows`: Upgrade Key, Rusty Sword, "? Unidentified Purple Amulet", Health Potion
+  - `unidentified_badge`
+  - `menu_ledger_rows`: "Iron Ore  x1", "Town Stone  x1"
+  - `identify_button`: enabled
+  - `filter_weapons`: only Rusty Sword
+  - `filter_armor_empty`: "No items match this filter."
+  - `filter_all`: 4 rows
+  - `identify_click`
+  - `amulet_identified`
+- Against "Visible on screen":
+  - `bridge_02.png`: the empty first open, "Inventory is empty." / "No resources stored.".
+  - `bridge_03.png`: the pooled second open. It shows the four rows, the amulet with "?" in purple and an Identify button, and Stored Resources Iron Ore x1, Town Stone x1.
+  - `bridge_04.png`: the amulet renamed "Mysterious Amulet", with no button.
+  - `bridge_05.png`: the arena with the menu closed. The Playtest section's `bridge_04.png` is now `bridge_05.png` because the script added the identified shot as `bridge_04.png`.
+  - Engine frames and `bridge_01.png`: see `stories/done/US-079-playable-inventory-arena.md`.
+- The route still races the DevTestMap swarm (us079 stays there, Jeff 2026-10-29), so a later run can lose the player before the second open. That is T1's residue, not this fix's.
+
+**Status before closing (2026-10-28): stayed in `stories/in-progress/`.**
 - The code fix is delivered: issue #28, branch `fix/issue-28-inventory-reopen`, commits `cdeec5a`, `35898b3`, `a8aaa51`.
 - AC-094.1 and AC-094.2 pass at Tier 1 and Tier 2.
 - AC-094.3 and AC-094.4 (Tier 4) are NOT accepted. In all 3 us079 runs on the fresh package of `a8aaa51`, the DevTestMap Frontliners killed the player during the pickup route (T1, issue #46). The checks that need 4 items and 2 resources therefore never had them.
@@ -150,3 +169,5 @@ Every direct call is tagged `[LOGIC]`.
 - An adversarial review (4 lenses, each finding verified) found no defects in the C++ fix or the tests. Its two minor PIE-script findings (a vacuous check, and "ALL CHECKS PASSED" printed after phase 1) are fixed in `a8aaa51`.
 - US-079 and US-071 can resume once US-094 closes: the pooled reopen is fixed. Their remaining blocker is T1 (the swarm); B1 (`pickup_labels`) is fixed (issues #30 and #38, `92e7575`).
 - 2026-10-28 (issues #30 and #38, not this story's run): on the fresh package of `92e7575`, which includes this story's `a8aaa51`, `py Scripts/playtest_story.py US-079` exited 0 (`Saved/Playtests/20261028-232530-story-us079`; Tier 4 `20261028-232550-us079`, 55/55 PASS). All nine checks above PASS there with four items held: `menu_rows`, `unidentified_badge`, `menu_ledger_rows`, `identify_button`, `filter_weapons`, `filter_armor_empty`, `filter_all`, `identify_click`, `amulet_identified`. The player outran the swarm (T1) that run. Closing on it is Jeff's call.
+- 2026-10-29 (issue #46, US-100): T1 does not change this story. Jeff decided that `us079_inventory.py` and its six pickups stay on DevTestMap and that us069 moves to MovementTestMap (`Specs/design_decisions_log.md`); per issue #46 and US-100, us001 and us083 also move to MovementTestMap and the combat scripts (us054_combat, us057, us078) run on CombatTestMap. So AC-094.3 and AC-094.4 still need a us079 run in which the player outruns the Frontliner swarm on the pickup route. Closing stays Jeff's call.
+- 2026-10-29 (US-100 sweep, fresh package of `9904cde`): `Saved/Playtests/20261029-175841-us079` exits 0, 56/56, on DevTestMap. The player won the race against the swarm, and every pooled-reopen and four-item check PASSes. That is evidence for AC-094.3/094.4; ticking them stays Jeff's call.

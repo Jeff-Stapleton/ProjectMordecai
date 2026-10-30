@@ -44,7 +44,7 @@ Edits and saves `/MordecaiCore/Spells/DA_Spell_*` DataAssets via the Python edit
 - `Scripts/playtests/us057_magic.py` checks `spell_loadout`, `fireball_cooldown_state`, `cooldown_hud`
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-057` on the same package
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience; us057's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-057` on the same package
 - **Player steps:** walk (WASD) onto the Fireball line, tap Q, watch the Q cooldown slot count down
 - **Visible on screen:** `spell_hud` screenshot (`bridge_04.png` of us057): the cooldown widgets under the SP bar with a numeric remaining time on at least one slot (Stone Skin's 15 s is still running at that point)
 - **Proof:** Tier 4 checks `fireball_cooldown_state`, `cooldown_hud` (and `spell_loadout` for the tags) of `Scripts/playtests/us057_magic.py`
@@ -64,7 +64,7 @@ Edits and saves `/MordecaiCore/Spells/DA_Spell_*` DataAssets via the Python edit
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [ ] Content: the four `DA_Spell_*.uasset` saved and committed; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (content + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-057`: `fireball_cooldown_state` and `cooldown_hud` go from FAIL to PASS; no check that PASSed in the sweep now FAILs (watch: the SP plan and Blink/Stone Skin timing now interact with cooldowns); `--lint` exits 0 — never `--allow-stale`
 - [ ] Known issue "Spells have no cooldowns" and N8 marked FIXED in `Specs/agent_playtest_plan_v1.md`
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"

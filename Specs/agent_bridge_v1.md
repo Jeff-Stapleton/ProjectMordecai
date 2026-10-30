@@ -48,12 +48,29 @@ Each input response reports in `env` whether it did any of these (`focus_restore
 - Per tick: receive, execute, held input, flush, close finished connections, then accept (so a client that just went away does not count against the cap).
 - The ticker runs while the game is paused (the pause menu pauses the world) and during the loading screen. It does not run during a blocking map load.
 
-**Time.** Every duration in the protocol (`hold_s`, `wait`, `timeout_s`) is **real time** (`FPlatformTime::Seconds()`), never world time.
+**Time.** `wait` and `timeout_s` are **real time** (`FPlatformTime::Seconds()`), never world time.
+
+**Hold time (`hold_s` of `key tap`, `axis` and `click`) is simulated time: the input goes up at the frame boundary nearest to the point where the frames the game simulated with it down add up to `hold_s`** (`FMordecaiAgentBridgeHoldClock`; B3, US-100).
+- What counts:
+  - Each frame after the one the input went down in counts its frame delta (`FApp::GetDeltaTime`, also while the world is paused).
+  - Each delta is capped at the world's `MaxUndilatedFrameTime` (0.4 s), because `AWorldSettings::FixupDeltaSeconds` simulates no more.
+  - The bridge ticks at the end of a frame, after the world tick. When deciding, it takes the time the current frame has taken so far as a lower bound on the next frame's delta, and releases the input now if that lands nearer to `hold_s`.
+- Why not wall time: a long frame's delta is simulated by the frame after it, so a hold judged on wall time went up at the end of a long frame, before the game had simulated it.
+  - A frame hitch inside a hold left the player almost no input: W held 0.464 s of wall time over 3 frames moved the player 3 cm (`Saved/Playtests/20261029-132452-us054combat`).
+  - The packaged game hitches after a `screenshot` and during its first launches after a package.
+- Effect of a hitch:
+  - A long hold stays down through it: it takes longer in wall time.
+  - A quick tap (for example a 0.05 s light-attack click) goes up before the hitch is simulated, as a player's tap would, instead of reading as a heavy-attack hold.
+  - `held_s` (wall time) can therefore be above or below `hold_s`.
+  - `simulated_s` is within half a frame of `hold_s` (at most 0.2 s, half the 0.4 s frame cap), after at least `MinFrames` frames (tap 2, `axis` and `click` 1). A check that judges a distance or a duration against a hold can read `simulated_s`. In `Saved/Playtests/20261029-175605-us001`, `move_a` held A for `hold_s` 0.4 across a hitch: 0.712 s of wall time, 0.283 s simulated, 105 cm against the 100 cm threshold.
+- The input goes up anyway 10 s of wall time past `hold_s`, so a key cannot stay down for good.
+- Responses report `held_s` (wall time), `simulated_s` (the simulated time it was down) and `frames`.
+- Auto-repeat still runs on wall time, as a real device's does. A tap that must stay down for its minimum frames through a hitch longer than the repeat delay can get one repeat event. No playtest reads gamepad or keyboard repeats.
 
 **Connections**
 - At most 4 concurrent connections. The 5th receives one error line `{"id":null,"ok":false,"cmd":null,"error":"too_many_connections",...}`; the bridge then shuts down its write side (FIN after the line) and reads and discards its input for up to 1 s or until the client closes, so the client reads the line instead of a reset.
 - Each connection has its own receive buffer, send buffer (partial sends are retried) and request queue.
-- **Peer EOF (half-close).** When a client closes its sending side, the bridge stops reading but still executes every request it already received, in order, and sends the replies; it closes the connection once nothing is queued or pending and the replies are out, or when a send fails. So `echo '{"cmd":"quit"}' | ncat 127.0.0.1 <port>` works. From EOF on, the connection no longer counts toward the 4-connection limit (it can never send another request). A client that dies mid-command keeps that command's input until the command finishes (at most its own `hold_s`, 30 s), then the connection closes and releases everything it held; a pending `wait`/`wait_until` holds no input and simply runs out.
+- **Peer EOF (half-close).** When a client closes its sending side, the bridge stops reading but still executes every request it already received, in order, and sends the replies; it closes the connection once nothing is queued or pending and the replies are out, or when a send fails. So `echo '{"cmd":"quit"}' | ncat 127.0.0.1 <port>` works. From EOF on, the connection no longer counts toward the 4-connection limit (it can never send another request). A client that dies mid-command keeps that command's input until the command finishes (its own `hold_s` of simulated time, at most 30 s; at most `hold_s` + 10 s of wall time), then the connection closes and releases everything it held; a pending `wait`/`wait_until` holds no input and simply runs out.
 - **Held input is one server-wide union.** Slate sees one keyboard, one pad and one mouse:
   - A key goes down when its first holder presses it and up when its last holder releases it (reference count per key, across connections). A connection's `release` (or disconnect) removes only its own hold: if another connection still holds the key, no up event is sent.
   - An axis sends one sample per frame: the held value with the largest magnitude across connections (the earliest holder wins a tie).
@@ -208,14 +225,14 @@ actors:    [{label, name, class, native_class, kind:"enemy"|"pickup"|"pawn"|"pro
 **Actions**
 - `press`: key down. The key stays held until `release`, the connection closes, or `quit`. The response returns once the down event has been processed.
 - `release`: key up. Releasing a key that this connection does not hold succeeds with `was_held:false` and sends nothing.
-- `tap`: down, then wait `max(hold_s, 2 frames)`, then up. The response returns after the release. With `keys`, all go down in one frame and all come up in one frame.
+- `tap`: down, then hold until the game has simulated `hold_s` with it down, for 2 frames at least (§2 Hold time), then up. The response returns after the release. With `keys`, all go down in one frame and all come up in one frame.
 - `press` or `tap` of a key this connection already holds is `bad_request`: `"key '<K>' is already held by this connection; release it first"`.
 - All of these act on the server-wide union (§2): Slate gets the down only on the first holder and the up only when the last holder lets go.
 
 **Response**
 
 ```json
-{"ok":true,"cmd":"key","keys":["W","D"],"action":"tap","route":"slate","held_s":0.31,"frames":10,"ready":true,"env":{...}}
+{"ok":true,"cmd":"key","keys":["W","D"],"action":"tap","route":"slate","held_s":0.31,"simulated_s":0.3,"frames":18,"ready":true,"env":{...}}
 ```
 
 **How events are injected**
@@ -239,7 +256,7 @@ actors:    [{label, name, class, native_class, kind:"enemy"|"pickup"|"pawn"|"pro
 
 **Arguments**
 - `values`: a map of `Gamepad_LeftX`, `Gamepad_LeftY`, `Gamepad_RightX`, `Gamepad_RightY`, `Gamepad_LeftTriggerAxis`, `Gamepad_RightTriggerAxis` to values. Sticks take −1..1 and triggers take 0..1.
-- `hold_s` (optional): with it, the values are applied, sent every frame for `hold_s`, then set to 0, and the response returns after the reset. Without it, the values persist (sent every frame) until the next `axis` for that key. A value of 0 releases this connection's hold.
+- `hold_s` (optional): with it, the values are applied, sent every frame until the game has simulated `hold_s` with them (1 frame at least; §2 Hold time), then set to 0, and the response returns after the reset with `held_s`, `simulated_s` and `frames`. Without it, the values persist (sent every frame) until the next `axis` for that key. A value of 0 releases this connection's hold.
 
 Events are injected with `FSlateApplication::ProcessAnalogInputEvent(FAnalogInputEvent(...))`. `FSceneViewport` negates `Gamepad_RightY` on that path itself, as it does for a real pad.
 
@@ -268,7 +285,7 @@ Events are injected with `FSlateApplication::ProcessAnalogInputEvent(FAnalogInpu
 - Sequence:
   1. Frame N: move to (x, y) (a non-synthetic `ProcessMouseMoveEvent`) and `ProcessMouseButtonDownEvent`, then re-install the in-memory cursor there.
   2. Every frame while the button is down: re-install the in-memory cursor at (x, y).
-  3. After `max(hold_s, 1 frame)`: a non-synthetic `ProcessMouseMoveEvent` at (x, y), which re-hovers the pressed `SButton` (the mouse captor gets `OnMouseEnter` again) if a synthesized move un-hovered it meanwhile, then `ProcessMouseButtonUpEvent` at the same position. A player's cursor is on the button when they let go; `SButton::OnMouseButtonUp` only clicks while hovered.
+  3. Once the game has simulated `hold_s` with the button down (1 frame at least; §2 Hold time): a non-synthetic `ProcessMouseMoveEvent` at (x, y), which re-hovers the pressed `SButton` (the mouse captor gets `OnMouseEnter` again) if a synthesized move un-hovered it meanwhile, then `ProcessMouseButtonUpEvent` at the same position. A player's cursor is on the button when they let go; `SButton::OnMouseButtonUp` only clicks while hovered.
   4. The response returns after the up event.
 - Slate hit-tests the position, so a click on something covered by another widget lands on the cover, as it would for a player.
 - The response includes `"hit": "<SWidget type under the cursor>"|null`, taken from Slate's widget path at the click position.

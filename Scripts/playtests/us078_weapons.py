@@ -7,8 +7,13 @@ gamepad take; nothing calls game functions, and bridge.jsonl in the run dir is t
 The run framework is Scripts/playtest_kit.py (Specs/story_playtests_v1.md section 2); this file
 is the PLAN and the steps.
 
+The run plays on CombatTestMap (issue #46, T1): the player stands at the PlayerStart (0, 0),
+more than 900 cm from the TestAttacker (out of its aggro range) and away from the TestDummy, so
+nothing hits the player while the weapons cycle and the attacks are judged.  On DevTestMap the
+Frontliners killed the player before the attacks (light_attack_lmb clicked a dead player).
+
 Steps (every step is a check; --plan prints them as the story's Steps table):
-  1. Boot DevTestMap: the player starts with the Longsword equipped (player.weapon.index 0 of
+  1. Boot CombatTestMap: the player starts with the Longsword equipped (player.weapon.index 0 of
      count 5).
   2. The weapon HUD shows the equipped weapon's name (a visible widget text equals
      player.weapon.display_name).  Screenshot 'start'.
@@ -19,10 +24,12 @@ Steps (every step is a check; --plan prints them as the story's Steps table):
   9. Tap Shift+Tab (the story's binding): previous weapon, the Spear.
   10. Tap Gamepad_FaceButton_Top (Y): next weapon.
   11. Tap Tab: the weapon HUD text follows the new weapon.
-  12. Left click on the arena: a light attack starts (Mordecai.State.Attacking in player.tags,
-     no Mordecai.Attack.Heavy).
+  12. Left click on the game view: a light attack starts (Mordecai.State.Attacking in
+     player.tags, no Mordecai.Attack.Heavy).
   13. Left click held 0.8 s: a heavy attack starts on the release (Mordecai.Attack.Heavy, which
      only the heavy attack owns, in player.tags).
+Each attack is judged from idle: a dead player before the click is an explicit FAIL ("player dead
+before the click"), never mistaken for idle, and nothing is clicked.
 Each cycle step reads player.weapon.index first and expects the next/previous one (mod 5) with
 the matching display name, so one failure does not cascade into wrong expectations.  Weapon
 order (the AvailableWeapons list): Longsword, Dagger, Greatsword, Spear, Mace; names compare
@@ -72,8 +79,9 @@ NEXT_KEY = "Tab"
 PREV_KEY = "BackSlash"
 PREV_STORY_KEYS = ("LeftShift", "Tab")   # AC-078.7: Shift+Tab
 GAMEPAD_NEXT_KEY = "Gamepad_FaceButton_Top"  # Y
-ATTACK_POINT = (640, 360)                # the viewport centre: the arena, no widget
+ATTACK_POINT = (640, 360)                # the viewport centre: the game view, no widget
 ATTACKING_TAG = "Mordecai.State.Attacking"
+DEAD_TAG = "Mordecai.State.Dead"
 HEAVY_TAG = "Mordecai.Attack.Heavy"         # owned by the heavy attack only (US-083)
 HEAVY_HOLD_S = 0.8
 
@@ -90,10 +98,13 @@ N9 = ("N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab sti
       "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
 
 SCREENSHOTS = {
-    "start": "the Mordecai diorama arena with the player and the combat HUD; the weapon HUD "
-             "should read 'Longsword' (known N3: no weapon name anywhere on screen today)",
-    "cycled_mace": "the arena after four Tabs; the weapon HUD should read 'Mace' (known N3: no "
-                   "weapon name anywhere on screen today)",
+    "start": "CombatTestMap from the fixed overhead camera: the player at the PlayerStart on the "
+             "grid floor, the combat HUD top-left (the blue-grey TestDummy cylinder, 600 cm +X "
+             "and +Y, may be in view up and to the right); the weapon HUD should read "
+             "'Longsword' (known N3: no weapon name anywhere on screen today)",
+    "cycled_mace": "the same view after four Tabs, the player still at the PlayerStart; the "
+                   "weapon HUD should read 'Mace' (known N3: no weapon name anywhere on screen "
+                   "today)",
 }
 KNOWN_ISSUES = (N3, N9)
 
@@ -123,10 +134,10 @@ PLAN = (
     Step("weapon_hud_updates", f"tap {NEXT_KEY} -> the new weapon is equipped and a visible "
          "widget text equals its display_name within 3 s (needs weapon_hud_text)",
          proves=("AC-078.12", "AC-078.14", "US-077:AC-077.8"), known_issue=N3),
-    Step("light_attack_lmb", f"no {ATTACKING_TAG} -> click Left at {ATTACK_POINT} -> "
+    Step("light_attack_lmb", f"alive, no {ATTACKING_TAG} -> click Left at {ATTACK_POINT} -> "
          f"{ATTACKING_TAG} without {HEAVY_TAG} in player.tags within {LIGHT_TIMEOUT_S:g} s",
          proves=("AC-078.14",)),
-    Step("heavy_attack_hold", f"no {ATTACKING_TAG} -> click Left at {ATTACK_POINT} held "
+    Step("heavy_attack_hold", f"alive, no {ATTACKING_TAG} -> click Left at {ATTACK_POINT} held "
          f"{HEAVY_HOLD_S:g} s -> {HEAVY_TAG} in player.tags within {HEAVY_TIMEOUT_S:g} s",
          proves=("AC-078.13",)),
 )
@@ -186,6 +197,12 @@ def _tags(st):
     return [str(t) for t in tags] if isinstance(tags, list) else []
 
 
+def _dead(st):
+    """The player is dead (player.is_dead, or the Dead tag): never 'idle'."""
+    player = kit.section(st, "player")
+    return player.get("is_dead") is True or DEAD_TAG in _tags(st)
+
+
 class Us078Run(kit.PlaytestRun):
     STORY = STORY
     COVERS = ("US-077",)
@@ -196,6 +213,7 @@ class Us078Run(kit.PlaytestRun):
     PLAN = PLAN
     PENDING = PENDING
     TAP_S = TAP_S
+    MAP = kit.COMBAT_TEST_MAP
     SCRIPT = os.path.abspath(__file__)
 
     def __init__(self, args):
@@ -325,16 +343,24 @@ class Us078Run(kit.PlaytestRun):
 
         def fn():
             b = self.bridge
-            # An attack is only judged from idle: an earlier attack's tag must be gone first.
+            # An attack is only judged from idle: an earlier attack's tag must be gone first.  A
+            # dead player is not idle (no Attacking tag either): it ends the wait at once and is
+            # an explicit FAIL, so the click never goes to a dead player.
             try:
-                b.wait_for(lambda s: ATTACKING_TAG not in _tags(s), timeout_s=ATTACK_CLEAR_S,
-                           sections=["player"])
+                st0 = b.wait_for(lambda s: _dead(s) or ATTACKING_TAG not in _tags(s),
+                                 timeout_s=ATTACK_CLEAR_S, sections=["player"])
             except ab.BridgeError as e:
                 if e.code != "wait_for_timeout":
                     raise
                 return ("FAIL", f"{ATTACKING_TAG} is already in player.tags and stays there "
                         f"{ATTACK_CLEAR_S:g}s, so a new attack cannot be told apart; nothing was "
                         f"clicked (tags {_tags(e.response or {})})", None)
+            if _dead(st0):
+                p = kit.section(st0, "player")
+                health = kit.section(p, "attributes").get("health")
+                return ("FAIL", f"player dead before the click (player.is_dead="
+                        f"{p.get('is_dead')}, health {health}, tags {_tags(st0)}); nothing was "
+                        "clicked", None)
             r = b.click(x, y, button="Left", hold_s=hold_s)
             what = (f"idle; Left click at ({x}, {y})"
                     + (f" held {hold_s:g}s" if hold_s is not None else "")

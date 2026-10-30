@@ -2,12 +2,22 @@
 """Story Playtest Runner -- a story's Tier 3 boot + Tier 4 real-input playtest, one summary
 
 The contract is Specs/story_playtests_v1.md sections 3, 4 and 6.  A story id maps to its Tier 4
-script (Scripts/playtests/us*.py: the script whose Run.STORY is the story, else the script(s)
-whose Run.COVERS contains it).  One run = the STALE gate once, the Tier 3 boot playtest
-(Scripts/playtest_boot.py) on the script's launch path, then the Tier 4 script, both on the same
-package, each in a subprocess with a timeout and its own run dir.  The summary gives per-AC
-acceptance for the story (from the Tier 4 report's acs), every screenshot to open, known vs NEW
-failures, and a Playable Status line per feature.  --all is the Playability Recovery sweep.
+script(s) (Scripts/playtests/us*.py: every script whose Run.STORY is the story -- a story may own
+several, e.g. one per test map (DevTestMap, MovementTestMap, CombatTestMap) -- else the script(s)
+whose Run.COVERS contains it).  One run = the STALE gate once, one Tier 3 boot playtest
+(Scripts/playtest_boot.py) per launch path (map) of the story's scripts, then each Tier 4 script,
+all on the same package, each in a subprocess with a timeout and its own run dir.  The summary
+gives per-AC acceptance for the story (from the Tier 4 reports' acs; when several scripts prove
+one AC, a FAIL in any of them wins over a PASS elsewhere: the AC is not accepted), every
+screenshot to open, known vs NEW failures, and a Playable Status line per feature.  --all is the
+Playability Recovery sweep.
+
+Steps tables: a story with one script has one Steps table in its Playtest section.  A story with
+several scripts has one table per script, each after the '<!-- Scripts/playtests/<file>.py -->'
+marker --plan prints before it; --lint pairs each script with the first table after its marker
+(no marker in the section = the first table, for every script).  --lint also fails when one of
+the story's scripts shares its RUN_SUFFIX with another discovered script (their run dirs,
+tier4-<suffix>.log logs and --list's newest run collide).
 
 Evidence: a feature is PLAYABLE only from a fresh-package run.  Anything diagnostic (STALE,
 --allow-stale, a dirty-tree package, a skipped freshness gate, a child run that reports itself
@@ -16,8 +26,8 @@ DIAGNOSTIC) accepts no AC and yields only DIAGNOSTIC status lines.
 Usage:
   py Scripts/playtest_story.py US-078             Tier 3 boot (the script's launch path) + Tier 4
   py Scripts/playtest_story.py US-078 --tier4-only
-  py Scripts/playtest_story.py US-078 --plan      the Steps table for the story's Playtest section
-  py Scripts/playtest_story.py US-078 --lint      story file <-> script consistency (offline)
+  py Scripts/playtest_story.py US-078 --plan      the Steps table(s) for the story's Playtest section
+  py Scripts/playtest_story.py US-078 --lint      story file <-> script(s) consistency (offline)
   py Scripts/playtest_story.py --all              the sweep: every Tier 4 script, one Tier 3 boot
                                                   per launch path
   py Scripts/playtest_story.py --all --only US-054,US-078
@@ -81,6 +91,9 @@ RE_CHECKLIST = re.compile(r"^\s*[-*+]\s+\[([ xX])\]\s*(.*)$")
 # The first AC token of a checklist line: AC-079.3, AC-1.2.3, AC3, AC-006.12a (also in **...**).
 RE_AC_TOKEN = re.compile(r"(?<![A-Za-z0-9_])(AC-?\d[A-Za-z0-9.\-]*)")
 RE_SCRIPT_REF = re.compile(r"Scripts[/\\]playtests[/\\]([A-Za-z0-9_.\-]+\.py)")
+# The line --plan prints before each script's Steps table when a story has several scripts:
+# '<!-- Scripts/playtests/us054_arena.py -->' (any path; keyed by the us*.py file name).
+RE_SCRIPT_MARKER = re.compile(r"^<!--\s*(?:[^>]*?[/\\])?(us[A-Za-z0-9_.\-]*\.py)\s*-->$")
 RE_TABLE_SEP = re.compile(r"^\|?\s*:?-{3,}")
 KIND_RANK = {"diag": 0, "not": 1, "none": 2, "boot": 3, "input": 4}
 
@@ -275,22 +288,41 @@ def parse_steps_table(lines):
     return None
 
 
+def parse_script_steps(lines):
+    """{script file name: check names, or None} for each '<!-- Scripts/playtests/x.py -->' marker
+    line: the first Steps table after the marker and before the next one (a story with several
+    scripts; --plan prints the markers).  {} when there is no marker."""
+    marks = []
+    for i, line in enumerate(lines):
+        m = RE_SCRIPT_MARKER.match(line.strip())
+        if m:
+            marks.append((i, m.group(1)))
+    out = {}
+    for n, (i, name) in enumerate(marks):
+        end = marks[n + 1][0] if n + 1 < len(marks) else len(lines)
+        if name not in out:  # a repeated marker: the first one counts
+            out[name] = parse_steps_table(lines[i + 1:end])
+    return out
+
+
 def parse_story(path):
-    """A story file: id, path, folder, title, acs, and its Playtest section (scripts, steps)."""
+    """A story file: id, path, folder, title, acs, and its Playtest section (scripts, steps: the
+    first Steps table, script_steps: the marker-keyed tables of a story with several scripts)."""
     with open(path, "r", encoding="utf-8-sig", errors="replace") as fh:
         text = fh.read()
     lines = text.splitlines()
     title = next((RE_HEADING.match(l).group(2) for l in lines
                   if RE_HEADING.match(l) and RE_HEADING.match(l).group(1) == "#"), None)
     m = re.match(r"^(US-\d+)", os.path.basename(path))
-    playtest = {"present": False, "scripts": [], "steps": None}
+    playtest = {"present": False, "scripts": [], "steps": None, "script_steps": {}}
     sections = _sections(lines, lambda h: h.strip().lower().startswith("playtest"))
     if sections:
         start, end = sections[0]
         body = lines[start:end]
         playtest = {"present": True,
                     "scripts": sorted({s for s in RE_SCRIPT_REF.findall("\n".join(body))}),
-                    "steps": parse_steps_table(body)}
+                    "steps": parse_steps_table(body),
+                    "script_steps": parse_script_steps(body)}
     return {"id": m.group(1) if m else None, "path": path,
             "folder": os.path.basename(os.path.dirname(path)), "title": title,
             "acs": parse_acs(text), "playtest": playtest}
@@ -410,9 +442,64 @@ def plan_text(scripts):
     return "\n\n".join(parts)
 
 
-def lint(story, scripts, stories_dir=None):
-    """[(status, rule, detail)] for the story file <-> script consistency (section 3)."""
+def suffix_twins(script, all_scripts):
+    """The other scripts whose RUN_SUFFIX is `script`'s (case-insensitive: Windows paths)."""
+    return [o for o in all_scripts
+            if o.path != script.path and o.suffix.lower() == script.suffix.lower()]
+
+
+def steps_table_check(story, script, pt):
+    """(status, rule, detail) for `script`'s Steps table in the Playtest section `pt`.
+
+    With '<!-- Scripts/playtests/x.py -->' markers in the section (a story with several scripts),
+    the script's table is the first one after its own marker; without markers, the section's
+    first table (one script per story)."""
+    tag = script.name
+    plan_checks = [step.check for step in script.run_class.PLAN if isinstance(step, kit.Step)]
+    keyed = (pt.get("script_steps") or {}) if pt["present"] else {}
+    which = "the Steps table"
+    if not pt["present"]:
+        steps = None
+    elif keyed:
+        if script.name not in keyed:
+            return ("FAIL", f"{tag}: steps_table",
+                    f"the Playtest section has one Steps table per script (<!-- --> markers for "
+                    f"{', '.join(sorted(keyed))}) but no marker for Scripts/playtests/{tag} "
+                    f"(generate the tables: py Scripts/playtest_story.py {story} --plan)")
+        steps = keyed[script.name]
+        which = f"the Steps table after the <!-- Scripts/playtests/{tag} --> marker"
+        if steps is None:
+            return ("FAIL", f"{tag}: steps_table",
+                    f"no Steps table after the <!-- Scripts/playtests/{tag} --> marker (generate "
+                    f"it: py Scripts/playtest_story.py {story} --plan)")
+    else:
+        steps = pt["steps"]
+    if steps is None:
+        return ("INFO", f"{tag}: steps_table", "no Steps table in the Playtest section "
+                f"(generate it: py Scripts/playtest_story.py {story} --plan)")
+    if steps == plan_checks:
+        return ("PASS", f"{tag}: steps_table",
+                f"lists the plan's {len(plan_checks)} checks in order"
+                + (" (the table after its marker)" if keyed else ""))
+    extra = [c for c in steps if c not in plan_checks]
+    absent = [c for c in plan_checks if c not in steps]
+    detail = (f"{which} does not match the PLAN (regenerate with --plan): "
+              f"{len(steps)} row(s) vs {len(plan_checks)} check(s)")
+    if extra:
+        detail += f"; not in PLAN: {', '.join(extra[:8])}"
+    if absent:
+        detail += f"; missing: {', '.join(absent[:8])}"
+    if not extra and not absent:
+        detail += "; same checks in a different order"
+    return ("FAIL", f"{tag}: steps_table", detail)
+
+
+def lint(story, scripts, stories_dir=None, all_scripts=None):
+    """[(status, rule, detail)] for the story file <-> script consistency (section 3).
+
+    all_scripts: every discovered script (default: `scripts`), for the RUN_SUFFIX clash check."""
     out = []
+    all_scripts = list(all_scripts) if all_scripts is not None else list(scripts)
     path = find_story_file(story, stories_dir)
     if not path:
         out.append(("FAIL", "story_file", f"no stories/{{{','.join(STORY_FOLDERS)}}}/"
@@ -433,6 +520,16 @@ def lint(story, scripts, stories_dir=None):
         problems = kit.plan_problems(s.run_class)
         out.append(("FAIL" if problems else "PASS", f"{tag}: declarations",
                     "; ".join(problems) if problems else "PLAN and class attributes are valid"))
+        twins = suffix_twins(s, all_scripts)
+        if twins:
+            out.append(("FAIL", f"{tag}: run_suffix",
+                        f"RUN_SUFFIX {s.suffix!r} is also the run suffix of "
+                        f"{', '.join(o.name for o in twins)}: their Tier 4 run dirs "
+                        f"(<ts>-{s.suffix}), console logs (tier4-{s.suffix}.log) and --list's "
+                        "newest run collide; give each script its own RUN_SUFFIX"))
+        else:
+            out.append(("PASS", f"{tag}: run_suffix", f"RUN_SUFFIX {s.suffix!r} is unique among "
+                        f"the {len(all_scripts)} discovered script(s)"))
         pt = st["playtest"]
         if not pt["present"]:
             out.append(("FAIL", f"{tag}: playtest_section",
@@ -458,26 +555,7 @@ def lint(story, scripts, stories_dir=None):
         out.append(("FAIL" if missing else "PASS", f"{tag}: ac_ids",
                     "; ".join(missing) if missing else
                     f"all {len(named)} proves/PENDING id(s) exist in the story files"))
-        plan_checks = [step.check for step in s.run_class.PLAN if isinstance(step, kit.Step)]
-        steps = pt["steps"] if pt["present"] else None
-        if steps is None:
-            out.append(("INFO", f"{tag}: steps_table", "no Steps table in the Playtest section "
-                        f"(generate it: py Scripts/playtest_story.py {story} --plan)"))
-        elif steps == plan_checks:
-            out.append(("PASS", f"{tag}: steps_table",
-                        f"lists the plan's {len(plan_checks)} checks in order"))
-        else:
-            extra = [c for c in steps if c not in plan_checks]
-            absent = [c for c in plan_checks if c not in steps]
-            detail = (f"the Steps table does not match the PLAN (regenerate with --plan): "
-                      f"{len(steps)} row(s) vs {len(plan_checks)} check(s)")
-            if extra:
-                detail += f"; not in PLAN: {', '.join(extra[:8])}"
-            if absent:
-                detail += f"; missing: {', '.join(absent[:8])}"
-            if not extra and not absent:
-                detail += "; same checks in a different order"
-            out.append(("FAIL", f"{tag}: steps_table", detail))
+        out.append(steps_table_check(story, s, pt))
     proven = set()
     for s in scripts:
         for step in s.run_class.PLAN:
@@ -989,16 +1067,48 @@ def planned_checks(scripts):
     return out
 
 
-def story_acs_table(story, story_info, t4s, scripts=()):
-    """Per-AC rows for the requested story, plus the other ACs the run proved."""
-    planned = planned_checks(scripts)
-    entries = {}
+def ac_rank(a):
+    """Which run's entry speaks for an AC that several scripts prove: a FAIL in any of them (2)
+    beats an accepted PASS (1), which beats anything else (0: the first script's)."""
+    if a.get("status") == "FAIL":
+        return 2
+    return 1 if a.get("accepted") else 0
+
+
+def merge_acs(t4s):
+    """{(story, ac id): row} over every Tier 4 run's acs.  One script's entry is the row as it
+    is.  Several scripts' entries: the highest ac_rank wins (a FAIL anywhere = not accepted, even
+    when another script's run accepted the AC), its checks gain the others', and 'results' lists
+    each script's status."""
+    winners, every = {}, {}
     for t in t4s:
         for a in t["acs"]:
             key = (a.get("story"), a.get("id"))
-            prev = entries.get(key)
-            if prev is None or (a.get("accepted") and not prev.get("accepted")):
-                entries[key] = a
+            every.setdefault(key, []).append(a)
+            prev = winners.get(key)
+            if prev is None or ac_rank(a) > ac_rank(prev):
+                winners[key] = a
+    out = {}
+    for key, a in winners.items():
+        row = dict(a)
+        entries = every[key]
+        if len(entries) > 1:
+            checks = []
+            for e in [a] + [e for e in entries if e is not a]:
+                checks += [c for c in e.get("checks") or [] if c not in checks]
+            row["checks"] = checks
+            row["results"] = [{"script": e.get("script"), "status": e.get("status"),
+                               "accepted": bool(e.get("accepted"))} for e in entries]
+        if row.get("status") == "FAIL":
+            row["accepted"] = False
+        out[key] = row
+    return out
+
+
+def story_acs_table(story, story_info, t4s, scripts=()):
+    """Per-AC rows for the requested story, plus the other ACs the run proved."""
+    planned = planned_checks(scripts)
+    entries = merge_acs(t4s)
     rows = []
     listed = set()
     for ac in (story_info or {}).get("acs") or []:
@@ -1035,6 +1145,10 @@ def md_ac_rows(rows):
             status += f" ({a['pending']})"
         elif a.get("known_issue") and a.get("status") == "FAIL":
             status += f" (known: {a['known_issue']})"
+        if len(a.get("results") or []) > 1:  # several scripts prove it: a FAIL in any wins
+            status += " (per script: " + ", ".join(
+                f"{os.path.basename(str(r.get('script') or '?'))} {r.get('status')}"
+                for r in a["results"]) + ")"
         checks = ", ".join(a.get("checks") or []) or "-"
         lines.append(f"| {pb.md_cell(a['qualified'])} | {pb.md_cell(checks)} "
                      f"| {pb.md_cell(status)} | {'yes' if a.get('accepted') else 'no'} |")
@@ -1095,8 +1209,9 @@ def run_story(args, story, scripts):
     lines += ["", "## Build", ""] + md_build(summary["build"])
     lines += ["", "## Runs", ""] + md_runs(list(boots.values()), t4s)
     lines += ["", f"## Acceptance criteria of {story}", "",
-              "From the Tier 4 report's acs. An AC is accepted only by a PASS in an ACCEPTANCE "
+              "From the Tier 4 reports' acs. An AC is accepted only by a PASS in an ACCEPTANCE "
               "CANDIDATE run; a diagnostic run accepts nothing, PENDING ACs are never claimed, "
+              "an AC that several scripts prove is not accepted when any of them FAILs it, "
               "and 'NOT PROVEN BY A STEP' ACs (logic ACs) are accepted by Tier 1/2 instead.", ""]
     lines += md_ac_rows(rows) if rows else ["- (no story file / no ACs parsed)"]
     if others:
@@ -1292,9 +1407,11 @@ def parse_args(argv=None):
                              "(US-054,US-078)")
     parser.add_argument("--tier4-only", action="store_true", help="skip the Tier 3 boot")
     parser.add_argument("--plan", action="store_true",
-                        help="print the story script's PLAN as its Steps table (offline)")
+                        help="print the story script's PLAN as its Steps table; a story with "
+                             "several scripts gets one table per script, each after a "
+                             "<!-- Scripts/playtests/x.py --> marker (offline)")
     parser.add_argument("--lint", action="store_true",
-                        help="check the story file against its script (offline)")
+                        help="check the story file against its script(s) (offline)")
     parser.add_argument("--list", action="store_true",
                         help="stories, their scripts and the newest run of each (offline)")
     parser.add_argument("--allow-stale", action="store_true",
@@ -1385,7 +1502,7 @@ def main(argv=None):
         print(plan_text(chosen), file=_out(), flush=True)
         return EXIT_PASS
     if args.lint:
-        results = lint(story, chosen, args.test_stories_dir)
+        results = lint(story, chosen, args.test_stories_dir, all_scripts=scripts)
         for status, rule, detail in results:
             say(f"  {status:<4} {rule}: {detail}")
         failed = [r for r in results if r[0] == "FAIL"]

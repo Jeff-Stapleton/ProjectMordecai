@@ -89,7 +89,7 @@ This story is verified via manual playtesting in PIE. The C++ systems are tested
 ## Playtest
 Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtests_v1.md`).
 
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience)
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience). Since US-100 (T1, issue #46) the weapon cycling and the LMB light/heavy attacks run at the CombatTestMap spawn, where no enemy is in aggro range. On DevTestMap the swarm killed the player before the attack checks. A click on a dead player is now an explicit FAIL ("player dead before the click"), not an idle player.
 - **Tier 4 script:** `Scripts/playtests/us078_weapons.py` — run: `py Scripts/playtest_story.py US-078`
 - **Steps:** (generated: `py Scripts/playtest_story.py US-078 --plan`; checked: `--lint`)
 
@@ -106,5 +106,5 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 9 | `cycle_prev_shift_tab` | tap LeftShift+Tab on the Mace -> wait_until player.weapon.index==3, display_name 'Spear' _(known issue: N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next (Specs/agent_playtest_plan_v1.md, Known issues backlog))_ | AC-078.7 |
 | 10 | `cycle_gamepad_y` | tap Gamepad_FaceButton_Top (Y) -> wait_until player.weapon.index==(index+1)%5 with the matching display_name | AC-078.6 |
 | 11 | `weapon_hud_updates` | tap Tab -> the new weapon is equipped and a visible widget text equals its display_name within 3 s (needs weapon_hud_text) _(known issue: N3 The weapon HUD draws nothing: UMordecaiEquippedWeaponWidget has no widget tree (Specs/agent_playtest_plan_v1.md, Known issues backlog))_ | AC-078.12, AC-078.14, US-077:AC-077.8 |
-| 12 | `light_attack_lmb` | no Mordecai.State.Attacking -> click Left at (640, 360) -> Mordecai.State.Attacking in player.tags within 1 s _(known issue: Sprint, jump, attacks, block and dodge are not bound at runtime; root cause N10 (Specs/agent_playtest_plan_v1.md, Known issues backlog))_ | AC-078.14 |
-| 13 | `heavy_attack_hold` | no Mordecai.State.Attacking -> click Left at (640, 360) held 0.8 s -> Mordecai.State.Attacking in player.tags within 0.5 s _(known issue: Sprint, jump, attacks, block and dodge are not bound at runtime; root cause N10 (Specs/agent_playtest_plan_v1.md, Known issues backlog))_ | AC-078.13 |
+| 12 | `light_attack_lmb` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) -> Mordecai.State.Attacking without Mordecai.Attack.Heavy in player.tags within 1 s | AC-078.14 |
+| 13 | `heavy_attack_hold` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) held 0.8 s -> Mordecai.Attack.Heavy in player.tags within 0.5 s | AC-078.13 |

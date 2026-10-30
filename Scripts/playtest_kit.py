@@ -5,8 +5,9 @@ The contract is Specs/story_playtests_v1.md section 2; the bridge protocol and t
 are Specs/agent_bridge_v1.md.  A story script (Scripts/playtests/usXXX_<name>.py) subclasses
 PlaytestRun, declares its PLAN of Steps and plays them in steps() with the step helpers.  The
 kit does the rest: the STALE gate, launch or attach, build freshness, bridge readiness, the
-expected experience, screenshots, crash and log checks, plan enforcement, per-AC acceptance,
-report.md / report.json and the exit code.
+expected experience and map (MAP: DEFAULT_MAP = DevTestMap, MOVEMENT_TEST_MAP, COMBAT_TEST_MAP),
+screenshots, crash and log checks, plan enforcement, per-AC acceptance, report.md / report.json
+and the exit code.
 
 Real input only: every helper drives the game through agent_bridge.Bridge's real-input methods
 (key tap, axis, click, walk_to built from W/A/S/D taps) and reads it with state / wait_until /
@@ -70,6 +71,9 @@ import agent_bridge as ab  # noqa: E402
 import playtest_boot as pb  # noqa: E402
 
 DEFAULT_MAP = pb.DEFAULT_MAP
+MOVEMENT_TEST_MAP = pb.MOVEMENT_TEST_MAP
+COMBAT_TEST_MAP = pb.COMBAT_TEST_MAP
+TEST_MAPS = pb.TEST_MAPS
 DEFAULT_EXPERIENCE = pb.DEFAULT_EXPERIENCE
 FRONTEND_EXPERIENCE = pb.FRONTEND_EXPERIENCE
 EXIT_PASS, EXIT_FAIL, EXIT_INFRA = pb.EXIT_PASS, pb.EXIT_FAIL, pb.EXIT_INFRA
@@ -77,7 +81,7 @@ EXIT_PASS, EXIT_FAIL, EXIT_INFRA = pb.EXIT_PASS, pb.EXIT_FAIL, pb.EXIT_INFRA
 CONNECTION_LOST = frozenset({"disconnected", "no_response", "closed", "connect_failed", "crash",
                              "exited"})
 # Checks the kit records itself (section 2.3): they need no Step.  screenshot_<label> too.
-KIT_CHECKS = frozenset({"build_fresh", "launch", "attach", "bridge_ready", "experience",
+KIT_CHECKS = frozenset({"build_fresh", "launch", "attach", "bridge_ready", "experience", "map",
                         "no_crash", "content_cooked", "log_errors", "completed"})
 SCREENSHOT_PREFIX = "screenshot_"
 NOT_REACHED = "not reached"
@@ -148,6 +152,16 @@ def keys_text(key_or_keys):
     if isinstance(key_or_keys, (list, tuple)):
         return "+".join(str(k) for k in key_or_keys)
     return str(key_or_keys)
+
+
+def map_key(value):
+    """A map path as the 'map' check compares it: any '.Object' suffix stripped, lower case.
+    '/MordecaiCore/Game/Maps/DevTestMap.DevTestMap' -> '/mordecaicore/game/maps/devtestmap';
+    None -> ''.  The bridge reports the package name (no suffix); cooked FNames may differ in
+    case from the script's spelling."""
+    s = str(value or "").strip()
+    head, sep, tail = s.rpartition("/")
+    return (head + sep + tail.split(".", 1)[0]).lower()
 
 
 def split_ac(ac, story):
@@ -608,7 +622,8 @@ class PlaytestRun:
         return self.exit_code
 
     def start(self):
-        """Launch or attach, then build_fresh, bridge_ready and experience.  True when ready."""
+        """Launch or attach, then build_fresh, bridge_ready, experience and map.  True when
+        ready."""
         args = self.args
         expected = self.expected_experience()
         if self.mode == "launch":
@@ -666,9 +681,29 @@ class PlaytestRun:
             self.blocked = f"not run: wrong experience ({got or None})"
             return False
         self.check("experience", "PASS", f"{got} on {ping.get('map')}", "gameplay")
+        if not self._map_check(ping):
+            return False
         if not ping.get("ready"):
             self.abort = "not run: the bridge never became ready"
             return False
+        return True
+
+    def _map_check(self, ping):
+        """The 'map' kit check: ping.map must be launch_map().  The test maps load the same
+        experience as DevTestMap, so the experience check alone cannot tell a script on the wrong
+        map.  A mismatch blocks the plan like a wrong experience (attach mode too).  A front-end
+        run passes no map argument: recorded INFO, not compared.  True when the run may go on."""
+        loaded = ping.get("map")
+        expected = self.launch_map()
+        if expected is None:
+            self.check("map", "INFO", f"front-end run: the map is not compared (loaded "
+                       f"{loaded or None})", "gameplay")
+            return True
+        if map_key(loaded) != map_key(expected):
+            self.check("map", "FAIL", f"loaded {loaded or None}, expected {expected}", "gameplay")
+            self.blocked = f"not run: wrong map ({loaded or None}, expected {expected})"
+            return False
+        self.check("map", "PASS", f"loaded {loaded}", "gameplay")
         return True
 
     def record_start_state(self):

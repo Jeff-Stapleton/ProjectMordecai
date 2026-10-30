@@ -231,6 +231,11 @@ py Scripts/run_pie_verify.py --no-launch
 # Run specific tests only:
 py Scripts/run_pie_verify.py --tests hud,spawn
 
+# PIE another map: opens it first, reopens DevTestMap after PIE stops (default: the open map, DevTestMap).
+# On a test map (MovementTestMap, CombatTestMap) the default tests are spawn,hud,test_maps.
+# Git Bash rewrites /MordecaiCore/... arguments: run it from PowerShell, or prefix MSYS_NO_PATHCONV=1.
+py Scripts/run_pie_verify.py --map /MordecaiCore/Game/Maps/CombatTestMap
+
 # Or run individual smoke tests manually during PIE:
 py "Scripts/ue_remote_exec.py" "exec(open(r'Scripts/verify_pie_hud.py').read())"
 py "Scripts/ue_remote_exec.py" "exec(open(r'Scripts/verify_pie_spawn.py').read())"
@@ -243,6 +248,7 @@ py "Scripts/ue_remote_exec.py" "exec(open(r'Scripts/verify_pie_spawn.py').read()
 **Available smoke tests** (in `Scripts/`): `run_pie_verify.py` runs every `Scripts/verify_pie_<name>.py` it finds (`--tests <name>,...` selects). Examples:
 - `verify_pie_hud.py` — Checks combat HUD widget tree: root visible, all child bars exist
 - `verify_pie_spawn.py` — Checks spawn chain: controller, pawn, components, camera, ASC
+- `verify_pie_test_maps.py` — Checks a test map (US-100): MordecaiGameMode, the pawn near (0, 0), no enemies on MovementTestMap; on CombatTestMap the TestDummy and TestAttacker Idle at 200/200 with MaxWalkSpeed 0, and a navmesh. SKIP lines only on any other map.
 
 **Smoke tests must not fake the player:**
 - DO assert on state a player would see: actors placed in the level, components present, widgets bound and visible, input actions mapped in the active IMC.
@@ -263,13 +269,13 @@ The packaged game is what a player runs: no PIE, no `WITH_EDITOR` code, no `Lyra
 
 **2. Package** (Development Win64 → `PackagedBuilds\Playtest\`):
 ```powershell
-# Default: iterative cook of the front end + DevTestMap
+# Default: iterative cook of the front end + DevTestMap + MovementTestMap + CombatTestMap
 py Scripts/package_playtest.py
 
 # Full (non-iterative) cook — use when an iterative cook looks wrong
 py Scripts/package_playtest.py --clean
 
-# Cook every map (-CookAll -CookMapsOnly) in addition to front end + DevTestMap
+# Cook every map (-CookAll -CookMapsOnly) in addition to the four default maps
 py Scripts/package_playtest.py --all-maps
 
 # Print the RunUAT BuildCookRun command only
@@ -283,6 +289,10 @@ py Scripts/package_playtest.py --dry-run
 ```powershell
 # Default: DevTestMap, expects B_MordecaiArenaExperience
 py Scripts/playtest_boot.py
+
+# The playtest test maps (US-100), also B_MordecaiArenaExperience: no enemies / a dummy + an attacker
+py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap
+py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap
 
 # Real player entry point (L_LyraFrontEnd, no map arg), expects B_LyraFrontEnd_Experience
 py Scripts/playtest_boot.py --frontend
@@ -326,10 +336,15 @@ The in-game agent bridge (`UMordecaiAgentBridgeSubsystem`, `Source/LyraGame/Mord
   - It declares its `PLAN`: one `Step(check, does, proves=(AC ids), known_issue=...)` per player step.
   - Its step helpers (`walk`, `press`, `expect`, `click_button`, `observe`, `shot`, ...) map 1:1 to bridge calls.
   - Its report says, per AC, whether the run accepted it. Only a launched, fresh, clean-tree run with exit 0 accepts anything.
-- `py Scripts/playtest_story.py US-XXX` runs the Tier 3 boot and the story's Tier 4 script on the same package and writes `Saved\Playtests\<ts>-story-usXXX\summary.md`. Use it for Steps 4c and 4d.
+  - It launches its own `MAP`, and the kit's `map` check FAILs a run that loaded another map:
+    - `kit.MOVEMENT_TEST_MAP` (no enemies): us001, us083, us069.
+    - `kit.COMBAT_TEST_MAP` (a dummy and a fixed-cadence attacker): us054_combat, us057, us078.
+    - `kit.DEFAULT_MAP` (DevTestMap, the Frontliner arena): us054_arena, us079.
+  - Pick the map whose contents the story's checks need. A story whose checks need two maps owns two scripts, each with its own `RUN_SUFFIX` and its own Steps table (`Specs/story_playtests_v1.md` §3).
+- `py Scripts/playtest_story.py US-XXX` runs the Tier 3 boot of each of the story's maps and its Tier 4 script(s) on the same package and writes `Saved\Playtests\<ts>-story-usXXX\summary.md`. Use it for Steps 4c and 4d.
 - `py Scripts/playtest_story.py US-XXX --plan` prints the Steps table for the story's Playtest section.
 - `py Scripts/playtest_story.py US-XXX --lint` checks that the story and its script agree.
-- `py Scripts/playtest_story.py --all` is the Playability Recovery sweep over every script. It reports per-feature Playable Status lines and marks each failure NEW or known.
+- `py Scripts/playtest_story.py --all` is the Playability Recovery sweep over every script. It boots each launch path once at Tier 3 (DevTestMap, MovementTestMap, CombatTestMap). It reports per-feature Playable Status lines and marks each failure NEW or known.
 - `known_issue` marks a check that is expected to FAIL because of a filed bug. The check still FAILs and still exits 1; the report just shows it as known instead of NEW.
 - Exploratory play (not evidence): `py Scripts/explore_playtest.py --minutes 20` runs a headless Claude session with only the `mordecai-play` tools. It files findings and runs crash, stuck, log and blank-frame detectors, then writes `Saved\Playtests\<ts>-explore\report.md`.
 

@@ -44,9 +44,9 @@ CommonUI action bindings registered from C++ (`RegisterUIActionBinding` with `FB
 - `Scripts/playtests/us069_pause_menu.py` checks `i_closes`, `shoulder_switches_tab`, new `shoulder_rb_switches_tab`
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-069` (or `US-095` once in `COVERS`) on the same package
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → B_MordecaiArenaExperience; us069's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-069` (or `US-095` once in `COVERS`) on the same package
 - **Player steps:** press Escape, click Settings, tap LB (previous tab), tap RB (next tab), Escape; press I (inventory), press I (closes)
-- **Visible on screen:** the tab highlight moves on LB/RB; after the second I the arena with the HUD and no menu
+- **Visible on screen:** the tab highlight moves on LB/RB; after the second I the MovementTestMap grid floor with the HUD and no menu
 - **Proof:** Tier 4 checks `shoulder_switches_tab`, `shoulder_rb_switches_tab`, `i_closes` of `Scripts/playtests/us069_pause_menu.py`
 - **Tier 4 script:** `Scripts/playtests/us069_pause_menu.py` — run: `py Scripts/playtest_story.py US-069`
 - **Steps:**
@@ -65,7 +65,7 @@ CommonUI action bindings registered from C++ (`RegisterUIActionBinding` with `FB
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [ ] Content: none expected; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-069`: `i_closes` (and `shoulder_switches_tab`, `shoulder_rb_switches_tab` if decided) PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
 - [ ] Known issues "I does not close the pause menu" and N18 marked FIXED/decided in `Specs/agent_playtest_plan_v1.md`
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen

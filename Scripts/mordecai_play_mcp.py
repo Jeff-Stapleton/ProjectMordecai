@@ -8,6 +8,9 @@ events into Slate, the path a player's keyboard and mouse take; no tool calls ga
 
 Tools:
   launch_game(map, frontend, allow_stale, expect_experience)   STALE gate, launch, wait until ready
+                                                               (map: DevTestMap by default, or a
+                                                               test map: MovementTestMap,
+                                                               CombatTestMap)
   get_state(sections, radius)                                  game state JSON
   press_key(key, hold_s)                                       tap (down, hold, up)
   hold_key(key, seconds)                                       timed hold, or key down until release_key
@@ -122,7 +125,9 @@ RULE = ("RULES: real input only -- input tools inject OS-level key/mouse events 
 
 INSTRUCTIONS = (
     "Play the PACKAGED Project Mordecai build (Development Win64, PackagedBuilds/Playtest) "
-    "through its in-game agent bridge. Start with launch_game (DevTestMap, the arena), read "
+    "through its in-game agent bridge. Start with launch_game (DevTestMap, the arena, by "
+    "default; map /MordecaiCore/Game/Maps/MovementTestMap is an enemy-free floor with steps, "
+    "/MordecaiCore/Game/Maps/CombatTestMap has a passive TestDummy and a TestAttacker), read "
     "get_state, act with press_key / hold_key / walk_to / click / click_button, look with "
     "screenshot, and end with quit_game. Keys are UE FKey names: W/A/S/D move (W=+X world, "
     "S=-X, D=+Y, A=-Y; the camera never rotates), F interact/pick up, I inventory, Escape pause "
@@ -778,7 +783,10 @@ def build_server(session=None, *, log_level="WARNING"):
 Launch the packaged game (PackagedBuilds/Playtest) with the agent bridge and wait until it is
 ready (experience loaded, loading screen gone, pawn spawned). One game at a time: call quit_game
 first to start another. The game runs in a kill-on-close job and dies with this server.
-- map: map to load (default /MordecaiCore/Game/Maps/DevTestMap, the arena)
+- map: map to load (default /MordecaiCore/Game/Maps/DevTestMap, the arena with enemies and
+  pickups). The playtest test maps load the same experience:
+  /MordecaiCore/Game/Maps/MovementTestMap (open floor and steps, no enemies) and
+  /MordecaiCore/Game/Maps/CombatTestMap (a passive TestDummy and a TestAttacker that swings)
 - frontend: true boots the front end (no map) and expects B_LyraFrontEnd_Experience
 - allow_stale: run a STALE package anyway (the package does not match the code under test).
   Diagnostic only: every later result is bannered 'STALE BUILD — not evidence'.

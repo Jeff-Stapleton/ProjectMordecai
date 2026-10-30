@@ -1,7 +1,8 @@
 """Tests for Scripts/playtests/us069_pause_menu.py against tests/fake_bridge.py.
 
-These prove the playtest's logic and reporting only; they say nothing about the real game.
-Nothing here launches the real game.  Run: py Scripts/run_python_tests.py -k Us069
+The fake world models MovementTestMap (fb.MAP_PRESETS[fb.MOVEMENT_TEST_MAP]), the map the script
+launches.  These prove the playtest's logic and reporting only; they say nothing about the real
+game.  Nothing here launches the real game.  Run: py Scripts/run_python_tests.py -k us069
 """
 
 import importlib.util
@@ -150,7 +151,10 @@ class PlaytestCase(unittest.TestCase):
         self.run_dir = os.path.join(self.tmp, "run")
 
     def serve(self, faults=None, **world_kwargs):
-        world_kwargs.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES)
+        # MovementTestMap, the map us069 launches (so the kit's map check passes): no pickups,
+        # no enemies
+        for key, value in fb.MAP_PRESETS[fb.MOVEMENT_TEST_MAP].items():
+            world_kwargs.setdefault(key, value)
         world = PauseMenuWorld(**world_kwargs)
         server = fb.FakeBridgeServer(world, token=TOKEN, shot_dir=self.tmp, faults=faults).start()
         self.addCleanup(server.stop)
@@ -189,12 +193,17 @@ class TestUs069TodaysGame(PlaytestCase):
         self.assertEqual(rep["new_failures"], ["shoulder_switches_tab"])
         self.assertEqual(rep["undeclared_checks"], [])
         checks = self.by_name(rep)
-        for name in ("hud_visible", "escape_opens", "menu_input_mode", "tabs_listed",
+        for name in ("experience", "map", "hud_visible", "escape_opens", "menu_input_mode",
+                     "tabs_listed",
                      "game_input_blocked", "click_skills_tab", "click_feats_tab",
                      "settings_placeholder", "escape_closes", "reopen_restores_tab",
                      "gamepad_back_closes", "start_button_opens", "escape_closes_again",
                      "i_opens_inventory", "final_close"):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
+        self.assertIn(fb.MOVEMENT_TEST_MAP, checks["map"]["detail"])
+        # The '[I] Inventory' hint is on screen with no pickup in the world
+        self.assertEqual(world.world_pickups, [])
+        self.assertEqual(world.enemies, [])
         self.assertIn("NEW finding", checks["shoulder_switches_tab"]["detail"])
         self.assertIn("AC-069.4", checks["shoulder_switches_tab"]["detail"])
         self.assertIn("Coming Soon", checks["skills_tab_content"]["detail"])
@@ -367,6 +376,12 @@ class TestUs069Plan(unittest.TestCase):
 
     def test_expected_tabs_match_the_fake_and_the_story(self):
         self.assertEqual(tuple(us069.EXPECTED_TABS), tuple(fb.PAUSE_TABS))
+
+    def test_the_script_launches_the_movement_test_map(self):
+        self.assertEqual(us069.Us069Run.launch_map(), kit.MOVEMENT_TEST_MAP)
+        self.assertEqual(kit.MOVEMENT_TEST_MAP, fb.MOVEMENT_TEST_MAP)
+        self.assertEqual(us069.Us069Run.expected_experience(), kit.DEFAULT_EXPERIENCE)
+        self.assertNotIn("arena", us069.SCREENSHOTS["menu_closed"])
 
 
 if __name__ == "__main__":
