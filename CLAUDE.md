@@ -304,15 +304,15 @@ py Scripts/playtest_boot.py --map <MapPath> --expect-experience <ExperienceName>
 py Scripts/playtest_boot.py --settle 10 --shots 5 --shot-interval 2.0
 ```
 - Exit 0 = all checks passed.
-- Exit 1 = gameplay failure: wrong experience (`B_LyraDefaultExperience` means the Mordecai experience did NOT load), crash, timeout, or `content_cooked` FAIL. That check fails when the game asked for a `/MordecaiCore` asset that is not in the build, usually content loaded from C++ by a path string; PIE can't catch it. Fix the cause, then repeat Step 4 → 4b → 5 (commit) → 4c.
+- Exit 1 = gameplay failure: wrong experience (`B_LyraDefaultExperience` means the Mordecai experience did NOT load), crash, timeout, or `content_cooked` FAIL. That check fails when the game asked for a `/MordecaiCore` asset that is not in the build, usually content loaded from C++ by a path string; PIE can't catch it. A `loading_screen` FAIL means a loading screen showed that was not the Mordecai one (`UMordecaiLoadingScreenWidget`, issue #39). Fix the cause, then repeat Step 4 → 4b → 5 (commit) → 4c.
 - Exit 2 = infrastructure: exe missing, **STALE BUILD**, window not found, git error. On STALE BUILD, commit if needed and re-run `package_playtest.py` — do not work around it.
 - NEVER use `--allow-stale` for acceptance evidence. It is for diagnosis only, and the report records it.
 - Use `--frontend` whenever the story touches the front end, menus, or playlists (how a player reaches a map).
-- Each run writes `Saved\Playtests\<YYYYmmdd-HHMMSS>-boot\`: `report.md`, `report.json`, `game.log`, `engine_01.png`, ... (saved by the game itself from its own viewport, via `-PlaytestCapture` / `UMordecaiPlaytestCaptureSubsystem`) and `shot_01.png`, ... (desktop capture of the game window)
+- Each run writes `Saved\Playtests\<YYYYmmdd-HHMMSS>-boot\`: `report.md`, `report.json`, `game.log`, `engine_loading.png` (the loading screen when it first shows) and `engine_01.png`, ... (saved by the game itself from its own viewport, via `-PlaytestCapture` / `UMordecaiPlaytestCaptureSubsystem`) and `shot_01.png`, ... (desktop capture of the game window)
 - `engine_NN.png` is the primary evidence: it works when the machine is locked or the window is covered, as it is on unattended runs. `shot_NN.png` is all black whenever the workstation is locked, so treat a black `shot_NN.png` with good `engine_NN.png` as expected. A missing or black `engine_NN.png` (`engine_screenshots` FAIL/WARN) means you have no visual evidence.
 
 **4. Look at the screenshots (MANDATORY):**
-- Read `report.md`, then open EVERY `engine_NN.png` (and any non-black `shot_NN.png`) with the Read tool.
+- Read `report.md`, then open `engine_loading.png` and EVERY `engine_NN.png` (and any non-black `shot_NN.png`) with the Read tool.
 - State what is actually on screen: the Mordecai diorama arena or a Lyra shooter HUD? The Mordecai HUD? The character? The content your story added (pickups, enemies, widgets)? A black/uniform-screenshot warning means you saw nothing — investigate; it is not a pass.
 - Check the report's top errors. An error your change introduced (missing asset, failed load, `LogMordecai*` error) is a defect to fix, not a footnote.
 - Compare against the story's **Playtest** section. Everything listed there that does not need player input must be visibly confirmed.
@@ -415,12 +415,12 @@ py Scripts/check_content_committed.py --base <ref> --json   # base defaults to o
 
 ### Step 6: Update Story (Only After the Packaged and Real-Input Playtests Pass)
 - Check off completed ACs in the story file
-- Add completion notes: Step 4c and Step 4d run dirs, PASS/FAIL per check, a one-line description of each screenshot (`engine_NN.png` and `bridge_NN.png`), and any AC recorded `PENDING TIER 4 (bridge cannot drive: <reason>)` (not claimed)
+- Add completion notes: Step 4c and Step 4d run dirs, PASS/FAIL per check, a one-line description of each screenshot (`engine_loading.png`, `engine_NN.png` and `bridge_NN.png`), and any AC recorded `PENDING TIER 4 (bridge cannot drive: <reason>)` (not claimed)
 - Move story from `stories/in-progress/` to `stories/done/` ONLY when ALL of these hold:
   - All ACs pass at Tier 1 and Tier 2
   - `playtest_boot.py` exited 0 on a fresh package of the delivered commit (no STALE BUILD, no `--allow-stale`)
   - Story with ACs that need player input: its `Scripts/playtests/usXXX_<name>.py` exited 0 on that same fresh package (no STALE BUILD, no `--allow-stale`), and every input-driven AC the bridge can drive was accepted by that run. An AC recorded `PENDING TIER 4 (bridge cannot drive: <reason>)` stays unchecked and is not claimed; the story may still move to done, its Playable Status says the input is not yet accepted, and the bridge gap is added to the Known issues backlog in `Specs/agent_playtest_plan_v1.md`. If no input AC can be driven, no Tier 4 script is required.
-  - You opened every screenshot (`engine_NN.png` and `bridge_NN.png`) and described what is on screen
+  - You opened every screenshot (`engine_loading.png`, `engine_NN.png` and `bridge_NN.png`) and described what is on screen
   - `check_content_committed.py` exits 0
 - If the packaged or real-input playtest failed or was not run, the story stays in `stories/in-progress/` — record the failure and the run dir in the story
 - HEADLESS story whose feature needs content: name the paired EDITOR story in the completion notes and record `NOT YET PLAYABLE — pending US-XXX`. The feature — and the epic's playable milestone — is not met until both land and the packaged playtest shows it.

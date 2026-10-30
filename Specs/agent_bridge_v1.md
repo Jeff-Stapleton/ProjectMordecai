@@ -135,7 +135,7 @@ Every successful response carries `"ok": true` and `"cmd"`. Every input command 
 
 - `build` is read once from `build_info.json`. The bridge looks in the exe's directory and up to 6 parent directories. In a packaged playtest build the file is at `PackagedBuilds/Playtest/build_info.json`. If no file is found, `build` is `null`.
 - `experience` is the loaded experience's asset name without `Default__` or a `_C` suffix. This is the same normalization `playtest_boot.experience_name()` uses.
-- `ready` is `experience_loaded && !loading_screen && has_pawn`. While the Lyra loading screen is up, Slate eats every input event, exactly as it does for a player.
+- `ready` is `experience_loaded && !loading_screen && has_pawn`. While the loading screen is up (CommonLoadingScreen's input preprocessor), Slate eats every input event, exactly as it does for a player.
 
 ### `state`
 
