@@ -329,11 +329,11 @@ namespace MordecaiTestMapTests
 		}
 	}
 
-	/** The range the AI attacks from: AttackRange, shortened to the swing's reach (AMordecaiEnemyAIController::GetEffectiveAttackRange). */
+	/** The range the AI attacks from: the first swing's reach, AttackRange without one (AMordecaiEnemyAIController::GetEffectiveAttackRange). */
 	double EffectiveAttackRange(const AMordecaiEnemyCharacter* Enemy, const AMordecaiEnemyAIController* AI)
 	{
 		const double Reach = Enemy->EnemyAttackProfiles.Num() > 0 ? ProfileReach(Enemy->EnemyAttackProfiles[0]) : 0.0;
-		return Reach > 0.0 ? FMath::Min(static_cast<double>(AI->AttackRange), Reach) : AI->AttackRange;
+		return Reach > 0.0 ? Reach : AI->AttackRange;
 	}
 
 	double PawnDistance(const FVector2D& A, const FVector2D& B)

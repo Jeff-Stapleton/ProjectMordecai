@@ -555,7 +555,7 @@ When building widget trees programmatically:
 
 **Root cause:** the AI enters Attack at `AttackRange` (200, AC-054.2) and roots; the slash's hit shape reaches 150 cm (arc radius, measured centre to centre by `IsPointInArcSector`). Whether an enemy hits depended on where it happened to stop.
 
-**Fix:** `AMordecaiEnemyAIController::GetEffectiveAttackRange()` = `min(AttackRange, UMordecaiGA_MeleeAttack::GetAttackReach())` (arc radius; circle offset + radius; capsule/box length). Any new attacker AI must derive its engage distance from the attack's actual hit shape, never from a separate range number alone.
+**Fix:** `AMordecaiEnemyAIController::GetEffectiveAttackRange()` = `UMordecaiGA_MeleeAttack::GetAttackReach()` (arc radius; circle offset + radius; capsule/box length) of the active profile; `AttackRange` is only the fallback when the melee ability has no profile (issue #47, was `min(AttackRange, reach)`). Any new attacker AI must derive its engage distance from the attack's actual hit shape, never from a separate range number alone.
 
 ### UnrealEditor-Cmd exits 0 even when automation tests fail
 
