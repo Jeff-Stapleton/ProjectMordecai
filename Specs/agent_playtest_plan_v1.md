@@ -201,10 +201,23 @@ The contract is `Specs/story_playtests_v1.md`.
     - Tier 3 `Saved/Playtests/20261030-154954-boot` (DevTestMap): `loading_screen` PASS, shown 1x, visible 3.02 s. `engine_loading.png` shows the Mordecai loading screen.
     - `--frontend` `Saved/Playtests/20261030-155056-boot`: `loading_screen` PASS, visible 3.53 s, the same screen.
     - Sweep `Saved/Playtests/20261030-155137-sweep`: `loading_screen` PASS on DevTestMap, MovementTestMap and CombatTestMap. Compared with `20261030-122726-sweep` (`8486aa1`), nothing went from PASS to FAIL. The same 19 checks fail in both.
-  - Still Lyra after this fix, not part of #39:
-    - the `L_LyraFrontEnd` main menu (LYRA logo, "PLAY LYRA", "QUIT LYRA");
-    - `DefaultGame.ini` `ProjectName=Lyra`;
-    - the on-screen engine messages (#29).
+  - Still Lyra after this fix. These were filed as #57-#69 from the 2026-10-30 rebranding audit, all `needs-decision`:
+    - Player-facing:
+      - #57 the main menu's LYRA logo and "PLAY LYRA" / "QUIT LYRA";
+      - #58 the front-end lobby background;
+      - #59 Lyra's shooter and party modes, which ship and can be played from the front end;
+      - #60 PLAY leading to Lyra's multiplayer and replay screens instead of the Mordecai arena;
+      - #61 the machine name, online ID, engine build stamp and ADD PLAYER on the main menu;
+      - #62 Lyra's UI style (Orbitron, blue glass) on the front end and dialogs;
+      - #63 the credits screen;
+      - #64 Lyra's translated menu text;
+      - #65 the front-end music and menu sounds.
+    - Shipped metadata:
+      - #66 the exe's version resource ("Lyra", "Epic Games, Inc.") and icon;
+      - #67 `LyraGame.exe`;
+      - #68 Lyra's fallback experience, HUD and escape menu;
+      - #69 the `LyraGame` module, config sections and console variables.
+    - The on-screen engine messages are #29.
 - **Melee `AttackProfiles` CDO write in `AMordecaiPlayerController::GrantCombatAbilities` (FIXED, issue #40).** Same GC crash pattern as the spells; latent while `MeleeAttackProfiles` was empty.
   - Cause: the controller wrote its `MeleeAttackProfiles` into the native `UMordecaiGA_MeleeAttack` CDO, the disregard-for-GC fatal the spells hit (`e833b3e`). The write never reached the ability instance either: an instance of a native class copies only `Config` properties from its CDO.
   - Fixed: the controller stays the melee grant's SourceObject, and `UMordecaiGA_MeleeAttack::OnGiveAbility` -> `TakeAttackProfilesFromSpec` copies the profiles onto the instance, never the CDO. Tests `Mordecai.Combat.MeleeGrant.*` (5) and `Mordecai.Recovery.Combat.NoMeleeCDOWrite`. No Tier 4 check exercised it then: the game spawns the native `AMordecaiPlayerController`, whose `MeleeAttackProfiles` and `DefaultCombatAbilities` were empty (N10, fixed by US-083).
