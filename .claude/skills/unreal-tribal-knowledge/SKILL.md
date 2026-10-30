@@ -554,6 +554,10 @@ When building widget trees programmatically:
 - `playtest_boot.py`'s `loading_screen` check FAILs any shown loading screen without a matching `MordecaiLoadingScreen: shown` line, which the widget logs in `NativeConstruct`. Lyra's host logs nothing.
 - Never widen the window with `CommonLoadingScreen.AlwaysShow` or a longer hold: both change the player's path.
 
+**Evidence:**
+- Before: `Saved/Playtests/20261018-223717-boot/engine_01.png` (the LYRA logo).
+- After, on `1d33354`: `Saved/Playtests/20261030-154954-boot/engine_loading.png` (DevTestMap) and `20261030-155056-boot/engine_loading.png` (`--frontend`). Both show "PROJECT MORDECAI" and `loading_screen` PASS.
+
 ---
 
 ## Testing Gaps
