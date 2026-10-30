@@ -51,7 +51,7 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
   - `Source/LyraGame/Tests/Level/MordecaiLevelTests.cpp` (`Mordecai.Level.DevTestMapExists` pattern)
 
 ## Acceptance Criteria
-- [ ] AC-100.1: `/MordecaiCore/Game/Maps/MovementTestMap` exists as one non-World-Partition `.umap`. It has:
+- [x] AC-100.1: `/MordecaiCore/Game/Maps/MovementTestMap` exists as one non-World-Partition `.umap`. It has:
   - World Settings GameMode Override = `MordecaiGameMode` and no World Settings experience
   - exactly one PlayerStart, at (0, 0, 100), yaw 0
   - a floor over x, y ∈ [-2000, 2000] with its top at z = 0 (WorldGridMaterial), and 100 cm boundary walls on its edges
@@ -63,7 +63,7 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
     - Tier 1 `Mordecai.Level.TestMaps.*`: the World Settings game mode and no experience, not World Partition, the PlayerStart (count, location, yaw), no enemies or pickups, the floor and wall boxes with WorldGridMaterial, the steps, lane L1, Movable lights.
     - Tier 2 `Scripts/verify_pie_test_maps.py`: the PIE spawn near (0, 0), the game mode, no enemies or pickups.
     - Tier 3 `engine_NN.png`: the grid floor on screen.
-- [ ] AC-100.2: `/MordecaiCore/Game/Maps/CombatTestMap` exists as one non-World-Partition `.umap`. It has:
+- [x] AC-100.2: `/MordecaiCore/Game/Maps/CombatTestMap` exists as one non-World-Partition `.umap`. It has:
   - the same World Settings rule and one PlayerStart at (0, 0, 100), yaw 0
   - a floor over x ∈ [-1500, 2700], y ∈ [-1600, 1600], with walls
   - `TestDummy` (`BP_MordecaiEnemy_TestDummy`) at (600, 600, 100): 200 HP, `DefaultMoveSpeed` 0, AI `BP_MordecaiEnemyAI_TestDummy` with AggroRange 0. It stays Idle and never attacks.
@@ -76,14 +76,14 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
     - The read-back of `Scripts/us100_02_create_test_maps.py` (its PASS lines and RESULT line, recorded in the Completion Notes): the valid, non-partial navmesh path (0, 0) → (2000, 0), checked in the editor world (a path query during PIE trips a handled ensure).
     - Tier 2 `Scripts/verify_pie_test_maps.py`: the PIE spawn, both enemies present, Idle, 200/200 and with MaxWalkSpeed 0, the attacker beyond its AggroRange from the pawn, a RecastNavMesh in the PIE world.
     - Tier 3 `engine_NN.png`: the grid floor and the dummy's blue-grey body on screen.
-- [ ] AC-100.3: Both maps are in the default package cook (`Scripts/package_playtest.py` `DEFAULT_MAPS` and `+MapsToCook` in `Config/DefaultGame.ini`). On a fresh package, `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` and `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` each exit 0:
+- [x] AC-100.3: Both maps are in the default package cook (`Scripts/package_playtest.py` `DEFAULT_MAPS` and `+MapsToCook` in `Config/DefaultGame.ini`). On a fresh package, `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` and `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` each exit 0:
   - `B_MordecaiArenaExperience` identified
   - `content_cooked` PASS
   - no `LogMordecai*` error
   - `engine_NN.png` show the grid floor, the player and the Mordecai combat HUD, plus the TestDummy body under its health bar on CombatTestMap
   - `py Scripts/playtest_boot.py` (DevTestMap) still exits 0.
-- [ ] AC-100.4: Every Tier 4 script declares its `MAP`. The kit's `map` check compares the loaded map (`ping.map`, any `.Object` suffix stripped, case-insensitive) with the script's `MAP`. A mismatch FAILs (gameplay) and blocks the plan, as a wrong experience does; a front-end run records INFO. Verified offline by `py Scripts/run_python_tests.py` (kit tests) and by `map` PASS in every Tier 4 report on the fresh package.
-- [ ] AC-100.5: Each script runs on its map:
+- [x] AC-100.4: Every Tier 4 script declares its `MAP`. The kit's `map` check compares the loaded map (`ping.map`, any `.Object` suffix stripped, case-insensitive) with the script's `MAP`. A mismatch FAILs (gameplay) and blocks the plan, as a wrong experience does; a front-end run records INFO. Verified offline by `py Scripts/run_python_tests.py` (kit tests) and by `map` PASS in every Tier 4 report on the fresh package.
+- [x] AC-100.5: Each script runs on its map:
   - MovementTestMap: `us001_movement.py`, `us083_combat_input.py`, `us069_pause_menu.py`
   - CombatTestMap: `us054_combat.py` (new; US-054's walk/melee/dodge/damage/death/respawn/reset chain), `us057_magic.py`, `us078_weapons.py`
   - DevTestMap: `us054_arena.py` (enemy-AI checks), `us079_inventory.py`
@@ -94,8 +94,8 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
     - us078: `light_attack_lmb`
     - us083: `block_over_held_rt_no_parry`, `light_attack_rt_tap`
   - No check that PASSed in a baseline (the `f21525f` sweep `20261028-090808-sweep`, the `01abb8b` sweep `20261023-192402-sweep`, or the `92e7575` us079 run `20261028-232550-us079`) FAILs.
-- [ ] AC-100.6: Crouch is recorded out of scope (Jeff, 2026-10-29) in `Specs/design_decisions_log.md` and the Open decisions of `Specs/agent_playtest_plan_v1.md`. It is the spec'd "Sneak (Toggle)" (Ctrl / R3), owned by blocked US-034. No crouch geometry or check is built.
-- [ ] AC-100.7: Every asset is saved and committed (both `.umap`, the three Blueprints, the two material instances); `py Scripts/check_content_committed.py` exits 0.
+- [x] AC-100.6: Crouch is recorded out of scope (Jeff, 2026-10-29) in `Specs/design_decisions_log.md` and the Open decisions of `Specs/agent_playtest_plan_v1.md`. It is the spec'd "Sneak (Toggle)" (Ctrl / R3), owned by blocked US-034. No crouch geometry or check is built.
+- [x] AC-100.7: Every asset is saved and committed (both `.umap`, the three Blueprints, the two material instances); `py Scripts/check_content_committed.py` exits 0.
 
 ## Technical Notes
 - **Assets** (paths as in the spec; agents must not rename them):
@@ -280,29 +280,125 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
 - **Playable alone:** YES (no pair). The features it unblocks become PLAYABLE only through their owning stories' exit-0 runs.
 
 ## Definition of Done
-- [ ] All ACs checked off
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0), including `Mordecai.Level.TestMaps.*`
-- [ ] Tier 2: PIE smoke tests pass: `py Scripts/run_pie_verify.py --map <map> --tests spawn,hud,test_maps` for both test maps, and `py Scripts/run_pie_verify.py` on DevTestMap. Direct-call checks are labeled LOGIC.
-- [ ] Content: both `.umap`, the three Blueprints and the two material instances are saved and committed in this branch; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST (content, scripts, tooling and tests), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0 and `build_info.json` `maps` lists both test maps
-- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap`, `--map /MordecaiCore/Game/Maps/CombatTestMap` and the default DevTestMap boot each exit 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py --all`: the 14 checks of AC-100.5 PASS; the kit check `map` PASSes in every Tier 4 run; no baseline PASS → FAIL. Each owning story's `--lint` exits 0. Never `--allow-stale`.
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
-- [ ] T1 marked delivered in `Specs/agent_playtest_plan_v1.md` with the run dirs; N14 and the issue #12 sweep entry updated with the results
-- [ ] Evidence cited: run dirs (Tier 3 `Saved/Playtests/<run>-boot/report.md` ×3, the sweep `Saved/Playtests/<run>-sweep/summary.md` and its Tier 4 runs) in Completion Notes AND in the body of the `[US-100]` commit that closes the story
-- [ ] Pushed; story moved to `stories/done/` only after all of the above pass. A failing playtest is reported honestly and the story stays in progress
+- [x] All ACs checked off
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0), including `Mordecai.Level.TestMaps.*`
+- [x] Tier 2: PIE smoke tests pass: `py Scripts/run_pie_verify.py --map <map> --tests spawn,hud,test_maps` for both test maps, and `py Scripts/run_pie_verify.py` on DevTestMap. Direct-call checks are labeled LOGIC.
+- [x] Content: both `.umap`, the three Blueprints and the two material instances are saved and committed in this branch; `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST (content, scripts, tooling and tests), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0 and `build_info.json` `maps` lists both test maps
+- [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap`, `--map /MordecaiCore/Game/Maps/CombatTestMap` and the default DevTestMap boot each exit 0 — never `--allow-stale`
+- [x] On that same fresh package `py Scripts/playtest_story.py --all`: the 14 checks of AC-100.5 PASS; the kit check `map` PASSes in every Tier 4 run; no baseline PASS → FAIL. Each owning story's `--lint` exits 0. Never `--allow-stale`.
+- [x] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
+- [x] T1 marked delivered in `Specs/agent_playtest_plan_v1.md` with the run dirs; N14 and the issue #12 sweep entry updated with the results
+- [x] Evidence cited: run dirs (Tier 3 `Saved/Playtests/<run>-boot/report.md` ×3, the sweep `Saved/Playtests/<run>-sweep/summary.md` and its Tier 4 runs) in Completion Notes AND in the body of the `[US-100]` commit that closes the story
+- [x] Pushed; story moved to `stories/done/` only after all of the above pass. A failing playtest is reported honestly and the story stays in progress
 
 ## Completion Notes
-Pending. Nothing here is evidence yet: no package of this work exists and no playtest has run.
+**Done 2026-10-29** on branch `fix/issue-46-test-maps` (issue #46). The delivered commit is `9904cde`, packaged clean (`dirty: false`).
 
-- 2026-10-29: story written; issue #46 is in progress on branch `fix/issue-46-test-maps`. Decisions recorded: crouch out of scope; us069 moves to MovementTestMap; us079 stays on DevTestMap (`Specs/design_decisions_log.md`). N32 filed from the source audit.
-- To fill in:
-  - the exact `Mordecai.Level.TestMaps.*` test names and the Tier 1 red/green logs
-  - the RESULT lines of `Scripts/us100_01_create_test_enemies.py` and `Scripts/us100_02_create_test_maps.py` (the us100_02 read-back is the evidence for the navmesh path (0, 0) → (2000, 0))
-  - the Tier 2 runs
-  - `check_content_committed.py`
-  - the package log and `build_info.json` `maps`
-  - the three Tier 3 boot run dirs with every `engine_NN.png` described
-  - the sweep dir with every check of AC-100.5 and every `bridge_NN.png` described
-  - the PASS → FAIL comparison against the baselines
-  - the dodge displacements us083 measured on MovementTestMap (N27)
+**Decisions (Jeff, 2026-10-29):** crouch is out of scope; us069 moves to MovementTestMap; us079 stays on DevTestMap (`Specs/design_decisions_log.md`). N32 was filed from the source audit: block, parry, dodge i-frames, Blink and jumping do not reduce enemy melee damage.
+
+**Tier 1**
+- `Mordecai.Level.TestMaps.*`: 14 tests.
+  - `MovementTestMapExists`, `CombatTestMapExists`, `MapsUseMordecaiGameModeWithoutExperience`, `MapsHaveOnePlayerStartAtOrigin`, `MovementTestMapHasNoEnemiesOrPickups`, `MovementTestMapHasStepsAndClearLane`
+  - `CombatTestMapHasDummyAndAttackerAtTheirSpots`, `CombatTestMapAttackerOutsideAggroRangeOfScriptedSpots`, `CombatTestMapHasNavMesh`
+  - `TestDummyNeverMovesOrAggroes`, `TestAttackerHoldsItsSpotAndSwings`
+  - `MapsAreOneUmapNotWorldPartition`, `MapsHaveGridFloorAndBoundaryWalls`, `MapsHaveOnlyMovableLights`
+  - Red before the content existed: 11 failed, "not on disk". The 3 later layout tests were shown to fail when an expected value was changed. Green after.
+- `Mordecai.Playtest.AgentBridge.HoldClock.*` (B3): 6 tests.
+  - Red first against a wall-time clock, then against an uncapped clock without the nearest-boundary rule.
+- All Mordecai tests: 733/733 (`Saved/TestLogs/tests-20261029-171825.log`). LyraEditor and LyraGame both build.
+- Offline Python (`py Scripts/run_python_tests.py`): 513/513.
+
+**Content**
+- `Scripts/us100_01_create_test_enemies.py`: RESULT PASS (41/0).
+- `Scripts/us100_02_create_test_maps.py`: RESULT PASS (112/0) on the first run that created CombatTestMap from nothing, then again on a rerun.
+  - Before the save it reported the navmesh built (RecastNavMesh-Default) and valid, non-partial paths: (0, 0) → (2000, 0) 2000 cm, to the melee spot 744 cm, along the Blink lane 1100 cm.
+- `check_content_committed.py`: PASS (7 assets, 2 asset-writing scripts).
+
+**Tier 2** (`run_pie_verify.py`, through the repo's fixed `ue_remote_exec.py` / `check_editor.py`)
+- DevTestMap, full suite: 13/13.
+- `--map /MordecaiCore/Game/Maps/MovementTestMap`: 3/3 (spawn, hud, test_maps).
+- `--map /MordecaiCore/Game/Maps/CombatTestMap`: 3/3, with `verify_pie_test_maps.py` 21/21. Both enemies are Idle at 200/200, MaxWalkSpeed is 0, and a navmesh is present.
+- The bridge (B3 fix) exists only in packaged builds launched with `-AgentBridge`, never in PIE.
+
+**Package:** `Saved/Playtests/package-20261029-174712.log`. `build_info.json` `maps` = front end, DevTestMap, MovementTestMap, CombatTestMap.
+
+**Tier 3** (each boot exits 0; `content_cooked` PASS; 0 errors; `B_MordecaiArenaExperience` from OptionsString)
+- `Saved/Playtests/20261029-175527-boot` (MovementTestMap), engine_01-03:
+  - the grey measuring-grid floor, the player cylinder alone at the centre, the walk-up step slab at the top right
+  - the full combat HUD (health and stamina full, SP `10 / 10`), `Kills: 0`, `[I] Inventory`
+  - no enemy, no pickup
+- `Saved/Playtests/20261029-175546-boot` (CombatTestMap), engine_01-03:
+  - the grid floor, the player at the centre, and the blue-grey TestDummy cylinder under its red health bar, up and to the right (600, 600)
+  - the full HUD; the TestAttacker (2100, 0) is out of frame, as expected
+- `Saved/Playtests/20261029-175504-boot` (DevTestMap), engine_01-03:
+  - the arena: three red Frontliner cylinders with health bars around the player at the spawn, the health bar draining across the frames (the swarm), the six labelled pickups, the HUD
+- Every `shot_NN.png` shows the Windows lock-screen wallpaper (the workstation was locked: `screenshots` WARN). `engine_NN.png` is the evidence.
+- Every frame shows the known Steam/config debug text (issue #29).
+
+**Tier 4:** sweep `Saved/Playtests/20261029-175504-sweep/summary.md`, all on `9904cde`. The kit check `map` PASSes in all 8 runs, each on its declared map.
+
+| Script | Map | Run | Exit | Failures |
+|---|---|---|---|---|
+| us001 | MovementTestMap | `20261029-175605-us001` | 1 | known only: sprint_l3, facing_mouse, facing_stick, gamepad_move |
+| us083 | MovementTestMap | `20261029-175859-us083` | **0** (28/28) | none |
+| us069 | MovementTestMap | `20261029-175759-us069` | 1 | shoulder_switches_tab (NEW, pre-existing N18); 4 known |
+| us054_combat | CombatTestMap | `20261029-175647-us054combat` | 1 | death_screen (known N2) only |
+| us057 | CombatTestMap | `20261029-175733-us057` | 1 | fireball_projectile, fireball_hits_enemy, stone_skin_indicator (NEW, pre-existing N15/N11/N16); 3 known |
+| us078 | CombatTestMap | `20261029-175826-us078` | 1 | known only: weapon_hud_text, cycle_prev_shift_tab |
+| us054_arena | DevTestMap | `20261029-175636-us054` | 1 | enemies_present, enemy_indicators (NEW, pre-existing: swarm spacing, N17) |
+| us079 | DevTestMap | `20261029-175841-us079` | **0** (56/56) | none |
+
+- **The issue's 14 checks all PASS on their new maps:**
+  - us001: `move_s`, `walk_speed_baseline`, `walk_lane_reset`, `walk_lane_reset2`, `jump_space`; also `sprint_shift`
+  - us054_combat: `walk_to_dummy`, `melee_lmb` (dummy 200 -> 184), `dodge_lalt`, `arena_reset`, `respawn_moves` (+165 cm, 0.4 s simulated)
+    - `arena_reset` observed the reset in the first respawned read: the dummy went 184/200 -> 200/200, and the attacker went Idle -> Attack -> Recover -> Idle.
+  - us057: `walk_blink_lane`
+  - us078: `light_attack_lmb`
+  - us083: `block_over_held_rt_no_parry`, `light_attack_rt_tap`
+- **No PASS -> FAIL against the baselines:** sweeps `20261028-090808`, `20261027-202756`, `20261027-085120` and `20261023-192402`, plus runs `20261028-232550-us079` and `20261028-085332-us054`.
+  - The one check that PASSed in a baseline run and does not PASS now is us054 `dead_no_move`: **WARN**, not FAIL ("2.5s after the death there is no time to hold W 0.5s before the 3s respawn").
+  - It was WARN in all 3 baseline sweeps where the player died; it PASSed once, in run `20261028-085332-us054`. In the first two sweeps of this branch it PASSed. Timing: the 1.5 s `death_screen` wait for the never-created death screen (N2) comes first.
+  - Fix proposal (not done here): run `dead_no_move` before `death_screen`.
+- **Each `bridge_NN.png`:**
+  - us001:
+    - 01: the open grid floor, no enemies, the step slab top-right
+    - 02: the player at the lane start, the camera followed, the south wall edge top-left
+    - 03: no facing arrow (N12)
+  - us083:
+    - 01: the lane start on MovementTestMap
+    - 02: "Perfect Block!" with LT held
+  - us069:
+    - 01: the Character tab blank (N4)
+    - 02-03: Skills and Feats "Coming Soon" (N5)
+    - 04: MovementTestMap with the menu closed
+  - us054_combat:
+    - 01: start
+    - 02: beside the blue-grey dummy
+    - 03: beside the orange TestAttacker, health below full
+    - 04: dead (empty health bar, SP 7/10, no death screen, N2)
+    - 05: back at the PlayerStart with full health; the camera's snap after the teleport blurs the frame
+  - us057:
+    - 01: 300 cm from the dummy, SP 7/10, no projectile or damage number (N15)
+    - 02: after Blink, motion blur, SP 5/10
+    - 03-04: "Status 10.0" (N16), SP 1/10
+  - us078 01-02: the player at the PlayerStart with the dummy in view, no weapon name on screen (N3)
+  - us054_arena 01-02: the three Frontliners around the player at DevTestMap's spawn, health dropping
+  - us079:
+    - 01: the arena with the swarm and the six labelled pickups
+    - 02: the empty inventory tab
+    - 03: 4 items and 2 resources with the Identify button
+    - 04: "Mysterious Amulet" after Identify
+    - 05: the menu closed, the swarm still on the player
+- **N27 (dodge, measured, not judged):** both us083 dodges moved 110.9 cm (DodgeDistanceCm 400).
+- **B3 residual:** us001 `move_a` PASSed at 105 cm (needs > 100). Its 0.4 s hold had a hitch near the end (0.712 s of wall time), and the nearest-boundary rule ended it at 0.283 s simulated. Holds now err by at most half a capped frame (0.2 s) instead of losing the whole hitch (`Specs/agent_bridge_v1.md` §2 Hold time).
+
+**Found and fixed along the way** (not in the issue):
+- **B3:** bridge holds were timed in wall time, so a frame hitch ate the input (us054_combat `respawn_moves` 3 cm; us001 `move_w` 9 cm). Holds now count the simulated time (`FMordecaiAgentBridgeHoldClock`).
+- **Remote exec:** `Scripts/ue_remote_exec.py` sent `open_connection` on a closed socket (WinError 10038) and missed pongs on multi-adapter machines.
+- **Map loads in Tier 2:** `run_pie_verify.py` crashed the next map load ("World Memory Leaks") through leftover PIE globals.
+- **Package compile:** the packaged game target compiles the tests (a `WITH_EDITOR` guard).
+
+**Not covered by this story, Jeff's call:**
+- us079 exits 0 on this fresh package (`20261029-175841-us079`) and us083 does too (`20261029-175859-us083`): evidence for US-094/US-079/US-071 and US-083, nothing ticked there.
+- AC-085.4's checks (us001 `move_a`, `walk_lane_wp1`) PASS here on MovementTestMap.

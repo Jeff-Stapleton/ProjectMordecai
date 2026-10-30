@@ -285,11 +285,11 @@ The contract is `Specs/story_playtests_v1.md`.
   - On `f21525f` the two named us001 checks still depend on the swarm:
     - Story run `Saved/Playtests/20261028-085852-us001`: `move_a` PASS (207 cm). `walk_lane_wp1` FAIL: the player was killed at (152, -109), not stopped by an invisible wall.
     - Sweep run `20261028-090829-us001`: `walk_lane_wp1` PASS. `move_a` FAIL only on drift: 385 cm along -Y (an enemy shove; a walk covers about 240 cm), 37 cm across (limit 30).
-  - **T1 in progress** (US-100, issue #46, 2026-10-29; evidence to come). The scripts that do not test the enemy AI leave DevTestMap:
+  - **T1 delivered** (US-100, issue #46, 2026-10-29). The sweep on a fresh package of `9904cde` (`Saved/Playtests/20261029-175504-sweep`) PASSes `move_a` (105 cm) and `walk_lane_wp1` on MovementTestMap with no enemy on the map (run `20261029-175605-us001`). This closes the swarm part of N14 for those scripts. The scripts that do not test the enemy AI left DevTestMap:
     - us001, us083 and us069 run on `/MordecaiCore/Game/Maps/MovementTestMap`, which has no enemies. It keeps DevTestMap's frame (PlayerStart (0, 0), lane L1 at y = -800), so their waypoints and check names are unchanged.
     - The melee/dodge/death chain of us054, and us057 and us078, run on `/MordecaiCore/Game/Maps/CombatTestMap`: a TestDummy that never moves or attacks, and a TestAttacker that holds its spot more than 900 cm from every scripted spot except its fight spot.
     - DevTestMap keeps its Frontliners for the enemy-AI checks (`us054_arena.py`) and for us079.
-    - This entry is closed only by a fresh-package sweep in which `move_a` and `walk_lane_wp1` PASS on MovementTestMap.
+    - On DevTestMap itself the swarm still kills the player (us054_arena, us079); that is by design (Jeff, 2026-10-28 and 2026-10-29).
 - **N15 Fireball spends SP but does nothing visible.**
   - SP drops 10 → 7.
   - No projectile appears in `actors` within 1.5 s.
@@ -321,7 +321,7 @@ The contract is `Specs/story_playtests_v1.md`.
     - the first read after the Left Alt tap: 98 cm, still moving at 358 cm/s (the displacement the check reports);
     - the next read: the player at rest about 111 cm from the start.
   - The check passes on the Dodging tag, so a dodge that is too short does not fail it.
-  - From US-100 (T1) on, `us083_combat_input.py` records each dodge's displacement as a measurement on MovementTestMap, with no enemy in the way. The script records it without FAILing, so N27 does not block us083's exit 0. The measurements come with US-100's sweep (evidence to come).
+  - From US-100 (T1) on, `us083_combat_input.py` records each dodge's displacement as a measurement on MovementTestMap, with no enemy in the way. The script records it without FAILing, so N27 does not block us083's exit 0. Measured on `9904cde` (`Saved/Playtests/20261029-175859-us083`, no enemy, nothing in the way): both dodges (B, Left Alt; backward, -X) moved 110.9 cm at rest, against `DodgeDistanceCm` 400.
 - **N28 Sprint is client-local.** `AMordecaiCharacter::SetSprinting` writes `MaxWalkSpeed` on the machine that handled the input (no RPC, nothing replicated), so a remote client in networked play would be corrected on every sprinting move (and while blocking, Block's speed change runs on both sides). Standalone and a listen-server host are fine. `TODO(DECISION)` at `SetSprinting`: a CharacterMovementComponent saved-move flag read in `GetMaxSpeed`, with Block's slow-down moved there too.
 - **N29 Unarmed attacks have no profiles in the game (latent).** With nothing equipped, the light attack reads `UMordecaiEquipmentComponent::UnarmedAttackProfiles` and the heavy attack gets no profile from `GetActiveHeavyAttackProfile()` (`MordecaiGA_MeleeAttack.cpp` `GetResolvedAttackProfiles`).
   - `UnarmedAttackProfiles` is never set: it has no native default, no asset sets it, and there is no `DA_AP_Unarmed_*`. The ability's own fallback `AttackProfiles` is empty too. So an unarmed player's light and heavy attacks both end at once.
@@ -345,10 +345,13 @@ The contract is `Specs/story_playtests_v1.md`.
   - us054: `walk_to_frontliner3`, `melee_lmb`, `dodge_lalt`, `arena_reset`, `respawn_moves`. `arena_reset` also requires the AC-054.2 200 max health (N13): the first read after the respawn had all three enemies back at their spawns at 100/100 (ResetArena works), and they re-aggroed within ~1.5 s because every spawn is inside AggroRange of PlayerStart. Since issue #18 (`39500e2`) the health clause holds (200.0/200.0 after the reset); it FAILs on positions only, from the re-aggro.
   - us057: `walk_blink_lane`. us078: `light_attack_lmb`. us083: `block_over_held_rt_no_parry`, `light_attack_rt_tap` (its `_idle()` treats a dead player as idle).
   - Remedy: T1 maps (movement lanes and a combat-dummy pocket without hostile AI), or out-of-aggro Frontliner placement (US-085 TODO(DECISION)). A death guard in the scripts would only hide the cause. **Decided (Jeff, 2026-10-28, issue #19): T1.** The placement stays.
-  - **In progress: US-100** (issue #46, 2026-10-29; evidence to come). The 14 checks move to the test maps:
-    - MovementTestMap: us001 `move_s`, `walk_speed_baseline`, `walk_lane_reset`, `walk_lane_reset2`, `jump_space`; us083 `block_over_held_rt_no_parry`, `light_attack_rt_tap`.
-    - CombatTestMap, in the new `Scripts/playtests/us054_combat.py`: `walk_to_dummy` (the renamed `walk_to_frontliner3`), `melee_lmb`, `dodge_lalt`, `arena_reset`, `respawn_moves`.
-    - CombatTestMap: us057 `walk_blink_lane`, us078 `light_attack_lmb`.
+  - **Resolved by US-100** (issue #46, 2026-10-29). On a fresh package of `9904cde` all 14 PASS on their new maps (sweep `Saved/Playtests/20261029-175504-sweep`, runs `-175605-us001`, `-175647-us054combat`, `-175733-us057`, `-175826-us078`, `-175859-us083`).
+    - No check that PASSed in a baseline run FAILs. us054 `dead_no_move` is WARN (inconclusive timing), as in all 3 baseline sweeps where the player died.
+    - Two holds in the first sweeps of the branch were eaten by frame hitches. That was bridge gap B3, fixed by the same story.
+    - The 14 checks moved to the test maps:
+      - MovementTestMap: us001 `move_s`, `walk_speed_baseline`, `walk_lane_reset`, `walk_lane_reset2`, `jump_space`; us083 `block_over_held_rt_no_parry`, `light_attack_rt_tap`.
+      - CombatTestMap, in the new `Scripts/playtests/us054_combat.py`: `walk_to_dummy` (the renamed `walk_to_frontliner3`), `melee_lmb`, `dodge_lalt`, `arena_reset`, `respawn_moves`.
+      - CombatTestMap: us057 `walk_blink_lane`, us078 `light_attack_lmb`.
     - us083 and us078 now FAIL with an explicit "player dead" detail instead of treating a dead player as idle. That is not a death guard: the cause stays visible.
     - Acceptance: all 14 PASS on a fresh package, and no check that PASSed in the `f21525f` sweep, the `01abb8b` sweep or the `92e7575` us079 run (`Saved/Playtests/20261028-232550-us079`) FAILs.
     - `arena_reset` and `respawn_moves` were SKIP in the `01abb8b` sweep (no death); they PASSed in `Saved/Playtests/20261028-085332-us054` @ `f21525f`.
@@ -392,10 +395,15 @@ The contract is `Specs/story_playtests_v1.md`.
   - Found in the review of this fix:
     - A frame longer than 0.4 s counted in full, though the world simulates only 0.4 s of it.
     - A 0.05 s click held through a hitch would have read as a heavy attack.
-  - Left as is: auto-repeat still runs on wall time. No playtest reads repeats.
+  - Left as is:
+    - Auto-repeat still runs on wall time. No playtest reads repeats.
+    - A hitch of 0.4 s or more inside a hold still moves its end by up to half a capped frame (0.2 s), to the nearer boundary. us001 `move_a` held 0.283 s simulated of a 0.4 s hold and moved 105 cm, against a threshold of 100 cm (`Saved/Playtests/20261029-175605-us001`). Checks that judge a distance against a hold could scale it by the response's `simulated_s`.
+  - Verified on `9904cde` (sweep `Saved/Playtests/20261029-175504-sweep`): most hitched holds simulate their `hold_s` (for example 0.533 s for a 0.546 s wall-time hold). us054_combat `respawn_moves` +165 cm.
 
 **Playtest infrastructure (proposal).**
-- **T1 Dedicated test maps per playtest (Jeff, 2026-10-24; issue #46). IN PROGRESS: US-100** (`stories/in-progress/US-100-recovery-playtest-test-maps.md`, branch `fix/issue-46-test-maps`, 2026-10-29). Evidence to come: it is delivered only when a fresh package boots both maps and the sweep passes the 14 checks listed under "Found by the issue #12 sweep" above.
+- **T1 Dedicated test maps per playtest (Jeff, 2026-10-24; issue #46). DELIVERED by US-100** (`stories/done/US-100-recovery-playtest-test-maps.md`, branch `fix/issue-46-test-maps`, 2026-10-29). Evidence is on a fresh package of `9904cde`:
+  - Tier 3 boots PASS: MovementTestMap `Saved/Playtests/20261029-175527-boot`, CombatTestMap `20261029-175546-boot`, DevTestMap `20261029-175504-boot`.
+  - Sweep `20261029-175504-sweep`: the 14 checks PASS, the kit `map` check PASSes in all 8 runs, and us083 and us079 exit 0.
   - **What US-100 delivers:**
     - `/MordecaiCore/Game/Maps/MovementTestMap`: no enemies, no pickups; 4000 × 4000 cm grid floor; PlayerStart (0, 0, 100); lane L1 at y = -800; a 30 cm walk-up step and a 60 cm jump step at +Y.
     - `/MordecaiCore/Game/Maps/CombatTestMap`: `TestDummy` (`BP_MordecaiEnemy_TestDummy`) at (600, 600), 200 HP; it never moves and never aggroes (AI BP with AggroRange 0). `TestAttacker` (`BP_MordecaiEnemy_TestAttacker`) at (2100, 0), 200 HP; it holds its spot (`DefaultMoveSpeed` 0) and swings BasicSlash about every 2.6 s within 150 cm. It is more than 900 cm from every scripted spot except its fight spot (2000, 0), 100 cm -X of it. The navmesh is built.

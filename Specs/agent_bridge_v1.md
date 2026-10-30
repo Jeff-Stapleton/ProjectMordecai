@@ -62,7 +62,7 @@ Each input response reports in `env` whether it did any of these (`focus_restore
   - A long hold stays down through it: it takes longer in wall time.
   - A quick tap (for example a 0.05 s light-attack click) goes up before the hitch is simulated, as a player's tap would, instead of reading as a heavy-attack hold.
   - `held_s` (wall time) can therefore be above or below `hold_s`.
-  - `simulated_s` is within half a frame of `hold_s`, after at least `MinFrames` frames (tap 2, `axis` and `click` 1).
+  - `simulated_s` is within half a frame of `hold_s` (at most 0.2 s, half the 0.4 s frame cap), after at least `MinFrames` frames (tap 2, `axis` and `click` 1). A check that judges a distance or a duration against a hold can read `simulated_s`. In `Saved/Playtests/20261029-175605-us001`, `move_a` held A for `hold_s` 0.4 across a hitch: 0.712 s of wall time, 0.283 s simulated, 105 cm against the 100 cm threshold.
 - The input goes up anyway 10 s of wall time past `hold_s`, so a key cannot stay down for good.
 - Responses report `held_s` (wall time), `simulated_s` (the simulated time it was down) and `frames`.
 - Auto-repeat still runs on wall time, as a real device's does. A tap that must stay down for its minimum frames through a hitch longer than the repeat delay can get one repeat event. No playtest reads gamepad or keyboard repeats.

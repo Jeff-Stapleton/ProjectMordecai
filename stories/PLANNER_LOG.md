@@ -3064,10 +3064,20 @@ Branch `fix/issue-28-inventory-reopen`, delivered `a8aaa51`.
 - T1 (issue #46): the swarm now also blocks the inventory slice (US-094, US-079, US-071).
 
 ## 2026-10-29 Issue #46: US-100 (T1 test maps)
-Branch `fix/issue-46-test-maps`, in progress (not yet delivered; no package of this work yet).
+Branch `fix/issue-46-test-maps`. Delivered `9904cde`; evidence on its fresh package: Tier 3 `Saved/Playtests/20261029-175504-boot`, `-175527-boot`, `-175546-boot`, and sweep `Saved/Playtests/20261029-175504-sweep`.
 
 ### Completed Since Last Run
-- **US-100** (EDITOR, no pair) is new in `stories/in-progress/`.
+- **US-100** (EDITOR, no pair) is DONE (`stories/done/`).
+  - The issue's 14 checks PASS on their new maps.
+  - The kit check `map` PASSes in all 8 Tier 4 runs.
+  - No check that PASSed in a baseline FAILs. us054 `dead_no_move` is WARN on timing, as in the baseline sweeps.
+  - us083 (28/28) and us079 (56/56) exit 0.
+- **B3, found and fixed here:**
+  - Bridge holds were timed in wall time, so a frame hitch ate the input. That is where us001's random `move_*` failures in every sweep came from.
+  - Holds now count simulated time and end at the nearest frame boundary (`FMordecaiAgentBridgeHoldClock`; `Specs/agent_bridge_v1.md` §2).
+- **Also fixed:**
+  - `Scripts/ue_remote_exec.py` / `check_editor.py` discovery (WinError 10038, multi-adapter machines).
+  - `run_pie_verify.py --map`, and the "World Memory Leaks" crash on a map load.
   - Two cooked test maps: `/MordecaiCore/Game/Maps/MovementTestMap` (no enemies; lane L1; a 30 cm and a 60 cm step) and `/MordecaiCore/Game/Maps/CombatTestMap`. CombatTestMap has `TestDummy`, which never moves or aggroes, and `TestAttacker`, which holds its spot and swings BasicSlash about every 2.6 s within 150 cm, more than 900 cm from every scripted spot except its fight spot.
   - The test enemies are data-only Blueprints: no C++ gameplay change.
   - Both maps are in the default cook (`package_playtest.py` `DEFAULT_MAPS`, `+MapsToCook`).
@@ -3076,12 +3086,20 @@ Branch `fix/issue-46-test-maps`, in progress (not yet delivered; no package of t
     - CombatTestMap: us054_combat (new; US-054's melee/dodge/death/respawn/reset chain), us057, us078.
     - DevTestMap: us054_arena (enemy AI) and us079.
   - `playtest_story.py` handles a story with several scripts (US-054).
-  - In progress: no story moved to done.
 - Docs updated: `Specs/agent_playtest_plan_v1.md` (T1, N14, the issue #12 sweep entry, N27, new N32, Open decision 7), `Specs/story_playtests_v1.md`, `Specs/design_decisions_log.md`, `CLAUDE.md`, `README.md`, `stories/PLANNER.md`, the unreal-testing and tribal-knowledge skills, and the Playtest launch paths of US-001/054/057/069/078/083. After review, the backlog stories whose scripts moved were re-targeted too: US-086 and US-090 (death, kill and SP checks in `us054_combat.py`), US-087 (TestDummy), US-099 (its corner check needs DevTestMap's 200 cm wall), and the launch paths of US-088/089/091/096 (CombatTestMap) and US-093/095/097/098 (MovementTestMap).
 
 ### Playable Status
-- Pending packaged evidence. No feature's status changes until a fresh package of the delivered commit passes `py Scripts/playtest_boot.py --map` for both test maps and `py Scripts/playtest_story.py --all`.
-- The statuses of the 2026-10-28 entries stand. Expected to change once that sweep runs: movement, sprint, melee_attack, dodge, death_respawn, spells, weapons and pause_menu, whose swarm failures move to the test maps.
+Sweep `20261029-175504-sweep` @ `9904cde`. Every remaining failure is a known issue or a pre-existing NEW failure; none comes from the DevTestMap swarm except on DevTestMap itself.
+- Playable status: movement, camera, sprint — NOT PLAYABLE (playtest FAIL: sprint_l3, facing_mouse, facing_stick, gamepad_move, all known; 20261029-175605-us001). Every swarm failure is gone.
+- Playable status: enemies, enemy_ai, combat_hud, kill_counter, enemy_indicators — NOT PLAYABLE:
+  - `20261029-175636-us054`: enemies_present (NEW, pre-existing: swarm spacing on DevTestMap), enemy_indicators (NEW, pre-existing N17)
+  - `20261029-175647-us054combat`: death_screen (known N2) only
+- Playable status: melee_attack, dodge, death_respawn — NOT PLAYABLE (playtest FAIL: death_screen (known); 20261029-175647-us054combat). melee_lmb, dodge_lalt, player_dies, respawn, arena_reset and respawn_moves PASS.
+- Playable status: spells, spell_hud, projectiles_aim, status_effects — NOT PLAYABLE (playtest FAIL: fireball_projectile, fireball_hits_enemy, stone_skin_indicator (NEW, pre-existing N15/N11/N16), 3 known cooldown issues; 20261029-175733-us057). walk_blink_lane and blink PASS.
+- Playable status: pause_menu, character_sheet, skill_tree_ui, feat_ui — NOT PLAYABLE (playtest FAIL: shoulder_switches_tab (NEW, pre-existing N18), 4 known; 20261029-175759-us069)
+- Playable status: weapons, weapon_hud — NOT PLAYABLE (playtest FAIL: weapon_hud_text, cycle_prev_shift_tab, known; 20261029-175826-us078). light_attack_lmb PASS.
+- Playable status: inventory, pickups, identification — PLAYABLE (input) (20261029-175841-us079 + Tier 3 20261029-175504-boot @ 9904cde). It is still on DevTestMap, so this run won the race against the swarm.
+- Playable status: block_parry — PLAYABLE (boot); input not yet accepted (AC-083.11 PENDING TIER 4: bridge cannot drive the mouse hold, B2). us083 exits 0 (20261029-175859-us083).
 
 ### Blockers / Decisions Needed (Jeff)
 - Decided 2026-10-29 (Jeff; `Specs/design_decisions_log.md`):
@@ -3092,10 +3110,9 @@ Branch `fix/issue-46-test-maps`, in progress (not yet delivered; no package of t
 - Still open: FireSlash on one Frontliner and AttackRange vs reach (#47), both US-085. The CombatTestMap attacker swings BasicSlash only, so us054_combat's `burning_on_hit` can only WARN.
 
 ### Next Session Recommendation
-- Finish US-100 (EDITOR):
-  - Run `Scripts/us100_01_create_test_enemies.py` and `Scripts/us100_02_create_test_maps.py` in the editor, then commit the assets with the code.
-  - Tier 1 `Mordecai.Level.TestMaps.*` and Tier 2 `py Scripts/run_pie_verify.py --map <map> --tests spawn,hud,test_maps`.
-  - Package, then the three Tier 3 boots, then `py Scripts/playtest_story.py --all`.
-  - Record the 14 checks against the baselines (`20261028-090808-sweep`, `20261023-192402-sweep`, `20261028-232550-us079`).
+- Jeff's calls, with fresh exit-0 evidence on `9904cde`:
+  - US-094 / US-079 / US-071: us079 exit 0, 56/56 (`20261029-175841-us079`).
+  - us083: exit 0, 28/28 (`20261029-175859-us083`), for the US-083 ACs that were closed at his call.
+- us054_combat: run `dead_no_move` before `death_screen`, so AC-053.2 is not inconclusive on timing. The 1.5 s death-screen wait (N2) eats the 3 s window.
 - Then US-085: that sweep gives AC-085.4 its checks without the swarm (us001 `move_a`, `walk_lane_wp1` on MovementTestMap), and AC-085.3 its death chain against the TestAttacker. us001 still exits 1 on its known facing and stick failures (US-097/US-098), so the kit cannot accept AC-085.4 from an exit-0 run. Closing on the check results is Jeff's call, as with US-083. AC-085.2's spacing clause, FireSlash and #47 remain.
 - Scope a recovery story for N32 (enemy melee ignores block, parry and i-frames, and no jump is ever Airborne) before any CombatTestMap check asserts mitigation or jump avoidance. Its scope includes granting `Mordecai.State.Airborne` while the character is falling.

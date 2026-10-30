@@ -864,7 +864,7 @@ Test fixture maps need no playlist: they are launched by `--map` (`playtest_boot
 - Sweeps `Saved/Playtests/20261027-085120-sweep` (`c7e4b8d`, the 14 checks lost to the swarm) and `20261028-090808-sweep` (`f21525f`).
 - The research behind steps 1-9: `Config/DefaultEngine.ini` (`GlobalDefaultGameMode`), `MordecaiGameMode.cpp` (`InitGame`), `LevelEditorSubsystem.cpp` (`new_level`), `NavigationSystem.cpp` (`FNavigationSystemExec::Exec_Runtime`: `RebuildNavigation` → `Build` only with `NavDataSet.Num() > 0`; `PerformNavigationBoundsUpdate`).
 - Step 4's first-run failure: `Saved/Logs/ProjectMordecai-backup-2026.10.29-13.29.17.log` (13.24.55, `Cmd: RebuildNavigation` with no Build after it; the 13.25.04 rerun on the existing map built).
-- US-100's packaged boots of both maps are the proof that the recipe works in the package (evidence to come; `stories/in-progress/US-100-recovery-playtest-test-maps.md`).
+- The recipe works in the package: on `9904cde` both maps boot `B_MordecaiArenaExperience` (`Saved/Playtests/20261029-175527-boot`, `-175546-boot`) and the CombatTestMap attacker hits and resets (`20261029-175647-us054combat`); `stories/done/US-100-recovery-playtest-test-maps.md`.
 
 ---
 
