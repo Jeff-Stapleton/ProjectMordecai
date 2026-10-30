@@ -65,16 +65,17 @@ MID_SWING = dict(hit_damage=25.0, windup_s=0.2, attack_s=0.6, cooldown_s=0.6)
 AI_NOT_RESET = r"TestAttacker: AI not reset to Idle at the respawn \(ai_state (Attack|Recover)\)"
 PLAN_ORDER = ["combat_targets_present", "walk_to_dummy", "melee_lmb", "dodge_lalt",
               "walk_to_attacker", "attacker_damages_player", "restoration_heals", "burning_on_hit",
-              "player_dies", "death_screen", "dead_no_move", "respawn", "arena_reset",
-              "respawn_moves", "kill_counter_text_matches"]
-# The checks that moved from us054_arena.py keep their proves (Specs: the us054 split).
+              "player_dies", "death_screen", "dead_no_move", "respawn", "death_screen_removed",
+              "arena_reset", "respawn_moves", "kill_counter_text_matches"]
+# The checks that moved from us054_arena.py keep their proves (Specs: the us054 split); US-086
+# (issue #7) adds its death screen ACs to death_screen.
 MOVED_PROVES = {
     "melee_lmb": ("AC-054.6", "AC-054.5"),
     "dodge_lalt": ("AC-054.6", "AC-054.5"),
     "restoration_heals": ("US-057:AC-057.4", "US-057:AC-057.5", "US-057:AC-057.12"),
     "burning_on_hit": ("US-057:AC-057.11", "US-057:AC-057.8"),
     "player_dies": ("US-053:AC-053.1",),
-    "death_screen": ("US-062:AC-062.1", "US-062:AC-062.2"),
+    "death_screen": ("US-062:AC-062.1", "US-062:AC-062.2", "US-086:AC-086.1", "US-086:AC-086.4"),
     "dead_no_move": ("US-053:AC-053.2",),
     "respawn": ("US-053:AC-053.4", "US-053:AC-053.5"),
     "arena_reset": ("US-053:AC-053.8", "US-053:AC-053.9"),
@@ -105,7 +106,9 @@ class CombatWorld(fb.FakeWorld):
     the respawn; reset_ai=False: that reset restores location, health and is_dead but leaves the
     AI state.  ai_reported=False: every enemy's ai_state reads 'Idle' (a broken report).
     moves_after_respawn=False: movement input stays ignored after the respawn (a broken
-    HandlePlayerRespawn).  ai_log: (label, real time, ai_state) of every AI state change.
+    HandlePlayerRespawn).  death_screen=False: no death screen (issue #7 before its fix);
+    death_screen_stays=True: it is never removed after a respawn.  ai_log: (label, real time,
+    ai_state) of every AI state change.
     """
 
     def __init__(self, *, click_damage=12.0, click_damage_delay_s=0.2, melee_reach=200.0,
@@ -113,8 +116,8 @@ class CombatWorld(fb.FakeWorld):
                  hit_damage=15.0, windup_s=0.5, attack_s=1.1, cooldown_s=1.5, attacker_hits=True,
                  restoration=True, heal_per_s=8.0, restoration_s=5.0, burn_chance=0.0,
                  burn_indicator=True, attacks=True, attack_tag=True, death_screen=True,
-                 dead_moves=False, arena_reset=True, reset_ai=True, ai_reported=True,
-                 moves_after_respawn=True, kills_text=0, **kwargs):
+                 death_screen_stays=False, dead_moves=False, arena_reset=True, reset_ai=True,
+                 ai_reported=True, moves_after_respawn=True, kills_text=0, **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         kwargs.setdefault("respawn_s", us054c.RESPAWN_DELAY_S)  # the game's 3 s
@@ -131,6 +134,7 @@ class CombatWorld(fb.FakeWorld):
         self.burn_chance, self.burn_indicator = burn_chance, burn_indicator
         self.attacks, self.attack_tag = attacks, attack_tag
         self.death_screen, self.dead_moves = death_screen, dead_moves
+        self.death_screen_stays = death_screen_stays
         self.arena_reset, self.reset_ai = arena_reset, reset_ai
         self.ai_reported, self.kills_text = ai_reported, kills_text
         self.moves_after_respawn = moves_after_respawn
@@ -306,12 +310,15 @@ class CombatWorld(fb.FakeWorld):
         if self.burn_indicator and TAG_BURNING in self.timed_tags:
             out.append({"class": "MordecaiStatusEffectBarWidget", "name": "Status",
                         "rect": [40, 104, 260, 20], "texts": ["Burning"], "buttons": []})
-        if self.death_screen and self.is_dead:
-            left = max(0, math.ceil(self.respawn_s - (self.real_time() - self.dead_since)))
+        stays = self.death_screen_stays and self.respawns
+        if self.death_screen and (self.is_dead or stays):
+            left = (max(0, math.ceil(self.respawn_s - (self.real_time() - self.dead_since)))
+                    if self.is_dead else 0)
+            # UMordecaiDeathScreenWidget: the countdown is a bare ceiling digit, empty at 0 (the
+            # bridge drops empty texts)
+            texts = ["You Died"] + ([str(left)] if left > 0 else []) + [f"Kills: {self.kills}"]
             out.append({"class": "MordecaiDeathScreenWidget", "name": "Death",
-                        "rect": [0, 0, 1280, 720],
-                        "texts": ["You Died", f"Respawning in {left}", f"Kills: {self.kills}"],
-                        "buttons": []})
+                        "rect": [0, 0, 1280, 720], "texts": texts, "buttons": []})
         return out
 
     def _actors(self, radius, include_all):
@@ -324,9 +331,9 @@ class CombatWorld(fb.FakeWorld):
 
 
 def game_today(**kw):
-    """The packaged game as expected on CombatTestMap: no death screen (known issue N2), a
-    BasicSlash attacker (no Burning), everything else working; the fast attacker."""
-    opts = dict(FAST, death_screen=False)
+    """The packaged game as expected on CombatTestMap: a BasicSlash attacker (no Burning),
+    everything else working, the death screen included (issue #7); the fast attacker."""
+    opts = dict(FAST)
     opts.update(kw)
     return opts
 
@@ -397,11 +404,11 @@ class TestUs054CombatPlan(unittest.TestCase):
         for name in ("combat_targets_present", "walk_to_dummy", "walk_to_attacker",
                      "attacker_damages_player"):
             self.assertEqual(plan[name].proves, (), name)
-        self.assertEqual({s.check for s in us054c.PLAN if s.known_issue}, {"death_screen"})
-        self.assertEqual(plan["death_screen"].known_issue,
-                         "Known issue N2: the death screen is never created")
+        self.assertEqual(plan["death_screen_removed"].proves, ("US-086:AC-086.1",))
+        # N2 is fixed (issue #7): no check is expected to fail
+        self.assertEqual({s.check for s in us054c.PLAN if s.known_issue}, set())
         self.assertEqual(set(us054c.Us054CombatRun.COVERS),
-                         {"US-053", "US-057", "US-062", "US-063"})
+                         {"US-053", "US-057", "US-062", "US-063", "US-086"})
 
     def test_declarations(self):
         run = us054c.Us054CombatRun
@@ -439,8 +446,9 @@ class TestUs054CombatPlan(unittest.TestCase):
             kit.set_log_stream(previous)
         text = out.getvalue()
         self.assertIn("| 1 | `combat_targets_present` |", text)
-        self.assertIn("| 15 | `kill_counter_text_matches` |", text)
-        self.assertIn("Known issue N2: the death screen is never created", text)
+        self.assertIn("| 13 | `death_screen_removed` |", text)
+        self.assertIn("| 16 | `kill_counter_text_matches` |", text)
+        self.assertNotIn("Known issue N2", text)
 
 
 class TestUs054CombatHelpers(unittest.TestCase):
@@ -575,7 +583,8 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         for name in PLAN_ORDER:
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
-        self.assertEqual(rep["fixed_candidates"], ["death_screen"])
+        self.assertEqual(rep["fixed_candidates"], [])
+        self.assertRegex(checks["death_screen"]["detail"], r"'You Died', '[123]', 'Kills: 0'")
         self.assertEqual([s["label"] for s in rep["screenshots"]],
                          ["start", "near_dummy", "hit", "dead", "respawned"])
         # The light attack is judged on the dummy, which was really hit.
@@ -612,13 +621,13 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertIn("## Combat targets", md)
         self.assertEqual(set(rep["targets_start"]), {"TestDummy", "TestAttacker"})
 
-    def test_the_game_as_expected_fails_only_the_known_issue(self):
+    def test_the_game_as_expected_passes(self):
         # BasicSlash never burns: burning_on_hit watches until the death and ends at once with
         # a WARN; player_dies passes on the death burning_on_hit saw.
         _, server = self.serve(**game_today())
         code, rep = self.play(server)
-        self.assertEqual(code, 1)
-        self.assertEqual(rep["known_failures"], ["death_screen"])
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        self.assertEqual(rep["known_failures"], [])
         self.assertEqual(rep["new_failures"], [], self.log.getvalue()[-4000:])
         self.assertEqual(self.statuses(rep, "SKIP"), [])
         checks = self.by_name(rep)
@@ -629,30 +638,68 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertIn("first seen dead in burning_on_hit", checks["player_dies"]["detail"])
         self.assertNotIn("of player_dies", checks["player_dies"]["detail"])
         self.assertEqual(rep["death"]["step"], "burning_on_hit")
-        # Even after the full 1.5 s death-screen wait there is time to hold W before respawning.
+        # The death screen is seen on the first read, so the W hold has most of the 3 s window.
         self.assertEqual(checks["dead_no_move"]["status"], "PASS", checks["dead_no_move"]["detail"])
-        for name in ("restoration_heals", "respawn", "arena_reset", "respawn_moves",
-                     "kill_counter_text_matches", "melee_lmb", "dodge_lalt"):
+        for name in ("restoration_heals", "death_screen", "respawn", "death_screen_removed",
+                     "arena_reset", "respawn_moves", "kill_counter_text_matches", "melee_lmb",
+                     "dodge_lalt"):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         acs = self.acs(rep)
         self.assertEqual(acs[("US-057", "AC-057.11")]["status"], "NOT RUN")
-        self.assertEqual(acs[("US-062", "AC-062.1")]["status"], "FAIL")
         for ac in (("US-053", "AC-053.1"), ("US-053", "AC-053.8"), ("US-053", "AC-053.9"),
-                   ("US-054", "AC-054.6"), ("US-057", "AC-057.4"), ("US-063", "AC-063.1")):
+                   ("US-054", "AC-054.6"), ("US-057", "AC-057.4"), ("US-062", "AC-062.1"),
+                   ("US-063", "AC-063.1"), ("US-086", "AC-086.1"), ("US-086", "AC-086.4")):
             self.assertEqual(acs[ac]["status"], "PASS", ac)
         md = self.md()
-        self.assertIn("FAIL (known)", md)
+        self.assertNotIn("FAIL (known)", md)
         self.assertNotIn("FAIL (NEW)", md)
+        self.assertNotIn("Known issue N2", md)
         self.assertIn("Block and parry", md)
+
+    def test_no_death_screen_fails_death_screen_as_new(self):
+        # Issue #7 before its fix: the player dies and respawns, but no widget says 'You Died'
+        _, server = self.serve(**game_today(death_screen=False))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        self.assertEqual(checks["death_screen"]["status"], "FAIL")
+        self.assertIn("not met within 1.5s", checks["death_screen"]["detail"])
+        self.assertEqual(rep["new_failures"], ["death_screen"])
+        self.assertEqual(rep["known_failures"], [])
+        self.assertEqual(checks["death_screen_removed"]["status"], "SKIP")
+        self.assertIn("never seen", checks["death_screen_removed"]["detail"])
+        # Even after the full 1.5 s death-screen wait and the 'dead' screenshot there is time to
+        # hold W before respawning.
+        self.assertEqual(checks["dead_no_move"]["status"], "PASS", checks["dead_no_move"]["detail"])
+        acs = self.acs(rep)
+        for ac in (("US-062", "AC-062.1"), ("US-086", "AC-086.1"), ("US-086", "AC-086.4")):
+            self.assertEqual(acs[ac]["status"], "FAIL", ac)
+
+    def test_a_death_screen_left_after_the_respawn_fails(self):
+        # The screen shows the same 'Kills: N' as the HUD, so kill_counter_text_matches cannot
+        # tell it is still up: death_screen_removed does
+        _, server = self.serve(**game_today(death_screen_stays=True))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        self.assertEqual(checks["death_screen"]["status"], "PASS", checks["death_screen"]["detail"])
+        self.assertEqual(checks["death_screen_removed"]["status"], "FAIL")
+        self.assertIn("'You Died'", checks["death_screen_removed"]["detail"])
+        self.assertEqual(checks["kill_counter_text_matches"]["status"], "PASS",
+                         checks["kill_counter_text_matches"]["detail"])
+        self.assertEqual(rep["new_failures"], ["death_screen_removed"])
+        acs = self.acs(rep)
+        self.assertEqual(acs[("US-086", "AC-086.1")]["status"], "FAIL")
+        self.assertEqual(acs[("US-086", "AC-086.4")]["status"], "PASS")
 
     def test_the_known_cadence_fits_the_default_timeouts(self):
         # 15 damage per ~2.6 s with Restoration's heal: the death comes well inside the default
         # windows (no timeout is shortened here).
-        world, server = self.serve(death_screen=False)
+        world, server = self.serve()
         code, rep = self.play(server)
         checks = self.by_name(rep)
         self.assertEqual(rep["new_failures"], [], self.log.getvalue()[-4000:])
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 0)
         for name in ("attacker_damages_player", "restoration_heals", "player_dies", "respawn",
                      "arena_reset"):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
@@ -773,7 +820,7 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         for name in ("death_screen", "dead_no_move", "respawn"):
             self.assertEqual(checks[name]["status"], "SKIP", name)
             self.assertIn("did not die", checks[name]["detail"])
-        for name in ("arena_reset", "respawn_moves"):
+        for name in ("death_screen_removed", "arena_reset", "respawn_moves"):
             self.assertEqual(checks[name]["status"], "SKIP", name)
             self.assertIn("did not respawn", checks[name]["detail"])
         for label in ("hit", "dead", "respawned"):
