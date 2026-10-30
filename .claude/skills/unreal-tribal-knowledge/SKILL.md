@@ -498,6 +498,34 @@ When building widget trees programmatically:
 - Tier 1 red log: `Saved/TestLogs/tests-20261028-173042.log`.
 - Fix on real input: `Saved/Playtests/20261028-195608-us079` (`menu_ledger_rows` PASS) and `20261028-195731-us079` (`filter_armor_empty` PASS).
 
+### A pushed activatable widget leaves its input config on the viewport, and Slate ticks it through a pause (issue #7, US-086)
+
+**Problem:** These two showed up in the review of the death screen, an overlay pushed onto `UI.Layer.Game` while the player is dead.
+1. **The capture mode stays.** After the first death, the viewport's mouse capture mode stayed `CapturePermanently` for the rest of the session. The project default is `CapturePermanently_IncludingInitialMouseDown` (`Config/DefaultInput.ini`). With the plain mode, the click that refocuses the window only captures the mouse and never reaches the game, so it does not attack.
+2. **The countdown runs through a pause.** The pause menu can open while the player is dead: Escape is bound on the controller, and `DisableInput` only removes the pawn's input. It pauses the world and the 3 s respawn timer, but the countdown kept counting down to blank.
+
+**Root cause:**
+1. The CommonUI action router applies the active root's `GetDesiredInputConfig()` to the viewport, including `SetMouseCaptureMode`. When the root deactivates and nothing else is active, it applies nothing back: no ActionDomainTable is configured here, and `HandleRootWidgetSlateReleased` only resets its stored config. `ULyraActivatableWidget::GameMouseCaptureMode` defaults to plain `CapturePermanently`, so the first `GameAndMenu` widget changes the session's capture mode for good.
+2. A native `UUserWidget` always ticks (`UpdateCanTick`: no WidgetBPClass), on Slate's real-time delta. A world pause stops world timers but not widget ticks.
+
+**Fix:**
+1. A `GameAndMenu` Lyra widget sets `GameMouseCaptureMode = EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown` in its constructor, to match the viewport default. A Menu widget (`NoCapture`) leaves the same kind of residue; that is untested here.
+2. A widget that mirrors a world timer skips its tick while `GetWorld()->IsPaused()`. `UMordecaiDeathScreenWidget::TickCountdown` does this.
+
+**Testing a layer push headlessly** (`Tests/Recovery/MordecaiRecoveryDeathScreenTests.cpp`):
+- The game's root layout comes from the UI policy per `UCommonLocalPlayer`, which a test world does not have.
+  - `UPrimaryGameLayout::GetPrimaryGameLayout(APlayerController*)` is the only lookup that returns null safely there.
+  - `GetPrimaryGameLayoutForPrimaryPlayer` dereferences a null GameInstance. `PushContentToLayer_ForPlayer` and the `ULocalPlayer*` overload `CastChecked<UCommonLocalPlayer>`.
+- Push to a real stack instead: `Tests/Recovery/MordecaiRecoveryTestLayout.h` subclasses `UPrimaryGameLayout` (MinimalAPI, but it links) and calls the protected `RegisterLayer` with a `UCommonActivatableWidgetStack` built in its own WidgetTree. Make the layout with `NewObject` + `SetPlayerContext` + `Initialize`, so pooled widgets inherit a player context and run `NativeOnInitialized`.
+- Headless the stack has no Slate switcher, so a pushed widget joins `GetWidgetList()` but is **never activated**. `DeactivateWidget()` on it does nothing. Remove it with `FindAndRemoveWidgetFromLayer`, which releases a widget that is not displayed and deactivates the displayed one in the game. A second push of the same class returns the pooled instance.
+- `UWorld::AuthorityGameMode` cannot be set without a GameInstance, so the component takes a test game mode through a seam (`SetGameModeOverride`). `NewObject<AMordecaiGameMode>()` works for reading properties.
+- `World->GetWorldSettings()->SetPauserPlayerState(PS)` makes `World->IsPaused()` true.
+
+**Evidence:**
+- Review findings and fixes: commit `892cb1d`.
+- Red runs: `Saved/TestLogs/tests-20261030-112154.log`.
+- Packaged: `Saved/Playtests/20261030-122609-us054combat` (`death_screen`, `death_screen_removed` PASS).
+
 ---
 
 ## Testing Gaps

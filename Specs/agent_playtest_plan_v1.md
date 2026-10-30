@@ -237,7 +237,12 @@ The contract is `Specs/story_playtests_v1.md`.
 
 **Found by the Phase 3 source audit** (2026-10-22, read-only, while planning the per-story playtests; `Specs/story_playtests_v1.md`). The playtests cite these by id in `known_issue`. N7, N11 and N12 are suspected: the sweep confirms or clears them.
 - **N1 The kill counter can never go up.** `UMordecaiKillCounterWidget` waits for `Mordecai.Event.EnemyKill` tag-count changes on the player ASC (`MordecaiKillCounterWidget.cpp:68`), but nothing ever grants that tag. `AMordecaiGameMode` counts kills elsewhere (`MordecaiGameMode.cpp:115-118`). Melee is bound since US-083, but no playtest kills an enemy yet (the kill path is US-086's), and at most 3 Fireballs (75 damage) fit the SP budget.
-- **N2 The death screen is never created.** Nothing references `UMordecaiDeathScreenWidget` outside its own files.
+- **N2 The death screen is never created (FIXED, US-086, issue #7).** Nothing referenced `UMordecaiDeathScreenWidget` outside its own files.
+  - Fix: `UMordecaiDeathScreenComponent`, on `AMordecaiPlayerController` and bound in `OnPossess`, listens for `Mordecai.State.Dead` on the PlayerState ASC. It pushes the native class onto `UI.Layer.Game`, set up with the game mode's respawn delay and kill count, and removes it at the respawn. The widget builds its own tree.
+  - The review of the fix also found two bugs, both fixed: the countdown ran on while the pause menu had paused the respawn timer, and the screen's capture mode stayed on the viewport after it went.
+  - Tier 1: `Mordecai.Recovery.DeathScreen.*` (4 tests, each red before its fix). Tier 2: `verify_pie_death_screen.py`.
+  - Verified on `8486aa1` (fresh package): `death_screen` FAIL (known) → PASS, and the new `death_screen_removed` PASS. us054_combat exits 0 for the first time (`Saved/Playtests/20261030-122609-us054combat`, `bridge_04.png` shows "You Died", "3" and "Kills: 0" over the dimmed arena). The sweep `Saved/Playtests/20261030-122726-sweep` has no PASS → FAIL.
+  - Remote clients still see no death screen: `OnPossess` runs only on the server, and the Dead tag does not replicate (US-053). The combat HUD has the same limit.
 - **N3 The weapon HUD draws nothing.** `UMordecaiEquippedWeaponWidget` is a native widget with no widget tree (`MordecaiCharacter.cpp:63,197-201`).
 - **N4 The Character tab of the pause menu is blank.** `UMordecaiCharacterSheetWidget` builds no widget tree (`MordecaiCharacterSheetWidget.cpp:36-40`).
 - **N5 The Skills and Feats tabs show "Coming Soon".** `MordecaiPauseMenuWidget.cpp:60-69` registers only Character and Inventory.
