@@ -85,5 +85,14 @@ Per the Playability-First Rule, this is the HEADLESS half of the Epic 7 integrat
 - [x] All implementation complete
 - [x] All tests passing (green)
 - [x] Project compiles with zero errors
-- [ ] PIE smoke test passes (headless widget creation via `run_pie_verify.py` — confirm the widget class compiles into the pause menu tab slot without runtime errors)
-- [ ] Code committed and pushed with `[US-071]` prefix
+- [x] PIE smoke test passes (headless widget creation via `run_pie_verify.py` — confirm the widget class compiles into the pause menu tab slot without runtime errors) _(`verify_pie_inventory.py`; the DevTestMap full suite passed 13/13 on 2026-10-29)_
+- [x] Code committed and pushed with `[US-071]` prefix _(`3232a21`)_
+
+## Completion Notes
+
+**Closed at Jeff's call (2026-10-29).** This story has no Tier 4 script of its own: `Scripts/playtests/us079_inventory.py` covers it (`COVERS`).
+- Tier 4: `Saved/Playtests/20261029-175841-us079`, on a fresh package of `9904cde`, exit 0, 56/56. It accepts AC-071.4, .7, .8, .10, .12, .13 and .15 (checks `menu_rows`, `unidentified_badge`, `menu_ledger_rows`, `filter_weapons`, `filter_armor_empty`, `filter_all`, `amulet_identified`, `empty_state`).
+- Tier 3: `Saved/Playtests/20261029-175504-boot` (same package), exit 0.
+- The other ACs (.1-.3, .5, .6, .9, .11, .14) are Tier 1 only: `Mordecai.UI.Inventory.*`, all passing (733/733 Mordecai tests, `Saved/TestLogs/tests-20261029-171825.log`).
+- What the screenshots show, the earlier exit-0 run and the deviations are in `stories/done/US-079-playable-inventory-arena.md`.
+- The second menu open drew stale rows until US-094 fixed the CommonUI pool (`a8aaa51`).

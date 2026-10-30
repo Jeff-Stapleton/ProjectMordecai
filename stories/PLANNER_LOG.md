@@ -3116,3 +3116,19 @@ Sweep `20261029-175504-sweep` @ `9904cde`. Every remaining failure is a known is
 - us054_combat: run `dead_no_move` before `death_screen`, so AC-053.2 is not inconclusive on timing. The 1.5 s death-screen wait (N2) eats the 3 s window.
 - Then US-085: that sweep gives AC-085.4 its checks without the swarm (us001 `move_a`, `walk_lane_wp1` on MovementTestMap), and AC-085.3 its death chain against the TestAttacker. us001 still exits 1 on its known facing and stick failures (US-097/US-098), so the kit cannot accept AC-085.4 from an exit-0 run. Closing on the check results is Jeff's call, as with US-083. AC-085.2's spacing clause, FireSlash and #47 remain.
 - Scope a recovery story for N32 (enemy melee ignores block, parry and i-frames, and no jump is ever Airborne) before any CombatTestMap check asserts mitigation or jump avoidance. Its scope includes granting `Mordecai.State.Airborne` while the character is falling.
+
+## 2026-10-29 — Inventory slice closed (Jeff's call); N32 filed
+
+### Done
+- Jeff closed **US-094, US-079 and US-071** on `Saved/Playtests/20261029-175841-us079`: exit 0, 56/56, on the fresh package of `9904cde`, with its Tier 3 boot `20261029-175504-boot` exiting 0. All three are in `stories/done/`, and Epic 7.5 is complete.
+- Deviations accepted with the closing (`Specs/design_decisions_log.md`):
+  - AC-079.2's overlap pickup is superseded by Press-to-Pickup (F).
+  - AC-079.10's `BP_MordecaiItemPickup` was never made; the native `AMordecaiItemPickup::NameLabel` is the label.
+- **N32** is filed as GitHub issue #53: block, parry, dodge i-frames, Blink and jumping do not reduce enemy melee damage.
+
+### Playable Status
+- Playable status: inventory, pickups, identification — PLAYABLE (input) (`20261029-175841-us079` + Tier 3 `20261029-175504-boot` @ `9904cde`). The route is on DevTestMap and races the Frontliner swarm, so a later run can lose the player before the menu checks.
+
+### Next Session Recommendation
+- Scope a recovery story for N32 / #53.
+- Then US-085, and us054_combat's `dead_no_move` ordering, as in the entry above.

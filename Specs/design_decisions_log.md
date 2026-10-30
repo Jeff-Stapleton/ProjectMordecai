@@ -75,3 +75,8 @@ Context: T1 (`Specs/agent_playtest_plan_v1.md`) gives the Tier 4 playtests their
 - **us079 (inventory) stays on DevTestMap.** Its six test pickups stay where US-079 placed them, and US-079's "reuse the existing arena, do not create a new level" note stands. Consequence: the inventory route still races the Frontliner swarm, so US-094, US-079 and US-071 still close at Jeff's call (one exit-0 run so far: `Saved/Playtests/20261028-232550-us079`).
 - Source: Jeff via Claude Code session (2026-10-29)
 - For reference (from issue #46 and US-100, not part of this decision): us054's melee/dodge/death/respawn chain (new script `us054_combat.py`), us057 (magic) and us078 (weapons) run on CombatTestMap. us054's enemy-AI checks (`us054_arena.py`) stay on DevTestMap.
+
+### Close the inventory slice on the US-100 us079 run
+- **US-094, US-079 and US-071 are closed** on `Saved/Playtests/20261029-175841-us079` (exit 0, 56/56, fresh package of `9904cde`). The player won the race against the swarm in that run.
+- Accepted with the closing: AC-079.2's overlap pickup is superseded by Press-to-Pickup (above). AC-079.10's `BP_MordecaiItemPickup` was never made; the native `AMordecaiItemPickup::NameLabel` serves its purpose.
+- Source: Jeff via Claude Code session (2026-10-29)

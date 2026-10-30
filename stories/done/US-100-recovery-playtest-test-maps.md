@@ -400,5 +400,5 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
 - **Package compile:** the packaged game target compiles the tests (a `WITH_EDITOR` guard).
 
 **Not covered by this story, Jeff's call:**
-- us079 exits 0 on this fresh package (`20261029-175841-us079`) and us083 does too (`20261029-175859-us083`): evidence for US-094/US-079/US-071 and US-083, nothing ticked there.
+- us079 exits 0 on this fresh package (`20261029-175841-us079`) and us083 does too (`20261029-175859-us083`): evidence for US-094/US-079/US-071 and US-083, nothing ticked there. Jeff later closed US-094, US-079 and US-071 on the us079 run (2026-10-29).
 - AC-085.4's checks (us001 `move_a`, `walk_lane_wp1`) PASS here on MovementTestMap.
