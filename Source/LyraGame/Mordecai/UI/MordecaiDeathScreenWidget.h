@@ -15,9 +15,11 @@ class UTextBlock;
  * UMordecaiDeathScreenWidget
  *
  * Full-screen death overlay using CommonUI activatable widget stack.
- * Pushed to UI.Layer.Modal on player death. Shows "You Died" message
- * and respawn countdown timer. Auto-removed on respawn.
+ * Pushed to UI.Layer.Game on player death by the player controller's
+ * UMordecaiDeathScreenComponent (US-086). Shows "You Died", the respawn
+ * countdown and the session kill count. Removed on respawn.
  *
+ * Pushed by class, it has no designer tree: it builds its own (BuildDefaultContent).
  * Uses GameAndMenu input mode so respawn flow is not blocked.
  */
 UCLASS()
@@ -40,7 +42,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void InitializeDeathScreen(float RespawnDelay, int32 KillCount);
 
+	/** Count the respawn countdown down by DeltaSeconds, except while the game is paused. NativeTick calls it. */
+	void TickCountdown(float DeltaSeconds);
+
 protected:
+	virtual void NativeOnInitialized() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -53,6 +59,9 @@ protected:
 	TObjectPtr<UTextBlock> KillCountText;
 
 private:
+	/** The tree for a class without one: a full-screen dim, "You Died", the countdown and the kills (US-086). */
+	void BuildDefaultContent();
+
 	void UpdateCountdownDisplay();
 
 	float RemainingRespawnTime = 0.f;

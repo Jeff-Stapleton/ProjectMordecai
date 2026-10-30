@@ -3,7 +3,8 @@
 
 The combat half of the US-054 arena loop (AC-054.13: attack -> take damage -> die -> respawn ->
 enemies reset), with the death/respawn, status-effect, death screen and kill counter stories it
-is built from (US-053, US-057, US-062, US-063).  It plays CombatTestMap (issue #46, T1): a
+is built from (US-053, US-057, US-062, US-063) and their recovery story US-086 (the death screen
+is shown, issue #7).  It plays CombatTestMap (issue #46, T1): a
 TestDummy at (600, 600) that never moves or aggroes, and a TestAttacker at (2100, 0) that holds
 its spot and swings BasicSlash (15 Slash, 150 cm reach, one swing per ~2.6 s) at a player within
 reach.  The attacker is 2100 cm from the PlayerStart, outside its 900 cm aggro range, so the
@@ -27,10 +28,11 @@ Steps (--plan prints them as the story's Steps table):
        attacker swings BasicSlash).  Burning ends at once when the player dies.
   9-12 The death (seen by whichever step reads it first: no death goes unobserved), the death
        screen, no movement while dead, the respawn at the PlayerStart with full health.
-  13-14 The arena reset, judged on the first read that shows the respawned player (both targets
+  13   The death screen is gone after the respawn.
+  14-15 The arena reset, judged on the first read that shows the respawned player (both targets
        at their spawns, full health, alive, Idle, and the reset observed: the dummy healed or the
        attacker back to Idle), then movement after the respawn.
-  15   The kill counter's text equals player.kills (the authoritative GameMode count).
+  16   The kill counter's text equals player.kills (the authoritative GameMode count).
 A failed check SKIPs the checks that depend on it (needs=); independent checks still run.
 
 Usage:
@@ -125,24 +127,23 @@ SCREENSHOTS = {
                   "bar",
     "hit": "the player next to the orange TestAttacker cylinder (100 cm +X of the player, just "
            "up the screen) after its first hit: the player's health bar below full",
-    "dead": "the player dead next to the orange TestAttacker (health bar empty); a 'You Died' "
-            "death screen with a countdown if the death screen exists (known issue N2: it is "
-            "never created)",
-    "respawned": "the player back at the PlayerStart with a full health bar on the grid floor; "
-                 "the TestAttacker back at (2100, 0), likely out of view",
+    "dead": "the death screen over the dimmed arena: 'You Died', a countdown digit and "
+            "'Kills: N' in the middle; behind it the player dead next to the orange TestAttacker "
+            "(health bar empty)",
+    "respawned": "the player back at the PlayerStart with a full health bar on the grid floor, "
+                 "no death screen and no dimming; the TestAttacker back at (2100, 0), likely out "
+                 "of view",
 }
 KNOWN_ISSUES = (
     "Block and parry on the mouse (AC-054.6: RMB hold, RMB+LMB) are not tested: they need the "
     "right mouse button held across state reads, and the playtest client's click holds a button "
     "only inside one blocking command (hold_s), so nothing can be read while it is held (B2). "
     "The gamepad path (LT hold, LT+RT) is played by Scripts/playtests/us083_combat_input.py.",
-    "The death screen is never created (Known issue N2); death_screen is expected to FAIL.",
     "The TestAttacker swings BasicSlash only (no FireSlash), so Burning never procs on this map: "
     "burning_on_hit is expected to WARN and AC-057.11 / AC-057.8 stay NOT RUN here.",
     "The run lands one light attack and kills no enemy, so kill_counter_text_matches can only "
     "compare 'Kills: 0' with player.kills == 0 (the kill path is US-086's).",
 )
-KI_DEATH_SCREEN = "Known issue N2: the death screen is never created"
 
 PLAN = (
     Step("combat_targets_present", f"state player, actors (radius {ENEMY_RADIUS}) -> the "
@@ -174,13 +175,16 @@ PLAN = (
          f"already seen dead by an earlier step), '{TAG_DEAD}' in player.tags",
          proves=("US-053:AC-053.1",)),
     Step("death_screen", f"state widgets -> within {DEATH_SCREEN_TIMEOUT_S:g}s one widget with "
-         f"'{YOU_DIED}', a countdown digit and 'Kills: N'", proves=("US-062:AC-062.1", "US-062:AC-062.2"),
-         known_issue=KI_DEATH_SCREEN),
+         f"'{YOU_DIED}', a countdown digit and 'Kills: N'",
+         proves=("US-062:AC-062.1", "US-062:AC-062.2", "US-086:AC-086.1", "US-086:AC-086.4")),
     Step("dead_no_move", f"while dead: hold W {DEAD_HOLD_S:g}s -> moved < {DEAD_MAX_MOVE_CM:g} cm",
          proves=("US-053:AC-053.2",)),
     Step("respawn", f"wait -> within {RESPAWN_TIMEOUT_S:g}s player.is_dead==false, health == "
          f"max_health, within {RESPAWN_RADIUS:g} cm of ({SPAWN[0]:g}, {SPAWN[1]:g}), no "
          f"'{TAG_DEAD}' tag", proves=("US-053:AC-053.4", "US-053:AC-053.5")),
+    Step("death_screen_removed", f"state widgets -> within {DEATH_SCREEN_TIMEOUT_S:g}s of the "
+         f"respawn no widget text '{YOU_DIED}' (needs the death screen seen)",
+         proves=("US-086:AC-086.1",)),
     Step("arena_reset", "the first read that shows the respawned player (state actors) -> the "
          f"{DUMMY} and the {ATTACKER} alive, health == max, within {SPAWN_TOL_CM:g} cm of their "
          f"spawns, ai_state '{IDLE}' in that read; PASS only when that read shows the reset (the "
@@ -378,7 +382,7 @@ class Us054CombatRun(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
-    COVERS = ("US-053", "US-057", "US-062", "US-063")
+    COVERS = ("US-053", "US-057", "US-062", "US-063", "US-086")
     FEATURES = ("enemies", "enemy_ai", "melee_attack", "dodge", "death_respawn", "kill_counter",
                 "status_effects")
     TITLE = TITLE
@@ -398,6 +402,7 @@ class Us054CombatRun(kit.PlaytestRun):
         self.death = None            # the first read of the player dead: step, tags, health
         self.died_at = None          # time.monotonic() of that read
         self.enemies_at_death = None
+        self.death_screen_seen = False
         self.respawn_state = None
         self.dummy_hit = None        # (health before the click, lowest after it)
 
@@ -729,7 +734,6 @@ class Us054CombatRun(kit.PlaytestRun):
             return status, detail + how, None
 
         died, _ = self.measure("player_dies", dies, needs=damaged, needs_why=why)
-        self.shot("dead", needs=died, needs_why="not taken: the player did not die")
         why = "not run: the player did not die"
 
         def screen(st):
@@ -745,10 +749,13 @@ class Us054CombatRun(kit.PlaytestRun):
                     return True
             return False
 
-        self.observe("death_screen", ["widgets"], screen,
-                     lambda st: (f"texts on screen: {all_texts(st)} (widget classes "
-                                 f"{[w.get('class') for w in widgets(st)]})"),
-                     timeout_s=DEATH_SCREEN_TIMEOUT_S, needs=died, needs_why=why)
+        self.death_screen_seen, _ = self.observe(
+            "death_screen", ["widgets"], screen,
+            lambda st: (f"texts on screen: {all_texts(st)} (widget classes "
+                        f"{[w.get('class') for w in widgets(st)]})"),
+            timeout_s=DEATH_SCREEN_TIMEOUT_S, needs=died, needs_why=why)
+        # After the death screen check, so the frame shows the screen the check saw
+        self.shot("dead", needs=died, needs_why="not taken: the player did not die")
 
         def no_move(b):
             p0 = player(b.state(["player"]))
@@ -773,7 +780,7 @@ class Us054CombatRun(kit.PlaytestRun):
         self.measure("dead_no_move", no_move, needs=died, needs_why=why)
         return died
 
-    # --- 12-14: respawn, arena reset, movement --------------------------------------------
+    # --- 12-15: respawn, death screen removed, arena reset, movement --------------------------
     def step_respawn(self, died):
         why = "not run: the player did not die"
 
@@ -798,6 +805,15 @@ class Us054CombatRun(kit.PlaytestRun):
         self.respawn_state = st
         self.shot("respawned", needs=ok, needs_why="not taken: the player did not respawn")
         why = "not run: the player did not respawn"
+
+        def gone(st):
+            return not any(YOU_DIED.lower() in t.lower() for t in all_texts(st))
+
+        self.observe("death_screen_removed", ["widgets"], gone,
+                     lambda st: (f"texts on screen: {all_texts(st)} (widget classes "
+                                 f"{[w.get('class') for w in widgets(st)]})"),
+                     timeout_s=DEATH_SCREEN_TIMEOUT_S, needs=ok and self.death_screen_seen,
+                     needs_why=why if not ok else "not run: the death screen was never seen")
 
         def reset(b):
             # Judged on the first read that shows the respawned player, and on no later read.
@@ -842,7 +858,7 @@ class Us054CombatRun(kit.PlaytestRun):
 
         self.measure("respawn_moves", moves, needs=ok, needs_why=why)
 
-    # --- 15: kill counter -------------------------------------------------------------------
+    # --- 16: kill counter -------------------------------------------------------------------
     def step_kill_counter(self):
         def counter(b):
             st = b.state(["widgets", "player"])

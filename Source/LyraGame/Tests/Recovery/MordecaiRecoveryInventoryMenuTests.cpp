@@ -31,58 +31,12 @@ using namespace MordecaiRecoveryTest;
 
 namespace MordecaiRecoveryInventoryMenuTest
 {
-	/**
-	 * FRecoveryTestEnv's player (pawn with inventory + ledger, player state with the ASC) controlled by a spawned
-	 * player controller with a ULocalPlayer, so user widgets get a valid player context and GetOwningPlayer()
-	 * resolves the pawn and player state the way the game's pause menu does.
-	 */
-	struct FMenuTestEnv : FRecoveryTestEnv
+	/** The controlled recovery env, building the pause menu the way the game's pause menu is built. */
+	struct FMenuTestEnv : FRecoveryControlledTestEnv
 	{
-		APlayerController* PC = nullptr;
-		ULocalPlayer* LocalPlayer = nullptr;
-
-		bool SetupWithController()
-		{
-			if (!Setup(FVector::ZeroVector))
-			{
-				return false;
-			}
-			PC = World->SpawnActor<APlayerController>(APlayerController::StaticClass());
-			if (!PC)
-			{
-				return false;
-			}
-			LocalPlayer = NewObject<ULocalPlayer>(GEngine, ULocalPlayer::StaticClass());
-			PC->Player = LocalPlayer;
-			LocalPlayer->PlayerController = PC;
-			PC->PlayerState = PlayerState;
-			PC->SetPawn(Player);
-			return FLocalPlayerContext(LocalPlayer, World).IsValid() && PC->GetPawn() == Player;
-		}
-
-		/** CreateWidget's path for the native menu: player context, then Initialize (runs NativeOnInitialized). */
 		UMordecaiPauseMenuWidget* MakeMenu() const
 		{
-			UMordecaiPauseMenuWidget* Menu = NewObject<UMordecaiPauseMenuWidget>(World);
-			Menu->SetPlayerContext(FLocalPlayerContext(LocalPlayer, World));
-			Menu->Initialize();
-			return Menu;
-		}
-
-		void TeardownWithController()
-		{
-			if (PC)
-			{
-				PC->Player = nullptr;
-				PC->PlayerState = nullptr;
-			}
-			if (LocalPlayer)
-			{
-				LocalPlayer->PlayerController = nullptr;
-			}
-			PC = nullptr;
-			LocalPlayer = nullptr;
-			Teardown();
+			return MakeWidget<UMordecaiPauseMenuWidget>();
 		}
 	};
 

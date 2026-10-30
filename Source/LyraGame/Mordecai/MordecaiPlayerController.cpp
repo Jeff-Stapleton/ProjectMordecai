@@ -4,6 +4,7 @@
 
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
 #include "Mordecai/UI/MordecaiDamagePopComponent.h"
+#include "Mordecai/UI/MordecaiDeathScreenComponent.h"
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
@@ -32,6 +33,9 @@ AMordecaiPlayerController::AMordecaiPlayerController(const FObjectInitializer& O
 {
 	// US-065: Create floating damage number component
 	DamagePopComponent = CreateDefaultSubobject<UMordecaiDamagePopComponent>(TEXT("DamagePopComponent"));
+
+	// US-086 (issue #7): the death screen, shown while Mordecai.State.Dead is on the player
+	DeathScreenComponent = CreateDefaultSubobject<UMordecaiDeathScreenComponent>(TEXT("DeathScreenComponent"));
 
 	// AC-054.5 / US-083: the player's combat abilities, each with the input tag its bindings press
 	// (UMordecaiHeroComponent). Native class refs: no content, always cooked, never a CDO edit.
@@ -65,6 +69,8 @@ void AMordecaiPlayerController::OnPossess(APawn* InPawn)
 	if (IsLocalController())
 	{
 		CreateCombatHUD();
+		// Binds to the PlayerState ASC, which exists here, as for the HUD
+		DeathScreenComponent->BindToPlayerState();
 	}
 
 	GrantCombatAbilities();
