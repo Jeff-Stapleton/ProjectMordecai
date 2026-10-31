@@ -971,6 +971,11 @@ py Scripts/package_playtest.py
 ```
 The loop never fails the build, so watch the UAT log for `Low on memory` and stop early instead of waiting out the timeout.
 
+**Pre-build the game target AFTER committing, not before (US-101, 2026-10-30).** UBT's adaptive non-unity build takes its working set from `git status` ("Using 'git status' to determine working set for adaptive non-unity build"): changed files compile on their own, outside the unity blobs.
+- A `LyraGame` build made while the change was uncommitted is therefore not the build of the committed tree.
+- After the commit those files move back into unity blobs. UAT then recompiles and re-links `LyraGame.exe` through UBA, and hits the loop above (`Saved/Playtests/package-20261030-204911.log`).
+- Order: commit → `Build.bat LyraGame ... -NoUBA -MaxParallelActions=4` on the clean tree (and `LyraEditor` the same way) → `py Scripts/package_playtest.py`. UAT then finds both targets up to date.
+
 ### The packaged game target compiles the automation tests: editor-only engine APIs break the package
 
 **Problem:** US-100's first `package_playtest.py` failed at UAT's `LyraGame` compile (`Saved/Playtests/package-20261029-130812.log`): `MordecaiTestMapTests.cpp(888): error C2039: 'IsUsingExternalActors': is not a member of 'ULevel'`. The editor build and `py Scripts/run_tests.py` (727/727) had both passed.

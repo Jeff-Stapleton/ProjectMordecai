@@ -350,6 +350,10 @@ The contract is `Specs/story_playtests_v1.md`.
 
 **Found by the first exploratory-agent run** (2026-10-22, `py Scripts/explore_playtest.py --minutes 10` on the same fresh package of `8ea853b`, `Saved/Playtests/20261022-185207-explore/report.md`; 7.8 min, $3.07, 210 tool calls). The run independently re-found N7, N15, N14 and the stale inventory. The latter goes further: after several reopens the tab shows "--" placeholders, so the widget is unbound (`bridge_14.png`). New:
 - **N19 (state evidence) The player's invulnerability sticks after Blink.** `Mordecai.State.Invulnerable` stayed on the player after Blink ended (Casting tag gone, `spells[1].active` false) and was still there 6+ s later. This is an i-frame tag that is never removed.
+  - **FIXED in code by US-101** (`d490a2d`, 2026-10-30). It had to be: once damage honored Invulnerable, the stuck tag would have meant a permanently invulnerable player.
+  - Root cause: `UGameplayAbility::EndAbility` calls `ClearAllTimersForObject(this)`. Blink's 0.2 s recovery ended the ability before its 0.3 s removal timer fired.
+  - Fix: a duration GameplayEffect grants the tag. Tier 1: `Mordecai.Recovery.Blink.InvulnerabilityExpires` (red before the fix).
+  - The Tier 4 check `blink_invulnerability_ends` (US-087 AC-087.9) is not written yet.
 - **N20 Blink can spend SP and not move the player.** A Blink with an invisible enemy about 90 cm ahead spent 2 SP and moved 0 cm, with no feedback (`bridge_04.png`).
 - **N21 Walls hide the player.** At the south-west corner the near arena wall hides everything but the top of the player's head, and the diorama camera has no cutaway or fade (`bridge_11.png`).
 - **N22 (design question) Items have no actions.** Picked-up items have no Use or Equip action: the Health Potion cannot be used, and the Rusty Sword cannot be equipped or added to the weapon cycle.
@@ -409,7 +413,17 @@ The contract is `Specs/story_playtests_v1.md`.
 - **N26 has real-input evidence now:** in `Saved/Playtests/20261027-085233-us057` the R tap cast Stone Skin while the player was dead (bridge.jsonl lines 220-245: SP 7 -> 3, `Mordecai.State.Dead` with `State.Casting` and then `Status.StoneSkin`).
 
 **Found by the issue #46 source audit** (2026-10-29, read-only, while planning CombatTestMap's attacker for US-100).
-- **N32 Block, parry, dodge i-frames and Blink invulnerability do not reduce enemy melee damage.** Filed as GitHub issue #53 (2026-10-29); it needs a recovery story.
+- **N32 Block, parry, dodge i-frames and Blink invulnerability do not reduce enemy melee damage (FIXED, US-101, issue #53).** Filed as GitHub issue #53 (2026-10-29).
+  - Fix (`d490a2d`): `FMordecaiHitDefense::ResolveIncomingHit`, called first in `UMordecaiGA_MeleeAttack::ApplyDamageToTarget`. I-frames and parry negate the hit; a block mitigates it through `ReceiveBlockedHit`. `Mordecai.State.Airborne` follows the movement mode on the player and enemies. The decisions are in `Specs/design_decisions_log.md` 2026-10-30.
+  - Tier 1: `Mordecai.Recovery.Defense.*` (12), each landing a real enemy swing.
+  - Verified on `8e8356a` (fresh package): `Saved/Playtests/20261030-210229-us101`, exit 0. Against the CombatTestMap TestAttacker's BasicSlash:
+    - undefended: −15 health
+    - block: −7.5 health, −10.5 stamina
+    - perfect block: −7.5 health, no stamina
+    - dodge (W held, in reach): 0
+    - jump (Airborne seen): 0
+    - parry: 0
+  - The original audit follows.
   - `UMordecaiGA_MeleeAttack::PerformHitDetectionAndApplyDamage` calls `ApplyDamageToTarget` (`MordecaiGA_MeleeAttack.cpp`) for every hit. That function applies the health and posture damage as instant GEs straight to the target ASC, then the on-hit payloads and status effects. Nothing in it reads `Mordecai.State.Blocking`, `State.Dodging`, `State.Invulnerable` or `State.Parrying`.
   - The hit query filters only the attacker itself and friendly targets. Its airborne filter (`JumpAvoidable` via `UMordecaiHitDetectionSubsystem::IsTargetAirborne`) never fires in game: nothing in Source/, Config/ or content grants `Mordecai.State.Airborne` (only a test adds it; the jump is a bare `ACharacter::Jump`, which only gets Lyra's `Movement.Mode.Falling` tag). The arc test also ignores Z (`IsPointInArcSector` zeroes it), so a jumping player inside the reach is still hit.
   - `UMordecaiGA_Block::ReceiveBlockedHit` holds the block mitigation (`ComputeBlockedDamage`), the stamina drain and the perfect-block posture damage. Its only caller is a test (`MordecaiCombatInputAbilityTests.cpp`).
