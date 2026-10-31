@@ -231,7 +231,11 @@ The contract is `Specs/story_playtests_v1.md`.
 - **The pause menu could not be closed with real input (FIXED in Phase 2).** After a real Escape the menu was still open 3 s later (check `menu_closes_escape`, `bridge_03.png`).
   - Cause: the widget uses CommonUI Menu input mode (`MordecaiPauseMenuWidget.cpp:38`), which blocks every unbound key, and the widget is not a back handler.
   - Fixed in Phase 2: `UMordecaiPauseMenuWidget` is a CommonUI back handler, so Escape closes the menu (tests `Mordecai.UI.PauseMenu.*`; real-input check `menu_closes_escape`). I still does not close it.
-- **I does not close the pause menu either.** The Enhanced Input `Inventory` action never fires while the menu is open in Menu mode. It needs a CommonUI UI action binding.
+- **I does not close the pause menu either (FIXED, US-095, issue #32).** The Enhanced Input `Inventory` action never fires while the menu is open in Menu mode. It needs a CommonUI UI action binding.
+  - Fix (`9be2071`): `UMordecaiPauseMenuWidget` registers UI actions once in `NativeOnInitialized`, keyed by native `UI.Action.Mordecai.PauseMenu.*` tags in `DefaultInput.ini`. An I press made in the open menu arms the close, and its key-up closes the menu through `DeactivateWidget`, the back action's path.
+  - Closing on the press would let a held I's key repeats reach the game and reopen the menu about 0.5 s later (found by the review; tribal knowledge). Escape still has that through the engine's back action; not reproduced.
+  - Verified on a fresh package of `3294f0a` (`Saved/Playtests/20261030-235207-us069`): `i_closes` FAIL (known) → PASS, and the new `i_held_closes_on_key_up` PASS (held 1.2 s: open; released: closed; still closed 1 s later).
+  - Tier 1: `Mordecai.Recovery.PauseMenu.InventoryKeyClosesMenu`. Tier 2: `verify_pie_pause_menu.py`.
 - **Gamepad stick and L3 mappings use invalid FKey names.** `MordecaiHeroComponent.cpp:167,180,197` use `Gamepad_LeftStick2D`, `Gamepad_RightStick2D` and `Gamepad_LeftThumbstickButton`. The engine names are `Gamepad_Left2D`, `Gamepad_Right2D` and `Gamepad_LeftThumbstick`. Gamepad move, look and sprint are dead, silently.
 - **Facing and aim are pinned to +X.** The diorama camera writes the control rotation every frame (`MordecaiCameraMode_Diorama.cpp:51`), so mouse and right-stick facing (`control_bindings_v1.1.md`) cannot work. Whether fixed facing is intended is Jeff's design call.
 - **Sprint, jump, attacks, block and dodge are not bound at runtime (FIXED, US-083, issue #15).**
@@ -341,7 +345,14 @@ The contract is `Specs/story_playtests_v1.md`.
   - It may be related to N11.
 - **N16 The status-effect indicator shows "Status", not the status name.** Stone Skin's indicator reads "Status 10.0" bottom-left (`stone_skin_indicator`, `bridge_03.png`).
 - **N17 There are no enemy indicators.** No `EnemyIndicator` widget is on screen with three enemies within aggro range (`us054_arena.py` `enemy_indicators`; US-064).
-- **N18 LB/RB do not switch pause-menu tabs.** AC-069.4 specifies them (`us069_pause_menu.py` `shoulder_switches_tab`). Needs triage: possibly missing by design (no CommonUI tab-list action).
+- **N18 LB/RB do not switch pause-menu tabs (FIXED, US-095, issue #23).** AC-069.4 specifies them (`us069_pause_menu.py` `shoulder_switches_tab`). Needs triage: possibly missing by design (no CommonUI tab-list action).
+  - **Decided: keep** (Jeff asked to fix issue #23, 2026-10-30; `Specs/design_decisions_log.md`).
+  - Fix (`9be2071`): UI actions `UI.Action.Mordecai.PauseMenu.PreviousTab` / `NextTab` on LB / RB select the previous / next tab, wrapping (`FMordecaiPauseMenuTabModel::CycleActiveTab`). It is the same mechanism as the I fix above.
+  - Verified on a fresh package of `3294f0a` (`Saved/Playtests/20261030-235207-us069`):
+    - `shoulder_switches_tab` FAIL (NEW) → PASS: LB on Settings → Inventory, `bridge_04.png`.
+    - The new `shoulder_rb_switches_tab` PASS: RB → Settings, `bridge_05.png`.
+  - Tier 1: `Mordecai.Recovery.PauseMenu.ShoulderButtonsCycleTabs` and `TabModelCyclesWithWrap`.
+  - us069 still exits 1, on N4 and N5 only. US-095 stays in progress until Jeff's call or until N4/N5 are fixed.
 - **The CommonUI pool bug is CONFIRMED** (it was latent). **FIXED in code** (issue #28, US-094, `a8aaa51`); see "The CommonUI pool left inventory rows stale" above.
   - Open the inventory before any pickup ("Inventory is empty.", correct), close it, then pick up all six items: the second open still shows "Inventory is empty." and "No resources stored." (`us079_inventory.py` checks `menu_rows`, `menu_ledger_rows`, `identify_button`, `filter_*`; `bridge_03.png`).
   - A player who opens the inventory twice sees a stale, empty list.
@@ -403,7 +414,7 @@ The contract is `Specs/story_playtests_v1.md`.
     - us083 and us078 now FAIL with an explicit "player dead" detail instead of treating a dead player as idle. That is not a death guard: the cause stays visible.
     - Acceptance: all 14 PASS on a fresh package, and no check that PASSed in the `f21525f` sweep, the `01abb8b` sweep or the `92e7575` us079 run (`Saved/Playtests/20261028-232550-us079`) FAILs.
     - `arena_reset` and `respawn_moves` were SKIP in the `01abb8b` sweep (no death); they PASSed in `Saved/Playtests/20261028-085332-us054` @ `f21525f`.
-- **13 NEW failures are pre-existing and identical in the `01abb8b` sweep, but their steps carry no `known_issue`:** us054 `enemies_present` (N13; since issue #18 only its spacing clause fails, so it needs no N13 tag), `enemy_indicators` (N17); us057 `fireball_projectile`, `fireball_hits_enemy` (N15), `stone_skin_indicator` (N16); us069 `shoulder_switches_tab` (N18); us079 `menu_rows`, `unidentified_badge`, `menu_ledger_rows`, `identify_button`, `filter_weapons`, `filter_armor_empty`, `filter_all` (the CommonUI pool bug, US-094; fixed in code in `a8aaa51`, so they need no tag). Tag them in the scripts' PLANs in the owning stories. `us054_arena.py`'s KNOWN_ISSUES text "Suspected NEW (unverified): ... the enemies never damaged the player" is obsolete since `c7e4b8d`.
+- **13 NEW failures are pre-existing and identical in the `01abb8b` sweep, but their steps carry no `known_issue`:** us054 `enemies_present` (N13; since issue #18 only its spacing clause fails, so it needs no N13 tag), `enemy_indicators` (N17); us057 `fireball_projectile`, `fireball_hits_enemy` (N15), `stone_skin_indicator` (N16); us069 `shoulder_switches_tab` (N18; FIXED by US-095, PASS on `3294f0a`); us079 `menu_rows`, `unidentified_badge`, `menu_ledger_rows`, `identify_button`, `filter_weapons`, `filter_armor_empty`, `filter_all` (the CommonUI pool bug, US-094; fixed in code in `a8aaa51`, so they need no tag). Tag them in the scripts' PLANs in the owning stories. `us054_arena.py`'s KNOWN_ISSUES text "Suspected NEW (unverified): ... the enemies never damaged the player" is obsolete since `c7e4b8d`.
 - **Issue #19 sweep** (2026-10-28, fresh package of `f21525f`, `Saved/Playtests/20261028-090808-sweep/summary.md`, triaged against the issue #18 sweep `Saved/Playtests/20261027-202756-sweep`): no regression from the enemy bodies.
   - us054 `enemies_visible` is FAIL (known) → PASS. Every other us054 failure is unchanged.
   - us057, us069, us078 and us079 have the same NEW and known failures as before.
