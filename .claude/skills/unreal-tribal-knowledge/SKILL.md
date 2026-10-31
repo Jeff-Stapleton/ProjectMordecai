@@ -181,6 +181,14 @@ unreal.EditorAssetLibrary.save_asset('/MordecaiCore/System/AbilitySets/AS_Mordec
 ```
 Then repopulate with valid C++ or Blueprint ability classes.
 
+### A timer an ability sets dies with the ability: Blink's invulnerability never ended (N19, US-101)
+
+**Problem:** after a Blink, `Mordecai.State.Invulnerable` stayed on the player for the rest of the session. Nothing read the tag before issue #53, so nobody noticed. Once US-101 made damage honor it, one Blink would have meant a permanently invulnerable player.
+
+**Root cause:** `UGameplayAbility::EndAbility` calls `GetWorld()->GetTimerManager().ClearAllTimersForObject(this)` (cvar `AbilitySystem.ClearAbilityTimers`, default 1; engine `GameplayAbility.cpp:832-834`). Blink added the tag as a loose tag and set a timer bound to the ability to remove it after `BuffDuration` (0.3 s). Its recovery (0.2 s) ended the ability first, which erased the timer. The unit test never activated the ability, and its helper used Buff 0.2 < Recovery 0.3, which would not have reproduced the bug anyway.
+
+**Fix:** anything that must outlive the ability goes in a HasDuration GameplayEffect. For a timed tag, `UTargetTagsGameplayEffectComponent` grants it and GAS removes it when the effect expires, whatever the ability's lifetime (`UMordecaiGA_Blink::ApplyInvulnerability`; Stone Skin and the spell cooldown use the same pattern). Never hang a tag's removal on an ability-owned timer that can outlive `EndAbility`. Test it by activating the real ability with its real timing (`Mordecai.Recovery.Blink.InvulnerabilityExpires`).
+
 ---
 
 ## Python Editor Scripting Gotchas
@@ -592,6 +600,16 @@ When building widget trees programmatically:
 **Root cause:** A timer set before the manager's first tick of the current frame goes into `PendingTimerSet`, which is moved to the active heap only at the END of `FTimerManager::Tick`. And `Tick` returns at once when `HasBeenTickedThisFrame()` (`LastTickedFrame == GFrameCounter`), so a test that never advances frames gets exactly one effective tick.
 
 **Fix:** Advance the frame between ticks: `for (int32 Frame = 0; Frame < 2; ++Frame) { ++GFrameCounter; World->GetTimerManager().Tick(Dt); }` (see `Tests/Recovery/MordecaiRecoveryEnemyTests.cpp`). A test world from `UWorld::CreateWorld` has no game instance, so `GetTimerManager()` is the world's own manager.
+
+**Duration GameplayEffects also need world time (US-101).** A HasDuration GE's expiry timer runs on the world timer manager, but when it fires `FActiveGameplayEffectsContainer::CheckDuration` compares `World->GetTimeSeconds()` with the effect's start time plus its duration (engine `GameplayEffect.cpp:5252-5289`). If the world time has not moved, it re-arms the timer for the remaining time instead of removing the effect. A test world's `TimeSeconds` never advances by itself, so a test that only ticks the timer manager never sees a GE expire. Advance both: `World->TimeSeconds += Dt` next to every `Tick(Dt)` (`FDefenseTestEnv::TickFrames` in `Tests/Recovery/MordecaiRecoveryDefenseTests.cpp`). Start world time above 0 (e.g. 10 s): `UMordecaiGA_Block` treats an activation time of 0 as "no perfect block possible".
+
+### A pawn possessed in a floorless test world is Falling (US-101)
+
+**Problem:** `Mordecai.State.Airborne` follows the movement mode since US-101. In a test world every possessed enemy is Airborne, so a jump-avoidable sweep (every factory sweep, `DA_EnemyAttack_BasicSlash`) passes under it unless the test grounds it first. Found while writing US-101's tests.
+
+**Root cause:** `AController::Possess` → `APawn::Restart` → `ACharacter::Restart` → `CharacterMovement->SetDefaultMovementMode()`. That sets Walking, then switches straight to `MOVE_Falling` when there is no movement base ("Avoid 1-frame delay if trying to walk but walking fails at this location", `CharacterMovementComponent.cpp:1300-1311`). A `UWorld::CreateWorld` test world has no floor, so every AI-possessed enemy (`FRecoveryTestEnv::SpawnEnemy`, `SpawnEnemyOfClass`) is Falling from spawn. An unpossessed pawn (the test player) keeps its initial mode, because `ACharacter::PostInitializeComponents` only calls `SetDefaultMovementMode` when there is no controller and `bRunPhysicsWithNoController` is set.
+
+**Fix:** a test that depends on the movement mode sets it explicitly: `GetCharacterMovement()->SetMovementMode(MOVE_Walking)`. Nothing ticks, so the character stays in that mode. `SetMovementMode` calls `OnMovementModeChanged` synchronously as long as the CMC has an updated component.
 
 ### Mordecai has no Lyra teams: every pawn is FGenericTeamId::NoTeam
 

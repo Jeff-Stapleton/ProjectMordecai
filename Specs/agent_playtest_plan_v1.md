@@ -418,6 +418,13 @@ The contract is `Specs/story_playtests_v1.md`.
   - Why the done stories missed it: US-005 AC-005.3 says the damage pipeline checks `Mordecai.State.Dodging`, but its test `Mordecai.Dodge.GrantsIFramesDuringDodge` only checks the tag and applies no damage. US-006's block tests (`Mordecai.Block.MitigatesDamage` and the perfect-block tests, AC-006.3/006.9/006.10) call `ComputeBlockedDamage` and the block functions directly, never an enemy hit.
   - The us083 block and parry checks are tag-only, so they stay valid. A playtest check that asserts mitigation (for example blocking the CombatTestMap attacker) would FAIL as a real bug.
   - Not fixed by US-100; it needs a recovery story. Its scope must include granting `Mordecai.State.Airborne` while the character is falling (for example from the movement-mode change), or the AC-003.7 jump-avoid rule stays dead against `DA_EnemyAttack_BasicSlash` (`JumpAvoidable` = true).
+  - Recovery story: **US-101** (`stories/in-progress/US-101-recovery-defenses-against-enemy-melee.md`, branch `fix/issue-53-defenses`). Its decisions are recorded in `Specs/design_decisions_log.md` 2026-10-30.
+
+**Found while fixing issue #53** (2026-10-30, US-101).
+- **N33 `Mordecai.State.Parried` and `Mordecai.State.Riposte` are never removed.** `UMordecaiGA_Parry::ReceiveParriedHit` adds `Parried` to the attacker's ASC and `Riposte` to the player's ASC as loose tags. Nothing removes `Parried`, and `RemoveRiposteTag` has no caller.
+  - Before US-101 only tests called `ReceiveParriedHit`. Since US-101 a real parry adds one more count of each, and they stay on for the rest of the session.
+  - Nothing in game reads either tag (the combat feedback widget listens for `Parried` on the player's own ASC, so its "Parried!" never shows), so the only effect is in `player.tags` / `actors[].tags`.
+  - Not fixed by US-101: no spec gives the stagger or punish-window durations (AC-006.13). A playtest check must not assume either tag goes away. `us101_defenses.py` parries last for that reason.
 
 **Bridge gaps found while writing the Phase 3 playtests.** These are missing bridge state, not game bugs; each blocks an assertion.
 - **B1 The bridge did not report pickup name labels (FIXED, issue #30).** `actors[].widgets` lists only `UWidgetComponent`s, but the pickup label is a `UTextRenderComponent`, so check `pickup_labels` in `us079_inventory.py` (AC-079.10) failed (known issue B1).
