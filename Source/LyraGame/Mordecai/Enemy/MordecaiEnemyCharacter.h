@@ -111,6 +111,9 @@ protected:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void Tick(float DeltaTime) override;
 
+	//~ ALyraCharacter: Mordecai.State.Airborne follows the movement mode, as for the player (US-101, AC-003.7)
+	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode) override;
+
 	// Attribute change handlers (bound to ASC delegates in InitializeAbilitySystem)
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
 	void OnPostureChanged(const FOnAttributeChangeData& Data);

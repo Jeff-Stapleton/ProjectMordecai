@@ -31,7 +31,13 @@ All fixes are C++ (projectile spawn/initialisation and overlap filtering, Blink 
 - [ ] AC-087.4: In the packaged build, the player taps Q facing an enemy and a projectile appears — verified by check `fireball_projectile` of `Scripts/playtests/us057_magic.py` (Tier 4)
 - [ ] AC-087.5: In the packaged build, that Fireball damages the enemy ahead within 2.5 s — verified by check `fireball_hits_enemy` of `Scripts/playtests/us057_magic.py` (Tier 4)
 - [ ] AC-087.6: Blink's destination trace ignores Pawns (it clamps on world geometry only; the destination is adjusted to a free spot if it lands in a pawn), so Blink with an enemy ahead still moves the player; if no movement is possible the spell does not commit its SP cost — verified by `Mordecai.Recovery.Blink.EnemyAheadDoesNotBlock` and `Mordecai.Recovery.Blink.NoMoveNoCost`
-- [ ] AC-087.7: Blink's invulnerability is removed when its duration ends even if the ability has already ended, and never outlives it — verified by `Mordecai.Recovery.Blink.InvulnerabilityExpires` (Stone Skin's own Invulnerable grant is unaffected; prefer a duration GameplayEffect granting the tag over a loose tag + ability-owned timer)
+- [x] AC-087.7: Blink's invulnerability is removed when its duration ends even if the ability has already ended, and never outlives it — verified by `Mordecai.Recovery.Blink.InvulnerabilityExpires` (Stone Skin's own Invulnerable grant is unaffected; prefer a duration GameplayEffect granting the tag over a loose tag + ability-owned timer)
+  - **Delivered by US-101 (issue #53, `d490a2d`, 2026-10-30).** Once US-101 made damage honor `Mordecai.State.Invulnerable`, a stuck tag would have meant a permanently invulnerable player, so the fix could not wait for this story.
+    - The fix is the one this AC prescribes: a duration GE grants the tag.
+    - Root cause: `UGameplayAbility::EndAbility`'s `ClearAllTimersForObject` killed the ability-owned removal timer. The "actor info cleared" suspect above is not the mechanism.
+    - Note: Stone Skin grants no Invulnerable; it grants `Status.StoneSkin` (`MordecaiGA_StoneSkin.cpp`).
+    - `Mordecai.Recovery.Blink.InvulnerabilityExpires` passes; it failed before the fix.
+    - AC-087.9's Tier 4 check `blink_invulnerability_ends` is still this story's.
 - [ ] AC-087.8: In the packaged build, the player taps E with an enemy about 1 m ahead and moves > 300 cm — verified by NEW check `blink_past_enemy` added to `Scripts/playtests/us057_magic.py` (Tier 4)
 - [ ] AC-087.9: In the packaged build, `Mordecai.State.Invulnerable` is gone from `player.tags` within 1.5 s after a Blink (no Stone Skin active) — verified by NEW check `blink_invulnerability_ends` added to `Scripts/playtests/us057_magic.py` (Tier 4)
 

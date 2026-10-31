@@ -4,8 +4,10 @@
 #include "Mordecai/Magic/MordecaiSpellDataAsset.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/Character.h"
-#include "TimerManager.h"
+#include "GameplayEffect.h"
+#include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
 
 // ---------------------------------------------------------------------------
 // Constructor
@@ -124,43 +126,37 @@ void UMordecaiGA_Blink::OnSpellCast()
 	AvatarActor->SetActorLocation(Destination, false, nullptr, ETeleportType::TeleportPhysics);
 
 	// AC-021.3: Grant brief invulnerability
-	float InvulnDuration = GetInvulnerabilityDuration();
-	if (InvulnDuration > 0.f)
-	{
-		ApplyInvulnerabilityTag();
-
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().SetTimer(
-				InvulnerabilityTimerHandle,
-				this, &UMordecaiGA_Blink::OnInvulnerabilityExpired,
-				InvulnDuration,
-				false);
-		}
-	}
+	ApplyInvulnerability();
 }
 
 // ---------------------------------------------------------------------------
-// Invulnerability Tag Management (AC-021.3)
+// Invulnerability (AC-021.3)
 // ---------------------------------------------------------------------------
 
-void UMordecaiGA_Blink::ApplyInvulnerabilityTag()
+void UMordecaiGA_Blink::ApplyInvulnerability()
 {
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	const float Duration = GetInvulnerabilityDuration();
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (Duration <= 0.f || !ASC)
 	{
-		ASC->AddLooseGameplayTag(MordecaiGameplayTags::State_Invulnerable);
+		return;
 	}
-}
 
-void UMordecaiGA_Blink::RemoveInvulnerabilityTag()
-{
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Invulnerable);
-	}
-}
+	// A duration GE grants the tag, so GAS removes it when the duration ends. The invulnerability (BuffDuration 0.3 s in
+	// DA_Spell_Blink) outlasts the spell (RecoveryTime 0.2 s), and EndAbility clears every timer bound to the ability:
+	// a loose tag removed by such a timer was never removed (N19, US-101). Unnamed, so each cast gets its own definition.
+	UGameplayEffect* InvulnerabilityGE = NewObject<UGameplayEffect>(GetTransientPackage());
+	InvulnerabilityGE->DurationPolicy = EGameplayEffectDurationType::HasDuration;
+	InvulnerabilityGE->DurationMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Duration));
 
-void UMordecaiGA_Blink::OnInvulnerabilityExpired()
-{
-	RemoveInvulnerabilityTag();
+	UTargetTagsGameplayEffectComponent& TargetTagsComp = InvulnerabilityGE->FindOrAddComponent<UTargetTagsGameplayEffectComponent>();
+	FInheritedTagContainer TagChanges;
+	TagChanges.AddTag(MordecaiGameplayTags::State_Invulnerable);
+	TargetTagsComp.SetAndApplyTargetTagChanges(TagChanges);
+
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	Context.AddSourceObject(this);
+
+	FGameplayEffectSpec Spec(InvulnerabilityGE, Context, 1.0f);
+	ASC->ApplyGameplayEffectSpecToSelf(Spec);
 }

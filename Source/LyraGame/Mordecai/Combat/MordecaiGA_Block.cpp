@@ -104,8 +104,8 @@ float UMordecaiGA_Block::ReceiveBlockedHit(float IncomingDamage, double HitTime,
 
 	if (bIsPerfectBlock)
 	{
-		// AC-006.10: Perfect block — no stamina drain
-		ApplyPerfectBlockTag();
+		// AC-006.10: Perfect block — no stamina drain. Mordecai.State.PerfectBlock is already on for the window
+		// (AC-006.9); adding a second count here left it on for good after the window removed the first (US-101).
 
 		// Apply posture damage to attacker
 		if (AttackerASC)

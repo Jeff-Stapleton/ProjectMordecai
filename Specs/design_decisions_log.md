@@ -80,3 +80,43 @@ Context: T1 (`Specs/agent_playtest_plan_v1.md`) gives the Tier 4 playtests their
 - **US-094, US-079 and US-071 are closed** on `Saved/Playtests/20261029-175841-us079` (exit 0, 56/56, fresh package of `9904cde`). The player won the race against the swarm in that run.
 - Accepted with the closing: AC-079.2's overlap pickup is superseded by Press-to-Pickup (above). AC-079.10's `BP_MordecaiItemPickup` was never made; the native `AMordecaiItemPickup::NameLabel` serves its purpose.
 - Source: Jeff via Claude Code session (2026-10-29)
+
+---
+
+## 2026-10-30 — Defenses against enemy melee (issue #53, US-101)
+
+Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or jump-avoid to an enemy melee hit (N32). US-101 routes every melee hit through the target's defenses in `UMordecaiGA_MeleeAttack::ApplyDamageToTarget` (`FMordecaiHitDefense`). The specs leave the points below open. They were **taken by the coding agent for Jeff** so the fix could land; each one is reversible, and Jeff may revisit any of them.
+
+### Precedence
+- I-frames first (`Mordecai.State.Invulnerable`, `Mordecai.State.Dodging`), then an active parry window, then an active block. Whether a jump avoids the hit is decided earlier, in the hit query (`Mordecai.State.Airborne` + `JumpAvoidable`, AC-003.7).
+- Only AC-006.17 orders anything (parry over block). The rest is new.
+
+### What a negated hit skips
+- I-frames and a successful parry negate the whole hit: health, posture, the enchant bonus, on-hit payloads, status effects and the damage number.
+- Sources:
+  - "incoming damage is negated" (AC-005.3)
+  - "avoiding all damage" (`skill_sheet_v1.1.md`, Dodge)
+  - "immune to all damage" (the Invulnerable tag)
+  - `ReceiveParriedHit` takes no damage argument
+- Not decided: whether a dodge or Blink should also protect from projectiles, spells and DoT ticks. Today only melee consults the defenses.
+
+### Block
+- A perfect block still mitigates health (×(1 − Mitigation)), as `ReceiveBlockedHit` already did. AC-006.10 only names the stamina and attacker-posture rewards.
+- Blocked hits, perfect ones included, take posture × `BlockPostureDamageMultiplier` 0.5 (AC-007.5).
+- The hit that breaks the guard is still mitigated. Hits during the guard break land in full.
+- The damage number shows the health actually taken.
+- **Still open, left as before:**
+  - Block covers every direction. `skill_sheet_v1.1.md`'s shields say "frontal", but US-006 has no direction.
+  - A blocked hit still applies on-hit payloads, status effects and the enchant bonus in full. Nothing that enemies swing today has any.
+
+### Airborne
+- `Mordecai.State.Airborne` is on exactly while the character's movement mode is Falling: a jump, a drop off a ledge, a launch (including a dodge's few launch frames, which are inside its i-frames anyway).
+- This applies to the player and to every enemy.
+- Not "a jump only" and no height threshold; neither is specified.
+
+### Blink's invulnerability is fixed here (N19)
+- US-101 fixes N19 ahead of US-087, because once damage honors Invulnerable, a stuck tag means a permanently invulnerable player.
+- The fix is the one US-087 AC-087.7 prescribes: a duration GameplayEffect grants the tag.
+- The duration stays `DA_Spell_Blink`'s BuffDuration (0.3 s; AC-021.3 says "default 0.2s").
+
+- Source: decisions taken by the coding agent for Jeff (Claude Code session, 2026-10-30), pending his review

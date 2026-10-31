@@ -8,6 +8,8 @@
 
 #include "MordecaiHitDetectionSubsystem.generated.h"
 
+class ACharacter;
+class UAbilitySystemComponent;
 class UMordecaiAttackProfileDataAsset;
 
 /**
@@ -121,6 +123,13 @@ public:
 
 	/** Returns true if the target actor has the Mordecai.State.Airborne gameplay tag. */
 	static bool IsTargetAirborne(const AActor* Target);
+
+	/**
+	 * Mordecai.State.Airborne follows the movement mode: one count while the character is falling (a jump, a drop off a
+	 * ledge, a launch), none otherwise (AC-003.7, US-101). The count is set, not added, so it cannot drift. Called by the
+	 * player and enemy characters on every movement-mode change and when their ASC is attached.
+	 */
+	static void SyncAirborneTag(UAbilitySystemComponent* ASC, const ACharacter* Character);
 
 	/**
 	 * Returns true if Attacker and Target are on the same side. The Mordecai.Team.Enemy tag decides when either

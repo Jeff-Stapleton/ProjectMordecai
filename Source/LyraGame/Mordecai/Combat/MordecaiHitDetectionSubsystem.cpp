@@ -7,6 +7,8 @@
 #include "AbilitySystemGlobals.h"
 #include "GenericTeamAgentInterface.h"
 #include "Engine/World.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "CollisionQueryParams.h"
 #include "Engine/OverlapResult.h"
 
@@ -140,6 +142,17 @@ bool UMordecaiHitDetectionSubsystem::IsTargetAirborne(const AActor* Target)
 	}
 
 	return ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Airborne);
+}
+
+void UMordecaiHitDetectionSubsystem::SyncAirborneTag(UAbilitySystemComponent* ASC, const ACharacter* Character)
+{
+	if (!ASC)
+	{
+		return;
+	}
+	const UCharacterMovementComponent* CMC = Character ? Character->GetCharacterMovement() : nullptr;
+	// TODO(DECISION): any fall counts, not only a jump; a dodge's launch is a few Falling frames inside its i-frames.
+	ASC->SetLooseGameplayTagCount(MordecaiGameplayTags::State_Airborne, CMC && CMC->IsFalling() ? 1 : 0);
 }
 
 bool UMordecaiHitDetectionSubsystem::AreActorsFriendly(const AActor* Attacker, const AActor* Target)

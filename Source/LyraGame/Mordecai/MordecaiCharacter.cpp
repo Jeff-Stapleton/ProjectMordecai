@@ -7,6 +7,7 @@
 #include "AbilitySystemComponent.h"
 #include "Mordecai/MordecaiHeroComponent.h"
 #include "Mordecai/Camera/MordecaiCameraMode_Diorama.h"
+#include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
@@ -270,12 +271,27 @@ void AMordecaiCharacter::OnAbilitySystemInitialized()
 {
 	Super::OnAbilitySystemInitialized();
 	BindToASC();
+
+	// Movement-mode changes before the ASC was attached found no ASC: seed Airborne from the current mode
+	UMordecaiHitDetectionSubsystem::SyncAirborneTag(GetAbilitySystemComponent(), this);
 }
 
 void AMordecaiCharacter::OnAbilitySystemUninitialized()
 {
 	UnbindFromASC();
+
+	// The ASC lives on the PlayerState and outlives this pawn: leave no Airborne on it
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+	{
+		ASC->SetLooseGameplayTagCount(MordecaiGameplayTags::State_Airborne, 0);
+	}
 	Super::OnAbilitySystemUninitialized();
+}
+
+void AMordecaiCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
+{
+	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+	UMordecaiHitDetectionSubsystem::SyncAirborneTag(GetAbilitySystemComponent(), this);
 }
 
 void AMordecaiCharacter::BindToASC()

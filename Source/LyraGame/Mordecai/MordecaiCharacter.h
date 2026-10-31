@@ -117,6 +117,9 @@ protected:
 	virtual void OnAbilitySystemInitialized() override;
 	virtual void OnAbilitySystemUninitialized() override;
 
+	//~ ALyraCharacter: Mordecai.State.Airborne follows the movement mode (US-101, AC-003.7)
+	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode) override;
+
 private:
 	// Hero component — handles input binding and camera mode from PawnData
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Character", Meta = (AllowPrivateAccess = true))
