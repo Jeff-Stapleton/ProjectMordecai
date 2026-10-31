@@ -526,6 +526,38 @@ When building widget trees programmatically:
 - Red runs: `Saved/TestLogs/tests-20261030-112154.log`.
 - Packaged: `Saved/Playtests/20261030-122609-us054combat` (`death_screen`, `death_screen_removed` PASS).
 
+### A native loading screen builds its tree in `Initialize`: the manager's `CreateWidgetInstance(GameInstance)` does not guarantee a player context (issue #39)
+
+**Problem:** From Phase 1 on, the packaged game showed Lyra's loading screen on every load: the LYRA logo, plus a debug line ("Keeping loading screen up for an additional 2.00 seconds..."). It went unfixed for 12 days because nothing looked at it:
+- The scheduled `engine_NN.png` shots come `--settle` (6 s) after the experience loads, and the screen is gone about 2 s after. Only a Phase 1 run with `--settle 0` caught it (`Saved/Playtests/20261018-223717-boot/engine_01.png`).
+- PIE does not hold the screen up at all.
+
+**Root cause:** `Config/DefaultGame.ini` `CommonLoadingScreenSettings.LoadingScreenWidget` was Lyra's `W_LoadingScreen_Host`. The host shows `ULyraLoadingScreenSubsystem`'s content widget, or falls back to `W_LoadingScreen_DefaultContent` → `W_LyraLogo_LoadingScreen`.
+- Only the front end's Blueprint macro `PrepareToEnterUserFacingExperience` sets that content widget, from the playlist's `LoadingScreenWidget`. Lyra's own playlists set it to the logo content, and `DA_Mordecai_Arena` sets nothing.
+- A direct map launch never sets it at all.
+
+**Fix:** a native `UMordecaiLoadingScreenWidget`, configured as `LoadingScreenWidget=/Script/LyraGame.MordecaiLoadingScreenWidget`.
+- **Build the tree in `Initialize()`, not in `NativeOnInitialized()`.** `ULoadingScreenManager` creates the widget with `UUserWidget::CreateWidgetInstance(GameInstance)`. That call sets a player context only from `GetFirstGamePlayer()`, and `FLocalPlayerContext::IsValid` also needs that player's controller. Without a valid context, `UUserWidget::Initialize` skips `NativeOnInitialized`, and `RebuildWidget` returns an empty `SSpacer`: a blank screen.
+  - In every packaged boot seen so far, the first show comes after `LoadMap` has spawned the player controller, with reason `Experience still loading` (`Saved/Playtests/20261030-122726-boot/game.log:993-994`). So the context is valid there, and `NativeOnInitialized` does run.
+  - Nothing guarantees that. The manager also shows the screen for "Need at least one local player controller", for a null world or game state, and for pending travel. `Initialize()` works with or without a context.
+  - The death screen's pattern (build in `NativeOnInitialized`) is right for widgets pushed for a player, and fragile for this one.
+  - Tier 1 tests the no-context case: `Mordecai.UI.LoadingScreen.BuildsItsTreeWithoutAPlayer`.
+- **A rebuild with the same names is invisible to identity checks.** `ConstructWidget` with a name that already exists in the tree replaces that object in place: same address, same widget count (`StaticAllocateObject`). To prove a tree is built once, change a widget's state, initialize again, and check the state survived (`Mordecai.UI.LoadingScreen.BuildsItsTreeOnce`).
+- **Opaque background.** The manager turns world rendering back on during its 2 s hold (`LoadingScreenManager.cpp`), so anything translucent shows the world.
+- **No content.** A `/Script/...` class named in config needs no cooking (`TryLoadClass` finds native classes), and the default font is an engine startup package.
+- **It ignores `ULyraLoadingScreenSubsystem`,** because Lyra's playlists point it at the logo.
+- **Reading the setting.** `UCommonLoadingScreenSettings` is declared in the plugin's `Private` folder and is not exported to Python. Read it by reflection: `FindObject<UClass>(nullptr, TEXT("/Script/CommonLoadingScreen.CommonLoadingScreenSettings"))`, then `FStructProperty` `LoadingScreenWidget` on its CDO. `UMordecaiLoadingScreenWidget::GetConfiguredLoadingScreenWidgetClass` does this and is BlueprintCallable, so Tier 2 can call it.
+
+**Seeing it in a playtest:**
+- `UMordecaiPlaytestCaptureSubsystem` binds `ULoadingScreenManager::OnLoadingScreenVisibilityChangedDelegate` (through `Collection.InitializeDependency`). On the first show it requests `engine_loading.png`.
+  - The delegate fires before the manager adds its widget. That is fine: the request is served at the next viewport draw, by a `bShowUI` Slate capture of the whole window, with the loading screen on top.
+- `playtest_boot.py`'s `loading_screen` check FAILs any shown loading screen without a matching `MordecaiLoadingScreen: shown` line, which the widget logs in `NativeConstruct`. Lyra's host logs nothing.
+- Never widen the window with `CommonLoadingScreen.AlwaysShow` or a longer hold: both change the player's path.
+
+**Evidence:**
+- Before: `Saved/Playtests/20261018-223717-boot/engine_01.png` (the LYRA logo).
+- After, on `1d33354`: `Saved/Playtests/20261030-154954-boot/engine_loading.png` (DevTestMap) and `20261030-155056-boot/engine_loading.png` (`--frontend`). Both show "PROJECT MORDECAI" and `loading_screen` PASS.
+
 ---
 
 ## Testing Gaps

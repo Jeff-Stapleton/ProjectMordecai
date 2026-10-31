@@ -179,7 +179,45 @@ The contract is `Specs/story_playtests_v1.md`.
   - Tier 1: `Mordecai.Items.ItemPickup.NameLabel*` (red before the fix). Tier 2: `verify_pie_inventory.py` phase 1 measures every label against the PIE camera. Tier 4: us079 `pickup_labels` requires `facing` and `upright` ≥ 0.99.
   - Verified on `92e7575` (fresh package): Tier 3 `Saved/Playtests/20261028-232530-boot` `engine_01.png`..`engine_03.png` show all six labels level, reading left to right (before: `Saved/Playtests/20261028-195434-boot/engine_02.png`). Tier 4 `pickup_labels` PASS, 6/6 at facing 1.000 and upright 1.000 (`Saved/Playtests/20261028-232550-us079`). The label text renders light gray and the far labels are faint on the light floor (the engine's default lit text material): readability beyond orientation, not filed yet.
 - Steam socket config deprecation warnings print on screen (`DefaultEngine.ini` SocketSubsystemSteamIP keys).
-- Loading screen is Lyra-branded.
+- **Loading screen is Lyra-branded (FIXED, issue #39).** Found by Phase 1: `Saved/Playtests/20261018-223717-boot/engine_01.png` and `engine_02.png` (`-PlaytestShotDelay=0`) show the glowing LYRA logo, plus the debug line "Keeping loading screen up for an additional 2.00 seconds to allow texture streaming...".
+  - Cause:
+    - `Config/DefaultGame.ini` set `CommonLoadingScreenSettings.LoadingScreenWidget` to Lyra's `W_LoadingScreen_Host`. Unless `ULyraLoadingScreenSubsystem` has a content widget, the host shows `W_LoadingScreen_DefaultContent` (`W_LyraLogo_LoadingScreen`) and `W_LoadingScreenReasonDebugText`.
+    - The content widget is set only by the front end's session screens, from the playlist's `LoadingScreenWidget`. `DA_Mordecai_Arena` sets none, and a direct map launch never sets one.
+    - `ULoadingScreenManager` shows this widget on every map and experience load, and holds it 2 s after the experience loads, outside the editor.
+    - Nothing saw it: the scheduled engine shots come 6 s after the load, and PIE does not hold the screen at all.
+  - Fix: `LoadingScreenWidget=/Script/LyraGame.MordecaiLoadingScreenWidget`.
+    - It is a native widget with no content assets: an opaque near-black screen with "PROJECT MORDECAI", "Loading..." and a throbber.
+    - It builds its tree in `Initialize()`, because the manager's `CreateWidgetInstance(GameInstance)` does not guarantee a player context.
+    - Its final art is a `TODO(DECISION)`.
+    - Tier 3 now sees the screen. `UMordecaiPlaytestCaptureSubsystem` saves `engine_loading.png` when it first shows. `playtest_boot.py`'s `loading_screen` check FAILs when a shown loading screen is not the Mordecai one (no `MordecaiLoadingScreen: shown` line), and WARNs when the frame is missing.
+  - Tier 1:
+    - `Mordecai.UI.LoadingScreen.*` (5), red before the fix: `Saved/TestLogs/tests-20261030-143238.log`.
+    - `BuildsItsTreeOnce` fails with its guard removed: `tests-20261030-152025.log`.
+    - `Mordecai.Playtest.Capture.LoadingShotPath`.
+    - All 745 pass: `tests-20261030-152517.log`.
+  - Tier 2: `verify_pie_loading_screen.py` (15 of 15 smoke tests pass).
+  - Tier 4: no input-driven check. The screen is gone before `ping.ready`.
+  - Verified on `1d33354` (fresh package, `Saved/Playtests/package-20261030-153709.log`):
+    - Tier 3 `Saved/Playtests/20261030-154954-boot` (DevTestMap): `loading_screen` PASS, shown 1x, visible 3.02 s. `engine_loading.png` shows the Mordecai loading screen.
+    - `--frontend` `Saved/Playtests/20261030-155056-boot`: `loading_screen` PASS, visible 3.53 s, the same screen.
+    - Sweep `Saved/Playtests/20261030-155137-sweep`: `loading_screen` PASS on DevTestMap, MovementTestMap and CombatTestMap. Compared with `20261030-122726-sweep` (`8486aa1`), nothing went from PASS to FAIL. The same 19 checks fail in both.
+  - Still Lyra after this fix. These were filed as #57-#69 from the 2026-10-30 rebranding audit, all `needs-decision`:
+    - Player-facing:
+      - #57 the main menu's LYRA logo and "PLAY LYRA" / "QUIT LYRA";
+      - #58 the front-end lobby background;
+      - #59 Lyra's shooter and party modes, which ship and can be played from the front end;
+      - #60 PLAY leading to Lyra's multiplayer and replay screens instead of the Mordecai arena;
+      - #61 the machine name, online ID, engine build stamp and ADD PLAYER on the main menu;
+      - #62 Lyra's UI style (Orbitron, blue glass) on the front end and dialogs;
+      - #63 the credits screen;
+      - #64 Lyra's translated menu text;
+      - #65 the front-end music and menu sounds.
+    - Shipped metadata:
+      - #66 the exe's version resource ("Lyra", "Epic Games, Inc.") and icon;
+      - #67 `LyraGame.exe`;
+      - #68 Lyra's fallback experience, HUD and escape menu;
+      - #69 the `LyraGame` module, config sections and console variables.
+    - The on-screen engine messages are #29.
 - **Melee `AttackProfiles` CDO write in `AMordecaiPlayerController::GrantCombatAbilities` (FIXED, issue #40).** Same GC crash pattern as the spells; latent while `MeleeAttackProfiles` was empty.
   - Cause: the controller wrote its `MeleeAttackProfiles` into the native `UMordecaiGA_MeleeAttack` CDO, the disregard-for-GC fatal the spells hit (`e833b3e`). The write never reached the ability instance either: an instance of a native class copies only `Config` properties from its CDO.
   - Fixed: the controller stays the melee grant's SourceObject, and `UMordecaiGA_MeleeAttack::OnGiveAbility` -> `TakeAttackProfilesFromSpec` copies the profiles onto the instance, never the CDO. Tests `Mordecai.Combat.MeleeGrant.*` (5) and `Mordecai.Recovery.Combat.NoMeleeCDOWrite`. No Tier 4 check exercised it then: the game spawns the native `AMordecaiPlayerController`, whose `MeleeAttackProfiles` and `DefaultCombatAbilities` were empty (N10, fixed by US-083).

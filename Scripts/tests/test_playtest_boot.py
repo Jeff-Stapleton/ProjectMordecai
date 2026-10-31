@@ -28,6 +28,14 @@ LOADED = ("[2026.10.19-04.37.20:498][  0]LogLyraExperience: EXPERIENCE: OnExperi
           "(CurrentExperience = LyraExperienceDefinition:B_MordecaiArenaExperience, Server)")
 WRONG = ("[2026.10.19-04.37.20:486][  0]LogLyraExperience: Identified experience "
          "LyraExperienceDefinition:B_LyraDefaultExperience (Source: Default)")
+# The loading screen lines of a real packaged run (issue #39)
+LOADING_SHOWN = ("[2026.10.30-18.30.52:100][990]LogLoadingScreen: Showing loading screen when "
+                 "'IsShowingInitialLoadingScreen()' is false.")
+MORDECAI_LOADING = ("[2026.10.30-18.30.52:101][990]LogMordecaiLoadingScreen: MordecaiLoadingScreen: shown "
+                    "(MordecaiLoadingScreenWidget)")
+LOADING_HIDDEN = "[2026.10.30-18.30.54:568][1107]LogLoadingScreen: LoadingScreen was visible for 2.42s"
+LOADING_WIDGET_FAILED = ("[2026.10.30-18.30.52:100][990]LogLoadingScreen: Error: Failed to load the loading screen "
+                         "widget /Script/LyraGame.Missing, falling back to placeholder.")
 
 
 class FakeProc:
@@ -279,6 +287,120 @@ class TestWaitForExperience(TempDirCase):
         self.assertLess(time.time() - t0, 3.0)
 
 
+class TestLoadingScreen(TempDirCase):
+    """The loading_screen check (issue #39): the packaged game showed Lyra's loading screen (the LYRA logo)."""
+
+    FRAME = {"path": "C:/r/engine_loading.png", "uniform": False, "black": False, "mean": 20.0,
+             "stddev": 30.0}
+
+    @staticmethod
+    def state(lines):
+        state = pb.BootState("B_MordecaiArenaExperience")
+        with captured_log():
+            state.scan(lines, 1.0)
+        return state
+
+    def test_scan_reads_the_loading_screen_lines(self):
+        state = self.state([LOADING_SHOWN, MORDECAI_LOADING, LOADING_HIDDEN])
+        self.assertEqual(state.loading_shown, [1.0])
+        self.assertEqual(state.mordecai_loading, [{"class": "MordecaiLoadingScreenWidget", "t": 1.0}])
+        self.assertEqual(state.loading_visible_s, [2.42])
+        self.assertIsNone(state.loading_widget_failed)
+
+    def test_the_placeholder_line_is_not_an_experience_fallback(self):
+        state = self.state([LOADING_WIDGET_FAILED])
+        self.assertIn("Failed to load the loading screen widget", state.loading_widget_failed)
+        self.assertEqual(state.fallback_lines, [])
+        self.assertEqual(state.other_fallback_lines, [])
+        self.assertIsNone(state.experience_failure())
+
+    def test_the_mordecai_loading_screen_passes(self):
+        status, detail = pb.evaluate_loading_screen(
+            self.state([LOADING_SHOWN, MORDECAI_LOADING, LOADING_HIDDEN]), False, None)
+        self.assertEqual(status, "PASS")
+        self.assertIn("MordecaiLoadingScreenWidget", detail)
+        self.assertIn("visible 2.42s", detail)
+
+    def test_a_loading_screen_without_the_mordecai_line_fails(self):
+        # Lyra's W_LoadingScreen_Host: shown, no 'MordecaiLoadingScreen: shown'
+        status, detail = pb.evaluate_loading_screen(self.state([LOADING_SHOWN, LOADING_HIDDEN]), True,
+                                                    self.FRAME)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("1 loading screen(s) shown, 0 of them the Mordecai one", detail)
+        self.assertIn("W_LoadingScreen_Host", detail)
+
+    def test_every_loading_screen_must_be_the_mordecai_one(self):
+        status, detail = pb.evaluate_loading_screen(
+            self.state([LOADING_SHOWN, MORDECAI_LOADING, LOADING_SHOWN]), False, None)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("2 loading screen(s) shown, 1 of them", detail)
+
+    def test_a_widget_that_did_not_load_fails(self):
+        status, detail = pb.evaluate_loading_screen(self.state([LOADING_SHOWN, LOADING_WIDGET_FAILED]),
+                                                    False, None)
+        self.assertEqual(status, "FAIL")
+        self.assertIn("did not load", detail)
+
+    def test_no_loading_screen_warns(self):
+        status, detail = pb.evaluate_loading_screen(self.state([IDENTIFIED, LOADED]), True, None)
+        self.assertEqual(status, "WARN")
+        self.assertIn("no loading screen was shown", detail)
+
+    def test_with_capture_the_frame_is_needed(self):
+        state = self.state([LOADING_SHOWN, MORDECAI_LOADING])
+        status, detail = pb.evaluate_loading_screen(state, True, None)
+        self.assertEqual(status, "WARN")
+        self.assertIn("no engine_loading.png", detail)
+        black = dict(self.FRAME, uniform=True, black=True, mean=0.0, stddev=0.0)
+        status, detail = pb.evaluate_loading_screen(state, True, black)
+        self.assertEqual(status, "WARN")
+        self.assertIn("near-uniform black", detail)
+        status, detail = pb.evaluate_loading_screen(state, True, self.FRAME)
+        self.assertEqual(status, "PASS")
+        self.assertIn("frame engine_loading.png", detail)
+
+    def test_read_engine_shot(self):
+        from PIL import Image, ImageDraw
+        path = os.path.join(self.tmp, pb.LOADING_SHOT_NAME)
+        img = Image.new("RGB", (64, 36), (3, 3, 3))
+        ImageDraw.Draw(img).rectangle((16, 12, 48, 24), fill=(220, 204, 173))
+        img.save(path)
+        info = pb.read_engine_shot(path)
+        self.assertEqual((info["path"], info["width"], info["height"]), (path, 64, 36))
+        self.assertFalse(info["uniform"])
+        Image.new("RGB", (64, 36), (0, 0, 0)).save(path)
+        self.assertTrue(pb.read_engine_shot(path)["black"])
+
+    def test_check_order(self):
+        order = pb.CHECK_ORDER
+        self.assertLess(order.index("content_cooked"), order.index("loading_screen"))
+        self.assertLess(order.index("loading_screen"), order.index("engine_screenshots"))
+
+    def test_the_markers_match_the_games_log_lines(self):
+        # The UE_LOG format strings in the C++ that writes them, formatted the way UE does
+        project = os.path.dirname(SCRIPTS)
+        sources = {
+            "widget": os.path.join(project, "Source", "LyraGame", "Mordecai", "UI",
+                                   "MordecaiLoadingScreenWidget.cpp"),
+            "manager": os.path.join(project, "Plugins", "CommonLoadingScreen", "Source",
+                                    "CommonLoadingScreen", "Private", "LoadingScreenManager.cpp"),
+        }
+        text = {}
+        for key, path in sources.items():
+            with open(path, encoding="utf-8-sig") as f:
+                text[key] = f.read()
+        self.assertIn('TEXT("MordecaiLoadingScreen: shown (%s)")', text["widget"])
+        line = "MordecaiLoadingScreen: shown (%s)" % "MordecaiLoadingScreenWidget"
+        self.assertEqual(pb.RE_MORDECAI_LOADING_SCREEN.search(line).group(1),
+                         "MordecaiLoadingScreenWidget")
+        self.assertIn(f'TEXT("{pb.MARKER_LOADING_SHOWN}.")', text["manager"])
+        self.assertIn(f'TEXT("{pb.MARKER_LOADING_WIDGET_FAILED} %s, falling back to placeholder.")',
+                      text["manager"])
+        self.assertIn('TEXT("LoadingScreen was visible for %.2fs")', text["manager"])
+        self.assertEqual(pb.RE_LOADING_VISIBLE.search("LoadingScreen was visible for %.2fs" % 2.4199)
+                         .group(1), "2.42")
+
+
 class TestGate(unittest.TestCase):
     EXE = os.path.abspath(r"C:\Fake\Win64\LyraGame.exe")
 
@@ -420,6 +542,21 @@ class TestWriteReports(TempDirCase):
         with open(md_path, encoding="utf-8") as f:
             md = f.read()
         self.assertEqual(md.count("- (none captured)"), 2)
+        self.assertIn("## Loading screen", md)
+        self.assertIn("- (no engine_loading.png)", md)
+
+    def test_report_md_lists_the_loading_screen(self):
+        report = self.report([], [])
+        shot = {"path": os.path.join(self.tmp, "engine_loading.png"), "uniform": False}
+        report["loading_screen"] = {"shown_t": [20.5], "visible_s": [2.42], "widget_failed": None,
+                                    "mordecai": [{"class": "MordecaiLoadingScreenWidget", "t": 20.5}],
+                                    "screenshot": shot}
+        _, md_path = pb.write_reports(self.tmp, report)
+        with open(md_path, encoding="utf-8") as f:
+            md = f.read()
+        self.assertIn("- Shown: 1x; the Mordecai one: 1x (MordecaiLoadingScreenWidget); visible 2.42s", md)
+        self.assertIn(f"- {shot['path']}", md)
+        self.assertLess(md.index("## Loading screen"), md.index("## Engine screenshots"))
 
 
 @unittest.skipUnless(sys.platform == "win32", "Windows .bat wrapper and job objects")
@@ -453,16 +590,41 @@ class TestMainEndToEnd(TempDirCase):
         self.assertEqual(status["experience_loaded"], "PASS")
         self.assertEqual(status["no_crash"], "PASS")
         self.assertEqual(status["content_cooked"], "PASS")
+        self.assertEqual(status["loading_screen"], "PASS")
         self.assertEqual(status["game_window"], "SKIP")
         self.assertEqual(report["experience"]["outcome"], "loaded")
+        self.assertEqual(report["loading_screen"]["mordecai"][0]["class"], "MordecaiLoadingScreenWidget")
         self.assertIn("-abslog=", report["command_line"])
         self.assertNotIn("-PlaytestCapture", report["command_line"])
         with open(os.path.join(run_dir, "report.md"), encoding="utf-8") as f:
             md = f.read()
         self.assertIn("# Boot playtest: PASS", md)
+        self.assertIn("## Loading screen", md)
         self.assertIn("## Engine screenshots", md)
         self.assertIn("STALE BUILD (continuing: --allow-stale)", text)
         self.assertIn("BOOT PLAYTEST: PASS", text)
+
+    def test_main_fails_on_a_loading_screen_that_is_not_the_mordecai_one(self):
+        # Issue #39: the packaged game showed Lyra's loading screen
+        bat = os.path.join(self.tmp, "FakeGame.bat")
+        with open(bat, "w", encoding="ascii") as f:
+            f.write(f'@"{sys.executable}" "{FAKE_GAME}" %* -FakeLyraLoadingScreen\n')
+        playtests = os.path.join(self.tmp, "Playtests")
+        out = io.StringIO()
+        argv = ["playtest_boot.py", "--exe", bat, "--allow-stale", "--shots", "0",
+                "--timeout", "60"]
+        with mock.patch.object(pb, "PLAYTESTS_DIR", playtests), \
+                mock.patch.object(sys, "argv", argv), pb.log_stream(out), \
+                contextlib.redirect_stdout(out):
+            code = pb.main()
+        self.assertEqual(code, pb.EXIT_FAIL, out.getvalue())
+        run_dir = os.path.join(playtests, os.listdir(playtests)[0])
+        with open(os.path.join(run_dir, "report.json"), encoding="utf-8") as f:
+            report = json.load(f)
+        status = {c["name"]: c["status"] for c in report["checks"]}
+        self.assertEqual(status["loading_screen"], "FAIL")
+        self.assertEqual(status["experience_loaded"], "PASS")
+        self.assertIn("BOOT PLAYTEST: FAIL", out.getvalue())
 
     def test_run_dir_option_writes_the_run_there(self):
         bat = os.path.join(self.tmp, "FakeGame.bat")

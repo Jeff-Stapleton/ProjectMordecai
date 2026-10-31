@@ -7,6 +7,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameModes/LyraExperienceManagerComponent.h"
 #include "HAL/FileManager.h"
+#include "LoadingScreenManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "UnrealClient.h"
@@ -44,6 +45,11 @@ FString FMordecaiPlaytestCaptureConfig::GetShotPath(int32 Index) const
 	return ShotDir / FString::Printf(TEXT("engine_%02d.png"), Index + 1);
 }
 
+FString FMordecaiPlaytestCaptureConfig::GetLoadingShotPath() const
+{
+	return ShotDir / TEXT("engine_loading.png");
+}
+
 bool UMordecaiPlaytestCaptureSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
 #if UE_BUILD_SHIPPING
@@ -61,6 +67,12 @@ void UMordecaiPlaytestCaptureSubsystem::Initialize(FSubsystemCollectionBase& Col
 	IFileManager::Get().MakeDirectory(*Config.ShotDir, /*Tree*/ true);
 	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &ThisClass::Tick), 0.1f);
 
+	if (ULoadingScreenManager* Manager = Collection.InitializeDependency<ULoadingScreenManager>())
+	{
+		LoadingScreenManager = Manager;
+		Manager->OnLoadingScreenVisibilityChangedDelegate().AddUObject(this, &ThisClass::HandleLoadingScreenVisibilityChanged);
+	}
+
 	UE_LOG(LogMordecaiPlaytest, Display, TEXT("PlaytestCapture: %d screenshot(s) to %s, %.1fs after the experience loads, every %.1fs"),
 		Config.NumShots, *Config.ShotDir, Config.DelaySeconds, Config.IntervalSeconds);
 }
@@ -68,7 +80,32 @@ void UMordecaiPlaytestCaptureSubsystem::Initialize(FSubsystemCollectionBase& Col
 void UMordecaiPlaytestCaptureSubsystem::Deinitialize()
 {
 	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
+	if (ULoadingScreenManager* Manager = LoadingScreenManager.Get())
+	{
+		Manager->OnLoadingScreenVisibilityChangedDelegate().RemoveAll(this);
+	}
 	Super::Deinitialize();
+}
+
+void UMordecaiPlaytestCaptureSubsystem::HandleLoadingScreenVisibilityChanged(bool bIsVisible)
+{
+	// The first show only: the boot's loading screen, which the scheduled shots never see
+	if (!bIsVisible || bLoadingShotTaken)
+	{
+		return;
+	}
+	bLoadingShotTaken = true;
+
+	if (FScreenshotRequest::IsScreenshotRequested())
+	{
+		UE_LOG(LogMordecaiPlaytest, Warning, TEXT("PlaytestCapture: no loading screen shot: another screenshot is pending"));
+		return;
+	}
+	// Broadcast just before the manager adds its widget to the viewport. The request is served at the next viewport
+	// draw, by a Slate capture of the whole window (bShowUI), with the loading screen on top.
+	const FString Path = Config.GetLoadingShotPath();
+	FScreenshotRequest::RequestScreenshot(Path, /*bInShowUI*/ true, /*bAddFilenameSuffix*/ false);
+	UE_LOG(LogMordecaiPlaytest, Display, TEXT("PlaytestCapture: requested %s (loading screen)"), *Path);
 }
 
 bool UMordecaiPlaytestCaptureSubsystem::Tick(float DeltaTime)
