@@ -15,8 +15,10 @@
 #include "Components/VerticalBoxSlot.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerState.h"
+#include "Input/CommonUIInputTypes.h"
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
 #include "Mordecai/Items/MordecaiResourceLedger.h"
+#include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/UI/MordecaiCharacterSheetWidget.h"
 #include "Mordecai/UI/MordecaiInventoryWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuPlaceholderWidget.h"
@@ -55,6 +57,14 @@ void UMordecaiPauseMenuWidget::NativeOnInitialized()
 	EnsureDefaultLayout();
 	RebuildTabBar();
 	RebuildContentArea();
+
+	// Registered once (Lyra's pattern, LyraHUDLayout): the handles live as long as this pooled widget, and
+	// UCommonUserWidget re-attaches them to the action router on every Slate rebuild (each reopen). Registering
+	// again in NativeConstruct would duplicate them. No action router headless: the handles stay invalid there.
+	for (const FBindUIActionArgs& BindArgs : MakeUIActionBindingArgs())
+	{
+		RegisterUIActionBinding(BindArgs);
+	}
 }
 
 void UMordecaiPauseMenuWidget::InitializeTabs()
@@ -75,11 +85,16 @@ void UMordecaiPauseMenuWidget::NativeOnActivated()
 	// every activation, or a reopened inventory shows the last open's rows (US-094, issue #28).
 	BindTabContent(CurrentContentWidget);
 
+	// Only an I press made in this open menu closes it (US-095)
+	bInventoryCloseArmed = false;
+
 	Super::NativeOnActivated();
 }
 
 void UMordecaiPauseMenuWidget::NativeOnDeactivated()
 {
+	bInventoryCloseArmed = false;
+
 	// A closed menu does not listen to the pawn; the next activation rebinds (US-094)
 	UnbindTabContent(CurrentContentWidget);
 
@@ -128,6 +143,81 @@ void UMordecaiPauseMenuWidget::SetActiveTab(FName TabId)
 int32 UMordecaiPauseMenuWidget::GetTabCount() const
 {
 	return TabModel.GetTabCount();
+}
+
+void UMordecaiPauseMenuWidget::SelectPreviousTab()
+{
+	if (TabModel.CycleActiveTab(-1))
+	{
+		RebuildTabBar();
+		RebuildContentArea();
+	}
+}
+
+void UMordecaiPauseMenuWidget::SelectNextTab()
+{
+	if (TabModel.CycleActiveTab(1))
+	{
+		RebuildTabBar();
+		RebuildContentArea();
+	}
+}
+
+// ---------------------------------------------------------------------------
+// CommonUI UI actions (US-095)
+// ---------------------------------------------------------------------------
+
+TArray<FBindUIActionArgs> UMordecaiPauseMenuWidget::MakeUIActionBindingArgs()
+{
+	// Defaults: fire on IE_Pressed, Menu input mode, consume the key, not persistent (live only while this menu is the
+	// active root). Keys come from the tags' CommonUIInputSettings InputActions entries (Config/DefaultInput.ini); no
+	// action bar shows them.
+	TArray<FBindUIActionArgs> Args;
+	Args.Emplace(FUIActionTag::ConvertChecked(MordecaiGameplayTags::UIAction_PauseMenu_PreviousTab), false,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::SelectPreviousTab));
+	Args.Emplace(FUIActionTag::ConvertChecked(MordecaiGameplayTags::UIAction_PauseMenu_NextTab), false,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::SelectNextTab));
+
+	// I closes on the key-up of a press made in the open menu. Closing on the press would let the OS repeats of a held
+	// I reach the game once the menu is gone, where the Inventory action's Started reopens it. Closing on any key-up
+	// would close the menu on the key-up of the I press that opened it.
+	const FUIActionTag InventoryTag = FUIActionTag::ConvertChecked(MordecaiGameplayTags::UIAction_PauseMenu_Inventory);
+	Args.Emplace(InventoryTag, false, FSimpleDelegate::CreateUObject(this, &ThisClass::HandleInventoryPressed));
+	FBindUIActionArgs& InventoryReleased = Args.Emplace_GetRef(InventoryTag, false,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleInventoryReleased));
+	InventoryReleased.KeyEvent = IE_Released;
+	return Args;
+}
+
+TArray<FName> UMordecaiPauseMenuWidget::GetUIActionBindingNames() const
+{
+	TArray<FName> Names;
+	for (const FUIActionBindingHandle& Handle : GetActionBindings())
+	{
+		if (Handle.IsValid())
+		{
+			Names.Add(Handle.GetActionName());
+		}
+	}
+	return Names;
+}
+
+void UMordecaiPauseMenuWidget::HandleInventoryPressed()
+{
+	bInventoryCloseArmed = true;
+}
+
+void UMordecaiPauseMenuWidget::HandleInventoryReleased()
+{
+	if (!bInventoryCloseArmed)
+	{
+		return; // the key-up of the I press that opened the menu
+	}
+	bInventoryCloseArmed = false;
+
+	// What the default back action does (UCommonActivatableWidget::NativeOnHandleBackAction): NativeOnDeactivated
+	// then closes the menu through the subsystem (unpause, remember the tab, pop)
+	DeactivateWidget();
 }
 
 // ---------------------------------------------------------------------------

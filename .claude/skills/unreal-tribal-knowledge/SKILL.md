@@ -479,10 +479,38 @@ When building widget trees programmatically:
 **Fix:**
 - A CommonUI menu must close itself through CommonUI, not through a gameplay input action: set `bIsBackHandler = true` so CommonUI's default back action deactivates it (→ `NativeOnDeactivated` → close), and register UI action bindings (`RegisterUIActionBinding`) for any other close key such as I — or use an input mode that lets those keys through (`GameAndMenu`).
 - In this project the back action is the data-table one (CommonInput `bEnableEnhancedInputSupport` is off): `/Game/UI/B_CommonInputData` → `DT_UniversalActions` row `DefaultBack` = keyboard `Escape`, gamepad `Gamepad_FaceButton_Right` (checked by `Mordecai.UI.PauseMenu.DefaultBackActionIsEscape`). The binding is registered in `UCommonActivatableWidget::NativeConstruct`, so it exists only for back handlers.
-- **Fixed** for the pause menu: `bIsBackHandler = true` in the `UMordecaiPauseMenuWidget` constructor (tests `Mordecai.UI.PauseMenu.IsCommonUIBackHandler`, `...BackActionDeactivationClosesMenu`). Real Escape closed the menu in `Saved/Playtests/20261020-192656-us079` (check `menu_closes_escape` PASS, `bridge_04.png` shows the arena and HUD again). I still does not close it.
+- **Fixed** for the pause menu: `bIsBackHandler = true` in the `UMordecaiPauseMenuWidget` constructor (tests `Mordecai.UI.PauseMenu.IsCommonUIBackHandler`, `...BackActionDeactivationClosesMenu`). Real Escape closed the menu in `Saved/Playtests/20261020-192656-us079` (check `menu_closes_escape` PASS, `bridge_04.png` shows the arena and HUD again). I and LB/RB were fixed later with UI action bindings (US-095, next section).
 - Prove it with a Tier 4 run that presses the key. Never close the menu by a direct call in a playtest: that hides exactly this bug.
 
 **Evidence:** `Saved/Playtests/20261020-144643-us079/report.md` check 44 and `bridge_03.png` (bug); `Saved/Playtests/20261020-192656-us079/report.md` (fix); the files and lines above; `Specs/agent_bridge_v1.md` §9.
+
+### Any other key in a CommonUI menu needs a tag-based UI action binding: native `UI.Action.*` tag + `DefaultInput.ini` entry + `RegisterUIActionBinding` once (US-095, issues #23 and #32)
+
+**Problem:** In the open pause menu, LB/RB did not switch tabs (AC-069.4) and I did not close the menu. Same root cause as the section above: Menu input mode blocks every key without a UI action binding, so the Enhanced Input actions on those keys (spells, Inventory) never fire.
+
+**Fix (no content asset needed):**
+1. A native gameplay tag under `UI.Action` (`MordecaiGameplayTags::UIAction_PauseMenu_*` = `UI.Action.Mordecai.PauseMenu.*`). `FUIActionTag` only accepts tags under that root: `ConvertChecked` asserts on any other tag, and `TryConvert` returns an empty tag. So these tags cannot follow the `Mordecai.*` pattern.
+2. A `+InputActions=(ActionTag=...,KeyMappings=((Key=...)))` line under `[/Script/CommonUI.CommonUIInputSettings]` in `Config/DefaultInput.ini`. That is config, not the binary `DT_UniversalActions`, so the story stays HEADLESS.
+   - `FUIActionBinding::TryCreate` refuses a tag that has no entry, with an Error log.
+   - It works with `bEnableEnhancedInputSupport` off.
+   - A `HoldTime` > 0 turns the mapping into a hold action.
+   - The router does not filter by input type, so one action can mix keyboard and gamepad keys.
+   - `ActionOverrides` and `UIActionProcessingPriority` are never read in 5.7.
+3. `RegisterUIActionBinding(FBindUIActionArgs(FUIActionTag::ConvertChecked(Tag), /*bDisplayInActionBar*/ false, Delegate))` **once, in `NativeOnInitialized`**. This is Lyra's `LyraHUDLayout` pattern.
+   - The handles live as long as the pooled widget object. `UCommonUserWidget::OnWidgetRebuilt` re-attaches them on every reopen; `NativeDestruct` only detaches them.
+   - Registering again in `NativeConstruct` is a duplicate: `TryCreate` refuses the same action, event, widget and user, with an Error log. The engine's back handler registers in `NativeConstruct` and unregisters in `NativeDestruct` instead. Use one pattern, never both.
+4. **A close key that also opens the menu through Enhanced Input (I) needs two bindings on its tag:** one `IE_Pressed` binding that arms the close, and one `IE_Released` binding (`KeyEvent = IE_Released`) that closes only if armed. Reset the arm in `NativeOnActivated` and `NativeOnDeactivated`. `TryCreate`'s duplicate check includes the input event, so both bindings can coexist.
+   - **Closing on the press** consumes the press. The OS repeats of a held key then reach the game once the menu is gone, as `IE_Repeat` in Game mode. `UPlayerInput` treats the first repeat after the menu's `FlushPressedKeys` as a press, and the action's `Started` reopens the menu about 0.5 s later. Found by the review of US-095. Escape has this through the engine's back action.
+   - **Closing on any key-up** would close the menu on the key-up of the press that opened it.
+
+**Testing:**
+- Tier 1 has no action router. The recovery env's `NewObject<ULocalPlayer>` never runs `PlayerAdded`, so it has no local-player subsystems, and `RegisterUIActionBinding` returns an invalid handle silently.
+- Tests create the same bindings with `FUIActionBinding::TryCreate(Widget, Args, /*UserIndex*/ 0)`, which is public and needs no router on the tag path. They read `FindBinding(Handle)` (`ActionName`, `InputEvent`, `NormalMappings`, `bConsumesInput`), call `OnExecuteAction`, then `Unregister()` every handle. The registration map is static and survives across tests.
+- Do not call `FUIActionBinding::ProcessNormalInput`. It is declared but defined nowhere, so the test fails to link. Emulate its matching rule instead (`Mordecai.Recovery.PauseMenu.*` in `MordecaiRecoveryPauseMenuInputTests.cpp`).
+- The widget exposes the exact args it registers (`MakeUIActionBindingArgs`) and, for Tier 2, the registered names (`GetUIActionBindingNames`, read by `verify_pie_pause_menu.py` against PIE's live router).
+- Acceptance still needs the Tier 4 key presses (`us069_pause_menu.py` `shoulder_switches_tab`, `shoulder_rb_switches_tab`, `i_closes`).
+
+**Known limit (Escape only):** holding Escape for more than about 0.5 s after the press that closed the menu probably reopens it, for the reason in item 4. This comes from reading the code and two reviewers' traces; it was not reproduced. The back action closes on the press and is engine code. I does not have the problem since its close moved to the key-up.
 
 ### CommonUI pools activatable widgets: a reopened menu is the same instance, and its content was unbound by NativeDestruct (issue #28, US-094)
 

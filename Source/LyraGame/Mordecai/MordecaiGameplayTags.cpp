@@ -188,6 +188,11 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Parry,       "Mordecai.Input.Parry",       "Parry input (LMB / RT pressed while blocking) — activates parry");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Dodge,       "Mordecai.Input.Dodge",       "Dodge input (Left Alt / Gamepad B) — activates dodge");
 
+	// CommonUI UI action tags (US-095): FUIActionTag only accepts tags under UI.Action; keys in DefaultInput.ini CommonUIInputSettings
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UIAction_PauseMenu_PreviousTab, "UI.Action.Mordecai.PauseMenu.PreviousTab", "Pause menu UI action: previous tab, wrapping (LB)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UIAction_PauseMenu_NextTab,     "UI.Action.Mordecai.PauseMenu.NextTab",     "Pause menu UI action: next tab, wrapping (RB)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UIAction_PauseMenu_Inventory,   "UI.Action.Mordecai.PauseMenu.Inventory",   "Pause menu UI action: I closes the open menu (I opens it through Enhanced Input)");
+
 	// Ability category tags (US-017)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Category_Spell,   "Mordecai.Ability.Category.Spell",   "Identifies an ability as a spell — blocked by Silenced");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Category_Magical, "Mordecai.Ability.Category.Magical", "Identifies an ability as magical — blocked by Silenced even if not a spell");

@@ -120,3 +120,20 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - The duration stays `DA_Spell_Blink`'s BuffDuration (0.3 s; AC-021.3 says "default 0.2s").
 
 - Source: decisions taken by the coding agent for Jeff (Claude Code session, 2026-10-30), pending his review
+
+---
+
+## 2026-10-30 — Pause menu input (issues #23 and #32, US-095)
+
+### LB/RB switch pause-menu tabs (N18)
+- **Kept.** AC-069.4's controller tab switching stands. While the pause menu is open, LB selects the previous tab and RB the next, wrapping at either end (Character ↔ Settings).
+- It does not conflict with LB/RB = Skill B / Skill A in game (`control_bindings_v1.1.md`): CommonUI's Menu input mode blocks game input while the menu is open, and the menu consumes the shoulder presses.
+- No keyboard equivalent was added (none is specified); the mouse switches tabs by clicking the tab headers.
+- Source: Jeff via Claude Code session (2026-10-30): "Fix this issue" on issue #23, whose open question was keep or drop.
+
+### I closes the open pause menu
+- I already toggled the menu open on the Inventory tab (2026-07-10 above). Since US-095, I closes the open menu through CommonUI UI action bindings, like Escape and Gamepad B.
+- The close happens on the **key-up** of an I press made in the open menu (the press arms it). The key-up and repeats of the press that opened the menu do not close it.
+- Why the key-up: the menu consumes the whole press. Closing on the press would let the OS key repeats of a held I reach the game after the menu is gone, and the Inventory action would reopen the menu about 0.5 s later. Escape still closes on the press through CommonUI's back action, so a held Escape can still do that. That is pre-existing and left as is.
+- Still open: the 2026-07-10 TODO(DECISION) to add "I — Inventory" to `control_bindings_v1.1.md`. The bindings doc also does not list in-menu LB/RB yet.
+- Source: issue #32 / US-095 AC-095.1 (fixed with #23 in the same story, Claude Code session, 2026-10-30)

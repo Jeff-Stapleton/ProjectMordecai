@@ -7,19 +7,22 @@ the run dir is the audit trail of every request.  The run framework (launch, STA
 plan enforcement, AC acceptance, reports, exit codes) is Scripts/playtest_kit.py
 (Specs/story_playtests_v1.md section 2); this file is the PLAN and the steps.
 
-Covers US-069 (pause menu framework) and the three tab contents that plug into it: US-066
-(Character sheet), US-067 (Skill tree) and US-068 (Feats).  About 60 s of play:
+Covers US-069 (pause menu framework), the three tab contents that plug into it: US-066
+(Character sheet), US-067 (Skill tree) and US-068 (Feats), and US-095 (recovery: LB/RB switch
+tabs and I closes the menu, issues #23 and #32).  About 60 s of play:
   1.  The combat HUD is on screen.
   2.  Escape opens the menu on the Character tab and pauses the game; Menu input mode with the
       mouse cursor, the title 'Paused', the five tabs as tab buttons; W and Q do nothing.
   3.  The Character tab shows the character sheet (known issue N4: it is blank).
   4.  Clicking the Skills, Feats and Settings tab buttons switches the tab; Skills and Feats
       show their content (known issue N5: "Coming Soon"), Settings shows "Coming Soon".
-  5.  LB (Gamepad_LeftShoulder) switches the tab (AC-069.4).  Expected to FAIL today and NOT a
-      filed issue: a NEW finding (or a design question) until it is triaged.
+  5.  LB (Gamepad_LeftShoulder) selects the previous tab (Settings -> Inventory) and RB
+      (Gamepad_RightShoulder) the next (Inventory -> Settings), wrapping (AC-069.4, AC-095.4).
   6.  Escape closes and resumes; Escape reopens on the last tab; B (Gamepad_FaceButton_Right)
       closes; Start (Gamepad_Special_Right) opens; Escape closes.
-  7.  I opens the menu on Inventory; I closes it (known issue: it does not); Escape closes.
+  7.  I opens the menu on Inventory; I closes it (AC-095.2); I reopens it, and I held for 1.2 s
+      (key repeats included) keeps it open until the key-up, which closes it for good (AC-095.5);
+      Escape closes it if it is still open.
 A failed check SKIPs the checks that depend on it (every dependency reads the menu's real state
 first); a lost bridge connection SKIPs everything after it.
 
@@ -67,6 +70,7 @@ PLACEHOLDER_TEXT = "Coming Soon"
 # AC-069.2: id -> display name, in tab-bar order.
 EXPECTED_TABS = (("character", "Character"), ("skills", "Skills"), ("feats", "Feats"),
                  ("inventory", "Inventory"), ("settings", "Settings"))
+TAB_IDS = tuple(i for i, _ in EXPECTED_TABS)
 DEFAULT_TAB = "character"
 # AC-066.3: the 9 primary attributes (short id, display name).
 PRIMARY_ATTRIBUTES = (("STR", "Strength"), ("DEX", "Dexterity"), ("END", "Endurance"),
@@ -86,6 +90,8 @@ CLOSE_TIMEOUT_S = 3.0
 TAB_TIMEOUT_S = 3.0
 CONTENT_TIMEOUT_S = 3.0
 SHOULDER_TIMEOUT_S = 2.0
+I_HOLD_S = 1.2        # past the 0.5 s keyboard repeat delay: the bridge sends repeats like the OS
+REOPEN_WATCH_S = 1.0  # after the key-up: long enough for a reopen to show
 BLOCKED_SETTLE_S = 1.0
 BLOCKED_W_HOLD_S = 0.3
 MAX_DRIFT_CM = 5.0
@@ -94,10 +100,7 @@ KNOWN_N4 = ("N4 The Character tab of the pause menu is blank: UMordecaiCharacter
             "builds no widget tree (Known issues backlog, Specs/agent_playtest_plan_v1.md)")
 KNOWN_N5 = ("N5 The Skills and Feats tabs show \"Coming Soon\": MordecaiPauseMenuWidget registers "
             "only Character and Inventory (Known issues backlog, Specs/agent_playtest_plan_v1.md)")
-KNOWN_I = ("I does not close the pause menu either: the Enhanced Input Inventory action never "
-           "fires in Menu mode; it needs a CommonUI UI action binding (Known issues backlog, "
-           "Specs/agent_playtest_plan_v1.md)")
-KNOWN_ISSUES = (KNOWN_N4, KNOWN_N5, KNOWN_I)
+KNOWN_ISSUES = (KNOWN_N4, KNOWN_N5)
 
 SCREENSHOTS = {
     "menu_character": "the pause menu ('Paused', tab bar Character/Skills/Feats/Inventory/"
@@ -108,8 +111,14 @@ SCREENSHOTS = {
                    "rows with 'rank / 20' (known issue N5: 'Coming Soon')",
     "menu_feats": "the pause menu on the Feats tab: the 'Feats: N unlocked' summary header "
                   "(known issue N5: 'Coming Soon')",
+    "menu_lb": "the pause menu after LB on the Settings tab: the Inventory tab highlighted in the "
+               "tab bar and the inventory list ('Inventory is empty.') in the content area",
+    "menu_rb": "the pause menu after RB on the Inventory tab: the Settings tab highlighted in the "
+               "tab bar and 'Coming Soon' in the content area",
     "menu_closed": "MovementTestMap's open grid floor with the player and the combat HUD, no "
                    "pause menu (closed by Escape)",
+    "menu_closed_by_i": "MovementTestMap's open grid floor with the player and the combat HUD, no "
+                        "pause menu (closed by I)",
 }
 EXIT_PASS, EXIT_FAIL, EXIT_INFRA = kit.EXIT_PASS, kit.EXIT_FAIL, kit.EXIT_INFRA
 
@@ -117,11 +126,6 @@ set_log_stream = kit.set_log_stream
 lit = kit.lit
 _dumps = kit.dumps
 _section = kit.section
-
-SHOULDER_NEW = ("NEW finding, no known_issue filed: AC-069.4 specifies tab switching with LB/RB; "
-                "LB (Gamepad_LeftShoulder) did not change pause_menu.active_tab.  It is unclear "
-                "whether gamepad tab switching is missing by design (no CommonUI tab-list action "
-                "binding) or a bug -- triage it and file it in the Known issues backlog")
 
 PLAN = (
     Step("hud_visible", f"wait_until pickups.prompt.hint_visible==true && "
@@ -157,8 +161,11 @@ PLAN = (
     Step("settings_placeholder", 'click_button(button_id="settings") -> active_tab=="settings" '
          f"and a visible widget shows {lit(PLACEHOLDER_TEXT)}", proves=("AC-069.3",)),
     Step("shoulder_switches_tab", "tap Gamepad_LeftShoulder -> wait_until pause_menu.open==true "
-         "&& pause_menu.active_tab changes (expected FAIL today: NEW, not yet triaged)",
-         proves=("AC-069.4",)),
+         "&& pause_menu.active_tab == the previous tab in tab-bar order, wrapping "
+         "(settings -> inventory)", proves=("AC-069.4", "US-095:AC-095.4")),
+    Step("shoulder_rb_switches_tab", "tap Gamepad_RightShoulder -> wait_until "
+         "pause_menu.open==true && pause_menu.active_tab == the next tab in tab-bar order, "
+         "wrapping (inventory -> settings)", proves=("AC-069.4", "US-095:AC-095.4")),
     Step("escape_closes", "tap Escape -> wait_until pause_menu.open==false && game.paused==false",
          proves=("AC-069.10", "AC-069.6")),
     Step("reopen_restores_tab", "tap Escape -> wait_until pause_menu.open==true && "
@@ -169,11 +176,15 @@ PLAN = (
          "&& game.paused==true", proves=("AC-069.7",)),
     Step("escape_closes_again", "tap Escape -> wait_until pause_menu.open==false"),
     Step("i_opens_inventory", 'tap I -> wait_until pause_menu.open==true && '
-         'pause_menu.active_tab=="inventory"'),
-    Step("i_closes", f"tap I -> wait_until pause_menu.open==false within {CLOSE_TIMEOUT_S:g}s",
-         known_issue=KNOWN_I),
+         'pause_menu.active_tab=="inventory"', proves=("US-095:AC-095.2",)),
+    Step("i_closes", f"tap I (the menu closes on its key-up) -> wait_until pause_menu.open==false "
+         f"&& game.paused==false within {CLOSE_TIMEOUT_S:g}s", proves=("US-095:AC-095.2",)),
+    Step("i_held_closes_on_key_up", f"tap I -> wait_until pause_menu.open==true; press I, wait "
+         f"{I_HOLD_S:g}s (key repeats from 0.5s) -> pause_menu.open==true while held; release I "
+         f"-> wait_until pause_menu.open==false && game.paused==false; wait {REOPEN_WATCH_S:g}s "
+         "-> still closed (a held I never reopens the menu)", proves=("US-095:AC-095.5",)),
     Step("final_close", "if the menu is still open: tap Escape -> wait_until "
-         "pause_menu.open==false (runs even when i_closes failed)"),
+         "pause_menu.open==false (runs even when i_closes or i_held_closes_on_key_up failed)"),
 )
 
 
@@ -226,11 +237,16 @@ def _num(v):
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
+def _neighbour_tab(tab, step):
+    """The tab `step` places from `tab` in tab-bar order, wrapping; None for an unknown tab."""
+    return TAB_IDS[(TAB_IDS.index(tab) + step) % len(TAB_IDS)] if tab in TAB_IDS else None
+
+
 class Us069Run(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
-    COVERS = ("US-066", "US-067", "US-068")
+    COVERS = ("US-066", "US-067", "US-068", "US-095")
     FEATURES = ("pause_menu", "character_sheet", "skill_tree_ui", "feat_ui")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX
@@ -488,31 +504,25 @@ class Us069Run(kit.PlaytestRun):
                      needs_why="not run: the pause menu is not open")
         self.tab_log.append(("settings_placeholder", self.menu_state()[1]))
 
-    # 12
-    def step_shoulder(self):
+    # 12-13
+    def _shoulder(self, check, key, step, shot_label):
+        """Tap a shoulder button; the menu must stay open on the neighbouring tab (wrapping).
+        The expected tab is computed from a fresh read, so RB still checks the right tab when
+        LB failed."""
         is_open, before = self.menu_state()
+        want = _neighbour_tab(before, step)
+        ok, _ = self.press(check, key,
+                           then=f"pause_menu.open==true && pause_menu.active_tab=={lit(want)}",
+                           timeout_s=SHOULDER_TIMEOUT_S, needs=is_open is True and want is not None,
+                           needs_why="not run: the pause menu is not open on a known tab")
+        self.tab_log.append((check, self.menu_state()[1]))
+        self.shot(shot_label, needs=ok, needs_why=f"not taken: {check} did not switch the tab")
 
-        def shoulder(b):
-            b.tap("Gamepad_LeftShoulder", hold_s=TAP_S)
-            cond = f"pause_menu.open==true && pause_menu.active_tab!={lit(before)}"
-            try:
-                r = b.wait_until(cond, timeout_s=SHOULDER_TIMEOUT_S)
-            except ab.BridgeError as e:
-                if e.code != "timeout":
-                    raise
-                v = (e.response or {}).get("values") or {}
-                return ("FAIL", f"tapped Gamepad_LeftShoulder on the {before!r} tab; within "
-                        f"{SHOULDER_TIMEOUT_S:g}s pause_menu.open={v.get('pause_menu.open')}, "
-                        f"active_tab={v.get('pause_menu.active_tab')!r}. {SHOULDER_NEW}", None)
-            v = r.get("values") or {}
-            return ("PASS", f"tapped Gamepad_LeftShoulder: active_tab {before!r} -> "
-                    f"{v.get('pause_menu.active_tab')!r} after {r.get('elapsed_s')}s", None)
+    def step_shoulder(self):
+        self._shoulder("shoulder_switches_tab", "Gamepad_LeftShoulder", -1, "menu_lb")
+        self._shoulder("shoulder_rb_switches_tab", "Gamepad_RightShoulder", 1, "menu_rb")
 
-        self.measure("shoulder_switches_tab", shoulder, needs=is_open is True and bool(before),
-                     needs_why="not run: the pause menu is not open on a known tab")
-        self.tab_log.append(("shoulder_switches_tab", self.menu_state()[1]))
-
-    # 13-14
+    # 14-15
     def step_close_reopen(self):
         is_open, self.tab_before_close = self.menu_state()
         closed, _ = self.press("escape_closes", "Escape",
@@ -526,7 +536,7 @@ class Us069Run(kit.PlaytestRun):
                    timeout_s=OPEN_TIMEOUT_S, needs=closed and bool(tab) and self.is_closed(),
                    needs_why="not run: escape_closes did not close the menu")
 
-    # 15-17
+    # 16-18
     def step_gamepad(self):
         self.press("gamepad_back_closes", "Gamepad_FaceButton_Right",
                    then="pause_menu.open==false && game.paused==false",
@@ -539,17 +549,65 @@ class Us069Run(kit.PlaytestRun):
                    timeout_s=CLOSE_TIMEOUT_S, needs=self.is_open(),
                    needs_why="not run: the pause menu is not open")
 
-    # 18-20
+    # 19-22
     def step_inventory_key(self):
         self.press("i_opens_inventory", "I",
                    then='pause_menu.open==true && pause_menu.active_tab=="inventory"',
                    timeout_s=OPEN_TIMEOUT_S, needs=self.is_closed(),
                    needs_why="not run: the pause menu is not closed")
-        self.press("i_closes", "I", then="pause_menu.open==false", timeout_s=CLOSE_TIMEOUT_S,
-                   needs=self.is_open(), needs_why="not run: the pause menu is not open")
+        closed, _ = self.press("i_closes", "I", then="pause_menu.open==false && game.paused==false",
+                               timeout_s=CLOSE_TIMEOUT_S, needs=self.is_open(),
+                               needs_why="not run: the pause menu is not open")
+        self.shot("menu_closed_by_i", needs=closed, needs_why="not taken: I did not close the menu")
+        self.measure("i_held_closes_on_key_up", self._held_i, needs=self.is_closed(),
+                     needs_why="not run: the pause menu is not closed")
         self.press("final_close", "Escape", then="pause_menu.open==false",
                    timeout_s=CLOSE_TIMEOUT_S, needs=self.is_open(),
                    needs_why="not run: the pause menu is already closed")
+
+    def _held_i(self, b):
+        """I held in the open menu: open while down (repeats included), closed by the key-up, and
+        still closed after it (a repeat that reached the game would reopen it)."""
+        b.tap("I", hold_s=TAP_S)
+        try:
+            b.wait_until("pause_menu.open==true", timeout_s=OPEN_TIMEOUT_S)
+        except ab.BridgeError as e:
+            if e.code != "timeout":
+                raise
+            return "FAIL", f"tapped I; the menu did not open within {OPEN_TIMEOUT_S:g}s", None
+        released = False
+        b.press("I")
+        try:
+            b.wait(I_HOLD_S)
+            held = _menu(b.state(["pause_menu"]))
+            b.release("I")
+            released = True
+        finally:
+            if not released:
+                try:
+                    b.release("I")
+                except ab.BridgeError:
+                    pass
+        what = (f"pressed I in the open menu and held it {I_HOLD_S:g}s: pause_menu.open="
+                f"{held.get('open')}")
+        if held.get("open") is not True:
+            return "FAIL", what + " while held (it must stay open until the key-up)", None
+        try:
+            r = b.wait_until("pause_menu.open==false && game.paused==false",
+                             timeout_s=CLOSE_TIMEOUT_S)
+        except ab.BridgeError as e:
+            if e.code != "timeout":
+                raise
+            v = (e.response or {}).get("values") or {}
+            return ("FAIL", f"{what}; released: the menu did not close within {CLOSE_TIMEOUT_S:g}s "
+                    f"(open={v.get('pause_menu.open')}, paused={v.get('game.paused')})", None)
+        what += f"; released: closed after {r.get('elapsed_s')}s"
+        b.wait(REOPEN_WATCH_S)
+        after = _menu(b.state(["pause_menu"]))
+        if after.get("open") is not False:
+            return ("FAIL", f"{what}; {REOPEN_WATCH_S:g}s later pause_menu.open={after.get('open')} "
+                    "(the held key reopened it)", None)
+        return "PASS", f"{what}; still closed {REOPEN_WATCH_S:g}s later", None
 
     # --- report hooks ---------------------------------------------------------------------
     def report_extra(self):

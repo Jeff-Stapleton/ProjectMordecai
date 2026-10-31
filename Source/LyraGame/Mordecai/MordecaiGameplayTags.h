@@ -189,6 +189,11 @@ namespace MordecaiGameplayTags
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Parry);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Dodge);
 
+	// CommonUI UI action tags (US-095): registered by the pause menu, keyed in Config/DefaultInput.ini
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(UIAction_PauseMenu_PreviousTab);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(UIAction_PauseMenu_NextTab);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(UIAction_PauseMenu_Inventory);
+
 	// Ability category tags (US-017)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Category_Spell);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Category_Magical);

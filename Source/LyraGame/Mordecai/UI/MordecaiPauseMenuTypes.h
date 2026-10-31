@@ -44,6 +44,12 @@ struct FMordecaiPauseMenuTabModel
 
 	/** Switch active tab. Returns true if tab exists and was switched. */
 	bool SetActiveTab(FName TabId);
+
+	/**
+	 * Step the active tab Direction places along the tab bar, wrapping at either end (LB = -1, RB = +1; US-095).
+	 * An unknown active tab starts from the first tab. Returns true if the active tab changed.
+	 */
+	bool CycleActiveTab(int32 Direction);
 };
 
 /**

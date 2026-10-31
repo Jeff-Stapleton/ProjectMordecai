@@ -2,6 +2,13 @@
 # Run during PIE via ue_remote_exec.py to verify pause menu subsystem exists
 # and responds to open/close.
 #
+# US-095 (issues #23, #32): the open menu has registered its CommonUI UI action
+# bindings (LB previous tab, RB next tab, I press + I key-up close) with the live
+# CommonUI action router, with no duplicates. Tier 1 has no action router, so this is the first tier that
+# sees the real registration. Opening the menu and switching tabs here are direct
+# calls ([LOGIC]); real LB / RB / I presses are accepted only by the Tier 4 run
+# of Scripts/playtests/us069_pause_menu.py.
+#
 # Usage:
 #   py ue_remote_exec.py "exec(open(r'Scripts/verify_pie_pause_menu.py').read())"
 #
@@ -9,6 +16,13 @@
 # when the function returns, avoiding GC reference leaks after PIE ends.
 
 import unreal
+
+# MordecaiGameplayTags UIAction_PauseMenu_* (US-095), keyed in Config/DefaultInput.ini -> how many
+# bindings the menu registers for each (I: one on the press that arms, one on the key-up that closes)
+EXPECTED_UI_ACTIONS = {"UI.Action.Mordecai.PauseMenu.PreviousTab": 1,
+                       "UI.Action.Mordecai.PauseMenu.NextTab": 1,
+                       "UI.Action.Mordecai.PauseMenu.Inventory": 2}
+TAB_ORDER = ("character", "skills", "feats", "inventory", "settings")
 
 def _run():
     pass_count = 0
@@ -25,6 +39,10 @@ def _run():
             if detail:
                 msg += f" -- {detail}"
             print(msg)
+
+    def logic(name, condition, detail=""):
+        # Direct gameplay/UI call: logic/diagnostic only, never acceptance of a player-facing AC
+        check(f"[LOGIC] {name}", condition, detail)
 
     print("=" * 60)
     print("PIE SMOKE TEST: PAUSE MENU")
@@ -84,6 +102,34 @@ def _run():
                       f"Got {can_pause}")
             except Exception as e:
                 check("bCanPauseGame property accessible", False, str(e))
+
+            # --- US-095: the open menu's CommonUI UI action bindings ---
+            sub.open_pause_menu()
+            logic("open_pause_menu opens the menu", sub.is_menu_open())
+            menu = sub.get_active_menu_widget()
+            logic("the menu widget was pushed", menu is not None,
+                  "PrimaryGameLayout missing? Menu widget was not pushed")
+            if menu is not None:
+                names = [str(n) for n in menu.get_ui_action_binding_names()]
+                for tag, count in EXPECTED_UI_ACTIONS.items():
+                    check(f"UI action registered with the CommonUI router {count}x (no duplicates): {tag}",
+                          names.count(tag) == count, f"Got {names}")
+
+                start = str(menu.get_active_tab_id()).lower()
+                if start in TAB_ORDER:
+                    i = TAB_ORDER.index(start)
+                    menu.select_next_tab()
+                    got = str(menu.get_active_tab_id()).lower()
+                    want = TAB_ORDER[(i + 1) % len(TAB_ORDER)]
+                    logic(f"select_next_tab: {start} -> {want}", got == want, f"Got '{got}'")
+                    menu.select_previous_tab()
+                    got = str(menu.get_active_tab_id()).lower()
+                    logic(f"select_previous_tab: back to {start}", got == start, f"Got '{got}'")
+                else:
+                    check("the menu opened on a known tab", False, f"Got '{start}'")
+
+            sub.close_pause_menu()
+            logic("close_pause_menu closes the menu", not sub.is_menu_open())
 
     print("")
     print(f"RESULT: {pass_count} passed, {fail_count} failed")
