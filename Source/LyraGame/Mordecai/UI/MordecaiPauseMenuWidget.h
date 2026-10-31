@@ -13,6 +13,7 @@ class UHorizontalBox;
 class UTextBlock;
 class UUserWidget;
 class UMordecaiPauseMenuSubsystem;
+struct FBindUIActionArgs;
 
 /**
  * UMordecaiPauseMenuWidget
@@ -35,6 +36,16 @@ class UMordecaiPauseMenuSubsystem;
  * tree (the content's NativeDestruct unbinds it). So the active tab's content
  * is rebound to the current pawn on every activation and unbound on every
  * deactivation.
+ *
+ * Menu input mode blocks every key without a CommonUI UI action binding
+ * (US-095, issues #23 and #32): Escape / gamepad B close the menu through the
+ * default back action (bIsBackHandler), and NativeOnInitialized registers UI
+ * actions for LB / RB (previous / next tab, wrapping) and I (close). CommonUI
+ * keeps those bindings across pooled reopens and re-attaches them on every
+ * rebuild of the Slate tree. I closes on the key-up of a press made in the open
+ * menu, so the menu consumes the whole press: no key repeat of a held I reaches
+ * the game's Inventory action to reopen it, and the key-up of the press that
+ * opened the menu closes nothing.
  */
 UCLASS()
 class LYRAGAME_API UMordecaiPauseMenuWidget : public ULyraActivatableWidget
@@ -72,6 +83,25 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|PauseMenu")
 	int32 GetTabCount() const;
 
+	/** Switch to the previous tab in tab-bar order, wrapping from the first to the last (LB, US-095). */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|PauseMenu")
+	void SelectPreviousTab();
+
+	/** Switch to the next tab in tab-bar order, wrapping from the last to the first (RB, US-095). */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|PauseMenu")
+	void SelectNextTab();
+
+	/**
+	 * The CommonUI UI action bindings NativeOnInitialized registers (US-095): LB previous tab, RB next tab, and I
+	 * (press arms, release closes the menu). Public so headless tests can create exactly these bindings: Tier 1 has no
+	 * CommonUI action router.
+	 */
+	TArray<FBindUIActionArgs> MakeUIActionBindingArgs();
+
+	/** Action names (the UI action tag names) of the bindings registered with the CommonUI action router; empty without one. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|PauseMenu")
+	TArray<FName> GetUIActionBindingNames() const;
+
 	/** The instantiated content widget for the active tab (null headless). */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|PauseMenu")
 	UUserWidget* GetCurrentContentWidget() const { return CurrentContentWidget; }
@@ -100,6 +130,12 @@ private:
 	UFUNCTION()
 	void HandleTabButtonClicked(FName TabId);
 
+	/** I pressed in the open menu: arm the close (US-095). */
+	void HandleInventoryPressed();
+
+	/** I released: close the menu the way the back action does, if an I press in this open menu armed it (US-095). */
+	void HandleInventoryReleased();
+
 	void InitDefaultTabs();
 	void EnsureDefaultLayout();
 	void RebuildTabBar();
@@ -115,4 +151,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> CurrentContentWidget;
+
+	/** An I press reached this open menu; its release closes it. Reset on every activation and deactivation. */
+	bool bInventoryCloseArmed = false;
 };

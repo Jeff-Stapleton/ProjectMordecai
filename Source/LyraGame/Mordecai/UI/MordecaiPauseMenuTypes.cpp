@@ -82,6 +82,27 @@ bool FMordecaiPauseMenuTabModel::SetActiveTab(FName TabId)
 	return true;
 }
 
+bool FMordecaiPauseMenuTabModel::CycleActiveTab(int32 Direction)
+{
+	const int32 Num = Tabs.Num();
+	if (Num == 0)
+	{
+		return false;
+	}
+
+	const int32 Current = Tabs.IndexOfByPredicate([this](const FMordecaiPauseMenuTabEntry& Entry)
+	{
+		return Entry.TabId == ActiveTabId;
+	});
+	const int32 Next = Current == INDEX_NONE
+		? 0
+		: ((Current + Direction) % Num + Num) % Num; // wrap both ways, any Direction
+
+	const FName Previous = ActiveTabId;
+	ActiveTabId = Tabs[Next].TabId;
+	return ActiveTabId != Previous;
+}
+
 // ---------------------------------------------------------------------------
 // FMordecaiPauseMenuState
 // ---------------------------------------------------------------------------
