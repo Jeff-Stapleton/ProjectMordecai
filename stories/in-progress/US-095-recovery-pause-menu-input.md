@@ -20,9 +20,9 @@ CommonUI action bindings registered from C++ (`RegisterUIActionBinding` with `FB
 - Existing code: `Source/LyraGame/Mordecai/UI/MordecaiPauseMenuWidget.cpp:34-45` (Menu input mode, back handler), `:108-113` (`SetActiveTab`); `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:113-119,246,362` (programmatic `IA_Mordecai_Inventory_Runtime` on I)
 
 ## Acceptance Criteria
-- [ ] AC-095.1: While the pause menu is open, I closes it (the same close path as Escape: `NativeOnDeactivated` → subsystem close, game unpaused) — verified by `Mordecai.Recovery.PauseMenu.InventoryKeyClosesMenu`
+- [x] AC-095.1: While the pause menu is open, I closes it (the same close path as Escape: `NativeOnDeactivated` → subsystem close, game unpaused) — verified by `Mordecai.Recovery.PauseMenu.InventoryKeyClosesMenu`
 - [ ] AC-095.2: In the packaged build, the player presses I (menu opens on Inventory) and presses I again (menu closes) — verified by check `i_closes` of `Scripts/playtests/us069_pause_menu.py` (Tier 4)
-- [ ] AC-095.3 (per TODO(DECISION) N18): While the menu is open, LB selects the previous tab and RB the next (wrapping), via CommonUI action bindings — verified by `Mordecai.Recovery.PauseMenu.ShoulderButtonsCycleTabs`
+- [x] AC-095.3 (per TODO(DECISION) N18): While the menu is open, LB selects the previous tab and RB the next (wrapping), via CommonUI action bindings — verified by `Mordecai.Recovery.PauseMenu.ShoulderButtonsCycleTabs`
 - [ ] AC-095.4 (per TODO(DECISION) N18): In the packaged build, the player taps LB on the Settings tab and the active tab changes — verified by check `shoulder_switches_tab` of `Scripts/playtests/us069_pause_menu.py` (Tier 4), plus a NEW check `shoulder_rb_switches_tab` (tap Gamepad_RightShoulder → next tab) added to the script
 - [ ] AC-095.5 (added during implementation; found by the review of this story): In the packaged build, a player who holds I in the open menu keeps it open while the key is down (its key repeats included), the key-up closes it, and it stays closed: a held I never reopens the menu — verified by check `i_held_closes_on_key_up` of `Scripts/playtests/us069_pause_menu.py` (Tier 4); logic in `Mordecai.Recovery.PauseMenu.InventoryKeyClosesMenu`
 
@@ -86,17 +86,60 @@ All in `Source/LyraGame/Tests/Recovery/MordecaiRecoveryPauseMenuInputTests.cpp`.
 - **Playable alone:** YES
 
 ## Definition of Done
-- [ ] All ACs checked off (AC-095.3/095.4 only if N18 is decided "keep")
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: none expected; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py US-069`: `i_closes` (and `shoulder_switches_tab`, `shoulder_rb_switches_tab` if decided) PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
-- [ ] Known issues "I does not close the pause menu" and N18 marked FIXED/decided in `Specs/agent_playtest_plan_v1.md`
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-095]` closing commit
-- [ ] Pushed; story moved to `stories/done/` only after all of the above pass
+- [ ] All ACs checked off (N18 decided "keep"): AC-095.1/095.3 yes; AC-095.2/095.4/095.5 PASS at Tier 4 but not accepted, because us069 exits 1 on the known N4/N5 (see Completion Notes)
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [x] Content: none expected; `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` exits 0 — never `--allow-stale`
+- [ ] On that same fresh package `py Scripts/playtest_story.py US-095`: `i_closes`, `shoulder_switches_tab`, `shoulder_rb_switches_tab`, `i_held_closes_on_key_up` PASS ✓; no check that PASSed before now FAILs ✓; `--lint` exits 0 ✓; the script itself exits 1 on the known N4/N5 (US-066/067/068) ✗
+- [ ] Known issues "I does not close the pause menu" and N18 marked FIXED/decided in `Specs/agent_playtest_plan_v1.md` (next commit, Specs only)
+- [x] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen
+- [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-095]` closing commit
+- [ ] Pushed; story moved to `stories/done/` only after all of the above pass (stays in progress: closes at Jeff's call or once N4/N5 are fixed)
 
 ## Completion Notes
-<Filled in by the coding agent.>
+
+**Status: IN PROGRESS.** Every US-095 check PASSes on a fresh package, but `us069_pause_menu.py` exits 1 on three known failures owned by other stories: N4, Character tab blank (US-066, issue #9); N5, Skills/Feats "Coming Soon" (US-067/US-068, issue #10). The DoD needs that script to exit 0, so AC-095.2/095.4/095.5 are not ticked ("Accepted: no" in the summary). The story closes at Jeff's call or once N4/N5 are fixed.
+
+**What changed** (commits `9be2071`, `54e7775`, `3294f0a`; packaged `3294f0a`):
+- `UMordecaiPauseMenuWidget` registers CommonUI UI action bindings once in `NativeOnInitialized`:
+  - LB / RB: previous / next tab, wrapping (`FMordecaiPauseMenuTabModel::CycleActiveTab`).
+  - I: the press arms the close, the key-up closes through `DeactivateWidget`, the back action's path.
+  - Tags `UI.Action.Mordecai.PauseMenu.*`, keys in `Config/DefaultInput.ini`.
+- The review of this change found that a close on the I press let a held I's key repeats reopen the menu. That led to the key-up close and AC-095.5, which was added during implementation.
+- N18 decided "keep" (`Specs/design_decisions_log.md`, 2026-10-30).
+
+**Tier 1:** 762 / 762 Mordecai tests pass (`py Scripts/run_tests.py`, final run after the review fix). The four new `Mordecai.Recovery.PauseMenu.*` tests were red before the fix: 4 FAIL, while the existing `RebindsContentOnReactivate` passed.
+
+**Tier 2:** `py Scripts/run_pie_verify.py`, 16 / 16 scripts PASS. `verify_pie_pause_menu.py` shows the open menu registered with the live CommonUI router PreviousTab 1x, NextTab 1x and Inventory 2x (press + key-up), with no duplicates. Its `[LOGIC]` next / previous / close checks PASS. No `LogUIActionRouter` error in the editor log.
+
+**Python tooling:** `py Scripts/run_python_tests.py`, 549 / 549. After the last script edits, `-k us069` is 19 / 19. `py Scripts/playtest_story.py US-069 --lint` and `US-095 --lint` PASS.
+
+**Tier 3** (fresh package of `3294f0a`, dirty=False): `Saved/Playtests/20261030-235145-boot`, exit 0.
+- Checks: `build_fresh`, `launch`, `experience_identified` / `experience_loaded` (B_MordecaiArenaExperience at 6.3 s), `no_crash`, `content_cooked`, `loading_screen` (Mordecai, 2.25 s), `game_window`, `engine_screenshots` 3/3 and `screenshots` 3/3 all PASS. `log_errors`: 0 errors, 8 warnings.
+- `engine_loading.png`: "PROJECT MORDECAI / Loading..." on dark grey (the Mordecai loading screen).
+- `engine_01.png` – `engine_03.png`: MovementTestMap's grey grid floor with the player capsule centred, the HUD bars top-left (SP "10 / 10"), "Kills: 0" top-right, the step block top-right, "[I] Inventory" bottom-centre, and the yellow Steam / loading-screen debug lines (issue #29).
+- `shot_01.png` – `shot_03.png`: the same frames as desktop captures at 1920×1080.
+
+**Tier 4** (same package): `py Scripts/playtest_story.py US-095` → `Saved/Playtests/20261030-235145-story-us095/summary.md`; us069 run `Saved/Playtests/20261030-235207-us069`, exit 1, 32 PASS / 0 WARN / 3 FAIL / 1 SKIP. The window was not focused (`app_has_focus` false, `viewport_has_focus` true); the run never needed the virtual cursor (`virtual_cursor` false).
+- US-095 checks, all PASS:
+  - `shoulder_switches_tab`: LB on Settings → `active_tab=="inventory"`.
+  - `shoulder_rb_switches_tab`: RB → `"settings"`.
+  - `i_opens_inventory`.
+  - `i_closes`: `open==false && paused==false`.
+  - `i_held_closes_on_key_up`: "pressed I in the open menu and held it 1.2s: pause_menu.open=True; released: closed after 0s; still closed 1s later".
+- AC status: AC-095.2, AC-095.4 and AC-095.5 PASS; AC-069.4 PASS.
+- Known FAILs: `character_tab_content` (N4), `skills_tab_content` (N5) and `feats_tab_content` (N5). No check that PASSed before now FAILs. `final_close` SKIP: I already closed the menu.
+- `bridge_01.png`: "Paused", tab bar Character / Skills / Feats / Inventory / Settings, Character highlighted, empty content area (N4).
+- `bridge_02.png`: Skills highlighted, "Coming Soon" (N5).
+- `bridge_03.png`: Feats highlighted, "Coming Soon" (N5).
+- `bridge_04.png` (`menu_lb`, after LB on Settings): Inventory highlighted. The content area shows the filter bar All / Weapons / Armor / Trinkets / Consumables / Materials / Quest / Magical, "Inventory is empty." and "No resources stored." The filter bar overlaps the "Stored Resources" header (issue #37).
+- `bridge_05.png` (`menu_rb`, after RB): Settings highlighted, "Coming Soon".
+- `bridge_06.png` (`menu_closed`): the grid floor with the player and HUD, no menu (closed by Escape).
+- `bridge_07.png` (`menu_closed_by_i`): the grid floor with the player and HUD, no menu (closed by I).
+
+**Not done / open:**
+- `control_bindings_v1.1.md` still lists neither "I — Inventory" nor in-menu LB/RB (TODO(DECISION), doc change by Jeff).
+- A held Escape probably reopens the menu after about 0.5 s, the same repeat path I had. That comes from reading the code; it was not reproduced, and the back action is engine code.
+- If an I key-up is ever lost while the menu stays active (window focus loss, a modal over the menu), the next I key-up closes the menu. Low impact.
