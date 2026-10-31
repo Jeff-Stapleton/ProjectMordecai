@@ -124,6 +124,19 @@ enum class EMordecaiParryPhase : uint8
 };
 
 // ---------------------------------------------------------------------------
+// US-101: EMordecaiHitDefense — how the target's defenses met an incoming melee hit
+// ---------------------------------------------------------------------------
+UENUM(BlueprintType)
+enum class EMordecaiHitDefense : uint8
+{
+	None            UMETA(DisplayName = "None"),             // undefended: the hit lands in full
+	Evaded          UMETA(DisplayName = "Evaded"),           // i-frames (Dodging, Invulnerable): nothing lands
+	Parried         UMETA(DisplayName = "Parried"),          // a parry window took it: nothing lands
+	Blocked         UMETA(DisplayName = "Blocked"),          // the block applied mitigated damage
+	PerfectBlocked  UMETA(DisplayName = "Perfect Blocked"),  // as Blocked, inside the perfect-block window
+};
+
+// ---------------------------------------------------------------------------
 // AC-002.6: FMordecaiHitShapeParams
 // Union-like: all fields present, relevant ones depend on HitShapeType.
 // ArcSector: Radius, Angle, StartAngleOffset

@@ -4,6 +4,8 @@
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
+#include "Mordecai/Combat/MordecaiHitDefense.h"
+#include "Mordecai/Combat/MordecaiPostureSystem.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
@@ -503,10 +505,23 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
 	if (!SourceASC) return;
 
+	// US-101 (issue #53): the target's defenses meet the hit before any of it lands. I-frames and a parry negate all of
+	// it; a block applies its own mitigated health damage, stamina drain and guard break.
+	const float IncomingHealthDamage = -ComputeHealthDamage();
+	const UWorld* World = GetWorld();
+	const FMordecaiHitDefenseResult Defense = FMordecaiHitDefense::ResolveIncomingHit(
+		TargetASC, SourceASC, IncomingHealthDamage, World ? World->GetTimeSeconds() : 0.0);
+	if (Defense.IsNegated())
+	{
+		return;
+	}
+	const bool bBlocked = Defense.IsBlocked();
+
 	FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
 	Context.AddSourceObject(this);
 
-	// AC-004.5: Health damage via instant GE
+	// AC-004.5: Health damage via instant GE (a blocked hit's mitigated damage was applied by the block)
+	if (!bBlocked)
 	{
 		UGameplayEffect* HealthGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiMeleeHealthDamage"));
 		HealthGE->DurationPolicy = EGameplayEffectDurationType::Instant;
@@ -528,15 +543,17 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 		TargetASC->ApplyGameplayEffectSpecToSelf(HealthSpec);
 	}
 
-	// AC-004.5: Posture damage via instant GE
+	// AC-004.5: Posture damage via instant GE; AC-007.5: a blocked hit applies it at BlockPostureDamageMultiplier
 	{
+		const float PostureMultiplier = bBlocked ? GetDefault<UMordecaiPostureSystem>()->BlockPostureDamageMultiplier : 1.f;
+
 		UGameplayEffect* PostureGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiMeleePostureDamage"));
 		PostureGE->DurationPolicy = EGameplayEffectDurationType::Instant;
 
 		FGameplayModifierInfo& Mod = PostureGE->Modifiers.AddDefaulted_GetRef();
 		Mod.Attribute = UMordecaiAttributeSet::GetPostureAttribute();
 		Mod.ModifierOp = EGameplayModOp::Additive;
-		Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(ComputePostureDamage()));
+		Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(ComputePostureDamage() * PostureMultiplier));
 
 		FGameplayEffectSpec PostureSpec(PostureGE, Context, 1.0f);
 
@@ -549,6 +566,9 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 		TargetASC->ApplyGameplayEffectSpecToSelf(PostureSpec);
 	}
 
+	// TODO(DECISION): a blocked hit still applies the enchant bonus, the on-hit payloads and the status effects in full,
+	// as every hit did before US-101; nothing that enemies swing today carries any.
+
 	// AC-023.8: Apply Enchant Weapon bonus fire damage if active
 	ApplyEnchantWeaponBonusDamage(TargetASC);
 
@@ -558,10 +578,11 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 	// US-056: Apply status effects from attack profile
 	ApplyStatusEffectsFromEntries(Profile->StatusEffectsOnHit, SourceASC, TargetASC, this);
 
-	// US-065: Fire floating damage number
+	// US-065: Fire floating damage number (the health actually taken)
 	{
 		FGameplayTag DamageTag = GetDamageTagForType(Profile->DamageProfile.DamageType);
-		int32 DisplayDamage = FMath::Abs(FMath::RoundToInt32(ComputeHealthDamage()));
+		const float TakenDamage = bBlocked ? Defense.BlockedHealthDamage : IncomingHealthDamage;
+		int32 DisplayDamage = FMath::Abs(FMath::RoundToInt32(TakenDamage));
 		FVector PopLocation = HitLocation.IsNearlyZero() ? TargetActor->GetActorLocation() : HitLocation;
 		UMordecaiDamagePopComponent::BroadcastDamagePop(
 			TargetActor->GetWorld(), DisplayDamage, DamageTag, PopLocation, /*bIsCritical=*/false);

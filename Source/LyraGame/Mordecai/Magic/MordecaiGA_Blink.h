@@ -13,7 +13,7 @@
  *	Short-range teleport spell. On cast, teleports the caster forward in
  *	their aim direction by Range cm. A line trace prevents teleporting
  *	through walls (clamped to hit - 50cm buffer). Grants brief
- *	invulnerability (Mordecai.State.Invulnerable tag) for InvulnerabilityDuration.
+ *	invulnerability (Mordecai.State.Invulnerable, from a duration GE) for InvulnerabilityDuration.
  *
  *	Delivery: DashMovement. Near-instant cast (WindupTime ≈ 0, CastTime ≈ 0).
  *
@@ -63,9 +63,6 @@ protected:
 	virtual void OnSpellCast() override;
 
 private:
-	void ApplyInvulnerabilityTag();
-	void RemoveInvulnerabilityTag();
-	void OnInvulnerabilityExpired();
-
-	FTimerHandle InvulnerabilityTimerHandle;
+	/** Grant Mordecai.State.Invulnerable for GetInvulnerabilityDuration() with a duration GameplayEffect (AC-021.3). */
+	void ApplyInvulnerability();
 };

@@ -7,6 +7,7 @@
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
+#include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
 #include "Mordecai/UI/MordecaiEnemyHealthBarWidget.h"
 #include "Mordecai/UI/MordecaiEnemyIndicatorComponent.h"
 #include "Mordecai/MordecaiGameplayTags.h"
@@ -203,6 +204,12 @@ void AMordecaiEnemyCharacter::PossessedBy(AController* NewController)
 	InitializeAbilitySystem();
 }
 
+void AMordecaiEnemyCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
+{
+	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+	UMordecaiHitDetectionSubsystem::SyncAirborneTag(EnemyAbilitySystemComponent, this);
+}
+
 void AMordecaiEnemyCharacter::InitializeAbilitySystem()
 {
 	if (bAbilitySystemInitialized || !EnemyAbilitySystemComponent)
@@ -224,6 +231,9 @@ void AMordecaiEnemyCharacter::InitializeAbilitySystem()
 
 	// Apply enemy team tag at spawn (AC-050.4)
 	EnemyAbilitySystemComponent->AddLooseGameplayTag(MordecaiGameplayTags::Team_Enemy);
+
+	// US-101: Airborne from the current movement mode; OnMovementModeChanged keeps it current from here
+	UMordecaiHitDetectionSubsystem::SyncAirborneTag(EnemyAbilitySystemComponent, this);
 
 	// Set movement speed from configurable default (AC-050.10)
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
