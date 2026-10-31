@@ -36,7 +36,8 @@ What it implements
     inventory tab and Escape opens it on the last tab.  While the menu is open CommonUI's Menu
     mode is simulated: game keys do nothing, and Escape / I close it only when
     escape_closes_menu / i_closes_menu are True (the game: Escape closes it through the CommonUI
-    back handler, I does not; escape_closes_menu=False simulates a regression of that fix).
+    back handler, I through a CommonUI UI action binding since US-095; escape_closes_menu=False
+    simulates a regression of that fix, i_closes_menu=False the game before US-095).
     The inventory tab shows an Identify button for the unidentified amulet at a fixed
     viewport-pixel center (identify_button_center, default (812, 402)); a Left click there
     identifies it ("Mysterious Amulet").  A click's `hit` is the deepest widget Slate hit-tests,
@@ -656,8 +657,9 @@ class FakeWorld:
       focus_range          pickup focus distance, XY (120)
       escape_closes_menu   Escape closes an open pause menu (True, as in the game: the CommonUI
                            back handler; False simulates a regression of that fix)
-      i_closes_menu        I closes an open pause menu (False, as in the game: no UI action
-                           binding)
+      i_closes_menu        I closes an open pause menu (False: the game before US-095, which had
+                           no UI action binding for I; the game closes it since US-095, which
+                           test_us069_playtest.py's PauseMenuWorld models)
       identify_button_center / identify_button_size   the amulet's Identify button, viewport px
       boot_s               seconds until the experience is loaded and the pawn exists (0)
       loading_s            the loading screen stays up this long after boot_s (0)
