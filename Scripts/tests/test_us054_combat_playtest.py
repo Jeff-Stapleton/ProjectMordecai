@@ -129,7 +129,7 @@ class CombatWorld(fb.FakeWorld):
                  death_screen_stays=False, dead_moves=False, arena_reset=True, reset_ai=True,
                  ai_reported=True, moves_after_respawn=True, kills_text=0,
                  counter_updates=True, reset_kills_on_death=True, dodge_motion=True,
-                 dodge_speed=300.0, **kwargs):
+                 dodge_speed=300.0, attack_input_interval_s=0.0, **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         kwargs.setdefault("respawn_s", us054c.RESPAWN_DELAY_S)  # the game's 3 s
@@ -153,6 +153,8 @@ class CombatWorld(fb.FakeWorld):
         self.reset_kills_on_death = reset_kills_on_death
         self.death_kills = 0
         self.dodge_motion, self.dodge_speed = dodge_motion, float(dodge_speed)
+        self.attack_input_interval_s = float(attack_input_interval_s)
+        self.last_attack_input_at = None
         self.dodge_ends_at = None
         self.moves_after_respawn = moves_after_respawn
         self.timed_tags = {}
@@ -301,8 +303,13 @@ class CombatWorld(fb.FakeWorld):
         with self.lock:
             if (button == "Left" and self.attacks and self.game_input_allowed
                     and not self.is_dead):
+                now = self.real_time()
+                if (self.last_attack_input_at is not None
+                        and now - self.last_attack_input_at < self.attack_input_interval_s):
+                    return hit
+                self.last_attack_input_at = now
                 if self.attack_tag:
-                    self.timed_tags[TAG_ATTACKING] = self.real_time() + 0.5
+                    self.timed_tags[TAG_ATTACKING] = now + 0.5
                 if self.click_damage:
                     px, py = self.pos
                     half = math.radians(self.melee_arc_deg / 2.0)
@@ -748,6 +755,13 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         check = self.by_name(rep)["kill_enemy_melee"]
         self.assertEqual(check["status"], "FAIL", check["detail"])
         self.assertIn("maximum game-time click-start gap 0.410s", check["detail"])
+
+    def test_click_train_spans_enough_recovery_windows_to_kill_the_real_dummy(self):
+        _, server = self.serve(**game_today(attack_input_interval_s=0.65))
+        code, rep = self.play(server)
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        check = self.by_name(rep)["kill_enemy_melee"]
+        self.assertEqual(check["status"], "PASS", check["detail"])
 
     def test_death_screen_cannot_pass_when_the_expected_completed_count_was_never_observed(self):
         _, server = self.serve(**game_today(counter_updates=False))

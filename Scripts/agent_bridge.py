@@ -1132,8 +1132,8 @@ class Bridge:
 
     def click_many(self, count, x=None, y=None, button="Left", hold_s=0.1, release_s=0.001):
         """Pipeline repeated real-input clicks, with one observed release frame between taps."""
-        if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 256:
-            raise ValueError("count must be an integer in 1..256")
+        if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 512:
+            raise ValueError("count must be an integer in 1..512")
         if (x is None) != (y is None):
             raise ValueError("give both x and y, or neither")
         release_s = float(release_s)
