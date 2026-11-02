@@ -90,6 +90,7 @@ public:
 
 	/** Enter death state: apply State_Dead tag, disable movement/collision, broadcast Event_Death.
 	 *  Called automatically when Health <= 0. Safe to call externally (e.g., instakill). */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Enemy")
 	void EnterDeathState();
 
 	/** Enter posture broken state: apply State_PostureBroken tag, start recovery timer.

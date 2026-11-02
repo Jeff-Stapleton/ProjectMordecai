@@ -64,6 +64,14 @@ void AMordecaiGameMode::NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer)
 		return;
 	}
 
+	// HandlePlayerDeath broadcasts Mordecai.Event.PlayerDeath before it notifies the game mode. The death screen
+	// therefore caches the completed life's count first; then this authoritative count and every bound HUD reset.
+	if (EnemyKillCount != 0)
+	{
+		EnemyKillCount = 0;
+		EnemyKillCountChanged.Broadcast(EnemyKillCount);
+	}
+
 	PendingRespawnPlayer = DeadPlayer;
 
 	// Start respawn timer (AC-053.4, AC-053.11: server-authoritative)
@@ -115,6 +123,7 @@ void AMordecaiGameMode::ExecuteRespawn()
 void AMordecaiGameMode::NotifyEnemyKilled(AMordecaiEnemyCharacter* KilledEnemy)
 {
 	EnemyKillCount++;
+	EnemyKillCountChanged.Broadcast(EnemyKillCount);
 }
 
 void AMordecaiGameMode::RegisterEnemy(AMordecaiEnemyCharacter* Enemy, const FTransform& SpawnTransform)

@@ -47,6 +47,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|HUD")
 	UMordecaiPickupPromptWidget* GetPickupPrompt() const { return PickupPrompt; }
 
+	/** The kill counter child, for runtime verification and UI composition. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|HUD")
+	UMordecaiKillCounterWidget* GetKillCounter() const { return KillCounter; }
+
 protected:
 	virtual void NativeOnInitialized() override;
 

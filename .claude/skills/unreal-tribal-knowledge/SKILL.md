@@ -189,6 +189,14 @@ Then repopulate with valid C++ or Blueprint ability classes.
 
 **Fix:** anything that must outlive the ability goes in a HasDuration GameplayEffect. For a timed tag, `UTargetTagsGameplayEffectComponent` grants it and GAS removes it when the effect expires, whatever the ability's lifetime (`UMordecaiGA_Blink::ApplyInvulnerability`; Stone Skin and the spell cooldown use the same pattern). Never hang a tag's removal on an ability-owned timer that can outlive `EndAbility`. Test it by activating the real ability with its real timing (`Mordecai.Recovery.Blink.InvulnerabilityExpires`).
 
+### Gameplay-event tags and owned-tag counts are different signals: the kill counter stayed at zero (N1, issue #6)
+
+**Problem:** `UMordecaiKillCounterWidget` registered `Mordecai.Event.EnemyKill` and `Mordecai.Event.PlayerDeath` with `UAbilitySystemComponent::RegisterGameplayTagEvent`, but the HUD always read `Kills: 0` and did not reset through either event path.
+
+**Root cause:** `RegisterGameplayTagEvent` observes the ASC's **owned tag count** (changes from loose-tag add/remove or GameplayEffects that grant a tag). It does not observe `HandleGameplayEvent`, even when the gameplay event uses the same `FGameplayTag`. Mordecai never added either event tag as an owned tag; enemy deaths instead changed `AMordecaiGameMode::EnemyKillCount`, so the widget was listening to the wrong system and keeping a second count.
+
+**Fix:** keep one authoritative value. `AMordecaiGameMode` broadcasts its new absolute count through `FOnMordecaiEnemyKillCountChanged` on each enemy death and after resetting it in the existing player-death notification. The widget binds to that native delegate and renders the published value; it has no local increment/reset handlers. If code really needs a GAS gameplay-event listener, use a gameplay-event delegate/task (`GenericGameplayEventCallbacks` / `UAbilityTask_WaitGameplayEvent`), not `RegisterGameplayTagEvent`. Tests: `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `.ResetsOnPlayerDeath`.
+
 ---
 
 ## Python Editor Scripting Gotchas

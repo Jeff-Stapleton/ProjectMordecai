@@ -88,6 +88,31 @@ def _run():
         except Exception as e:
             check("GetBoundChildCount accessible", False, str(e))
 
+        # Diagnostic integration only: call the enemy death transition directly, then verify the
+        # real GameMode notification reaches the HUD. Tier 4 proves the player path with LMB.
+        try:
+            kill_counter = hud_widget.get_kill_counter()
+            game_mode = unreal.GameplayStatics.get_game_mode(world)
+            enemies = unreal.GameplayStatics.get_all_actors_of_class(
+                world, unreal.MordecaiEnemyCharacter)
+            victim = next((enemy for enemy in enemies if not enemy.is_dead()), None)
+            check("KillCounter is present for arena event binding", kill_counter is not None)
+            check("MordecaiGameMode is present for kill tracking", game_mode is not None)
+            check("An alive enemy is available for the kill diagnostic", victim is not None)
+
+            if kill_counter and game_mode and victim:
+                before = game_mode.get_enemy_kill_count()
+                victim.enter_death_state()
+                after = game_mode.get_enemy_kill_count()
+                check("[LOGIC] Direct enemy death increments GameMode kill count",
+                      after == before + 1, f"Count {before} -> {after}")
+                check("[LOGIC] KillCounter follows the authoritative GameMode count",
+                      kill_counter.get_kill_count() == after,
+                      f"Widget {kill_counter.get_kill_count()}, GameMode {after}")
+                game_mode.reset_arena()
+        except Exception as e:
+            check("[LOGIC] Kill counter event diagnostic executes", False, str(e))
+
     print("")
     print(f"RESULT: {pass_count} passed, {fail_count} failed")
 

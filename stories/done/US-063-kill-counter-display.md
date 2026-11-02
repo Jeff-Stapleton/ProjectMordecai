@@ -7,19 +7,21 @@ Persistent kill counter widget in the combat HUD corner. Increments on enemy kil
 **Mode:** HEADLESS
 
 ## References
-- Gameplay tags: `Mordecai.Event.EnemyKill` (increment), `Mordecai.Event.PlayerDeath` (reset)
+- Recovery: US-086 / issue #6 replaced the dead ASC tag-count listeners with the authoritative `AMordecaiGameMode` count-change delegate
 - Existing code: `UMordecaiCombatHUDWidget` (root HUD container)
 
 ---
 
 ## Acceptance Criteria
-- [x] AC-063.1: `UMordecaiKillCounterWidget` exists in `Mordecai/UI/`. Listens to `Mordecai.Event.EnemyKill` tag events and increments kill count.
-- [x] AC-063.2: Kill count resets to 0 on `Mordecai.Event.PlayerDeath`.
+- [x] AC-063.1: `UMordecaiKillCounterWidget` exists in `Mordecai/UI/` and displays the authoritative `AMordecaiGameMode` enemy kill count.
+- [x] AC-063.2: The authoritative count and widget reset to 0 in the player-death notification that follows `Mordecai.Event.PlayerDeath`.
 - [x] AC-063.3: `FormatKillCount(int32)` static, testable. Returns "Kills: N".
 - [x] AC-063.4: `UMordecaiCombatHUDWidget` extended with `BindWidgetOptional` slot for KillCounter. `BindToASC` chains to it.
 
 ## Tests Required
 - [x] `Mordecai.UI.KillCounter.FormatKillCount` — "Kills: 0", "Kills: 1", "Kills: 99"
+- [x] `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill`
+- [x] `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath`
 
 ---
 

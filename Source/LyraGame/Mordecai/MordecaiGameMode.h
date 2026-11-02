@@ -9,6 +9,9 @@
 class AMordecaiCharacter;
 class AMordecaiEnemyCharacter;
 
+/** Authoritative arena kill count changed (a kill increments it; player death resets it). */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMordecaiEnemyKillCountChanged, int32 /*NewKillCount*/);
+
 /**
  * AMordecaiGameMode
  *
@@ -58,9 +61,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Arena")
 	void ResetArena();
 
-	/** Current enemy kill count this session (AC-053.7). */
+	/** Current enemy kill count for this life (AC-053.7, AC-063.2). */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Arena")
 	int32 GetEnemyKillCount() const { return EnemyKillCount; }
+
+	/** The one notification used by HUD consumers of GetEnemyKillCount(). */
+	FOnMordecaiEnemyKillCountChanged& OnEnemyKillCountChanged() { return EnemyKillCountChanged; }
 
 	/** Called by player character on death. Starts the respawn timer. */
 	void NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer);
@@ -80,6 +86,7 @@ private:
 
 	TArray<FEnemySpawnEntry> EnemyRegistry;
 	int32 EnemyKillCount = 0;
+	FOnMordecaiEnemyKillCountChanged EnemyKillCountChanged;
 	FTimerHandle RespawnTimerHandle;
 	TWeakObjectPtr<AMordecaiCharacter> PendingRespawnPlayer;
 
