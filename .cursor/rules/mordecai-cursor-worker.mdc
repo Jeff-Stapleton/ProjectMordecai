@@ -1,0 +1,31 @@
+---
+description: Cursor-specific facts for Project Mordecai agents on Jeff's self-hosted Windows worker
+alwaysApply: true
+---
+
+# Cursor on Jeff's machine
+
+Facts `CLAUDE.md` does not cover, for Cursor agents. `docs/agent-config.md` maps the Claude Code setup to Cursor's.
+
+## Where you run
+- Cloud Agent runs execute on Jeff's own Windows PC through the self-hosted My Machines worker `ProjectMordecai-JEFFS-LAPTOP`, in the real checkout `C:\Users\jeffd\Documents\Gamedev\ProjectMordecai`. It is not a VM or a fresh clone: `Binaries/`, `Intermediate/`, `DerivedDataCache/`, `Saved/` and `PackagedBuilds/` persist between runs, the editor and the packaged game open on Jeff's desktop, and no command waits for approval.
+- Engine: the UE 5.7 source build at `C:\Users\jeffd\Documents\Gamedev\UnrealEngine`. Project: `ProjectMordecai.uproject` at the repo root. Shell: Windows PowerShell 5.1. Python: `py` (3.12), with `Scripts/requirements.txt` installed.
+- Work in this checkout. No git worktrees (`/worktree`, `/best-of-n`, best-of-n subagents, `agent -w`): `CLAUDE.md`'s build, test and package commands hard-code this checkout's path, and a worktree has none of the gitignored build output or the package.
+- Keep the tree clean: `package_playtest.py` records any untracked or modified file as a dirty build, which is diagnostic only. Scratch files go under `$env:TEMP`, never in the repo.
+
+## Git LFS must be smudged
+`.uasset`, `.umap`, `.png` and the other binaries in `.gitattributes` are Git LFS. The editor and the cook need the real files: an LFS pointer is a broken asset that `git status` does not show. Never set `GIT_LFS_SKIP_SMUDGE`. After a checkout, pull or merge, `git lfs ls-files | Select-String ' - '` must print nothing (` - ` marks a pointer); if it prints anything, run `git lfs pull` before you build, cook or commit content.
+
+## What to work on, and when to stop
+- Epic R (Playability Recovery) comes first: take work in the Priority Order of `stories/PLAN.md` (`stories/PLANNER.md` §5.1). It outranks every system epic.
+- Decisions stop the work: a `TODO(DECISION)`, an Open Item in `Specs/agent_rules_v2.md`, a story BLOCKED on a decision, a GitHub issue labelled `needs-decision` ("Blocked on a design decision from Jeff"; `gh issue list --label needs-decision`), or a change on the §8 human-approval list. Scaffold, leave a `TODO(DECISION)` with one or two options, and ask Jeff. Choose only when he explicitly asks you to, and then log each choice in `Specs/design_decisions_log.md` as taken for him and pending his review (as US-101 did).
+- A story's own checks pass but its run fails only on another story's bug: after one failed attempt to route around it, stop. Tell Jeff what passes, what blocks it and whose bug it is, and ask whether to close at his call. If he does, tick the ACs "Closed at Jeff's call (<date>)" with the runs, keep bridge gaps unchecked, and record the blocker in the plan's backlog.
+
+## No CI
+Nothing runs on push: the repo has no `.github/` workflows and no CI, and Bugbot only reviews PRs. The local ladder in `CLAUDE.md` is the only gate, so run it yourself. Never add CI, BuildGraph, Horde or Gauntlet (`Specs/agent_rules_v2.md` §3).
+
+## Reading CLAUDE.md and the skills in Cursor
+- "The Read tool" is Cursor's Read tool; it opens PNG screenshots. Prefer Read, Grep and Glob to PowerShell pipelines; keep each shell call to one simple command, and put multi-step logic in a scratch script under `$env:TEMP`.
+- `mcp__mordecai-play__<tool>` is the `<tool>` of the `mordecai-play` MCP server, configured for Cursor in `.cursor/mcp.json`. Its sessions are exploration, never acceptance evidence.
+- `.claude/skills/<name>` is the source of each skill and `.cursor/skills/<name>` the generated copy that Cursor lists. To change a skill (a new `unreal-tribal-knowledge` lesson, for example), edit the `.claude/skills/` file, run `py Scripts/sync_cursor_config.py`, and commit both.
+- `.cursor/hooks/guard_git.py` denies what Jeff's Claude settings deny: any force push (`--force`, `--force-with-lease`, `-f`, a `+refspec`), `git reset --hard` and `git clean`. Do not work around it; ask Jeff.

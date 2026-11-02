@@ -1,0 +1,23 @@
+---
+description: Project Mordecai core workflow, a checklist of CLAUDE.md (the canonical agent rulebook)
+alwaysApply: true
+---
+
+# Project Mordecai core workflow
+
+`CLAUDE.md` (repo root) is the agent rulebook, and `Specs/agent_rules_v2.md` is authoritative over it. Cursor loads `CLAUDE.md` into every conversation; if it is not in your context, read it in full before any story work. This rule is only a checklist of it: commands, flags, exit codes and evidence formats live in `CLAUDE.md`, which wins if the two ever differ.
+
+Before a story, read `Specs/agent_rules_v2.md`, the story in `stories/in-progress/`, every design doc it references, and the docs that `CLAUDE.md` "Critical References" lists for its area.
+
+Every story, in this order (`CLAUDE.md` "Workflow: TDD Pipeline"):
+1. Understand (Step 1): the ACs, the story's **Playtest** section and its **Execution Mode**. HEADLESS: compile and test from the CLI; open the GUI editor only for the Tier 2 PIE run. EDITOR: launch the editor, wait for `py Scripts/check_editor.py --wait --timeout 300`, and drive it with `Scripts/ue_remote_exec.py`.
+2. Tests first, failing for the right reason (Step 2), including the Tier 4 script `Scripts/playtests/usXXX_<name>.py` when an AC needs player input.
+3. Implement the minimum (Step 3). An open item becomes a `TODO(DECISION)`; never guess.
+4. Tier 1 (Step 4): compile, then `py Scripts/run_tests.py` exits 0. Tier 2 (Step 4b): `py Scripts/run_pie_verify.py`, for every story.
+5. Commit code and content together and push (Step 5); `py Scripts/check_content_committed.py` exits 0 before you push.
+6. Tier 3 (Step 4c): package that commit, boot it and open every screenshot. Tier 4 (Step 4d): the story's real-input playtest on the same package; open every `bridge_NN.png`. `py Scripts/playtest_story.py US-XXX` runs both.
+7. The closing commit touches only `stories/` and carries the evidence (Step 6). Then close the editor and the packaged game (Step 7).
+
+Never let a lower tier stand in for a higher one, accept an input-driven AC without a passing Tier 4 run, use `--allow-stale` for evidence, fake player input in an acceptance check, report a FAIL or an unread screenshot as a pass, or move a story to `done/` without its Tier 3 (and Tier 4) pass ("What NOT To Do").
+
+Commit messages: `[US-XXX] Brief description`; non-story work uses `[Playtest]` or `[Docs]`, as in the history. Push after every commit.

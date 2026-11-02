@@ -1,0 +1,15 @@
+---
+description: Python under Scripts/ (editor scripts versus playtest and tooling scripts, and their tests)
+globs: Scripts/**/*.py
+alwaysApply: false
+---
+
+# Scripts/
+
+Two kinds of script live here:
+- **Editor scripts** run inside the Unreal Editor through `py Scripts/ue_remote_exec.py --file <script>`: `create_*`, `fix_*`, `place_*`, `usNNN_*`, `verify_pie_*`, `diag_*`. Read the `unreal-python-editor` skill. A script that creates or changes assets saves them, and the `.uasset`/`.umap` files are committed in the same branch (`py Scripts/check_content_committed.py` exits 0; `Specs/agent_rules_v2.md` §3 and §7). New runtime behavior gets a `verify_pie_<feature>.py`, and a check that calls gameplay functions directly is tagged `[LOGIC]`.
+- **Tooling** runs from a terminal: `agent_bridge.py`, `mordecai_play_mcp.py`, `playtest_*.py`, `playtests/`, `package_playtest.py`, `run_*.py`, `explore_playtest.py`, `sync_cursor_config.py`. After changing any of it, `py Scripts/run_python_tests.py` must exit 0 (offline fakes only; it never launches the game or the editor).
+
+A Tier 4 script is a `PlaytestRun` on `Scripts/playtest_kit.py`, modelled on `Scripts/playtests/us079_inventory.py` and driven only by the bridge's real-input commands (`Specs/story_playtests_v1.md`). `py Scripts/playtest_story.py US-XXX --plan` prints the story's Steps table, and `--lint` must exit 0.
+
+`Scripts/requirements.txt` pins the only third-party packages (mcp 2.x, Pillow); everything else is the standard library.
