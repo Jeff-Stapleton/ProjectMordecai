@@ -108,7 +108,8 @@ ATTACK_POINT = (640, 360)              # the viewport centre: the game view, no 
 ATTACK_TIMEOUT_S = 1.0
 DODGE_TIMEOUT_S = 0.5
 KILL_TIMEOUT_S = 45.0
-KILL_CLICK_INTERVAL_S = 0.3
+KILL_CLICK_HOLD_S = 0.2                    # queued press duration; still below the heavy-attack threshold
+KILL_CLICK_TRAIN_COUNT = 48               # enough light-input opportunities for the 200-HP dummy
 KILL_MAX_GAME_TIME_GAP_S = 0.4          # story contract: no more than 0.4 world seconds between LMB starts
 KILL_COUNTER_TIMEOUT_S = 2.0
 PRE_KILL_SETTLE_TIMEOUT_S = 2.0
@@ -171,8 +172,8 @@ PLAN = (
          "or a displacement > 150 cm", proves=("AC-054.6", "AC-054.5")),
     Step("kill_enemy_melee", "wait until the attack and dodge end and speed <= "
          f"{PRE_KILL_MAX_SPEED_CM_S:g} cm/s, walk_to({DUMMY_MELEE_SPOT[0]:g}, "
-         f"{DUMMY_MELEE_SPOT[1]:g}) after the dodge if needed, then repeat click Left at "
-         f"{ATTACK_POINT} on a {KILL_CLICK_INTERVAL_S:g}s target cadence (never more than "
+         f"{DUMMY_MELEE_SPOT[1]:g}) after the dodge if needed, then pipeline repeated click Left "
+         f"at {ATTACK_POINT} with {KILL_CLICK_HOLD_S:g}s holds (never more than "
          f"{KILL_MAX_GAME_TIME_GAP_S:g} game-world seconds apart) -> the {DUMMY} is dead within "
          f"{KILL_TIMEOUT_S:g}s",
          proves=("AC-054.13", "US-086:AC-086.5")),
@@ -671,66 +672,52 @@ class Us054CombatRun(kit.PlaytestRun):
                     return ("FAIL", f"could not return to the dummy melee spot after the dodge: "
                             f"{e}", None)
 
-            deadline = time.monotonic() + KILL_TIMEOUT_S
-            last_click_at = None
-            last_click_world_time = None
-            max_wall_click_gap = 0.0
-            max_game_time_click_gap = 0.0
             health_samples = []
-            last_detail = f"{DUMMY}: not read"
+            before = find_target(st0, DUMMY)
+            before_health, _ = enemy_health(before or {})
+            if before_health is not None:
+                health_samples.append(before_health)
 
-            while True:
-                st = b.state(["player", "actors"], radius=ENEMY_RADIUS)
-                self._note(st, "kill_enemy_melee")
-                dummy = find_target(st, DUMMY)
-                last_detail = describe_target(dummy, DUMMY)
-                if dummy is not None:
-                    current, _ = enemy_health(dummy)
-                    if current is not None and (not health_samples or current != health_samples[-1]):
-                        health_samples.append(current)
-                    if dummy.get("is_dead") is True:
-                        status = ("PASS" if self.kill_clicks <= 1
-                                  or max_game_time_click_gap <= KILL_MAX_GAME_TIME_GAP_S
-                                  else "FAIL")
-                        return (status, f"killed the {DUMMY} with {self.kill_clicks} repeated "
-                                f"Left clicks after waiting {settle_elapsed:.2f}s for the "
-                                f"attack/dodge to settle and "
-                                f"{'walking back' if walked_back else 'remaining'} "
-                                f"at the melee spot; health {health_samples}; maximum game-time "
-                                f"click-start gap {max_game_time_click_gap:.3f}s (limit "
-                                f"{KILL_MAX_GAME_TIME_GAP_S:g}s), maximum wall-time gap "
-                                f"{max_wall_click_gap:.3f}s (informational); "
-                                f"{last_detail}", None)
+            train_started = time.monotonic()
+            try:
+                click_responses = b.click_many(
+                    KILL_CLICK_TRAIN_COUNT, *ATTACK_POINT, button="Left",
+                    hold_s=KILL_CLICK_HOLD_S)
+            except ab.BridgeError as e:
+                if e.kind != "gameplay":
+                    raise
+                return ("FAIL", f"pipelined Left clicks failed: {e}", None)
+            train_elapsed = time.monotonic() - train_started
+            self.kill_clicks = len(click_responses)
 
-                now = time.monotonic()
-                if now >= deadline:
-                    return ("FAIL", f"{DUMMY} was not dead within {KILL_TIMEOUT_S:g}s after "
-                            f"{self.kill_clicks} Left clicks; health {health_samples}; last state: "
-                            f"{last_detail}", None)
+            click_starts = [_num((response or {}).get("started_world_time_s"))
+                            for response in click_responses]
+            if not click_starts or any(start is None for start in click_starts):
+                return ("FAIL", "a click response has no numeric started_world_time_s; "
+                        "cannot verify click-start cadence", None)
+            click_gaps = [b - a for a, b in zip(click_starts, click_starts[1:])]
+            max_game_time_click_gap = max(click_gaps, default=0.0)
 
-                if last_click_at is not None:
-                    time.sleep(max(0.0, min(last_click_at + KILL_CLICK_INTERVAL_S, deadline)
-                                       - time.monotonic()))
-                click_at = time.monotonic()
-                if last_click_at is not None:
-                    max_wall_click_gap = max(max_wall_click_gap, click_at - last_click_at)
-                last_click_at = click_at
-                try:
-                    click_response = b.click(*ATTACK_POINT, button="Left")
-                except ab.BridgeError as e:
-                    if e.kind != "gameplay":
-                        raise
-                    return ("FAIL", f"Left click {self.kill_clicks + 1} failed: {e}; "
-                            f"{last_detail}", None)
-                click_world_time = _num((click_response or {}).get("started_world_time_s"))
-                if click_world_time is None:
-                    return ("FAIL", "the click response has no numeric started_world_time_s; "
-                            "cannot verify click-start cadence", None)
-                if last_click_world_time is not None:
-                    max_game_time_click_gap = max(
-                        max_game_time_click_gap, click_world_time - last_click_world_time)
-                last_click_world_time = click_world_time
-                self.kill_clicks += 1
+            st = b.state(["player", "actors"], radius=ENEMY_RADIUS)
+            self._note(st, "kill_enemy_melee")
+            dummy = find_target(st, DUMMY)
+            last_detail = describe_target(dummy, DUMMY)
+            current, _ = enemy_health(dummy or {})
+            if current is not None and (not health_samples or current != health_samples[-1]):
+                health_samples.append(current)
+
+            cadence_ok = max_game_time_click_gap <= KILL_MAX_GAME_TIME_GAP_S + 0.001
+            killed = dummy is not None and dummy.get("is_dead") is True
+            within_timeout = train_elapsed <= KILL_TIMEOUT_S
+            status = "PASS" if killed and cadence_ok and within_timeout else "FAIL"
+            return (status, f"{'killed' if killed else 'did not kill'} the {DUMMY} with "
+                    f"{self.kill_clicks} pipelined Left clicks after waiting "
+                    f"{settle_elapsed:.2f}s for the attack/dodge to settle and "
+                    f"{'walking back' if walked_back else 'remaining'} at the melee spot; "
+                    f"health {health_samples}; train wall time {train_elapsed:.3f}s "
+                    f"(limit {KILL_TIMEOUT_S:g}s); maximum game-time click-start gap "
+                    f"{max_game_time_click_gap:.3f}s (limit {KILL_MAX_GAME_TIME_GAP_S:g}s); "
+                    f"{last_detail}", None)
 
         killed, _ = self.measure("kill_enemy_melee", kill)
 

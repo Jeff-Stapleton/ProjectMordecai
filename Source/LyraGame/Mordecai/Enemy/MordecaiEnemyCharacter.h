@@ -15,6 +15,7 @@ class UMordecaiAttackProfileDataAsset;
 class UMordecaiPostureSystem;
 class UMordecaiEnemyHealthBarWidget;
 class UMordecaiEnemyIndicatorComponent;
+class APlayerState;
 class UStaticMeshComponent;
 class UWidgetComponent;
 class UGameplayAbility;
@@ -89,9 +90,12 @@ public:
 	// --- State Transitions ---
 
 	/** Enter death state: apply State_Dead tag, disable movement/collision, broadcast Event_Death.
-	 *  Called automatically when Health <= 0. Safe to call externally (e.g., instakill). */
+	 *  Called automatically when Health <= 0. A direct call with no killer is non-player/environmental. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Enemy")
-	void EnterDeathState();
+	void EnterDeathState(APlayerState* KillerPlayerState = nullptr);
+
+	/** Called by the AttributeSet before a GAS Health modifier executes; null explicitly clears player attribution. */
+	void RecordDamagePlayerState(APlayerState* InPlayerState);
 
 	/** Enter posture broken state: apply State_PostureBroken tag, start recovery timer.
 	 *  Called automatically when Posture <= 0. */
@@ -144,6 +148,7 @@ private:
 	TObjectPtr<UStaticMeshComponent> BodyMesh;
 
 	bool bAbilitySystemInitialized = false;
+	TWeakObjectPtr<APlayerState> LastDamagePlayerState;
 	FTimerHandle PostureBrokenTimerHandle;
 
 	void GrantDefaultAbilities();

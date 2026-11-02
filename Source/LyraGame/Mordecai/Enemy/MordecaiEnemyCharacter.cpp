@@ -22,6 +22,7 @@
 #include "Components/WidgetComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerState.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyCharacter)
 
@@ -302,7 +303,7 @@ void AMordecaiEnemyCharacter::OnHealthChanged(const FOnAttributeChangeData& Data
 	// AC-050.6: When Health reaches <= 0, enter death state
 	if (Data.NewValue <= 0.f && !IsDead())
 	{
-		EnterDeathState();
+		EnterDeathState(LastDamagePlayerState.Get());
 	}
 }
 
@@ -330,7 +331,12 @@ void AMordecaiEnemyCharacter::OnPostureChanged(const FOnAttributeChangeData& Dat
 // State Transitions
 // ---------------------------------------------------------------------------
 
-void AMordecaiEnemyCharacter::EnterDeathState()
+void AMordecaiEnemyCharacter::RecordDamagePlayerState(APlayerState* InPlayerState)
+{
+	LastDamagePlayerState = InPlayerState;
+}
+
+void AMordecaiEnemyCharacter::EnterDeathState(APlayerState* KillerPlayerState)
 {
 	if (!EnemyAbilitySystemComponent || IsDead())
 	{
@@ -366,7 +372,7 @@ void AMordecaiEnemyCharacter::EnterDeathState()
 	// AC-050.6: Broadcast Event_Death gameplay event
 	FGameplayEventData EventData;
 	EventData.EventTag = MordecaiGameplayTags::Event_Death;
-	EventData.Instigator = this;
+	EventData.Instigator = KillerPlayerState ? static_cast<AActor*>(KillerPlayerState) : this;
 	EventData.Target = this;
 	EnemyAbilitySystemComponent->HandleGameplayEvent(MordecaiGameplayTags::Event_Death, &EventData);
 
@@ -375,9 +381,10 @@ void AMordecaiEnemyCharacter::EnterDeathState()
 	{
 		if (AMordecaiGameMode* GM = Cast<AMordecaiGameMode>(World->GetAuthGameMode()))
 		{
-			GM->NotifyEnemyKilled(this);
+			GM->NotifyEnemyKilled(this, KillerPlayerState);
 		}
 	}
+	LastDamagePlayerState.Reset();
 }
 
 void AMordecaiEnemyCharacter::EnterPostureBrokenState()
@@ -431,6 +438,7 @@ void AMordecaiEnemyCharacter::ResetForArena()
 	// Remove death and posture broken tags
 	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Dead);
 	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_PostureBroken);
+	LastDamagePlayerState.Reset();
 
 	// Cancel posture broken timer if active
 	if (UWorld* World = GetWorld())

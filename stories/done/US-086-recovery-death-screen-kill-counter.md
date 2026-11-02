@@ -33,7 +33,7 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 
 ## Technical Notes
 - Death screen: create it from the player controller / HUD owner on the PlayerDeath event (the same signal US-053 uses), via Lyra's `UCommonUIExtensions::PushContentToLayer_ForPlayer` on the `UI.Layer.Game` (or `GameMenu`) layer; pass `RespawnDelay` from the game mode and the session kill count.
-- Kill counter: either grant/broadcast `Mordecai.Event.EnemyKill` to the killer's ASC (gameplay event + loose tag count), or bind the widget to a game-mode/game-state delegate. Pick one path and delete the dead one; `player.kills` (bridge) and the widget must agree.
+- Kill counter: `AMordecaiGameMode` is the one source of truth and publishes absolute values through its native delegate. Only a Mordecai player state carried by the lethal GAS effect context earns a kill; melee, projectile, spell and player-applied Burning contexts count, while environmental/self/enemy deaths do not. `player.kills` (bridge) and the widget must agree.
 - Since US-100 (issue #46) US-054's walk/melee/dodge/death/respawn/reset chain is `Scripts/playtests/us054_combat.py` on CombatTestMap (`RUN_SUFFIX` "us054combat"; `py Scripts/playtest_story.py US-054` runs it). `us054_arena.py` (DevTestMap) keeps only the Frontliner AI checks and has no death chain, so every check below goes in `us054_combat.py`.
 - New us054_combat checks (script edit, committed with the code before packaging), inserted after `melee_lmb`/`dodge_lalt` (at the dummy melee spot (440, 600)) and before `walk_to_attacker`:
   - `kill_enemy_melee`: repeat `click Left (640, 360)` (≤ 0.4 s apart) at the dummy melee spot, walking back to it if the dodge moved the player, until the TestDummy's (found by label, like the script's other dummy checks) `dead==true` or 45 s → FAIL with the dummy's last health. Proves AC-086.5 and US-054 AC-054.13. If the 200-HP TestDummy cannot be killed in 45 s, record the damage per hit and file it — do not lower the HP.
@@ -56,6 +56,7 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
     - The pause menu can open while the player is dead, because Escape is bound on the controller and only the pawn's input is disabled. It pauses the world and the respawn timer. The countdown therefore holds while the world is paused (`TickCountdown`).
     - The screen's input config stays on the viewport after it goes, because CommonUI restores none. It therefore uses the project's capture mode, `CapturePermanently_IncludingInitialMouseDown`.
   - Like the combat HUD, the death screen serves the local player of a standalone or listen-server game. `OnPossess` runs only on the server, and `Mordecai.State.Dead` is a non-replicated loose tag (US-053). A remote client sees no death screen.
+  - Multiplayer replication and per-player counters are explicitly out of issue #6 / PR #76. Follow-up issue #77 owns a per-player count that resets only on that player's death; this story keeps passing `APlayerState*` attribution so that work has a stable key.
 - New Tier 4 check `death_screen_removed` (after `respawn`): no widget text "You Died" within 1.5 s of the respawn. `kill_counter_text_matches` cannot tell a left-over screen, because it shows the same N. The `dead` screenshot is now taken after `death_screen`.
 
 ## Tests Required
@@ -66,13 +67,20 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - `Mordecai.Recovery.DeathScreen.KeepsTheViewportCaptureMode` — AC-062.3 (found by the issue #7 review)
 - `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` — AC-086.3
 - `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath` — AC-086.3
+- `Mordecai.Recovery.KillCounter.PostDeathKillDoesNotLeak`
+- `Mordecai.Arena.ResetArenaResetsKillCount`
+- `Mordecai.Enemy.DeathIsIdempotentForKillAccounting`
+- `Mordecai.Recovery.KillCounter.RebindsAfterHUDRebuild`
+- `Mordecai.Recovery.DeathScreen.LateBindPreservesCompletedLifeKills`
+- `Mordecai.Recovery.KillCounter.CountsPlayerDamageSources`
+- `Mordecai.Recovery.KillCounter.RejectsNonPlayerDeaths`
 ### Tier 2 — PIE smoke (editor integration)
 - `Scripts/verify_pie_death_screen.py`: the controller's DeathScreenComponent exists and is bound to the PlayerState ASC; no death screen while alive, an activated and visible one while dead (read-only)
 - `Scripts/verify_pie_hud.py` extended: KillCounter bound; `[LOGIC]` check that kills an enemy by applying damage directly and sees "Kills: 1" (diagnostic only)
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- `Scripts/playtests/us054_combat.py`: `death_screen`, `death_screen_removed`, `kill_counter_text_matches`; new with issue #6: `kill_enemy_melee`, `kill_counter_increments` (offline-tested with `py Scripts/run_python_tests.py`)
+- `Scripts/playtests/us054_combat.py`: `death_screen`, `death_count_split`, `death_screen_removed`, `kill_counter_text_matches`; issue #6 also adds `kill_enemy_melee` and `kill_counter_increments` (offline-tested with `py Scripts/run_python_tests.py`)
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-054` on the same package (it boots each of US-054's maps and runs `us054_combat.py` on CombatTestMap)
@@ -90,7 +98,7 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 | 2 | `walk_to_dummy` | walk_to(440, 600) -> within 25 cm (the melee spot, 160 cm -X of the TestDummy) | - |
 | 3 | `melee_lmb` | click Left at (640, 360) -> within 1s 'Mordecai.State.Attacking' in player.tags or the TestDummy's health below its value before the click | AC-054.6, AC-054.5 |
 | 4 | `dodge_lalt` | tap LeftAlt -> within 0.5s a Dodging tag in player.tags or a displacement > 150 cm | AC-054.6, AC-054.5 |
-| 5 | `kill_enemy_melee` | wait until the attack and dodge end and speed <= 5 cm/s, walk_to(440, 600) after the dodge if needed, then repeat click Left at (640, 360) on a 0.3s target cadence (never more than 0.4 game-world seconds apart) -> the TestDummy is dead within 45s | AC-054.13, US-086:AC-086.5 |
+| 5 | `kill_enemy_melee` | wait until the attack and dodge end and speed <= 5 cm/s, walk_to(440, 600) after the dodge if needed, then pipeline repeated click Left at (640, 360) with 0.2s holds (never more than 0.4 game-world seconds apart) -> the TestDummy is dead within 45s | AC-054.13, US-086:AC-086.5 |
 | 6 | `kill_counter_increments` | state widgets, player -> within 2s the HUD reads 'Kills: 1' and player.kills==1 | US-086:AC-086.3, US-086:AC-086.5, US-063:AC-063.1 |
 | 7 | `walk_to_attacker` | walk_to(440, 0), walk_to(2000, 0) -> within 60 cm, then within 25 cm (the fight spot, 100 cm -X of the TestAttacker) | - |
 | 8 | `attacker_damages_player` | stand at the fight spot -> player.attributes.health < player.attributes.max_health within 20s | - |

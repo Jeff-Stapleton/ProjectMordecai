@@ -8,6 +8,7 @@
 
 class AMordecaiCharacter;
 class AMordecaiEnemyCharacter;
+class APlayerState;
 
 /** Authoritative arena kill count changed (a kill increments it; player death resets it). */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMordecaiEnemyKillCountChanged, int32 /*NewKillCount*/);
@@ -77,8 +78,8 @@ public:
 	/** Called by player character on death. Starts the respawn timer. */
 	void NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer);
 
-	/** Called when an enemy is killed. Increments kill count. */
-	void NotifyEnemyKilled(AMordecaiEnemyCharacter* KilledEnemy);
+	/** Called when an enemy dies. Counts it only when KillerPlayerState is a Mordecai player. */
+	void NotifyEnemyKilled(AMordecaiEnemyCharacter* KilledEnemy, APlayerState* KillerPlayerState = nullptr);
 
 	/** Register an enemy for arena tracking (called by enemy on spawn). */
 	void RegisterEnemy(AMordecaiEnemyCharacter* Enemy, const FTransform& SpawnTransform);

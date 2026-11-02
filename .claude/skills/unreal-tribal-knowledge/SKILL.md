@@ -210,6 +210,13 @@ The first fix was still incomplete in three non-obvious ways:
   Calling `EnterDeathState` twice stacked `Mordecai.State.Dead` and counted twice; one `RemoveLooseGameplayTag` then
   left the enemy dead after reset. Return immediately when `IsDead()` is already true, and defensively deduplicate
   counted enemy objects in the GameMode. Test: `Mordecai.Enemy.DeathIsIdempotentForKillAccounting`.
+- **Kill attribution belongs at the GAS Health modifier, before the death delegate.** Override
+  `PreGameplayEffectExecute`, resolve an `APlayerState*` from the effect context's original instigator/effect causer,
+  and record it on the enemy before Health changes. Record null for every non-player damage modifier so environmental
+  finishing damage cannot inherit an earlier player hit. Periodic effects such as Burning retain the original
+  application context automatically. The enemy passes that player state through `EnterDeathState` to the GameMode;
+  issue #77 can later use the same value as its per-player key. Tests:
+  `Mordecai.Recovery.KillCounter.CountsPlayerDamageSources` and `.RejectsNonPlayerDeaths`.
 - **`NativeDestruct` is Slate lifetime, not UObject lifetime.** Removing a retained HUD destroys its Slate wrapper and
   unbinds child delegates, while the controller's `TObjectPtr` still prevents a new UObject. Cache the ASC on the HUD,
   rebind children from `NativeConstruct`, and make the controller re-add/rebind an existing HUD rather than returning
@@ -226,7 +233,10 @@ PASS.
 
 **Fix:** click responses report `started_world_time_s`, sampled when mouse-down is injected. Measure consecutive
 start-to-start gaps from that field. An offline regression injects a 0.410 world-time gap with a 0.05 hold and requires
-the cadence check to FAIL.
+the cadence check to FAIL. A blocking request/response loop can still add one normal frame after a hitch-capped
+0.4-second click frame (the packaged run measured 0.467). For repeated-input evidence, pipeline ordinary click request
+lines with `Bridge.click_many`: the server releases one click and starts the already-queued next click in the same
+bridge tick. The audit log still has one real `click` request per input.
 
 ---
 

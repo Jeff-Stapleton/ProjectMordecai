@@ -2,9 +2,55 @@
 
 #include "MordecaiAttributeSet.h"
 #include "MordecaiAttributeScaling.h"
+#include "GameFramework/Actor.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerState.h"
+#include "GameplayEffectExtension.h"
+#include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiAttributeSet)
+
+namespace MordecaiAttributeSetPrivate
+{
+	APlayerState* PlayerStateFromActor(AActor* Actor)
+	{
+		if (APlayerState* PlayerState = Cast<APlayerState>(Actor))
+		{
+			return PlayerState;
+		}
+		if (const APawn* Pawn = Cast<APawn>(Actor))
+		{
+			return Pawn->GetPlayerState();
+		}
+		if (const AController* Controller = Cast<AController>(Actor))
+		{
+			return Controller->PlayerState;
+		}
+		if (Actor)
+		{
+			if (AController* InstigatorController = Actor->GetInstigatorController())
+			{
+				return InstigatorController->PlayerState;
+			}
+		}
+		return nullptr;
+	}
+
+	APlayerState* ResolvePlayerState(const FGameplayEffectContextHandle& Context)
+	{
+		if (APlayerState* PlayerState = PlayerStateFromActor(Context.GetOriginalInstigator()))
+		{
+			return PlayerState;
+		}
+		if (APlayerState* PlayerState = PlayerStateFromActor(Context.GetEffectCauser()))
+		{
+			return PlayerState;
+		}
+		return PlayerStateFromActor(Cast<AActor>(Context.GetSourceObject()));
+	}
+}
 
 UMordecaiAttributeSet::UMordecaiAttributeSet()
 	: Health(100.0f)
@@ -214,6 +260,26 @@ void UMordecaiAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 	// Drenched & Focused (US-018)
 	DOREPLIFETIME_CONDITION_NOTIFY(UMordecaiAttributeSet, FireDamageReceivedMultiplier, COND_None, REPNOTIFY_Always);
+}
+
+bool UMordecaiAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData& Data)
+{
+	if (!Super::PreGameplayEffectExecute(Data))
+	{
+		return false;
+	}
+
+	// Capture every GAS Health damage source before the attribute-change delegate can enter death. Recording null
+	// is intentional: a later environmental/self/enemy hit must clear any earlier player attribution.
+	if (Data.EvaluatedData.Attribute == GetHealthAttribute() && Data.EvaluatedData.Magnitude < 0.f)
+	{
+		if (AMordecaiEnemyCharacter* Enemy = Cast<AMordecaiEnemyCharacter>(GetOwningActor()))
+		{
+			Enemy->RecordDamagePlayerState(
+				MordecaiAttributeSetPrivate::ResolvePlayerState(Data.EffectSpec.GetContext()));
+		}
+	}
+	return true;
 }
 
 void UMordecaiAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)

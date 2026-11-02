@@ -1,10 +1,15 @@
 // Project Mordecai — Recovery: the HUD kill counter follows the arena's authoritative count (US-086, issue #6, N1)
 
 #include "Misc/AutomationTest.h"
+#include "GameplayEffect.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/TextBlock.h"
+#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Combat/MordecaiProjectile.h"
+#include "Mordecai/Magic/MordecaiGA_Fireball.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiGameMode.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Burning.h"
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
 #include "Mordecai/UI/MordecaiKillCounterWidget.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
@@ -17,6 +22,33 @@ namespace MordecaiRecoveryKillCounterTest
 			? Counter->WidgetTree->FindWidget<UTextBlock>(TEXT("KillCountText"))
 			: nullptr;
 		return Text ? Text->GetText().ToString() : FString();
+	}
+
+	void ApplyHealthEffect(
+		AMordecaiEnemyCharacter* Enemy,
+		const FGameplayEffectContextHandle& Context,
+		UObject* SourceObject,
+		float HealthDelta = -1000.f)
+	{
+		UAbilitySystemComponent* TargetASC = Enemy ? Enemy->GetAbilitySystemComponent() : nullptr;
+		if (!TargetASC)
+		{
+			return;
+		}
+
+		FGameplayEffectContextHandle DamageContext = Context;
+		if (SourceObject)
+		{
+			DamageContext.AddSourceObject(SourceObject);
+		}
+		UGameplayEffect* DamageGE = NewObject<UGameplayEffect>(
+			GetTransientPackage(), NAME_None, RF_Transient);
+		DamageGE->DurationPolicy = EGameplayEffectDurationType::Instant;
+		FGameplayModifierInfo& Modifier = DamageGE->Modifiers.AddDefaulted_GetRef();
+		Modifier.Attribute = UMordecaiAttributeSet::GetHealthAttribute();
+		Modifier.ModifierOp = EGameplayModOp::Additive;
+		Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(HealthDelta));
+		TargetASC->ApplyGameplayEffectSpecToSelf(FGameplayEffectSpec(DamageGE, DamageContext, 1.f));
 	}
 }
 
@@ -58,15 +90,15 @@ bool FMordecai_Recovery_KillCounter_IncrementsOnPlayerKill::RunTest(const FStrin
 	AMordecaiEnemyCharacter* Second = Env.SpawnEnemy(FVector(700.f, 0.f, 100.f), {});
 	TestNotNull("first real enemy", First);
 	TestNotNull("second real enemy", Second);
-	First->EnterDeathState();
+	First->EnterDeathState(Env.PlayerState);
 	TestEqual("the game mode records the first player kill", GameMode->GetEnemyKillCount(), 1);
 	TestEqual("the widget shows the game mode's first kill", Counter->GetKillCount(), GameMode->GetEnemyKillCount());
 	TestEqual("the visible TextBlock shows the first kill", DrawnKillText(Counter), FString(TEXT("Kills: 1")));
 
-	First->EnterDeathState();
+	First->EnterDeathState(Env.PlayerState);
 	TestEqual("the same real enemy cannot increment through a second death request", GameMode->GetEnemyKillCount(), 1);
 
-	Second->EnterDeathState();
+	Second->EnterDeathState(Env.PlayerState);
 	TestEqual("the game mode records the second player kill", GameMode->GetEnemyKillCount(), 2);
 	TestEqual("the widget still shows the one source of truth", Counter->GetKillCount(), GameMode->GetEnemyKillCount());
 	TestEqual("two distinct enemies in one frame publish twice", Broadcasts.Num(), 2);
@@ -116,11 +148,11 @@ bool FMordecai_Recovery_KillCounter_ResetsOnPlayerDeath::RunTest(const FString& 
 	TestNotNull("second real enemy", Second);
 	if (First)
 	{
-		First->EnterDeathState();
+		First->EnterDeathState(Env.PlayerState);
 	}
 	if (Second)
 	{
-		Second->EnterDeathState();
+		Second->EnterDeathState(Env.PlayerState);
 	}
 	TestEqual("two real enemy deaths are visible before player death", DrawnKillText(Counter), FString(TEXT("Kills: 2")));
 
@@ -163,14 +195,14 @@ bool FMordecai_Recovery_KillCounter_PostDeathKillDoesNotLeak::RunTest(const FStr
 	AMordecaiEnemyCharacter* DuringRespawn = Env.SpawnEnemy(FVector(700.f, 0.f, 100.f), {});
 	GameMode->RegisterEnemy(BeforeDeath, BeforeDeath->GetActorTransform());
 	GameMode->RegisterEnemy(DuringRespawn, DuringRespawn->GetActorTransform());
-	BeforeDeath->EnterDeathState();
+	BeforeDeath->EnterDeathState(Env.PlayerState);
 	TestEqual("completed life has one kill", GameMode->GetEnemyKillCount(), 1);
 
 	Env.ApplyPlayerHealthDelta(-1000.f);
 	TestTrue("player entered the respawn window", Env.Player->IsDead());
 	TestEqual("death reset the current-life count", GameMode->GetEnemyKillCount(), 0);
 
-	DuringRespawn->EnterDeathState();
+	DuringRespawn->EnterDeathState(Env.PlayerState);
 	TestEqual("a delayed kill while dead is not credited to the next life", GameMode->GetEnemyKillCount(), 0);
 
 	Env.Player->HandlePlayerRespawn();
@@ -221,12 +253,127 @@ bool FMordecai_Recovery_KillCounter_RebindsAfterHUDRebuild::RunTest(const FStrin
 	TestNotNull("real enemy", Enemy);
 	if (Enemy)
 	{
-		Enemy->EnterDeathState();
+		Enemy->EnterDeathState(Env.PlayerState);
 	}
 	TestEqual("the rebuilt HUD receives the next authoritative value", Counter->GetKillCount(), 1);
 	TestEqual("the rebuilt HUD draws the next authoritative value", DrawnKillText(Counter), FString(TEXT("Kills: 1")));
 
 	RebuiltSlateTree.Reset();
 	Env.TeardownWithController();
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 5. Mordecai.Recovery.KillCounter.CountsPlayerDamageSources
+// The player identity in the GAS context survives melee, projectile, spell and periodic Burning delivery.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_KillCounter_CountsPlayerDamageSources,
+	"Mordecai.Recovery.KillCounter.CountsPlayerDamageSources",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_KillCounter_CountsPlayerDamageSources::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryTest;
+	using namespace MordecaiRecoveryKillCounterTest;
+
+	FRecoveryTestEnv Env;
+	if (!TestTrue("production-style world set up", Env.Setup(FVector::ZeroVector)))
+	{
+		Env.Teardown();
+		return true;
+	}
+	AMordecaiGameMode* GameMode = Env.InstallGameMode();
+	UAbilitySystemComponent* PlayerASC = Env.GetPlayerASC();
+	if (!TestNotNull("production game mode installed", GameMode)
+		|| !TestNotNull("player ASC", PlayerASC))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	const FGameplayEffectContextHandle PlayerContext = PlayerASC->MakeEffectContext();
+
+	AMordecaiEnemyCharacter* MeleeTarget = Env.SpawnEnemy(FVector(500.f, 0.f, 100.f), {});
+	ApplyHealthEffect(MeleeTarget, PlayerContext, NewObject<UMordecaiGA_MeleeAttack>());
+	TestEqual("lethal player melee adds exactly one", GameMode->GetEnemyKillCount(), 1);
+
+	AMordecaiEnemyCharacter* ProjectileTarget = Env.SpawnEnemy(FVector(700.f, 0.f, 100.f), {});
+	AMordecaiProjectile* Projectile = Env.World->SpawnActor<AMordecaiProjectile>(
+		AMordecaiProjectile::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator,
+		FRecoveryTestEnv::AlwaysSpawn());
+	ApplyHealthEffect(ProjectileTarget, PlayerContext, Projectile);
+	TestEqual("lethal player projectile adds exactly one", GameMode->GetEnemyKillCount(), 2);
+
+	AMordecaiEnemyCharacter* SpellTarget = Env.SpawnEnemy(FVector(900.f, 0.f, 100.f), {});
+	ApplyHealthEffect(SpellTarget, PlayerContext, NewObject<UMordecaiGA_Fireball>());
+	TestEqual("lethal player spell adds exactly one", GameMode->GetEnemyKillCount(), 3);
+
+	AMordecaiEnemyCharacter* BurningTarget = Env.SpawnEnemy(FVector(1100.f, 0.f, 100.f), {});
+	BurningTarget->GetMordecaiAttributeSet()->InitHealth(3.f);
+	FGameplayEffectSpecHandle BurningSpec = PlayerASC->MakeOutgoingSpec(
+		UMordecaiGE_Burning::StaticClass(), 1.f, PlayerContext);
+	if (TestTrue("player Burning spec created", BurningSpec.IsValid()))
+	{
+		BurningTarget->GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*BurningSpec.Data);
+		for (int32 Tick = 0; Tick < 4 && !BurningTarget->IsDead(); ++Tick)
+		{
+			Env.World->Tick(LEVELTICK_All, 1.1f);
+		}
+	}
+	TestTrue("Burning killed its target", BurningTarget->IsDead());
+	TestEqual("lethal player Burning adds exactly one", GameMode->GetEnemyKillCount(), 4);
+
+	Env.Teardown();
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 6. Mordecai.Recovery.KillCounter.RejectsNonPlayerDeaths
+// Empty/environmental, target-self and another-enemy GAS contexts must not grant a player kill.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_KillCounter_RejectsNonPlayerDeaths,
+	"Mordecai.Recovery.KillCounter.RejectsNonPlayerDeaths",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_KillCounter_RejectsNonPlayerDeaths::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryTest;
+	using namespace MordecaiRecoveryKillCounterTest;
+
+	FRecoveryTestEnv Env;
+	if (!TestTrue("production-style world set up", Env.Setup(FVector::ZeroVector)))
+	{
+		Env.Teardown();
+		return true;
+	}
+	AMordecaiGameMode* GameMode = Env.InstallGameMode();
+	if (!TestNotNull("production game mode installed", GameMode))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	AMordecaiEnemyCharacter* Environmental = Env.SpawnEnemy(FVector(500.f, 0.f, 100.f), {});
+	ApplyHealthEffect(Environmental, FGameplayEffectContextHandle(), nullptr);
+	TestEqual("environmental death grants no player kill", GameMode->GetEnemyKillCount(), 0);
+
+	AMordecaiEnemyCharacter* Self = Env.SpawnEnemy(FVector(700.f, 0.f, 100.f), {});
+	ApplyHealthEffect(Self, Self->GetAbilitySystemComponent()->MakeEffectContext(), Self);
+	TestEqual("self-caused death grants no player kill", GameMode->GetEnemyKillCount(), 0);
+
+	AMordecaiEnemyCharacter* EnemySource = Env.SpawnEnemy(FVector(900.f, 0.f, 100.f), {});
+	AMordecaiEnemyCharacter* EnemyTarget = Env.SpawnEnemy(FVector(1100.f, 0.f, 100.f), {});
+	ApplyHealthEffect(
+		EnemyTarget, EnemySource->GetAbilitySystemComponent()->MakeEffectContext(), EnemySource);
+	TestEqual("enemy friendly-fire death grants no player kill", GameMode->GetEnemyKillCount(), 0);
+
+	AMordecaiEnemyCharacter* MixedSource = Env.SpawnEnemy(FVector(1300.f, 0.f, 100.f), {});
+	ApplyHealthEffect(
+		MixedSource, Env.GetPlayerASC()->MakeEffectContext(), NewObject<UMordecaiGA_MeleeAttack>(), -1.f);
+	ApplyHealthEffect(MixedSource, FGameplayEffectContextHandle(), nullptr);
+	TestEqual("environmental finishing damage clears an earlier player source",
+		GameMode->GetEnemyKillCount(), 0);
+
+	Env.Teardown();
 	return true;
 }

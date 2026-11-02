@@ -338,6 +338,81 @@ class BridgeConnection:
         raise BridgeError(f"{cmd}: {code}" + (f": {message}" if message else ""), kind=kind,
                           response=resp, code=code)
 
+    def request_many(self, requests, timeout=None):
+        """Pipeline [(cmd, args), ...] on this connection, then return replies in request order.
+
+        The server preserves arrival order and starts the next timed command in the same bridge
+        tick that the previous one finishes. This removes client response round trips between
+        repeated real-input commands while retaining one audited NDJSON request per action.
+        """
+        normalized = []
+        for cmd, args in requests:
+            if not isinstance(cmd, str) or not cmd:
+                raise ValueError("cmd must be a non-empty string")
+            if not isinstance(args, dict):
+                raise ValueError("request args must be a dict")
+            normalized.append((cmd, dict(args)))
+        if not normalized:
+            return []
+
+        with self._lock:
+            if self._closed:
+                raise _infra("pipeline: the connection is closed", "closed")
+
+            messages = []
+            total_expected = 0.0
+            for cmd, args in normalized:
+                rid = self._next_id
+                self._next_id += 1
+                msg = {"id": rid, "cmd": cmd}
+                msg.update(args)
+                messages.append(msg)
+                total_expected += expected_duration(cmd, args)
+                self._record("send", msg)
+
+            wait_s = float(timeout) if timeout is not None else total_expected + RESPONSE_SLACK_S
+            data = "".join(json.dumps(msg, ensure_ascii=False, separators=(",", ":")) + "\n"
+                           for msg in messages).encode("utf-8")
+            deadline = time.monotonic() + wait_s
+            try:
+                self.sock.settimeout(max(0.05, wait_s))
+                self.sock.sendall(data)
+            except OSError as e:
+                self._drop()
+                raise _infra(f"pipeline: send failed: {e}", "disconnected") from e
+
+            pending = {msg["id"] for msg in messages}
+            replies = {}
+            while pending:
+                resp = self._read_message(deadline, "pipeline", wait_s)
+                got = resp.get("id")
+                if got in pending and not isinstance(got, bool):
+                    pending.remove(got)
+                    replies[got] = resp
+                    self._record("recv", resp)
+                elif got is None and resp.get("ok") is False:
+                    self._record("recv", resp)
+                    raise _infra("pipeline: bridge returned an error without a request id",
+                                 resp.get("error") or "failed", resp)
+                else:
+                    self._record("skip", resp)
+
+        ordered = []
+        for msg in messages:
+            resp = replies[msg["id"]]
+            if resp.get("ok") is True:
+                ordered.append(resp)
+                continue
+            if resp.get("ok") is not False:
+                raise _infra(f"{msg['cmd']}: malformed response (no ok field)",
+                             "bad_response", resp)
+            code = resp.get("error") or "failed"
+            kind = "gameplay" if code in GAMEPLAY_ERROR_CODES else "infra"
+            message = resp.get("message") or ""
+            raise BridgeError(f"{msg['cmd']}: {code}" + (f": {message}" if message else ""),
+                              kind=kind, response=resp, code=code)
+        return ordered
+
     def _drop(self):
         self._closed = True
         try:
@@ -1054,6 +1129,18 @@ class Bridge:
         if hold_s is not None:
             args["hold_s"] = hold_s
         return self.request("click", **args)
+
+    def click_many(self, count, x=None, y=None, button="Left", hold_s=0.1):
+        """Pipeline repeated real-input click commands and return each click response in order."""
+        if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 256:
+            raise ValueError("count must be an integer in 1..256")
+        if (x is None) != (y is None):
+            raise ValueError("give both x and y, or neither")
+        args = {"button": button, "hold_s": hold_s}
+        if x is not None:
+            args.update(x=x, y=y)
+        timeout = count * max(0.6, float(hold_s)) + RESPONSE_SLACK_S
+        return self.conn.request_many([("click", args) for _ in range(count)], timeout=timeout)
 
     @staticmethod
     def _norm_id(value):

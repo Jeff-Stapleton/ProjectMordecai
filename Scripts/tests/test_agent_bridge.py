@@ -895,6 +895,16 @@ class TestCppParity(FakeServerCase):
         self.assertNotIn("hold_s", self.server.received[-1])
         self.assertGreaterEqual(resp["held_s"], 0.045)
 
+    def test_pipelined_clicks_keep_start_cadence_without_response_round_trips(self):
+        bridge = self.attach()
+        responses = bridge.click_many(6, 640, 360, hold_s=0.1)
+        self.assertEqual(len(responses), 6)
+        starts = [r["started_world_time_s"] for r in responses]
+        gaps = [b - a for a, b in zip(starts, starts[1:])]
+        self.assertTrue(gaps and max(gaps) <= 0.15, gaps)
+        clicks = [r for r in self.server.received[-6:] if r.get("cmd") == "click"]
+        self.assertEqual(len(clicks), 6)
+
     def test_tab_ids_are_lowercase(self):
         bridge = self.attach()
         bridge.tap("I")

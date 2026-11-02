@@ -726,21 +726,23 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
 
     def test_click_cadence_rejects_a_real_game_time_gap_even_when_the_hold_is_short(self):
         _, server = self.serve(**game_today())
-        real_click = ab.Bridge.click
-        calls = {"count": 0, "world_start": 100.0}
+        real_click_many = ab.Bridge.click_many
 
         def one_bad_gap(bridge, *args, **kwargs):
-            response = real_click(bridge, *args, **kwargs)
-            calls["count"] += 1
-            if calls["count"] > 1:
-                calls["world_start"] += 0.41 if calls["count"] == 5 else 0.3
-            response = dict(response)
-            response["started_world_time_s"] = calls["world_start"]
-            # This is only the mouse-button hold duration. It must not mask the bad start gap.
-            response["simulated_s"] = 0.05
-            return response
+            responses = real_click_many(bridge, *args, **kwargs)
+            world_start = 100.0
+            changed = []
+            for index, response in enumerate(responses):
+                if index:
+                    world_start += 0.41 if index == 4 else 0.3
+                response = dict(response)
+                response["started_world_time_s"] = world_start
+                # This is only the mouse-button hold duration. It must not mask the bad start gap.
+                response["simulated_s"] = 0.05
+                changed.append(response)
+            return changed
 
-        with mock.patch.object(ab.Bridge, "click", one_bad_gap):
+        with mock.patch.object(ab.Bridge, "click_many", one_bad_gap):
             code, rep = self.play(server)
         self.assertEqual(code, 1, self.log.getvalue()[-4000:])
         check = self.by_name(rep)["kill_enemy_melee"]
@@ -955,7 +957,8 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertEqual(code, 1)
         checks = self.by_name(rep)
         self.assertEqual(checks["kill_enemy_melee"]["status"], "FAIL")
-        self.assertIn("was not dead within 1s", checks["kill_enemy_melee"]["detail"])
+        self.assertIn("did not kill the TestDummy", checks["kill_enemy_melee"]["detail"])
+        self.assertIn("(limit 1s)", checks["kill_enemy_melee"]["detail"])
         self.assertIn("health [200.0]", checks["kill_enemy_melee"]["detail"])
         self.assertEqual(checks["kill_counter_increments"]["status"], "SKIP")
         self.assertIn("was not killed", checks["kill_counter_increments"]["detail"])

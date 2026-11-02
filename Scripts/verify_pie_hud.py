@@ -93,16 +93,18 @@ def _run():
         try:
             kill_counter = hud_widget.get_kill_counter()
             game_mode = unreal.GameplayStatics.get_game_mode(world)
+            player_state = pc.player_state
             enemies = unreal.GameplayStatics.get_all_actors_of_class(
                 world, unreal.MordecaiEnemyCharacter)
             victim = next((enemy for enemy in enemies if not enemy.is_dead()), None)
             check("KillCounter is present for arena event binding", kill_counter is not None)
             check("MordecaiGameMode is present for kill tracking", game_mode is not None)
+            check("PlayerState is present for player kill attribution", player_state is not None)
             check("An alive enemy is available for the kill diagnostic", victim is not None)
 
-            if kill_counter and game_mode and victim:
+            if kill_counter and game_mode and player_state and victim:
                 before = game_mode.get_enemy_kill_count()
-                victim.enter_death_state()
+                victim.enter_death_state(player_state)
                 after = game_mode.get_enemy_kill_count()
                 check("[LOGIC] Direct enemy death increments GameMode kill count",
                       after == before + 1, f"Count {before} -> {after}")

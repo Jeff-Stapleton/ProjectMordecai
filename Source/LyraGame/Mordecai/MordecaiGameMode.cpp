@@ -123,16 +123,19 @@ void AMordecaiGameMode::ExecuteRespawn()
 // Arena: Enemy Kill Tracking (US-053)
 // ---------------------------------------------------------------------------
 
-void AMordecaiGameMode::NotifyEnemyKilled(AMordecaiEnemyCharacter* KilledEnemy)
+void AMordecaiGameMode::NotifyEnemyKilled(
+	AMordecaiEnemyCharacter* KilledEnemy,
+	APlayerState* KillerPlayerState)
 {
 	const TWeakObjectPtr<AMordecaiEnemyCharacter> WeakEnemy(KilledEnemy);
-	if (!KilledEnemy || bRespawnPending || CountedEnemyDeaths.Contains(WeakEnemy))
+	// Single-player issue #6 contract: only a Mordecai player-owned GAS context earns a kill. The player state
+	// parameter intentionally gives issue #77 a per-player key without adding replication or multiplayer state here.
+	if (!KilledEnemy || !Cast<AMordecaiPlayerState>(KillerPlayerState)
+		|| bRespawnPending || CountedEnemyDeaths.Contains(WeakEnemy))
 	{
 		return;
 	}
 
-	// TODO(DECISION, issue #6): decide whether all enemy deaths count or only player-attributed kills,
-	// and what attribution data carries that decision. Until then preserve the existing shared arena semantics.
 	CountedEnemyDeaths.Add(WeakEnemy);
 	EnemyKillCount++;
 	EnemyKillCountChanged.Broadcast(EnemyKillCount);

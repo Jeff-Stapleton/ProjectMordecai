@@ -137,3 +137,22 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Why the key-up: the menu consumes the whole press. Closing on the press would let the OS key repeats of a held I reach the game after the menu is gone, and the Inventory action would reopen the menu about 0.5 s later. Escape still closes on the press through CommonUI's back action, so a held Escape can still do that. That is pre-existing and left as is.
 - Still open: the 2026-07-10 TODO(DECISION) to add "I — Inventory" to `control_bindings_v1.1.md`. The bindings doc also does not list in-menu LB/RB yet.
 - Source: issue #32 / US-095 AC-095.1 (fixed with #23 in the same story, Claude Code session, 2026-10-30)
+
+---
+
+## 2026-11-02 — Kill attribution and multiplayer boundary (issues #6 and #77, US-086)
+
+### What counts
+- Only an enemy death caused by the player increments the kill counter.
+- Player melee, projectiles, spells and player-applied damage-over-time effects such as Burning count.
+- Environmental, self-caused, enemy friendly-fire and other non-player enemy deaths count zero.
+- Attribution follows the GAS effect context's original instigator/effect causer/source through the enemy Health
+  modifier and death path; a periodic effect keeps the player identity from its original application.
+
+### Scope boundary
+- Issue #6 / PR #76 remains single-player only.
+- Multiplayer support is issue #77. Its target behavior is a per-player count that increments for that player's kills
+  and resets only when that same player dies.
+- PR #76 does not add count replication or remote-client UI. The death path passes an `APlayerState*` so issue #77 can
+  use it as the future per-player key.
+- Source: Jeff via Cursor session (2026-11-02).

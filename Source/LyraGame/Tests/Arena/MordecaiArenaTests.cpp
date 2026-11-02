@@ -3,6 +3,7 @@
 #include "Misc/AutomationTest.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiGameMode.h"
+#include "Mordecai/MordecaiPlayerState.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/AbilitySystem/MordecaiAbilitySystemComponent.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
@@ -247,10 +248,11 @@ bool FMordecai_Arena_KillCountIncrementsOnEnemyDeath::RunTest(const FString& Par
 
 	AMordecaiEnemyCharacter* First = NewObject<AMordecaiEnemyCharacter>();
 	AMordecaiEnemyCharacter* Second = NewObject<AMordecaiEnemyCharacter>();
-	GM->NotifyEnemyKilled(First);
+	AMordecaiPlayerState* Killer = NewObject<AMordecaiPlayerState>();
+	GM->NotifyEnemyKilled(First, Killer);
 	TestEqual("Kill count is 1", GM->GetEnemyKillCount(), 1);
 
-	GM->NotifyEnemyKilled(Second);
+	GM->NotifyEnemyKilled(Second, Killer);
 	TestEqual("Kill count is 2", GM->GetEnemyKillCount(), 2);
 
 	FGameplayTag EnemyKillTag = MordecaiGameplayTags::Event_EnemyKill;
@@ -289,7 +291,7 @@ bool FMordecai_Arena_ResetArenaResetsKillCount::RunTest(const FString& Parameter
 	if (Enemy)
 	{
 		GM->RegisterEnemy(Enemy, Enemy->GetActorTransform());
-		Enemy->EnterDeathState();
+		Enemy->EnterDeathState(Env.PlayerState);
 	}
 	TestEqual("the enemy death increments the count", GM->GetEnemyKillCount(), 1);
 
