@@ -1,7 +1,7 @@
 # Agent Playtest Plan v1: agents play the packaged game
 
 **Status:** Phase 1 DONE (PR #2, branch `feature/playtest-phase1`). Phase 2 DONE on `feature/playtest-phase2`: acceptance 2.4 passed on a fresh package of `a40955b` on a locked machine (`Saved/Playtests/20261020-205856-us079`). Phase 3 IN PROGRESS on `feature/playtest-phase3` (kit, story runner, six feature scripts, exploratory agent; contract `Specs/story_playtests_v1.md`).
-**Owner:** Jeff. **Last updated:** 2026-10-29 (T1 test maps, US-100, issue #46).
+**Owner:** Jeff. **Last updated:** 2026-11-02 (N1 kill counter, US-086, issue #6).
 
 ## Problem
 
@@ -278,7 +278,11 @@ The contract is `Specs/story_playtests_v1.md`.
   - **Closed** at Jeff's call (2026-10-29): `Saved/Playtests/20261029-175841-us079` exited 0, 56/56, on a fresh package of `9904cde`. US-094, US-079 and US-071 are done.
 
 **Found by the Phase 3 source audit** (2026-10-22, read-only, while planning the per-story playtests; `Specs/story_playtests_v1.md`). The playtests cite these by id in `known_issue`. N7, N11 and N12 are suspected: the sweep confirms or clears them.
-- **N1 The kill counter can never go up.** `UMordecaiKillCounterWidget` waits for `Mordecai.Event.EnemyKill` tag-count changes on the player ASC (`MordecaiKillCounterWidget.cpp:68`), but nothing ever grants that tag. `AMordecaiGameMode` counts kills elsewhere (`MordecaiGameMode.cpp:115-118`). Melee is bound since US-083, but no playtest kills an enemy yet (the kill path is US-086's), and at most 3 Fireballs (75 damage) fit the SP budget.
+- **N1 The kill counter can never go up (FIXED, US-086, issue #6).** `UMordecaiKillCounterWidget` waited for `Mordecai.Event.EnemyKill` and `Mordecai.Event.PlayerDeath` owned-tag count changes on the player ASC, but Mordecai only sent gameplay events with those tags; nothing granted either tag as an owned tag. `AMordecaiGameMode` counted kills separately, so the HUD listened to the wrong signal and maintained a second value.
+  - Fix: `AMordecaiGameMode` is the one source of truth and broadcasts each new absolute count through `FOnMordecaiEnemyKillCountChanged`. Enemy death increments and broadcasts; the existing player-death notification resets and broadcasts after the death screen has cached the completed life's count. `UMordecaiKillCounterWidget` binds to that delegate, initializes from `GetEnemyKillCount()`, renders the published value, and removes the dead ASC tag-count listeners.
+  - Tier 1: `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `.ResetsOnPlayerDeath` PASS in the full 764/764 run (`Saved/TestLogs/tests-20261102-031117.log`). Tier 2: all 16 PIE scripts PASS; `verify_pie_hud.py`'s explicitly `[LOGIC]` diagnostic sees the GameMode and HUD move together.
+  - Verified on the clean package of `9bd6cea` (dirty=False, no source change during build): `py Scripts/playtest_story.py US-086` exits 0 (`Saved/Playtests/20261102-031524-story-us086`). Real LMB kills the 200-HP TestDummy, `kill_enemy_melee` and `kill_counter_increments` PASS with both HUD and `player.kills` at 1, the death screen shows `Kills: 1`, and `kill_counter_text_matches` PASSes with both reset to 0 after death/respawn (`Saved/Playtests/20261102-031544-us054combat`).
+  - The same package's full sweep (`Saved/Playtests/20261102-031725-sweep`) leaves `us054_combat` at 30 PASS / 0 FAIL and introduces no PASS → FAIL regression. Its overall exit 1 is the same unrelated pre-existing failure set as the 2026-10-30 sweep, tracked by issues #8, #9, #10, #13, #14, #20, #21, #22, #33, #34 and #35; the DevTestMap Frontliner spacing clause is the retained placement covered by closed issues #19 and #46.
 - **N2 The death screen is never created (FIXED, US-086, issue #7).** Nothing referenced `UMordecaiDeathScreenWidget` outside its own files.
   - Fix: `UMordecaiDeathScreenComponent`, on `AMordecaiPlayerController` and bound in `OnPossess`, listens for `Mordecai.State.Dead` on the PlayerState ASC. It pushes the native class onto `UI.Layer.Game`, set up with the game mode's respawn delay and kill count, and removes it at the respawn. The widget builds its own tree.
   - The review of the fix also found two bugs, both fixed: the countdown ran on while the pause menu had paused the respawn timer, and the screen's capture mode stayed on the viewport after it went.
