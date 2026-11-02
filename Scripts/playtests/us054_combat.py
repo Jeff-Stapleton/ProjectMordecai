@@ -108,6 +108,8 @@ KILL_TIMEOUT_S = 45.0
 KILL_CLICK_INTERVAL_S = 0.3
 KILL_MAX_CLICK_GAP_S = 0.4              # story contract: no more than 0.4 s between LMB clicks
 KILL_COUNTER_TIMEOUT_S = 2.0
+PRE_KILL_SETTLE_TIMEOUT_S = 2.0
+PRE_KILL_MAX_SPEED_CM_S = 5.0
 DAMAGE_TIMEOUT_S = 20.0
 RESTORATION_TIMEOUT_S = 6.0
 BURNING_TIMEOUT_S = 25.0
@@ -164,9 +166,11 @@ PLAN = (
          "click", proves=("AC-054.6", "AC-054.5")),
     Step("dodge_lalt", f"tap LeftAlt -> within {DODGE_TIMEOUT_S:g}s a Dodging tag in player.tags "
          "or a displacement > 150 cm", proves=("AC-054.6", "AC-054.5")),
-    Step("kill_enemy_melee", f"walk_to({DUMMY_MELEE_SPOT[0]:g}, {DUMMY_MELEE_SPOT[1]:g}) after "
-         f"the dodge if needed, then repeat click Left at {ATTACK_POINT} no more than "
-         f"{KILL_CLICK_INTERVAL_S:g}s apart -> the {DUMMY} is dead within {KILL_TIMEOUT_S:g}s",
+    Step("kill_enemy_melee", "wait until the attack and dodge end and speed <= "
+         f"{PRE_KILL_MAX_SPEED_CM_S:g} cm/s, walk_to({DUMMY_MELEE_SPOT[0]:g}, "
+         f"{DUMMY_MELEE_SPOT[1]:g}) after the dodge if needed, then repeat click Left at "
+         f"{ATTACK_POINT} no more than {KILL_CLICK_INTERVAL_S:g}s apart -> the {DUMMY} is dead "
+         f"within {KILL_TIMEOUT_S:g}s",
          proves=("AC-054.13", "US-086:AC-086.5")),
     Step("kill_counter_increments", f"state widgets, player -> within "
          f"{KILL_COUNTER_TIMEOUT_S:g}s the HUD reads 'Kills: 1' and player.kills==1",
@@ -603,6 +607,35 @@ class Us054CombatRun(kit.PlaytestRun):
             if p0 is None or is_dead(p0):
                 return "FAIL", "no live player before the kill loop", None
 
+            # A dodge is a LaunchCharacter impulse. walk_to calibrates WASD with a short W tap;
+            # starting that probe while the pawn is still sliding backward makes the real bridge
+            # correctly report a movement-mapping mismatch. Let the preceding attack/dodge and
+            # their residual velocity finish before asking walk_to to calibrate.
+            settle_started = time.monotonic()
+            settled_state = {"tags": tags(p0), "speed": None}
+
+            def settled(st):
+                self._note(st, "kill_enemy_melee")
+                p = player(st)
+                velocity = xy((p or {}).get("velocity"))
+                settled_state["tags"] = tags(p)
+                settled_state["speed"] = math.hypot(*velocity) if velocity else None
+                busy = (TAG_ATTACKING in settled_state["tags"]
+                        or any(TAG_DODGE_SUBSTR in tag.lower()
+                               for tag in settled_state["tags"]))
+                return (p is not None and not is_dead(p) and not busy
+                        and settled_state["speed"] is not None
+                        and settled_state["speed"] <= PRE_KILL_MAX_SPEED_CM_S)
+
+            did_settle, st0 = self._poll(
+                ["player", "actors"], settled, PRE_KILL_SETTLE_TIMEOUT_S)
+            settle_elapsed = time.monotonic() - settle_started
+            if not did_settle:
+                return ("FAIL", f"the attack/dodge did not settle within "
+                        f"{PRE_KILL_SETTLE_TIMEOUT_S:g}s: tags {settled_state['tags']}, "
+                        f"speed {settled_state['speed']} cm/s", None)
+
+            p0 = player(st0)
             pos0 = xy(p0.get("location"))
             walked_back = False
             if pos0 is None or dist(pos0, DUMMY_MELEE_SPOT) > SPOT_TOL:
@@ -634,7 +667,9 @@ class Us054CombatRun(kit.PlaytestRun):
                         status = ("PASS" if self.kill_clicks <= 1
                                   or max_click_gap <= KILL_MAX_CLICK_GAP_S else "FAIL")
                         return (status, f"killed the {DUMMY} with {self.kill_clicks} repeated "
-                                f"Left clicks after {'walking back' if walked_back else 'remaining'} "
+                                f"Left clicks after waiting {settle_elapsed:.2f}s for the "
+                                f"attack/dodge to settle and "
+                                f"{'walking back' if walked_back else 'remaining'} "
                                 f"at the melee spot; health {health_samples}; maximum click-start "
                                 f"gap {max_click_gap:.3f}s (limit {KILL_MAX_CLICK_GAP_S:g}s); "
                                 f"{last_detail}", None)

@@ -90,7 +90,7 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 | 2 | `walk_to_dummy` | walk_to(440, 600) -> within 25 cm (the melee spot, 160 cm -X of the TestDummy) | - |
 | 3 | `melee_lmb` | click Left at (640, 360) -> within 1s 'Mordecai.State.Attacking' in player.tags or the TestDummy's health below its value before the click | AC-054.6, AC-054.5 |
 | 4 | `dodge_lalt` | tap LeftAlt -> within 0.5s a Dodging tag in player.tags or a displacement > 150 cm | AC-054.6, AC-054.5 |
-| 5 | `kill_enemy_melee` | walk_to(440, 600) after the dodge if needed, then repeat click Left at (640, 360) no more than 0.3s apart -> the TestDummy is dead within 45s | AC-054.13, US-086:AC-086.5 |
+| 5 | `kill_enemy_melee` | wait until the attack and dodge end and speed <= 5 cm/s, walk_to(440, 600) after the dodge if needed, then repeat click Left at (640, 360) no more than 0.3s apart -> the TestDummy is dead within 45s | AC-054.13, US-086:AC-086.5 |
 | 6 | `kill_counter_increments` | state widgets, player -> within 2s the HUD reads 'Kills: 1' and player.kills==1 | US-086:AC-086.3, US-086:AC-086.5, US-063:AC-063.1 |
 | 7 | `walk_to_attacker` | walk_to(440, 0), walk_to(2000, 0) -> within 60 cm, then within 25 cm (the fight spot, 100 cm -X of the TestAttacker) | - |
 | 8 | `attacker_damages_player` | stand at the fight spot -> player.attributes.health < player.attributes.max_health within 20s | - |
@@ -121,6 +121,9 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
+
+### Post-mortem: first issue #6 Tier 4 attempt, 2026-11-02
+**Expected:** after `dodge_lalt`, `kill_enemy_melee` would immediately use `walk_to(440, 600)` to return to the TestDummy and begin the LMB kill loop. **Actual:** the fresh-package run `Saved/Playtests/20261102-005453-us054combat` failed before the loop: `walk_to` tapped W for its direction calibration while the dodge impulse was still sliding the pawn backward, so the pawn moved −2.1 cm instead of +X and the bridge correctly reported a movement-mapping mismatch. **Wrong assumption:** the offline `CombatWorld` gave the dodge a tag but no movement, so it could not expose a calibration started against residual velocity. The script now waits for the Attacking/Dodging tags to end and planar speed to fall to 5 cm/s before calling `walk_to`; `test_kill_waits_for_dodge_to_settle_before_walk_calibration` permanently models the backward dodge and requires the first post-dodge movement key to occur after it settles. This failed run accepts no AC.
 
 ### Issue #7 half: the death screen (N2), 2026-10-30
 **Status: AC-086.1, AC-086.2 and AC-086.4 done.** AC-086.3 and AC-086.5 (the kill counter, N1, issue #6) are still open, so the story stays in progress. As built: see "Death screen as built" in the Technical Notes. Delivered commit `8486aa1` (code `892cb1d`) on `fix/issue-7-death-screen`.

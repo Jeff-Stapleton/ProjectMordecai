@@ -123,7 +123,7 @@ class CombatWorld(fb.FakeWorld):
                  burn_indicator=True, attacks=True, attack_tag=True, death_screen=True,
                  death_screen_stays=False, dead_moves=False, arena_reset=True, reset_ai=True,
                  ai_reported=True, moves_after_respawn=True, kills_text=0,
-                 counter_updates=True, **kwargs):
+                 counter_updates=True, dodge_motion=True, dodge_speed=300.0, **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         kwargs.setdefault("respawn_s", us054c.RESPAWN_DELAY_S)  # the game's 3 s
@@ -145,6 +145,8 @@ class CombatWorld(fb.FakeWorld):
         self.ai_reported, self.kills_text = ai_reported, kills_text
         self.counter_updates = counter_updates
         self.death_kills = 0
+        self.dodge_motion, self.dodge_speed = dodge_motion, float(dodge_speed)
+        self.dodge_ends_at = None
         self.moves_after_respawn = moves_after_respawn
         self.timed_tags = {}
         self.burn_rolls = 0
@@ -243,6 +245,13 @@ class CombatWorld(fb.FakeWorld):
             self.kill_player()
 
     def _move(self, dt):
+        if (self.dodge_motion and not self.is_dead
+                and TAG_DODGING in self.timed_tags):
+            # The real dodge launches backward from the dummy. Until it settles, a walk_to W
+            # calibration tap can still produce net -X movement and must not be attempted.
+            self.pos[0] -= self.dodge_speed * dt
+            self.vel = [-self.dodge_speed, 0.0]
+            return
         if not self.moves_after_respawn and self.respawns and not self.is_dead:
             self.vel = [0.0, 0.0]
             return
@@ -275,7 +284,8 @@ class CombatWorld(fb.FakeWorld):
                 return
             if key == "LeftAlt":
                 if self.attacks:
-                    self.timed_tags[TAG_DODGING] = now + 0.4
+                    self.dodge_ends_at = now + 0.4
+                    self.timed_tags[TAG_DODGING] = self.dodge_ends_at
                 return
         super()._on_key_pressed(key)
 
@@ -685,6 +695,23 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertNotIn("FAIL (NEW)", md)
         self.assertNotIn("Known issue N2", md)
         self.assertIn("Block and parry", md)
+
+    def test_kill_waits_for_dodge_to_settle_before_walk_calibration(self):
+        world, server = self.serve(**game_today(dodge_motion=True))
+        code, rep = self.play(server)
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        check = self.by_name(rep)["kill_enemy_melee"]
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertIn("for the attack/dodge to settle", check["detail"])
+
+        alt_down = next(t for t, action, key in world.input_log
+                        if action == "down" and key == "LeftAlt")
+        movement_after = next(t for t, action, key in world.input_log
+                              if action == "down" and key in {"W", "A", "S", "D"}
+                              and t > alt_down)
+        self.assertIsNotNone(world.dodge_ends_at)
+        self.assertGreaterEqual(movement_after + 0.01, world.dodge_ends_at,
+                                "walk_to calibration must not run against residual dodge motion")
 
     def test_no_death_screen_fails_death_screen_as_new(self):
         # Issue #7 before its fix: the player dies and respawns, but no widget says 'You Died'
