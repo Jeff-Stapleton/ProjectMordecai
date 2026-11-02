@@ -131,6 +131,124 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 
 ## Completion Notes
 
+### PR #76 review closure, 2026-11-02
+This section supersedes the earlier issue #6 evidence below. Final delivered gameplay commit:
+`7942841ac6f61eae2b3d7ccebd4161570ce01996`.
+
+**Verification ladder.**
+- Build: `LyraEditor Win64 Development` PASS. Tier 1: **772/772 PASS**, 0 failed
+  (`Saved/TestLogs/tests-20261102-145550.log`).
+- Tier 2: `py Scripts/run_pie_verify.py` **16/16 scripts PASS**. The HUD `[LOGIC]` diagnostic now supplies the
+  player's PlayerState when directly killing its victim.
+- Python tooling: **580/580 PASS**. US-086 and US-054 story lints PASS. Content guard PASS; no content changed.
+- Clean package: `PackagedBuilds/Playtest/build_info.json` records `7942841ac6`, `dirty=false`, zero dirty files,
+  `source_changed_during_build=false`, Development config and all four default maps
+  (`Saved/Playtests/package-20261102-154119.log`). No cited run used `--allow-stale`.
+- Standalone Tier 3: `Saved/Playtests/20261102-160233-boot`, PASS, exit 0.
+- Focused Tier 3 + Tier 4: `Saved/Playtests/20261102-160318-story-us086`, PASS, exit 0, acceptance candidate.
+  - Tier 3 `Saved/Playtests/20261102-160318-boot`: `B_MordecaiArenaExperience`, cooked content, Mordecai loading
+    screen, no crash, 3/3 engine frames and 0 errors all PASS. Desktop frames were covered, so engine frames are cited.
+  - Tier 4 `Saved/Playtests/20261102-160337-us054combat`: **31 PASS / 1 unrelated WARN / 0 FAIL / 0 SKIP**.
+    Real LMB kills the 200-HP TestDummy in 33.781 s; maximum measured click-start gap is 0.250 game seconds
+    (limit 0.4). HUD/player reach 1. While dead, the DeathScreen reads 1 while HUD/player read 0. Respawn and
+    `ResetArena` leave both at 0. The WARN is the known BasicSlash/Burning map limitation.
+- Full sweep: `Saved/Playtests/20261102-160529-sweep`. All three Tier 3 boots PASS; there are **no NEW failures**.
+  Per Tier 4 script: us001 27/4 known (#33/#34); us054_arena 16/2 known (closed #19/#46, open #22);
+  **us054_combat 31/0**; us057 21/6 known (#13/#20/#21/#35); us069 32/3 known (#9/#10);
+  us078 19/2 known (#8/#14); us079 56/0; us083 28/0; us101 21/0.
+
+**Screenshot review.**
+- `160318-boot/engine_loading.png`: centered `PROJECT MORDECAI` and `Loading...`, not Lyra branding.
+- `engine_01.png`–`engine_03.png`: CombatTestMap grid, player near centre, full-health blue-grey TestDummy
+  above/right, full HUD and SP 10/10, `Kills: 0`, and `[I] Inventory`; yellow text is pre-existing issue #29.
+- `160337-us054combat/bridge_01.png`: player at spawn, full HUD and `Kills: 0`.
+- `bridge_02.png`: player immediately beside the full-health TestDummy.
+- `bridge_03.png`: dummy gone/dead, empty floating bar, visible `Kills: 1`.
+- `bridge_04.png`: player beside the orange TestAttacker with reduced health; `Kills: 1` remains visible.
+- `bridge_05.png`: dimmed arena with `You Died`, countdown `3`, centred `Kills: 1`, and persistent HUD `Kills: 0`.
+- `bridge_06.png`: full-health respawn, HUD `Kills: 0`, no death overlay/dimming, reset enemies visible.
+
+**Final AC evidence.**
+- AC-086.1: `ShownOnDeathRemovedOnRespawn`; Tier 4 `death_screen` + `death_screen_removed`;
+  `bridge_05.png` + `bridge_06.png`.
+- AC-086.2: `BuildsDefaultContent`; explicit packaged acceptance mapping on `death_screen`; populated
+  `bridge_05.png`.
+- AC-086.3: `IncrementsOnPlayerKill`, `ResetsOnPlayerDeath`, `PostDeathKillDoesNotLeak`,
+  `ResetArenaResetsKillCount`, `DeathIsIdempotentForKillAccounting`, `RebindsAfterHUDRebuild`,
+  `LateBindPreservesCompletedLifeKills`, `CountsPlayerDamageSources`, and `RejectsNonPlayerDeaths`;
+  Tier 4 `kill_counter_increments`, `death_count_split`, `kill_counter_text_matches`;
+  `bridge_03.png`, `bridge_05.png`, `bridge_06.png`.
+- AC-086.4: Tier 4 `death_screen` within 1.5 s; `bridge_05.png`.
+- AC-086.5: Tier 4 real-input `kill_enemy_melee` + `kill_counter_increments`; `bridge_03.png`.
+
+**Scope decision.** Only player-caused enemy deaths count, including melee, projectile, spell and player-applied
+Burning GAS contexts. Environmental, self, enemy and other non-player deaths count zero. Issue #6 remains
+single-player. Remote-client replication and per-player counts/reset are explicitly deferred to issue #77; the
+death path already carries `APlayerState*` as its future per-player key.
+
+#### Post-mortem 1 — post-death kill leakage
+**Assumed:** resetting once in `NotifyPlayerDeath` made the next life start at zero. **Actual:** a delayed
+projectile/DoT kill in the respawn window incremented the already-reset count, and neither `ExecuteRespawn` nor
+`ResetArena` cleared it. **Why tests missed it:** they ended immediately after direct death reset. **Fix/regression:**
+cache the completed life, reject accounting while respawn is pending, and reset at both later boundaries;
+`PostDeathKillDoesNotLeak` and `ResetArenaResetsKillCount` were red first.
+
+#### Post-mortem 2 — non-idempotent enemy death
+**Assumed:** the Health callback's `!IsDead()` check protected `EnterDeathState`. **Actual:** its public Blueprint call
+could run twice, stack `State.Dead`, count twice and survive one-tag reset. **Why tests missed it:** the old test only
+asserted the bool stayed dead and did not inspect tag count or GameMode notifications. **Fix/regression:**
+`EnterDeathState` guards itself and GameMode deduplicates enemy objects;
+`Mordecai.Enemy.DeathIsIdempotentForKillAccounting` was red first and requires notifications `[1, 2]` for two
+distinct enemies.
+
+#### Post-mortem 3 — weak Tier 1 wiring
+**Assumed:** direct `BindToGameMode` plus `NotifyEnemyKilled(nullptr)` represented production. **Actual:** those calls
+bypassed enemy death, world GameMode lookup, `BindToASC` and rendered text. **Why tests missed it:** no real world,
+enemy or TextBlock was involved. **Fix/regression:** kill-counter tests install the production GameMode, bind through
+the player ASC, kill real enemies and assert `KillCountText`; all null victims were removed.
+
+#### Post-mortem 4 — HUD rebuild unbinding
+**Assumed:** a non-null controller widget pointer meant the HUD remained bound. **Actual:** Slate teardown ran child
+`NativeDestruct`, while `CreateCombatHUD` returned early for the retained UObject. **Why tests missed it:** no test
+destroyed/rebuilt the Slate tree. **Fix/regression:** the HUD caches the ASC and rebinds from `NativeConstruct`; the
+controller re-adds/rebinds retained HUDs; `RebindsAfterHUDRebuild` was red first.
+
+#### Post-mortem 5 — late death-screen bind
+**Assumed:** the death component always observed `State.Dead` before GameMode reset. **Actual:** binding while already
+dead read the current zero. **Why tests missed it:** the prior late-bind check had no authoritative GameMode reset.
+**Fix/regression:** GameMode caches the completed life and exposes the death-screen value while respawn is pending;
+`LateBindPreservesCompletedLifeKills` was red first.
+
+#### Post-mortem 6 — Tier 4 death-screen false pass
+**Assumed:** accepting any `Kills: N` was harmless when `kills_after_dummy` was unset. **Actual:** a failed increment
+could still let `death_screen` PASS. **Why tests missed it:** the fake always established the expected count before
+death. **Fix/regression:** expected count is mandatory and class-specific `death_count_split` proves
+DeathScreen=1/HUD=0/player=0. The new offline negative tests were red first.
+
+#### Post-mortem 7 — cadence evidence
+**Assumed:** `click.simulated_s` measured click-start spacing. **Actual:** it is only button hold duration; the old test
+masked a 0.42 s delay by overwriting it with 0.4. Correct world-time measurement exposed 0.467 s in
+`Saved/Playtests/20261102-061831-us054combat`. Blocking round trips, back-to-back holds and same-tick pulses then
+exposed separate release/recovery problems in `084540`, `121657` and `141827` runs. **Why tests missed it:** the fake
+had no dodge motion, frame hitch, input release observation or ability recovery cadence. **Fix/regressions:**
+click responses expose `started_world_time_s`; pipelined ordinary taps include a released frame; Mordecai caps each
+undilated frame at 0.2 s so two input-observation frames fit the 0.4 bound; recovery and bad-gap tests are permanent.
+
+#### Post-mortem 8 — acceptance and known-issue metadata
+**Assumed:** logic AC-086.2 could remain absent from the packaged summary and prose backlog references were enough.
+**Actual:** AC-086.2 read `NOT PROVEN BY A STEP`, and five pre-existing sweep groups appeared NEW. **Why tests missed
+it:** lint checked valid IDs/order, not complete mapping or explicit issue numbers. **Fix/regression:** `death_screen`
+maps AC-086.2 and every pre-existing failing PLAN step names #8/#9/#10/#13/#14/#20/#21/#22/#33/#34/#35 or closed
+#19/#46. The final sweep reports no NEW failures.
+
+#### Post-mortem 9 — player-only attribution decision
+**Assumed:** every enemy death in the arena counted; the first review left attribution undecided. **Actual:** Jeff
+decided only player-caused damage counts. The first PIE diagnostic then failed because it directly killed an enemy
+without a player source. **Why tests missed it:** null victims and direct death had no GAS context. **Fix/regressions:**
+`PreGameplayEffectExecute` records/clears the context's player state before Health changes; periodic Burning preserves
+its original source; `CountsPlayerDamageSources` and `RejectsNonPlayerDeaths` cover all accepted/rejected categories;
+PIE now supplies its PlayerState explicitly. Multiplayer remains issue #77.
+
 ### Issue #6 half: the authoritative kill counter (N1), 2026-11-02
 **Status: AC-086.3 and AC-086.5 done; all US-086 ACs are verified.** Root cause: `RegisterGameplayTagEvent` observes ASC owned-tag count changes, not `HandleGameplayEvent`. Mordecai never granted `Mordecai.Event.EnemyKill` or `Mordecai.Event.PlayerDeath` as owned tags, while `AMordecaiGameMode` maintained the real count elsewhere. The widget therefore listened to a dead signal and kept a second value. The fix makes the GameMode count the one source of truth: it broadcasts each absolute value on kill and player-death reset, and the widget initializes from and follows that delegate.
 
