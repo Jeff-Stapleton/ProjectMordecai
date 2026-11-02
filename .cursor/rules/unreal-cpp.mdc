@@ -1,0 +1,14 @@
+---
+description: Unreal C++ (the game module, Mordecai code, plugin sources), the skills to read and the locked rules
+globs: Source/**/*.h, Source/**/*.cpp, Source/**/*.cs, Plugins/**/Source/**/*.h, Plugins/**/Source/**/*.cpp, Plugins/**/Source/**/*.cs
+alwaysApply: false
+---
+
+# Unreal C++
+
+- Read the `unreal-cpp` skill before writing C++, and the `unreal-gas` skill as well for abilities, attributes, effects or gameplay tags (`CLAUDE.md` "UE5 Reference Skills").
+- Mordecai code lives in `Source/LyraGame/Mordecai/` and extends Lyra (`CLAUDE.md` "Architecture"); follow its "Code Standards" and "What NOT To Do".
+- Locked by `Specs/agent_rules_v2.md`: UE 5.7 APIs; a camera that follows the character and never rotates; GAS for attributes, abilities and status effects; Iris replication, server-authoritative, no Replication Graph; unlimited carry with town gating, no bag slots; data-driven DataAssets.
+- No PIE-only setup: never gate gameplay on `IsPlayInEditor()`, `GIsEditor`, `WITH_EDITOR` or `LyraDeveloperSettings` (§3 "NO PIE-ONLY BEHAVIOR").
+- Content that C++ loads by a path string is invisible to the cooker (§3 "CONTENT MUST BE COOKED"); keep `/MordecaiCore` in `DirectoriesToAlwaysCook`.
+- When a problem cost real debugging time, add the lesson to `.claude/skills/unreal-tribal-knowledge/SKILL.md`, then run `py Scripts/sync_cursor_config.py`.

@@ -1,0 +1,11 @@
+---
+description: Map, level, cell and world-building work (DA_Cell_* metadata, PM_* gameplay markup, biomes, height tiers, combat pockets, encounters)
+alwaysApply: false
+---
+
+# World building
+
+- Read `Specs/map_style_technical_design_v1.md` and `Specs/agentic_map_pipeline_v1.md` first (`Specs/agent_rules_v2.md` §8).
+- Create the `DA_Cell_<Biome>_<NN>` metadata asset before any geometry. The gameplay markup layer (`PM_*`) is the source of truth for walkability, collision, ledges and cover, and it wins over art.
+- Use the declared height tiers and the standard combat-pocket archetypes, and keep pocket centers clear.
+- Stop and ask Jeff before you change the biome graph, introduce a gate type, or change the height-tier rules, the connection-socket standards or the progression sequence (§8 "Human Approval Required").

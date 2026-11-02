@@ -1,0 +1,14 @@
+---
+description: Claude Code and Cursor agent config, which side is the source and how to keep them in sync
+globs: CLAUDE.md, .mcp.json, .claude/**, .cursor/**, docs/agent-config.md
+alwaysApply: false
+---
+
+# Agent config: Claude Code and Cursor
+
+`docs/agent-config.md` has the full map. In short:
+- `CLAUDE.md` is the rulebook for both tools, and Cursor loads it too. Put rules there or in `Specs/agent_rules_v2.md`; `.cursor/rules/` holds only Cursor-specific facts and pointers.
+- `.claude/skills/` is the source of every skill and `.mcp.json` the source of the MCP servers; `.cursor/skills/` and `.cursor/mcp.json` are generated from them (script paths become `./<path>`, which both the IDE and the CLI resolve). After editing a source, run `py Scripts/sync_cursor_config.py` and commit both sides. `--check` exits 1 on drift, and `py Scripts/run_python_tests.py` fails until they match.
+- Never edit a generated file by hand, and never delete or replace the Claude files.
+- `.claude/settings*.json` hold Jeff's local Claude permissions and are not in git. Their Cursor counterparts: `.cursor/hooks.json` with `.cursor/hooks/guard_git.py` (the deny list, on every Cursor surface), `.cursor/cli.json` (Cursor CLI allow/deny) and `.cursor/permissions.json` (Auto-review guidance in the IDE).
+- Leave no Cursor or Claude runtime files in the repo: `package_playtest.py` counts them as a dirty tree.

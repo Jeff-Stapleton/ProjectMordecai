@@ -1,0 +1,13 @@
+---
+description: UE automation tests in Source/LyraGame/Tests (naming, red first, judging a run)
+globs: Source/LyraGame/Tests/**
+alwaysApply: false
+---
+
+# Unreal automation tests
+
+- Read the `unreal-testing` skill first, and follow `CLAUDE.md` "Test Standards".
+- Name tests `Mordecai.<Feature>.<Behavior>` and put them in the feature's folder under `Source/LyraGame/Tests/`.
+- Write them before the implementation and watch them fail for the right reason. They run headless (NullRHI), without editor state or specific assets.
+- Judge a run only by `py Scripts/run_tests.py`'s exit code (0 passed, 1 a test failed, 2 infrastructure). A raw `UnrealEditor-Cmd ... Automation RunTests` exits 0 even when tests fail.
+- A filter such as `py Scripts/run_tests.py Mordecai.HitDetection` is for iterating; run every Mordecai test before you commit.
