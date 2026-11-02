@@ -237,8 +237,10 @@ the cadence check to FAIL. A blocking request/response loop can still add one no
 0.4-second click frame (the packaged run measured 0.467). Back-to-back pipelined holds remove that round trip but leave
 the button logically down across frames, so Enhanced Input sees no later taps. For repeated-input evidence,
 `Bridge.click_many` pipelines zero-duration Slate down/up pulses and a tiny `wait` after each: every pulse is a real
-mouse event pair, the wait gives Enhanced Input one released frame, and the client response adds no frame. The audit
-log has one `click` and one release-frame `wait` per tap.
+mouse event pair, the wait gives Enhanced Input released input, and the client response adds no frame. Pace that wait
+with `clock:"world"`, not real time: a 0.25 real-time wait plus a 0.4 simulated hitch produced a 0.65 game-time gap;
+the world-clock wait completes on the hitch boundary at 0.4 instead. The audit log has one `click` and one
+release-frame `wait` per tap.
 
 ---
 

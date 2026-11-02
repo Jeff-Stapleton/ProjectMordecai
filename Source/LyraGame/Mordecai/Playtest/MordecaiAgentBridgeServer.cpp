@@ -956,21 +956,43 @@ void FMordecaiAgentBridgeServer::HandleWait(FConnection& Connection, const FMord
 		Send(Connection, MakeErrorResponse(Request.Id, Request.Cmd, Error.Code, Error.Message));
 		return;
 	}
+	FString ClockName = TEXT("real");
+	Request.Args->TryGetStringField(TEXT("clock"), ClockName);
+	if (ClockName != TEXT("real") && ClockName != TEXT("world"))
+	{
+		Send(Connection, MakeErrorResponse(Request.Id, Request.Cmd, ErrBadRequest,
+			TEXT("'clock' must be 'real' or 'world'")));
+		return;
+	}
+	const bool bWorldClock = ClockName == TEXT("world");
+	UWorld* World = GameInstance.IsValid() ? GameInstance->GetWorld() : nullptr;
+	if (bWorldClock && !World)
+	{
+		Send(Connection, MakeErrorResponse(Request.Id, Request.Cmd, ErrNotReady,
+			TEXT("world-clock wait requires a game world")));
+		return;
+	}
 	FConnection* ConnectionPtr = &Connection;
 	const TSharedRef<FJsonObject> Response = MakeOkResponse(Request.Id, Request.Cmd);
 	Response->SetField(TEXT("seconds"), MakeNumber(Args.Seconds));
+	Response->SetStringField(TEXT("clock"), ClockName);
 	const double Seconds = Args.Seconds;
+	const double WorldStart = World ? World->GetTimeSeconds() : 0.0;
 
 	TUniquePtr<FPendingCommand> Pending = MakeUnique<FPendingCommand>();
 	Pending->Id = Request.Id;
 	Pending->Cmd = Request.Cmd;
-	Pending->Advance = [this, ConnectionPtr, Response, Now, Seconds](double TickNow)
+	Pending->Advance = [this, ConnectionPtr, Response, Now, Seconds, bWorldClock, WorldStart](double TickNow)
 	{
-		if (TickNow - Now < Seconds)
+		const UWorld* CurrentWorld = GameInstance.IsValid() ? GameInstance->GetWorld() : nullptr;
+		const double ElapsedWorld = CurrentWorld ? CurrentWorld->GetTimeSeconds() - WorldStart : 0.0;
+		const double Elapsed = bWorldClock ? ElapsedWorld : TickNow - Now;
+		if (Elapsed < Seconds)
 		{
 			return false;
 		}
 		Response->SetField(TEXT("elapsed_s"), MordecaiAgentBridge::MakeNumber(TickNow - Now));
+		Response->SetField(TEXT("elapsed_world_s"), MordecaiAgentBridge::MakeNumber(ElapsedWorld));
 		Send(*ConnectionPtr, Response);
 		return true;
 	};

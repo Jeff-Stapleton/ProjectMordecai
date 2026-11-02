@@ -2077,13 +2077,18 @@ class FakeBridgeServer:
 
     def _h_wait(self, c, req):
         seconds = _num(req, "seconds", required=True, lo=0, hi=600)
-        return self._wait(seconds)
+        clock = _str(req, "clock", "real", choices=("real", "world"))
+        return self._wait(seconds, clock)
 
-    def _wait(self, seconds):
+    def _wait(self, seconds, clock="real"):
         t_start = time.monotonic()
-        while time.monotonic() - t_start < seconds:
+        world_start = self.world.world_time
+        while ((self.world.world_time - world_start) if clock == "world"
+               else (time.monotonic() - t_start)) < seconds:
             yield
-        return {"seconds": seconds, "elapsed_s": _r(time.monotonic() - t_start, 3)}
+        return {"seconds": seconds, "clock": clock,
+                "elapsed_s": _r(time.monotonic() - t_start, 3),
+                "elapsed_world_s": _r(self.world.world_time - world_start, 3)}
 
     def _h_wait_until(self, c, req):
         text = req.get("condition")

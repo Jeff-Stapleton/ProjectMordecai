@@ -1132,8 +1132,8 @@ class Bridge:
 
     def click_many(self, count, x=None, y=None, button="Left", hold_s=0.1, release_s=0.001):
         """Pipeline repeated real-input clicks, with one observed release frame between taps."""
-        if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 512:
-            raise ValueError("count must be an integer in 1..512")
+        if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 1024:
+            raise ValueError("count must be an integer in 1..1024")
         if (x is None) != (y is None):
             raise ValueError("give both x and y, or neither")
         release_s = float(release_s)
@@ -1146,7 +1146,7 @@ class Bridge:
         for index in range(count):
             requests.append(("click", args))
             if index + 1 < count:
-                requests.append(("wait", {"seconds": release_s}))
+                requests.append(("wait", {"seconds": release_s, "clock": "world"}))
         timeout = count * max(0.6, float(hold_s) + release_s) + RESPONSE_SLACK_S
         responses = self.conn.request_many(requests, timeout=timeout)
         return [response for response in responses if response.get("cmd") == "click"]

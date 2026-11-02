@@ -906,6 +906,8 @@ class TestCppParity(FakeServerCase):
         self.assertTrue(gaps and max(gaps) <= 0.15, gaps)
         commands = [r.get("cmd") for r in self.server.received[-11:]]
         self.assertEqual(commands, ["click", "wait"] * 5 + ["click"])
+        waits = [r for r in self.server.received[-11:] if r.get("cmd") == "wait"]
+        self.assertEqual({r.get("clock") for r in waits}, {"world"})
         clicks = [r for r in self.server.received[-11:] if r.get("cmd") == "click"]
         self.assertEqual(len(clicks), 6)
 

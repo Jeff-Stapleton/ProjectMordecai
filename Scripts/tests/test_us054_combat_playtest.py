@@ -757,7 +757,7 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertIn("maximum game-time click-start gap 0.410s", check["detail"])
 
     def test_click_train_spans_enough_recovery_windows_to_kill_the_real_dummy(self):
-        _, server = self.serve(**game_today(attack_input_interval_s=0.65))
+        _, server = self.serve(**game_today(attack_input_interval_s=1.2))
         code, rep = self.play(server)
         self.assertEqual(code, 0, self.log.getvalue()[-4000:])
         check = self.by_name(rep)["kill_enemy_melee"]

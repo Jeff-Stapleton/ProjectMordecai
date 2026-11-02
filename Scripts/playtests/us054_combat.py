@@ -109,7 +109,8 @@ ATTACK_TIMEOUT_S = 1.0
 DODGE_TIMEOUT_S = 0.5
 KILL_TIMEOUT_S = 45.0
 KILL_CLICK_HOLD_S = 0.0                    # immediate Slate down/up pulse; click_many inserts a released frame
-KILL_CLICK_TRAIN_COUNT = 512              # spans enough recovery windows for the 200-HP dummy
+KILL_CLICK_INTERVAL_S = 0.001             # one observed released world frame between pulses
+KILL_CLICK_TRAIN_COUNT = 1024             # spans enough recovery windows for the 200-HP dummy
 KILL_MAX_GAME_TIME_GAP_S = 0.4          # story contract: no more than 0.4 world seconds between LMB starts
 KILL_COUNTER_TIMEOUT_S = 2.0
 PRE_KILL_SETTLE_TIMEOUT_S = 2.0
@@ -173,7 +174,8 @@ PLAN = (
     Step("kill_enemy_melee", "wait until the attack and dodge end and speed <= "
          f"{PRE_KILL_MAX_SPEED_CM_S:g} cm/s, walk_to({DUMMY_MELEE_SPOT[0]:g}, "
          f"{DUMMY_MELEE_SPOT[1]:g}) after the dodge if needed, then pipeline repeated Slate "
-         f"down/up light-click pulses at {ATTACK_POINT}, each separated by one released game "
+         f"down/up light-click pulses at {ATTACK_POINT}, each separated by "
+         "one released game frame "
          f"frame (never more than {KILL_MAX_GAME_TIME_GAP_S:g} game-world seconds between starts) "
          f"-> the {DUMMY} is dead within "
          f"{KILL_TIMEOUT_S:g}s",
@@ -683,7 +685,7 @@ class Us054CombatRun(kit.PlaytestRun):
             try:
                 click_responses = b.click_many(
                     KILL_CLICK_TRAIN_COUNT, *ATTACK_POINT, button="Left",
-                    hold_s=KILL_CLICK_HOLD_S)
+                    hold_s=KILL_CLICK_HOLD_S, release_s=KILL_CLICK_INTERVAL_S)
             except ab.BridgeError as e:
                 if e.kind != "gameplay":
                     raise
