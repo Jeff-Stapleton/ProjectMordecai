@@ -106,6 +106,7 @@ Read these when working on the relevant area — they contain patterns, pitfalls
 - Creating editor assets via Python → read `unreal-python-editor` SKILL.md
 - Debugging asset loading, experience, camera, or ability issues → read `unreal-tribal-knowledge` SKILL.md
 - **After solving any non-obvious problem** → ADD the lesson to `unreal-tribal-knowledge` SKILL.md
+- **After any change to `.claude/skills/` or `.mcp.json`** → run `py Scripts/sync_cursor_config.py`, then `py Scripts/sync_cursor_config.py --check` (exit 0), and commit both sides (`.cursor/` holds Cursor's generated copies)
 
 ## Project Paths
 - **Project Root:** `C:\Users\jeffd\Documents\Gamedev\ProjectMordecai`

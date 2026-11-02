@@ -33,8 +33,9 @@ Notes:
    - Every skill file is copied as is. Each `SKILL.md` gains Cursor `metadata` and a one-line "generated" banner.
    - In `.mcp.json` args, a repo-relative script path becomes `./<path>`.
    - A generated skill whose source is gone is removed; Cursor-only skills and MCP servers are kept.
-   - `--check` changes nothing and exits 1 on drift.
-3. **Commit both sides together.** `py Scripts/run_python_tests.py` fails while they differ (`test_sync_cursor_config.TestRepoInSync`).
+3. **Check, then commit both sides together.** `py Scripts/sync_cursor_config.py --check` changes nothing; it exits 0 when the copies match and 1 on drift, listing the files.
+   - `CLAUDE.md` ("When to read which skill") tells every agent, Claude Code and Cursor alike, to run the sync and `--check` after any change to `.claude/skills/` or `.mcp.json`.
+   - Nothing runs the check automatically: by Jeff's decision (2026-11-01), the Python suite does not test for drift.
 4. **After an MCP entry changes, approve it again**: Cursor keys approvals by a hash of the entry (`agent mcp enable mordecai-play`, or approve it in Customize).
 5. **Rules:** change a rule in `CLAUDE.md` or `Specs/agent_rules_v2.md`, not in `.cursor/rules/`. `mordecai-core-workflow.mdc` names `CLAUDE.md`'s Steps 1–7 and sections, so renumbering or renaming those means updating it.
 6. **Deny list:** a change to Claude's deny list also goes into `guard_git.py` and its tests (`Scripts/tests/test_cursor_git_guard.py`), the `deny` of `.cursor/cli.json`, and `.cursor/permissions.json`.

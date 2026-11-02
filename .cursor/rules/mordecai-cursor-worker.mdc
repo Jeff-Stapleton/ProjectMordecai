@@ -27,5 +27,5 @@ Nothing runs on push: the repo has no `.github/` workflows and no CI, and Bugbot
 ## Reading CLAUDE.md and the skills in Cursor
 - "The Read tool" is Cursor's Read tool; it opens PNG screenshots. Prefer Read, Grep and Glob to PowerShell pipelines; keep each shell call to one simple command, and put multi-step logic in a scratch script under `$env:TEMP`.
 - `mcp__mordecai-play__<tool>` is the `<tool>` of the `mordecai-play` MCP server, configured for Cursor in `.cursor/mcp.json`. Its sessions are exploration, never acceptance evidence.
-- `.claude/skills/<name>` is the source of each skill and `.cursor/skills/<name>` the generated copy that Cursor lists. To change a skill (a new `unreal-tribal-knowledge` lesson, for example), edit the `.claude/skills/` file, run `py Scripts/sync_cursor_config.py`, and commit both.
+- `.claude/skills/<name>` is the source of each skill and `.cursor/skills/<name>` the generated copy that Cursor lists. To change a skill (a new `unreal-tribal-knowledge` lesson, for example), edit the `.claude/skills/` file, run `py Scripts/sync_cursor_config.py` and then its `--check`, and commit both.
 - `.cursor/hooks/guard_git.py` denies what Jeff's Claude settings deny: any force push (`--force`, `--force-with-lease`, `-f`, a `+refspec`), `git reset --hard` and `git clean`. Do not work around it; ask Jeff.

@@ -1,8 +1,10 @@
 """Tests for Scripts/sync_cursor_config.py (Cursor copies of the Claude Code agent config).
 
-Conversion and drift run on throwaway repos in a temp dir. TestRepoInSync checks the real repo:
-it fails when .claude/skills or .mcp.json changed without regenerating .cursor/ (fix:
-py Scripts/sync_cursor_config.py, then commit .cursor/).
+Conversion and drift detection run on throwaway repos in a temp dir. Nothing here compares the
+real .cursor/ with the Claude originals: that check is manual (py Scripts/sync_cursor_config.py
+--check, which CLAUDE.md asks for after any change to .claude/skills/ or .mcp.json).
+TestCursorMcpRegistration pins the real .cursor/mcp.json entry, as test_mordecai_play_mcp.py
+pins .mcp.json.
 """
 
 import contextlib
@@ -189,12 +191,7 @@ class TestSyncTree(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(self.root, ".cursor")))
 
 
-class TestRepoInSync(unittest.TestCase):
-    def test_cursor_copies_match_the_claude_originals(self):
-        drift = [f"{kind} {rel}" for kind, rel, _ in scc.find_drift(PROJECT_ROOT)]
-        self.assertEqual(drift, [], ".cursor/ is out of date with .claude/skills or .mcp.json: "
-                                    "run py Scripts/sync_cursor_config.py and commit .cursor/")
-
+class TestCursorMcpRegistration(unittest.TestCase):
     def test_cursor_mcp_json_registers_mordecai_play(self):
         with open(os.path.join(PROJECT_ROOT, ".cursor", "mcp.json"), encoding="utf-8") as f:
             entry = json.load(f)["mcpServers"]["mordecai-play"]
