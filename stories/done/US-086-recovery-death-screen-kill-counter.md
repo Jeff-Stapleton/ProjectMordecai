@@ -27,9 +27,9 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 ## Acceptance Criteria
 - [x] AC-086.1: When the player dies, a `UMordecaiDeathScreenWidget` is pushed to the Lyra UI layer stack showing "You Died", a respawn countdown (ceiling integer) and "Kills: N"; it is removed on respawn — verified by `Mordecai.Recovery.DeathScreen.ShownOnDeathRemovedOnRespawn`
 - [x] AC-086.2: The death screen builds a default widget tree when its Blueprint/class has none (no blank widget) — verified by `Mordecai.Recovery.DeathScreen.BuildsDefaultContent`
-- [ ] AC-086.3: When an enemy killed by the player dies, the kill counter widget increments from the game mode's kill event (one source of truth: the counter shows the same number as `AMordecaiGameMode`'s count / `player.kills`), and resets on `Mordecai.Event.PlayerDeath` per AC-063.2 — verified by `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath`
+- [x] AC-086.3: When an enemy killed by the player dies, the kill counter widget increments from the game mode's kill event (one source of truth: the counter shows the same number as `AMordecaiGameMode`'s count / `player.kills`), and resets on `Mordecai.Event.PlayerDeath` per AC-063.2 — verified by `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath`
 - [x] AC-086.4: In the packaged build, after the enemies have killed the player, the player sees the death screen within 1.5 s — verified by check `death_screen` of `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap: the TestAttacker kills the player)
-- [ ] AC-086.5: In the packaged build, the player kills the TestDummy (200 HP, never attacks) with light attacks (LMB) and the HUD reads "Kills: 1" — verified by NEW checks `kill_enemy_melee` and `kill_counter_increments` added to `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap), and `kill_counter_text_matches` still PASSes
+- [x] AC-086.5: In the packaged build, the player kills the TestDummy (200 HP, never attacks) with light attacks (LMB) and the HUD reads "Kills: 1" — verified by NEW checks `kill_enemy_melee` and `kill_counter_increments` added to `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap), and `kill_counter_text_matches` still PASSes
 
 ## Technical Notes
 - Death screen: create it from the player controller / HUD owner on the PlayerDeath event (the same signal US-053 uses), via Lyra's `UCommonUIExtensions::PushContentToLayer_ForPlayer` on the `UI.Layer.Game` (or `GameMenu`) layer; pass `RespawnDelay` from the game mode and the session kill count.
@@ -44,14 +44,14 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - Remove the `known_issue` (N2) from `death_screen` in `us054_combat.py`, and its KNOWN_ISSUES lines for N2 and "kills no enemy, so kill_counter_text_matches can only compare 'Kills: 0'".
 - The death itself comes from the TestAttacker at the fight spot (2000, 0), as today (`walk_to_attacker` .. `player_dies`). The TestDummy never attacks, so the kill step cannot kill the player.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
-- **Delivered in two halves (2026-10-30).** The death screen (N2, issue #7: AC-086.1, AC-086.2, AC-086.4) is fixed first, on branch `fix/issue-7-death-screen`. The kill counter (N1, issue #6: AC-086.3, AC-086.5) follows. The story stays in progress until both are done.
+- **Delivered in two halves (completed 2026-11-02).** The death screen (N2, issue #7: AC-086.1, AC-086.2, AC-086.4) landed first on branch `fix/issue-7-death-screen`. The kill counter (N1, issue #6: AC-086.3, AC-086.5) is the second half; both are now verified on the clean package of `9bd6cea`.
 - **Death screen as built (issue #7):**
   - `UMordecaiDeathScreenComponent` on `AMordecaiPlayerController`, bound in `OnPossess` for a local controller, next to the combat HUD. It listens for `Mordecai.State.Dead` on the PlayerState ASC (`RegisterGameplayTagEvent`, NewOrRemoved). That tag is the one signal for both directions: there is no respawn event, and `Event.PlayerDeath` changes no tag count.
   - On the tag it pushes `UMordecaiDeathScreenWidget::StaticClass()` (no content) onto `UI.Layer.Game` through `UPrimaryGameLayout::PushWidgetToLayerStack`, with `InitializeDeathScreen(RespawnDelaySeconds, GetEnemyKillCount())` in the init function, so a pooled instance is set up again on every death. When the tag is removed, it calls `FindAndRemoveWidgetFromLayer`.
   - Layer: `UI.Layer.Game`, which is empty in Mordecai and sits below the pause menu (`Menu`) and Lyra's dialogs (`Modal`). US-062's "UI.Layer.Modal" note is superseded.
   - The widget builds its own tree in `NativeOnInitialized` when it has none: a full-screen dim with "You Died", the countdown and "Kills: N" as `UTextBlock`s in its own tree (what the bridge reads). The root is HitTestInvisible.
   - Tier 1 pushes through a real `UCommonActivatableWidgetStack` in a test layout (`Tests/Recovery/MordecaiRecoveryTestLayout.h`). The component's `SetLayoutOverride` and `SetGameModeOverride` exist for that test, because the headless world has no UI policy and no auth game mode.
-  - The kill count on the death screen is `AMordecaiGameMode::GetEnemyKillCount()`, the number the bridge reports as `player.kills`. The HUD counter is N1's. Once the kill path lands, `death_screen` can also compare the screen's N with `player.kills`. Today both are 0.
+  - The kill count on the death screen is `AMordecaiGameMode::GetEnemyKillCount()`, the number the bridge reports as `player.kills`. The issue #6 playtest proves the HUD and bridge state reach 1 together, the death screen preserves `Kills: 1`, and the authoritative count and HUD reset to 0 after death/respawn.
   - Found by the review of the fix:
     - The pause menu can open while the player is dead, because Escape is bound on the controller and only the pawn's input is disabled. It pauses the world and the respawn timer. The countdown therefore holds while the world is paused (`TickCountdown`).
     - The screen's input config stays on the viewport after it goes, because CommonUI restores none. It therefore uses the project's capture mode, `CapturePermanently_IncludingInitialMouseDown`.
@@ -108,19 +108,53 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - **Playable alone:** YES (after US-083, US-084, US-085)
 
 ## Definition of Done
-- [ ] All ACs checked off
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: none expected; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST (code + us054_combat script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
-- [ ] `py Scripts/playtest_story.py US-086` (Tier 3 + Tier 4) on that same fresh package: `death_screen`, `death_screen_removed`, `kill_enemy_melee`, `kill_counter_increments`, `kill_counter_text_matches` PASS and the summary's Acceptance criteria table shows AC-086.1, AC-086.4 and AC-086.5 accepted; no check that PASSed in the sweep now FAILs; `py Scripts/playtest_story.py US-086 --lint` and `US-054 --lint` exit 0 — never `--allow-stale`
-- [ ] Known issues N1 and N2 marked FIXED in `Specs/agent_playtest_plan_v1.md` with the run dir
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-086]` closing commit
-- [ ] Pushed; story moved to `stories/done/` only after all of the above pass
+- [x] All ACs checked off
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [x] Content: none expected; `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST (code + us054_combat script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
+- [x] `py Scripts/playtest_story.py US-086` (Tier 3 + Tier 4) on that same fresh package: `death_screen`, `death_screen_removed`, `kill_enemy_melee`, `kill_counter_increments`, `kill_counter_text_matches` PASS and the summary's Acceptance criteria table shows AC-086.1, AC-086.4 and AC-086.5 accepted; no check that PASSed in the sweep now FAILs; `py Scripts/playtest_story.py US-086 --lint` and `US-054 --lint` exit 0 — never `--allow-stale`
+- [x] Known issues N1 and N2 marked FIXED in `Specs/agent_playtest_plan_v1.md` with the run dir
+- [x] Every cited screenshot (`engine_loading.png`, `engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
+- [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-086]` closing commit
+- [x] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
+
+### Issue #6 half: the authoritative kill counter (N1), 2026-11-02
+**Status: AC-086.3 and AC-086.5 done; all US-086 ACs are verified.** Root cause: `RegisterGameplayTagEvent` observes ASC owned-tag count changes, not `HandleGameplayEvent`. Mordecai never granted `Mordecai.Event.EnemyKill` or `Mordecai.Event.PlayerDeath` as owned tags, while `AMordecaiGameMode` maintained the real count elsewhere. The widget therefore listened to a dead signal and kept a second value. The fix makes the GameMode count the one source of truth: it broadcasts each absolute value on kill and player-death reset, and the widget initializes from and follows that delegate.
+
+**Tier 1 and tooling.**
+- `LyraEditor Win64 Development` build: PASS at `9bd6cea`.
+- `py Scripts/run_tests.py`: **764/764 PASS**, 0 failed (`Saved/TestLogs/tests-20261102-031117.log`). `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `.ResetsOnPlayerDeath` both report `Result={Success}`.
+- `py Scripts/run_python_tests.py`: **576/576 PASS**, including `test_kill_waits_for_dodge_to_settle_before_walk_calibration` and `test_click_cadence_uses_simulated_time_across_a_frame_hitch`.
+- `py Scripts/playtest_story.py US-086 --lint` and `US-054 --lint`: PASS. `py Scripts/check_content_committed.py`: PASS; no content was expected or changed.
+
+**Tier 2.** `py Scripts/run_pie_verify.py`: **16/16 scripts PASS**. `verify_pie_hud.py` reports 12/12 checks PASS, including its explicitly diagnostic `[LOGIC]` checks that a direct enemy death increments the GameMode and that the HUD follows it. This is integration evidence only; Tier 4 below proves the player input path.
+
+**Clean package.** `PackagedBuilds/Playtest/build_info.json` records commit `9bd6ceaffd0b6c59d8f5bdd82f76199da10c42ef` on `cursor/fix-kill-counter-9069`, `dirty=false`, zero dirty files, `source_changed_during_build=false`, Development config, and all four default maps (`Saved/Playtests/package-20261102-022558.log`). No cited run used `--allow-stale`.
+
+**Tier 3 + Tier 4.** `py Scripts/playtest_story.py US-086`: PASS, exit 0, acceptance candidate (`Saved/Playtests/20261102-031524-story-us086/summary.md`).
+- Tier 3 `Saved/Playtests/20261102-031524-boot`: PASS, exit 0. The package identifies and loads `B_MordecaiArenaExperience`; `build_fresh`, `no_crash`, `content_cooked`, Mordecai `loading_screen`, and all 3 engine screenshots PASS; 0 log errors. Desktop shots were partly covered, so the unobstructed engine frames are the cited evidence.
+  - `engine_loading.png`: black Mordecai loading screen with centered `PROJECT MORDECAI` and `Loading...`, not Lyra branding.
+  - `engine_01.png`–`engine_03.png`: CombatTestMap's grey measuring-grid floor, player near centre, blue-grey TestDummy above/right under a red health bar, full Mordecai HUD bars and SP 10/10 at top-left, `Kills: 0` at top-right, and `[I] Inventory` at bottom. The yellow on-screen config warnings are pre-existing issue #29.
+- Tier 4 `Saved/Playtests/20261102-031544-us054combat`: PASS, exit 0, **30 PASS / 1 WARN / 0 FAIL / 0 SKIP**, acceptance candidate. `kill_enemy_melee`, `kill_counter_increments`, `death_screen`, `death_screen_removed`, `arena_reset`, and `kill_counter_text_matches` all PASS. Real LMB kills the 200-HP TestDummy (health 200 → 0), and the HUD plus `player.kills` reach 1. The death screen preserves `Kills: 1`; after death/respawn the GameMode/bridge state and HUD both read 0. The one WARN is unrelated: CombatTestMap's BasicSlash cannot exercise Burning.
+  - `bridge_01.png`: player at CombatTestMap's spawn, TestDummy above/right, full HUD, `Kills: 0`.
+  - `bridge_02.png`: player immediately beside the full-health TestDummy, still `Kills: 0`.
+  - `bridge_03.png`: TestDummy gone/dead, its empty bar at the spawn, and visible `Kills: 1` at top-right.
+  - `bridge_04.png`: player beside the orange TestAttacker after a hit; health is below full and `Kills: 1` remains visible.
+  - `bridge_05.png`: dimmed arena with red `You Died`, countdown `3`, and centered `Kills: 1`; the persistent HUD has already reset to `Kills: 0`.
+  - `bridge_06.png`: respawn frame at the PlayerStart with full health, `Kills: 0`, no death overlay or dimming, and reset enemies visible at their spawns.
+
+**AC evidence.**
+- AC-086.1: Tier 1 `ShownOnDeathRemovedOnRespawn`; Tier 4 `death_screen` + `death_screen_removed`; `bridge_05.png` + `bridge_06.png`.
+- AC-086.2: Tier 1 `BuildsDefaultContent`; the native fallback is visibly populated in `bridge_05.png`.
+- AC-086.3: Tier 1 `IncrementsOnPlayerKill` + `ResetsOnPlayerDeath`; Tier 4 `kill_counter_increments` + `kill_counter_text_matches`; `bridge_03.png`, `bridge_05.png`, `bridge_06.png`.
+- AC-086.4: Tier 4 `death_screen` within 1.5 s; `bridge_05.png`.
+- AC-086.5: Tier 4 real-input `kill_enemy_melee` + `kill_counter_increments`; `bridge_03.png`.
+
+**Full regression sweep.** `py Scripts/playtest_story.py --all` on the same package: `Saved/Playtests/20261102-031725-sweep`, overall exit 1 only because unrelated pre-existing checks remain open. All three Tier 3 boots PASS. Per Tier 4 script: us001 27 PASS / 4 FAIL (issues #33, #34); us054_arena 16/2 (retained DevTestMap placement from closed #19/#46, plus enemy indicators #22); **us054_combat 30/0**; us057 21/6 (issues #13, #20, #21, #35); us069 32/3 (issues #9, #10); us078 19/2 (issues #8, #14); us079 56/0; us083 28/0; us101 21/0. These are the same failing checks and counts as the 2026-10-30 pre-fix sweep where comparable; no prior PASS became FAIL, and the three new issue #6 checks in us054_combat all PASS.
 
 ### Post-mortem: first issue #6 Tier 4 attempt, 2026-11-02
 **Expected:** after `dodge_lalt`, `kill_enemy_melee` would immediately use `walk_to(440, 600)` to return to the TestDummy and begin the LMB kill loop. **Actual:** the fresh-package run `Saved/Playtests/20261102-005453-us054combat` failed before the loop: `walk_to` tapped W for its direction calibration while the dodge impulse was still sliding the pawn backward, so the pawn moved −2.1 cm instead of +X and the bridge correctly reported a movement-mapping mismatch. **Wrong assumption:** the offline `CombatWorld` gave the dodge a tag but no movement, so it could not expose a calibration started against residual velocity. The script now waits for the Attacking/Dodging tags to end and planar speed to fall to 5 cm/s before calling `walk_to`; `test_kill_waits_for_dodge_to_settle_before_walk_calibration` permanently models the backward dodge and requires the first post-dodge movement key to occur after it settles. This failed run accepts no AC.
@@ -129,7 +163,7 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 **Expected:** the loop's 0.3 s target cadence would keep every LMB start within the required 0.4 game seconds. **Actual:** `Saved/Playtests/20261102-014036-us054combat` killed the TestDummy (200 → 0), the death screen later showed `Kills: 1`, and the arena restored the dummy, but `kill_enemy_melee` marked itself FAIL because one pair of request timestamps was 0.469 wall seconds apart. The bridge transcript shows why: that click was held through one hitch capped at 0.4 simulated seconds (`simulated_s: 0.4`), and the next click began immediately after the response. **Wrong assumption:** wall-clock request spacing equals game-time input spacing; during a blocked game frame there is no intervening simulation or input opportunity. The check now enforces `max(0.3 target cadence, click simulated_s) <= 0.4` and reports wall spacing only as environment data. `test_click_cadence_uses_simulated_time_across_a_frame_hitch` permanently injects a >0.4 s wall delay with a 0.4 s simulated click and requires the kill check to pass. This failed run accepts no AC.
 
 ### Issue #7 half: the death screen (N2), 2026-10-30
-**Status: AC-086.1, AC-086.2 and AC-086.4 done.** AC-086.3 and AC-086.5 (the kill counter, N1, issue #6) are still open, so the story stays in progress. As built: see "Death screen as built" in the Technical Notes. Delivered commit `8486aa1` (code `892cb1d`) on `fix/issue-7-death-screen`.
+**Status at delivery: AC-086.1, AC-086.2 and AC-086.4 done.** AC-086.3 and AC-086.5 were left for the issue #6 half documented above. As built: see "Death screen as built" in the Technical Notes. Delivered commit `8486aa1` (code `892cb1d`) on `fix/issue-7-death-screen`.
 
 **Tier 1.** `py Scripts/run_tests.py`: 739/739 (`Saved/TestLogs/tests-20261030-112526.log`).
 - `Mordecai.Recovery.DeathScreen.ShownOnDeathRemovedOnRespawn`, `BuildsDefaultContent`, `CountdownHoldsWhilePaused` and `KeepsTheViewportCaptureMode` were each red before their fix.
