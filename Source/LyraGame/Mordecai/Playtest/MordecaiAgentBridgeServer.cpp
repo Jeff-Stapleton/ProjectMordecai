@@ -830,6 +830,20 @@ void FMordecaiAgentBridgeServer::HandleClick(FConnection& Connection, const FMor
 	const FKey Button = Args.Button;
 	FConnection* ConnectionPtr = &Connection;
 
+	// A zero-duration click is an OS-style pulse: Slate receives a real down and up now, then a queued wait command
+	// lets Enhanced Input observe the released state for one world frame before the next pulse. This prevents a
+	// 0.4-second hitch frame plus a response round trip from violating a repeated-input cadence.
+	if (Args.HoldSeconds <= 0.0)
+	{
+		Input.ReleaseMouseButton(Button, Absolute, CurrentModifiers());
+		Connection.HeldButtons.RemoveAll([&](const FHeldButton& Held) { return Held.Key == Button; });
+		Env.bVirtualCursor = Env.bVirtualCursor && FMordecaiAgentBridgeInput::IsVirtualCursorActive();
+		Response->SetObjectField(TEXT("env"), Env.ToJson());
+		MordecaiAgentBridgeServerPrivate::AddHoldFields(Response, Clock, Now);
+		Send(Connection, Response);
+		return;
+	}
+
 	TUniquePtr<FPendingCommand> Pending = MakeUnique<FPendingCommand>();
 	Pending->Id = Request.Id;
 	Pending->Cmd = Request.Cmd;

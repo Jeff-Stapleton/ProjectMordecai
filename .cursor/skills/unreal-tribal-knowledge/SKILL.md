@@ -239,9 +239,11 @@ PASS.
 **Fix:** click responses report `started_world_time_s`, sampled when mouse-down is injected. Measure consecutive
 start-to-start gaps from that field. An offline regression injects a 0.410 world-time gap with a 0.05 hold and requires
 the cadence check to FAIL. A blocking request/response loop can still add one normal frame after a hitch-capped
-0.4-second click frame (the packaged run measured 0.467). For repeated-input evidence, pipeline ordinary click request
-lines with `Bridge.click_many`: the server releases one click and starts the already-queued next click in the same
-bridge tick. The audit log still has one real `click` request per input.
+0.4-second click frame (the packaged run measured 0.467). Back-to-back pipelined holds remove that round trip but leave
+the button logically down across frames, so Enhanced Input sees no later taps. For repeated-input evidence,
+`Bridge.click_many` pipelines zero-duration Slate down/up pulses and a tiny `wait` after each: every pulse is a real
+mouse event pair, the wait gives Enhanced Input one released frame, and the client response adds no frame. The audit
+log has one `click` and one release-frame `wait` per tap.
 
 ---
 

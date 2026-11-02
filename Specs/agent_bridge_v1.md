@@ -68,10 +68,12 @@ Each input response reports in `env` whether it did any of these (`focus_restore
 - A `click` response also reports `started_world_time_s`, sampled from `UWorld::GetTimeSeconds()` when the mouse
   button goes down. This is the field for measuring spacing between click starts. `simulated_s` is only that one
   click's button-down hold duration and must never be used as a start-to-start interval.
-- `Bridge.click_many(...)` pipelines ordinary `click` request lines on one connection. The server's strict arrival
-  ordering releases one button hold and starts the next click in the same bridge tick, so a client response
-  round-trip cannot add another simulated frame to the cadence. `bridge.jsonl` still contains one auditable real-input
-  command and response per click; this is not a gameplay shortcut.
+- A `click` with `hold_s: 0` is an immediate Slate down/up pulse (`frames: 0`, `simulated_s: 0`). It still injects
+  both real mouse events; it is not a direct Enhanced Input or gameplay call.
+- `Bridge.click_many(...)` pipelines ordinary zero-duration `click` requests on one connection with a tiny `wait`
+  between them. That wait makes the game observe one released frame before the next pulse, while strict server ordering
+  removes the client response round-trip. `bridge.jsonl` still contains one auditable real-input command/response per
+  click and each release-frame wait; this is not a gameplay shortcut.
 - Auto-repeat still runs on wall time, as a real device's does. A tap that must stay down for its minimum frames through a hitch longer than the repeat delay can get one repeat event. No playtest reads gamepad or keyboard repeats.
 
 **Connections**

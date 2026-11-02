@@ -108,7 +108,7 @@ ATTACK_POINT = (640, 360)              # the viewport centre: the game view, no 
 ATTACK_TIMEOUT_S = 1.0
 DODGE_TIMEOUT_S = 0.5
 KILL_TIMEOUT_S = 45.0
-KILL_CLICK_HOLD_S = 0.2                    # queued press duration; still below the heavy-attack threshold
+KILL_CLICK_HOLD_S = 0.0                    # immediate Slate down/up pulse; click_many inserts a released frame
 KILL_CLICK_TRAIN_COUNT = 48               # enough light-input opportunities for the 200-HP dummy
 KILL_MAX_GAME_TIME_GAP_S = 0.4          # story contract: no more than 0.4 world seconds between LMB starts
 KILL_COUNTER_TIMEOUT_S = 2.0
@@ -172,9 +172,10 @@ PLAN = (
          "or a displacement > 150 cm", proves=("AC-054.6", "AC-054.5")),
     Step("kill_enemy_melee", "wait until the attack and dodge end and speed <= "
          f"{PRE_KILL_MAX_SPEED_CM_S:g} cm/s, walk_to({DUMMY_MELEE_SPOT[0]:g}, "
-         f"{DUMMY_MELEE_SPOT[1]:g}) after the dodge if needed, then pipeline repeated click Left "
-         f"at {ATTACK_POINT} with {KILL_CLICK_HOLD_S:g}s holds (never more than "
-         f"{KILL_MAX_GAME_TIME_GAP_S:g} game-world seconds apart) -> the {DUMMY} is dead within "
+         f"{DUMMY_MELEE_SPOT[1]:g}) after the dodge if needed, then pipeline repeated Slate "
+         f"down/up light-click pulses at {ATTACK_POINT}, each separated by one released game "
+         f"frame (never more than {KILL_MAX_GAME_TIME_GAP_S:g} game-world seconds between starts) "
+         f"-> the {DUMMY} is dead within "
          f"{KILL_TIMEOUT_S:g}s",
          proves=("AC-054.13", "US-086:AC-086.5")),
     Step("kill_counter_increments", f"state widgets, player -> within "

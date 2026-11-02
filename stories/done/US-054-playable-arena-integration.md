@@ -100,7 +100,7 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 2 | `walk_to_dummy` | walk_to(440, 600) -> within 25 cm (the melee spot, 160 cm -X of the TestDummy) | - |
 | 3 | `melee_lmb` | click Left at (640, 360) -> within 1s 'Mordecai.State.Attacking' in player.tags or the TestDummy's health below its value before the click | AC-054.6, AC-054.5 |
 | 4 | `dodge_lalt` | tap LeftAlt -> within 0.5s a Dodging tag in player.tags or a displacement > 150 cm | AC-054.6, AC-054.5 |
-| 5 | `kill_enemy_melee` | wait until the attack and dodge end and speed <= 5 cm/s, walk_to(440, 600) after the dodge if needed, then pipeline repeated click Left at (640, 360) with 0.2s holds (never more than 0.4 game-world seconds apart) -> the TestDummy is dead within 45s | AC-054.13, US-086:AC-086.5 |
+| 5 | `kill_enemy_melee` | wait until the attack and dodge end and speed <= 5 cm/s, walk_to(440, 600) after the dodge if needed, then pipeline repeated Slate down/up light-click pulses at (640, 360), each separated by one released game frame (never more than 0.4 game-world seconds between starts) -> the TestDummy is dead within 45s | AC-054.13, US-086:AC-086.5 |
 | 6 | `kill_counter_increments` | state widgets, player -> within 2s the HUD reads 'Kills: 1' and player.kills==1 | US-086:AC-086.3, US-086:AC-086.5, US-063:AC-063.1 |
 | 7 | `walk_to_attacker` | walk_to(440, 0), walk_to(2000, 0) -> within 60 cm, then within 25 cm (the fight spot, 100 cm -X of the TestAttacker) | - |
 | 8 | `attacker_damages_player` | stand at the fight spot -> player.attributes.health < player.attributes.max_health within 20s | - |

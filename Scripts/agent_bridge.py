@@ -1130,17 +1130,26 @@ class Bridge:
             args["hold_s"] = hold_s
         return self.request("click", **args)
 
-    def click_many(self, count, x=None, y=None, button="Left", hold_s=0.1):
-        """Pipeline repeated real-input click commands and return each click response in order."""
+    def click_many(self, count, x=None, y=None, button="Left", hold_s=0.1, release_s=0.001):
+        """Pipeline repeated real-input clicks, with one observed release frame between taps."""
         if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 256:
             raise ValueError("count must be an integer in 1..256")
         if (x is None) != (y is None):
             raise ValueError("give both x and y, or neither")
+        release_s = float(release_s)
+        if release_s <= 0:
+            raise ValueError("release_s must be positive so the game observes a released frame")
         args = {"button": button, "hold_s": hold_s}
         if x is not None:
             args.update(x=x, y=y)
-        timeout = count * max(0.6, float(hold_s)) + RESPONSE_SLACK_S
-        return self.conn.request_many([("click", args) for _ in range(count)], timeout=timeout)
+        requests = []
+        for index in range(count):
+            requests.append(("click", args))
+            if index + 1 < count:
+                requests.append(("wait", {"seconds": release_s}))
+        timeout = count * max(0.6, float(hold_s) + release_s) + RESPONSE_SLACK_S
+        responses = self.conn.request_many(requests, timeout=timeout)
+        return [response for response in responses if response.get("cmd") == "click"]
 
     @staticmethod
     def _norm_id(value):
