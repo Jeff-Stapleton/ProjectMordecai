@@ -16,6 +16,7 @@
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Misc/App.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "SocketSubsystem.h"
@@ -100,6 +101,11 @@ FMordecaiAgentBridgeServer::~FMordecaiAgentBridgeServer()
 		FTSTicker::RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
+	if (BeginFrameHandle.IsValid())
+	{
+		FCoreDelegates::OnBeginFrame.Remove(BeginFrameHandle);
+		BeginFrameHandle.Reset();
+	}
 	if (ScreenshotProcessedHandle.IsValid())
 	{
 		FScreenshotRequest::OnScreenshotRequestProcessed().Remove(ScreenshotProcessedHandle);
@@ -127,6 +133,7 @@ FMordecaiAgentBridgeServer::~FMordecaiAgentBridgeServer()
 		CloseSocket(Connection->Socket);
 	}
 	Connections.Reset();
+	PendingPulseReleases.Reset();
 	HeldUnion.Reset();
 	AutoRepeat.Reset();
 }
@@ -149,6 +156,7 @@ bool FMordecaiAgentBridgeServer::Start()
 	}
 
 	ScreenshotProcessedHandle = FScreenshotRequest::OnScreenshotRequestProcessed().AddRaw(this, &FMordecaiAgentBridgeServer::HandleScreenshotProcessed);
+	BeginFrameHandle = FCoreDelegates::OnBeginFrame.AddRaw(this, &FMordecaiAgentBridgeServer::HandleBeginFrame);
 	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FMordecaiAgentBridgeServer::Tick), 0.0f);
 
 	UE_LOG(LogMordecaiAgentBridge, Display, TEXT("AgentBridge: listening on 127.0.0.1:%d"), Config.Port);
@@ -158,6 +166,36 @@ bool FMordecaiAgentBridgeServer::Start()
 void FMordecaiAgentBridgeServer::HandleScreenshotProcessed()
 {
 	++ScreenshotsProcessed;
+}
+
+void FMordecaiAgentBridgeServer::HandleBeginFrame()
+{
+	for (const FPendingPulseRelease& Pulse : PendingPulseReleases)
+	{
+		FConnection* Connection = nullptr;
+		for (const TUniquePtr<FConnection>& Candidate : Connections)
+		{
+			if (Candidate->Serial == Pulse.ConnectionSerial && !Candidate->bClosed)
+			{
+				Connection = Candidate.Get();
+				break;
+			}
+		}
+		if (!Connection)
+		{
+			continue;
+		}
+
+		const bool bHeld = Connection->HeldButtons.ContainsByPredicate(
+			[&Pulse](const FHeldButton& Held) { return Held.Key == Pulse.Key; });
+		if (bHeld)
+		{
+			Input.ReleaseMouseButton(Pulse.Key, Pulse.Absolute, CurrentModifiers());
+			Connection->HeldButtons.RemoveAll(
+				[&Pulse](const FHeldButton& Held) { return Held.Key == Pulse.Key; });
+		}
+	}
+	PendingPulseReleases.Reset();
 }
 
 // ---------------------------------------------------------------------------
@@ -830,17 +868,33 @@ void FMordecaiAgentBridgeServer::HandleClick(FConnection& Connection, const FMor
 	const FKey Button = Args.Button;
 	FConnection* ConnectionPtr = &Connection;
 
-	// A zero-duration click is an OS-style pulse: Slate receives a real down and up now, then a queued wait command
-	// lets Enhanced Input observe the released state for one world frame before the next pulse. This prevents a
-	// 0.4-second hitch frame plus a response round trip from violating a repeated-input cadence.
+	// A zero-duration click is a frame-boundary OS-style pulse: down now, up at OnBeginFrame, and the response at
+	// this frame's end. PlayerInput processes the release before the next queued down, while starts stay one capped
+	// world frame apart even through a hitch.
 	if (Args.HoldSeconds <= 0.0)
 	{
-		Input.ReleaseMouseButton(Button, Absolute, CurrentModifiers());
-		Connection.HeldButtons.RemoveAll([&](const FHeldButton& Held) { return Held.Key == Button; });
-		Env.bVirtualCursor = Env.bVirtualCursor && FMordecaiAgentBridgeInput::IsVirtualCursorActive();
-		Response->SetObjectField(TEXT("env"), Env.ToJson());
-		MordecaiAgentBridgeServerPrivate::AddHoldFields(Response, Clock, Now);
-		Send(Connection, Response);
+		PendingPulseReleases.Add({ Connection.Serial, Button, Absolute });
+		const uint64 StartFrame = GFrameCounter;
+		TUniquePtr<FPendingCommand> Pulse = MakeUnique<FPendingCommand>();
+		Pulse->Id = Request.Id;
+		Pulse->Cmd = Request.Cmd;
+		Pulse->Advance = [this, ConnectionPtr, Response, Env, Button, StartFrame, Now](double TickNow) mutable
+		{
+			const bool bStillHeld = ConnectionPtr->HeldButtons.ContainsByPredicate(
+				[Button](const FHeldButton& Held) { return Held.Key == Button; });
+			if (bStillHeld)
+			{
+				return false;
+			}
+			Env.bVirtualCursor = Env.bVirtualCursor && FMordecaiAgentBridgeInput::IsVirtualCursorActive();
+			Response->SetObjectField(TEXT("env"), Env.ToJson());
+			Response->SetField(TEXT("held_s"), MakeNumber(TickNow - Now));
+			Response->SetField(TEXT("simulated_s"), MakeNumber(0.0));
+			Response->SetNumberField(TEXT("frames"), static_cast<double>(FMath::Max<uint64>(1, GFrameCounter - StartFrame)));
+			Send(*ConnectionPtr, Response);
+			return true;
+		};
+		Connection.Active = MoveTemp(Pulse);
 		return;
 	}
 
@@ -956,43 +1010,21 @@ void FMordecaiAgentBridgeServer::HandleWait(FConnection& Connection, const FMord
 		Send(Connection, MakeErrorResponse(Request.Id, Request.Cmd, Error.Code, Error.Message));
 		return;
 	}
-	FString ClockName = TEXT("real");
-	Request.Args->TryGetStringField(TEXT("clock"), ClockName);
-	if (ClockName != TEXT("real") && ClockName != TEXT("world"))
-	{
-		Send(Connection, MakeErrorResponse(Request.Id, Request.Cmd, ErrBadRequest,
-			TEXT("'clock' must be 'real' or 'world'")));
-		return;
-	}
-	const bool bWorldClock = ClockName == TEXT("world");
-	UWorld* World = GameInstance.IsValid() ? GameInstance->GetWorld() : nullptr;
-	if (bWorldClock && !World)
-	{
-		Send(Connection, MakeErrorResponse(Request.Id, Request.Cmd, ErrNotReady,
-			TEXT("world-clock wait requires a game world")));
-		return;
-	}
 	FConnection* ConnectionPtr = &Connection;
 	const TSharedRef<FJsonObject> Response = MakeOkResponse(Request.Id, Request.Cmd);
 	Response->SetField(TEXT("seconds"), MakeNumber(Args.Seconds));
-	Response->SetStringField(TEXT("clock"), ClockName);
 	const double Seconds = Args.Seconds;
-	const double WorldStart = World ? World->GetTimeSeconds() : 0.0;
 
 	TUniquePtr<FPendingCommand> Pending = MakeUnique<FPendingCommand>();
 	Pending->Id = Request.Id;
 	Pending->Cmd = Request.Cmd;
-	Pending->Advance = [this, ConnectionPtr, Response, Now, Seconds, bWorldClock, WorldStart](double TickNow)
+	Pending->Advance = [this, ConnectionPtr, Response, Now, Seconds](double TickNow)
 	{
-		const UWorld* CurrentWorld = GameInstance.IsValid() ? GameInstance->GetWorld() : nullptr;
-		const double ElapsedWorld = CurrentWorld ? CurrentWorld->GetTimeSeconds() - WorldStart : 0.0;
-		const double Elapsed = bWorldClock ? ElapsedWorld : TickNow - Now;
-		if (Elapsed < Seconds)
+		if (TickNow - Now < Seconds)
 		{
 			return false;
 		}
 		Response->SetField(TEXT("elapsed_s"), MordecaiAgentBridge::MakeNumber(TickNow - Now));
-		Response->SetField(TEXT("elapsed_world_s"), MordecaiAgentBridge::MakeNumber(ElapsedWorld));
 		Send(*ConnectionPtr, Response);
 		return true;
 	};

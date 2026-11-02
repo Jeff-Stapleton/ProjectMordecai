@@ -39,6 +39,13 @@ private:
 		FVector2D Absolute = FVector2D::ZeroVector;
 	};
 
+	struct FPendingPulseRelease
+	{
+		int32 ConnectionSerial = 0;
+		FKey Key;
+		FVector2D Absolute = FVector2D::ZeroVector;
+	};
+
 	/** A command that takes time; Advance returns true once it has replied. */
 	struct FPendingCommand
 	{
@@ -71,6 +78,7 @@ private:
 	};
 
 	bool Tick(float DeltaTime);
+	void HandleBeginFrame();
 
 	void AcceptConnections(double Now);
 	void Refuse(FSocket* Socket, double Now);
@@ -138,11 +146,13 @@ private:
 	TMap<FKey, TArray<FKey>> ThresholdButtonsDown;
 
 	FTSTicker::FDelegateHandle TickHandle;
+	FDelegateHandle BeginFrameHandle;
 	FDelegateHandle ScreenshotProcessedHandle;
 	uint64 ScreenshotsProcessed = 0;
 	int32 NextScreenshotNumber = 1;
 
 	FMordecaiAgentBridgeInput Input;
+	TArray<FPendingPulseRelease> PendingPulseReleases;
 	bool bQuitRequested = false;
 	bool bExitRequested = false;
 };

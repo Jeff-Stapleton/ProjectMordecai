@@ -279,7 +279,8 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertEqual([s["label"] for s in rep["screenshots"]], ["start", "hit"])
         # The Frontliners really walked up and hit the player standing at the spawn.
         self.assertGreater(world.hits, 0)
-        self.assertGreater(rep["max_enemy_displacement"], us054.DISPLACED_CM)
+        # The report rounds to one decimal; a raw value just over 100 cm is reported as 100.0.
+        self.assertGreaterEqual(rep["max_enemy_displacement"], us054.DISPLACED_CM)
         # Attached run: diagnostic only, nothing accepted.
         self.assertIn("DIAGNOSTIC ONLY", rep["evidence"])
         self.assertFalse(any(a["accepted"] for a in rep["acs"]))

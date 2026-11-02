@@ -109,8 +109,7 @@ ATTACK_TIMEOUT_S = 1.0
 DODGE_TIMEOUT_S = 0.5
 KILL_TIMEOUT_S = 45.0
 KILL_CLICK_HOLD_S = 0.0                    # immediate Slate down/up pulse; click_many inserts a released frame
-KILL_CLICK_INTERVAL_S = 0.001             # one observed released world frame between pulses
-KILL_CLICK_TRAIN_COUNT = 1024             # spans enough recovery windows for the 200-HP dummy
+KILL_CLICK_TRAIN_COUNT = 1280             # spans enough recovery windows for the 200-HP dummy
 KILL_MAX_GAME_TIME_GAP_S = 0.4          # story contract: no more than 0.4 world seconds between LMB starts
 KILL_COUNTER_TIMEOUT_S = 2.0
 PRE_KILL_SETTLE_TIMEOUT_S = 2.0
@@ -685,7 +684,7 @@ class Us054CombatRun(kit.PlaytestRun):
             try:
                 click_responses = b.click_many(
                     KILL_CLICK_TRAIN_COUNT, *ATTACK_POINT, button="Left",
-                    hold_s=KILL_CLICK_HOLD_S, release_s=KILL_CLICK_INTERVAL_S)
+                    hold_s=KILL_CLICK_HOLD_S)
             except ab.BridgeError as e:
                 if e.kind != "gameplay":
                     raise

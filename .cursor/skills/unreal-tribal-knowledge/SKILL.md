@@ -240,12 +240,11 @@ PASS.
 start-to-start gaps from that field. An offline regression injects a 0.410 world-time gap with a 0.05 hold and requires
 the cadence check to FAIL. A blocking request/response loop can still add one normal frame after a hitch-capped
 0.4-second click frame (the packaged run measured 0.467). Back-to-back pipelined holds remove that round trip but leave
-the button logically down across frames, so Enhanced Input sees no later taps. For repeated-input evidence,
-`Bridge.click_many` pipelines zero-duration Slate down/up pulses and a tiny `wait` after each: every pulse is a real
-mouse event pair, the wait gives Enhanced Input released input, and the client response adds no frame. Pace that wait
-with `clock:"world"`, not real time: a 0.25 real-time wait plus a 0.4 simulated hitch produced a 0.65 game-time gap;
-the world-clock wait completes on the hitch boundary at 0.4 instead. The audit log has one `click` and one
-release-frame `wait` per tap.
+the button logically down across frames, so Enhanced Input sees no later taps; same-tick down/up pulses are
+nondeterministic for the same reason. The deterministic pulse is down at the bridge's end-of-frame tick and up from
+`OnBeginFrame`: PlayerInput processes the release during that frame and the next queued down starts at frame end.
+`Bridge.click_many` pipelines those pulses, so every start is one capped world frame apart and every audit entry is
+still a real Slate `click`.
 
 ---
 

@@ -48,9 +48,7 @@ Each input response reports in `env` whether it did any of these (`focus_restore
 - Per tick: receive, execute, held input, flush, close finished connections, then accept (so a client that just went away does not count against the cap).
 - The ticker runs while the game is paused (the pause menu pauses the world) and during the loading screen. It does not run during a blocking map load.
 
-**Time.** `wait` and `timeout_s` use **real time** (`FPlatformTime::Seconds()`) by default. A `wait` request may set
-`clock:"world"` when an input cadence must target simulated world time; the response reports both `elapsed_s` and
-`elapsed_world_s`. Timeouts remain real time.
+**Time.** `wait` and `timeout_s` are **real time** (`FPlatformTime::Seconds()`), never world time.
 
 **Hold time (`hold_s` of `key tap`, `axis` and `click`) is simulated time: the input goes up at the frame boundary nearest to the point where the frames the game simulated with it down add up to `hold_s`** (`FMordecaiAgentBridgeHoldClock`; B3, US-100).
 - What counts:
@@ -70,12 +68,13 @@ Each input response reports in `env` whether it did any of these (`focus_restore
 - A `click` response also reports `started_world_time_s`, sampled from `UWorld::GetTimeSeconds()` when the mouse
   button goes down. This is the field for measuring spacing between click starts. `simulated_s` is only that one
   click's button-down hold duration and must never be used as a start-to-start interval.
-- A `click` with `hold_s: 0` is an immediate Slate down/up pulse (`frames: 0`, `simulated_s: 0`). It still injects
-  both real mouse events; it is not a direct Enhanced Input or gameplay call.
-- `Bridge.click_many(...)` pipelines ordinary zero-duration `click` requests on one connection with a world-clock
-  `wait` between them. That wait makes the game observe released input before the next pulse, while strict server ordering
-  removes the client response round-trip. `bridge.jsonl` still contains one auditable real-input command/response per
-  click and each release-frame wait; this is not a gameplay shortcut.
+- A `click` with `hold_s: 0` is a frame-boundary Slate pulse: mouse-down at the bridge's end-of-frame tick, mouse-up
+  from `OnBeginFrame`, and the response at that frame's end (`frames: 1`, `simulated_s: 0`). PlayerInput therefore
+  observes the release before another queued pulse; it is not a direct Enhanced Input or gameplay call.
+- `Bridge.click_many(...)` pipelines those ordinary zero-duration `click` requests on one connection. Strict server
+  ordering starts the next mouse-down at the end of the release frame, removing the client response round-trip while
+  keeping starts exactly one capped world frame apart. `bridge.jsonl` still contains one auditable real-input
+  command/response per click; this is not a gameplay shortcut.
 - Auto-repeat still runs on wall time, as a real device's does. A tap that must stay down for its minimum frames through a hitch longer than the repeat delay can get one repeat event. No playtest reads gamepad or keyboard repeats.
 
 **Connections**
