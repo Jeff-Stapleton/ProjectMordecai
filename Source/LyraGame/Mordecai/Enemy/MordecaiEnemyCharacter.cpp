@@ -332,7 +332,7 @@ void AMordecaiEnemyCharacter::OnPostureChanged(const FOnAttributeChangeData& Dat
 
 void AMordecaiEnemyCharacter::EnterDeathState()
 {
-	if (!EnemyAbilitySystemComponent)
+	if (!EnemyAbilitySystemComponent || IsDead())
 	{
 		return;
 	}

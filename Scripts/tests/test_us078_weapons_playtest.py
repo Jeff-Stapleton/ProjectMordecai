@@ -455,7 +455,9 @@ class TestUs078Plan(unittest.TestCase):
         for check, issue in known.items():
             self.assertIn("Specs/agent_playtest_plan_v1.md", issue, check)
         self.assertTrue(known["weapon_hud_text"].startswith("N3 "))
+        self.assertIn("#8", known["weapon_hud_text"])
         self.assertTrue(known["cycle_prev_shift_tab"].startswith("N9 "))
+        self.assertIn("#14", known["cycle_prev_shift_tab"])
         for name in ATTACK_CHECKS:
             self.assertNotIn(name, known, "attacks are bound since US-083")
 

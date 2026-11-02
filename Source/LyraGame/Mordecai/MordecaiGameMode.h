@@ -65,6 +65,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Arena")
 	int32 GetEnemyKillCount() const { return EnemyKillCount; }
 
+	/** Count a death screen should show: current life during the death event, cached completed life after its reset. */
+	int32 GetDeathScreenEnemyKillCount() const
+	{
+		return bRespawnPending ? CompletedLifeEnemyKillCount : EnemyKillCount;
+	}
+
 	/** The one notification used by HUD consumers of GetEnemyKillCount(). */
 	FOnMordecaiEnemyKillCountChanged& OnEnemyKillCountChanged() { return EnemyKillCountChanged; }
 
@@ -85,10 +91,14 @@ private:
 	};
 
 	TArray<FEnemySpawnEntry> EnemyRegistry;
+	TSet<TWeakObjectPtr<AMordecaiEnemyCharacter>> CountedEnemyDeaths;
 	int32 EnemyKillCount = 0;
+	int32 CompletedLifeEnemyKillCount = 0;
+	bool bRespawnPending = false;
 	FOnMordecaiEnemyKillCountChanged EnemyKillCountChanged;
 	FTimerHandle RespawnTimerHandle;
 	TWeakObjectPtr<AMordecaiCharacter> PendingRespawnPlayer;
 
+	void ResetEnemyKillCount();
 	void ExecuteRespawn();
 };

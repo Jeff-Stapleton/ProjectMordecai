@@ -102,12 +102,16 @@ SP_BAR = "SpellPointsBar"         # WBP_SpellPointsBar / MordecaiSpellPointsBarW
 COOLDOWN_WIDGET = "SpellCooldown"  # WBP_SpellCooldownA/B / MordecaiSpellCooldownWidget
 COOLDOWN_WIDGETS_EXPECTED = 4
 
-KI_NO_COOLDOWNS = ("Known issues backlog (Specs/agent_playtest_plan_v1.md) 'Spells have no "
+KI_NO_COOLDOWNS = ("Known issue #35 (Specs/agent_playtest_plan_v1.md): spells have no "
                    "cooldowns': no DA_Spell_* sets a CooldownTag (ApplySpellCooldown returns "
                    "early) and the HUD cooldown widgets are never bound")
-KI_N8 = ("N8 (suspected NEW, Known issues backlog of Specs/agent_playtest_plan_v1.md): the HUD "
+KI_N8 = ("Known issue #13 (N8, Specs/agent_playtest_plan_v1.md): the HUD "
          "default layout (UMordecaiCombatHUDWidget) has 2 SpellCooldown widgets "
          "(SpellCooldownA/B), not 4")
+KI_N15 = ("Known issue #20 (N15): Fireball spends SP but spawns no projectile and deals no "
+          "damage (Specs/agent_playtest_plan_v1.md)")
+KI_N16 = ("Known issue #21 (N16): the status indicator renders 'Status' instead of the status "
+          "name (Specs/agent_playtest_plan_v1.md)")
 
 SCREENSHOTS = {
     "fireball_hit": "CombatTestMap's grid floor, the player about 300 cm -X of the TestDummy (a "
@@ -122,10 +126,12 @@ SCREENSHOTS = {
                  "cooldown widgets (top-left, under the SP bar)",
 }
 KNOWN_ISSUES = (
-    "Spells have no cooldowns (Known issues backlog): fireball_cooldown_state and cooldown_hud "
+    "Issue #35: spells have no cooldowns; fireball_cooldown_state and cooldown_hud "
     "are expected to FAIL.",
-    "N8 (suspected NEW, to be filed in the Known issues backlog): the HUD default layout has 2 "
+    "Issue #13 (N8): the HUD default layout has 2 "
     "SpellCooldown widgets, not the 4 AC-057.9 asks for; cooldown_widgets is expected to FAIL.",
+    "Issue #20 (N15): Fireball spawns no projectile and deals no damage.",
+    "Issue #21 (N16): the Stone Skin indicator shows 'Status', not 'StoneSkin'.",
     "N6 (design question): max SP is 10 and SP does not regenerate, but one cast of each "
     "loadout spell costs 12 (3 + 2 + 4 + 3); this run spends 10 -> 7 -> 5 -> 1 and expects "
     "Restoration to be refused.",
@@ -177,10 +183,11 @@ PLAN = (
          f"{SP_TIMEOUT_S:g}s (fast poll of player, actors, widgets)",
          proves=("AC-057.1", "AC-057.5", "AC-057.10", "US-055:AC-055.2")),
     Step("fireball_projectile", f"same poll -> an actors[] entry with kind==\"projectile\" "
-         f"within {PROJECTILE_WINDOW_S:g}s of the tap", proves=("AC-057.1",)),
+         f"within {PROJECTILE_WINDOW_S:g}s of the tap", proves=("AC-057.1",),
+         known_issue=KI_N15),
     Step("fireball_hits_enemy", f"same poll -> the nearest enemy's health drops below its "
          f"pre-cast value (200) within {HIT_WINDOW_S:g}s; detail reports the damage",
-         proves=("AC-057.1", "AC-057.12")),
+         proves=("AC-057.1", "AC-057.12"), known_issue=KI_N15),
     Step("sp_hud_updates", f"state widgets -> the {SP_BAR} widget renders {lit(_sp_text(7, 10))}",
          proves=("AC-057.10", "US-055:AC-055.2", "US-055:AC-055.3")),
     Step("fireball_cooldown_state", f"same poll -> player.spells[0].cooldown_remaining_s>0 within "
@@ -196,7 +203,8 @@ PLAN = (
          f"{STONE_SKIN_TIMEOUT_S:g}s", proves=("AC-057.3",)),
     Step("stone_skin_indicator", f"state widgets -> a widget renders {lit(STONE_SKIN_TEXT)} and a "
          f"numeric remaining duration within {INDICATOR_TIMEOUT_S:g}s",
-         proves=("US-055:AC-055.4", "US-055:AC-055.5", "US-055:AC-055.6")),
+         proves=("US-055:AC-055.4", "US-055:AC-055.5", "US-055:AC-055.6"),
+         known_issue=KI_N16),
     Step("restoration_refused_low_sp", f"tap One at 1 SP -> for {REFUSAL_WATCH_S:g}s "
          f"spell_points stays 1, no {RESTORATION_TAG}, player.spells[3].can_afford==false"),
     Step("stone_skin_expires", f"state player, widgets -> within {EXPIRE_TIMEOUT_S:g}s "

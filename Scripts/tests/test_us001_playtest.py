@@ -305,7 +305,7 @@ class TestUs001TodaysGame(PlaytestCase):
                          "an attached run never accepts an AC")
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
         self.assertIn("| AC-2.1.4 | jump_space | PASS", md)
-        self.assertIn("FAIL (known: Known issue: facing", md)
+        self.assertIn("FAIL (known: Known issue #34: facing", md)
         self.assertIn("| FAIL (known) |", md)
         self.assertNotIn("FAIL (NEW)", md)
         self.assertIn("## Movement measurements", md)
@@ -533,6 +533,8 @@ class TestUs001Plan(unittest.TestCase):
             self.assertIn(ac, ids)
         known = [s.check for s in us001.PLAN if s.known_issue]
         self.assertEqual(known, KNOWN_FAILS)
+        self.assertIn("#34", us001.KI_FACING)
+        self.assertIn("#33", us001.KI_STICKS)
         for s in us001.PLAN:
             if s.known_issue:
                 self.assertIn("Specs/agent_playtest_plan_v1.md", s.known_issue)

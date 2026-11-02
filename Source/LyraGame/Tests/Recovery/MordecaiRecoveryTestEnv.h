@@ -8,9 +8,11 @@
 #include "Character/LyraPawnData.h"
 #include "Character/LyraPawnExtensionComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/WorldSettings.h"
 #include "GameModes/LyraGameState.h"
 #include "GameplayEffect.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
@@ -19,6 +21,7 @@
 #include "Mordecai/Enemy/MordecaiEnemyAIController.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/MordecaiCharacter.h"
+#include "Mordecai/MordecaiGameMode.h"
 #include "Mordecai/MordecaiPlayerState.h"
 
 namespace MordecaiRecoveryTest
@@ -49,6 +52,7 @@ namespace MordecaiRecoveryTest
 	struct FRecoveryTestEnv
 	{
 		UWorld* World = nullptr;
+		UGameInstance* GameInstance = nullptr;
 		AMordecaiPlayerState* PlayerState = nullptr;
 		AMordecaiCharacter* Player = nullptr;
 
@@ -72,6 +76,36 @@ namespace MordecaiRecoveryTest
 				return false;
 			}
 			return SpawnPlayer(PlayerLocation, PlayerState, Player);
+		}
+
+		/** Install the production AMordecaiGameMode as this world's authority for event-path tests. */
+		AMordecaiGameMode* InstallGameMode()
+		{
+			if (!World || !GEngine)
+			{
+				return nullptr;
+			}
+			if (AMordecaiGameMode* Existing = World->GetAuthGameMode<AMordecaiGameMode>())
+			{
+				return Existing;
+			}
+
+			FWorldContext* WorldContext = GEngine->GetWorldContextFromWorld(World);
+			AWorldSettings* WorldSettings = World->GetWorldSettings();
+			if (!WorldContext || !WorldSettings)
+			{
+				return nullptr;
+			}
+
+			GameInstance = NewObject<UGameInstance>(GEngine);
+			WorldContext->OwningGameInstance = GameInstance;
+			World->SetGameInstance(GameInstance);
+			WorldSettings->DefaultGameMode = AMordecaiGameMode::StaticClass();
+			if (!World->SetGameMode(FURL()))
+			{
+				return nullptr;
+			}
+			return World->GetAuthGameMode<AMordecaiGameMode>();
 		}
 
 		/** Another player with its own player state ASC, built the same way (for co-op checks). */
@@ -189,10 +223,16 @@ namespace MordecaiRecoveryTest
 		{
 			if (World && GEngine)
 			{
+				if (FWorldContext* WorldContext = GEngine->GetWorldContextFromWorld(World))
+				{
+					WorldContext->OwningGameInstance = nullptr;
+				}
+				World->SetGameInstance(nullptr);
 				GEngine->DestroyWorldContext(World);
 				World->DestroyWorld(false);
 			}
 			World = nullptr;
+			GameInstance = nullptr;
 			PlayerState = nullptr;
 			Player = nullptr;
 		}

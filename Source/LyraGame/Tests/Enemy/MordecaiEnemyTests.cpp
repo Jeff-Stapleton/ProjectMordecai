@@ -5,9 +5,11 @@
 #include "Mordecai/AbilitySystem/MordecaiAbilitySystemComponent.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
+#include "Mordecai/MordecaiGameMode.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
 
 // ---------------------------------------------------------------------------
 // 1. Mordecai.Enemy.CharacterHasAbilitySystemComponent (AC-050.2)
@@ -378,5 +380,66 @@ bool FMordecai_Enemy_DeadEnemyRejectsDamage::RunTest(const FString& Parameters)
 	// Health attribute clamping ensures further damage to a dead enemy (Health=0)
 	// stays at 0. The OnHealthChanged handler checks !IsDead() before re-triggering.
 
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// Mordecai.Enemy.DeathIsIdempotentForKillAccounting (issue #6 review)
+// A Blueprint or duplicate health callback may request death twice; one enemy is still one kill and one Dead tag.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Enemy_DeathIsIdempotentForKillAccounting,
+	"Mordecai.Enemy.DeathIsIdempotentForKillAccounting",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Enemy_DeathIsIdempotentForKillAccounting::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryTest;
+
+	FRecoveryTestEnv Env;
+	if (!TestTrue("production-style world set up", Env.Setup(FVector::ZeroVector)))
+	{
+		Env.Teardown();
+		return true;
+	}
+	AMordecaiGameMode* GameMode = Env.InstallGameMode();
+	if (!TestNotNull("production game mode installed", GameMode))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	TArray<int32> Broadcasts;
+	const FDelegateHandle Handle = GameMode->OnEnemyKillCountChanged().AddLambda(
+		[&Broadcasts](int32 Count) { Broadcasts.Add(Count); });
+
+	AMordecaiEnemyCharacter* First = Env.SpawnEnemy(FVector(500.f, 0.f, 100.f), {});
+	AMordecaiEnemyCharacter* Second = Env.SpawnEnemy(FVector(700.f, 0.f, 100.f), {});
+	TestNotNull("first real enemy", First);
+	TestNotNull("second real enemy", Second);
+	GameMode->RegisterEnemy(First, First->GetActorTransform());
+	GameMode->RegisterEnemy(Second, Second->GetActorTransform());
+
+	First->EnterDeathState();
+	First->EnterDeathState();
+	TestEqual("the same enemy requested dead twice counts once", GameMode->GetEnemyKillCount(), 1);
+	TestEqual("the same enemy owns exactly one Dead tag",
+		First->GetAbilitySystemComponent()->GetGameplayTagCount(MordecaiGameplayTags::State_Dead), 1);
+
+	Second->EnterDeathState();
+	TestEqual("a distinct enemy in the same frame counts separately", GameMode->GetEnemyKillCount(), 2);
+	TestEqual("exactly two absolute count notifications were sent", Broadcasts.Num(), 2);
+	if (Broadcasts.Num() == 2)
+	{
+		TestEqual("first notification", Broadcasts[0], 1);
+		TestEqual("second notification", Broadcasts[1], 2);
+	}
+
+	GameMode->ResetArena();
+	TestFalse("the first enemy is alive after reset", First->IsDead());
+	TestEqual("the first enemy owns no Dead tag after reset",
+		First->GetAbilitySystemComponent()->GetGameplayTagCount(MordecaiGameplayTags::State_Dead), 0);
+
+	GameMode->OnEnemyKillCountChanged().Remove(Handle);
+	Env.Teardown();
 	return true;
 }

@@ -67,8 +67,9 @@ AI_NOT_RESET = r"TestAttacker: AI not reset to Idle at the respawn \(ai_state (A
 PLAN_ORDER = ["combat_targets_present", "walk_to_dummy", "melee_lmb", "dodge_lalt",
               "kill_enemy_melee", "kill_counter_increments", "walk_to_attacker",
               "attacker_damages_player", "restoration_heals", "burning_on_hit", "player_dies",
-              "death_screen", "dead_no_move", "respawn", "death_screen_removed", "arena_reset",
-              "respawn_moves", "kill_counter_text_matches"]
+              "death_screen", "death_count_split", "dead_no_move", "respawn",
+              "death_screen_removed", "arena_reset", "respawn_moves",
+              "kill_counter_text_matches"]
 # The checks that moved from us054_arena.py keep their proves (Specs: the us054 split); US-086
 # (issue #7) adds its death screen ACs to death_screen.
 MOVED_PROVES = {
@@ -80,7 +81,9 @@ MOVED_PROVES = {
     "restoration_heals": ("US-057:AC-057.4", "US-057:AC-057.5", "US-057:AC-057.12"),
     "burning_on_hit": ("US-057:AC-057.11", "US-057:AC-057.8"),
     "player_dies": ("US-053:AC-053.1",),
-    "death_screen": ("US-062:AC-062.1", "US-062:AC-062.2", "US-086:AC-086.1", "US-086:AC-086.4"),
+    "death_screen": ("US-062:AC-062.1", "US-062:AC-062.2", "US-086:AC-086.1",
+                     "US-086:AC-086.2", "US-086:AC-086.4"),
+    "death_count_split": ("US-086:AC-086.3", "US-062:AC-062.2"),
     "dead_no_move": ("US-053:AC-053.2",),
     "respawn": ("US-053:AC-053.4", "US-053:AC-053.5"),
     "arena_reset": ("US-053:AC-053.8", "US-053:AC-053.9"),
@@ -114,7 +117,8 @@ class CombatWorld(fb.FakeWorld):
     moves_after_respawn=False: movement input stays ignored after the respawn (a broken
     HandlePlayerRespawn).  death_screen=False: no death screen (issue #7 before its fix);
     death_screen_stays=True: it is never removed after a respawn.  ai_log: (label, real time,
-    ai_state) of every AI state change.
+    ai_state) of every AI state change. reset_kills_on_death=False models a broken GameMode that
+    leaks the completed life's count into the dead/next-life state.
     """
 
     def __init__(self, *, click_damage=12.0, click_damage_delay_s=0.2, melee_reach=200.0,
@@ -124,7 +128,8 @@ class CombatWorld(fb.FakeWorld):
                  burn_indicator=True, attacks=True, attack_tag=True, death_screen=True,
                  death_screen_stays=False, dead_moves=False, arena_reset=True, reset_ai=True,
                  ai_reported=True, moves_after_respawn=True, kills_text=0,
-                 counter_updates=True, dodge_motion=True, dodge_speed=300.0, **kwargs):
+                 counter_updates=True, reset_kills_on_death=True, dodge_motion=True,
+                 dodge_speed=300.0, **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         kwargs.setdefault("respawn_s", us054c.RESPAWN_DELAY_S)  # the game's 3 s
@@ -145,6 +150,7 @@ class CombatWorld(fb.FakeWorld):
         self.arena_reset, self.reset_ai = arena_reset, reset_ai
         self.ai_reported, self.kills_text = ai_reported, kills_text
         self.counter_updates = counter_updates
+        self.reset_kills_on_death = reset_kills_on_death
         self.death_kills = 0
         self.dodge_motion, self.dodge_speed = dodge_motion, float(dodge_speed)
         self.dodge_ends_at = None
@@ -326,9 +332,10 @@ class CombatWorld(fb.FakeWorld):
             if self.dead_since is None:
                 self.death_kills = self.kills
                 super().kill_player()
-                self.kills = 0
-                if self.counter_updates:
-                    self.kills_text = 0
+                if self.reset_kills_on_death:
+                    self.kills = 0
+                    if self.counter_updates:
+                        self.kills_text = 0
 
     # --- state --------------------------------------------------------------------------------
     def _s_player(self):
@@ -484,8 +491,9 @@ class TestUs054CombatPlan(unittest.TestCase):
         self.assertIn("| 1 | `combat_targets_present` |", text)
         self.assertIn("| 5 | `kill_enemy_melee` |", text)
         self.assertIn("| 6 | `kill_counter_increments` |", text)
-        self.assertIn("| 15 | `death_screen_removed` |", text)
-        self.assertIn("| 18 | `kill_counter_text_matches` |", text)
+        self.assertIn("| 13 | `death_count_split` |", text)
+        self.assertIn("| 16 | `death_screen_removed` |", text)
+        self.assertIn("| 19 | `kill_counter_text_matches` |", text)
         self.assertNotIn("Known issue N2", text)
 
 
@@ -679,7 +687,8 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertEqual(rep["death"]["step"], "burning_on_hit")
         # The death screen is seen on the first read, so the W hold has most of the 3 s window.
         self.assertEqual(checks["dead_no_move"]["status"], "PASS", checks["dead_no_move"]["detail"])
-        for name in ("restoration_heals", "death_screen", "respawn", "death_screen_removed",
+        for name in ("restoration_heals", "death_screen", "death_count_split", "respawn",
+                     "death_screen_removed",
                      "arena_reset", "respawn_moves", "kill_enemy_melee",
                      "kill_counter_increments", "kill_counter_text_matches", "melee_lmb",
                      "dodge_lalt"):
@@ -689,6 +698,7 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         for ac in (("US-053", "AC-053.1"), ("US-053", "AC-053.8"), ("US-053", "AC-053.9"),
                    ("US-054", "AC-054.6"), ("US-057", "AC-057.4"), ("US-062", "AC-062.1"),
                    ("US-063", "AC-063.1"), ("US-086", "AC-086.1"),
+                   ("US-086", "AC-086.2"), ("US-086", "AC-086.3"),
                    ("US-086", "AC-086.4"), ("US-086", "AC-086.5")):
             self.assertEqual(acs[ac]["status"], "PASS", ac)
         md = self.md()
@@ -714,32 +724,47 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertGreaterEqual(movement_after + 0.01, world.dodge_ends_at,
                                 "walk_to calibration must not run against residual dodge motion")
 
-    def test_click_cadence_uses_simulated_time_across_a_frame_hitch(self):
+    def test_click_cadence_rejects_a_real_game_time_gap_even_when_the_hold_is_short(self):
         _, server = self.serve(**game_today())
         real_click = ab.Bridge.click
-        calls = {"count": 0}
+        calls = {"count": 0, "world_start": 100.0}
 
-        def one_hitched_click(bridge, *args, **kwargs):
+        def one_bad_gap(bridge, *args, **kwargs):
             response = real_click(bridge, *args, **kwargs)
             calls["count"] += 1
-            if calls["count"] == 5:
-                # The in-game bridge can hold a click through one capped 0.4 s simulated frame
-                # and return later in wall time. The next click starts immediately; wall time is
-                # not the game's click-start cadence.
-                time.sleep(0.42)
-                response = dict(response)
-                response["simulated_s"] = 0.4
+            if calls["count"] > 1:
+                calls["world_start"] += 0.41 if calls["count"] == 5 else 0.3
+            response = dict(response)
+            response["started_world_time_s"] = calls["world_start"]
+            # This is only the mouse-button hold duration. It must not mask the bad start gap.
+            response["simulated_s"] = 0.05
             return response
 
-        with mock.patch.object(ab.Bridge, "click", one_hitched_click):
+        with mock.patch.object(ab.Bridge, "click", one_bad_gap):
             code, rep = self.play(server)
-        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        self.assertEqual(code, 1, self.log.getvalue()[-4000:])
         check = self.by_name(rep)["kill_enemy_melee"]
-        self.assertEqual(check["status"], "PASS", check["detail"])
-        self.assertIn("maximum simulated click-start gap 0.400s", check["detail"])
-        wall = re.search(r"maximum wall-time gap ([0-9.]+)s", check["detail"])
-        self.assertIsNotNone(wall, check["detail"])
-        self.assertGreater(float(wall.group(1)), 0.4, check["detail"])
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("maximum game-time click-start gap 0.410s", check["detail"])
+
+    def test_death_screen_cannot_pass_when_the_expected_completed_count_was_never_observed(self):
+        _, server = self.serve(**game_today(counter_updates=False))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        self.assertEqual(checks["kill_counter_increments"]["status"], "FAIL")
+        self.assertEqual(checks["death_screen"]["status"], "FAIL")
+        self.assertIn("completed-life count was never observed", checks["death_screen"]["detail"])
+
+    def test_death_count_split_rejects_a_completed_count_leaking_into_the_new_life(self):
+        _, server = self.serve(**game_today(reset_kills_on_death=False))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        self.assertEqual(checks["death_screen"]["status"], "PASS", checks["death_screen"]["detail"])
+        self.assertEqual(checks["death_count_split"]["status"], "FAIL",
+                         checks["death_count_split"]["detail"])
+        self.assertIn("HUD KillCounter", checks["death_count_split"]["detail"])
 
     def test_no_death_screen_fails_death_screen_as_new(self):
         # Issue #7 before its fix: the player dies and respawns, but no widget says 'You Died'

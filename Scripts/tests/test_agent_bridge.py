@@ -495,7 +495,9 @@ class TestBridgeCommands(FakeServerCase):
         focus = bridge.state(["focus"])["focus"]
         self.assertTrue(focus["virtual_cursor"])
         self.assertEqual(focus["cursor"], [640, 360])
-        self.assertEqual(bridge.click()["hit"], "SViewport")
+        first_click = bridge.click()
+        self.assertEqual(first_click["hit"], "SViewport")
+        self.assertIsInstance(first_click["started_world_time_s"], (int, float))
         resp = bridge.click(812, 402, button="Right", hold_s=0.05)
         self.assertEqual((resp["button"], resp["hit"]), ("Right", "SViewport"))
         self.assertGreaterEqual(resp["frames"], 1)

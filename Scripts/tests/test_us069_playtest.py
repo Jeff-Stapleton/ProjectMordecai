@@ -480,6 +480,8 @@ class TestUs069Plan(unittest.TestCase):
         self.assertEqual(names[-3:], ["i_closes", "i_held_closes_on_key_up", "final_close"])
         known = {s.check for s in us069.PLAN if s.known_issue}
         self.assertEqual(known, set(KNOWN_FAILS))
+        self.assertIn("#9", us069.KNOWN_N4)
+        self.assertIn("#10", us069.KNOWN_N5)
         run = us069.Us069Run(us069.parse_args([]))
         for check in US095_CHECKS + ["i_held_closes_on_key_up"]:
             self.assertIsNone(run.plan_step(check).known_issue, check)

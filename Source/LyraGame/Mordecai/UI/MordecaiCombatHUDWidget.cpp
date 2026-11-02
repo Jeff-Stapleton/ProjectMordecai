@@ -1,6 +1,7 @@
 // Project Mordecai — Combat HUD Root Widget (US-052, US-055, US-061)
 
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
+#include "AbilitySystemComponent.h"
 #include "Mordecai/UI/MordecaiHealthBarWidget.h"
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
 #include "Mordecai/UI/MordecaiPostureBarWidget.h"
@@ -28,6 +29,18 @@ void UMordecaiCombatHUDWidget::NativeOnInitialized()
 	if (WidgetTree && !WidgetTree->RootWidget)
 	{
 		BuildDefaultLayout();
+	}
+}
+
+void UMordecaiCombatHUDWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	// Child UUserWidgets unbind in NativeDestruct when this HUD's Slate tree is removed. The UObject is retained
+	// by the player controller, so rebuilding/re-adding that same HUD must restore every child binding.
+	if (UAbilitySystemComponent* ASC = BoundASC.Get())
+	{
+		BindToASC(ASC);
 	}
 }
 
@@ -156,6 +169,7 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 	{
 		return;
 	}
+	BoundASC = ASC;
 
 	// Core resource bars (US-052)
 	if (HealthBar)

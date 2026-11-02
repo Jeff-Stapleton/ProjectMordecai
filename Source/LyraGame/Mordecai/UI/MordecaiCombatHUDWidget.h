@@ -53,6 +53,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
 
 	// --- Core Resource Bars (US-052) ---
 
@@ -99,4 +100,6 @@ protected:
 
 private:
 	void BuildDefaultLayout();
+
+	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 };

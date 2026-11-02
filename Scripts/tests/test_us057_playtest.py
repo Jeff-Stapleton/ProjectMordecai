@@ -283,6 +283,8 @@ class PlaytestCase(unittest.TestCase):
 
 
 TODAY_KNOWN = ["cooldown_widgets", "fireball_cooldown_state", "cooldown_hud"]
+PLAN_KNOWN = TODAY_KNOWN + ["fireball_projectile", "fireball_hits_enemy",
+                            "stone_skin_indicator"]
 PLAN_CHECKS = [s.check for s in us057.PLAN]
 
 
@@ -308,7 +310,7 @@ class TestUs057PassPath(PlaytestCase):
         self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
         self.assertIn(fb.COMBAT_TEST_MAP, checks["map"]["detail"])
         # The known issues all passed: each is flagged FIXED? (re-check the backlog).
-        self.assertEqual(sorted(rep["fixed_candidates"]), sorted(TODAY_KNOWN))
+        self.assertEqual(sorted(rep["fixed_candidates"]), sorted(PLAN_KNOWN))
         self.assertIn("PASS (FIXED?)", self.md())
         self.assertNotIn(RESTORATION_TAG, world.status)
         self.assertNotIn(STONE_SKIN_TAG, world.status)
@@ -395,13 +397,15 @@ class TestUs057Failures(PlaytestCase):
     def fail_set(self, rep):
         return sorted(set(self.statuses(rep, "FAIL")) - set(TODAY_KNOWN))
 
-    def test_no_projectile_and_no_damage_are_new_failures(self):
+    def test_no_projectile_and_no_damage_are_filed_known_failures(self):
         _, server = self.serve(projectiles=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(self.fail_set(rep), ["fireball_hits_enemy", "fireball_projectile"])
-        self.assertIn("fireball_projectile", rep["new_failures"])
-        self.assertIn("fireball_hits_enemy", rep["new_failures"])
+        self.assertIn("fireball_projectile", rep["known_failures"])
+        self.assertIn("fireball_hits_enemy", rep["known_failures"])
+        self.assertNotIn("fireball_projectile", rep["new_failures"])
+        self.assertNotIn("fireball_hits_enemy", rep["new_failures"])
         checks = self.by_name(rep)
         self.assertIn('no actors[] entry with kind=="projectile"',
                       checks["fireball_projectile"]["detail"])
@@ -448,6 +452,8 @@ class TestUs057Failures(PlaytestCase):
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(self.fail_set(rep), ["stone_skin_indicator"])
+        self.assertIn("stone_skin_indicator", rep["known_failures"])
+        self.assertNotIn("stone_skin_indicator", rep["new_failures"])
         self.assertIn("no widget renders 'StoneSkin'",
                       self.by_name(rep)["stone_skin_indicator"]["detail"])
         # With no indicator ever drawn, the expiry is judged on the tag alone (and passes).
@@ -542,6 +548,12 @@ class TestUs057Report(PlaytestCase):
         self.assertIn("`fireball_hits_enemy`", out.getvalue())
         self.assertIn("known issue", out.getvalue())
         self.assertEqual(kit.plan_problems(us057.Run), [])
+        known = {step.check: step.known_issue for step in us057.PLAN if step.known_issue}
+        for check in ("cooldown_widgets", "fireball_cooldown_state", "cooldown_hud"):
+            self.assertTrue("#13" in known[check] or "#35" in known[check], check)
+        for check in ("fireball_projectile", "fireball_hits_enemy"):
+            self.assertIn("#20", known[check])
+        self.assertIn("#21", known["stone_skin_indicator"])
 
     def test_ac_ids_exist_in_the_story_files(self):
         stories = os.path.join(os.path.dirname(SCRIPTS), "stories", "done")

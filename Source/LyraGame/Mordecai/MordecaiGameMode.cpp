@@ -59,20 +59,17 @@ bool AMordecaiGameMode::ShouldUseDefaultExperience(const FString& Options, const
 
 void AMordecaiGameMode::NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer)
 {
-	if (!DeadPlayer)
+	if (!DeadPlayer || bRespawnPending)
 	{
 		return;
 	}
 
 	// HandlePlayerDeath broadcasts Mordecai.Event.PlayerDeath before it notifies the game mode. The death screen
 	// therefore caches the completed life's count first; then this authoritative count and every bound HUD reset.
-	if (EnemyKillCount != 0)
-	{
-		EnemyKillCount = 0;
-		EnemyKillCountChanged.Broadcast(EnemyKillCount);
-	}
-
+	CompletedLifeEnemyKillCount = EnemyKillCount;
+	bRespawnPending = true;
 	PendingRespawnPlayer = DeadPlayer;
+	ResetEnemyKillCount();
 
 	// Start respawn timer (AC-053.4, AC-053.11: server-authoritative)
 	if (UWorld* World = GetWorld())
@@ -86,9 +83,14 @@ void AMordecaiGameMode::NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer)
 
 void AMordecaiGameMode::ExecuteRespawn()
 {
+	// A delayed projectile/DoT death cannot become the first kill of the next life, even when arena reset is disabled.
+	ResetEnemyKillCount();
+
 	AMordecaiCharacter* Player = PendingRespawnPlayer.Get();
 	if (!Player)
 	{
+		bRespawnPending = false;
+		PendingRespawnPlayer.Reset();
 		return;
 	}
 
@@ -113,6 +115,7 @@ void AMordecaiGameMode::ExecuteRespawn()
 		ResetArena();
 	}
 
+	bRespawnPending = false;
 	PendingRespawnPlayer.Reset();
 }
 
@@ -122,8 +125,26 @@ void AMordecaiGameMode::ExecuteRespawn()
 
 void AMordecaiGameMode::NotifyEnemyKilled(AMordecaiEnemyCharacter* KilledEnemy)
 {
+	const TWeakObjectPtr<AMordecaiEnemyCharacter> WeakEnemy(KilledEnemy);
+	if (!KilledEnemy || bRespawnPending || CountedEnemyDeaths.Contains(WeakEnemy))
+	{
+		return;
+	}
+
+	// TODO(DECISION, issue #6): decide whether all enemy deaths count or only player-attributed kills,
+	// and what attribution data carries that decision. Until then preserve the existing shared arena semantics.
+	CountedEnemyDeaths.Add(WeakEnemy);
 	EnemyKillCount++;
 	EnemyKillCountChanged.Broadcast(EnemyKillCount);
+}
+
+void AMordecaiGameMode::ResetEnemyKillCount()
+{
+	if (EnemyKillCount != 0)
+	{
+		EnemyKillCount = 0;
+		EnemyKillCountChanged.Broadcast(EnemyKillCount);
+	}
 }
 
 void AMordecaiGameMode::RegisterEnemy(AMordecaiEnemyCharacter* Enemy, const FTransform& SpawnTransform)
@@ -145,6 +166,9 @@ void AMordecaiGameMode::RegisterEnemy(AMordecaiEnemyCharacter* Enemy, const FTra
 
 void AMordecaiGameMode::ResetArena()
 {
+	ResetEnemyKillCount();
+	CountedEnemyDeaths.Reset();
+
 	for (FEnemySpawnEntry& Entry : EnemyRegistry)
 	{
 		if (AMordecaiEnemyCharacter* Enemy = Entry.Enemy.Get())

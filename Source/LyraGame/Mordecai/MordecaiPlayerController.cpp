@@ -82,8 +82,20 @@ void AMordecaiPlayerController::OnPossess(APawn* InPawn)
 
 void AMordecaiPlayerController::CreateCombatHUD()
 {
-	if (CombatHUDWidget || !IsLocalController())
+	if (!IsLocalController())
 	{
+		return;
+	}
+
+	// Removing a UUserWidget releases its Slate tree and runs NativeDestruct on every child. The controller keeps
+	// this UObject pointer, so a later possession/setup call must re-add and rebind it instead of returning early.
+	if (CombatHUDWidget)
+	{
+		if (!CombatHUDWidget->IsInViewport())
+		{
+			CombatHUDWidget->AddToViewport();
+		}
+		BindCombatHUD();
 		return;
 	}
 
@@ -105,28 +117,38 @@ void AMordecaiPlayerController::CreateCombatHUD()
 	if (CombatHUDWidget)
 	{
 		CombatHUDWidget->AddToViewport();
+		BindCombatHUD();
+	}
+}
 
-		// Try to bind to the player's ASC (lives on PlayerState in Lyra)
-		if (APlayerState* PS = PlayerState)
+void AMordecaiPlayerController::BindCombatHUD()
+{
+	if (!CombatHUDWidget)
+	{
+		return;
+	}
+
+	// The player's ASC lives on PlayerState in Lyra.
+	if (APlayerState* PS = PlayerState)
+	{
+		if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(PS))
 		{
-			if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(PS))
+			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
 			{
-				if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
-				{
-					CombatHUDWidget->BindToASC(ASC);
-				}
+				CombatHUDWidget->BindToASC(ASC);
 			}
 		}
+	}
 
-		// Wire the pickup/inventory assist prompts to the pawn's interaction component (US-079)
-		if (UMordecaiPickupPromptWidget* Prompt = CombatHUDWidget->GetPickupPrompt())
+	// Wire the pickup/inventory assist prompts to the pawn's interaction component (US-079).
+	if (UMordecaiPickupPromptWidget* Prompt = CombatHUDWidget->GetPickupPrompt())
+	{
+		if (APawn* PossessedPawn = GetPawn())
 		{
-			if (APawn* PossessedPawn = GetPawn())
+			if (UMordecaiPickupInteractionComponent* Interaction =
+				PossessedPawn->FindComponentByClass<UMordecaiPickupInteractionComponent>())
 			{
-				if (UMordecaiPickupInteractionComponent* Interaction = PossessedPawn->FindComponentByClass<UMordecaiPickupInteractionComponent>())
-				{
-					Prompt->BindToInteraction(Interaction);
-				}
+				Prompt->BindToInteraction(Interaction);
 			}
 		}
 	}

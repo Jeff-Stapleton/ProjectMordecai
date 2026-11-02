@@ -27,13 +27,14 @@ Steps (--plan prints them as the story's Steps table):
        player.
   9-10 Tap One (Restoration: health rises, SP -3, the tag), then watch for Burning (WARN: the
        attacker swings BasicSlash).  Burning ends at once when the player dies.
- 11-14 The death (seen by whichever step reads it first: no death goes unobserved), the death
-       screen, no movement while dead, the respawn at the PlayerStart with full health.
-  15   The death screen is gone after the respawn.
-  16-17 The arena reset, judged on the first read that shows the respawned player (both targets
+ 11-15 The death (seen by whichever step reads it first: no death goes unobserved), the death
+       screen, its completed-life 1 versus HUD/new-life 0 split, no movement while dead, and the
+       respawn at the PlayerStart with full health.
+ 16   The death screen is gone after the respawn.
+ 17-18 The arena reset, judged on the first read that shows the respawned player (both targets
        at their spawns, full health, alive, Idle, and the reset observed: the dummy healed or the
        attacker back to Idle), then movement after the respawn.
-  18   The kill counter and player.kills both reset to 0 after the player's death.
+ 19   The kill counter and player.kills both reset to 0 after the player's death.
 A failed check SKIPs the checks that depend on it (needs=); independent checks still run.
 
 Usage:
@@ -97,6 +98,8 @@ RE_KILLS = re.compile(r"^\s*Kills:\s*(\d+)\s*$")
 RE_COUNTDOWN = re.compile(r"\d")
 YOU_DIED = "You Died"
 BURNING_TEXT = "Burning"
+DEATH_SCREEN_CLASS = "MordecaiDeathScreenWidget"
+KILL_COUNTER_CLASS = "MordecaiKillCounterWidget"
 RESTORATION_KEY = "One"
 RESTORATION_SP = 3.0
 ATTACK_POINT = (640, 360)              # the viewport centre: the game view, no widget
@@ -106,7 +109,7 @@ ATTACK_TIMEOUT_S = 1.0
 DODGE_TIMEOUT_S = 0.5
 KILL_TIMEOUT_S = 45.0
 KILL_CLICK_INTERVAL_S = 0.3
-KILL_MAX_SIMULATED_GAP_S = 0.4          # story contract: no more than 0.4 game seconds between LMB clicks
+KILL_MAX_GAME_TIME_GAP_S = 0.4          # story contract: no more than 0.4 world seconds between LMB starts
 KILL_COUNTER_TIMEOUT_S = 2.0
 PRE_KILL_SETTLE_TIMEOUT_S = 2.0
 PRE_KILL_MAX_SPEED_CM_S = 5.0
@@ -170,7 +173,7 @@ PLAN = (
          f"{PRE_KILL_MAX_SPEED_CM_S:g} cm/s, walk_to({DUMMY_MELEE_SPOT[0]:g}, "
          f"{DUMMY_MELEE_SPOT[1]:g}) after the dodge if needed, then repeat click Left at "
          f"{ATTACK_POINT} on a {KILL_CLICK_INTERVAL_S:g}s target cadence (never more than "
-         f"{KILL_MAX_SIMULATED_GAP_S:g} simulated seconds apart) -> the {DUMMY} is dead within "
+         f"{KILL_MAX_GAME_TIME_GAP_S:g} game-world seconds apart) -> the {DUMMY} is dead within "
          f"{KILL_TIMEOUT_S:g}s",
          proves=("AC-054.13", "US-086:AC-086.5")),
     Step("kill_counter_increments", f"state widgets, player -> within "
@@ -192,8 +195,12 @@ PLAN = (
          f"already seen dead by an earlier step), '{TAG_DEAD}' in player.tags",
          proves=("US-053:AC-053.1",)),
     Step("death_screen", f"state widgets -> within {DEATH_SCREEN_TIMEOUT_S:g}s one widget with "
-         f"'{YOU_DIED}', a countdown digit and 'Kills: N'",
-         proves=("US-062:AC-062.1", "US-062:AC-062.2", "US-086:AC-086.1", "US-086:AC-086.4")),
+         f"'{YOU_DIED}', a countdown digit and the previously observed completed-life count",
+         proves=("US-062:AC-062.1", "US-062:AC-062.2", "US-086:AC-086.1",
+                 "US-086:AC-086.2", "US-086:AC-086.4")),
+    Step("death_count_split", f"while dead: the {DEATH_SCREEN_CLASS} shows 'Kills: 1' while the "
+         f"{KILL_COUNTER_CLASS} and player.kills both show 0",
+         proves=("US-086:AC-086.3", "US-062:AC-062.2")),
     Step("dead_no_move", f"while dead: hold W {DEAD_HOLD_S:g}s -> moved < {DEAD_MAX_MOVE_CM:g} cm",
          proves=("US-053:AC-053.2",)),
     Step("respawn", f"wait -> within {RESPAWN_TIMEOUT_S:g}s player.is_dead==false, health == "
@@ -243,6 +250,21 @@ def all_texts(st):
         if widget_visible(w):
             out += [str(t) for t in (w.get("texts") or []) if t is not None]
     return out
+
+
+def texts_for_widget_class(st, class_fragment):
+    """Visible texts owned by widgets whose class contains class_fragment (case-insensitive)."""
+    fragment = class_fragment.lower()
+    out = []
+    for w in widgets(st):
+        if widget_visible(w) and fragment in str(w.get("class") or "").lower():
+            out += [str(t) for t in (w.get("texts") or []) if t is not None]
+    return out
+
+
+def kill_counts_for_widget_class(st, class_fragment):
+    return [int(m.group(1)) for text in texts_for_widget_class(st, class_fragment)
+            if (m := RE_KILLS.match(text))]
 
 
 def kill_counts(st):
@@ -651,8 +673,9 @@ class Us054CombatRun(kit.PlaytestRun):
 
             deadline = time.monotonic() + KILL_TIMEOUT_S
             last_click_at = None
+            last_click_world_time = None
             max_wall_click_gap = 0.0
-            max_simulated_click_gap = KILL_CLICK_INTERVAL_S
+            max_game_time_click_gap = 0.0
             health_samples = []
             last_detail = f"{DUMMY}: not read"
 
@@ -667,15 +690,15 @@ class Us054CombatRun(kit.PlaytestRun):
                         health_samples.append(current)
                     if dummy.get("is_dead") is True:
                         status = ("PASS" if self.kill_clicks <= 1
-                                  or max_simulated_click_gap <= KILL_MAX_SIMULATED_GAP_S
+                                  or max_game_time_click_gap <= KILL_MAX_GAME_TIME_GAP_S
                                   else "FAIL")
                         return (status, f"killed the {DUMMY} with {self.kill_clicks} repeated "
                                 f"Left clicks after waiting {settle_elapsed:.2f}s for the "
                                 f"attack/dodge to settle and "
                                 f"{'walking back' if walked_back else 'remaining'} "
-                                f"at the melee spot; health {health_samples}; maximum simulated "
-                                f"click-start gap {max_simulated_click_gap:.3f}s (limit "
-                                f"{KILL_MAX_SIMULATED_GAP_S:g}s), maximum wall-time gap "
+                                f"at the melee spot; health {health_samples}; maximum game-time "
+                                f"click-start gap {max_game_time_click_gap:.3f}s (limit "
+                                f"{KILL_MAX_GAME_TIME_GAP_S:g}s), maximum wall-time gap "
                                 f"{max_wall_click_gap:.3f}s (informational); "
                                 f"{last_detail}", None)
 
@@ -699,13 +722,14 @@ class Us054CombatRun(kit.PlaytestRun):
                         raise
                     return ("FAIL", f"Left click {self.kill_clicks + 1} failed: {e}; "
                             f"{last_detail}", None)
-                simulated = _num((click_response or {}).get("simulated_s"))
-                if simulated is not None:
-                    # During a frame hitch the blocking click command returns only after that
-                    # frame. The next click starts immediately, so its game-time start gap is the
-                    # simulated hold (capped at 0.4 s), not the larger wall-time round trip.
-                    max_simulated_click_gap = max(
-                        max_simulated_click_gap, simulated)
+                click_world_time = _num((click_response or {}).get("started_world_time_s"))
+                if click_world_time is None:
+                    return ("FAIL", "the click response has no numeric started_world_time_s; "
+                            "cannot verify click-start cadence", None)
+                if last_click_world_time is not None:
+                    max_game_time_click_gap = max(
+                        max_game_time_click_gap, click_world_time - last_click_world_time)
+                last_click_world_time = click_world_time
                 self.kill_clicks += 1
 
         killed, _ = self.measure("kill_enemy_melee", kill)
@@ -886,26 +910,61 @@ class Us054CombatRun(kit.PlaytestRun):
         why = "not run: the player did not die"
 
         def screen(st):
-            # The death screen widget itself: 'You Died', a countdown and the session kill
-            # count (AC-062.2).  Digits elsewhere (the HUD's SP text) do not count.
+            # The death screen widget itself: 'You Died', a countdown and the completed life's
+            # previously observed kill count (AC-062.2). Digits and kill texts elsewhere do not count.
+            expected = self.kills_after_dummy
+            if expected is None:
+                return False
             for w in widgets(st):
+                if DEATH_SCREEN_CLASS.lower() not in str(w.get("class") or "").lower():
+                    continue
                 texts = [str(t) for t in (w.get("texts") or [])]
                 if not widget_visible(w) or not any(YOU_DIED.lower() in t.lower() for t in texts):
                     continue
                 countdown = any(RE_COUNTDOWN.search(t) and not RE_KILLS.match(t)
                                 for t in texts)
                 screen_kills = [int(m.group(1)) for t in texts if (m := RE_KILLS.match(t))]
-                expected = self.kills_after_dummy
-                if countdown and screen_kills and (expected is None or expected in screen_kills):
+                if countdown and expected in screen_kills:
                     return True
             return False
 
+        def screen_detail(st):
+            if self.kills_after_dummy is None:
+                return ("completed-life count was never observed by kill_counter_increments; "
+                        f"death-screen texts {texts_for_widget_class(st, DEATH_SCREEN_CLASS)}")
+            return (f"{DEATH_SCREEN_CLASS} texts "
+                    f"{texts_for_widget_class(st, DEATH_SCREEN_CLASS)}; all texts "
+                    f"{all_texts(st)}")
+
         self.death_screen_seen, _ = self.observe(
             "death_screen", ["widgets"], screen,
-            lambda st: (f"texts on screen: {all_texts(st)} (widget classes "
-                        f"{[w.get('class') for w in widgets(st)]})"),
+            screen_detail,
             timeout_s=DEATH_SCREEN_TIMEOUT_S, needs=died, needs_why=why)
-        # After the death screen check, so the frame shows the screen the check saw
+
+        def count_split(st):
+            expected = self.kills_after_dummy
+            p = player(st)
+            death_counts = kill_counts_for_widget_class(st, DEATH_SCREEN_CLASS)
+            hud_counts = kill_counts_for_widget_class(st, KILL_COUNTER_CLASS)
+            return (expected is not None and death_counts == [expected]
+                    and hud_counts == [0] and p is not None and p.get("kills") == 0)
+
+        def split_detail(st):
+            p = player(st)
+            return (f"DeathScreen kills {kill_counts_for_widget_class(st, DEATH_SCREEN_CLASS)} "
+                    f"(expected [{self.kills_after_dummy}]); HUD KillCounter kills "
+                    f"{kill_counts_for_widget_class(st, KILL_COUNTER_CLASS)} (expected [0]); "
+                    f"player.kills={(p or {}).get('kills')} (expected 0)")
+
+        split_ok, _ = self.observe(
+            "death_count_split", ["widgets", "player"], count_split, split_detail,
+            timeout_s=DEATH_SCREEN_TIMEOUT_S,
+            needs=died and self.death_screen_seen and self.kills_after_dummy is not None,
+            needs_why=("not run: the completed-life count was never observed"
+                       if self.kills_after_dummy is None else
+                       "not run: the player did not die or the death screen was not verified"))
+
+        # After both death checks, so the frame shows the exact completed-life/new-life split.
         self.shot("dead", needs=died, needs_why="not taken: the player did not die")
 
         def no_move(b):

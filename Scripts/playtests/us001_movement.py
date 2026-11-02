@@ -135,9 +135,9 @@ GAMEPAD_HOLD_S = 0.5
 GAMEPAD_MIN = 100.0
 GAMEPAD_TIMEOUT_S = 1.0
 
-KI_FACING = ("Known issue: facing and aim are pinned to +X by the diorama camera "
+KI_FACING = ("Known issue #34: facing and aim are pinned to +X by the diorama camera "
              "(Specs/agent_playtest_plan_v1.md)")
-KI_STICKS = ("Known issue: gamepad stick and L3 mappings use invalid FKey names "
+KI_STICKS = ("Known issue #33: gamepad stick and L3 mappings use invalid FKey names "
              "(Specs/agent_playtest_plan_v1.md)")
 KNOWN_ISSUES = (KI_FACING, KI_STICKS)
 

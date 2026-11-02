@@ -9,6 +9,7 @@
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
 
 // ---------------------------------------------------------------------------
 // 1. Mordecai.Arena.PlayerDeathAtZeroHealth (AC-053.1)
@@ -244,15 +245,59 @@ bool FMordecai_Arena_KillCountIncrementsOnEnemyDeath::RunTest(const FString& Par
 	TestNotNull("GameMode created", GM);
 	TestEqual("Initial kill count is 0", GM->GetEnemyKillCount(), 0);
 
-	GM->NotifyEnemyKilled(nullptr);
+	AMordecaiEnemyCharacter* First = NewObject<AMordecaiEnemyCharacter>();
+	AMordecaiEnemyCharacter* Second = NewObject<AMordecaiEnemyCharacter>();
+	GM->NotifyEnemyKilled(First);
 	TestEqual("Kill count is 1", GM->GetEnemyKillCount(), 1);
 
-	GM->NotifyEnemyKilled(nullptr);
+	GM->NotifyEnemyKilled(Second);
 	TestEqual("Kill count is 2", GM->GetEnemyKillCount(), 2);
 
 	FGameplayTag EnemyKillTag = MordecaiGameplayTags::Event_EnemyKill;
 	TestTrue("Mordecai.Event.EnemyKill tag is valid", EnemyKillTag.IsValid());
 
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// Mordecai.Arena.ResetArenaResetsKillCount
+// A manual or respawn-driven arena reset starts a clean life count as well as restoring enemies.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Arena_ResetArenaResetsKillCount,
+	"Mordecai.Arena.ResetArenaResetsKillCount",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Arena_ResetArenaResetsKillCount::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryTest;
+
+	FRecoveryTestEnv Env;
+	if (!TestTrue("production-style world set up", Env.Setup(FVector::ZeroVector)))
+	{
+		Env.Teardown();
+		return true;
+	}
+	AMordecaiGameMode* GM = Env.InstallGameMode();
+	if (!TestNotNull("production game mode installed", GM))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(FVector(500.f, 0.f, 100.f), {});
+	TestNotNull("real enemy spawned", Enemy);
+	if (Enemy)
+	{
+		GM->RegisterEnemy(Enemy, Enemy->GetActorTransform());
+		Enemy->EnterDeathState();
+	}
+	TestEqual("the enemy death increments the count", GM->GetEnemyKillCount(), 1);
+
+	GM->ResetArena();
+	TestEqual("ResetArena resets the authoritative count", GM->GetEnemyKillCount(), 0);
+	TestFalse("ResetArena restores the counted enemy", Enemy && Enemy->IsDead());
+
+	Env.Teardown();
 	return true;
 }
 

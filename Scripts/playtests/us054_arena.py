@@ -85,7 +85,14 @@ SCREENSHOTS = {
     "hit": "the player at the arena centre after the first Frontliner hit: the health bar below "
            "full, Frontliners (red cylinders) next to the player",
 }
-KNOWN_ISSUES = ()
+KI_FRONTLINER_PLACEMENT = (
+    "Closed issues #19/#46: DevTestMap intentionally retains the Frontliner swarm at the spawn; "
+    "the first live read can therefore be below the old 300 cm spacing threshold "
+    "(Specs/agent_playtest_plan_v1.md)")
+KI_ENEMY_INDICATORS = (
+    "Known issue #22 (N17): EnemyIndicator widgets never appear "
+    "(Specs/agent_playtest_plan_v1.md)")
+KNOWN_ISSUES = (KI_FRONTLINER_PLACEMENT, KI_ENEMY_INDICATORS)
 
 PLAN = (
     Step("hud_visible", "state widgets -> HealthBar, StaminaBar, PostureBar, SpellPointsBar and "
@@ -95,14 +102,16 @@ PLAN = (
          "below it, PostureBar below that", proves=("AC-054.7",)),
     Step("enemies_present", f"state actors (radius {ENEMY_RADIUS}) -> 3 kind=='enemy', health "
          f"{{{ENEMY_MAX_HEALTH:g}, {ENEMY_MAX_HEALTH:g}}}, pairwise > {MIN_ENEMY_SPACING:g} cm apart",
-         proves=("AC-054.11", "AC-054.2", "US-050:AC-050.3")),
+         proves=("AC-054.11", "AC-054.2", "US-050:AC-050.3"),
+         known_issue=KI_FRONTLINER_PLACEMENT),
     Step("enemies_visible", "state actors -> every enemy has_visible_mesh==true",
          proves=("AC-054.13",)),
     Step("enemy_health_bars", f"state actors -> every enemy has a visible widget whose class "
          f"contains {ENEMY_BAR_CLASS}", proves=("AC-054.9", "US-052:AC-052.10")),
     Step("enemy_indicators", f"state widgets -> one {INDICATOR_CLASS} widget per enemy in aggro "
          f"range within {INDICATOR_TIMEOUT_S:g}s",
-         proves=("US-064:AC-064.2", "US-064:AC-064.10")),
+         proves=("US-064:AC-064.2", "US-064:AC-064.10"),
+         known_issue=KI_ENEMY_INDICATORS),
     Step("enemy_aggro", f"stand at the spawn -> every enemy ai_state != 'Idle' within "
          f"{AGGRO_TIMEOUT_S:g}s", proves=("US-051:AC-051.3",)),
     Step("enemy_approaches", f"stand -> some enemy > {DISPLACED_CM:g} cm from every spawn within "

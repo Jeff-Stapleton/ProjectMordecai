@@ -92,9 +92,9 @@ LIGHT_TIMEOUT_S = 1.0
 HEAVY_TIMEOUT_S = 0.5
 ATTACK_CLEAR_S = 2.0
 
-N3 = ("N3 The weapon HUD draws nothing: UMordecaiEquippedWeaponWidget has no widget tree "
+N3 = ("N3 / issue #8: the weapon HUD draws nothing; UMordecaiEquippedWeaponWidget has no widget tree "
       "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
-N9 = ("N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next "
+N9 = ("N9 / issue #14: previous weapon is BackSlash only; Shift+Tab is not mapped and Tab still fires Next "
       "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
 
 SCREENSHOTS = {

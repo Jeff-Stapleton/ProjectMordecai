@@ -146,8 +146,8 @@ bool FMordecai_Recovery_DeathScreen_ShownOnDeathRemovedOnRespawn::RunTest(const 
 	// so these new values also show that every push sets the screen up again.
 	AMordecaiGameMode* GameMode = NewObject<AMordecaiGameMode>();
 	GameMode->RespawnDelaySeconds = 5.f;
-	GameMode->NotifyEnemyKilled(nullptr);
-	GameMode->NotifyEnemyKilled(nullptr);
+	GameMode->NotifyEnemyKilled(NewObject<AMordecaiEnemyCharacter>());
+	GameMode->NotifyEnemyKilled(NewObject<AMordecaiEnemyCharacter>());
 	Component->SetGameModeOverride(GameMode);
 	Env.ApplyPlayerHealthDelta(-1000.f);
 	UMordecaiDeathScreenWidget* SecondScreen = OnlyDeathScreen(GameLayer);
@@ -181,7 +181,61 @@ bool FMordecai_Recovery_DeathScreen_ShownOnDeathRemovedOnRespawn::RunTest(const 
 }
 
 // ---------------------------------------------------------------------------
-// 3. Mordecai.Recovery.DeathScreen.CountdownHoldsWhilePaused (AC-062.1, issue #7 review)
+// 3. Mordecai.Recovery.DeathScreen.LateBindPreservesCompletedLifeKills (issue #6 review)
+// The component may bind after State.Dead was added and the GameMode reset the live count; the screen still needs
+// the completed life's value, not the new life's zero.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_DeathScreen_LateBindPreservesCompletedLifeKills,
+	"Mordecai.Recovery.DeathScreen.LateBindPreservesCompletedLifeKills",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_DeathScreen_LateBindPreservesCompletedLifeKills::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryTest;
+	using namespace MordecaiRecoveryDeathScreenTest;
+
+	FRecoveryControlledTestEnv Env;
+	if (!TestTrue("controlled production-style world set up", Env.SetupWithController()))
+	{
+		Env.TeardownWithController();
+		return true;
+	}
+	AMordecaiGameMode* GameMode = Env.InstallGameMode();
+	if (!TestNotNull("production game mode installed", GameMode))
+	{
+		Env.TeardownWithController();
+		return true;
+	}
+
+	UMordecaiRecoveryTestLayout* Layout = Env.MakeWidget<UMordecaiRecoveryTestLayout>();
+	UCommonActivatableWidgetContainerBase* GameLayer =
+		Layout->AddTestLayer(FGameplayTag::RequestGameplayTag(TEXT("UI.Layer.Game")));
+	UMordecaiDeathScreenComponent* Component = NewObject<UMordecaiDeathScreenComponent>(Env.PC);
+	Component->RegisterComponent();
+	Component->SetLayoutOverride(Layout);
+
+	Env.SpawnEnemy(FVector(500.f, 0.f, 100.f), {})->EnterDeathState();
+	Env.SpawnEnemy(FVector(700.f, 0.f, 100.f), {})->EnterDeathState();
+	TestEqual("the completed life has two kills", GameMode->GetEnemyKillCount(), 2);
+
+	Env.ApplyPlayerHealthDelta(-1000.f);
+	TestTrue("the player died before the component bound", Env.Player->IsDead());
+	TestEqual("the current-life count was reset", GameMode->GetEnemyKillCount(), 0);
+	TestEqual("unbound: no death screen yet", GameLayer->GetNumWidgets(), 0);
+
+	Component->BindToPlayerState();
+	UMordecaiDeathScreenWidget* Screen = OnlyDeathScreen(GameLayer);
+	TestNotNull("late bind pushes the death screen", Screen);
+	TestEqualSensitive("late bind preserves the completed life's total", DrawnTexts(Screen),
+		FString(TEXT("You Died | 3 | Kills: 2")));
+
+	Component->Unbind();
+	Env.TeardownWithController();
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 4. Mordecai.Recovery.DeathScreen.CountdownHoldsWhilePaused (AC-062.1, issue #7 review)
 // The pause menu can open while the player is dead. It pauses the world, and the respawn timer with it, but Slate
 // keeps ticking the screen: the countdown must hold too, or it reaches nothing while the player is still dead.
 // ---------------------------------------------------------------------------
@@ -220,7 +274,7 @@ bool FMordecai_Recovery_DeathScreen_CountdownHoldsWhilePaused::RunTest(const FSt
 }
 
 // ---------------------------------------------------------------------------
-// 4. Mordecai.Recovery.DeathScreen.KeepsTheViewportCaptureMode (AC-062.3, issue #7 review)
+// 5. Mordecai.Recovery.DeathScreen.KeepsTheViewportCaptureMode (AC-062.3, issue #7 review)
 // The active screen's input config is applied to the game viewport, and CommonUI restores nothing when it goes: it
 // must use the project's capture mode (DefaultInput.ini), or after a death the click that refocuses the game only
 // captures the mouse and does not attack.

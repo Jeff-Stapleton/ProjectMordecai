@@ -819,6 +819,10 @@ void FMordecaiAgentBridgeServer::HandleClick(FConnection& Connection, const FMor
 	Response->SetField(TEXT("abs"), MakeVector2D(Absolute));
 	Response->SetStringField(TEXT("button"), Args.ButtonName);
 	Response->SetField(TEXT("hit"), MakeStringOrNull(Hit, Hit.IsEmpty()));
+	const UWorld* World = ViewportClient ? ViewportClient->GetWorld() : nullptr;
+	Response->SetField(TEXT("started_world_time_s"), World
+		? MakeNumber(World->GetTimeSeconds(), 6)
+		: MakeShared<FJsonValueNull>());
 	AddInputFields(Response, bReady, Env);
 
 	FMordecaiAgentBridgeHoldClock Clock(Args.HoldSeconds, 1, Now, GFrameCounter, 10.0,

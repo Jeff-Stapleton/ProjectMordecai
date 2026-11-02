@@ -2019,11 +2019,13 @@ class FakeBridgeServer:
         w = self.world
         x, y = point
         t_start, f_start = time.monotonic(), w.frame
+        started_world_time_s = _r(w.world_time, 6)
         hit = w.mouse_down(c.id, x, y, button)
         while time.monotonic() - t_start < hold_s or w.frame - f_start < 1:
             yield
         w.mouse_up(c.id, x, y, button)
-        resp = {"x": x, "y": y, "button": button, "hit": hit}
+        resp = {"x": x, "y": y, "button": button, "hit": hit,
+                "started_world_time_s": started_world_time_s}
         resp.update(self._hold_fields(t_start, f_start))
         resp.update(self._input_fields())
         return resp

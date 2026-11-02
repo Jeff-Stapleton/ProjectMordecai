@@ -202,6 +202,37 @@ Then repopulate with valid C++ or Blueprint ability classes.
 
 **Fix:** keep one authoritative value. `AMordecaiGameMode` broadcasts its new absolute count through `FOnMordecaiEnemyKillCountChanged` on each enemy death and after resetting it in the existing player-death notification. The widget binds to that native delegate and renders the published value; it has no local increment/reset handlers. If code really needs a GAS gameplay-event listener, use a gameplay-event delegate/task (`GenericGameplayEventCallbacks` / `UAbilityTask_WaitGameplayEvent`), not `RegisterGameplayTagEvent`. Tests: `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `.ResetsOnPlayerDeath`.
 
+The first fix was still incomplete in three non-obvious ways:
+
+- **Per-life counters need both a completed-life snapshot and reset guards at every boundary.** Resetting only in
+  `NotifyPlayerDeath` lets a delayed projectile/DoT enemy death during the respawn window become kill 1 of the next
+  life. Cache the completed total before the death reset, ignore accounting while respawn is pending, reset again in
+  `ExecuteRespawn` and `ResetArena`, and let the death screen read the cached total on a late bind. Tests:
+  `Mordecai.Recovery.KillCounter.PostDeathKillDoesNotLeak`,
+  `Mordecai.Arena.ResetArenaResetsKillCount`, and
+  `Mordecai.Recovery.DeathScreen.LateBindPreservesCompletedLifeKills`.
+- **A Blueprint-callable death transition must guard its state before adding loose tags or notifying accounting.**
+  Calling `EnterDeathState` twice stacked `Mordecai.State.Dead` and counted twice; one `RemoveLooseGameplayTag` then
+  left the enemy dead after reset. Return immediately when `IsDead()` is already true, and defensively deduplicate
+  counted enemy objects in the GameMode. Test: `Mordecai.Enemy.DeathIsIdempotentForKillAccounting`.
+- **`NativeDestruct` is Slate lifetime, not UObject lifetime.** Removing a retained HUD destroys its Slate wrapper and
+  unbinds child delegates, while the controller's `TObjectPtr` still prevents a new UObject. Cache the ASC on the HUD,
+  rebind children from `NativeConstruct`, and make the controller re-add/rebind an existing HUD rather than returning
+  just because its pointer is non-null. Test: `Mordecai.Recovery.KillCounter.RebindsAfterHUDRebuild`.
+
+### Agent-bridge `simulated_s` is hold duration, never input-start cadence
+
+**Problem:** a combat playtest claimed every LMB start was within 0.4 game seconds by taking the maximum
+`click` response `simulated_s`. A regression even slept 0.42 seconds, overwrote `simulated_s` with 0.4, and expected
+PASS.
+
+**Root cause:** `simulated_s` is the time that one button stayed down (`hold_s`), per
+`Specs/agent_bridge_v1.md` §2. It contains no information about when the next click started.
+
+**Fix:** click responses report `started_world_time_s`, sampled when mouse-down is injected. Measure consecutive
+start-to-start gaps from that field. An offline regression injects a 0.410 world-time gap with a 0.05 hold and requires
+the cadence check to FAIL.
+
 ---
 
 ## Python Editor Scripting Gotchas

@@ -65,6 +65,9 @@ Each input response reports in `env` whether it did any of these (`focus_restore
   - `simulated_s` is within half a frame of `hold_s` (at most 0.2 s, half the 0.4 s frame cap), after at least `MinFrames` frames (tap 2, `axis` and `click` 1). A check that judges a distance or a duration against a hold can read `simulated_s`. In `Saved/Playtests/20261029-175605-us001`, `move_a` held A for `hold_s` 0.4 across a hitch: 0.712 s of wall time, 0.283 s simulated, 105 cm against the 100 cm threshold.
 - The input goes up anyway 10 s of wall time past `hold_s`, so a key cannot stay down for good.
 - Responses report `held_s` (wall time), `simulated_s` (the simulated time it was down) and `frames`.
+- A `click` response also reports `started_world_time_s`, sampled from `UWorld::GetTimeSeconds()` when the mouse
+  button goes down. This is the field for measuring spacing between click starts. `simulated_s` is only that one
+  click's button-down hold duration and must never be used as a start-to-start interval.
 - Auto-repeat still runs on wall time, as a real device's does. A tap that must stay down for its minimum frames through a hitch longer than the repeat delay can get one repeat event. No playtest reads gamepad or keyboard repeats.
 
 **Connections**

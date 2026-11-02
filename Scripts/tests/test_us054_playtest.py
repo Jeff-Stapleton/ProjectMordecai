@@ -216,13 +216,16 @@ class TestUs054Plan(Us054Case):
         text = out.getvalue()
         self.assertIn("| 1 | `hud_visible` |", text)
         self.assertIn("| 9 | `enemy_damages_player` |", text)
-        self.assertNotIn("known issue", text)
+        self.assertIn("#22", text)
 
     def test_proves_known_issues_and_declarations(self):
         plan = {s.check: s for s in us054.PLAN}
         for name, proves in PROVES.items():
             self.assertEqual(plan[name].proves, proves, name)
-            # No DevTestMap check carries a known_issue (death_screen's N2 moved with it).
+        self.assertIn("#22", plan["enemy_indicators"].known_issue)
+        self.assertIn("#19", plan["enemies_present"].known_issue)
+        self.assertIn("#46", plan["enemies_present"].known_issue)
+        for name in set(PROVES) - {"enemies_present", "enemy_indicators"}:
             self.assertIsNone(plan[name].known_issue, name)
         self.assertEqual(set(us054.Us054Run.COVERS),
                          {"US-050", "US-051", "US-052", "US-063", "US-064"})
@@ -271,7 +274,8 @@ class TestUs054AgainstTheFake(Us054Case):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
         self.assertIn(fb.DEFAULT_MAP, checks["map"]["detail"])
-        self.assertEqual(rep["fixed_candidates"], [])
+        self.assertEqual(sorted(rep["fixed_candidates"]),
+                         ["enemies_present", "enemy_indicators"])
         self.assertEqual([s["label"] for s in rep["screenshots"]], ["start", "hit"])
         # The Frontliners really walked up and hit the player standing at the spawn.
         self.assertGreater(world.hits, 0)
@@ -336,7 +340,8 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertEqual(checks["enemies_present"]["status"], "FAIL")
         self.assertIn("health 100.0/100.0", checks["enemies_present"]["detail"])
         self.assertEqual(checks["enemy_health_bars"]["status"], "FAIL")
-        for name in ("hud_layout", "enemies_present", "enemy_health_bars"):
+        self.assertIn("enemies_present", rep["known_failures"])
+        for name in ("hud_layout", "enemy_health_bars"):
             self.assertIn(name, rep["new_failures"])
 
     def test_a_wrong_kill_count_fails_hud_visible(self):

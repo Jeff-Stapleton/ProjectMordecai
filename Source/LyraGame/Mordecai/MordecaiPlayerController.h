@@ -77,6 +77,7 @@ protected:
 
 private:
 	void CreateCombatHUD();
+	void BindCombatHUD();
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMordecaiCombatHUDWidget> CombatHUDWidget;

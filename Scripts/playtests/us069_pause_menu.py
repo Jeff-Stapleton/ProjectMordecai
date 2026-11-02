@@ -96,9 +96,11 @@ BLOCKED_SETTLE_S = 1.0
 BLOCKED_W_HOLD_S = 0.3
 MAX_DRIFT_CM = 5.0
 
-KNOWN_N4 = ("N4 The Character tab of the pause menu is blank: UMordecaiCharacterSheetWidget "
+KNOWN_N4 = ("Issue #9 (N4): the Character tab of the pause menu is blank; "
+            "UMordecaiCharacterSheetWidget "
             "builds no widget tree (Known issues backlog, Specs/agent_playtest_plan_v1.md)")
-KNOWN_N5 = ("N5 The Skills and Feats tabs show \"Coming Soon\": MordecaiPauseMenuWidget registers "
+KNOWN_N5 = ("Issue #10 (N5): the Skills and Feats tabs show \"Coming Soon\"; "
+            "MordecaiPauseMenuWidget registers "
             "only Character and Inventory (Known issues backlog, Specs/agent_playtest_plan_v1.md)")
 KNOWN_ISSUES = (KNOWN_N4, KNOWN_N5)
 
