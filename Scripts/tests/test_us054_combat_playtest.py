@@ -20,6 +20,7 @@ import io
 import json
 import math
 import os
+import re
 import sys
 import tempfile
 import time
@@ -712,6 +713,33 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertIsNotNone(world.dodge_ends_at)
         self.assertGreaterEqual(movement_after + 0.01, world.dodge_ends_at,
                                 "walk_to calibration must not run against residual dodge motion")
+
+    def test_click_cadence_uses_simulated_time_across_a_frame_hitch(self):
+        _, server = self.serve(**game_today())
+        real_click = ab.Bridge.click
+        calls = {"count": 0}
+
+        def one_hitched_click(bridge, *args, **kwargs):
+            response = real_click(bridge, *args, **kwargs)
+            calls["count"] += 1
+            if calls["count"] == 5:
+                # The in-game bridge can hold a click through one capped 0.4 s simulated frame
+                # and return later in wall time. The next click starts immediately; wall time is
+                # not the game's click-start cadence.
+                time.sleep(0.42)
+                response = dict(response)
+                response["simulated_s"] = 0.4
+            return response
+
+        with mock.patch.object(ab.Bridge, "click", one_hitched_click):
+            code, rep = self.play(server)
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        check = self.by_name(rep)["kill_enemy_melee"]
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertIn("maximum simulated click-start gap 0.400s", check["detail"])
+        wall = re.search(r"maximum wall-time gap ([0-9.]+)s", check["detail"])
+        self.assertIsNotNone(wall, check["detail"])
+        self.assertGreater(float(wall.group(1)), 0.4, check["detail"])
 
     def test_no_death_screen_fails_death_screen_as_new(self):
         # Issue #7 before its fix: the player dies and respawns, but no widget says 'You Died'
