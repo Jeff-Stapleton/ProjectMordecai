@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(git)",
+      "Shell(gh:pr *)",
+      "Shell(py:Scripts/*)",
+      "Shell(py:Scripts\\*)",
+      "Shell(py:-X utf8 Scripts/*)",
+      "Shell(py:-m py_compile *)",
+      "Shell(& \"C:\\Users\\jeffd\\Documents\\Gamedev\\UnrealEngine\\Engine\\Build\\BatchFiles\\Build.bat\" *)",
+      "Shell(& \"C:\\Users\\jeffd\\Documents\\Gamedev\\UnrealEngine\\Engine\\Binaries\\Win64\\UnrealEditor-Cmd.exe\" *)",
+      "Shell(Start-Process \"C:\\Users\\jeffd\\Documents\\Gamedev\\UnrealEngine\\Engine\\Binaries\\Win64\\UnrealEditor.exe\" *)",
+      "Shell(Stop-Process:-Name*UnrealEditor*)",
+      "Shell(Stop-Process:-Name*LyraGame*)",
+      "Shell(Get-ChildItem)",
+      "Shell(Get-Content)",
+      "Shell(Select-String)",
+      "Shell(Test-Path)",
+      "Shell(Get-Process)",
+      "Read(C:/Users/jeffd/Documents/Gamedev/UnrealEngine/**)",
+      "Write(Source/LyraGame/**)",
+      "Write(Specs/**)",
+      "Write(stories/**)",
+      "Write(.claude/skills/**)",
+      "Mcp(mordecai-play:*)"
+    ],
+    "deny": [
+      "Shell(git:push --force*)",
+      "Shell(git:push -f*)",
+      "Shell(git:reset --hard*)",
+      "Shell(git:clean *)"
+    ]
+  }
+}

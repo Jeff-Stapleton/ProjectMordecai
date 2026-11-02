@@ -1,0 +1,13 @@
+{
+  "autoRun": {
+    "allow_instructions": [
+      "Project Mordecai's own local tooling is routine: py Scripts/<name>.py (build, test, PIE, packaging, playtest and editor scripts, including the slow package_playtest.py), the engine's Build.bat and UnrealEditor-Cmd.exe under C:\\Users\\jeffd\\Documents\\Gamedev\\UnrealEngine, starting UnrealEditor.exe with ProjectMordecai.uproject, and Stop-Process -Name UnrealEditor or LyraGame.",
+      "git commands and gh pr commands are routine, except the ones the block instructions name.",
+      "Read-only PowerShell (Get-ChildItem, Get-Content, Select-String, Test-Path, Get-Process) and reading the engine source under C:\\Users\\jeffd\\Documents\\Gamedev\\UnrealEngine are routine.",
+      "The mordecai-play MCP server's tools are routine: they play the locally packaged game with real input."
+    ],
+    "block_instructions": [
+      "Any force push (git push --force, --force-with-lease or -f, or a +refspec), git reset --hard and git clean must go through approval: they are on the project's deny list."
+    ]
+  }
+}

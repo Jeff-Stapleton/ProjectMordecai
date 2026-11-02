@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "py -X utf8 .cursor/hooks/guard_git.py",
+        "matcher": "[Gg][Ii][Tt]",
+        "timeout": 15
+      }
+    ]
+  }
+}
