@@ -2021,15 +2021,6 @@ class FakeBridgeServer:
         t_start, f_start = time.monotonic(), w.frame
         started_world_time_s = _r(w.world_time, 6)
         hit = w.mouse_down(c.id, x, y, button)
-        if hold_s <= 0:
-            yield  # C++ releases from OnBeginFrame; the next server tick completes this pulse.
-            w.mouse_up(c.id, x, y, button)
-            resp = {"x": x, "y": y, "button": button, "hit": hit,
-                    "started_world_time_s": started_world_time_s,
-                    "held_s": _r(time.monotonic() - t_start, 3),
-                    "simulated_s": 0.0, "frames": 1}
-            resp.update(self._input_fields())
-            return resp
         while time.monotonic() - t_start < hold_s or w.frame - f_start < 1:
             yield
         w.mouse_up(c.id, x, y, button)

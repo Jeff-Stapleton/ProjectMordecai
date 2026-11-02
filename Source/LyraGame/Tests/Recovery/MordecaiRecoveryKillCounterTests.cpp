@@ -4,6 +4,7 @@
 #include "GameplayEffect.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/TextBlock.h"
+#include "GameFramework/WorldSettings.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiProjectile.h"
 #include "Mordecai/Magic/MordecaiGA_Fireball.h"
@@ -373,6 +374,42 @@ bool FMordecai_Recovery_KillCounter_RejectsNonPlayerDeaths::RunTest(const FStrin
 	ApplyHealthEffect(MixedSource, FGameplayEffectContextHandle(), nullptr);
 	TestEqual("environmental finishing damage clears an earlier player source",
 		GameMode->GetEnemyKillCount(), 0);
+
+	Env.Teardown();
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 7. Mordecai.Recovery.KillCounter.CadenceFrameCapSupportsDistinctTaps
+// A light tap needs one down frame and one released frame; together they must fit the story's 0.4 s start bound.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_KillCounter_CadenceFrameCapSupportsDistinctTaps,
+	"Mordecai.Recovery.KillCounter.CadenceFrameCapSupportsDistinctTaps",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_KillCounter_CadenceFrameCapSupportsDistinctTaps::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryTest;
+
+	FRecoveryTestEnv Env;
+	if (!TestTrue("production-style world set up", Env.Setup(FVector::ZeroVector)))
+	{
+		Env.Teardown();
+		return true;
+	}
+	AMordecaiGameMode* GameMode = Env.InstallGameMode();
+	if (TestNotNull("production game mode installed", GameMode))
+	{
+		// This synthetic world installs its GameMode after InitializeActorsForPlay, so invoke the production hook.
+		FString Error;
+		GameMode->InitGame(TEXT("RecoveryTest"), FString(), Error);
+	}
+	const AWorldSettings* Settings = Env.World->GetWorldSettings();
+	if (TestNotNull("world settings", Settings))
+	{
+		TestTrue("two worst-case input frames fit within 0.4 game seconds",
+			Settings->MaxUndilatedFrameTime * 2.f <= 0.4f + KINDA_SMALL_NUMBER);
+	}
 
 	Env.Teardown();
 	return true;

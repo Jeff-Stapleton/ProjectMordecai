@@ -30,7 +30,14 @@ void AMordecaiGameMode::InitGame(const FString& MapName, const FString& Options,
 	// PIE and packaged builds alike. The previous PIE-only ExperienceOverride left packaged builds
 	// on B_LyraDefaultExperience (the shooter).
 	const UWorld* World = GetWorld();
-	const ALyraWorldSettings* WorldSettings = Cast<ALyraWorldSettings>(GetWorldSettings());
+	AWorldSettings* BaseWorldSettings = GetWorldSettings();
+	if (BaseWorldSettings)
+	{
+		// A distinct tap is observed across one down frame and one released frame. Cap each at 0.2 s so even
+		// severe hitches preserve the story's <=0.4 game-time click-start cadence.
+		BaseWorldSettings->MaxUndilatedFrameTime = MaximumUndilatedFrameTimeSeconds;
+	}
+	const ALyraWorldSettings* WorldSettings = Cast<ALyraWorldSettings>(BaseWorldSettings);
 	const bool bDeveloperOverrideApplies = World && World->IsPlayInEditor()
 		&& GetDefault<ULyraDeveloperSettings>()->ExperienceOverride.IsValid();
 	const bool bWorldSettingsHasExperience = WorldSettings && WorldSettings->GetDefaultGameplayExperience().IsValid();

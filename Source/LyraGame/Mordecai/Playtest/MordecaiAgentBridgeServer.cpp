@@ -16,7 +16,6 @@
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Misc/App.h"
-#include "Misc/CoreDelegates.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "SocketSubsystem.h"
@@ -101,11 +100,6 @@ FMordecaiAgentBridgeServer::~FMordecaiAgentBridgeServer()
 		FTSTicker::RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
-	if (BeginFrameHandle.IsValid())
-	{
-		FCoreDelegates::OnBeginFrame.Remove(BeginFrameHandle);
-		BeginFrameHandle.Reset();
-	}
 	if (ScreenshotProcessedHandle.IsValid())
 	{
 		FScreenshotRequest::OnScreenshotRequestProcessed().Remove(ScreenshotProcessedHandle);
@@ -133,7 +127,6 @@ FMordecaiAgentBridgeServer::~FMordecaiAgentBridgeServer()
 		CloseSocket(Connection->Socket);
 	}
 	Connections.Reset();
-	PendingPulseReleases.Reset();
 	HeldUnion.Reset();
 	AutoRepeat.Reset();
 }
@@ -156,7 +149,6 @@ bool FMordecaiAgentBridgeServer::Start()
 	}
 
 	ScreenshotProcessedHandle = FScreenshotRequest::OnScreenshotRequestProcessed().AddRaw(this, &FMordecaiAgentBridgeServer::HandleScreenshotProcessed);
-	BeginFrameHandle = FCoreDelegates::OnBeginFrame.AddRaw(this, &FMordecaiAgentBridgeServer::HandleBeginFrame);
 	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FMordecaiAgentBridgeServer::Tick), 0.0f);
 
 	UE_LOG(LogMordecaiAgentBridge, Display, TEXT("AgentBridge: listening on 127.0.0.1:%d"), Config.Port);
@@ -166,36 +158,6 @@ bool FMordecaiAgentBridgeServer::Start()
 void FMordecaiAgentBridgeServer::HandleScreenshotProcessed()
 {
 	++ScreenshotsProcessed;
-}
-
-void FMordecaiAgentBridgeServer::HandleBeginFrame()
-{
-	for (const FPendingPulseRelease& Pulse : PendingPulseReleases)
-	{
-		FConnection* Connection = nullptr;
-		for (const TUniquePtr<FConnection>& Candidate : Connections)
-		{
-			if (Candidate->Serial == Pulse.ConnectionSerial && !Candidate->bClosed)
-			{
-				Connection = Candidate.Get();
-				break;
-			}
-		}
-		if (!Connection)
-		{
-			continue;
-		}
-
-		const bool bHeld = Connection->HeldButtons.ContainsByPredicate(
-			[&Pulse](const FHeldButton& Held) { return Held.Key == Pulse.Key; });
-		if (bHeld)
-		{
-			Input.ReleaseMouseButton(Pulse.Key, Pulse.Absolute, CurrentModifiers());
-			Connection->HeldButtons.RemoveAll(
-				[&Pulse](const FHeldButton& Held) { return Held.Key == Pulse.Key; });
-		}
-	}
-	PendingPulseReleases.Reset();
 }
 
 // ---------------------------------------------------------------------------
@@ -867,36 +829,6 @@ void FMordecaiAgentBridgeServer::HandleClick(FConnection& Connection, const FMor
 		MordecaiAgentBridgeServerPrivate::MaxFrameSeconds(ViewportClient));
 	const FKey Button = Args.Button;
 	FConnection* ConnectionPtr = &Connection;
-
-	// A zero-duration click is a frame-boundary OS-style pulse: down now, up at OnBeginFrame, and the response at
-	// this frame's end. PlayerInput processes the release before the next queued down, while starts stay one capped
-	// world frame apart even through a hitch.
-	if (Args.HoldSeconds <= 0.0)
-	{
-		PendingPulseReleases.Add({ Connection.Serial, Button, Absolute });
-		const uint64 StartFrame = GFrameCounter;
-		TUniquePtr<FPendingCommand> Pulse = MakeUnique<FPendingCommand>();
-		Pulse->Id = Request.Id;
-		Pulse->Cmd = Request.Cmd;
-		Pulse->Advance = [this, ConnectionPtr, Response, Env, Button, StartFrame, Now](double TickNow) mutable
-		{
-			const bool bStillHeld = ConnectionPtr->HeldButtons.ContainsByPredicate(
-				[Button](const FHeldButton& Held) { return Held.Key == Button; });
-			if (bStillHeld)
-			{
-				return false;
-			}
-			Env.bVirtualCursor = Env.bVirtualCursor && FMordecaiAgentBridgeInput::IsVirtualCursorActive();
-			Response->SetObjectField(TEXT("env"), Env.ToJson());
-			Response->SetField(TEXT("held_s"), MakeNumber(TickNow - Now));
-			Response->SetField(TEXT("simulated_s"), MakeNumber(0.0));
-			Response->SetNumberField(TEXT("frames"), static_cast<double>(FMath::Max<uint64>(1, GFrameCounter - StartFrame)));
-			Send(*ConnectionPtr, Response);
-			return true;
-		};
-		Connection.Active = MoveTemp(Pulse);
-		return;
-	}
 
 	TUniquePtr<FPendingCommand> Pending = MakeUnique<FPendingCommand>();
 	Pending->Id = Request.Id;

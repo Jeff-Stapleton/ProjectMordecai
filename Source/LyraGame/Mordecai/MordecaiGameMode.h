@@ -56,6 +56,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Arena")
 	bool ArenaResetOnPlayerRespawn = true;
 
+	/** Two input-observation frames must fit the Tier 4 light-click cadence's 0.4 s bound. */
+	static constexpr float MaximumUndilatedFrameTimeSeconds = 0.2f;
+
 	// --- Arena API ---
 
 	/** Reset all registered enemies to full health/posture (AC-053.9). */

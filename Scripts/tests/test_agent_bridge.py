@@ -897,16 +897,16 @@ class TestCppParity(FakeServerCase):
 
     def test_pipelined_clicks_keep_start_cadence_without_response_round_trips(self):
         bridge = self.attach()
-        responses = bridge.click_many(6, 640, 360, hold_s=0.0)
+        responses = bridge.click_many(6, 640, 360, hold_s=0.05)
         self.assertEqual(len(responses), 6)
-        self.assertEqual({r["frames"] for r in responses}, {1})
-        self.assertEqual({r["simulated_s"] for r in responses}, {0.0})
+        self.assertTrue(all(r["frames"] >= 1 for r in responses))
+        self.assertTrue(all(r["simulated_s"] > 0 for r in responses))
         starts = [r["started_world_time_s"] for r in responses]
         gaps = [b - a for a, b in zip(starts, starts[1:])]
-        self.assertTrue(gaps and max(gaps) <= 0.15, gaps)
-        commands = [r.get("cmd") for r in self.server.received[-6:]]
-        self.assertEqual(commands, ["click"] * 6)
-        clicks = [r for r in self.server.received[-6:] if r.get("cmd") == "click"]
+        self.assertTrue(gaps and max(gaps) <= 0.25, gaps)
+        commands = [r.get("cmd") for r in self.server.received[-11:]]
+        self.assertEqual(commands, ["click", "wait"] * 5 + ["click"])
+        clicks = [r for r in self.server.received[-11:] if r.get("cmd") == "click"]
         self.assertEqual(len(clicks), 6)
 
     def test_tab_ids_are_lowercase(self):

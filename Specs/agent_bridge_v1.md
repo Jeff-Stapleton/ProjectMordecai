@@ -68,13 +68,11 @@ Each input response reports in `env` whether it did any of these (`focus_restore
 - A `click` response also reports `started_world_time_s`, sampled from `UWorld::GetTimeSeconds()` when the mouse
   button goes down. This is the field for measuring spacing between click starts. `simulated_s` is only that one
   click's button-down hold duration and must never be used as a start-to-start interval.
-- A `click` with `hold_s: 0` is a frame-boundary Slate pulse: mouse-down at the bridge's end-of-frame tick, mouse-up
-  from `OnBeginFrame`, and the response at that frame's end (`frames: 1`, `simulated_s: 0`). PlayerInput therefore
-  observes the release before another queued pulse; it is not a direct Enhanced Input or gameplay call.
-- `Bridge.click_many(...)` pipelines those ordinary zero-duration `click` requests on one connection. Strict server
-  ordering starts the next mouse-down at the end of the release frame, removing the client response round-trip while
-  keeping starts exactly one capped world frame apart. `bridge.jsonl` still contains one auditable real-input
-  command/response per click; this is not a gameplay shortcut.
+- `Bridge.click_many(...)` pipelines ordinary timed `click` requests with a tiny `wait` after each. The click gives
+  PlayerInput a down-observed frame, the wait gives it a released frame, and strict server ordering removes the client
+  response round-trip. Mordecai worlds cap `MaxUndilatedFrameTime` at 0.2 s, so those two observed frames remain within
+  the story's 0.4 game-time start bound even through hitches. `bridge.jsonl` still contains one auditable real-input
+  command/response and one release wait per click; this is not a gameplay shortcut.
 - Auto-repeat still runs on wall time, as a real device's does. A tap that must stay down for its minimum frames through a hitch longer than the repeat delay can get one repeat event. No playtest reads gamepad or keyboard repeats.
 
 **Connections**

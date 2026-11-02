@@ -236,10 +236,10 @@ start-to-start gaps from that field. An offline regression injects a 0.410 world
 the cadence check to FAIL. A blocking request/response loop can still add one normal frame after a hitch-capped
 0.4-second click frame (the packaged run measured 0.467). Back-to-back pipelined holds remove that round trip but leave
 the button logically down across frames, so Enhanced Input sees no later taps; same-tick down/up pulses are
-nondeterministic for the same reason. The deterministic pulse is down at the bridge's end-of-frame tick and up from
-`OnBeginFrame`: PlayerInput processes the release during that frame and the next queued down starts at frame end.
-`Bridge.click_many` pipelines those pulses, so every start is one capped world frame apart and every audit entry is
-still a real Slate `click`.
+nondeterministic for the same reason. Distinct light taps need one frame observed down and another observed released.
+`Bridge.click_many` therefore pipelines an ordinary 0.05 s click and a release wait. Mordecai caps
+`MaxUndilatedFrameTime` at 0.2 s, so those two frames fit the 0.4 s start bound under the worst hitch. Every audit entry
+remains a real Slate `click`; the frame cap is also the game's real simulation cap, not a reporting adjustment.
 
 ---
 
