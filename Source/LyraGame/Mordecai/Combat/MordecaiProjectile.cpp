@@ -1,6 +1,7 @@
 // Project Mordecai — Projectile Actor (US-009)
 
 #include "Mordecai/Combat/MordecaiProjectile.h"
+#include "AbilitySystem/LyraGameplayEffectContext.h"
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
@@ -70,6 +71,17 @@ void AMordecaiProjectile::SetProjectileInstigator(AActor* InInstigator)
 {
 	ProjectileInstigator = InInstigator;
 	SetInstigator(Cast<APawn>(InInstigator));
+	SourcePlayerLifeId = INDEX_NONE;
+	if (UAbilitySystemComponent* SourceASC =
+		UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(InInstigator))
+	{
+		const FGameplayEffectContextHandle LaunchContext = SourceASC->MakeEffectContext();
+		if (const FLyraGameplayEffectContext* LyraContext =
+			FLyraGameplayEffectContext::ExtractEffectContext(LaunchContext))
+		{
+			SourcePlayerLifeId = LyraContext->GetSourcePlayerLifeId();
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -365,6 +377,11 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 		Context = TargetASC->MakeEffectContext();
 	}
 	Context.AddSourceObject(this);
+	if (FLyraGameplayEffectContext* LyraContext =
+		FLyraGameplayEffectContext::ExtractEffectContext(Context))
+	{
+		LyraContext->SetSourcePlayerLifeId(SourcePlayerLifeId);
+	}
 
 	// AC-009.28: Health damage via instant GE (same pipeline as melee)
 	{

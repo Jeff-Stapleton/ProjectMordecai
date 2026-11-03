@@ -36,6 +36,10 @@ struct FLyraGameplayEffectContext : public FGameplayEffectContext
 	/** Returns the ability source interface associated with the source object. Only valid on the authority. */
 	const ILyraAbilitySourceInterface* GetAbilitySource() const;
 
+	/** Single-player source life generation used to reject damage that lands after its source life ended. */
+	void SetSourcePlayerLifeId(int32 InLifeId) { SourcePlayerLifeId = InLifeId; }
+	int32 GetSourcePlayerLifeId() const { return SourcePlayerLifeId; }
+
 	virtual FGameplayEffectContext* Duplicate() const override
 	{
 		FLyraGameplayEffectContext* NewContext = new FLyraGameplayEffectContext();
@@ -68,6 +72,8 @@ protected:
 	/** Ability Source object (should implement ILyraAbilitySourceInterface). NOT replicated currently */
 	UPROPERTY()
 	TWeakObjectPtr<const UObject> AbilitySourceObject;
+
+	int32 SourcePlayerLifeId = INDEX_NONE;
 };
 
 template<>

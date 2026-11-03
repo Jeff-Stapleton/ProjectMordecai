@@ -92,10 +92,10 @@ public:
 	/** Enter death state: apply State_Dead tag, disable movement/collision, broadcast Event_Death.
 	 *  Called automatically when Health <= 0. A direct call with no killer is non-player/environmental. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Enemy")
-	void EnterDeathState(APlayerState* KillerPlayerState = nullptr);
+	void EnterDeathState(APlayerState* KillerPlayerState = nullptr, int32 SourcePlayerLifeId = -1);
 
 	/** Called by the AttributeSet before a GAS Health modifier executes; null explicitly clears player attribution. */
-	void RecordDamagePlayerState(APlayerState* InPlayerState);
+	void RecordDamagePlayerState(APlayerState* InPlayerState, int32 SourcePlayerLifeId);
 
 	/** Enter posture broken state: apply State_PostureBroken tag, start recovery timer.
 	 *  Called automatically when Posture <= 0. */
@@ -149,6 +149,7 @@ private:
 
 	bool bAbilitySystemInitialized = false;
 	TWeakObjectPtr<APlayerState> LastDamagePlayerState;
+	int32 LastDamagePlayerLifeId = INDEX_NONE;
 	FTimerHandle PostureBrokenTimerHandle;
 
 	void GrantDefaultAbilities();

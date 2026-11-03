@@ -44,6 +44,12 @@ void UMordecaiCombatHUDWidget::NativeConstruct()
 	}
 }
 
+void UMordecaiCombatHUDWidget::NativeDestruct()
+{
+	bChildrenBound = false;
+	Super::NativeDestruct();
+}
+
 void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
@@ -169,6 +175,10 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 	{
 		return;
 	}
+	if (BoundASC.Get() == ASC && bChildrenBound)
+	{
+		return;
+	}
 	BoundASC = ASC;
 
 	// Core resource bars (US-052)
@@ -213,4 +223,7 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 	{
 		KillCounter->BindToASC(ASC);
 	}
+
+	bChildrenBound = true;
+	++ChildBindPassCount;
 }

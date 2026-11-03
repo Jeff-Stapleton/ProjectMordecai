@@ -782,6 +782,18 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
                          checks["death_count_split"]["detail"])
         self.assertIn("HUD KillCounter", checks["death_count_split"]["detail"])
 
+    def test_death_count_split_requires_the_player_to_still_be_dead(self):
+        st = {
+            "player": {"valid": True, "is_dead": False, "kills": 0},
+            "widgets": [
+                {"class": "MordecaiDeathScreenWidget", "texts": ["You Died", "3", "Kills: 1"]},
+                {"class": "MordecaiKillCounterWidget", "texts": ["Kills: 0"]},
+            ],
+        }
+        self.assertFalse(us054c.death_count_split_matches(st, 1))
+        st["player"]["is_dead"] = True
+        self.assertTrue(us054c.death_count_split_matches(st, 1))
+
     def test_no_death_screen_fails_death_screen_as_new(self):
         # Issue #7 before its fix: the player dies and respawns, but no widget says 'You Died'
         _, server = self.serve(**game_today(death_screen=False))

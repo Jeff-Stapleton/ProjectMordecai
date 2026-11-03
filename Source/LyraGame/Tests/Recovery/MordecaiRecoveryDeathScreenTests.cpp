@@ -147,8 +147,8 @@ bool FMordecai_Recovery_DeathScreen_ShownOnDeathRemovedOnRespawn::RunTest(const 
 	AMordecaiGameMode* GameMode = NewObject<AMordecaiGameMode>();
 	GameMode->RespawnDelaySeconds = 5.f;
 	AMordecaiPlayerState* Killer = NewObject<AMordecaiPlayerState>();
-	GameMode->NotifyEnemyKilled(NewObject<AMordecaiEnemyCharacter>(), Killer);
-	GameMode->NotifyEnemyKilled(NewObject<AMordecaiEnemyCharacter>(), Killer);
+	GameMode->NotifyEnemyKilled(NewObject<AMordecaiEnemyCharacter>(), Killer, 0);
+	GameMode->NotifyEnemyKilled(NewObject<AMordecaiEnemyCharacter>(), Killer, 0);
 	Component->SetGameModeOverride(GameMode);
 	Env.ApplyPlayerHealthDelta(-1000.f);
 	UMordecaiDeathScreenWidget* SecondScreen = OnlyDeathScreen(GameLayer);
@@ -215,8 +215,9 @@ bool FMordecai_Recovery_DeathScreen_LateBindPreservesCompletedLifeKills::RunTest
 	Component->RegisterComponent();
 	Component->SetLayoutOverride(Layout);
 
-	Env.SpawnEnemy(FVector(500.f, 0.f, 100.f), {})->EnterDeathState(Env.PlayerState);
-	Env.SpawnEnemy(FVector(700.f, 0.f, 100.f), {})->EnterDeathState(Env.PlayerState);
+	const int32 LifeId = GameMode->GetCurrentPlayerLifeId(Env.PlayerState);
+	Env.SpawnEnemy(FVector(500.f, 0.f, 100.f), {})->EnterDeathState(Env.PlayerState, LifeId);
+	Env.SpawnEnemy(FVector(700.f, 0.f, 100.f), {})->EnterDeathState(Env.PlayerState, LifeId);
 	TestEqual("the completed life has two kills", GameMode->GetEnemyKillCount(), 2);
 
 	Env.ApplyPlayerHealthDelta(-1000.f);

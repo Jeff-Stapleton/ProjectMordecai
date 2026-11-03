@@ -419,13 +419,14 @@ bool FMordecai_Enemy_DeathIsIdempotentForKillAccounting::RunTest(const FString& 
 	GameMode->RegisterEnemy(First, First->GetActorTransform());
 	GameMode->RegisterEnemy(Second, Second->GetActorTransform());
 
-	First->EnterDeathState(Env.PlayerState);
-	First->EnterDeathState(Env.PlayerState);
+	const int32 LifeId = GameMode->GetCurrentPlayerLifeId(Env.PlayerState);
+	First->EnterDeathState(Env.PlayerState, LifeId);
+	First->EnterDeathState(Env.PlayerState, LifeId);
 	TestEqual("the same enemy requested dead twice counts once", GameMode->GetEnemyKillCount(), 1);
 	TestEqual("the same enemy owns exactly one Dead tag",
 		First->GetAbilitySystemComponent()->GetGameplayTagCount(MordecaiGameplayTags::State_Dead), 1);
 
-	Second->EnterDeathState(Env.PlayerState);
+	Second->EnterDeathState(Env.PlayerState, LifeId);
 	TestEqual("a distinct enemy in the same frame counts separately", GameMode->GetEnemyKillCount(), 2);
 	TestEqual("exactly two absolute count notifications were sent", Broadcasts.Num(), 2);
 	if (Broadcasts.Num() == 2)

@@ -303,7 +303,7 @@ void AMordecaiEnemyCharacter::OnHealthChanged(const FOnAttributeChangeData& Data
 	// AC-050.6: When Health reaches <= 0, enter death state
 	if (Data.NewValue <= 0.f && !IsDead())
 	{
-		EnterDeathState(LastDamagePlayerState.Get());
+		EnterDeathState(LastDamagePlayerState.Get(), LastDamagePlayerLifeId);
 	}
 }
 
@@ -331,12 +331,17 @@ void AMordecaiEnemyCharacter::OnPostureChanged(const FOnAttributeChangeData& Dat
 // State Transitions
 // ---------------------------------------------------------------------------
 
-void AMordecaiEnemyCharacter::RecordDamagePlayerState(APlayerState* InPlayerState)
+void AMordecaiEnemyCharacter::RecordDamagePlayerState(
+	APlayerState* InPlayerState,
+	int32 SourcePlayerLifeId)
 {
 	LastDamagePlayerState = InPlayerState;
+	LastDamagePlayerLifeId = SourcePlayerLifeId;
 }
 
-void AMordecaiEnemyCharacter::EnterDeathState(APlayerState* KillerPlayerState)
+void AMordecaiEnemyCharacter::EnterDeathState(
+	APlayerState* KillerPlayerState,
+	int32 SourcePlayerLifeId)
 {
 	if (!EnemyAbilitySystemComponent || IsDead())
 	{
@@ -381,10 +386,11 @@ void AMordecaiEnemyCharacter::EnterDeathState(APlayerState* KillerPlayerState)
 	{
 		if (AMordecaiGameMode* GM = Cast<AMordecaiGameMode>(World->GetAuthGameMode()))
 		{
-			GM->NotifyEnemyKilled(this, KillerPlayerState);
+			GM->NotifyEnemyKilled(this, KillerPlayerState, SourcePlayerLifeId);
 		}
 	}
 	LastDamagePlayerState.Reset();
+	LastDamagePlayerLifeId = INDEX_NONE;
 }
 
 void AMordecaiEnemyCharacter::EnterPostureBrokenState()
@@ -439,6 +445,7 @@ void AMordecaiEnemyCharacter::ResetForArena()
 	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Dead);
 	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_PostureBroken);
 	LastDamagePlayerState.Reset();
+	LastDamagePlayerLifeId = INDEX_NONE;
 
 	// Cancel posture broken timer if active
 	if (UWorld* World = GetWorld())

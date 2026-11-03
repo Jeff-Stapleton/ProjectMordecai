@@ -75,6 +75,10 @@ public:
 		return bRespawnPending ? CompletedLifeEnemyKillCount : EnemyKillCount;
 	}
 
+	/** Source-generation key stamped into player-owned GAS effect contexts. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Arena")
+	int32 GetCurrentPlayerLifeId(const APlayerState* PlayerState) const;
+
 	/** The one notification used by HUD consumers of GetEnemyKillCount(). */
 	FOnMordecaiEnemyKillCountChanged& OnEnemyKillCountChanged() { return EnemyKillCountChanged; }
 
@@ -82,10 +86,17 @@ public:
 	void NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer);
 
 	/** Called when an enemy dies. Counts it only when KillerPlayerState is a Mordecai player. */
-	void NotifyEnemyKilled(AMordecaiEnemyCharacter* KilledEnemy, APlayerState* KillerPlayerState = nullptr);
+	void NotifyEnemyKilled(
+		AMordecaiEnemyCharacter* KilledEnemy,
+		APlayerState* KillerPlayerState = nullptr,
+		int32 SourcePlayerLifeId = INDEX_NONE);
 
 	/** Register an enemy for arena tracking (called by enemy on spawn). */
 	void RegisterEnemy(AMordecaiEnemyCharacter* Enemy, const FTransform& SpawnTransform);
+
+#if WITH_AUTOMATION_TESTS
+	void ExecuteRespawnForTesting() { ExecuteRespawn(); }
+#endif
 
 private:
 	struct FEnemySpawnEntry
@@ -98,6 +109,7 @@ private:
 	TSet<TWeakObjectPtr<AMordecaiEnemyCharacter>> CountedEnemyDeaths;
 	int32 EnemyKillCount = 0;
 	int32 CompletedLifeEnemyKillCount = 0;
+	int32 CurrentPlayerLifeId = 0;
 	bool bRespawnPending = false;
 	FOnMordecaiEnemyKillCountChanged EnemyKillCountChanged;
 	FTimerHandle RespawnTimerHandle;

@@ -42,14 +42,15 @@ def load_playtest():
 us054 = load_playtest()
 
 ARENA_SPAWNS = ((600.0, 0.0), (-400.0, 500.0), (-400.0, -500.0))
-PLAN_ORDER = ["hud_visible", "hud_layout", "enemies_present", "enemies_visible",
+PLAN_ORDER = ["hud_visible", "hud_layout", "enemies_present", "enemy_spacing", "enemies_visible",
               "enemy_health_bars", "enemy_indicators", "enemy_aggro", "enemy_approaches",
               "enemy_damages_player"]
 # The DevTestMap checks keep the proves they had before the us054 split.
 PROVES = {
     "hud_visible": ("AC-054.7", "AC-054.8", "US-063:AC-063.3", "US-063:AC-063.4"),
     "hud_layout": ("AC-054.7",),
-    "enemies_present": ("AC-054.11", "AC-054.2", "US-050:AC-050.3"),
+    "enemies_present": ("AC-054.2", "US-050:AC-050.3"),
+    "enemy_spacing": ("AC-054.11",),
     "enemies_visible": ("AC-054.13",),
     "enemy_health_bars": ("AC-054.9", "US-052:AC-052.10"),
     "enemy_indicators": ("US-064:AC-064.2", "US-064:AC-064.10"),
@@ -215,7 +216,7 @@ class TestUs054Plan(Us054Case):
             kit.set_log_stream(previous)
         text = out.getvalue()
         self.assertIn("| 1 | `hud_visible` |", text)
-        self.assertIn("| 9 | `enemy_damages_player` |", text)
+        self.assertIn("| 10 | `enemy_damages_player` |", text)
         self.assertIn("#22", text)
 
     def test_proves_known_issues_and_declarations(self):
@@ -223,9 +224,9 @@ class TestUs054Plan(Us054Case):
         for name, proves in PROVES.items():
             self.assertEqual(plan[name].proves, proves, name)
         self.assertIn("#22", plan["enemy_indicators"].known_issue)
-        self.assertIn("#19", plan["enemies_present"].known_issue)
-        self.assertIn("#46", plan["enemies_present"].known_issue)
-        for name in set(PROVES) - {"enemies_present", "enemy_indicators"}:
+        self.assertIn("#19", plan["enemy_spacing"].known_issue)
+        self.assertIn("#46", plan["enemy_spacing"].known_issue)
+        for name in set(PROVES) - {"enemy_spacing", "enemy_indicators"}:
             self.assertIsNone(plan[name].known_issue, name)
         self.assertEqual(set(us054.Us054Run.COVERS),
                          {"US-050", "US-051", "US-052", "US-063", "US-064"})
@@ -275,7 +276,7 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
         self.assertIn(fb.DEFAULT_MAP, checks["map"]["detail"])
         self.assertEqual(sorted(rep["fixed_candidates"]),
-                         ["enemies_present", "enemy_indicators"])
+                         ["enemy_indicators", "enemy_spacing"])
         self.assertEqual([s["label"] for s in rep["screenshots"]], ["start", "hit"])
         # The Frontliners really walked up and hit the player standing at the spawn.
         self.assertGreater(world.hits, 0)
@@ -341,8 +342,8 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertEqual(checks["enemies_present"]["status"], "FAIL")
         self.assertIn("health 100.0/100.0", checks["enemies_present"]["detail"])
         self.assertEqual(checks["enemy_health_bars"]["status"], "FAIL")
-        self.assertIn("enemies_present", rep["known_failures"])
-        for name in ("hud_layout", "enemy_health_bars"):
+        self.assertIn("enemies_present", rep["new_failures"])
+        for name in ("hud_layout", "enemies_present", "enemy_health_bars"):
             self.assertIn(name, rep["new_failures"])
 
     def test_a_wrong_kill_count_fails_hud_visible(self):

@@ -100,10 +100,11 @@ PLAN = (
          proves=("AC-054.7", "AC-054.8", "US-063:AC-063.3", "US-063:AC-063.4")),
     Step("hud_layout", "state widgets rects -> HealthBar top-left (x<300, y<60), StaminaBar "
          "below it, PostureBar below that", proves=("AC-054.7",)),
-    Step("enemies_present", f"state actors (radius {ENEMY_RADIUS}) -> 3 kind=='enemy', health "
-         f"{{{ENEMY_MAX_HEALTH:g}, {ENEMY_MAX_HEALTH:g}}}, pairwise > {MIN_ENEMY_SPACING:g} cm apart",
-         proves=("AC-054.11", "AC-054.2", "US-050:AC-050.3"),
-         known_issue=KI_FRONTLINER_PLACEMENT),
+    Step("enemies_present", f"state actors (radius {ENEMY_RADIUS}) -> 3 kind=='enemy', each at "
+         f"{ENEMY_MAX_HEALTH:g}/{ENEMY_MAX_HEALTH:g} health",
+         proves=("AC-054.2", "US-050:AC-050.3")),
+    Step("enemy_spacing", f"the same 3 enemies are pairwise > {MIN_ENEMY_SPACING:g} cm apart",
+         proves=("AC-054.11",), known_issue=KI_FRONTLINER_PLACEMENT),
     Step("enemies_visible", "state actors -> every enemy has_visible_mesh==true",
          proves=("AC-054.13",)),
     Step("enemy_health_bars", f"state actors -> every enemy has a visible widget whose class "
@@ -297,19 +298,29 @@ class Us054Run(kit.PlaytestRun):
                 if cur != ENEMY_MAX_HEALTH or mx != ENEMY_MAX_HEALTH:
                     problems.append(f"enemy at {fmt_xy(xy(a['location']))} health {cur}/{mx} "
                                     f"(expected {ENEMY_MAX_HEALTH:g}/{ENEMY_MAX_HEALTH:g})")
-            pts = self.enemies_start
-            for i in range(len(pts)):
-                for j in range(i + 1, len(pts)):
-                    if dist(pts[i], pts[j]) <= MIN_ENEMY_SPACING:
-                        problems.append(f"enemies at {fmt_xy(pts[i])} and {fmt_xy(pts[j])} are "
-                                        f"only {dist(pts[i], pts[j]):.0f} cm apart")
-            detail = (f"spawn locations {[fmt_xy(p) for p in pts]}; {describe_enemies(es)}")
+            detail = (f"spawn locations {[fmt_xy(p) for p in self.enemies_start]}; "
+                      f"{describe_enemies(es)}")
             return ("FAIL" if problems else "PASS",
                     ("; ".join(problems) + "; " + detail) if problems else detail, es)
 
         self.measure("enemies_present", present)
         have = bool(self.enemies_start)
         why = "not run: no enemy in actors[]"
+
+        def spacing(b):
+            pts = [xy(a["location"]) for a in enemies(
+                b.state(["actors"], radius=ENEMY_RADIUS))]
+            problems = []
+            for i in range(len(pts)):
+                for j in range(i + 1, len(pts)):
+                    if dist(pts[i], pts[j]) <= MIN_ENEMY_SPACING:
+                        problems.append(f"enemies at {fmt_xy(pts[i])} and {fmt_xy(pts[j])} are "
+                                        f"only {dist(pts[i], pts[j]):.0f} cm apart")
+            detail = f"enemy locations {[fmt_xy(p) for p in pts]}"
+            return ("FAIL" if problems else "PASS",
+                    ("; ".join(problems) + "; " + detail) if problems else detail, pts)
+
+        self.measure("enemy_spacing", spacing, needs=have, needs_why=why)
 
         def visible(b):
             es = enemies(b.state(["actors"], radius=ENEMY_RADIUS))

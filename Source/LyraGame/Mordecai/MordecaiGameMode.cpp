@@ -74,6 +74,7 @@ void AMordecaiGameMode::NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer)
 	// HandlePlayerDeath broadcasts Mordecai.Event.PlayerDeath before it notifies the game mode. The death screen
 	// therefore caches the completed life's count first; then this authoritative count and every bound HUD reset.
 	CompletedLifeEnemyKillCount = EnemyKillCount;
+	++CurrentPlayerLifeId;
 	bRespawnPending = true;
 	PendingRespawnPlayer = DeadPlayer;
 	ResetEnemyKillCount();
@@ -132,12 +133,14 @@ void AMordecaiGameMode::ExecuteRespawn()
 
 void AMordecaiGameMode::NotifyEnemyKilled(
 	AMordecaiEnemyCharacter* KilledEnemy,
-	APlayerState* KillerPlayerState)
+	APlayerState* KillerPlayerState,
+	int32 SourcePlayerLifeId)
 {
 	const TWeakObjectPtr<AMordecaiEnemyCharacter> WeakEnemy(KilledEnemy);
 	// Single-player issue #6 contract: only a Mordecai player-owned GAS context earns a kill. The player state
 	// parameter intentionally gives issue #77 a per-player key without adding replication or multiplayer state here.
 	if (!KilledEnemy || !Cast<AMordecaiPlayerState>(KillerPlayerState)
+		|| SourcePlayerLifeId != CurrentPlayerLifeId
 		|| bRespawnPending || CountedEnemyDeaths.Contains(WeakEnemy))
 	{
 		return;
@@ -146,6 +149,11 @@ void AMordecaiGameMode::NotifyEnemyKilled(
 	CountedEnemyDeaths.Add(WeakEnemy);
 	EnemyKillCount++;
 	EnemyKillCountChanged.Broadcast(EnemyKillCount);
+}
+
+int32 AMordecaiGameMode::GetCurrentPlayerLifeId(const APlayerState* PlayerState) const
+{
+	return Cast<AMordecaiPlayerState>(PlayerState) ? CurrentPlayerLifeId : INDEX_NONE;
 }
 
 void AMordecaiGameMode::ResetEnemyKillCount()

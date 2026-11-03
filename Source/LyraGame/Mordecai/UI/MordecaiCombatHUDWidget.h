@@ -51,9 +51,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|HUD")
 	UMordecaiKillCounterWidget* GetKillCounter() const { return KillCounter; }
 
+	/** Number of actual child BindToASC passes (duplicate live binds do not count). */
+	int32 GetChildBindPassCount() const { return ChildBindPassCount; }
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
 	// --- Core Resource Bars (US-052) ---
 
@@ -102,4 +106,6 @@ private:
 	void BuildDefaultLayout();
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	bool bChildrenBound = false;
+	int32 ChildBindPassCount = 0;
 };

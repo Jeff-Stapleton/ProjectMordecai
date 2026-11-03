@@ -104,7 +104,8 @@ def _run():
 
             if kill_counter and game_mode and player_state and victim:
                 before = game_mode.get_enemy_kill_count()
-                victim.enter_death_state(player_state)
+                victim.enter_death_state(
+                    player_state, game_mode.get_current_player_life_id(player_state))
                 after = game_mode.get_enemy_kill_count()
                 check("[LOGIC] Direct enemy death increments GameMode kill count",
                       after == before + 1, f"Count {before} -> {after}")

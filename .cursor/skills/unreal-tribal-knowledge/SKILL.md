@@ -222,10 +222,16 @@ The first fix was still incomplete in three non-obvious ways:
   application context automatically. The enemy passes that player state through `EnterDeathState` to the GameMode;
   issue #77 can later use the same value as its per-player key. Tests:
   `Mordecai.Recovery.KillCounter.CountsPlayerDamageSources` and `.RejectsNonPlayerDeaths`.
+- **Player identity is not enough for delayed damage; stamp the source life generation too.** A projectile creates its
+  damage context when it hits, so one launched before death can otherwise look like new-life damage after respawn.
+  `UMordecaiAbilitySystemComponent::MakeEffectContext` stamps the current life id into
+  `FLyraGameplayEffectContext`; persistent effects retain it, and projectiles snapshot it at launch and restore it on
+  hit. GameMode increments the generation at player death and accepts only the current one.
 - **`NativeDestruct` is Slate lifetime, not UObject lifetime.** Removing a retained HUD destroys its Slate wrapper and
   unbinds child delegates, while the controller's `TObjectPtr` still prevents a new UObject. Cache the ASC on the HUD,
-  rebind children from `NativeConstruct`, and make the controller re-add/rebind an existing HUD rather than returning
-  just because its pointer is non-null. Test: `Mordecai.Recovery.KillCounter.RebindsAfterHUDRebuild`.
+  mark child bindings inactive in `NativeDestruct`, rebind once from `NativeConstruct`, and make a duplicate live
+  `BindToASC` a no-op (the controller binds again after `AddToViewport`). Test:
+  `Mordecai.Recovery.KillCounter.RebindsAfterHUDRebuild`.
 
 ### Agent-bridge `simulated_s` is hold duration, never input-start cadence
 

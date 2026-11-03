@@ -270,6 +270,14 @@ def kill_counts_for_widget_class(st, class_fragment):
             if (m := RE_KILLS.match(text))]
 
 
+def death_count_split_matches(st, expected):
+    p = player(st)
+    return (expected is not None and is_dead(p)
+            and kill_counts_for_widget_class(st, DEATH_SCREEN_CLASS) == [expected]
+            and kill_counts_for_widget_class(st, KILL_COUNTER_CLASS) == [0]
+            and p.get("kills") == 0)
+
+
 def kill_counts(st):
     """Every N of a 'Kills: N' text on screen."""
     out = []
@@ -931,19 +939,15 @@ class Us054CombatRun(kit.PlaytestRun):
             timeout_s=DEATH_SCREEN_TIMEOUT_S, needs=died, needs_why=why)
 
         def count_split(st):
-            expected = self.kills_after_dummy
-            p = player(st)
-            death_counts = kill_counts_for_widget_class(st, DEATH_SCREEN_CLASS)
-            hud_counts = kill_counts_for_widget_class(st, KILL_COUNTER_CLASS)
-            return (expected is not None and death_counts == [expected]
-                    and hud_counts == [0] and p is not None and p.get("kills") == 0)
+            return death_count_split_matches(st, self.kills_after_dummy)
 
         def split_detail(st):
             p = player(st)
             return (f"DeathScreen kills {kill_counts_for_widget_class(st, DEATH_SCREEN_CLASS)} "
                     f"(expected [{self.kills_after_dummy}]); HUD KillCounter kills "
                     f"{kill_counts_for_widget_class(st, KILL_COUNTER_CLASS)} (expected [0]); "
-                    f"player.kills={(p or {}).get('kills')} (expected 0)")
+                    f"player.kills={(p or {}).get('kills')} (expected 0); "
+                    f"player.is_dead={(p or {}).get('is_dead')} (expected true)")
 
         split_ok, _ = self.observe(
             "death_count_split", ["widgets", "player"], count_split, split_detail,

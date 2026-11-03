@@ -38,6 +38,13 @@ public:
 	/** Set the instigator actor (shooter) to exclude from hits (AC-009.6). */
 	void SetProjectileInstigator(AActor* InInstigator);
 
+#if WITH_AUTOMATION_TESTS
+	void ApplyDamageToTargetForTesting(AActor* TargetActor, float DamageMagnitude)
+	{
+		ApplyDamageToTarget(TargetActor, DamageMagnitude);
+	}
+#endif
+
 	// --- Component Access ---
 
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Projectile")
@@ -136,6 +143,8 @@ private:
 
 	UPROPERTY()
 	TWeakObjectPtr<AActor> ProjectileInstigator;
+
+	int32 SourcePlayerLifeId = INDEX_NONE;
 
 	FVector SpawnLocation = FVector::ZeroVector;
 	float DistanceTraveled = 0.f;

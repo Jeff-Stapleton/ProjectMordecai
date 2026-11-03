@@ -2,6 +2,7 @@
 
 #include "MordecaiAttributeSet.h"
 #include "MordecaiAttributeScaling.h"
+#include "AbilitySystem/LyraGameplayEffectContext.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
@@ -275,8 +276,12 @@ bool UMordecaiAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackD
 	{
 		if (AMordecaiEnemyCharacter* Enemy = Cast<AMordecaiEnemyCharacter>(GetOwningActor()))
 		{
+			const FGameplayEffectContextHandle& Context = Data.EffectSpec.GetContext();
+			const FLyraGameplayEffectContext* LyraContext =
+				FLyraGameplayEffectContext::ExtractEffectContext(Context);
 			Enemy->RecordDamagePlayerState(
-				MordecaiAttributeSetPrivate::ResolvePlayerState(Data.EffectSpec.GetContext()));
+				MordecaiAttributeSetPrivate::ResolvePlayerState(Context),
+				LyraContext ? LyraContext->GetSourcePlayerLifeId() : INDEX_NONE);
 		}
 	}
 	return true;

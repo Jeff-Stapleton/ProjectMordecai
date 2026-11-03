@@ -18,4 +18,6 @@ class LYRAGAME_API UMordecaiAbilitySystemComponent : public ULyraAbilitySystemCo
 
 public:
 	UMordecaiAbilitySystemComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	virtual FGameplayEffectContextHandle MakeEffectContext() const override;
 };
