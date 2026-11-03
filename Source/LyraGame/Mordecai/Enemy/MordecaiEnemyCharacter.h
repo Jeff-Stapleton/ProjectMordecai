@@ -19,6 +19,9 @@ class APlayerState;
 class UStaticMeshComponent;
 class UWidgetComponent;
 class UGameplayAbility;
+struct FActiveGameplayEffect;
+struct FActiveGameplayEffectHandle;
+struct FGameplayEffectSpec;
 struct FOnAttributeChangeData;
 
 /**
@@ -92,10 +95,14 @@ public:
 	/** Enter death state: apply State_Dead tag, disable movement/collision, broadcast Event_Death.
 	 *  Called automatically when Health <= 0. A direct call with no killer is non-player/environmental. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Enemy")
-	void EnterDeathState(APlayerState* KillerPlayerState = nullptr, int32 SourcePlayerLifeId = -1);
+	void EnterDeathState(APlayerState* KillerPlayerState = nullptr);
 
 	/** Called by the AttributeSet before a GAS Health modifier executes; null explicitly clears player attribution. */
-	void RecordDamagePlayerState(APlayerState* InPlayerState, int32 SourcePlayerLifeId);
+	void RecordDamagePlayerState(APlayerState* InPlayerState);
+
+	/** Burning keeps the player (or null) from its original application even when another source refreshes it. */
+	bool HasOriginalBurningCredit() const { return bOriginalBurningCreditCaptured; }
+	APlayerState* GetOriginalBurningCreditPlayerState() const { return OriginalBurningCreditPlayerState.Get(); }
 
 	/** Enter posture broken state: apply State_PostureBroken tag, start recovery timer.
 	 *  Called automatically when Posture <= 0. */
@@ -149,9 +156,15 @@ private:
 
 	bool bAbilitySystemInitialized = false;
 	TWeakObjectPtr<APlayerState> LastDamagePlayerState;
-	int32 LastDamagePlayerLifeId = INDEX_NONE;
+	TWeakObjectPtr<APlayerState> OriginalBurningCreditPlayerState;
+	bool bOriginalBurningCreditCaptured = false;
 	FTimerHandle PostureBrokenTimerHandle;
 
 	void GrantDefaultAbilities();
 	void CreateHealthBarWidget();
+	void OnActiveGameplayEffectAdded(
+		UAbilitySystemComponent* TargetASC,
+		const FGameplayEffectSpec& Spec,
+		FActiveGameplayEffectHandle Handle);
+	void OnActiveGameplayEffectRemoved(const FActiveGameplayEffect& Effect);
 };

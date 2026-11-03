@@ -24,6 +24,12 @@ void UMordecaiCombatFeedbackWidget::NativeOnInitialized()
 	}
 }
 
+void UMordecaiCombatFeedbackWidget::NativeDestruct()
+{
+	UnbindFromASC();
+	Super::NativeDestruct();
+}
+
 void UMordecaiCombatFeedbackWidget::BuildDefaultContent()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
@@ -110,6 +116,7 @@ FLinearColor UMordecaiCombatFeedbackWidget::GetFeedbackColorForTag(const FGamepl
 
 void UMordecaiCombatFeedbackWidget::BindToASC(UAbilitySystemComponent* ASC)
 {
+	UnbindFromASC();
 	if (!ASC)
 	{
 		return;
@@ -134,6 +141,26 @@ void UMordecaiCombatFeedbackWidget::BindToASC(UAbilitySystemComponent* ASC)
 
 	// Start hidden
 	SetVisibility(ESlateVisibility::Collapsed);
+}
+
+void UMordecaiCombatFeedbackWidget::UnbindFromASC()
+{
+	if (UAbilitySystemComponent* ASC = BoundASC.Get())
+	{
+		const FGameplayTag FeedbackTags[] = {
+			MordecaiGameplayTags::State_PerfectDodge,
+			MordecaiGameplayTags::State_PerfectBlock,
+			MordecaiGameplayTags::State_Parried,
+			MordecaiGameplayTags::State_ParryWhiff,
+			MordecaiGameplayTags::State_PostureBroken,
+		};
+		for (const FGameplayTag& Tag : FeedbackTags)
+		{
+			ASC->RegisterGameplayTagEvent(Tag, EGameplayTagEventType::NewOrRemoved)
+				.RemoveAll(this);
+		}
+	}
+	BoundASC.Reset();
 }
 
 void UMordecaiCombatFeedbackWidget::OnFeedbackTagChanged(const FGameplayTag Tag, int32 NewCount)

@@ -6,7 +6,41 @@
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameplayEffect.h"
 #include "TimerManager.h"
+
+namespace MordecaiBlockPrivate
+{
+	void ApplyBlockedHealthDamage(
+		UAbilitySystemComponent* TargetASC,
+		UAbilitySystemComponent* AttackerASC,
+		float Damage,
+		UObject* SourceObject)
+	{
+		if (!TargetASC || Damage <= 0.f)
+		{
+			return;
+		}
+
+		UGameplayEffect* DamageGE = NewObject<UGameplayEffect>(
+			GetTransientPackage(), NAME_None, RF_Transient);
+		DamageGE->DurationPolicy = EGameplayEffectDurationType::Instant;
+		FGameplayModifierInfo& Modifier = DamageGE->Modifiers.AddDefaulted_GetRef();
+		Modifier.Attribute = UMordecaiAttributeSet::GetHealthAttribute();
+		Modifier.ModifierOp = EGameplayModOp::Additive;
+		Modifier.ModifierMagnitude =
+			FGameplayEffectModifierMagnitude(FScalableFloat(-Damage));
+
+		FGameplayEffectContextHandle Context =
+			AttackerASC ? AttackerASC->MakeEffectContext() : FGameplayEffectContextHandle();
+		if (SourceObject)
+		{
+			Context.AddSourceObject(SourceObject);
+		}
+		TargetASC->ApplyGameplayEffectSpecToSelf(
+			FGameplayEffectSpec(DamageGE, Context, 1.f));
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Constructor
@@ -120,13 +154,8 @@ float UMordecaiGA_Block::ReceiveBlockedHit(float IncomingDamage, double HitTime,
 		float FinalDamage = ComputeBlockedDamage(IncomingDamage);
 
 		// Apply health damage
-		if (OwnerASC)
-		{
-			OwnerASC->ApplyModToAttribute(
-				UMordecaiAttributeSet::GetHealthAttribute(),
-				EGameplayModOp::Additive,
-				-FinalDamage);
-		}
+		MordecaiBlockPrivate::ApplyBlockedHealthDamage(
+			OwnerASC, AttackerASC, FinalDamage, this);
 
 		return FinalDamage;
 	}
@@ -143,11 +172,9 @@ float UMordecaiGA_Block::ReceiveBlockedHit(float IncomingDamage, double HitTime,
 			EGameplayModOp::Additive,
 			-StaminaDrain);
 
-		// Apply health damage
-		OwnerASC->ApplyModToAttribute(
-			UMordecaiAttributeSet::GetHealthAttribute(),
-			EGameplayModOp::Additive,
-			-FinalDamage);
+		// Apply health damage with the attacker's context so a lethal blocked hit keeps attribution.
+		MordecaiBlockPrivate::ApplyBlockedHealthDamage(
+			OwnerASC, AttackerASC, FinalDamage, this);
 
 		// AC-006.5: Check for guard break (stamina <= 0)
 		float CurrentStamina = OwnerASC->GetNumericAttribute(UMordecaiAttributeSet::GetStaminaAttribute());

@@ -2,13 +2,13 @@
 
 #include "MordecaiAttributeSet.h"
 #include "MordecaiAttributeScaling.h"
-#include "AbilitySystem/LyraGameplayEffectContext.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerState.h"
 #include "GameplayEffectExtension.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Burning.h"
 #include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiAttributeSet)
@@ -270,18 +270,23 @@ bool UMordecaiAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackD
 		return false;
 	}
 
-	// Capture every GAS Health damage source before the attribute-change delegate can enter death. Recording null
-	// is intentional: a later environmental/self/enemy hit must clear any earlier player attribution.
-	if (Data.EvaluatedData.Attribute == GetHealthAttribute() && Data.EvaluatedData.Magnitude < 0.f)
+	// Capture every GAS Health modifier before the attribute-change delegate can enter death. Override Health=0 has
+	// magnitude 0, so filtering only negative magnitudes loses its source. Recording null is intentional: a later
+	// environmental/self/enemy modifier must clear any earlier player attribution.
+	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
 	{
+		bHealthGameplayEffectInProgress = true;
 		if (AMordecaiEnemyCharacter* Enemy = Cast<AMordecaiEnemyCharacter>(GetOwningActor()))
 		{
 			const FGameplayEffectContextHandle& Context = Data.EffectSpec.GetContext();
-			const FLyraGameplayEffectContext* LyraContext =
-				FLyraGameplayEffectContext::ExtractEffectContext(Context);
-			Enemy->RecordDamagePlayerState(
-				MordecaiAttributeSetPrivate::ResolvePlayerState(Context),
-				LyraContext ? LyraContext->GetSourcePlayerLifeId() : INDEX_NONE);
+			APlayerState* SourcePlayerState = MordecaiAttributeSetPrivate::ResolvePlayerState(Context);
+			if (Data.EffectSpec.Def
+				&& Data.EffectSpec.Def->IsA<UMordecaiGE_Burning>()
+				&& Enemy->HasOriginalBurningCredit())
+			{
+				SourcePlayerState = Enemy->GetOriginalBurningCreditPlayerState();
+			}
+			Enemy->RecordDamagePlayerState(SourcePlayerState);
 		}
 	}
 	return true;
@@ -302,6 +307,20 @@ void UMordecaiAttributeSet::PreAttributeBaseChange(const FGameplayAttribute& Att
 void UMordecaiAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue)
 {
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
+
+	if (Attribute == GetHealthAttribute())
+	{
+		// ApplyModToAttribute has no effect context and bypasses PreGameplayEffectExecute. Clear any earlier player
+		// credit before the ASC's value-change delegate observes a lethal direct/environmental modification.
+		if (NewValue < OldValue && !bHealthGameplayEffectInProgress)
+		{
+			if (AMordecaiEnemyCharacter* Enemy = Cast<AMordecaiEnemyCharacter>(GetOwningActor()))
+			{
+				Enemy->RecordDamagePlayerState(nullptr);
+			}
+		}
+		bHealthGameplayEffectInProgress = false;
+	}
 
 	// When a primary attribute changes, recalculate all derived stats (AC-010.24)
 	if (Attribute == GetStrengthAttribute()

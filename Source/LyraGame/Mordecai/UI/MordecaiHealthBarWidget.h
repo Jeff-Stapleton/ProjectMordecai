@@ -39,6 +39,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeDestruct() override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> HealthProgressBar;
@@ -54,6 +55,7 @@ private:
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
 	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
 	void UpdateDisplay();
+	void UnbindFromASC();
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 };

@@ -119,7 +119,9 @@ void UMordecaiDeathScreenComponent::ShowDeathScreen()
 	// A normal tag callback runs before NotifyPlayerDeath resets the current count. A late bind runs after that
 	// reset, so the game mode supplies its cached completed-life value while a respawn is pending.
 	const AMordecaiGameMode* GameMode = GetGameMode();
-	const float RespawnDelay = (GameMode ? GameMode : GetDefault<AMordecaiGameMode>())->RespawnDelaySeconds;
+	const float RespawnDelay = GameMode
+		? GameMode->GetRespawnTimeRemaining()
+		: GetDefault<AMordecaiGameMode>()->RespawnDelaySeconds;
 	const int32 KillCount = GameMode ? GameMode->GetDeathScreenEnemyKillCount() : 0;
 
 	// CommonUI pools the layer's widgets: a later death gets this instance back without NativeOnInitialized, so it

@@ -45,6 +45,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeDestruct() override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> PostureProgressBar;
@@ -72,6 +73,7 @@ private:
 	void OnMaxPostureChanged(const FOnAttributeChangeData& Data);
 	void OnPostureBrokenTagChanged(const FGameplayTag Tag, int32 NewCount);
 	void UpdateDisplay();
+	void UnbindFromASC();
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 };

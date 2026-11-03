@@ -42,6 +42,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeDestruct() override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> ComboText;
@@ -53,6 +54,7 @@ private:
 	void BuildDefaultContent();
 	void OnComboWindowTagChanged(const FGameplayTag Tag, int32 NewCount);
 	void UpdateDisplay();
+	void UnbindFromASC();
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 };

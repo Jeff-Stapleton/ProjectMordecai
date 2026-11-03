@@ -25,6 +25,12 @@ void UMordecaiPostureBarWidget::NativeOnInitialized()
 	}
 }
 
+void UMordecaiPostureBarWidget::NativeDestruct()
+{
+	UnbindFromASC();
+	Super::NativeDestruct();
+}
+
 void UMordecaiPostureBarWidget::BuildDefaultContent()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
@@ -68,6 +74,7 @@ bool UMordecaiPostureBarWidget::IsPostureBroken() const
 
 void UMordecaiPostureBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 {
+	UnbindFromASC();
 	if (!ASC)
 	{
 		return;
@@ -96,6 +103,21 @@ void UMordecaiPostureBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 	bPostureBroken = ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_PostureBroken);
 
 	UpdateDisplay();
+}
+
+void UMordecaiPostureBarWidget::UnbindFromASC()
+{
+	if (UAbilitySystemComponent* ASC = BoundASC.Get())
+	{
+		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetPostureAttribute())
+			.RemoveAll(this);
+		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxPostureAttribute())
+			.RemoveAll(this);
+		ASC->RegisterGameplayTagEvent(
+			MordecaiGameplayTags::State_PostureBroken,
+			EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
+	}
+	BoundASC.Reset();
 }
 
 void UMordecaiPostureBarWidget::OnPostureChanged(const FOnAttributeChangeData& Data)

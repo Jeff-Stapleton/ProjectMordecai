@@ -48,6 +48,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -56,6 +57,7 @@ protected:
 private:
 	void BuildDefaultContent();
 	void OnFeedbackTagChanged(const FGameplayTag Tag, int32 NewCount);
+	void UnbindFromASC();
 
 	float RemainingDisplayTime = 0.f;
 

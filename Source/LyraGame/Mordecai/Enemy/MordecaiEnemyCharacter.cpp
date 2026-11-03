@@ -13,6 +13,7 @@
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiGameMode.h"
 #include "Mordecai/Enemy/MordecaiEnemyAIController.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Burning.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
@@ -21,12 +22,55 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "GameFramework/Controller.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerState.h"
+#include "GameplayEffect.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyCharacter)
 
 DEFINE_LOG_CATEGORY(LogMordecaiEnemy);
+
+namespace MordecaiEnemyPrivate
+{
+	APlayerState* PlayerStateFromActor(AActor* Actor)
+	{
+		if (APlayerState* PlayerState = Cast<APlayerState>(Actor))
+		{
+			return PlayerState;
+		}
+		if (const APawn* Pawn = Cast<APawn>(Actor))
+		{
+			return Pawn->GetPlayerState();
+		}
+		if (const AController* Controller = Cast<AController>(Actor))
+		{
+			return Controller->PlayerState;
+		}
+		if (Actor)
+		{
+			if (AController* InstigatorController = Actor->GetInstigatorController())
+			{
+				return InstigatorController->PlayerState;
+			}
+		}
+		return nullptr;
+	}
+
+	APlayerState* ResolvePlayerState(const FGameplayEffectContextHandle& Context)
+	{
+		if (APlayerState* PlayerState = PlayerStateFromActor(Context.GetOriginalInstigator()))
+		{
+			return PlayerState;
+		}
+		if (APlayerState* PlayerState = PlayerStateFromActor(Context.GetEffectCauser()))
+		{
+			return PlayerState;
+		}
+		return PlayerStateFromActor(Cast<AActor>(Context.GetSourceObject()));
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Constructor
@@ -251,6 +295,11 @@ void AMordecaiEnemyCharacter::InitializeAbilitySystem()
 		UMordecaiAttributeSet::GetPostureAttribute()).AddUObject(
 			this, &AMordecaiEnemyCharacter::OnPostureChanged);
 
+	EnemyAbilitySystemComponent->OnActiveGameplayEffectAddedDelegateToSelf.AddUObject(
+		this, &AMordecaiEnemyCharacter::OnActiveGameplayEffectAdded);
+	EnemyAbilitySystemComponent->OnAnyGameplayEffectRemovedDelegate().AddUObject(
+		this, &AMordecaiEnemyCharacter::OnActiveGameplayEffectRemoved);
+
 	// Grant default abilities (US-054)
 	GrantDefaultAbilities();
 
@@ -303,7 +352,31 @@ void AMordecaiEnemyCharacter::OnHealthChanged(const FOnAttributeChangeData& Data
 	// AC-050.6: When Health reaches <= 0, enter death state
 	if (Data.NewValue <= 0.f && !IsDead())
 	{
-		EnterDeathState(LastDamagePlayerState.Get(), LastDamagePlayerLifeId);
+		EnterDeathState(LastDamagePlayerState.Get());
+	}
+}
+
+void AMordecaiEnemyCharacter::OnActiveGameplayEffectAdded(
+	UAbilitySystemComponent* TargetASC,
+	const FGameplayEffectSpec& Spec,
+	FActiveGameplayEffectHandle Handle)
+{
+	if (!bOriginalBurningCreditCaptured
+		&& Spec.Def
+		&& Spec.Def->IsA<UMordecaiGE_Burning>())
+	{
+		OriginalBurningCreditPlayerState =
+			MordecaiEnemyPrivate::ResolvePlayerState(Spec.GetEffectContext());
+		bOriginalBurningCreditCaptured = true;
+	}
+}
+
+void AMordecaiEnemyCharacter::OnActiveGameplayEffectRemoved(const FActiveGameplayEffect& Effect)
+{
+	if (Effect.Spec.Def && Effect.Spec.Def->IsA<UMordecaiGE_Burning>())
+	{
+		OriginalBurningCreditPlayerState.Reset();
+		bOriginalBurningCreditCaptured = false;
 	}
 }
 
@@ -331,17 +404,12 @@ void AMordecaiEnemyCharacter::OnPostureChanged(const FOnAttributeChangeData& Dat
 // State Transitions
 // ---------------------------------------------------------------------------
 
-void AMordecaiEnemyCharacter::RecordDamagePlayerState(
-	APlayerState* InPlayerState,
-	int32 SourcePlayerLifeId)
+void AMordecaiEnemyCharacter::RecordDamagePlayerState(APlayerState* InPlayerState)
 {
 	LastDamagePlayerState = InPlayerState;
-	LastDamagePlayerLifeId = SourcePlayerLifeId;
 }
 
-void AMordecaiEnemyCharacter::EnterDeathState(
-	APlayerState* KillerPlayerState,
-	int32 SourcePlayerLifeId)
+void AMordecaiEnemyCharacter::EnterDeathState(APlayerState* KillerPlayerState)
 {
 	if (!EnemyAbilitySystemComponent || IsDead())
 	{
@@ -386,11 +454,10 @@ void AMordecaiEnemyCharacter::EnterDeathState(
 	{
 		if (AMordecaiGameMode* GM = Cast<AMordecaiGameMode>(World->GetAuthGameMode()))
 		{
-			GM->NotifyEnemyKilled(this, KillerPlayerState, SourcePlayerLifeId);
+			GM->NotifyEnemyKilled(this, KillerPlayerState);
 		}
 	}
 	LastDamagePlayerState.Reset();
-	LastDamagePlayerLifeId = INDEX_NONE;
 }
 
 void AMordecaiEnemyCharacter::EnterPostureBrokenState()
@@ -445,7 +512,6 @@ void AMordecaiEnemyCharacter::ResetForArena()
 	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Dead);
 	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_PostureBroken);
 	LastDamagePlayerState.Reset();
-	LastDamagePlayerLifeId = INDEX_NONE;
 
 	// Cancel posture broken timer if active
 	if (UWorld* World = GetWorld())

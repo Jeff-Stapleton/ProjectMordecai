@@ -62,6 +62,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeDestruct() override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> StaminaProgressBar;
@@ -77,6 +78,7 @@ private:
 	void OnStaminaChanged(const FOnAttributeChangeData& Data);
 	void OnMaxStaminaChanged(const FOnAttributeChangeData& Data);
 	void UpdateDisplay();
+	void UnbindFromASC();
 
 	FLinearColor GetColorForTier(EMordecaiStaminaTier Tier) const;
 

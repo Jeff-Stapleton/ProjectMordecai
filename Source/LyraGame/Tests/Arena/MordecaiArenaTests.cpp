@@ -249,10 +249,10 @@ bool FMordecai_Arena_KillCountIncrementsOnEnemyDeath::RunTest(const FString& Par
 	AMordecaiEnemyCharacter* First = NewObject<AMordecaiEnemyCharacter>();
 	AMordecaiEnemyCharacter* Second = NewObject<AMordecaiEnemyCharacter>();
 	AMordecaiPlayerState* Killer = NewObject<AMordecaiPlayerState>();
-	GM->NotifyEnemyKilled(First, Killer, 0);
+	GM->NotifyEnemyKilled(First, Killer);
 	TestEqual("Kill count is 1", GM->GetEnemyKillCount(), 1);
 
-	GM->NotifyEnemyKilled(Second, Killer, 0);
+	GM->NotifyEnemyKilled(Second, Killer);
 	TestEqual("Kill count is 2", GM->GetEnemyKillCount(), 2);
 
 	FGameplayTag EnemyKillTag = MordecaiGameplayTags::Event_EnemyKill;
@@ -291,7 +291,7 @@ bool FMordecai_Arena_ResetArenaResetsKillCount::RunTest(const FString& Parameter
 	if (Enemy)
 	{
 		GM->RegisterEnemy(Enemy, Enemy->GetActorTransform());
-		Enemy->EnterDeathState(Env.PlayerState, GM->GetCurrentPlayerLifeId(Env.PlayerState));
+		Enemy->EnterDeathState(Env.PlayerState);
 	}
 	TestEqual("the enemy death increments the count", GM->GetEnemyKillCount(), 1);
 

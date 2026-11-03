@@ -49,6 +49,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeDestruct() override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UHorizontalBox> IndicatorContainer;
@@ -58,6 +59,7 @@ private:
 	void OnStatusTagChanged(const FGameplayTag Tag, int32 NewCount);
 	void AddIndicator(const FGameplayTag& StatusTag);
 	void RemoveIndicator(const FGameplayTag& StatusTag);
+	void UnbindFromASC();
 
 	/** Active indicators keyed by their status tag. */
 	UPROPERTY()

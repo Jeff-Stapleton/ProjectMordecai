@@ -24,6 +24,12 @@ void UMordecaiStaminaBarWidget::NativeOnInitialized()
 	}
 }
 
+void UMordecaiStaminaBarWidget::NativeDestruct()
+{
+	UnbindFromASC();
+	Super::NativeDestruct();
+}
+
 void UMordecaiStaminaBarWidget::BuildDefaultContent()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
@@ -100,6 +106,7 @@ EMordecaiStaminaTier UMordecaiStaminaBarWidget::GetStaminaTier() const
 
 void UMordecaiStaminaBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 {
+	UnbindFromASC();
 	if (!ASC)
 	{
 		return;
@@ -122,6 +129,18 @@ void UMordecaiStaminaBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 	if (!bFound) { CachedMaxStamina = 0.f; }
 
 	UpdateDisplay();
+}
+
+void UMordecaiStaminaBarWidget::UnbindFromASC()
+{
+	if (UAbilitySystemComponent* ASC = BoundASC.Get())
+	{
+		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetStaminaAttribute())
+			.RemoveAll(this);
+		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxStaminaAttribute())
+			.RemoveAll(this);
+	}
+	BoundASC.Reset();
 }
 
 void UMordecaiStaminaBarWidget::OnStaminaChanged(const FOnAttributeChangeData& Data)

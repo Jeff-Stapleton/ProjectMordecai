@@ -24,6 +24,12 @@ void UMordecaiComboCounterWidget::NativeOnInitialized()
 	}
 }
 
+void UMordecaiComboCounterWidget::NativeDestruct()
+{
+	UnbindFromASC();
+	Super::NativeDestruct();
+}
+
 void UMordecaiComboCounterWidget::BuildDefaultContent()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
@@ -62,6 +68,7 @@ FString UMordecaiComboCounterWidget::FormatComboHit(int32 ComboIndex)
 
 void UMordecaiComboCounterWidget::BindToASC(UAbilitySystemComponent* ASC)
 {
+	UnbindFromASC();
 	if (!ASC)
 	{
 		return;
@@ -74,6 +81,17 @@ void UMordecaiComboCounterWidget::BindToASC(UAbilitySystemComponent* ASC)
 
 	// Start hidden
 	SetComboVisible(false);
+}
+
+void UMordecaiComboCounterWidget::UnbindFromASC()
+{
+	if (UAbilitySystemComponent* ASC = BoundASC.Get())
+	{
+		ASC->RegisterGameplayTagEvent(
+			MordecaiGameplayTags::State_ComboWindow,
+			EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
+	}
+	BoundASC.Reset();
 }
 
 void UMordecaiComboCounterWidget::SetComboIndex(int32 ComboIndex)

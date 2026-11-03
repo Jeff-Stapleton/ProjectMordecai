@@ -24,6 +24,12 @@ void UMordecaiHealthBarWidget::NativeOnInitialized()
 	}
 }
 
+void UMordecaiHealthBarWidget::NativeDestruct()
+{
+	UnbindFromASC();
+	Super::NativeDestruct();
+}
+
 void UMordecaiHealthBarWidget::BuildDefaultContent()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
@@ -62,6 +68,7 @@ float UMordecaiHealthBarWidget::GetHealthPercent() const
 
 void UMordecaiHealthBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 {
+	UnbindFromASC();
 	if (!ASC)
 	{
 		return;
@@ -84,6 +91,18 @@ void UMordecaiHealthBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 	if (!bFound) { CachedMaxHealth = 0.f; }
 
 	UpdateDisplay();
+}
+
+void UMordecaiHealthBarWidget::UnbindFromASC()
+{
+	if (UAbilitySystemComponent* ASC = BoundASC.Get())
+	{
+		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute())
+			.RemoveAll(this);
+		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxHealthAttribute())
+			.RemoveAll(this);
+	}
+	BoundASC.Reset();
 }
 
 void UMordecaiHealthBarWidget::OnHealthChanged(const FOnAttributeChangeData& Data)

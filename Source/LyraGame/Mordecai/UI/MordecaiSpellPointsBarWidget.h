@@ -45,6 +45,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeDestruct() override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> SpellPointsProgressBar;
@@ -63,6 +64,7 @@ private:
 	void OnSpellPointsChanged(const FOnAttributeChangeData& Data);
 	void OnMaxSpellPointsChanged(const FOnAttributeChangeData& Data);
 	void UpdateDisplay();
+	void UnbindFromASC();
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 };

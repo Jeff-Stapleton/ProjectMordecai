@@ -25,6 +25,12 @@ void UMordecaiSpellPointsBarWidget::NativeOnInitialized()
 	}
 }
 
+void UMordecaiSpellPointsBarWidget::NativeDestruct()
+{
+	UnbindFromASC();
+	Super::NativeDestruct();
+}
+
 void UMordecaiSpellPointsBarWidget::BuildDefaultContent()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
@@ -83,6 +89,7 @@ float UMordecaiSpellPointsBarWidget::GetSpellPointsPercent() const
 
 void UMordecaiSpellPointsBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 {
+	UnbindFromASC();
 	if (!ASC)
 	{
 		return;
@@ -105,6 +112,18 @@ void UMordecaiSpellPointsBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 	if (!bFound) { CachedMaxSpellPoints = 0.f; }
 
 	UpdateDisplay();
+}
+
+void UMordecaiSpellPointsBarWidget::UnbindFromASC()
+{
+	if (UAbilitySystemComponent* ASC = BoundASC.Get())
+	{
+		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetSpellPointsAttribute())
+			.RemoveAll(this);
+		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxSpellPointsAttribute())
+			.RemoveAll(this);
+	}
+	BoundASC.Reset();
 }
 
 void UMordecaiSpellPointsBarWidget::OnSpellPointsChanged(const FOnAttributeChangeData& Data)

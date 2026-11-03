@@ -236,6 +236,9 @@ protected:
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& NewValue) const;
 
 private:
+	/** Distinguishes a contextual GAS Health modifier from context-free direct attribute changes. */
+	bool bHealthGameplayEffectInProgress = false;
+
 	// --- Core Resources ---
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Mordecai|Resources", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData Health;

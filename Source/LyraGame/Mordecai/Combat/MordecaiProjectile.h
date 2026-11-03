@@ -39,6 +39,8 @@ public:
 	void SetProjectileInstigator(AActor* InInstigator);
 
 #if WITH_AUTOMATION_TESTS
+	void SimulateOverlapForTesting(AActor* TargetActor);
+
 	void ApplyDamageToTargetForTesting(AActor* TargetActor, float DamageMagnitude)
 	{
 		ApplyDamageToTarget(TargetActor, DamageMagnitude);
@@ -143,8 +145,6 @@ private:
 
 	UPROPERTY()
 	TWeakObjectPtr<AActor> ProjectileInstigator;
-
-	int32 SourcePlayerLifeId = INDEX_NONE;
 
 	FVector SpawnLocation = FVector::ZeroVector;
 	float DistanceTraveled = 0.f;

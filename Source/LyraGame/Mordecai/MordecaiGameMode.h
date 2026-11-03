@@ -56,9 +56,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Arena")
 	bool ArenaResetOnPlayerRespawn = true;
 
-	/** Two input-observation frames must fit the Tier 4 light-click cadence's 0.4 s bound. */
-	static constexpr float MaximumUndilatedFrameTimeSeconds = 0.2f;
-
 	// --- Arena API ---
 
 	/** Reset all registered enemies to full health/posture (AC-053.9). */
@@ -75,9 +72,8 @@ public:
 		return bRespawnPending ? CompletedLifeEnemyKillCount : EnemyKillCount;
 	}
 
-	/** Source-generation key stamped into player-owned GAS effect contexts. */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Arena")
-	int32 GetCurrentPlayerLifeId(const APlayerState* PlayerState) const;
+	/** Remaining time for a late-bound death screen; the configured delay before a timer has started. */
+	float GetRespawnTimeRemaining() const;
 
 	/** The one notification used by HUD consumers of GetEnemyKillCount(). */
 	FOnMordecaiEnemyKillCountChanged& OnEnemyKillCountChanged() { return EnemyKillCountChanged; }
@@ -88,14 +84,14 @@ public:
 	/** Called when an enemy dies. Counts it only when KillerPlayerState is a Mordecai player. */
 	void NotifyEnemyKilled(
 		AMordecaiEnemyCharacter* KilledEnemy,
-		APlayerState* KillerPlayerState = nullptr,
-		int32 SourcePlayerLifeId = INDEX_NONE);
+		APlayerState* KillerPlayerState = nullptr);
 
 	/** Register an enemy for arena tracking (called by enemy on spawn). */
 	void RegisterEnemy(AMordecaiEnemyCharacter* Enemy, const FTransform& SpawnTransform);
 
 #if WITH_AUTOMATION_TESTS
 	void ExecuteRespawnForTesting() { ExecuteRespawn(); }
+	void SetRespawnTimeRemainingForTesting(float RemainingSeconds);
 #endif
 
 private:
@@ -109,12 +105,12 @@ private:
 	TSet<TWeakObjectPtr<AMordecaiEnemyCharacter>> CountedEnemyDeaths;
 	int32 EnemyKillCount = 0;
 	int32 CompletedLifeEnemyKillCount = 0;
-	int32 CurrentPlayerLifeId = 0;
 	bool bRespawnPending = false;
 	FOnMordecaiEnemyKillCountChanged EnemyKillCountChanged;
 	FTimerHandle RespawnTimerHandle;
 	TWeakObjectPtr<AMordecaiCharacter> PendingRespawnPlayer;
 
 	void ResetEnemyKillCount();
+	void ResetEnemiesForArena();
 	void ExecuteRespawn();
 };

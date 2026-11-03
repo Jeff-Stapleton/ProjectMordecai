@@ -147,8 +147,8 @@ bool FMordecai_Recovery_DeathScreen_ShownOnDeathRemovedOnRespawn::RunTest(const 
 	AMordecaiGameMode* GameMode = NewObject<AMordecaiGameMode>();
 	GameMode->RespawnDelaySeconds = 5.f;
 	AMordecaiPlayerState* Killer = NewObject<AMordecaiPlayerState>();
-	GameMode->NotifyEnemyKilled(NewObject<AMordecaiEnemyCharacter>(), Killer, 0);
-	GameMode->NotifyEnemyKilled(NewObject<AMordecaiEnemyCharacter>(), Killer, 0);
+	GameMode->NotifyEnemyKilled(NewObject<AMordecaiEnemyCharacter>(), Killer);
+	GameMode->NotifyEnemyKilled(NewObject<AMordecaiEnemyCharacter>(), Killer);
 	Component->SetGameModeOverride(GameMode);
 	Env.ApplyPlayerHealthDelta(-1000.f);
 	UMordecaiDeathScreenWidget* SecondScreen = OnlyDeathScreen(GameLayer);
@@ -215,21 +215,21 @@ bool FMordecai_Recovery_DeathScreen_LateBindPreservesCompletedLifeKills::RunTest
 	Component->RegisterComponent();
 	Component->SetLayoutOverride(Layout);
 
-	const int32 LifeId = GameMode->GetCurrentPlayerLifeId(Env.PlayerState);
-	Env.SpawnEnemy(FVector(500.f, 0.f, 100.f), {})->EnterDeathState(Env.PlayerState, LifeId);
-	Env.SpawnEnemy(FVector(700.f, 0.f, 100.f), {})->EnterDeathState(Env.PlayerState, LifeId);
+	Env.SpawnEnemy(FVector(500.f, 0.f, 100.f), {})->EnterDeathState(Env.PlayerState);
+	Env.SpawnEnemy(FVector(700.f, 0.f, 100.f), {})->EnterDeathState(Env.PlayerState);
 	TestEqual("the completed life has two kills", GameMode->GetEnemyKillCount(), 2);
 
 	Env.ApplyPlayerHealthDelta(-1000.f);
 	TestTrue("the player died before the component bound", Env.Player->IsDead());
 	TestEqual("the current-life count was reset", GameMode->GetEnemyKillCount(), 0);
 	TestEqual("unbound: no death screen yet", GameLayer->GetNumWidgets(), 0);
+	GameMode->SetRespawnTimeRemainingForTesting(1.2f);
 
 	Component->BindToPlayerState();
 	UMordecaiDeathScreenWidget* Screen = OnlyDeathScreen(GameLayer);
 	TestNotNull("late bind pushes the death screen", Screen);
-	TestEqualSensitive("late bind preserves the completed life's total", DrawnTexts(Screen),
-		FString(TEXT("You Died | 3 | Kills: 2")));
+	TestEqualSensitive("late bind uses remaining respawn time and preserves the completed life's total",
+		DrawnTexts(Screen), FString(TEXT("You Died | 2 | Kills: 2")));
 
 	Component->Unbind();
 	Env.TeardownWithController();

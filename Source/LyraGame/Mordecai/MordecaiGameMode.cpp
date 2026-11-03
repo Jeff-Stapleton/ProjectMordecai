@@ -31,12 +31,6 @@ void AMordecaiGameMode::InitGame(const FString& MapName, const FString& Options,
 	// on B_LyraDefaultExperience (the shooter).
 	const UWorld* World = GetWorld();
 	AWorldSettings* BaseWorldSettings = GetWorldSettings();
-	if (BaseWorldSettings)
-	{
-		// A distinct tap is observed across one down frame and one released frame. Cap each at 0.2 s so even
-		// severe hitches preserve the story's <=0.4 game-time click-start cadence.
-		BaseWorldSettings->MaxUndilatedFrameTime = MaximumUndilatedFrameTimeSeconds;
-	}
 	const ALyraWorldSettings* WorldSettings = Cast<ALyraWorldSettings>(BaseWorldSettings);
 	const bool bDeveloperOverrideApplies = World && World->IsPlayInEditor()
 		&& GetDefault<ULyraDeveloperSettings>()->ExperienceOverride.IsValid();
@@ -74,7 +68,6 @@ void AMordecaiGameMode::NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer)
 	// HandlePlayerDeath broadcasts Mordecai.Event.PlayerDeath before it notifies the game mode. The death screen
 	// therefore caches the completed life's count first; then this authoritative count and every bound HUD reset.
 	CompletedLifeEnemyKillCount = EnemyKillCount;
-	++CurrentPlayerLifeId;
 	bRespawnPending = true;
 	PendingRespawnPlayer = DeadPlayer;
 	ResetEnemyKillCount();
@@ -91,9 +84,6 @@ void AMordecaiGameMode::NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer)
 
 void AMordecaiGameMode::ExecuteRespawn()
 {
-	// A delayed projectile/DoT death cannot become the first kill of the next life, even when arena reset is disabled.
-	ResetEnemyKillCount();
-
 	AMordecaiCharacter* Player = PendingRespawnPlayer.Get();
 	if (!Player)
 	{
@@ -120,7 +110,8 @@ void AMordecaiGameMode::ExecuteRespawn()
 	// Reset arena if configured (AC-053.8)
 	if (ArenaResetOnPlayerRespawn)
 	{
-		ResetArena();
+		// Death already reset the HUD count. Preserve kills that landed in the death window while reviving the arena.
+		ResetEnemiesForArena();
 	}
 
 	bRespawnPending = false;
@@ -133,15 +124,13 @@ void AMordecaiGameMode::ExecuteRespawn()
 
 void AMordecaiGameMode::NotifyEnemyKilled(
 	AMordecaiEnemyCharacter* KilledEnemy,
-	APlayerState* KillerPlayerState,
-	int32 SourcePlayerLifeId)
+	APlayerState* KillerPlayerState)
 {
 	const TWeakObjectPtr<AMordecaiEnemyCharacter> WeakEnemy(KilledEnemy);
 	// Single-player issue #6 contract: only a Mordecai player-owned GAS context earns a kill. The player state
 	// parameter intentionally gives issue #77 a per-player key without adding replication or multiplayer state here.
 	if (!KilledEnemy || !Cast<AMordecaiPlayerState>(KillerPlayerState)
-		|| SourcePlayerLifeId != CurrentPlayerLifeId
-		|| bRespawnPending || CountedEnemyDeaths.Contains(WeakEnemy))
+		|| CountedEnemyDeaths.Contains(WeakEnemy))
 	{
 		return;
 	}
@@ -151,10 +140,36 @@ void AMordecaiGameMode::NotifyEnemyKilled(
 	EnemyKillCountChanged.Broadcast(EnemyKillCount);
 }
 
-int32 AMordecaiGameMode::GetCurrentPlayerLifeId(const APlayerState* PlayerState) const
+float AMordecaiGameMode::GetRespawnTimeRemaining() const
 {
-	return Cast<AMordecaiPlayerState>(PlayerState) ? CurrentPlayerLifeId : INDEX_NONE;
+	if (bRespawnPending)
+	{
+		if (const UWorld* World = GetWorld())
+		{
+			const float Remaining = World->GetTimerManager().GetTimerRemaining(RespawnTimerHandle);
+			if (Remaining >= 0.f)
+			{
+				return Remaining;
+			}
+		}
+	}
+	return RespawnDelaySeconds;
 }
+
+#if WITH_AUTOMATION_TESTS
+void AMordecaiGameMode::SetRespawnTimeRemainingForTesting(float RemainingSeconds)
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			RespawnTimerHandle,
+			this,
+			&AMordecaiGameMode::ExecuteRespawn,
+			RemainingSeconds,
+			false);
+	}
+}
+#endif
 
 void AMordecaiGameMode::ResetEnemyKillCount()
 {
@@ -185,6 +200,11 @@ void AMordecaiGameMode::RegisterEnemy(AMordecaiEnemyCharacter* Enemy, const FTra
 void AMordecaiGameMode::ResetArena()
 {
 	ResetEnemyKillCount();
+	ResetEnemiesForArena();
+}
+
+void AMordecaiGameMode::ResetEnemiesForArena()
+{
 	CountedEnemyDeaths.Reset();
 
 	for (FEnemySpawnEntry& Entry : EnemyRegistry)

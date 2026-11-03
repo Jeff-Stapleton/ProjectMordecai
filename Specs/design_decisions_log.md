@@ -148,6 +148,18 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Environmental, self-caused, enemy friendly-fire and other non-player enemy deaths count zero.
 - Attribution follows the GAS effect context's original instigator/effect causer/source through the enemy Health
   modifier and death path; a periodic effect keeps the player identity from its original application.
+- **Burning credit belongs to the original applier.** Refreshing an existing AggregateByTarget Burning effect changes
+  its duration, never its kill credit. Player Burning refreshed by an enemy still counts; enemy Burning refreshed by
+  the player still does not.
+
+### Death and reset boundaries
+- The death screen snapshots the completed life's total, and the live HUD count resets to zero at player death.
+- A player-owned spell, projectile or DoT from the old life may score in the new life. This includes a kill that lands
+  in the death window before respawn and one that lands after respawn.
+- Respawn does not reset the live count again, because doing so would erase death-window kills. Its automatic enemy
+  reset revives the arena and clears per-enemy deduplication without clearing the count.
+- A manual `ResetArena` still resets the count and clears per-enemy deduplication. It does not invalidate outstanding
+  player projectiles or effects; a later kill from one counts normally.
 
 ### Scope boundary
 - Issue #6 / PR #76 remains single-player only.
@@ -155,4 +167,5 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
   and resets only when that same player dies.
 - PR #76 does not add count replication or remote-client UI. The death path passes an `APlayerState*` so issue #77 can
   use it as the future per-player key.
-- Source: Jeff via Cursor session (2026-11-02).
+- Source: Jeff via Cursor sessions (2026-11-02); the death-boundary and Burning-refresh rules were finalized by Jeff
+  on 2026-11-02 and supersede the earlier stale-life rejection implementation.

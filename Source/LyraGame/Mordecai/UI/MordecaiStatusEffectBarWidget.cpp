@@ -31,6 +31,12 @@ void UMordecaiStatusEffectBarWidget::NativeOnInitialized()
 	}
 }
 
+void UMordecaiStatusEffectBarWidget::NativeDestruct()
+{
+	UnbindFromASC();
+	Super::NativeDestruct();
+}
+
 void UMordecaiStatusEffectBarWidget::BuildDefaultContent()
 {
 	IndicatorContainer = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("IndicatorContainer"));
@@ -79,6 +85,7 @@ FLinearColor UMordecaiStatusEffectBarWidget::GetTintForStatusTag(const FGameplay
 
 void UMordecaiStatusEffectBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 {
+	UnbindFromASC();
 	if (!ASC)
 	{
 		return;
@@ -100,6 +107,23 @@ void UMordecaiStatusEffectBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 		{
 			AddIndicator(Tag);
 		}
+	}
+}
+
+void UMordecaiStatusEffectBarWidget::UnbindFromASC()
+{
+	if (UAbilitySystemComponent* ASC = BoundASC.Get())
+	{
+		const FGameplayTag StatusRootTag =
+			FGameplayTag::RequestGameplayTag(FName(TEXT("Mordecai.Status")));
+		ASC->RegisterGameplayTagEvent(StatusRootTag, EGameplayTagEventType::NewOrRemoved)
+			.RemoveAll(this);
+	}
+	BoundASC.Reset();
+	ActiveIndicators.Reset();
+	if (IndicatorContainer)
+	{
+		IndicatorContainer->ClearChildren();
 	}
 }
 
