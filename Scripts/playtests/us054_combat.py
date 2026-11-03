@@ -700,12 +700,27 @@ class Us054CombatRun(kit.PlaytestRun):
             train_elapsed = time.monotonic() - train_started
             self.kill_clicks = len(click_responses)
 
+            if len(click_responses) != KILL_CLICK_TRAIN_COUNT:
+                return ("FAIL", f"received {len(click_responses)} click replies; expected exactly "
+                        f"{KILL_CLICK_TRAIN_COUNT} cadence samples", None)
+            for index, response in enumerate(click_responses):
+                if (response or {}).get("cmd") != "click":
+                    return ("FAIL", f"cadence sample {index + 1} is a reply for "
+                            f"{(response or {}).get('cmd')!r}, expected 'click'", None)
+
             click_starts = [_num((response or {}).get("started_world_time_s"))
                             for response in click_responses]
             if not click_starts or any(start is None for start in click_starts):
                 return ("FAIL", "a click response has no numeric started_world_time_s; "
                         "cannot verify click-start cadence", None)
             click_gaps = [b - a for a, b in zip(click_starts, click_starts[1:])]
+            non_increasing = [(index + 1, gap) for index, gap in enumerate(click_gaps)
+                              if gap <= 0]
+            if non_increasing:
+                first_index, first_gap = non_increasing[0]
+                return ("FAIL", f"click-start timestamps are not strictly increasing at samples "
+                        f"{first_index}/{first_index + 1}: gap {first_gap:.3f}s; every adjacent "
+                        f"gap must satisfy 0 < gap <= {KILL_MAX_GAME_TIME_GAP_S:g}s", None)
             max_game_time_click_gap = max(click_gaps, default=0.0)
 
             st = b.state(["player", "actors"], radius=ENEMY_RADIUS)
@@ -716,7 +731,7 @@ class Us054CombatRun(kit.PlaytestRun):
             if current is not None and (not health_samples or current != health_samples[-1]):
                 health_samples.append(current)
 
-            cadence_ok = max_game_time_click_gap <= KILL_MAX_GAME_TIME_GAP_S + 0.001
+            cadence_ok = all(0 < gap <= KILL_MAX_GAME_TIME_GAP_S for gap in click_gaps)
             killed = dummy is not None and dummy.get("is_dead") is True
             within_timeout = train_elapsed <= KILL_TIMEOUT_S
             status = "PASS" if killed and cadence_ok and within_timeout else "FAIL"
@@ -733,11 +748,14 @@ class Us054CombatRun(kit.PlaytestRun):
 
         def incremented(st):
             p = player(st)
-            return p is not None and p.get("kills") == 1 and sorted(set(kill_counts(st))) == [1]
+            shown = kill_counts_for_widget_class(st, KILL_COUNTER_CLASS)
+            return p is not None and p.get("kills") == 1 and sorted(set(shown)) == [1]
 
         def describe(st):
             p = player(st)
-            return f"'Kills: N' texts {kill_counts(st)}, player.kills={(p or {}).get('kills')}"
+            shown = kill_counts_for_widget_class(st, KILL_COUNTER_CLASS)
+            return (f"{KILL_COUNTER_CLASS} 'Kills: N' texts {shown}, "
+                    f"player.kills={(p or {}).get('kills')}")
 
         counted, st = self.observe(
             "kill_counter_increments", ["widgets", "player"], incremented, describe,
@@ -1068,7 +1086,7 @@ class Us054CombatRun(kit.PlaytestRun):
             st = b.state(["widgets", "player"])
             p = player(st)
             kills = (p or {}).get("kills")
-            shown = kill_counts(st)
+            shown = kill_counts_for_widget_class(st, KILL_COUNTER_CLASS)
             if p is None:
                 return "FAIL", f"no valid player section; 'Kills: N' texts {shown}", None
             # The HUD root may repeat its children's texts: one distinct value is expected.

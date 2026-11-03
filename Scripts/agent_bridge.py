@@ -400,6 +400,10 @@ class BridgeConnection:
         ordered = []
         for msg in messages:
             resp = replies[msg["id"]]
+            if resp.get("cmd") != msg["cmd"]:
+                raise _infra(
+                    f"{msg['cmd']} request received a {resp.get('cmd')} reply",
+                    "bad_response", resp)
             if resp.get("ok") is True:
                 ordered.append(resp)
                 continue
@@ -1150,7 +1154,16 @@ class Bridge:
                 requests.append(("wait", {"seconds": release_s}))
         timeout = count * max(0.6, float(hold_s) + release_s) + RESPONSE_SLACK_S
         responses = self.conn.request_many(requests, timeout=timeout)
-        return [response for response in responses if response.get("cmd") == "click"]
+        if len(responses) != len(requests):
+            raise _infra(
+                f"click pipeline received {len(responses)} replies for {len(requests)} requests",
+                "bad_response", {"responses": len(responses), "requests": len(requests)})
+        for (expected_cmd, _), response in zip(requests, responses):
+            if response.get("cmd") != expected_cmd:
+                raise _infra(
+                    f"{expected_cmd} request received a {response.get('cmd')} reply",
+                    "bad_response", response)
+        return [response for (cmd, _), response in zip(requests, responses) if cmd == "click"]
 
     @staticmethod
     def _norm_id(value):

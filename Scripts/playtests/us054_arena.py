@@ -308,8 +308,7 @@ class Us054Run(kit.PlaytestRun):
         why = "not run: no enemy in actors[]"
 
         def spacing(b):
-            pts = [xy(a["location"]) for a in enemies(
-                b.state(["actors"], radius=ENEMY_RADIUS))]
+            pts = list(self.enemies_start)
             problems = []
             for i in range(len(pts)):
                 for j in range(i + 1, len(pts)):

@@ -909,6 +909,20 @@ class TestCppParity(FakeServerCase):
         clicks = [r for r in self.server.received[-11:] if r.get("cmd") == "click"]
         self.assertEqual(len(clicks), 6)
 
+    def test_pipelined_clicks_reject_a_reply_for_the_wrong_command(self):
+        bridge = self.attach()
+        replies = [
+            {"id": 1, "cmd": "click", "ok": True, "started_world_time_s": 1.0},
+            {"id": 2, "cmd": "click", "ok": True},
+            {"id": 3, "cmd": "click", "ok": True, "started_world_time_s": 1.2},
+        ]
+        with mock.patch.object(bridge.conn, "request_many", return_value=replies):
+            with self.assertRaises(ab.BridgeError) as cm:
+                bridge.click_many(2, 640, 360)
+        self.assertEqual((cm.exception.kind, cm.exception.code), ("infra", "bad_response"))
+        self.assertIn("wait request", str(cm.exception))
+        self.assertIn("click reply", str(cm.exception))
+
     def test_tab_ids_are_lowercase(self):
         bridge = self.attach()
         bridge.tap("I")

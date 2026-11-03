@@ -202,36 +202,34 @@ Then repopulate with valid C++ or Blueprint ability classes.
 
 **Fix:** keep one authoritative value. `AMordecaiGameMode` broadcasts its new absolute count through `FOnMordecaiEnemyKillCountChanged` on each enemy death and after resetting it in the existing player-death notification. The widget binds to that native delegate and renders the published value; it has no local increment/reset handlers. If code really needs a GAS gameplay-event listener, use a gameplay-event delegate/task (`GenericGameplayEventCallbacks` / `UAbilityTask_WaitGameplayEvent`), not `RegisterGameplayTagEvent`. Tests: `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `.ResetsOnPlayerDeath`.
 
-The first fix was still incomplete in three non-obvious ways:
+The first fix was still incomplete in several non-obvious ways:
 
-- **Per-life counters need both a completed-life snapshot and reset guards at every boundary.** Resetting only in
-  `NotifyPlayerDeath` lets a delayed projectile/DoT enemy death during the respawn window become kill 1 of the next
-  life. Cache the completed total before the death reset, ignore accounting while respawn is pending, reset again in
-  `ExecuteRespawn` and `ResetArena`, and let the death screen read the cached total on a late bind. Tests:
-  `Mordecai.Recovery.KillCounter.PostDeathKillDoesNotLeak`,
-  `Mordecai.Arena.ResetArenaResetsKillCount`, and
-  `Mordecai.Recovery.DeathScreen.LateBindPreservesCompletedLifeKills`.
+- **Death snapshots the completed life, but delayed player-owned damage belongs to the new life.** Jeff's final
+  2026-11-02 policy explicitly allows an old-life projectile, spell or DoT to score after death, including in the
+  death window and after respawn. `NotifyPlayerDeath` caches the completed total for the death screen and resets the
+  live HUD count. `ExecuteRespawn` must not reset it again; its automatic enemy reset only revives enemies and clears
+  deduplication. Manual `ResetArena` still resets the count but does not invalidate outstanding sources. Tests:
+  `OldProjectileScoresAfterRespawn`, `BurningScoresDuringDeathWindow`,
+  `ResetArenaKeepsOutstandingProjectileValid`, `ResetArenaRevivedEnemyCountsAgain`, and
+  `LateBindPreservesCompletedLifeKills`.
 - **A Blueprint-callable death transition must guard its state before adding loose tags or notifying accounting.**
   Calling `EnterDeathState` twice stacked `Mordecai.State.Dead` and counted twice; one `RemoveLooseGameplayTag` then
   left the enemy dead after reset. Return immediately when `IsDead()` is already true, and defensively deduplicate
   counted enemy objects in the GameMode. Test: `Mordecai.Enemy.DeathIsIdempotentForKillAccounting`.
-- **Kill attribution belongs at the GAS Health modifier, before the death delegate.** Override
-  `PreGameplayEffectExecute`, resolve an `APlayerState*` from the effect context's original instigator/effect causer,
-  and record it on the enemy before Health changes. Record null for every non-player damage modifier so environmental
-  finishing damage cannot inherit an earlier player hit. Periodic effects such as Burning retain the original
-  application context automatically. The enemy passes that player state through `EnterDeathState` to the GameMode;
-  issue #77 can later use the same value as its per-player key. Tests:
-  `Mordecai.Recovery.KillCounter.CountsPlayerDamageSources` and `.RejectsNonPlayerDeaths`.
-- **Player identity is not enough for delayed damage; stamp the source life generation too.** A projectile creates its
-  damage context when it hits, so one launched before death can otherwise look like new-life damage after respawn.
-  `UMordecaiAbilitySystemComponent::MakeEffectContext` stamps the current life id into
-  `FLyraGameplayEffectContext`; persistent effects retain it, and projectiles snapshot it at launch and restore it on
-  hit. GameMode increments the generation at player death and accepts only the current one.
+- **Kill attribution belongs at every Health-change boundary, before the death delegate.** In
+  `PreGameplayEffectExecute`, capture every Health modifier, not only negative magnitudes: Override Health=0 has
+  magnitude zero. A context-free `ApplyModToAttribute` bypasses that callback, so `PostAttributeChange` clears stale
+  player credit for direct decreases; blocked health damage now uses an instant GE carrying the attacker's context.
+  GAS `AggregateByTarget` replaces an active effect's spec on refresh, so Burning does *not* retain its original
+  context automatically. Capture its original player-or-null source when the active effect is first added and keep it
+  until removal. Tests cover both refresh directions, Override 0, a player poke followed by empty Override/direct
+  environmental lethal damage, and lethal melee against a blocking enemy.
 - **`NativeDestruct` is Slate lifetime, not UObject lifetime.** Removing a retained HUD destroys its Slate wrapper and
-  unbinds child delegates, while the controller's `TObjectPtr` still prevents a new UObject. Cache the ASC on the HUD,
-  mark child bindings inactive in `NativeDestruct`, rebind once from `NativeConstruct`, and make a duplicate live
-  `BindToASC` a no-op (the controller binds again after `AddToViewport`). Test:
-  `Mordecai.Recovery.KillCounter.RebindsAfterHUDRebuild`.
+  while the controller's `TObjectPtr` still prevents a new UObject. Every child that subscribes to ASC attributes or
+  tags must remove its own delegates in `NativeDestruct`, and `BindToASC` must unbind before switching ASCs. The root
+  still caches the ASC, marks child bindings inactive in `NativeDestruct`, and rebinds once from `NativeConstruct`.
+  Tests switch A→B and prove A can no longer overwrite B, then inspect exactly one binding per callback after repeated
+  rebuilds.
 
 ### Agent-bridge `simulated_s` is hold duration, never input-start cadence
 
@@ -248,9 +246,10 @@ the cadence check to FAIL. A blocking request/response loop can still add one no
 0.4-second click frame (the packaged run measured 0.467). Back-to-back pipelined holds remove that round trip but leave
 the button logically down across frames, so Enhanced Input sees no later taps; same-tick down/up pulses are
 nondeterministic for the same reason. Distinct light taps need one frame observed down and another observed released.
-`Bridge.click_many` therefore pipelines an ordinary 0.05 s click and a release wait. Mordecai caps
-`MaxUndilatedFrameTime` at 0.2 s, so those two frames fit the 0.4 s start bound under the worst hitch. Every audit entry
-remains a real Slate `click`; the frame cap is also the game's real simulation cap, not a reporting adjustment.
+`Bridge.click_many` therefore pipelines an ordinary 0.05 s click and a release wait. Acceptance requires exactly the
+requested 320 click replies, each reply matching its command, numeric strictly increasing start timestamps, and every
+adjacent gap satisfying `0 < gap <= 0.4`. Do not change global gameplay timing to make evidence pass:
+`AMordecaiGameMode::InitGame` must leave `MaxUndilatedFrameTime` alone. If a packaged cadence run fails, report it.
 
 ---
 

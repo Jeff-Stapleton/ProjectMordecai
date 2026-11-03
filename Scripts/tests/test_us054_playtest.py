@@ -71,7 +71,8 @@ class ArenaWorld(fb.FakeWorld):
     def __init__(self, *, visible_mesh=True, enemy_hp=200.0, aggro=True, aggro_s=0.3,
                  approach=True, approach_speed=400.0, stop_cm=150.0, damage=True,
                  hit_damage=5.0, hit_interval=0.3, hit_range=200.0, indicators=True,
-                 enemy_bars=True, hud_layout_ok=True, kills_text=0, **kwargs):
+                 enemy_bars=True, hud_layout_ok=True, kills_text=0,
+                 collapse_after_first_actor_read=False, **kwargs):
         kwargs.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES)
         super().__init__(enemies=False, **kwargs)
         self.visible_mesh = visible_mesh
@@ -82,6 +83,8 @@ class ArenaWorld(fb.FakeWorld):
         self.hit_range = hit_range
         self.indicators, self.enemy_bars = indicators, enemy_bars
         self.hud_layout_ok, self.kills_text = hud_layout_ok, kills_text
+        self.collapse_after_first_actor_read = collapse_after_first_actor_read
+        self.actor_reads = 0
         self.aggroed = False
         self.hits = 0
         self.arena = [{"location": [s[0], s[1], 100.0], "health": self.enemy_hp,
@@ -153,6 +156,10 @@ class ArenaWorld(fb.FakeWorld):
                 "widgets": ([{"component": "HealthBarWidget", "class": "WBP_EnemyHealthBar_C",
                               "space": "Screen", "visible": True}] if self.enemy_bars else [])})
         entries.sort(key=lambda a: a["distance"])
+        self.actor_reads += 1
+        if self.collapse_after_first_actor_read and self.actor_reads == 1:
+            for e in self.arena:
+                e["location"] = [0.0, 0.0, 100.0]
         return entries
 
 
@@ -308,6 +315,13 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertIn("enemies_visible", rep["new_failures"])
         acs = {(a["story"], a["id"]): a for a in rep["acs"]}
         self.assertEqual(acs[("US-054", "AC-054.13")]["status"], "FAIL")
+
+    def test_spawn_spacing_uses_the_positions_captured_at_start(self):
+        _, server = self.serve(collapse_after_first_actor_read=True)
+        _, rep = self.play(server)
+        check = self.by_name(rep)["enemy_spacing"]
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertNotIn("(0, 0)", check["detail"])
 
     def test_no_enemy_damage_fails_and_skips_the_hit_screenshot(self):
         _, server = self.serve(damage=False)

@@ -25,8 +25,9 @@
 # PHASE_DELAY_S = 2 s later whenever it prints PIE_NEXT_PHASE). A normal jump lands in ~0.7 s, well
 # before the next phase, so phase 1 lowers the pawn's CharacterMovement GravityScale to
 # LOW_GRAVITY_SCALE before jump() ([LOGIC]): the same jump, just long enough to be read on a later
-# frame. The phase is derived from PIE state (an actor tag on the pawn); nothing is kept between
-# runs:
+# frame. It also grants temporary Invulnerable through the Blueprint library so DevTestMap's
+# Frontliners cannot kill the pawn during the multi-phase diagnostic; cleanup removes it. The phase
+# is derived from PIE state (an actor tag on the pawn); nothing is kept between runs:
 #   1. no marker tag: (a), (b); then [LOGIC] gravity scale -> LOW_GRAVITY_SCALE, marker PHASE_JUMPED,
 #      jump(). A dead, falling or paused player is waited for (a later phase), never judged.
 #   2. PHASE_JUMPED: [LOGIC] Falling (else it says precisely that it already landed or never left the
@@ -46,6 +47,7 @@
 import unreal
 
 TAG_AIRBORNE = "Mordecai.State.Airborne"
+TAG_INVULNERABLE = "Mordecai.State.Invulnerable"
 TAG_WALKING = "Movement.Mode.Walking"      # Lyra (ALyraCharacter::SetMovementModeTag)
 TAG_FALLING = "Movement.Mode.Falling"
 DEFENSE_ABILITIES = ("MordecaiGA_Block", "MordecaiGA_Parry", "MordecaiGA_Dodge")
@@ -190,22 +192,34 @@ def _run():
         return finish()
 
     airborne, why_a = make_tag(TAG_AIRBORNE)
+    invulnerable, why_i = make_tag(TAG_INVULNERABLE)
     walking_tag, why_w = make_tag(TAG_WALKING)
     falling_tag, why_f = make_tag(TAG_FALLING)
     check(f"FGameplayTag '{TAG_AIRBORNE}' can be made from Python", airborne is not None, why_a or "")
+    check(f"FGameplayTag '{TAG_INVULNERABLE}' can be made from Python",
+          invulnerable is not None, why_i or "")
     check(f"FGameplayTag '{TAG_WALKING}' can be made from Python", walking_tag is not None, why_w or "")
     check(f"FGameplayTag '{TAG_FALLING}' can be made from Python", falling_tag is not None, why_f or "")
-    if airborne is None or walking_tag is None or falling_tag is None:
+    if airborne is None or invulnerable is None or walking_tag is None or falling_tag is None:
         return finish()
 
     markers = actor_tags(pawn)
     original_gravity, gravity_from = default_gravity(pawn)
 
+    def set_temporary_invulnerability(enabled):
+        tags = unreal.GameplayTagContainer()
+        tags = unreal.GameplayTagLibrary.add_gameplay_tag_to_container(tags, invulnerable)
+        function = (unreal.AbilitySystemLibrary.add_loose_gameplay_tags if enabled
+                    else unreal.AbilitySystemLibrary.remove_loose_gameplay_tags)
+        return bool(function(pawn, tags, False))
+
     def cleanup():
         try:
             cmc.set_editor_property("gravity_scale", original_gravity)
+            set_temporary_invulnerability(False)
             set_marker(pawn, None)
-            print(f"  (cleanup: gravity scale back to {original_gravity:g}, phase marker removed)")
+            print(f"  (cleanup: gravity scale back to {original_gravity:g}, temporary "
+                  f"invulnerability and phase marker removed)")
         except Exception as e:
             print(f"  (cleanup failed: {e})")
 
@@ -305,6 +319,10 @@ def _run():
     except Exception:
         pass
     logic("can_jump() on the grounded player", can_jump)
+    if fail_count:
+        return finish()
+    logic("temporary invulnerability isolates the multi-phase jump from arena enemies",
+          set_temporary_invulnerability(True))
     if fail_count:
         return finish()
     cmc.set_editor_property("gravity_scale", LOW_GRAVITY_SCALE)

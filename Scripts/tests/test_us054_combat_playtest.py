@@ -129,7 +129,8 @@ class CombatWorld(fb.FakeWorld):
                  death_screen_stays=False, dead_moves=False, arena_reset=True, reset_ai=True,
                  ai_reported=True, moves_after_respawn=True, kills_text=0,
                  counter_updates=True, reset_kills_on_death=True, dodge_motion=True,
-                 dodge_speed=300.0, attack_input_interval_s=0.0, **kwargs):
+                 dodge_speed=300.0, attack_input_interval_s=0.0, other_kills_text=None,
+                 **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         kwargs.setdefault("respawn_s", us054c.RESPAWN_DELAY_S)  # the game's 3 s
@@ -150,6 +151,7 @@ class CombatWorld(fb.FakeWorld):
         self.arena_reset, self.reset_ai = arena_reset, reset_ai
         self.ai_reported, self.kills_text = ai_reported, kills_text
         self.counter_updates = counter_updates
+        self.other_kills_text = other_kills_text
         self.reset_kills_on_death = reset_kills_on_death
         self.death_kills = 0
         self.dodge_motion, self.dodge_speed = dodge_motion, float(dodge_speed)
@@ -356,6 +358,10 @@ class CombatWorld(fb.FakeWorld):
         out.append({"class": "MordecaiKillCounterWidget", "name": "Kills",
                     "rect": [1140, 20, 120, 30], "texts": [f"Kills: {self.kills_text}"],
                     "buttons": []})
+        if self.other_kills_text is not None:
+            out.append({"class": "UnrelatedDebugWidget", "name": "OtherKills",
+                        "rect": [0, 0, 1, 1], "texts": [f"Kills: {self.other_kills_text}"],
+                        "buttons": []})
         if self.burn_indicator and TAG_BURNING in self.timed_tags:
             out.append({"class": "MordecaiStatusEffectBarWidget", "name": "Status",
                         "rect": [40, 104, 260, 20], "texts": ["Burning"], "buttons": []})
@@ -756,6 +762,70 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertEqual(check["status"], "FAIL", check["detail"])
         self.assertIn("maximum game-time click-start gap 0.410s", check["detail"])
 
+    def test_click_cadence_rejects_a_truncated_sample_set(self):
+        _, server = self.serve(**game_today())
+        real_click_many = ab.Bridge.click_many
+
+        def truncated(bridge, *args, **kwargs):
+            return real_click_many(bridge, *args, **kwargs)[:-1]
+
+        with mock.patch.object(ab.Bridge, "click_many", truncated):
+            code, rep = self.play(server)
+        self.assertEqual(code, 1, self.log.getvalue()[-4000:])
+        check = self.by_name(rep)["kill_enemy_melee"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("319", check["detail"])
+        self.assertIn("320", check["detail"])
+
+    def test_click_cadence_rejects_equal_timestamps(self):
+        _, server = self.serve(**game_today())
+        real_click_many = ab.Bridge.click_many
+
+        def equal_timestamp(bridge, *args, **kwargs):
+            responses = [dict(r) for r in real_click_many(bridge, *args, **kwargs)]
+            responses[4]["started_world_time_s"] = responses[3]["started_world_time_s"]
+            return responses
+
+        with mock.patch.object(ab.Bridge, "click_many", equal_timestamp):
+            code, rep = self.play(server)
+        self.assertEqual(code, 1, self.log.getvalue()[-4000:])
+        check = self.by_name(rep)["kill_enemy_melee"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("strictly increasing", check["detail"])
+
+    def test_click_cadence_rejects_decreasing_timestamps(self):
+        _, server = self.serve(**game_today())
+        real_click_many = ab.Bridge.click_many
+
+        def decreasing_timestamp(bridge, *args, **kwargs):
+            responses = [dict(r) for r in real_click_many(bridge, *args, **kwargs)]
+            responses[4]["started_world_time_s"] = responses[3]["started_world_time_s"] - 0.01
+            return responses
+
+        with mock.patch.object(ab.Bridge, "click_many", decreasing_timestamp):
+            code, rep = self.play(server)
+        self.assertEqual(code, 1, self.log.getvalue()[-4000:])
+        check = self.by_name(rep)["kill_enemy_melee"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("strictly increasing", check["detail"])
+
+    def test_click_cadence_rejects_a_reply_for_the_wrong_command(self):
+        _, server = self.serve(**game_today())
+        real_click_many = ab.Bridge.click_many
+
+        def wrong_command(bridge, *args, **kwargs):
+            responses = [dict(r) for r in real_click_many(bridge, *args, **kwargs)]
+            responses[4]["cmd"] = "wait"
+            return responses
+
+        with mock.patch.object(ab.Bridge, "click_many", wrong_command):
+            code, rep = self.play(server)
+        self.assertEqual(code, 1, self.log.getvalue()[-4000:])
+        check = self.by_name(rep)["kill_enemy_melee"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("reply", check["detail"])
+        self.assertIn("wait", check["detail"])
+
     def test_click_train_spans_enough_recovery_windows_to_kill_the_real_dummy(self):
         _, server = self.serve(**game_today(attack_input_interval_s=1.2))
         code, rep = self.play(server)
@@ -822,13 +892,22 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertEqual(checks["death_screen"]["status"], "PASS", checks["death_screen"]["detail"])
         self.assertEqual(checks["death_screen_removed"]["status"], "FAIL")
         self.assertIn("'You Died'", checks["death_screen_removed"]["detail"])
-        self.assertEqual(checks["kill_counter_text_matches"]["status"], "FAIL",
+        self.assertEqual(checks["kill_counter_text_matches"]["status"], "PASS",
                          checks["kill_counter_text_matches"]["detail"])
-        self.assertEqual(rep["new_failures"],
-                         ["death_screen_removed", "kill_counter_text_matches"])
+        self.assertEqual(rep["new_failures"], ["death_screen_removed"])
         acs = self.acs(rep)
         self.assertEqual(acs[("US-086", "AC-086.1")]["status"], "FAIL")
         self.assertEqual(acs[("US-086", "AC-086.4")]["status"], "PASS")
+
+    def test_counter_checks_ignore_kill_texts_from_other_widget_classes(self):
+        _, server = self.serve(**game_today(other_kills_text=99))
+        code, rep = self.play(server)
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        checks = self.by_name(rep)
+        self.assertEqual(checks["kill_counter_increments"]["status"], "PASS",
+                         checks["kill_counter_increments"]["detail"])
+        self.assertEqual(checks["kill_counter_text_matches"]["status"], "PASS",
+                         checks["kill_counter_text_matches"]["detail"])
 
     def test_the_known_cadence_fits_the_default_timeouts(self):
         # 15 damage per ~2.6 s with Restoration's heal: the death comes well inside the default
