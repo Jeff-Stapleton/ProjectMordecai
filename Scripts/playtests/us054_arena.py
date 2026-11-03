@@ -62,7 +62,7 @@ RUN_SUFFIX = "us054"  # us054_combat.py is "us054combat": two scripts of one sto
 FRONTLINER_SPAWNS = ((600.0, 0.0), (-400.0, 500.0), (-400.0, -500.0))
 ENEMY_MAX_HEALTH = 200.0               # AC-054.2
 ENEMY_RADIUS = 3000                    # actors radius: the whole arena
-MIN_ENEMY_SPACING = 300.0              # "varied positions" (AC-054.11)
+MIN_CAPTURED_START_RADIUS_CM = 100.0    # the authored lanes stop around the player, never at one point
 DISPLACED_CM = 100.0                   # an enemy this far from every spawn has moved
 
 # --- widget classes, texts ----------------------------------------------------------------------
@@ -85,14 +85,10 @@ SCREENSHOTS = {
     "hit": "the player at the arena centre after the first Frontliner hit: the health bar below "
            "full, Frontliners (red cylinders) next to the player",
 }
-KI_FRONTLINER_PLACEMENT = (
-    "Closed issues #19/#46: DevTestMap intentionally retains the Frontliner swarm at the spawn; "
-    "the first live read can therefore be below the old 300 cm spacing threshold "
-    "(Specs/agent_playtest_plan_v1.md)")
 KI_ENEMY_INDICATORS = (
     "Known issue #22 (N17): EnemyIndicator widgets never appear "
     "(Specs/agent_playtest_plan_v1.md)")
-KNOWN_ISSUES = (KI_FRONTLINER_PLACEMENT, KI_ENEMY_INDICATORS)
+KNOWN_ISSUES = (KI_ENEMY_INDICATORS,)
 
 PLAN = (
     Step("hud_visible", "state widgets -> HealthBar, StaminaBar, PostureBar, SpellPointsBar and "
@@ -103,8 +99,8 @@ PLAN = (
     Step("enemies_present", f"state actors (radius {ENEMY_RADIUS}) -> 3 kind=='enemy', each at "
          f"{ENEMY_MAX_HEALTH:g}/{ENEMY_MAX_HEALTH:g} health",
          proves=("AC-054.2", "US-050:AC-050.3")),
-    Step("enemy_spacing", f"the same 3 enemies are pairwise > {MIN_ENEMY_SPACING:g} cm apart",
-         proves=("AC-054.11",), known_issue=KI_FRONTLINER_PLACEMENT),
+    Step("enemy_spacing", "the same 3 enemies start in the three distinct authored radial lanes "
+         "from their DevTestMap placements", proves=("AC-054.11",)),
     Step("enemies_visible", "state actors -> every enemy has_visible_mesh==true",
          proves=("AC-054.13",)),
     Step("enemy_health_bars", f"state actors -> every enemy has a visible widget whose class "
@@ -239,9 +235,14 @@ class Us054Run(kit.PlaytestRun):
 
     # --- the run ------------------------------------------------------------------------------
     def steps(self):
+        self._capture_enemy_starts()
         self.step_hud()
         self.step_enemies()
         self.step_damage()
+
+    def _capture_enemy_starts(self):
+        st = self.bridge.state(["actors"], radius=ENEMY_RADIUS)
+        self.enemies_start = [xy(a["location"]) for a in enemies(st)]
 
     def _note_displacement(self, st):
         for a in enemies(st):
@@ -289,7 +290,6 @@ class Us054Run(kit.PlaytestRun):
         def present(b):
             st = b.state(["actors"], radius=ENEMY_RADIUS)
             es = enemies(st)
-            self.enemies_start = [xy(a["location"]) for a in es]
             problems = []
             if len(es) != 3:
                 problems.append(f"{len(es)} enemies (expected 3)")
@@ -310,12 +310,27 @@ class Us054Run(kit.PlaytestRun):
         def spacing(b):
             pts = list(self.enemies_start)
             problems = []
-            for i in range(len(pts)):
-                for j in range(i + 1, len(pts)):
-                    if dist(pts[i], pts[j]) <= MIN_ENEMY_SPACING:
-                        problems.append(f"enemies at {fmt_xy(pts[i])} and {fmt_xy(pts[j])} are "
-                                        f"only {dist(pts[i], pts[j]):.0f} cm apart")
-            detail = f"enemy locations {[fmt_xy(p) for p in pts]}"
+            remaining = list(FRONTLINER_SPAWNS)
+            for point in pts:
+                if not remaining:
+                    problems.append(f"unexpected extra enemy at {fmt_xy(point)}")
+                    continue
+                nearest = min(remaining, key=lambda spawn: dist(point, spawn))
+                point_radius = math.hypot(*point)
+                spawn_radius = math.hypot(*nearest)
+                alignment = ((point[0] * nearest[0] + point[1] * nearest[1])
+                             / (point_radius * spawn_radius)
+                             if point_radius > 0 and spawn_radius > 0 else -1.0)
+                if point_radius < MIN_CAPTURED_START_RADIUS_CM or alignment < 0.98:
+                    problems.append(f"enemy at {fmt_xy(point)} is outside the authored radial lane "
+                                    f"from {fmt_xy(nearest)} (radius {point_radius:.0f}, "
+                                    f"alignment {alignment:.3f})")
+                remaining.remove(nearest)
+            if remaining:
+                problems.append(f"no enemy captured near authored spawns "
+                                f"{[fmt_xy(p) for p in remaining]}")
+            detail = (f"captured starts {[fmt_xy(p) for p in pts]}; authored "
+                      f"{[fmt_xy(p) for p in FRONTLINER_SPAWNS]}")
             return ("FAIL" if problems else "PASS",
                     ("; ".join(problems) + "; " + detail) if problems else detail, pts)
 

@@ -72,7 +72,7 @@ class ArenaWorld(fb.FakeWorld):
                  approach=True, approach_speed=400.0, stop_cm=150.0, damage=True,
                  hit_damage=5.0, hit_interval=0.3, hit_range=200.0, indicators=True,
                  enemy_bars=True, hud_layout_ok=True, kills_text=0,
-                 collapse_after_first_actor_read=False, **kwargs):
+                 collapse_after_first_actor_read=False, hud_ready_s=0.0, **kwargs):
         kwargs.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES)
         super().__init__(enemies=False, **kwargs)
         self.visible_mesh = visible_mesh
@@ -84,6 +84,7 @@ class ArenaWorld(fb.FakeWorld):
         self.indicators, self.enemy_bars = indicators, enemy_bars
         self.hud_layout_ok, self.kills_text = hud_layout_ok, kills_text
         self.collapse_after_first_actor_read = collapse_after_first_actor_read
+        self.hud_ready_s = float(hud_ready_s)
         self.actor_reads = 0
         self.aggroed = False
         self.hits = 0
@@ -121,6 +122,8 @@ class ArenaWorld(fb.FakeWorld):
     # --- state --------------------------------------------------------------------------------
     def _s_widgets(self):
         out = super()._s_widgets()
+        if self.real_time() < self.hud_ready_s:
+            return out
         rows = ([[40, 20], [40, 44], [40, 64]] if self.hud_layout_ok
                 else [[40, 64], [40, 44], [40, 20]])
         for (x, y), cls in zip(rows, ("MordecaiHealthBarWidget", "MordecaiStaminaBarWidget",
@@ -231,9 +234,8 @@ class TestUs054Plan(Us054Case):
         for name, proves in PROVES.items():
             self.assertEqual(plan[name].proves, proves, name)
         self.assertIn("#22", plan["enemy_indicators"].known_issue)
-        self.assertIn("#19", plan["enemy_spacing"].known_issue)
-        self.assertIn("#46", plan["enemy_spacing"].known_issue)
-        for name in set(PROVES) - {"enemy_spacing", "enemy_indicators"}:
+        self.assertIsNone(plan["enemy_spacing"].known_issue)
+        for name in set(PROVES) - {"enemy_indicators"}:
             self.assertIsNone(plan[name].known_issue, name)
         self.assertEqual(set(us054.Us054Run.COVERS),
                          {"US-050", "US-051", "US-052", "US-063", "US-064"})
@@ -282,8 +284,7 @@ class TestUs054AgainstTheFake(Us054Case):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
         self.assertIn(fb.DEFAULT_MAP, checks["map"]["detail"])
-        self.assertEqual(sorted(rep["fixed_candidates"]),
-                         ["enemy_indicators", "enemy_spacing"])
+        self.assertEqual(rep["fixed_candidates"], ["enemy_indicators"])
         self.assertEqual([s["label"] for s in rep["screenshots"]], ["start", "hit"])
         # The Frontliners really walked up and hit the player standing at the spawn.
         self.assertGreater(world.hits, 0)
@@ -322,6 +323,17 @@ class TestUs054AgainstTheFake(Us054Case):
         check = self.by_name(rep)["enemy_spacing"]
         self.assertEqual(check["status"], "PASS", check["detail"])
         self.assertNotIn("(0, 0)", check["detail"])
+
+    def test_enemy_starts_are_captured_before_delayed_hud_readiness(self):
+        _, server = self.serve(hud_ready_s=1.0, aggro_s=0.0, approach_speed=400.0)
+        _, rep = self.play(server)
+        check = self.by_name(rep)["enemy_spacing"]
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        starts = [tuple(p) for p in rep["enemies_start"]]
+        self.assertEqual(len(starts), len(ARENA_SPAWNS))
+        for spawn in ARENA_SPAWNS:
+            self.assertLessEqual(min(math.dist(spawn, start) for start in starts), 250.0,
+                                 (spawn, starts))
 
     def test_no_enemy_damage_fails_and_skips_the_hit_screenshot(self):
         _, server = self.serve(damage=False)

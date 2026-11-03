@@ -211,14 +211,23 @@ The first fix was still incomplete in several non-obvious ways:
   Calling `EnterDeathState` twice stacked `Mordecai.State.Dead` and counted twice; one `RemoveLooseGameplayTag` then
   left the enemy dead after reset. Return immediately when `IsDead()` is already true, and defensively deduplicate
   counted enemy objects in the GameMode. Test: `Mordecai.Enemy.DeathIsIdempotentForKillAccounting`.
+- **Accounting must linearize before synchronous death observers.** Gameplay-tag and gameplay-event callbacks execute
+  inline. Player death therefore snapshots/resets and starts its respawn timer before publishing `State.Dead` or
+  `Event.PlayerDeath`; enemy death accounts before `Event.Death`. Otherwise an event listener that kills another
+  enemy or calls `ResetArena` is partly undone when the outer death resumes. Tests:
+  `DeathEventKillStartsNextLife`, `PlayerDeathEventResetPreservesSnapshot`, and
+  `ResetArenaFromEnemyDeathEventIsLinearized`.
 - **Kill attribution belongs at every Health-change boundary, before the death delegate.** In
   `PreGameplayEffectExecute`, capture every Health modifier, not only negative magnitudes: Override Health=0 has
   magnitude zero. A context-free `ApplyModToAttribute` bypasses that callback, so `PostAttributeChange` clears stale
   player credit for direct decreases; blocked health damage now uses an instant GE carrying the attacker's context.
-  GAS `AggregateByTarget` replaces an active effect's spec on refresh, so Burning does *not* retain its original
-  context automatically. Capture its original player-or-null source when the active effect is first added and keep it
-  until removal. Tests cover both refresh directions, Override 0, a player poke followed by empty Override/direct
-  environmental lethal damage, and lethal melee against a blocking enemy.
+  Non-periodic HasDuration/Infinite Health modifiers bypass contextual execution entirely, so enemy ASCs reject them
+  in `GameplayEffectApplicationQueries`; periodic execution effects remain allowed. GAS `AggregateByTarget` replaces
+  an active effect's spec on refresh, so Burning does *not* retain its original context automatically. Capture its
+  original player-or-null source per `FActiveGameplayEffectHandle`, and erase only that handle on removal/expiry.
+  Tests cover distinct Burning subclasses, expiry/reapplication, both refresh directions, persistent-effect
+  rejection, Override 0, a player poke followed by empty Override/direct environmental lethal damage, and lethal
+  melee against a blocking enemy.
 - **`NativeDestruct` is Slate lifetime, not UObject lifetime.** Removing a retained HUD destroys its Slate wrapper and
   while the controller's `TObjectPtr` still prevents a new UObject. Every child that subscribes to ASC attributes or
   tags must remove its own delegates in `NativeDestruct`, and `BindToASC` must unbind before switching ASCs. The root
