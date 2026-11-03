@@ -131,6 +131,54 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 
 ## Completion Notes
 
+### Final adversarial audit follow-up, 2026-11-02
+This section supersedes the package/run references in the PR #76 review closure below. Final gameplay commit:
+`1ebee4b13c31bd6460b46b3e9405c095717ba275`.
+
+- Tier 1: **772/772 PASS** (`Saved/TestLogs/tests-20261102-170957.log`).
+- Tier 2: **16/16 PIE scripts PASS**.
+- Python tooling: **581/581 PASS**; US-054 and US-086 lints PASS; content guard PASS.
+- Clean package: `dirty=false`, zero dirty files, `source_changed_during_build=false`,
+  `Saved/Playtests/package-20261102-180153.log`.
+- Tier 3 + Tier 4: `Saved/Playtests/20261102-182538-story-us086`, PASS, exit 0.
+  - Tier 3: `Saved/Playtests/20261102-182538-boot`, PASS.
+  - Tier 4: `Saved/Playtests/20261102-182557-us054combat`, **31 PASS / 1 WARN / 0 FAIL / 0 SKIP**.
+    `kill_enemy_melee` kills the TestDummy with max click-start gap 0.250 s; `death_count_split` additionally
+    requires and observes `player.is_dead==true`.
+- Full sweep: `Saved/Playtests/20261102-182746-sweep`. All Tier 3 boots PASS; `us054_combat` 31/0;
+  no NEW failures. `us054_arena` 17/2 now marks only `enemy_spacing` and `enemy_indicators` known—enemy count and
+  200/200 health are unmasked.
+- Final screenshots opened: `182538-boot/engine_loading.png` shows `PROJECT MORDECAI`; `engine_01`–`03` show the
+  CombatTestMap player, dummy and `Kills: 0`; `182557-us054combat/bridge_01` spawn, `02` beside dummy,
+  `03` dead dummy/`Kills: 1`, `04` damaged player/`Kills: 1`, `05` DeathScreen 1/HUD 0, and `06` respawn/HUD 0.
+
+#### Audit post-mortem — old-life effects after respawn
+**Assumed:** keeping `bRespawnPending` true until `ExecuteRespawn` rejected every old-life hit. **Actual:** after the
+flag cleared, a projectile launched before death could create its effect context on impact and look like new-life
+damage. **Why the earlier test missed it:** it never executed `ExecuteRespawn`, so the guard stayed active and
+false-passed. **Fix/regression:** player GAS contexts carry a life generation; persistent effects retain it and
+projectiles snapshot it at launch. `PostDeathKillDoesNotLeak` now executes respawn and rejects both an old context and
+an old launched projectile afterward.
+
+#### Audit post-mortem — duplicate HUD child delegates
+**Assumed:** rebinding in `NativeConstruct` was sufficient. **Actual:** `CreateCombatHUD` bound again immediately after
+`AddToViewport`, and most child widgets do not remove prior delegates. **Why the earlier test missed it:** it inspected
+only the kill counter, which safely unbinds itself. **Fix/regression:** the root HUD tracks whether children are live,
+clears that state in `NativeDestruct`, and performs exactly one bind pass per construction;
+`RebindsAfterHUDRebuild` asserts bind-pass counts 1 then 2 despite the controller-style duplicate call.
+
+#### Audit post-mortem — composite known-issue masking
+**Assumed:** marking `enemies_present` known only documented the retained spacing. **Actual:** the same check also
+owned enemy count and health, hiding missing-enemy/100-health regressions as known. **Why tests missed it:** their
+expected known-failure list codified the composite result. **Fix/regression:** `enemy_spacing` is a separate known
+step; `enemies_present` count/health failures are NEW. The final sweep demonstrates that split.
+
+#### Audit post-mortem — split did not assert death state
+**Assumed:** step ordering guaranteed `death_count_split` always ran while dead. **Actual:** a stale death screen and
+zeroed HUD after respawn could satisfy its text-only predicate. **Why tests missed it:** no pure predicate test supplied
+the same widgets with a live player. **Fix/regression:** `death_count_split_matches` requires `player.is_dead`;
+the negative/positive offline regression and final Tier 4 report both verify it.
+
 ### PR #76 review closure, 2026-11-02
 This section supersedes the earlier issue #6 evidence below. Final delivered gameplay commit:
 `7942841ac6f61eae2b3d7ccebd4161570ce01996`.
