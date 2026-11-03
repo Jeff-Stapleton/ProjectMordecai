@@ -299,6 +299,9 @@ void AMordecaiEnemyCharacter::InitializeAbilitySystem()
 		this, &AMordecaiEnemyCharacter::OnActiveGameplayEffectAdded);
 	EnemyAbilitySystemComponent->OnAnyGameplayEffectRemovedDelegate().AddUObject(
 		this, &AMordecaiEnemyCharacter::OnActiveGameplayEffectRemoved);
+	EnemyAbilitySystemComponent->GameplayEffectApplicationQueries.Add(
+		FGameplayEffectApplicationQuery::CreateUObject(
+			this, &AMordecaiEnemyCharacter::CanApplyGameplayEffect));
 
 	// Grant default abilities (US-054)
 	GrantDefaultAbilities();
@@ -357,17 +360,14 @@ void AMordecaiEnemyCharacter::OnHealthChanged(const FOnAttributeChangeData& Data
 }
 
 void AMordecaiEnemyCharacter::OnActiveGameplayEffectAdded(
-	UAbilitySystemComponent* TargetASC,
+	UAbilitySystemComponent* /*TargetASC*/,
 	const FGameplayEffectSpec& Spec,
 	FActiveGameplayEffectHandle Handle)
 {
-	if (!bOriginalBurningCreditCaptured
-		&& Spec.Def
-		&& Spec.Def->IsA<UMordecaiGE_Burning>())
+	if (Spec.Def && Spec.Def->IsA<UMordecaiGE_Burning>())
 	{
-		OriginalBurningCreditPlayerState =
+		BurningCreditByHandle.FindOrAdd(Handle) =
 			MordecaiEnemyPrivate::ResolvePlayerState(Spec.GetEffectContext());
-		bOriginalBurningCreditCaptured = true;
 	}
 }
 
@@ -375,9 +375,54 @@ void AMordecaiEnemyCharacter::OnActiveGameplayEffectRemoved(const FActiveGamepla
 {
 	if (Effect.Spec.Def && Effect.Spec.Def->IsA<UMordecaiGE_Burning>())
 	{
-		OriginalBurningCreditPlayerState.Reset();
-		bOriginalBurningCreditCaptured = false;
+		BurningCreditByHandle.Remove(Effect.Handle);
 	}
+}
+
+bool AMordecaiEnemyCharacter::ResolveOriginalBurningCredit(
+	const FGameplayEffectSpec& Spec,
+	APlayerState*& OutPlayerState) const
+{
+	if (!EnemyAbilitySystemComponent)
+	{
+		return false;
+	}
+	for (const TPair<FActiveGameplayEffectHandle, TWeakObjectPtr<APlayerState>>& Pair :
+		BurningCreditByHandle)
+	{
+		const FActiveGameplayEffect* ActiveEffect =
+			EnemyAbilitySystemComponent->GetActiveGameplayEffect(Pair.Key);
+		if (ActiveEffect
+			&& (&ActiveEffect->Spec == &Spec || ActiveEffect->Spec.Def == Spec.Def))
+		{
+			OutPlayerState = Pair.Value.Get();
+			return true;
+		}
+	}
+	return false;
+}
+
+bool AMordecaiEnemyCharacter::CanApplyGameplayEffect(
+	const FActiveGameplayEffectsContainer& /*ActiveEffects*/,
+	const FGameplayEffectSpec& Spec) const
+{
+	const UGameplayEffect* Effect = Spec.Def;
+	if (!Effect || Effect->DurationPolicy == EGameplayEffectDurationType::Instant)
+	{
+		return true;
+	}
+
+	// A persistent direct Health modifier changes the attribute outside PreGameplayEffectExecute, where its context
+	// cannot be associated with the lethal change. Periodic executions (Burning, Bleeding, Poisoned) remain valid:
+	// they have no persistent Health modifier and execute contextual instant output on each tick.
+	for (const FGameplayModifierInfo& Modifier : Effect->Modifiers)
+	{
+		if (Modifier.Attribute == UMordecaiAttributeSet::GetHealthAttribute())
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 void AMordecaiEnemyCharacter::OnPostureChanged(const FOnAttributeChangeData& Data)
@@ -442,14 +487,8 @@ void AMordecaiEnemyCharacter::EnterDeathState(APlayerState* KillerPlayerState)
 		BodyMesh->SetVisibility(false);
 	}
 
-	// AC-050.6: Broadcast Event_Death gameplay event
-	FGameplayEventData EventData;
-	EventData.EventTag = MordecaiGameplayTags::Event_Death;
-	EventData.Instigator = KillerPlayerState ? static_cast<AActor*>(KillerPlayerState) : this;
-	EventData.Target = this;
-	EnemyAbilitySystemComponent->HandleGameplayEvent(MordecaiGameplayTags::Event_Death, &EventData);
-
-	// US-053: Notify game mode for kill tracking
+	// Account before publishing Event.Death so a synchronous listener (for example ResetArena) linearizes after this
+	// death instead of being partially undone by accounting that runs after the listener returns.
 	if (UWorld* World = GetWorld())
 	{
 		if (AMordecaiGameMode* GM = Cast<AMordecaiGameMode>(World->GetAuthGameMode()))
@@ -457,6 +496,14 @@ void AMordecaiEnemyCharacter::EnterDeathState(APlayerState* KillerPlayerState)
 			GM->NotifyEnemyKilled(this, KillerPlayerState);
 		}
 	}
+
+	// AC-050.6: Broadcast Event_Death gameplay event
+	FGameplayEventData EventData;
+	EventData.EventTag = MordecaiGameplayTags::Event_Death;
+	EventData.Instigator = KillerPlayerState ? static_cast<AActor*>(KillerPlayerState) : this;
+	EventData.Target = this;
+	EnemyAbilitySystemComponent->HandleGameplayEvent(MordecaiGameplayTags::Event_Death, &EventData);
+
 	LastDamagePlayerState.Reset();
 }
 

@@ -9,6 +9,7 @@
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
 #include "Mordecai/UI/MordecaiComboCounterWidget.h"
 #include "Mordecai/UI/MordecaiHealthBarWidget.h"
+#include "Mordecai/UI/MordecaiKillCounterWidget.h"
 #include "Mordecai/UI/MordecaiPostureBarWidget.h"
 #include "Mordecai/UI/MordecaiSpellPointsBarWidget.h"
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
@@ -162,6 +163,91 @@ bool FMordecai_HUD_RepeatedRebuildsKeepOneChildCallback::RunTest(const FString& 
 		TestEqual(*FString::Printf(TEXT("one feedback callback for %s"), *Tag.ToString()),
 			ASC->RegisterGameplayTagEvent(Tag, EGameplayTagEventType::NewOrRemoved).RemoveAll(Feedback), 1);
 	}
+
+	Env.TeardownWithController();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_HUD_RebindsKillCounterWhenGameModeChanges,
+	"Mordecai.Recovery.HUD.RebindsKillCounterWhenGameModeChanges",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_HUD_RebindsKillCounterWhenGameModeChanges::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiHUDRebindingTest;
+	using namespace MordecaiRecoveryTest;
+
+	FRecoveryControlledTestEnv Env;
+	if (!TestTrue("controlled production-style world set up", Env.SetupWithController()))
+	{
+		Env.TeardownWithController();
+		return true;
+	}
+	AMordecaiGameMode* CurrentGameMode = Env.InstallGameMode();
+	UAbilitySystemComponent* ASC = Env.GetPlayerASC();
+	UMordecaiCombatHUDWidget* HUD = Env.MakeWidget<UMordecaiCombatHUDWidget>();
+	HUD->BindToASC(ASC);
+	UMordecaiKillCounterWidget* Counter = HUD->GetKillCounter();
+	TestNotNull("HUD kill counter", Counter);
+
+	AMordecaiGameMode* ReplacedGameMode = NewObject<AMordecaiGameMode>();
+	Counter->BindToGameMode(ReplacedGameMode);
+	TestTrue("the retained counter models the replaced mode binding",
+		ReplacedGameMode->OnEnemyKillCountChanged().IsBoundToObject(Counter));
+
+	HUD->BindToASC(ASC);
+	TestFalse("same-ASC root rebind detaches the replaced game mode",
+		ReplacedGameMode->OnEnemyKillCountChanged().IsBoundToObject(Counter));
+	TestTrue("same-ASC root rebind follows the current world game mode",
+		CurrentGameMode->OnEnemyKillCountChanged().IsBoundToObject(Counter));
+
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(FVector(500.f, 0.f, 100.f), {});
+	Enemy->EnterDeathState(Env.PlayerState);
+	TestEqual("the counter receives the current game mode's kill", Counter->GetKillCount(), 1);
+
+	Env.TeardownWithController();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_HUD_NullASCDetachesIdempotently,
+	"Mordecai.Recovery.HUD.NullASCDetachesIdempotently",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_HUD_NullASCDetachesIdempotently::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiHUDRebindingTest;
+	using namespace MordecaiRecoveryTest;
+
+	FRecoveryControlledTestEnv Env;
+	if (!TestTrue("controlled production-style world set up", Env.SetupWithController()))
+	{
+		Env.TeardownWithController();
+		return true;
+	}
+	AMordecaiGameMode* GameMode = Env.InstallGameMode();
+	UAbilitySystemComponent* ASC = Env.GetPlayerASC();
+	UMordecaiCombatHUDWidget* HUD = Env.MakeWidget<UMordecaiCombatHUDWidget>();
+	UMordecaiHealthBarWidget* Health = FindChild<UMordecaiHealthBarWidget>(HUD);
+	UMordecaiKillCounterWidget* Counter = HUD->GetKillCounter();
+	HUD->BindToASC(ASC);
+	TestTrue("kill counter starts bound",
+		GameMode->OnEnemyKillCountChanged().IsBoundToObject(Counter));
+	TestTrue("health child starts bound",
+		ASC->GetGameplayAttributeValueChangeDelegate(
+			UMordecaiAttributeSet::GetHealthAttribute()).IsBoundToObject(Health));
+
+	HUD->BindToASC(nullptr);
+	HUD->BindToASC(nullptr);
+	Counter->BindToASC(nullptr);
+	Counter->BindToASC(nullptr);
+
+	TestFalse("repeated null root/counter binds leave zero game-mode listeners",
+		GameMode->OnEnemyKillCountChanged().IsBoundToObject(Counter));
+	TestFalse("repeated null root binds leave zero health listeners",
+		ASC->GetGameplayAttributeValueChangeDelegate(
+			UMordecaiAttributeSet::GetHealthAttribute()).IsBoundToObject(Health));
+	TestEqual("detached kill counter resets its display value", Counter->GetKillCount(), 0);
 
 	Env.TeardownWithController();
 	return true;

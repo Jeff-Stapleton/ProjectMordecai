@@ -173,10 +173,26 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 {
 	if (!ASC)
 	{
+		BoundASC.Reset();
+		if (HealthBar) { HealthBar->BindToASC(nullptr); }
+		if (StaminaBar) { StaminaBar->BindToASC(nullptr); }
+		if (PostureBar) { PostureBar->BindToASC(nullptr); }
+		if (SpellPointsBar) { SpellPointsBar->BindToASC(nullptr); }
+		if (StatusEffectBar) { StatusEffectBar->BindToASC(nullptr); }
+		if (ComboCounter) { ComboCounter->BindToASC(nullptr); }
+		if (CombatFeedback) { CombatFeedback->BindToASC(nullptr); }
+		if (KillCounter) { KillCounter->BindToASC(nullptr); }
+		bChildrenBound = false;
 		return;
 	}
 	if (BoundASC.Get() == ASC && bChildrenBound)
 	{
+		// The counter resolves the authoritative GameMode through the world, not through the ASC. Re-resolve it even
+		// when every ASC-bound child can remain attached (world/GameMode replacement can preserve the PlayerState ASC).
+		if (KillCounter)
+		{
+			KillCounter->BindToASC(ASC);
+		}
 		return;
 	}
 	BoundASC = ASC;

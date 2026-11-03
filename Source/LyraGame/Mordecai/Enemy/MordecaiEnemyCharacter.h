@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Character/LyraCharacter.h"
+#include "GameplayEffectTypes.h"
 
 #include "MordecaiEnemyCharacter.generated.h"
 
@@ -20,6 +21,7 @@ class UStaticMeshComponent;
 class UWidgetComponent;
 class UGameplayAbility;
 struct FActiveGameplayEffect;
+struct FActiveGameplayEffectsContainer;
 struct FActiveGameplayEffectHandle;
 struct FGameplayEffectSpec;
 struct FOnAttributeChangeData;
@@ -100,9 +102,10 @@ public:
 	/** Called by the AttributeSet before a GAS Health modifier executes; null explicitly clears player attribution. */
 	void RecordDamagePlayerState(APlayerState* InPlayerState);
 
-	/** Burning keeps the player (or null) from its original application even when another source refreshes it. */
-	bool HasOriginalBurningCredit() const { return bOriginalBurningCreditCaptured; }
-	APlayerState* GetOriginalBurningCreditPlayerState() const { return OriginalBurningCreditPlayerState.Get(); }
+	/** Resolve the original player-or-null credit for the specific active Burning effect executing this spec. */
+	bool ResolveOriginalBurningCredit(
+		const FGameplayEffectSpec& Spec,
+		APlayerState*& OutPlayerState) const;
 
 	/** Enter posture broken state: apply State_PostureBroken tag, start recovery timer.
 	 *  Called automatically when Posture <= 0. */
@@ -156,8 +159,7 @@ private:
 
 	bool bAbilitySystemInitialized = false;
 	TWeakObjectPtr<APlayerState> LastDamagePlayerState;
-	TWeakObjectPtr<APlayerState> OriginalBurningCreditPlayerState;
-	bool bOriginalBurningCreditCaptured = false;
+	TMap<FActiveGameplayEffectHandle, TWeakObjectPtr<APlayerState>> BurningCreditByHandle;
 	FTimerHandle PostureBrokenTimerHandle;
 
 	void GrantDefaultAbilities();
@@ -167,4 +169,7 @@ private:
 		const FGameplayEffectSpec& Spec,
 		FActiveGameplayEffectHandle Handle);
 	void OnActiveGameplayEffectRemoved(const FActiveGameplayEffect& Effect);
+	bool CanApplyGameplayEffect(
+		const FActiveGameplayEffectsContainer& ActiveEffects,
+		const FGameplayEffectSpec& Spec) const;
 };

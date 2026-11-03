@@ -349,6 +349,16 @@ void AMordecaiCharacter::HandlePlayerDeath()
 	}
 	bDeathHandled = true;
 
+	// Establish the completed-life snapshot, reset the live counter, and start the respawn deadline before any
+	// synchronous Dead-tag or PlayerDeath listener can score/reset against the wrong life.
+	if (UWorld* World = GetWorld())
+	{
+		if (AMordecaiGameMode* GM = Cast<AMordecaiGameMode>(World->GetAuthGameMode()))
+		{
+			GM->NotifyPlayerDeath(this);
+		}
+	}
+
 	// AC-053.1: Apply State_Dead tag and broadcast Event_PlayerDeath
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
 	{
@@ -377,14 +387,6 @@ void AMordecaiCharacter::HandlePlayerDeath()
 		DisableInput(PC);
 	}
 
-	// Notify game mode for respawn flow (AC-053.4)
-	if (UWorld* World = GetWorld())
-	{
-		if (AMordecaiGameMode* GM = Cast<AMordecaiGameMode>(World->GetAuthGameMode()))
-		{
-			GM->NotifyPlayerDeath(this);
-		}
-	}
 }
 
 void AMordecaiCharacter::HandlePlayerRespawn()

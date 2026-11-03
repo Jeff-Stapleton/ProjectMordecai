@@ -65,6 +65,7 @@ void UMordecaiKillCounterWidget::BindToASC(UAbilitySystemComponent* ASC)
 {
 	if (!ASC)
 	{
+		BindToGameMode(nullptr);
 		return;
 	}
 

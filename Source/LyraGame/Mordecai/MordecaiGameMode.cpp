@@ -65,8 +65,8 @@ void AMordecaiGameMode::NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer)
 		return;
 	}
 
-	// HandlePlayerDeath broadcasts Mordecai.Event.PlayerDeath before it notifies the game mode. The death screen
-	// therefore caches the completed life's count first; then this authoritative count and every bound HUD reset.
+	// This runs before HandlePlayerDeath publishes State.Dead or Event.PlayerDeath. Synchronous listeners therefore
+	// operate on the new live count, while the death screen reads this stable completed-life snapshot.
 	CompletedLifeEnemyKillCount = EnemyKillCount;
 	bRespawnPending = true;
 	PendingRespawnPlayer = DeadPlayer;

@@ -280,11 +280,13 @@ bool UMordecaiAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackD
 		{
 			const FGameplayEffectContextHandle& Context = Data.EffectSpec.GetContext();
 			APlayerState* SourcePlayerState = MordecaiAttributeSetPrivate::ResolvePlayerState(Context);
+			APlayerState* OriginalBurningPlayerState = nullptr;
 			if (Data.EffectSpec.Def
 				&& Data.EffectSpec.Def->IsA<UMordecaiGE_Burning>()
-				&& Enemy->HasOriginalBurningCredit())
+				&& Enemy->ResolveOriginalBurningCredit(
+					Data.EffectSpec, OriginalBurningPlayerState))
 			{
-				SourcePlayerState = Enemy->GetOriginalBurningCreditPlayerState();
+				SourcePlayerState = OriginalBurningPlayerState;
 			}
 			Enemy->RecordDamagePlayerState(SourcePlayerState);
 		}
