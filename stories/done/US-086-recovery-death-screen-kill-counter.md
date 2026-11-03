@@ -27,13 +27,13 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 ## Acceptance Criteria
 - [x] AC-086.1: When the player dies, a `UMordecaiDeathScreenWidget` is pushed to the Lyra UI layer stack showing "You Died", a respawn countdown (ceiling integer) and "Kills: N"; it is removed on respawn — verified by `Mordecai.Recovery.DeathScreen.ShownOnDeathRemovedOnRespawn`
 - [x] AC-086.2: The death screen builds a default widget tree when its Blueprint/class has none (no blank widget) — verified by `Mordecai.Recovery.DeathScreen.BuildsDefaultContent`
-- [x] AC-086.3: When an enemy killed by the player dies, the kill counter widget increments from the game mode's kill event (one source of truth: the counter shows the same number as `AMordecaiGameMode`'s count / `player.kills`), and resets on `Mordecai.Event.PlayerDeath` per AC-063.2 — verified by `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath`
+- [x] AC-086.3: When an enemy killed by the player dies, the kill counter widget increments from the game mode's kill event (one source of truth: the counter shows the same number as `AMordecaiGameMode`'s count / `player.kills`), and resets on `Mordecai.Event.PlayerDeath` per AC-063.2. Per Jeff's final 2026-11-02 policy, an old-life player projectile, spell, or DoT may then score in the new life, including during the death window and after respawn; `ExecuteRespawn` preserves those kills, while a manual `ResetArena` still resets the count without invalidating outstanding sources. Burning credit always belongs to its original applier, never a refresher — verified by the `Mordecai.Recovery.KillCounter.*` policy, attribution, delivery-path and Burning-refresh regressions listed below.
 - [x] AC-086.4: In the packaged build, after the enemies have killed the player, the player sees the death screen within 1.5 s — verified by check `death_screen` of `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap: the TestAttacker kills the player)
 - [x] AC-086.5: In the packaged build, the player kills the TestDummy (200 HP, never attacks) with light attacks (LMB) and the HUD reads "Kills: 1" — verified by NEW checks `kill_enemy_melee` and `kill_counter_increments` added to `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap), and `kill_counter_text_matches` still PASSes
 
 ## Technical Notes
 - Death screen: create it from the player controller / HUD owner on the PlayerDeath event (the same signal US-053 uses), via Lyra's `UCommonUIExtensions::PushContentToLayer_ForPlayer` on the `UI.Layer.Game` (or `GameMenu`) layer; pass `RespawnDelay` from the game mode and the session kill count.
-- Kill counter: `AMordecaiGameMode` is the one source of truth and publishes absolute values through its native delegate. Only a Mordecai player state carried by the lethal GAS effect context earns a kill; melee, projectile, spell and player-applied Burning contexts count, while environmental/self/enemy deaths do not. `player.kills` (bridge) and the widget must agree.
+- Kill counter: `AMordecaiGameMode` is the one source of truth and publishes absolute values through its native delegate. Only a Mordecai player state carried by the lethal GAS effect context earns a kill; melee, projectile, spell and player-applied Burning contexts count, while environmental/self/enemy deaths do not. Burning keeps its original applier across refreshes. Death snapshots the completed total and resets the live count; delayed player-owned damage can then increment the new count, and respawn does not wipe it. `player.kills` (bridge) and the widget must agree. Source: Jeff's final policy decision, 2026-11-02 (`Specs/design_decisions_log.md`).
 - Since US-100 (issue #46) US-054's walk/melee/dodge/death/respawn/reset chain is `Scripts/playtests/us054_combat.py` on CombatTestMap (`RUN_SUFFIX` "us054combat"; `py Scripts/playtest_story.py US-054` runs it). `us054_arena.py` (DevTestMap) keeps only the Frontliner AI checks and has no death chain, so every check below goes in `us054_combat.py`.
 - New us054_combat checks (script edit, committed with the code before packaging), inserted after `melee_lmb`/`dodge_lalt` (at the dummy melee spot (440, 600)) and before `walk_to_attacker`:
   - `kill_enemy_melee`: repeat `click Left (640, 360)` (≤ 0.4 s apart) at the dummy melee spot, walking back to it if the dodge moved the player, until the TestDummy's (found by label, like the script's other dummy checks) `dead==true` or 45 s → FAIL with the dummy's last health. Proves AC-086.5 and US-054 AC-054.13. If the 200-HP TestDummy cannot be killed in 45 s, record the damage per hit and file it — do not lower the HP.
@@ -67,10 +67,25 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - `Mordecai.Recovery.DeathScreen.KeepsTheViewportCaptureMode` — AC-062.3 (found by the issue #7 review)
 - `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` — AC-086.3
 - `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath` — AC-086.3
-- `Mordecai.Recovery.KillCounter.PostDeathKillDoesNotLeak`
+- `Mordecai.Recovery.KillCounter.OldProjectileScoresAfterRespawn`
+- `Mordecai.Recovery.KillCounter.BurningScoresDuringDeathWindow`
+- `Mordecai.Recovery.KillCounter.ResetArenaKeepsOutstandingProjectileValid`
+- `Mordecai.Recovery.KillCounter.ResetArenaRevivedEnemyCountsAgain`
+- `Mordecai.Recovery.KillCounter.PlayerBurningKeepsCreditAfterEnemyRefresh`
+- `Mordecai.Recovery.KillCounter.EnemyBurningKeepsCreditAfterPlayerRefresh`
+- `Mordecai.Recovery.KillCounter.PlayerOverrideZeroCounts`
+- `Mordecai.Recovery.KillCounter.EmptyOverrideClearsPlayerPoke`
+- `Mordecai.Recovery.KillCounter.DirectEnvironmentalLethalClearsPlayerPoke`
+- `Mordecai.Recovery.KillCounter.BlockingEnemyCreditsPlayerMelee`
+- `Mordecai.Recovery.KillCounter.ActualMeleeDeliveryCounts`
+- `Mordecai.Recovery.KillCounter.ActualProjectileDeliveryCounts`
+- `Mordecai.Recovery.KillCounter.ActualFireballCastCounts`
+- `Mordecai.Recovery.KillCounter.InitGamePreservesWorldFrameLimit`
 - `Mordecai.Arena.ResetArenaResetsKillCount`
 - `Mordecai.Enemy.DeathIsIdempotentForKillAccounting`
 - `Mordecai.Recovery.KillCounter.RebindsAfterHUDRebuild`
+- `Mordecai.Recovery.HUD.RebindsChildrenToNewASC`
+- `Mordecai.Recovery.HUD.RepeatedRebuildsKeepOneChildCallback`
 - `Mordecai.Recovery.DeathScreen.LateBindPreservesCompletedLifeKills`
 - `Mordecai.Recovery.KillCounter.CountsPlayerDamageSources`
 - `Mordecai.Recovery.KillCounter.RejectsNonPlayerDeaths`
@@ -98,7 +113,7 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 | 2 | `walk_to_dummy` | walk_to(440, 600) -> within 25 cm (the melee spot, 160 cm -X of the TestDummy) | - |
 | 3 | `melee_lmb` | click Left at (640, 360) -> within 1s 'Mordecai.State.Attacking' in player.tags or the TestDummy's health below its value before the click | AC-054.6, AC-054.5 |
 | 4 | `dodge_lalt` | tap LeftAlt -> within 0.5s a Dodging tag in player.tags or a displacement > 150 cm | AC-054.6, AC-054.5 |
-| 5 | `kill_enemy_melee` | wait until the attack and dodge end and speed <= 5 cm/s, walk_to(440, 600) after the dodge if needed, then pipeline repeated Slate down/up light-click pulses at (640, 360), each separated by one released game frame (never more than 0.4 game-world seconds between starts) -> the TestDummy is dead within 45s | AC-054.13, US-086:AC-086.5 |
+| 5 | `kill_enemy_melee` | wait until the attack and dodge end and speed <= 5 cm/s, walk_to(440, 600) after the dodge if needed, then pipeline exactly 320 Slate down/up light-click pulses at (640, 360), each with a matching `click` reply and one released game frame; all start timestamps strictly increase and every adjacent gap satisfies 0 < gap <= 0.4 game-world seconds -> the TestDummy is dead within 45s | AC-054.13, US-086:AC-086.5 |
 | 6 | `kill_counter_increments` | state widgets, player -> within 2s the HUD reads 'Kills: 1' and player.kills==1 | US-086:AC-086.3, US-086:AC-086.5, US-063:AC-063.1 |
 | 7 | `walk_to_attacker` | walk_to(440, 0), walk_to(2000, 0) -> within 60 cm, then within 25 cm (the fight spot, 100 cm -X of the TestAttacker) | - |
 | 8 | `attacker_damages_player` | stand at the fight spot -> player.attributes.health < player.attributes.max_health within 20s | - |
@@ -131,6 +146,64 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 
 ## Completion Notes
 
+### Round 3 final-policy closure, 2026-11-02
+This section supersedes every older life-generation/stale-source statement below. Jeff's final decision is now the
+implemented contract: player-owned old-life sources may score in the next life (including the death window), and
+Burning credit stays with its original applier across refreshes. Runtime commits: `1918374` (gameplay/tests) and
+package commit `0048a39a9e4be909b8421eef599ce857209bf213` (playtest hardening).
+
+**Red → green.**
+- Core policy/attribution/frame-limit RED: `Saved/TestLogs/us086-round3-cpp-red-2.log` (9 failures for old projectile,
+  death-window Burning, both Burning refresh directions, Override/direct/block attribution and frame policy).
+- HUD RED: `Saved/TestLogs/us086-round3-cpp-red.log` (stale ASC A overwrote B; six callbacks after rebuild);
+  expanded Spell Points RED: `Saved/TestLogs/us086-round3-spellpoints-red.log` (4 bindings, expected 1).
+- Cadence RED: `Saved/TestLogs/us086-round3-python-cadence-red.log` (truncated, equal, decreasing and wrong-command
+  inputs all false-passed); bridge command-match RED: `Saved/TestLogs/us086-round3-python-bridge-red.log`.
+- Widget-class and spawn-spacing RED:
+  `Saved/TestLogs/us086-round3-python-widget-class-red.log` and
+  `Saved/TestLogs/us086-round3-python-spacing-red.log`.
+- GREEN: **786/786** Tier 1 (`Saved/TestLogs/us086-round3-tier1-delivery-final.log`), focused recovery **72/72**
+  (`Saved/TestLogs/us086-round3-cpp-green-final.log`), Python **588/588**
+  (`Saved/TestLogs/us086-round3-python-full.log`), and Tier 2 **16/16** PIE scripts. Actual melee, spawned-projectile
+  overlap, and actual Fireball-cast delivery tests all kill and count exactly once. The three delivery tests already
+  passed the baseline attempt, so they close a coverage gap rather than reproduce a delivery defect.
+
+**Package.**
+- The first packaging attempt (`Saved/Playtests/package-20261102-212812.log`) was aborted as infrastructure-only:
+  UBA repeatedly killed the linker at its low-memory threshold and produced no `build_info.json`.
+- Successful clean package: `Saved/Playtests/package-20261102-213808.log`.
+  `PackagedBuilds/Playtest/build_info.json` records `0048a39a9e`, `dirty=false`, zero dirty files,
+  `source_changed_during_build=false`, Development config and all four default maps. No run used `--allow-stale`.
+
+**Focused Tier 3 + Tier 4.**
+- `Saved/Playtests/20261102-215100-story-us086`: **PASS**, exit 0, acceptance candidate.
+- Tier 3 `Saved/Playtests/20261102-215100-boot`: every check PASS, correct
+  `B_MordecaiArenaExperience`, cooked content, Mordecai loading screen, 3/3 engine frames, 0 errors.
+- Tier 4 `Saved/Playtests/20261102-215121-us054combat`: **31 PASS / 1 WARN / 0 FAIL / 0 SKIP**.
+  The exact 320 click replies were command-matched and strictly increasing; every adjacent start gap was positive and
+  the maximum was **0.069 s** (limit 0.4) without changing global frame timing. Real LMB killed the 200-HP dummy,
+  HUD/player reached 1, the death screen preserved 1 while HUD/player reset to 0, and respawn/reset completed.
+  The sole WARN is the existing CombatTestMap BasicSlash limitation: it cannot exercise Burning.
+
+**Screenshots opened.**
+- `215100-boot/engine_loading.png`: centred `PROJECT MORDECAI` / `Loading...`, not Lyra branding.
+- `engine_01.png`–`03.png`: CombatTestMap grid, player near centre, blue-white TestDummy upper-right, full Mordecai
+  HUD, SP 10/10, `Kills: 0`, and Inventory prompt; only the filed yellow configuration text changes between frames.
+- `shot_01.png`–`03.png`: non-black desktop views of the same map/HUD/dummy state.
+- `215121-us054combat/bridge_01.png`: spawn, full HUD, dummy visible, `Kills: 0`.
+- `bridge_02.png`: player immediately beside the full-health dummy.
+- `bridge_03.png`: dummy body gone with empty bar; `Kills: 1` visibly top-right.
+- `bridge_04.png`: player beside the yellow TestAttacker, health reduced; `Kills: 1`.
+- `bridge_05.png`: dimmed arena, `You Died`, countdown `3`, DeathScreen `Kills: 1`, persistent HUD `Kills: 0`.
+- `bridge_06.png`: motion-blurred full-health respawn, HUD `Kills: 0`, no death overlay; reset enemies at frame edges.
+
+**Sweep.**
+- `Saved/Playtests/20261102-215418-sweep`: all three Tier 3 boots PASS; **no NEW failures**.
+- Against `Saved/Playtests/20261102-031725-sweep`: us001 remains 27/4, us054 arena improves 16/2 → 17/2
+  (the prior composite `enemies_present` failure is now a PASS plus filed `enemy_spacing`), us054 combat improves
+  30/0 → 31/0, and us057 21/6, us069 32/3, us078 19/2, us079 56/0, us083 28/0 and us101 21/0 are unchanged.
+  No check that previously passed now fails; no failure that was previously passing was relabelled.
+
 ### Final adversarial audit follow-up, 2026-11-02
 This section supersedes the package/run references in the PR #76 review closure below. Final gameplay commit:
 `1ebee4b13c31bd6460b46b3e9405c095717ba275`.
@@ -153,12 +226,10 @@ This section supersedes the package/run references in the PR #76 review closure 
   `03` dead dummy/`Kills: 1`, `04` damaged player/`Kills: 1`, `05` DeathScreen 1/HUD 0, and `06` respawn/HUD 0.
 
 #### Audit post-mortem — old-life effects after respawn
-**Assumed:** keeping `bRespawnPending` true until `ExecuteRespawn` rejected every old-life hit. **Actual:** after the
-flag cleared, a projectile launched before death could create its effect context on impact and look like new-life
-damage. **Why the earlier test missed it:** it never executed `ExecuteRespawn`, so the guard stayed active and
-false-passed. **Fix/regression:** player GAS contexts carry a life generation; persistent effects retain it and
-projectiles snapshot it at launch. `PostDeathKillDoesNotLeak` now executes respawn and rejects both an old context and
-an old launched projectile afterward.
+**Superseded by Jeff's final 2026-11-02 policy.** The reviewed implementation rejected old-life sources with a life
+generation, but the desired behavior is the opposite: they may score in the next life. Round 3 removes the generation
+and guard, preserves death-window kills through respawn, and replaces the retired rejection test with
+`OldProjectileScoresAfterRespawn` and `BurningScoresDuringDeathWindow`.
 
 #### Audit post-mortem — duplicate HUD child delegates
 **Assumed:** rebinding in `NativeConstruct` was sufficient. **Actual:** `CreateCombatHUD` bound again immediately after
@@ -221,8 +292,9 @@ This section supersedes the earlier issue #6 evidence below. Final delivered gam
   `bridge_05.png` + `bridge_06.png`.
 - AC-086.2: `BuildsDefaultContent`; explicit packaged acceptance mapping on `death_screen`; populated
   `bridge_05.png`.
-- AC-086.3: `IncrementsOnPlayerKill`, `ResetsOnPlayerDeath`, `PostDeathKillDoesNotLeak`,
-  `ResetArenaResetsKillCount`, `DeathIsIdempotentForKillAccounting`, `RebindsAfterHUDRebuild`,
+- AC-086.3: `IncrementsOnPlayerKill`, `ResetsOnPlayerDeath`, `OldProjectileScoresAfterRespawn`,
+  `BurningScoresDuringDeathWindow`, the reset/dedupe, Burning-refresh, Override/direct/block attribution and actual
+  delivery-path regressions, `DeathIsIdempotentForKillAccounting`, the HUD child rebinding tests,
   `LateBindPreservesCompletedLifeKills`, `CountsPlayerDamageSources`, and `RejectsNonPlayerDeaths`;
   Tier 4 `kill_counter_increments`, `death_count_split`, `kill_counter_text_matches`;
   `bridge_03.png`, `bridge_05.png`, `bridge_06.png`.
@@ -235,11 +307,9 @@ single-player. Remote-client replication and per-player counts/reset are explici
 death path already carries `APlayerState*` as its future per-player key.
 
 #### Post-mortem 1 — post-death kill leakage
-**Assumed:** resetting once in `NotifyPlayerDeath` made the next life start at zero. **Actual:** a delayed
-projectile/DoT kill in the respawn window incremented the already-reset count, and neither `ExecuteRespawn` nor
-`ResetArena` cleared it. **Why tests missed it:** they ended immediately after direct death reset. **Fix/regression:**
-cache the completed life, reject accounting while respawn is pending, and reset at both later boundaries;
-`PostDeathKillDoesNotLeak` and `ResetArenaResetsKillCount` were red first.
+**Superseded by Jeff's final 2026-11-02 policy.** What this review called a leak is now intentional new-life credit.
+Death still snapshots and resets immediately, but delayed player-owned kills count from then on; respawn preserves
+them, while manual `ResetArena` resets the count without invalidating outstanding sources.
 
 #### Post-mortem 2 — non-idempotent enemy death
 **Assumed:** the Health callback's `!IsDead()` check protected `EnterDeathState`. **Actual:** its public Blueprint call
