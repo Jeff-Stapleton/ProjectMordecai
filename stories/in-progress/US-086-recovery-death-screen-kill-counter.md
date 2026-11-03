@@ -138,13 +138,87 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - [x] Content: none expected; `py Scripts/check_content_committed.py` exits 0
 - [x] Work committed FIRST (code + us054_combat script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
-- [x] `py Scripts/playtest_story.py US-086` (Tier 3 + Tier 4) on that same fresh package: `death_screen`, `death_screen_removed`, `kill_enemy_melee`, `kill_counter_increments`, `kill_counter_text_matches` PASS and the summary's Acceptance criteria table shows AC-086.1, AC-086.4 and AC-086.5 accepted; no check that PASSed in the sweep now FAILs; `py Scripts/playtest_story.py US-086 --lint` and `US-054 --lint` exit 0 — never `--allow-stale`
+- [ ] Final `py Scripts/playtest_story.py US-086` on package commit `ccbb0c1493`: Tier 3 PASS, but Tier 4 FAILs the strict unmodified cadence bound (0.450 s maximum versus 0.4 s); `kill_enemy_melee` and dependent `death_screen` are PASS-to-FAIL changes — never `--allow-stale`
 - [x] Known issues N1 and N2 marked FIXED in `Specs/agent_playtest_plan_v1.md` with the run dir
-- [x] Every cited screenshot (`engine_loading.png`, `engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
+- [ ] Final-gate screenshots reviewed (the user limited this continuation to one or two screenshots; the representative failed-run death frame was opened and is described below)
 - [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-086]` closing commit
-- [x] Pushed; story moved to `stories/done/` only after all of the above pass
+- [ ] Pushed; story returns to `stories/done/` only after the final Tier 4 and sweep regression gates pass
 
 ## Completion Notes
+
+### Final verification gates after adversarial audit, 2026-11-03 — FAIL
+This section supersedes the package/run status below, but not the implemented kill-accounting policy. The final
+runtime commit under test is `ccbb0c149363a55d273caaf4649c9bcd097309cf`. The required packaged real-input gate is
+not green, so US-086 has returned to `stories/in-progress/`; no cadence limit was loosened and no gameplay frame cap
+was restored.
+
+**Pre-package gates.**
+- Final build PASS (`Saved/TestLogs/us086-final-green-build-5.log`).
+- Tier 1 **796/796 PASS** (`Saved/TestLogs/us086-final-tier1.log`).
+- Python tooling **589/589 PASS** (`Saved/TestLogs/us086-final-python-full.log`).
+- Tier 2 **16/16 PIE scripts PASS**. The red/green audit logs are retained under
+  `Saved/TestLogs/us086-final-*.log`.
+
+**Package provenance.**
+- `PackagedBuilds/Playtest/build_info.json` records
+  `ccbb0c149363a55d273caaf4649c9bcd097309cf`, `dirty=false`, zero dirty files,
+  `source_changed_during_build=false`, Development config and the four default maps.
+- Package log: `Saved/Playtests/package-20261102-235948.log`. No run used `--allow-stale`.
+
+**Focused real-input samples.** Every story-run Tier 3 boot PASSed. Every Tier 4 train delivered exactly 320
+command-matched clicks, killed the 200-HP TestDummy within 45 seconds, and then FAILed the unchanged
+`0 < click-start gap <= 0.4 s` requirement.
+
+| Story summary | Tier 4 report | Result | Maximum gap | Over-limit adjacent gaps |
+|---|---|---:|---:|---:|
+| `Saved/Playtests/20261103-001928-story-us086` | `20261103-001950-us054combat` | FAIL | 0.450 s | 30/319 |
+| `Saved/Playtests/20261103-002159-story-us086` | `20261103-002220-us054combat` | FAIL | 0.450 s | 29/319 |
+| standalone continuation (no story summary) | `20261103-002617-us054combat` | FAIL | 0.450 s | 29/319 |
+| `Saved/Playtests/20261103-002911-story-us086` | `20261103-002932-us054combat` | FAIL | 0.450 s | 31/319 |
+
+The standalone continuation had already completed when it was discovered; the additional focused run was retained,
+not discarded. The failure is therefore deterministic in these samples rather than an intermittent one-off.
+At each focused maximum, the preceding 0.05-second click reports about 0.475–0.480 seconds wall time but only
+0.05 seconds simulated over three frames. With the world's unchanged 0.4-second maximum undilated frame, the hitch
+contributes a 0.4-second world delta and the required released frame brings the next click start to 0.450 seconds.
+The logs contain no GC, shader compile, or other logged event during those click trains; their GC/PSO messages occur
+during startup before input. This identifies an unlogged runtime/frame-scheduling stall, not kill-accounting failure.
+
+`kill_counter_increments` is skipped when the cadence step fails, so `death_screen` then fails its mandatory
+completed-life-count prerequisite even though every run later reads `['You Died', '2', 'Kills: 1']`.
+The one opened representative frame,
+`Saved/Playtests/20261103-002932-us054combat/bridge_04.png`, visibly shows the dimmed CombatTestMap, red
+`You Died`, countdown `2`, centered `Kills: 1`, and the persistent HUD reset to `Kills: 0`.
+
+**Final sweep.**
+- `Saved/Playtests/20261103-003325-sweep` ran on the same package. All three Tier 3 boots PASSed.
+- Against `Saved/Playtests/20261102-215418-sweep`, us001, us057, us069, us078, us079, us083 and us101 have
+  identical counts and statuses.
+- us054 arena improves **17 PASS / 2 FAIL → 18 PASS / 1 FAIL**:
+  `enemy_spacing` changes FAIL→PASS.
+- us054 combat regresses **31 PASS / 0 FAIL / 0 SKIP → 25 PASS / 2 FAIL / 4 SKIP**.
+  `kill_enemy_melee` (maximum gap 0.433 s) and dependent `death_screen` are the only NEW failures and the only
+  PASS→FAIL changes. `kill_counter_increments`, `screenshot_killed`, `death_count_split`, and
+  `death_screen_removed` change PASS→SKIP as dependencies.
+
+**Disclosed sweep classifications.**
+- `enemy_indicators` moved NEW→known under issue #22.
+- `fireball_projectile` and `fireball_hits_enemy` moved NEW→known under issue #20.
+- `stone_skin_indicator` moved NEW→known under issue #21.
+- The old composite `enemies_present` was split: it now owns only enemy count and 200/200 health, so either remains
+  NEW on regression. `enemy_spacing` separately checks that all three captured starts remain in the three authored
+  radial lanes (radius >=100 cm and alignment >=0.98), rather than the non-canonical pairwise 300-cm threshold; it
+  is not marked known and PASSes the final sweep.
+
+**Coverage-only tests.**
+- `ActualMeleeDeliveryCounts`: coverage-only; the behavior already passed before the round-3 fix.
+- `ActualProjectileDeliveryCounts`: coverage-only; directly invokes the projectile overlap test helper.
+- `NaturalProjectileDeliveryCounts`: coverage-only; exercises natural ProjectileMovement overlap.
+- `ActualFireballCastCounts`: coverage-only — **bypasses natural delivery; see #20**.
+
+**Guard and follow-ups.** `py Scripts/check_content_committed.py` PASSes; no content changed. Deferred scope remains
+#77 (per-player replicated counters/remote-client HUD), #78 (reflected projectile and summon ownership precedence),
+#79 (combo counter after HUD rebuild), and #20 (natural Fireball delivery).
 
 ### Round 3 final-policy closure, 2026-11-02
 This section supersedes every older life-generation/stale-source statement below. Jeff's final decision is now the
