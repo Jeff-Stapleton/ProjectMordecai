@@ -27,9 +27,9 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 ## Acceptance Criteria
 - [x] AC-086.1: When the player dies, a `UMordecaiDeathScreenWidget` is pushed to the Lyra UI layer stack showing "You Died", a respawn countdown (ceiling integer) and "Kills: N"; it is removed on respawn — verified by `Mordecai.Recovery.DeathScreen.ShownOnDeathRemovedOnRespawn`
 - [x] AC-086.2: The death screen builds a default widget tree when its Blueprint/class has none (no blank widget) — verified by `Mordecai.Recovery.DeathScreen.BuildsDefaultContent`
-- [ ] AC-086.3: When an enemy killed by the player dies, the kill counter widget increments from the game mode's kill event (one source of truth: the counter shows the same number as `AMordecaiGameMode`'s count / `player.kills`), and resets on `Mordecai.Event.PlayerDeath` per AC-063.2 — verified by `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath` (as built: the reset is `AMordecaiGameMode::NotifyPlayerDeath`, in the same `HandlePlayerDeath` call that sends the event; rules in `Specs/design_decisions_log.md` 2026-11-04)
+- [x] AC-086.3: When an enemy killed by the player dies, the kill counter widget increments from the game mode's kill event (one source of truth: the counter shows the same number as `AMordecaiGameMode`'s count / `player.kills`), and resets on `Mordecai.Event.PlayerDeath` per AC-063.2 — verified by `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath` (as built: the reset is `AMordecaiGameMode::NotifyPlayerDeath`, in the same `HandlePlayerDeath` call that sends the event; rules in `Specs/design_decisions_log.md` 2026-11-04)
 - [x] AC-086.4: In the packaged build, after the enemies have killed the player, the player sees the death screen within 1.5 s — verified by check `death_screen` of `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap: the TestAttacker kills the player)
-- [ ] AC-086.5: In the packaged build, the player kills the TestDummy (200 HP, never attacks) with light attacks (LMB) and the HUD reads "Kills: 1" — verified by NEW checks `kill_enemy_melee` and `kill_counter_increments` added to `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap), and `kill_counter_text_matches` still PASSes
+- [x] AC-086.5: In the packaged build, the player kills the TestDummy (200 HP, never attacks) with light attacks (LMB) and the HUD reads "Kills: 1" — verified by NEW checks `kill_enemy_melee` and `kill_counter_increments` added to `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap), and `kill_counter_text_matches` still PASSes
 
 ## Technical Notes
 - Death screen: create it from the player controller / HUD owner on the PlayerDeath event (the same signal US-053 uses), via Lyra's `UCommonUIExtensions::PushContentToLayer_ForPlayer` on the `UI.Layer.Game` (or `GameMenu`) layer; pass `RespawnDelay` from the game mode and the session kill count.
@@ -132,17 +132,17 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - **Playable alone:** YES (after US-083, US-084, US-085)
 
 ## Definition of Done
-- [ ] All ACs checked off
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: none expected; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST (code + us054_combat script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
-- [ ] `py Scripts/playtest_story.py US-086` (Tier 3 + Tier 4) on that same fresh package: `death_screen`, `death_screen_removed`, `kill_enemy_melee`, `kill_counter_increments`, `kill_counter_text_matches` PASS and the summary's Acceptance criteria table shows AC-086.1, AC-086.4 and AC-086.5 accepted; no check that PASSed in the sweep now FAILs; `py Scripts/playtest_story.py US-086 --lint` and `US-054 --lint` exit 0 — never `--allow-stale`
-- [ ] Known issues N1 and N2 marked FIXED in `Specs/agent_playtest_plan_v1.md` with the run dir
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-086]` closing commit
-- [ ] Pushed; story moved to `stories/done/` only after all of the above pass
+- [x] All ACs checked off
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [x] Content: none expected; `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST (code + us054_combat script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
+- [x] `py Scripts/playtest_story.py US-086` (Tier 3 + Tier 4) on that same fresh package: `death_screen`, `death_screen_removed`, `kill_enemy_melee`, `kill_counter_increments`, `kill_counter_text_matches` PASS and the summary's Acceptance criteria table shows AC-086.1, AC-086.4 and AC-086.5 accepted; no check that PASSed in the sweep now FAILs; `py Scripts/playtest_story.py US-086 --lint` and `US-054 --lint` exit 0 — never `--allow-stale`
+- [x] Known issues N1 and N2 marked FIXED in `Specs/agent_playtest_plan_v1.md` with the run dir
+- [x] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
+- [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-086]` closing commit
+- [x] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
 
@@ -179,3 +179,65 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - us054_combat: 27/0, exit 0 (`20261030-122858-us054combat`). Its `bridge_04` shows the same death screen, and its `bridge_05` none.
 - Every other script has the same PASS/FAIL counts and the same failing checks as the 2026-10-29 sweep (`20261029-175504-sweep`): us001 27/4, us054_arena 16/2, us057 21/6, us069 26/5, us078 19/2, us079 56/0, us083 28/0. No check went PASS → FAIL. Only the two us054_combat frames above were opened from this sweep.
 - Seen in passing, not this issue's: in the sweep run's `bridge_05` the TestDummy's floating health bar still shows about 92% (its 184/200 before the death), while the state read at the respawn reports 200/200. The enemy health bar may not redraw after `ResetForArena`.
+
+### Issue #6 half: the kill counter (N1), 2026-11-04
+**Status: AC-086.3 and AC-086.5 done, so all five ACs are done and the story is done.** As built: see "Kill counter as built" in the Technical Notes. Delivered commit `82ed747` (code `ab35ffc`, playtest `def48cb`, docs `82ed747`) on `fix/issue-6-kill-counter`, rebuilt from `main`. None of closed PR #76's code was used. Jeff confirmed the rules this session (design_decisions_log 2026-11-04).
+
+**Tier 1.** `py Scripts/run_tests.py`: 766/766 (`Saved/TestLogs/issue6-tier1-full2.log`).
+- The four `Mordecai.Recovery.KillCounter.*` tests were all red before the fix (`Saved/TestLogs/issue6-red-killcounter.log`).
+  - The HUD stayed at "Kills: 0".
+  - The game mode counted 4 deaths the player did not cause.
+  - A dead enemy counted twice.
+- `ResetsOnPlayerDeath` covers three lives (1 kill, 3 kills, none) and an enemy the respawn revives and the player kills again. Both were added after an independent review of the change.
+- The `LyraGame` game target builds too.
+
+**Tier 2.** `py Scripts/run_pie_verify.py`: 16/16. `verify_pie_hud.py` passes "Game mode is MordecaiGameMode", "One HUD kill counter", "Kill counter is bound to the game mode" and "Kill counter shows the game mode's count (0 == 0)".
+
+**Content.** None. `check_content_committed.py` exits 0.
+
+**Python tooling.**
+- 576/576 on the first full run.
+- After the review edits: us054_combat 33/33, playtest_story 54/54, us101 17/17.
+- `--lint` passes for US-086 and US-054.
+
+**Package.** `py Scripts/package_playtest.py` exit 0 for `82ed747`: dirty=False, no source change during the build (`Saved/Playtests/package-20261104-022822.log`).
+
+**Tier 3 + Tier 4.** `py Scripts/playtest_story.py US-086` exit 0 (`Saved/Playtests/20261104-072443-story-us086/summary.md`).
+- **Tier 3**, CombatTestMap: `Saved/Playtests/20261104-072443-boot`, exit 0, every check PASS. B_MordecaiArenaExperience was identified and loaded, the loading screen was the Mordecai one, 0 errors.
+  - `shot_01`–`03` are black: the window was covered (expected; the engine frames are the evidence).
+  - `engine_loading`: the Mordecai loading screen, "PROJECT MORDECAI" and "Loading...".
+  - `engine_01`–`03`: the overhead view of the grey grid floor. The player is at the spawn, the pale-blue TestDummy under its red health bar up and to the right. The HUD bars are top-left with SP 10/10, "Kills: 0" is top-right and "[I] Inventory" is at the bottom. The yellow Steam config lines are issue #29.
+- **Tier 4**, `us054_combat.py`: `Saved/Playtests/20261104-072504-us054combat`, exit 0. 30 PASS, 1 WARN, 0 FAIL.
+  - `kill_enemy_melee` PASS:
+    - The dodge left the player at (326, 584); it walked back to (433, 584).
+    - 25 clicks; the dummy went 184 → 0, mostly 16 per light hit. The two drops of 32 are a heavy attack's damage, which a frame hitch can produce by stretching a click past 0.4 s, or two light hits between reads; the run does not tell which.
+    - Dead after 11.8 s.
+    - One click gap was 0.75 s (a frame hitch). It is reported and does not fail the check, unlike PR #76's rule.
+  - `kill_counter_increments` PASS: the HUD reads "Kills: 1" and player.kills is 1.
+  - `death_screen` PASS: 'You Died', '3' and 'Kills: 1' (the life's kills), while the HUD counter already reads 'Kills: 0'.
+  - `death_screen_removed`, `arena_reset` PASS. The arena reset revived the TestDummy: it was at 0/200 before the death and at 200/200, Idle, at its spawn at the respawn.
+  - `kill_counter_text_matches` PASS: 'Kills: 0' and player.kills=0, the kill reset by the death.
+  - `burning_on_hit` WARN: BasicSlash applies no Burning, as known.
+  - Accepted: US-086 AC-086.1, AC-086.4 and AC-086.5, US-054 AC-054.13, US-063 AC-063.1, US-062 AC-062.1 and AC-062.2, and the US-053 and US-057 ACs in the report.
+  - `bridge_01` (start): the player at the spawn, the TestDummy up and to the right under its full red bar, "Kills: 0".
+  - `bridge_02` (near_dummy): the player right below (-X of) the TestDummy cylinder, its red bar full.
+  - `bridge_03` (killed): **the TestDummy's body is gone**. Only its empty floating bar outline is left above the player. **"Kills: 1" top-right**. The stamina bar is empty, from the attacks.
+  - `bridge_04` (hit): the player against the yellow TestAttacker under its full red bar. Health is about 85%, "Kills: 1".
+  - `bridge_05` (dead): **the death screen** over the dimmed arena. A red "You Died", a white "3" and **"Kills: 1"** are in the middle, and **the HUD's corner counter reads "Kills: 0"**. The health bar is empty and SP is 7/10.
+  - `bridge_06` (respawned): a motion-blurred frame as the camera slides back to the spawn. Health is full, "Kills: 0", no death screen, no dimming, the TestAttacker at the top under its full bar. The revived TestDummy is out of frame; the state read puts it at (600, 600) with 200/200.
+  - Against "Visible on screen":
+    - "Kills: 1" after the kill: yes.
+    - The death screen with "You Died", a countdown and "Kills: 1": yes.
+    - The HUD back without the death screen: yes.
+
+**Regression sweep.** `py Scripts/playtest_story.py --all` on the same package: `Saved/Playtests/20261104-072646-sweep`, exit 1 on known and pre-existing failures.
+- us054_combat 30/0, exit 0 (`20261104-072834-us054combat`): 23 clicks, dead after 7.2 s, max gap 0.328 s. Its `bridge_03` shows the dummy gone and "Kills: 1"; `bridge_05` "You Died | 3 | Kills: 1" over the HUD's "Kills: 0"; `bridge_06` the respawn with "Kills: 0". Only those three frames were opened from the sweep.
+- Compared with the last sweeps of main-based packages (`20261030-122726-sweep`, `20261030-155137-sweep`), no check went PASS → FAIL. Every other script fails the same checks as before:
+  - us001 27/4
+  - us054_arena 16/2 (`enemies_present`: the DevTestMap swarm; `enemy_indicators`: N17)
+  - us057 21/6
+  - us078 19/2
+- us069 is 32/3: `i_closes` and `shoulder_switches_tab` pass since US-095.
+- us079 56/0, us083 28/0 and us101 21/0 pass.
+
+**Seen in passing, not this issue's:** after the arena reset a revived enemy's floating health bar keeps its old value. `ResetForArena` uses `InitHealth`, which fires no attribute-change delegate. Filed as N34 in the plan's Known issues; no GitHub issue yet.
