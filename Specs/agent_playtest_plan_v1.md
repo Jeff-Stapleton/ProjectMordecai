@@ -462,8 +462,8 @@ The contract is `Specs/story_playtests_v1.md`.
 - **N34 A revived enemy's floating health bar keeps its old value.** `AMordecaiEnemyCharacter::ResetForArena` restores Health and Posture with `InitHealth` / `InitPosture`. Those write the attribute directly and fire no attribute-change delegate, and `UMordecaiEnemyHealthBarWidget` only updates on that delegate.
   - After the respawn's arena reset, the state read shows the enemy at full health (`arena_reset` PASS) while its bar still shows the health it died or was hit at.
   - Seen in issue #7's sweep: the bar stayed at 184/200 after a reset. Since us054_combat kills the TestDummy (issue #6), a revived dummy would stand under an empty bar.
-  - Fix idea: restore with `SetNumericAttributeBase`, as `HandlePlayerRespawn` does; the enemy's health handler then has to accept a change with no effect data.
-  - Not filed yet.
+  - Fix idea: restore with `SetNumericAttributeBase`, as `HandlePlayerRespawn` does; the enemy's health handler already accepts a change with no effect data.
+  - Filed as GitHub issue #81 (2026-11-04).
 
 **Bridge gaps found while writing the Phase 3 playtests.** These are missing bridge state, not game bugs; each blocks an assertion.
 - **B1 The bridge did not report pickup name labels (FIXED, issue #30).** `actors[].widgets` lists only `UWidgetComponent`s, but the pickup label is a `UTextRenderComponent`, so check `pickup_labels` in `us079_inventory.py` (AC-079.10) failed (known issue B1).

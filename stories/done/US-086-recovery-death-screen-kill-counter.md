@@ -240,4 +240,4 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - us069 is 32/3: `i_closes` and `shoulder_switches_tab` pass since US-095.
 - us079 56/0, us083 28/0 and us101 21/0 pass.
 
-**Seen in passing, not this issue's:** after the arena reset a revived enemy's floating health bar keeps its old value. `ResetForArena` uses `InitHealth`, which fires no attribute-change delegate. Filed as N34 in the plan's Known issues; no GitHub issue yet.
+**Seen in passing, not this issue's:** after the arena reset a revived enemy's floating health bar keeps its old value. `ResetForArena` uses `InitHealth`, which fires no attribute-change delegate. Filed as N34 in the plan's Known issues and as GitHub issue #81.
