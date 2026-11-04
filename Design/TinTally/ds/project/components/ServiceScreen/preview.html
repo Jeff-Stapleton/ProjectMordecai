@@ -1,0 +1,291 @@
+<!-- @dsCard group="Menus" height=2268 width=1920 subtitle="The town service screen pattern (list, tray, quote counter, action keycap), drawn as the Alchemist's restock: village stock, the field cap, the next batch" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ServiceScreen</title></head>
+<body>
+<div class="tt-root tt-svc-sheet" id="sheet">
+
+  <header class="tt-svc-head">
+    <span class="kicker tt-caps">1 · Alchemist · Restock · keyboard and mouse</span>
+    <span class="tt-label">The second instance of the Mage Tower's frame: the nameplate on two strings, the list of what the service works on, the selected one hung in the tray, the quote and the action keycap. Every stock number is an example.</span>
+  </header>
+
+  <section class="tt-mage-screen tt-svc-screen" aria-label="Alchemist restock">
+    <div class="tt-diorama" aria-hidden="true">
+      <div class="tt-diorama__patch" style="left:600px; top:330px; width:720px; height:420px;"></div>
+      <div class="tt-diorama__path" style="left:912px; top:740px; height:340px;"></div>
+      <div class="tt-dlgue-house" style="left:300px; top:-60px;"></div>
+      <div class="tt-dlgue-house tt-dlgue-house--alchemist" style="left:984px; top:-60px;"></div>
+      <div class="tt-dlgue-house" style="left:1520px; top:-60px;"></div>
+      <div class="tt-diorama__tree" style="left:6px; top:430px;"></div>
+      <div class="tt-diorama__tree" style="left:1834px; top:520px;"></div>
+      <div class="tt-diorama__bush" style="left:620px; top:980px;"></div>
+      <div class="tt-diorama__bush" style="left:1200px; top:1000px;"></div>
+      <div class="tt-diorama__crate" style="left:1210px; top:60px;"></div>
+      <div class="tt-diorama__crate" style="left:1276px; top:76px;"></div>
+      <div class="tt-diorama__post" style="left:640px; top:70px;"></div>
+      <div class="tt-diorama__post" style="left:700px; top:70px;"></div>
+      <div class="tt-diorama__post" style="left:760px; top:70px;"></div>
+    </div>
+
+    <!-- The HUD under the veil: HUDLayout's markup and classes. The quick-item Health Potion count (x3) is the "You carry 3" below. -->
+    <div class="tt-hud" aria-label="The HUD, veiled">
+      <div class="tt-hud__player" aria-label="Player"><div class="tt-callout__pawn"></div><div class="tt-callout__foot"></div></div>
+      <div class="tt-hud__gauge" data-gauge='{"hp":82,"st":134,"po":null,"sp":9}'></div>
+      <div class="tt-hud__spells">
+        <div class="tt-plate tt-spell" aria-label="Fireball, 3 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--fire" data-glyph="fireball" aria-label="Fireball"></span></div>
+          <div class="tt-spell__cost" aria-label="3 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">Q</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Blink, 2 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="blink" aria-label="Blink"></span></div>
+          <div class="tt-spell__cost" aria-label="2 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">E</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Stone Skin, 4 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="stoneskin" aria-label="Stone Skin"></span></div>
+          <div class="tt-spell__cost" aria-label="4 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">R</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Restoration, 3 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--heal" data-glyph="restoration" aria-label="Restoration"></span></div>
+          <div class="tt-spell__cost" aria-label="3 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">1</span>
+        </div>
+      </div>
+      <div class="tt-hud__rail">
+        <div class="tt-rail">
+          <div class="tt-plate tt-plate--rail tt-railhead">
+            <div class="tt-plate__row"><span class="tt-railhead__kills num-l">Kills: 12</span></div>
+            <span class="tt-railhead__slot" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>
+      <div class="tt-hud__prompt">
+        <div class="tt-iprompt">
+          <div class="tt-iprompt__box"></div>
+          <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+        </div>
+      </div>
+      <div class="tt-hud__quick">
+        <div class="tt-quick">
+          <div class="tt-plate tt-quick__slot tt-quick__slot--throw" aria-label="Throwing Knife, 5"><span class="tt-glyph tt-quick__icon" data-glyph="throwable" aria-hidden="true"></span><span class="num-s tt-quick__count">x5</span><span class="tt-key tt-key--sm tt-quick__key">G</span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Health Potion, 3"><span class="tt-glyph tt-quick__icon tt-quick__icon--potion" data-glyph="potion" aria-hidden="true"></span><span class="num-s tt-quick__count">x3</span><span class="tt-key tt-key--sm tt-key--none tt-quick__key" aria-label="Unbound"></span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Antidote, 1"><span class="tt-glyph tt-quick__icon" data-glyph="tonic" aria-hidden="true"></span><span class="num-s tt-quick__count">x1</span><span class="tt-key tt-key--sm tt-quick__key">2</span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Bandage, 2"><span class="tt-glyph tt-quick__icon" data-glyph="bandage" aria-hidden="true"></span><span class="num-s tt-quick__count">x2</span><span class="tt-key tt-key--sm tt-quick__key">3</span></div>
+          <div class="tt-plate tt-quick__slot is-empty" aria-hidden="true"></div>
+        </div>
+      </div>
+      <div class="tt-hud__loadout">
+        <div class="tt-plate tt-loadout" aria-label="Equipped weapon">
+          <div class="tt-loadout__well"><span class="tt-glyph tt-glyph--48" data-glyph="longsword" aria-hidden="true"></span></div>
+          <div class="tt-loadout__body"><span class="ui-title tt-loadout__name">Longsword</span><span class="ui-label tt-loadout__sub"><span class="tt-glyph" data-glyph="slash" aria-hidden="true"></span><span>Slash</span></span></div>
+          <span class="tt-key tt-loadout__key">Tab</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tt-veil tt-svc__veil"></div>
+
+    <div class="tt-pause__title tt-pause__title--screen"><span class="tt-pause__strings" aria-hidden="true"></span><h1 class="tt-pause__nameplate tally-heading"><span class="tt-glyph tt-glyph--32" data-glyph="alchemist" aria-hidden="true"></span>Alchemist · Restock</h1></div>
+
+    <div class="tt-mage-shell tt-plate tt-plate--menu">
+      <section class="tt-mage-panel" aria-label="Village stock">
+        <h2 class="tt-mage-panel__head ui-title"><span class="tt-glyph" data-glyph="potion" aria-hidden="true"></span>Village stock<span class="tt-svc-tier ui-label">Tier 1 · Functional</span></h2>
+        <ul class="tt-svc-list">
+          <li class="tt-svc-row tt-selectable is-selected tt-focus--fill-gap is-focused">
+            <span class="tt-svc-row__well"><span class="tt-glyph tt-glyph--32" data-glyph="potion" aria-hidden="true"></span></span>
+            <span class="tt-svc-row__text"><span class="tt-svc-row__name ui-title">Health Potion</span><span class="tt-svc-row__sub tt-label">Carry <span class="num-s">3 / 5</span><span class="tt-svc-row__dot" aria-hidden="true">·</span>Shelf <span class="num-s">6 / 8</span></span></span>
+            <span class="tt-pips tt-pips--enamel" role="img" aria-label="Carrying 3 of 5"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip"></span><span class="tt-pip"></span></span>
+          </li>
+          <li class="tt-svc-row">
+            <span class="tt-svc-row__well"><span class="tt-glyph tt-glyph--32" data-glyph="tonic" aria-hidden="true"></span></span>
+            <span class="tt-svc-row__text"><span class="tt-svc-row__name ui-title">Antidote</span><span class="tt-svc-row__sub tt-label">Carry <span class="num-s">1 / 2</span><span class="tt-svc-row__dot" aria-hidden="true">·</span>Shelf <span class="num-s">2 / 4</span></span></span>
+            <span class="tt-pips" role="img" aria-label="Carrying 1 of 2"><span class="tt-pip is-on"></span><span class="tt-pip"></span></span>
+          </li>
+          <li class="tt-svc-row is-out">
+            <span class="tt-svc-row__well"><span class="tt-glyph tt-glyph--32" data-glyph="tonic" aria-hidden="true"></span></span>
+            <span class="tt-svc-row__text"><span class="tt-svc-row__name ui-title">Fire Resistance Tonic</span><span class="tt-svc-row__sub tt-label">Out of stock<span class="tt-svc-row__dot" aria-hidden="true">·</span>Shelf <span class="num-s">0 / 2</span></span></span>
+            <span class="tt-pips" role="img" aria-label="Carrying 0 of 2"><span class="tt-pip"></span><span class="tt-pip"></span></span>
+          </li>
+          <li class="tt-svc-row">
+            <span class="tt-svc-row__well"><span class="tt-glyph tt-glyph--32" data-glyph="tonic" aria-hidden="true"></span></span>
+            <span class="tt-svc-row__text"><span class="tt-svc-row__name ui-title">Frost Resistance Tonic</span><span class="tt-svc-row__sub tt-label">Carry <span class="num-s">0 / 2</span><span class="tt-svc-row__dot" aria-hidden="true">·</span>Shelf <span class="num-s">2 / 2</span></span></span>
+            <span class="tt-pips" role="img" aria-label="Carrying 0 of 2"><span class="tt-pip"></span><span class="tt-pip"></span></span>
+          </li>
+          <li class="tt-svc-row is-locked" aria-disabled="true">
+            <span class="tt-svc-row__well"><span class="tt-glyph tt-glyph--32" data-glyph="lock" aria-label="Locked"></span></span>
+            <span class="tt-svc-row__text"><span class="tt-svc-row__name ui-title">Expedition supplies</span><span class="tt-svc-row__sub tt-label">Needs Alchemist Tier 2 · Improved</span></span>
+            <span></span>
+          </li>
+        </ul>
+        <div class="tt-svc-batch">
+          <hr class="tt-divider">
+          <p class="tt-svc-batch__title ui-label">Next batch · after your next expedition</p>
+          <div class="tt-mage-quote__rows ui-label">
+            <div class="tt-mage-quote__row">Health Potion<span class="tt-mage-quote__dots"></span><b class="num-s">+4</b></div>
+            <div class="tt-mage-quote__row">Antidote<span class="tt-mage-quote__dots"></span><b class="num-s">+2</b></div>
+            <div class="tt-mage-quote__row">Fire Resistance Tonic<span class="tt-mage-quote__dots"></span><b class="num-s">+2</b></div>
+            <div class="tt-mage-quote__row">Frost Resistance Tonic<span class="tt-mage-quote__dots"></span><b class="num-s">+0</b></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="tt-mage-main">
+        <div class="tt-mage-tray" aria-label="Selected stock">
+          <span class="tt-railbar tt-svc-rail" aria-hidden="true"></span>
+          <span class="tt-string tt-string--light tt-svc-string" aria-hidden="true"></span>
+          <div class="tt-mage-tray__hang">
+            <article class="tt-itemcard tt-itemcard--common">
+              <span class="tt-mage-ear"></span>
+              <div class="tt-itemcard__band"><span class="tt-rarity" data-rarity="common"></span><span class="tt-itemcard__band-text">COMMON · Consumable</span></div>
+              <div class="tt-itemcard__body">
+                <div><p class="tt-itemcard__name ui-title">Health Potion</p><p class="tt-itemcard__type ui-label">Consumable · stacks to 10</p></div>
+                <dl class="tt-itemcard__stats">
+                  <dt class="ui-label">You carry</dt><dd class="num-s">3</dd><dd class="tt-itemcard__dcell"></dd>
+                  <dt class="ui-label">Field cap</dt><dd class="num-s">5</dd><dd class="tt-itemcard__dcell"></dd>
+                  <dt class="ui-label">On the shelf</dt><dd class="num-s">6</dd><dd class="tt-itemcard__dcell"></dd>
+                </dl>
+                <p class="tt-itemcard__desc ui-body">Restores a chunk of health. The Alchemist limits how many you can field.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <section class="tt-mage-counter" aria-label="Quote">
+          <div class="tt-mage-quote__rows ui-label">
+            <div class="tt-mage-quote__row">Take<span class="tt-mage-quote__dots"></span><b class="num-s">2</b></div>
+            <div class="tt-mage-quote__row">You carry<span class="tt-mage-quote__dots"></span><b class="num-s tt-svc-change">3<span class="tt-glyph tt-glyph--20" data-glyph="arrow-right" aria-label="to"></span>5</b></div>
+            <div class="tt-mage-quote__row">Shelf<span class="tt-mage-quote__dots"></span><b class="num-s tt-svc-change">6<span class="tt-glyph tt-glyph--20" data-glyph="arrow-right" aria-label="to"></span>4</b></div>
+          </div>
+          <p class="tt-mage-quote__body ui-body">Restock fills you up to the field cap from the village shelf.</p>
+          <span class="tt-mage-identify" role="button"><span class="tt-key">Enter</span><span class="ui-title">Restock</span></span>
+        </section>
+      </div>
+    </div>
+
+    <footer class="tt-hintbar tt-pause__footer" aria-label="Screen actions"><span class="tt-hint"><span class="tt-key tt-key--sm">Esc</span>Back</span><span class="tt-hintbar__sep" aria-hidden="true"></span><span class="tt-hint"><span class="tt-key tt-key--sm">Enter</span>Restock</span></footer>
+  </section>
+
+  <section class="tt-svc-states" aria-label="StockRow and RestockButton states">
+    <span class="kicker tt-caps">2 · StockRow and RestockButton states</span>
+    <div class="tt-svc-states__grid">
+      <figure class="tt-svc-specimen">
+        <div class="tt-svc-row">
+          <span class="tt-svc-row__well"><span class="tt-glyph tt-glyph--32" data-glyph="potion" aria-hidden="true"></span></span>
+          <span class="tt-svc-row__text"><span class="tt-svc-row__name ui-title">Health Potion</span><span class="tt-svc-row__sub tt-label">Carry <span class="num-s">3 / 5</span><span class="tt-svc-row__dot" aria-hidden="true">·</span>Shelf <span class="num-s">6 / 8</span></span></span>
+          <span class="tt-pips" role="img" aria-label="Carrying 3 of 5"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip"></span><span class="tt-pip"></span></span>
+        </div>
+        <figcaption class="tt-label">Idle · pips are the field cap: filled = carried, hollow = room</figcaption>
+      </figure>
+      <figure class="tt-svc-specimen">
+        <div class="tt-svc-row tt-selectable is-selected">
+          <span class="tt-svc-row__well"><span class="tt-glyph tt-glyph--32" data-glyph="potion" aria-hidden="true"></span></span>
+          <span class="tt-svc-row__text"><span class="tt-svc-row__name ui-title">Health Potion</span><span class="tt-svc-row__sub tt-label">Carry <span class="num-s">3 / 5</span><span class="tt-svc-row__dot" aria-hidden="true">·</span>Shelf <span class="num-s">6 / 8</span></span></span>
+          <span class="tt-pips tt-pips--enamel" role="img" aria-label="Carrying 3 of 5"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip"></span><span class="tt-pip"></span></span>
+        </div>
+        <figcaption class="tt-label">Selected (mouse pick, no focus ring): the enamel fill</figcaption>
+      </figure>
+      <figure class="tt-svc-specimen">
+        <div class="tt-svc-row tt-selectable is-selected tt-focus--fill-gap is-focused">
+          <span class="tt-svc-row__well"><span class="tt-glyph tt-glyph--32" data-glyph="potion" aria-hidden="true"></span></span>
+          <span class="tt-svc-row__text"><span class="tt-svc-row__name ui-title">Health Potion</span><span class="tt-svc-row__sub tt-label">Carry <span class="num-s">5 / 5</span><span class="tt-svc-row__dot" aria-hidden="true">·</span>Shelf <span class="num-s">4 / 8</span></span></span>
+          <span class="tt-pips tt-pips--enamel" role="img" aria-label="Carrying 5 of 5"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span></span>
+        </div>
+        <figcaption class="tt-label">Selected + focused, after Restock: at the field cap</figcaption>
+      </figure>
+      <figure class="tt-svc-specimen">
+        <div class="tt-svc-row is-out">
+          <span class="tt-svc-row__well"><span class="tt-glyph tt-glyph--32" data-glyph="tonic" aria-hidden="true"></span></span>
+          <span class="tt-svc-row__text"><span class="tt-svc-row__name ui-title">Fire Resistance Tonic</span><span class="tt-svc-row__sub tt-label">Out of stock<span class="tt-svc-row__dot" aria-hidden="true">·</span>Shelf <span class="num-s">0 / 2</span></span></span>
+          <span class="tt-pips" role="img" aria-label="Carrying 0 of 2"><span class="tt-pip"></span><span class="tt-pip"></span></span>
+        </div>
+        <figcaption class="tt-label">Out of stock: dashed edge; still focusable to read; Restock disabled</figcaption>
+      </figure>
+      <figure class="tt-svc-specimen">
+        <div class="tt-svc-row is-locked" aria-disabled="true">
+          <span class="tt-svc-row__well"><span class="tt-glyph tt-glyph--32" data-glyph="lock" aria-label="Locked"></span></span>
+          <span class="tt-svc-row__text"><span class="tt-svc-row__name ui-title">Expedition supplies</span><span class="tt-svc-row__sub tt-label">Needs Alchemist Tier 2 · Improved</span></span>
+          <span></span>
+        </div>
+        <figcaption class="tt-label">Locked by building tier: dashed, the lock glyph and the tier it needs; not focusable</figcaption>
+      </figure>
+      <figure class="tt-svc-specimen">
+        <div class="tt-empty-box"><p class="tt-empty">Nothing on the shelf.<span class="tt-empty__sub">The next batch comes after an expedition.</span></p></div>
+        <figcaption class="tt-label">Empty shelf: the one empty state (example copy); Restock disabled</figcaption>
+      </figure>
+    </div>
+    <div class="tt-svc-states__row">
+      <figure class="tt-svc-btnspec"><span class="tt-mage-identify" role="button"><span class="tt-key">Enter</span><span class="ui-title">Restock</span></span><figcaption class="tt-label">Idle</figcaption></figure>
+      <figure class="tt-svc-btnspec"><span class="tt-mage-identify is-pressed" role="button"><span class="tt-key is-pressed">Enter</span><span class="ui-title">Restock</span></span><figcaption class="tt-label">Pressed</figcaption></figure>
+      <figure class="tt-svc-btnspec"><span class="tt-mage-identify is-focused" role="button"><span class="tt-key">Enter</span><span class="ui-title">Restock</span></span><figcaption class="tt-label">Focused (mouse or Tab)</figcaption></figure>
+      <figure class="tt-svc-btnspec"><span class="tt-mage-identify" role="button" aria-disabled="true"><span class="tt-glyph" data-glyph="lock" aria-hidden="true"></span><span class="ui-title">Restock</span></span><figcaption class="tt-label">Disabled: at the field cap, or the shelf is empty</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="tt-specband" aria-label="Spec notes">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">The pattern</p>
+      <p class="tt-label">Nameplate on two strings ("Building · Service", building glyph). One menu plate, 1728 x 796 at (96, 140): the list (560) of what the service works on, the tray with the selected one hung from the rail, the counter (quote rows, one plain line, the action keycap). The hint bar under it. Instances: Mage Tower · Identify, Alchemist · Restock.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Gamepad (not drawn)</p>
+      <p class="tt-label">The hint bar reads "B Back | A Restock"; the D-pad and left stick move the list; A restocks the selected row. Mouse: click a row to select it, click the keycap to restock.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Numbers</p>
+      <p class="tt-label">Real: Health Potion stacks to 10. Example: the shelf sizes, the field caps, the batch sizes, the stock list and the tier gate. The field-cap model, the restock clock and the building tiers are TODO(DECISION).</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">No price</p>
+      <p class="tt-label">There is no currency or wallet, so the quote shows no cost: Restock draws on the village shelf, which the town's output refills. A price row waits on that TODO(DECISION).</p>
+    </div>
+  </section>
+</div>
+<script>
+(function () {
+  /* The gauge plate, built exactly as HUDLayout's preview builds it (its gauge() copied verbatim: same markup, same classes). */
+  function C() { return ' class=' + JSON.stringify([].filter.call(arguments, Boolean).join(' ')); }
+  var MAXST = 134; /* MaxStamina = 100 x (1 + 0.04 x EffEnd) at default attributes */
+  var TIER = { green: ['green', '×1.25'], yellow: ['yellow', '×1.0'], red: ['red', '×0.75'], ex: ['exhausted', '×0.5'] };
+  function tierOf(st) { var f = st / MAXST; return st <= 0 ? 'ex' : f >= 0.66 ? 'green' : f >= 0.33 ? 'yellow' : 'red'; }
+  /* Spell Point tokens (D17): 22 px up to 10, 16 px for 11-13, 14 px for 14-16; above 16 the bar fallback. */
+  function tokens(n, max) {
+    if (max > 16) return '<div class="tt-bar tt-bar--sp" style="--v:' + (n / max * 100) + '%" role="img" aria-label="' + n + ' of ' + max + ' Spell Points"><span class="tt-bar__fill"></span></div>';
+    var h = '<span' + C('tt-tally-sp', max > 13 ? 'tt-tally-sp--14' : max > 10 && 'tt-tally-sp--16') + ' aria-hidden="true">';
+    for (var g = 0; g < Math.ceil(max / 5); g++) {
+      h += '<span class="tt-tally-sp__group">';
+      for (var i = g * 5; i < Math.min(max, g * 5 + 5); i++) h += '<span' + C('tt-tally-sp__token', i < n && 'is-on') + '></span>';
+      h += '</span>';
+    }
+    return h + '</span>';
+  }
+  function notch(at) { return '<span class="tt-bar__notch" style="--at:' + at + '%"></span>'; }
+  function tick(at) { return '<span class="tt-gauge__tick" style="--at:' + at + '%"></span>'; }
+  function gauge(o) {
+    var tier = tierOf(o.st), t = TIER[tier], ex = tier === 'ex', low = o.hp <= 25, max = o.spMax || 13, po = o.po;
+    var h = '<div' + C('tt-plate', 'tt-gauge', low && 'tt-gauge--low', low && o.peak && 'is-peak') + ' role="group" aria-label="Player resources">';
+    h += '<div class="tt-gauge__row tt-gauge__row--hp"><span class="num-s tt-gauge__label">HP</span><div class="tt-gauge__track">' + tick(25) +
+      '<div class="tt-bar tt-bar--vital" style="--v:' + o.hp + '%;--t:' + (o.trail || 0) + '%;--l:' + (o.lead || 0) + '%"><span class="tt-bar__trail"></span><span class="tt-bar__lead"></span><span class="tt-bar__fill"></span>' + notch(25) + '</div></div>' +
+      '<span class="num-l tt-gauge__value tt-gauge__value--hp">' + o.hp + '%</span></div>';
+    h += '<div class="tt-gauge__row tt-gauge__row--st"><span class="num-s tt-gauge__label">ST</span><div class="tt-gauge__track">' + tick(33) + tick(66) +
+      '<div' + C('tt-bar', ex ? 'tt-bar--exhausted' : 'tt-bar--' + t[0], tier === 'red' && 'is-striped') + ' style="--v:' + (ex ? 0 : o.st / MAXST * 100) + '%;--d:' + (ex ? Math.min(-o.st / MAXST * 100, 100) : 0) + '%">' +
+      (ex ? '<span class="tt-bar__debt"></span>' : '<span class="tt-bar__fill"></span>') + notch(33) + notch(66) + '</div>' +
+      (o.guard ? '<span class="tt-gauge__guard"><span class="tt-glyph" data-glyph="block" aria-hidden="true"></span>Guard broken</span>' : '') + '</div>' +
+      '<span class="tt-gauge__stend"><span' + C('tt-gauge__sprint', o.sprint && 'is-on') + ' role="img" aria-label="Sprint ' + (o.sprint ? 'on' : 'off') + '"><span class="tt-glyph" data-glyph="sprint" aria-hidden="true"></span></span>' +
+      '<span' + C('tt-pill', 'tt-pill--' + t[0], 'tt-gauge__pill') + '>' + t[1] + '</span></span></div>';
+    var broken = po === 'broken';
+    h += '<div' + C('tt-gauge__row', 'tt-gauge__row--po', po === null && 'is-hidden') + '><span></span><div class="tt-gauge__track">' +
+      '<div' + C('tt-bar', 'tt-bar--hair', 'tt-bar--posture', broken && 'is-posture-broken') + ' style="--v:' + (broken ? 100 : (typeof po === 'number' ? po : 0)) + '%"><span class="tt-bar__fill"></span></div>' +
+      '</div><span></span></div>';
+    h += '<div class="tt-gauge__row tt-gauge__row--sp"><span class="num-s tt-gauge__label">SP</span>' + tokens(o.sp, max) +
+      '<span class="num-m tt-gauge__value">' + o.sp + ' / ' + max + '</span></div>';
+    return h + '</div>';
+  }
+  document.querySelectorAll('[data-gauge]').forEach(function (el) { el.innerHTML = gauge(JSON.parse(el.getAttribute('data-gauge'))); });
+  TinTally.mount(document.getElementById('sheet'));
+})();
+</script>
+</body>
+</html>

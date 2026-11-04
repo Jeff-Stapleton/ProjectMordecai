@@ -1,0 +1,63 @@
+<!-- @dsCard group="HUD" height=1142 width=960 subtitle="Item A-D and the Throw slot above the loadout plate: glyph, keycap, count" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>QuickItems</title></head>
+<body>
+<div class="tt-root tt-quick-sheet" id="sheet">
+
+  <span class="kicker tt-caps tt-label">Keyboard and mouse · 1:1 · Item A has no key yet, Item D empty</span>
+  <div class="tt-quick-sheet__stage tt-floor-blockout">
+    <div class="tt-quick" data-quick="knife:5:G potion:3:none antidote:1:2 bandage:2:3 empty::4"></div>
+  </div>
+  <span class="kicker tt-caps tt-label">Gamepad · 1:1 · the same items · Throw and Item C have no button yet</span>
+  <div class="tt-quick-sheet__stage tt-floor-night">
+    <div class="tt-quick" data-quick="knife:5:none potion:3:down antidote:1:left bandage:2:none empty::right"></div>
+  </div>
+  <div class="tt-specband">
+    <div class="tt-specband__item"><p class="tt-specband__title">Keys (control_bindings_v1.1)</p><p class="tt-label">Throw G / Y tap · Item A 1 / D-pad Down · Item B 2 / D-pad Left · Item C 3 / D-pad Up · Item D 4 / D-pad Right.</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">Drawn as unbound (TODO(DECISION), US-097)</p><p class="tt-label">Key 1 casts Restoration (Spell 4) in the game today, so Item A shows the dashed unbound cap: no second "1" on the HUD. On gamepad, D-pad Up is Spell 4 (Item C) and Y tap is next weapon (Throw).</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">Hidden, not collapsed</p><p class="tt-label">Item D has nothing assigned: its slot is Hidden, so A, B and C keep their places. Antidote and Bandage are example items.</p></div>
+  </div>
+
+  <span class="kicker tt-caps tt-label">Slot states</span>
+  <div class="tt-quick-sheet__grid">
+    <div class="tt-quick-sheet__cell"><div class="tt-quick-sheet__cap tt-label"><b>Stocked</b><span>Bandage x2 on Item C</span></div>
+      <div class="tt-quick-sheet__stage tt-floor-grass"><div class="tt-quick" data-quick="bandage:2:3"></div></div></div>
+    <div class="tt-quick-sheet__cell"><div class="tt-quick-sheet__cap tt-label"><b>Full stack</b><span>x10 is the widest count</span></div>
+      <div class="tt-quick-sheet__stage tt-floor-sand"><div class="tt-quick" data-quick="potion:10:4"></div></div></div>
+    <div class="tt-quick-sheet__cell"><div class="tt-quick-sheet__cap tt-label"><b>Used</b><span>Key sunk, x3 to x2</span></div>
+      <div class="tt-quick-sheet__stage tt-floor-mire"><div class="tt-quick" data-quick="antidote:2:2:used"></div></div></div>
+    <div class="tt-quick-sheet__cell"><div class="tt-quick-sheet__cap tt-label"><b>No key yet</b><span>Dashed unbound cap</span></div>
+      <div class="tt-quick-sheet__stage tt-floor-snow"><div class="tt-quick" data-quick="potion:3:none"></div></div></div>
+  </div>
+</div>
+<script>
+(function () {
+  /* C(...) builds a class attribute, G(name) a glyph attribute. */
+  function C() { return ' class=' + JSON.stringify([].filter.call(arguments, Boolean).join(' ')); }
+  function G(n) { return ' data-glyph=' + JSON.stringify(n); }
+  /* id: [name, glyph, glyph tint]. Health Potion is real; Antidote, Bandage and Throwing Knife are examples. */
+  var I = {
+    potion: ['Health Potion', 'potion', 'tt-quick__icon--potion'], antidote: ['Antidote', 'tonic', ''],
+    bandage: ['Bandage', 'bandage', ''], knife: ['Throwing Knife', 'throwable', '']
+  };
+  var DIR = { up: 'Up', down: 'Down', left: 'Left', right: 'Right' };
+  function key(k, pressed) {
+    if (k === 'none') return '<span class="tt-key tt-key--sm tt-key--none tt-quick__key" aria-label="Unbound"></span>';
+    if (DIR[k]) return '<span' + C('tt-key', 'tt-key--sm', 'tt-key--dpad', 'tt-key--dpad-' + k, 'tt-quick__key', pressed && 'is-pressed') + ' aria-label="D-pad ' + DIR[k] + '"></span>';
+    if (k === 'Y') return '<span' + C('tt-key', 'tt-key--sm', 'tt-key--pad', 'tt-quick__key', pressed && 'is-pressed') + '>Y</span>';
+    return '<span' + C('tt-key', 'tt-key--sm', 'tt-quick__key', pressed && 'is-pressed') + '>' + k + '</span>';
+  }
+  function slot(spec) {
+    var a = spec.split(':'), it = I[a[0]], used = a[3] === 'used', thr = a[0] === 'knife';
+    if (!it) return '<div class="tt-plate tt-quick__slot is-empty" aria-hidden="true"></div>';
+    return '<div' + C('tt-plate', 'tt-quick__slot', thr && 'tt-quick__slot--throw', used && 'is-used') + ' aria-label="' + it[0] + ', ' + a[1] + '">' +
+      '<span' + C('tt-glyph', 'tt-quick__icon', it[2]) + G(it[1]) + ' aria-hidden="true"></span>' +
+      '<span class="num-s tt-quick__count">x' + a[1] + '</span>' + key(a[2], used) + '</div>';
+  }
+  document.querySelectorAll('[data-quick]').forEach(function (el) { el.innerHTML = el.getAttribute('data-quick').split(' ').map(slot).join(''); });
+  TinTally.mount(document.getElementById('sheet'));
+})();
+</script>
+</body>
+</html>

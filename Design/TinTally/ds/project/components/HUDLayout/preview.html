@@ -1,0 +1,535 @@
+<!-- @dsCard group="HUD" height=5722 width=1920 subtitle="The whole HUD at 1920 x 1080: a fight, the receipt, a boss fight at low health, and the map with the TV margin" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>HUDLayout</title></head>
+<body>
+<div class="tt-root tt-hud-sheet" id="sheet">
+<svg class="tt-hud-defs" width="0" height="0" aria-hidden="true"><defs><pattern id="tt-hud-hatch-danger" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="12" class="tt-wm__p-danger"/></pattern></defs></svg>
+
+  <header class="tt-hud-sheet__head">
+    <span class="kicker tt-caps">HUD layout · 1920 × 1080 design px · one HUD root on UI.Layer.Game</span>
+    <span class="tt-label">Every piece is its own component's markup at its HUD map box. <b>Left is you</b>, <b>top right is news</b>, <b>the centre is now</b>, <b>bottom centre is interaction</b>, <b>bottom right is the loadout</b>, <b>top centre is for big moments</b>. Three moments at 1:1, then the map. Keyboard and mouse throughout.</span>
+  </header>
+
+  <!-- ===================================================================== FRAME 1: IN A FIGHT -->
+  <section aria-label="In a fight">
+    <span class="kicker tt-caps tt-hud-frame__title">1 · In a fight · the combat hold</span>
+    <div class="tt-hud" role="img" aria-label="The HUD in a fight">
+
+      <!-- World stand-in: core's toy diorama. Blockout floor, two grass zones, a sand path, props. -->
+      <div class="tt-hud-world" id="world-a" aria-hidden="true">
+        <div class="tt-diorama tt-diorama--blockout"></div>
+        <div class="tt-hud-world__zone" style="left:0; top:672px; width:768px; height:408px; border-radius:0 192px 0 0;"><div class="tt-diorama"></div></div>
+        <div class="tt-hud-world__zone" style="left:1536px; top:480px; width:384px; height:384px; border-radius:192px 0 0 192px;"><div class="tt-diorama"></div></div>
+        <span class="tt-diorama__path" style="left:912px; top:800px; height:280px;"></span>
+        <span class="tt-diorama__tree" style="left:96px; top:776px;"></span>
+        <span class="tt-diorama__tree" style="left:300px; top:930px;"></span>
+        <span class="tt-diorama__bush" style="left:196px; top:712px;"></span>
+        <span class="tt-diorama__bush" style="left:560px; top:792px;"></span>
+        <span class="tt-diorama__tree" style="left:1720px; top:560px;"></span>
+        <span class="tt-diorama__rock" style="left:1620px; top:752px;"></span>
+        <span class="tt-diorama__crate" style="left:1400px; top:300px;"></span>
+        <span class="tt-diorama__crate" style="left:1462px; top:322px;"></span>
+        <span class="tt-diorama__rock" style="left:560px; top:300px;"></span>
+        <span class="tt-diorama__post" style="left:1300px; top:640px;"></span>
+        <span class="tt-diorama__post" style="left:1340px; top:640px;"></span>
+        <span class="tt-diorama__post" style="left:1380px; top:640px;"></span>
+      </div>
+
+      <!-- World markers: the Goblin Skirmisher's low sweep (60% of its windup, jumpable) and the aim chevron. -->
+      <svg class="tt-wm-svg" width="1920" height="1080" viewBox="0 0 1920 1080" aria-hidden="true">
+        <g transform="translate(1120 556) scale(1 0.77) rotate(-90) scale(1.05)">
+          <path d="M0,0 L-97.6,-97.6 A138,138 0 0 1 97.6,-97.6 Z" fill="url(#tt-hud-hatch-danger)"/>
+          <path d="M0,0 L-58.5,-58.5 A82.8,82.8 0 0 1 58.5,-58.5 Z" class="tt-wm__charge"/>
+          <path d="M-84.3,-93.6 A126,126 0 0 1 84.3,-93.6" class="tt-wm__band-base"/>
+          <path d="M-84.3,-93.6 A126,126 0 0 1 84.3,-93.6" class="tt-wm__band"/>
+          <path d="M0,0 L-97.6,-97.6 A138,138 0 0 1 97.6,-97.6 Z" class="tt-wm__ink"/>
+          <path d="M0,0 L-97.6,-97.6 A138,138 0 0 1 97.6,-97.6 Z" class="tt-wm__rim"/>
+        </g>
+        <g transform="translate(960 578) scale(1 0.77) rotate(0)"><g transform="translate(0 -128.8)"><path d="M-24,10 L0,-12 L24,10" class="tt-wm__chev-ink"/><path d="M-24,10 L0,-12 L24,10" class="tt-wm__chev"/></g></g>
+      </svg>
+
+      <!-- World space: the player, three enemies, damage pops. -->
+      <div class="tt-hud__player" aria-label="Player"><div class="tt-callout__pawn"></div><div class="tt-callout__foot"></div></div>
+
+      <div class="tt-hud__foot" style="left:944px; top:380px;">
+        <div class="tt-etag">
+          <div class="tt-etag__head"><span class="tt-etag__marks" aria-label="Elite"><i class="tt-etag__dia"></i></span><span class="ui-label tt-etag__name">Corrupted Knight</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:62%;--t:74%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:48%"><span class="tt-bar__fill"></span></div>
+          </div>
+        </div>
+        <div class="tt-etag__body tt-etag__body--elite"></div><div class="tt-etag__shadow"></div>
+      </div>
+
+      <div class="tt-hud__foot" style="left:690px; top:600px;">
+        <div class="tt-etag is-broken">
+          <div class="tt-etag__head"><span class="ui-label tt-etag__name">Frontliner</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:40%;--t:52%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:70%"><span class="tt-bar__fill"></span></div>
+          </div>
+          <span class="tt-etag__state">Broken <span class="tt-num">×1.5</span></span>
+        </div>
+        <div class="tt-hud__crit">
+          <div class="tt-etag__crit"><i class="tt-etag__corner tt-etag__corner--tl"></i><i class="tt-etag__corner tt-etag__corner--tr"></i><i class="tt-etag__corner tt-etag__corner--bl"></i><i class="tt-etag__corner tt-etag__corner--br"></i></div>
+          <div class="tt-etag__body"></div><div class="tt-etag__shadow"></div>
+          <span class="tt-tag tt-tag--plain tt-etag__riposte tt-hud__riposte"><span class="tt-key tt-key--sm tt-key--mouse" aria-label="Left mouse button"><span class="tt-key__mouse tt-key__mouse--l"></span></span><span class="ui-label">Riposte</span></span>
+        </div>
+      </div>
+
+      <div class="tt-hud__foot" style="left:1120px; top:556px;">
+        <div class="tt-etag">
+          <div class="tt-etag__head"><span class="ui-label tt-etag__name">Goblin Skirmisher</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:55%;--t:61%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:82%"><span class="tt-bar__fill"></span></div>
+          </div>
+          <div class="tt-etag__fx"><span class="tt-etag__st"><span class="tt-glyph" data-glyph="burning" aria-label="Burning"></span></span></div>
+        </div>
+        <div class="tt-etag__body tt-etag__body--small"></div><div class="tt-etag__shadow"></div>
+      </div>
+
+      <div class="tt-hud__hit tt-hud__hit--old" style="left:892px; top:300px;"><span class="tt-dmg"><span class="pop tt-dmg__n">14</span></span></div>
+      <div class="tt-hud__hit" style="left:996px; top:318px;"><span class="tt-dmg"><span class="pop tt-dmg__n">18</span></span></div>
+      <div class="tt-hud__hit" style="left:1180px; top:506px;"><span class="tt-dmg tt-dmg--fire"><span class="pop tt-dmg__n">3</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="fire" aria-label="Fire"></span></span></span></div>
+
+      <!-- Screen space: the HUD map. -->
+      <div class="tt-hud__gauge" data-gauge='{"hp":64,"trail":76,"st":70,"po":70,"sp":5}'></div>
+
+      <div class="tt-hud__spells">
+        <div class="tt-plate tt-spell" aria-label="Fireball, 3 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--fire" data-glyph="fireball" aria-label="Fireball"></span></div>
+          <div class="tt-spell__cost" aria-label="3 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">Q</span>
+        </div>
+        <div class="tt-plate tt-spell is-cooling" aria-label="Blink, 2 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="blink" aria-label="Blink"></span><div class="tt-spell__shutter" style="--cd:60%"></div><span class="tt-spell__time num-m">2.4</span></div>
+          <div class="tt-spell__cost" aria-label="2 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">E</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Stone Skin, 4 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="stoneskin" aria-label="Stone Skin"></span></div>
+          <div class="tt-spell__cost" aria-label="4 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">R</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Restoration, 3 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--heal" data-glyph="restoration" aria-label="Restoration"></span></div>
+          <div class="tt-spell__cost" aria-label="3 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">1</span>
+        </div>
+      </div>
+
+      <div class="tt-hud__status">
+        <div class="tt-status-row">
+          <span class="tt-status tt-status--debuff" aria-label="Frostbitten"><span class="tt-glyph tt-status__glyph tt-status__glyph--frost" data-glyph="frostbitten" aria-hidden="true"></span><span class="tt-status__name">Frostbitten</span><span class="tt-pips tt-status__pips tt-status__pips--frost" role="img" aria-label="2 of 4 stacks"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip"></span><span class="tt-pip"></span></span><span class="num-s tt-status__time">5.1</span></span>
+          <span class="tt-status tt-status--buff" aria-label="Focused"><span class="tt-glyph tt-status__glyph" data-glyph="focused" aria-hidden="true"></span><span class="tt-status__name">Focused</span><span class="num-s tt-status__time tt-status__time--word">3/3</span></span>
+        </div>
+      </div>
+
+      <div class="tt-hud__rail">
+        <div class="tt-rail">
+          <div class="tt-plate tt-plate--rail tt-railhead">
+            <div class="tt-plate__row">
+              <span class="tt-railhead__kills num-l">Kills: 7</span>
+              <span class="tt-pill tt-railhead__pending" aria-label="3 waiting"><span class="tt-railhead__pendingnum num-m">+3</span></span>
+            </div>
+            <span class="tt-railhead__slot" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tt-hud__callout"><div class="tt-callout"><span class="callout tt-outlined-4 tt-callout__text">Perfect Block!</span></div></div>
+
+      <div class="tt-hud__prompt">
+        <div class="tt-iprompt">
+          <div class="tt-iprompt__box"></div>
+          <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+        </div>
+      </div>
+
+      <div class="tt-hud__quick">
+        <div class="tt-quick">
+          <div class="tt-plate tt-quick__slot tt-quick__slot--throw" aria-label="Throwing Knife, 5"><span class="tt-glyph tt-quick__icon" data-glyph="throwable" aria-hidden="true"></span><span class="num-s tt-quick__count">x5</span><span class="tt-key tt-key--sm tt-quick__key">G</span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Health Potion, 3"><span class="tt-glyph tt-quick__icon tt-quick__icon--potion" data-glyph="potion" aria-hidden="true"></span><span class="num-s tt-quick__count">x3</span><span class="tt-key tt-key--sm tt-key--none tt-quick__key" aria-label="Unbound"></span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Antidote, 1"><span class="tt-glyph tt-quick__icon" data-glyph="tonic" aria-hidden="true"></span><span class="num-s tt-quick__count">x1</span><span class="tt-key tt-key--sm tt-quick__key">2</span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Bandage, 2"><span class="tt-glyph tt-quick__icon" data-glyph="bandage" aria-hidden="true"></span><span class="num-s tt-quick__count">x2</span><span class="tt-key tt-key--sm tt-quick__key">3</span></div>
+          <div class="tt-plate tt-quick__slot is-empty" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div class="tt-hud__loadout">
+        <div class="tt-plate tt-loadout" aria-label="Equipped weapon">
+          <div class="tt-loadout__well"><span class="tt-glyph tt-glyph--48" data-glyph="longsword" aria-hidden="true"></span></div>
+          <div class="tt-loadout__body"><span class="ui-title tt-loadout__name">Longsword</span><span class="ui-label tt-loadout__sub"><span class="tt-glyph" data-glyph="slash" aria-hidden="true"></span><span>Slash</span></span></div>
+          <span class="tt-key tt-loadout__key">Tab</span>
+        </div>
+      </div>
+    </div>
+    <div class="tt-specband">
+      <div class="tt-specband__item"><p class="tt-specband__title">What changes in the hold</p><p class="tt-label">Only the callout under the player ("Perfect Block!"), the damage numbers and the rail's badge (+3, the number only). Tickets, plates and the receipt wait.</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">Always visible (state, not news)</p><p class="tt-label">Gauge plate: HP 64% with its DamageTrail ghost from 76, Stamina 70 / 134 Yellow ×1.0, posture 70, 5 / 13 SP. Spell slots: Blink cooling 2.4 s. Rail head "Kills: 7". Loadout plate. The [I] Inventory hint.</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">Contextual</p><p class="tt-label">Two status chips (Frostbitten at 2 of 4 stacks, drawn as pips; Focused). Quick items (Item A has no key yet: the dashed cap). Enemy tags: the Elite's always on; the broken Frontliner opens the Riposte window.</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">World markers</p><p class="tt-label">The aim chevron (today pinned to +X, straight up the screen). The Goblin Skirmisher's low sweep at 60% of its windup: the player stands in it, and its striped band says a jump clears it. Physical numbers carry no glyph; the burn tick carries fire.</p></div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== FRAME 2: AFTER THE FIGHT -->
+  <section aria-label="After the fight">
+    <span class="kicker tt-caps tt-hud-frame__title">2 · After the fight · the receipt</span>
+    <div class="tt-hud" role="img" aria-label="The HUD after the fight">
+      <div class="tt-hud-world" data-world="world-a" aria-hidden="true"></div>
+
+      <div class="tt-hud__player" aria-label="Player"><div class="tt-callout__pawn"></div><div class="tt-callout__foot"></div></div>
+
+      <div class="tt-hud__pick" style="left:760px; top:730px; --ih:28px;">
+        <span class="tt-pitem tt-pitem--potion"></span>
+        <div class="tt-plabel"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span><span class="ui-label tt-plabel__name">Health Potion</span></div></div>
+      </div>
+      <div class="tt-hud__pick" style="left:1090px; top:612px; --ih:34px;">
+        <span class="tt-pitem tt-pitem--sword"></span>
+        <div class="tt-plabel tt-plabel--focus"><div class="tt-plabel__tag is-focused"><span class="tt-plabel__band"></span><span class="tt-key tt-key--sm">F</span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span><span class="ui-label tt-plabel__name">Rusty Sword</span></div></div>
+      </div>
+
+      <div class="tt-hud__gauge" data-gauge='{"hp":64,"st":134,"po":null,"sp":5}'></div>
+
+      <div class="tt-hud__spells">
+        <div class="tt-plate tt-spell" aria-label="Fireball, 3 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--fire" data-glyph="fireball" aria-label="Fireball"></span></div>
+          <div class="tt-spell__cost" aria-label="3 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">Q</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Blink, 2 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="blink" aria-label="Blink"></span></div>
+          <div class="tt-spell__cost" aria-label="2 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">E</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Stone Skin, 4 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="stoneskin" aria-label="Stone Skin"></span></div>
+          <div class="tt-spell__cost" aria-label="4 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">R</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Restoration, 3 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--heal" data-glyph="restoration" aria-label="Restoration"></span></div>
+          <div class="tt-spell__cost" aria-label="3 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">1</span>
+        </div>
+      </div>
+
+      <div class="tt-hud__rail">
+        <div class="tt-rail" style="--tt-rail-tail:28px">
+          <div class="tt-plate tt-plate--rail tt-railhead">
+            <div class="tt-plate__row"><span class="tt-railhead__kills num-l">Kills: 10</span></div>
+            <span class="tt-railhead__slot" aria-hidden="true"></span>
+          </div>
+          <div class="tt-tag-stack tt-tag-stack--light">
+            <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill has-foot is-new">
+              <div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">6 / 20</span></div>
+              <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Longswords</span></div>
+              <div class="tt-ticket__foot"><span class="tt-glyph tt-glyph--20" data-glyph="seal" aria-label="The Tally"></span><span class="tt-ticket__foottext">Six. Up from five.</span></div>
+              <span class="tt-ticket__peel" aria-hidden="true"></span>
+            </div>
+            <div class="tt-tag tt-ticket tt-ticket--slip tt-ticket--r-common">
+              <span class="tt-glyph" data-glyph="ore" aria-label="Iron Ore"></span>
+              <span class="tt-tag__line tt-ticket__name">Iron Ore</span>
+              <span class="tt-ticket__count num-s">x3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tt-hud__plate">
+        <div class="tt-tallyplate-unit">
+          <div class="tt-plate tt-plate--moment tt-plate--riveted tt-tallyplate tt-tallyplate--common">
+            <span class="tt-tallyplate__badge tt-tallyplate__badge--common"><span class="tt-glyph tt-glyph--48" data-glyph="fire" aria-label="Pyromaniac"></span></span>
+            <div class="tt-tallyplate__text">
+              <span class="tt-tallyplate__kicker kicker tt-caps">Feat unlocked · Common</span>
+              <span class="tt-tallyplate__title tally-title">Pyromaniac</span>
+              <span class="tt-tallyplate__cause ui-label">Burned 6 enemies at once.</span>
+            </div>
+          </div>
+          <div class="tt-tag-hang tt-tag-hang--light tt-tallyplate__hang">
+            <span class="tt-tag tt-tallyplate__remark"><span class="tt-glyph tt-glyph--20" data-glyph="seal" aria-label="The Tally"></span>Six at once. The Tally checked twice.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tt-hud__prompt">
+        <div class="tt-iprompt">
+          <div class="tt-iprompt__box"><div class="tt-tag tt-iprompt__tag"><span class="tt-key">F</span><span class="ui-body tt-iprompt__text">Pick up Rusty Sword</span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span></div></div>
+          <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+        </div>
+      </div>
+
+      <div class="tt-hud__quick">
+        <div class="tt-quick">
+          <div class="tt-plate tt-quick__slot tt-quick__slot--throw" aria-label="Throwing Knife, 5"><span class="tt-glyph tt-quick__icon" data-glyph="throwable" aria-hidden="true"></span><span class="num-s tt-quick__count">x5</span><span class="tt-key tt-key--sm tt-quick__key">G</span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Health Potion, 3"><span class="tt-glyph tt-quick__icon tt-quick__icon--potion" data-glyph="potion" aria-hidden="true"></span><span class="num-s tt-quick__count">x3</span><span class="tt-key tt-key--sm tt-key--none tt-quick__key" aria-label="Unbound"></span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Antidote, 1"><span class="tt-glyph tt-quick__icon" data-glyph="tonic" aria-hidden="true"></span><span class="num-s tt-quick__count">x1</span><span class="tt-key tt-key--sm tt-quick__key">2</span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Bandage, 2"><span class="tt-glyph tt-quick__icon" data-glyph="bandage" aria-hidden="true"></span><span class="num-s tt-quick__count">x2</span><span class="tt-key tt-key--sm tt-quick__key">3</span></div>
+          <div class="tt-plate tt-quick__slot is-empty" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div class="tt-hud__loadout">
+        <div class="tt-plate tt-loadout" aria-label="Equipped weapon">
+          <div class="tt-loadout__well"><span class="tt-glyph tt-glyph--48" data-glyph="longsword" aria-hidden="true"></span></div>
+          <div class="tt-loadout__body"><span class="ui-title tt-loadout__name">Longsword</span><span class="ui-label tt-loadout__sub"><span class="tt-glyph" data-glyph="slash" aria-hidden="true"></span><span>Slash</span></span></div>
+          <span class="tt-key tt-loadout__key">Tab</span>
+        </div>
+      </div>
+    </div>
+    <div class="tt-specband">
+      <div class="tt-specband__item"><p class="tt-specband__title">The receipt</p><p class="tt-label">After 2.5 s of calm the three waiting entries printed 350 ms apart: the Iron Ore slip, the SKILL UP ticket (newest on top, corner peeled), then the Pyromaniac plate at top centre with its remark on the light cord. The badge counted down and went.</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">State</p><p class="tt-label">No status chips (none active). Posture hidden at max. Stamina back to 134 / 134 Green (it does not regenerate in the game yet, N30). SP still 5 / 13 (no SP regen yet, N6).</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">Interaction</p><p class="tt-label">The Rusty Sword is in reach: its label is focused (core focus ring with the ink keyline, which carries it on the light blockout) and the prompt reads F + "Pick up Rusty Sword", docked 12 px left of the Inventory hint.</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">Example data</p><p class="tt-label">Both remarks are example copy. A SKILL UP from use assumes use-based ranks, which are TODO(DECISION): today ranks are bought with Allocate.</p></div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== FRAME 3: BOSS FIGHT, LOW HEALTH -->
+  <section aria-label="Boss fight at low health">
+    <span class="kicker tt-caps tt-hud-frame__title">3 · Boss fight · the 20 s cap, a phase card, low health</span>
+    <div class="tt-hud" role="img" aria-label="The HUD in a boss fight at low health">
+
+      <!-- World stand-in: a Searing Expanse arena. Dark basalt (night) floor, a sand arena, pillars, scorch marks. -->
+      <div class="tt-hud-world" aria-hidden="true">
+        <div class="tt-diorama tt-diorama--night"></div>
+        <span class="tt-diorama__patch" style="left:384px; top:432px; width:1152px; height:528px; border-radius:96px;"></span>
+        <div class="tt-hud-world__scorch" style="left:1110px; top:690px; width:300px; height:110px;"></div>
+        <div class="tt-hud-world__scorch" style="left:520px; top:600px; width:220px; height:84px;"></div>
+        <span class="tt-diorama__rock" style="left:420px; top:470px;"></span>
+        <span class="tt-diorama__rock" style="left:1440px; top:470px;"></span>
+        <span class="tt-diorama__rock" style="left:420px; top:880px;"></span>
+        <span class="tt-diorama__rock" style="left:1440px; top:880px;"></span>
+        <span class="tt-diorama__post" style="left:700px; top:452px;"></span>
+        <span class="tt-diorama__post" style="left:1200px; top:452px;"></span>
+      </div>
+
+      <div class="tt-hud__player" aria-label="Player"><div class="tt-callout__pawn"></div><div class="tt-callout__foot"></div></div>
+
+      <div class="tt-hud__foot" style="left:1330px; top:660px;" aria-label="Iron Warden">
+        <div class="tt-etag__body tt-etag__body--elite tt-etag__body--steel tt-hud-world__colossus"></div><div class="tt-etag__shadow"></div>
+      </div>
+
+      <div class="tt-hud__hit tt-hud__hit--old" style="left:1180px; top:560px;"><span class="tt-dmg"><span class="pop tt-dmg__n">14</span></span></div>
+      <div class="tt-hud__hit" style="left:1232px; top:480px;"><span class="tt-dmg tt-dmg--crit"><span class="tt-dmg__core"><span class="tt-dmg__burst"></span><span class="pop tt-dmg__n">42!</span></span></span></div>
+
+      <div class="tt-hud__gauge" data-gauge='{"hp":22,"trail":30,"st":30,"po":45,"sp":3,"peak":true}'></div>
+
+      <div class="tt-hud__spells">
+        <div class="tt-plate tt-spell is-cooling" aria-label="Fireball, 3 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--fire" data-glyph="fireball" aria-label="Fireball"></span><div class="tt-spell__shutter" style="--cd:60%"></div><span class="tt-spell__time num-m">1.2</span></div>
+          <div class="tt-spell__cost" aria-label="3 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">Q</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Blink, 2 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="blink" aria-label="Blink"></span></div>
+          <div class="tt-spell__cost" aria-label="2 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">E</span>
+        </div>
+        <div class="tt-plate tt-spell is-broke" aria-label="Stone Skin, 4 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="stoneskin" aria-label="Stone Skin"></span></div>
+          <span class="tt-spell__lock"><span class="tt-glyph tt-glyph--20" data-glyph="lock" aria-label="Locked"></span><span class="ui-label">SP</span></span>
+          <div class="tt-spell__cost" aria-label="4 SP"><span class="tt-spell__dot is-hollow"></span><span class="tt-spell__dot is-hollow"></span><span class="tt-spell__dot is-hollow"></span><span class="tt-spell__dot is-hollow"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">R</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Restoration, 3 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--heal" data-glyph="restoration" aria-label="Restoration"></span></div>
+          <div class="tt-spell__cost" aria-label="3 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">1</span>
+        </div>
+      </div>
+
+      <div class="tt-hud__status">
+        <div class="tt-status-row">
+          <span class="tt-status tt-status--debuff" aria-label="Burning"><span class="tt-glyph tt-status__glyph tt-status__glyph--fire" data-glyph="burning" aria-hidden="true"></span><span class="tt-status__name">Burning</span><span class="num-s tt-status__time">4.2</span></span>
+        </div>
+      </div>
+
+      <div class="tt-hud__boss">
+        <div class="tt-boss">
+          <div class="tt-plate tt-boss__plate">
+            <div class="tt-bar tt-bar--foe tt-boss__hp" style="--v:58%;--t:66%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-boss__po" style="--v:62%"><span class="tt-bar__fill"></span></div>
+          </div>
+          <div class="tt-plate tt-boss__name"><h3 class="world-heading tt-caps tt-boss__title">Iron Warden</h3></div>
+          <div class="tt-plate tt-boss__phase"><span class="tt-boss__ph tt-caps">Phase 2</span><span class="tt-pips tt-pips--lg tt-boss__pips" role="img" aria-label="Phase 2 of 3"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip"></span></span></div>
+        </div>
+      </div>
+
+      <div class="tt-hud__banner tt-hud__banner--phase">
+        <div class="tt-plate tt-banner tt-banner--phase" role="status">
+          <div class="tt-banner__mat"><div class="tt-banner__panel">
+            <span class="tt-banner__title world-heading tt-caps">Phase 2</span>
+          </div></div>
+        </div>
+      </div>
+
+      <div class="tt-hud__rail">
+        <div class="tt-rail" style="--tt-rail-tail:28px">
+          <div class="tt-plate tt-plate--rail tt-railhead">
+            <div class="tt-plate__row">
+              <span class="tt-railhead__kills num-l">Kills: 31</span>
+              <span class="tt-pill tt-railhead__pending" aria-label="1 waiting"><span class="tt-railhead__pendingnum num-m">+1</span></span>
+            </div>
+            <span class="tt-railhead__slot" aria-hidden="true"></span>
+          </div>
+          <div class="tt-tag-stack tt-tag-stack--light">
+            <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill is-new">
+              <div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">5 / 20</span></div>
+              <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Parrying</span></div>
+              <span class="tt-ticket__peel" aria-hidden="true"></span>
+            </div>
+            <div class="tt-tag tt-ticket tt-ticket--slip tt-ticket--r-common">
+              <span class="tt-glyph" data-glyph="ore" aria-label="Iron Ore"></span>
+              <span class="tt-tag__line tt-ticket__name">Iron Ore</span>
+              <span class="tt-ticket__count num-s">x2</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tt-hud__callout"><div class="tt-callout"><span class="callout tt-outlined-4 tt-callout__text">Parried!</span></div></div>
+      <div class="tt-hud__combo"><div class="tt-combo-slot"><div class="tt-plate tt-combo"><span class="num-m tt-combo__n">Hit 2</span></div></div></div>
+
+      <div class="tt-hud__prompt">
+        <div class="tt-iprompt">
+          <div class="tt-iprompt__box"></div>
+          <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+        </div>
+      </div>
+
+      <div class="tt-hud__quick">
+        <div class="tt-quick">
+          <div class="tt-plate tt-quick__slot tt-quick__slot--throw" aria-label="Throwing Knife, 5"><span class="tt-glyph tt-quick__icon" data-glyph="throwable" aria-hidden="true"></span><span class="num-s tt-quick__count">x5</span><span class="tt-key tt-key--sm tt-quick__key">G</span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Health Potion, 2"><span class="tt-glyph tt-quick__icon tt-quick__icon--potion" data-glyph="potion" aria-hidden="true"></span><span class="num-s tt-quick__count">x2</span><span class="tt-key tt-key--sm tt-key--none tt-quick__key" aria-label="Unbound"></span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Antidote, 1"><span class="tt-glyph tt-quick__icon" data-glyph="tonic" aria-hidden="true"></span><span class="num-s tt-quick__count">x1</span><span class="tt-key tt-key--sm tt-quick__key">2</span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Bandage, 2"><span class="tt-glyph tt-quick__icon" data-glyph="bandage" aria-hidden="true"></span><span class="num-s tt-quick__count">x2</span><span class="tt-key tt-key--sm tt-quick__key">3</span></div>
+          <div class="tt-plate tt-quick__slot is-empty" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div class="tt-hud__loadout">
+        <div class="tt-plate tt-loadout" aria-label="Equipped weapon">
+          <div class="tt-loadout__well"><span class="tt-glyph tt-glyph--48" data-glyph="longsword" aria-hidden="true"></span></div>
+          <div class="tt-loadout__body"><span class="ui-title tt-loadout__name">Longsword</span><span class="ui-label tt-loadout__sub"><span class="tt-glyph" data-glyph="slash" aria-hidden="true"></span><span>Slash</span></span></div>
+          <span class="tt-key tt-loadout__key">Tab</span>
+        </div>
+      </div>
+
+      <!-- LowHealthFrame (GaugePlate's): Health 25% or below. Last child, over everything, at the screen edge. -->
+      <span class="tt-gauge-frame" aria-hidden="true"></span>
+    </div>
+    <div class="tt-specband">
+      <div class="tt-specband__item"><p class="tt-specband__title">The 20 s cap</p><p class="tt-label">20 s after the oldest waiting entry the hold forced its slip and its ticket through, 350 ms apart, with no remarks (never in combat). The Parrying technique plate is never forced: it waits for calm, so the badge still reads +1.</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">Boss phase</p><p class="tt-label">The boss bar holds top centre and counts phases with pips. The Banner's phase card (560 × 96 at (0, 296)) lands mid-fight: the Banner is its own lane, so the hold does not delay it. "Parried!" and "Hit 2" share the centre lane, 4 px apart.</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">Low health</p><p class="tt-label">Health 22%: the number in danger-text, the gauge rim on its vital step (LowHealthPulse), and LowHealthFrame round the screen: an 8 px opaque vital band with a 3 px ink inner line, no pulse. It ends 21 px short of every HUD box.</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">Dark floor</p><p class="tt-label">A basalt arena (the night stand-in) under the left column, the rail and the loadout corner: there the plates' rim carries the edge and the rail's light cord holds.</p></div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== MAP -->
+  <section aria-label="Map">
+    <span class="kicker tt-caps tt-hud-frame__title">Map · every box at 1:1 · the TV margin overlay</span>
+    <div class="tt-hud tt-hud-map" role="img" aria-label="HUD map diagram">
+      <span class="tt-hud-map__edge" aria-hidden="true"></span>
+      <span class="tt-hud-map__tv" aria-hidden="true"></span>
+      <span class="tt-hud-map__safe" aria-hidden="true"></span>
+
+      <!-- Left is you -->
+      <div class="tt-hud-map__box tt-hud-map__box--always tt-hud-map__box--top tt-label" style="left:32px; top:32px; width:456px; height:152px;"><b>Gauge plate</b><span>(32, 32) · 456 × 152</span><span>always</span></div>
+      <div class="tt-hud-map__box tt-hud-map__box--always" style="left:32px; top:216px; width:78px; height:78px;"></div>
+      <div class="tt-hud-map__box tt-hud-map__box--always" style="left:120px; top:216px; width:78px; height:78px;"></div>
+      <div class="tt-hud-map__box tt-hud-map__box--always" style="left:208px; top:216px; width:78px; height:78px;"></div>
+      <div class="tt-hud-map__box tt-hud-map__box--always" style="left:296px; top:216px; width:78px; height:78px;"></div>
+      <span class="tt-hud-map__note tt-label" style="left:392px; top:216px;"><b>Spell slots Q E R 1</b><span>78 × 78 at y 216</span><span>x 32 / 120 / 208 / 296</span></span>
+      <div class="tt-hud-map__box tt-label" style="left:32px; top:318px; width:456px; height:112px;"><b>Status chips</b><span>(32, 318) · 456 × 112 · 2 rows, max 8</span><span>when any</span></div>
+
+      <!-- Top centre is for big moments -->
+      <div class="tt-hud-map__box tt-hud-map__box--top tt-label" style="left:520px; top:32px; width:880px; height:96px;"><b>Boss bar</b><span>(0, 32)</span><span>880 × 96</span></div>
+      <div class="tt-hud-map__box tt-hud-map__box--bottom tt-hud-map__box--centre tt-label" style="left:640px; top:40px; width:640px; height:128px;"><span><b>Plate</b> (0, 40) · 640 × 128 · no boss bar</span></div>
+      <div class="tt-hud-map__box tt-hud-map__box--centre tt-label" style="left:640px; top:168px; width:640px; height:128px;"><b>Plate under a boss bar</b><span>(0, 168) · 184 high with a Drawback</span><span>out of combat only</span></div>
+      <div class="tt-hud-map__box tt-hud-map__box--centre tt-label" style="left:496px; top:296px; width:928px; height:132px;"><b>Banner</b><span>(0, 296) · 928 × 132 · biome, boss intro</span><span>phase card 560 × 96, top-centred</span></div>
+
+      <!-- Top right is news -->
+      <div class="tt-hud-map__box tt-hud-map__box--always tt-label" style="left:1568px; top:32px; width:320px; height:56px; padding-top:6px;"><span><b>Rail head</b> · always</span></div>
+      <div class="tt-hud-map__box tt-hud-map__box--top tt-label" style="left:1568px; top:104px; width:320px; height:376px;"><b>Tickets</b><span>(−32, 104) · 320 wide</span><span>8 gap · max 4 hang</span><span>the receipt; the 20 s cap;</span><span>a pressed pickup at once</span></div>
+
+      <!-- The centre is now -->
+      <div class="tt-hud-map__centre" aria-hidden="true"></div>
+      <span class="tt-hud-map__note tt-label" style="left:1012px; top:484px;"><span><b>Player</b> · screen centre (960, 540)</span></span>
+      <div class="tt-hud-map__box tt-hud-map__box--centre tt-label" style="left:700px; top:668px; width:520px; height:52px;"><span><b>Combat callout</b> (0, +128) · 520 × 52</span></div>
+      <div class="tt-hud-map__box tt-hud-map__box--centre tt-label" style="left:850px; top:724px; width:220px; height:36px; padding-top:0; padding-bottom:0;"><span><b>Combo</b> (0, +184)</span></div>
+
+      <!-- Bottom centre is interaction -->
+      <div class="tt-hud-map__box tt-hud-map__box--centre tt-label" style="left:690px; top:984px; width:540px; height:60px;"><span><b>Interact prompt</b> (0, −36) · 540 × 60</span></div>
+      <div class="tt-hud-map__box tt-hud-map__box--always" style="left:1242px; top:994px; width:151px; height:40px;"></div>
+      <span class="tt-hud-map__note tt-label" style="left:1242px; top:940px;"><span><b>[I] Inventory hint</b> · always</span></span>
+
+      <!-- Bottom right is the loadout -->
+      <div class="tt-hud-map__box tt-label" style="left:1552px; top:868px; width:336px; height:80px;"><b>Quick items</b><span>(−32, −132) · 336 × 56</span><span>keycaps to y 868 · when stocked</span></div>
+      <div class="tt-hud-map__box tt-hud-map__box--always tt-label" style="left:1548px; top:964px; width:340px; height:84px;"><b>Loadout plate</b><span>(−32, −32) · 340 × 84 · always</span></div>
+
+      <!-- Edge and TV notes -->
+      <span class="tt-hud-map__note tt-label" style="left:120px; top:488px;"><b>TV margin (HUD margin 96)</b><span>The shaded band is 32 to 96 px from the edge.</span><span>Every edge-anchored box moves 64 px in, to the rim line.</span></span>
+      <span class="tt-hud-map__note tt-label" style="left:120px; top:860px;"><b>Low-health edge frame</b><span>The screen edge: 8 px vital, 3 px ink inner line.</span><span>Health 25% or less · no pulse</span></span>
+    </div>
+    <div class="tt-specband">
+      <div class="tt-specband__item"><p class="tt-specband__title">Key</p><p class="tt-label"><i class="tt-hud-map__swatch tt-hud-map__swatch--always" aria-hidden="true"></i>Always visible during play</p><p class="tt-label"><i class="tt-hud-map__swatch" aria-hidden="true"></i>Contextual</p><p class="tt-label"><i class="tt-hud-map__swatch tt-hud-map__swatch--tv" aria-hidden="true"></i>TV margin band (32 to 96 px)</p><p class="tt-label"><i class="tt-hud-map__swatch tt-hud-map__swatch--edge" aria-hidden="true"></i>LowHealthFrame</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">Always visible (D20)</p><p class="tt-label">The gauge plate, the spell slots, the rail head, the loadout plate and the "[I] Inventory" hint pill. Everything else is contextual. No box: enemy tags (Z +120), damage numbers, pickup labels and WorldMarkers follow their actors.</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">TV margin 96: where boxes move</p><p class="tt-label">Gauge (96, 96) · spells y 280 · status (96, 382) · rail head (−96, 96), tickets from y 168 · boss bar y 96 · plate y 104, or 232 under a boss bar · banner y 360 · prompt (0, −100), hint y 930-970 · quick items (−96, −196) · loadout (−96, −96). The callout and combo stay at the centre.</p></div>
+      <div class="tt-specband__item"><p class="tt-specband__title">TV margin collisions · TODO(DECISION)</p><p class="tt-label">At 96 the boss bar (x 520-1400) overlaps the gauge plate (x 96-552) by 32 px, and the banner (x 496-1424, y 360-492) overlaps the status strip (x 96-552, y 382-494). Proposal: with the TV margin the boss bar and the banner take 784 px (x 568-1352).</p></div>
+    </div>
+  </section>
+
+</div>
+<script>
+(function () {
+  /* The gauge plate, built exactly as GaugePlate's preview builds it (same markup, same classes). */
+  function C() { return ' class=' + JSON.stringify([].filter.call(arguments, Boolean).join(' ')); }
+  var MAXST = 134; /* MaxStamina = 100 x (1 + 0.04 x EffEnd) at default attributes */
+  var TIER = { green: ['green', '×1.25'], yellow: ['yellow', '×1.0'], red: ['red', '×0.75'], ex: ['exhausted', '×0.5'] };
+  function tierOf(st) { var f = st / MAXST; return st <= 0 ? 'ex' : f >= 0.66 ? 'green' : f >= 0.33 ? 'yellow' : 'red'; }
+  /* Spell Point tokens (D17): 22 px up to 10, 16 px for 11-13, 14 px for 14-16; above 16 the bar fallback. */
+  function tokens(n, max) {
+    if (max > 16) return '<div class="tt-bar tt-bar--sp" style="--v:' + (n / max * 100) + '%" role="img" aria-label="' + n + ' of ' + max + ' Spell Points"><span class="tt-bar__fill"></span></div>';
+    var h = '<span' + C('tt-tally-sp', max > 13 ? 'tt-tally-sp--14' : max > 10 && 'tt-tally-sp--16') + ' aria-hidden="true">';
+    for (var g = 0; g < Math.ceil(max / 5); g++) {
+      h += '<span class="tt-tally-sp__group">';
+      for (var i = g * 5; i < Math.min(max, g * 5 + 5); i++) h += '<span' + C('tt-tally-sp__token', i < n && 'is-on') + '></span>';
+      h += '</span>';
+    }
+    return h + '</span>';
+  }
+  function notch(at) { return '<span class="tt-bar__notch" style="--at:' + at + '%"></span>'; }
+  function tick(at) { return '<span class="tt-gauge__tick" style="--at:' + at + '%"></span>'; }
+  function gauge(o) {
+    var tier = tierOf(o.st), t = TIER[tier], ex = tier === 'ex', low = o.hp <= 25, max = o.spMax || 13, po = o.po;
+    var h = '<div' + C('tt-plate', 'tt-gauge', low && 'tt-gauge--low', low && o.peak && 'is-peak') + ' role="group" aria-label="Player resources">';
+    h += '<div class="tt-gauge__row tt-gauge__row--hp"><span class="num-s tt-gauge__label">HP</span><div class="tt-gauge__track">' + tick(25) +
+      '<div class="tt-bar tt-bar--vital" style="--v:' + o.hp + '%;--t:' + (o.trail || 0) + '%;--l:' + (o.lead || 0) + '%"><span class="tt-bar__trail"></span><span class="tt-bar__lead"></span><span class="tt-bar__fill"></span>' + notch(25) + '</div></div>' +
+      '<span class="num-l tt-gauge__value tt-gauge__value--hp">' + o.hp + '%</span></div>';
+    h += '<div class="tt-gauge__row tt-gauge__row--st"><span class="num-s tt-gauge__label">ST</span><div class="tt-gauge__track">' + tick(33) + tick(66) +
+      '<div' + C('tt-bar', ex ? 'tt-bar--exhausted' : 'tt-bar--' + t[0], tier === 'red' && 'is-striped') + ' style="--v:' + (ex ? 0 : o.st / MAXST * 100) + '%;--d:' + (ex ? Math.min(-o.st / MAXST * 100, 100) : 0) + '%">' +
+      (ex ? '<span class="tt-bar__debt"></span>' : '<span class="tt-bar__fill"></span>') + notch(33) + notch(66) + '</div>' +
+      (o.guard ? '<span class="tt-gauge__guard"><span class="tt-glyph" data-glyph="block" aria-hidden="true"></span>Guard broken</span>' : '') + '</div>' +
+      '<span class="tt-gauge__stend"><span' + C('tt-gauge__sprint', o.sprint && 'is-on') + ' role="img" aria-label="Sprint ' + (o.sprint ? 'on' : 'off') + '"><span class="tt-glyph" data-glyph="sprint" aria-hidden="true"></span></span>' +
+      '<span' + C('tt-pill', 'tt-pill--' + t[0], 'tt-gauge__pill') + '>' + t[1] + '</span></span></div>';
+    var broken = po === 'broken';
+    h += '<div' + C('tt-gauge__row', 'tt-gauge__row--po', po === null && 'is-hidden') + '><span></span><div class="tt-gauge__track">' +
+      '<div' + C('tt-bar', 'tt-bar--hair', 'tt-bar--posture', broken && 'is-posture-broken') + ' style="--v:' + (broken ? 100 : (typeof po === 'number' ? po : 0)) + '%"><span class="tt-bar__fill"></span></div>' +
+      '</div><span></span></div>';
+    h += '<div class="tt-gauge__row tt-gauge__row--sp"><span class="num-s tt-gauge__label">SP</span>' + tokens(o.sp, max) +
+      '<span class="num-m tt-gauge__value">' + o.sp + ' / ' + max + '</span></div>';
+    return h + '</div>';
+  }
+  document.querySelectorAll('[data-gauge]').forEach(function (el) { el.innerHTML = gauge(JSON.parse(el.getAttribute('data-gauge'))); });
+  /* Frame 2 stands on the same floor as frame 1. */
+  document.querySelectorAll('[data-world]').forEach(function (el) { el.innerHTML = document.getElementById(el.getAttribute('data-world')).innerHTML; });
+  TinTally.mount(document.getElementById('sheet'));
+})();
+</script>
+</body>
+</html>

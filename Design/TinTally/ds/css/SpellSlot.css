@@ -1,0 +1,76 @@
+/* SpellSlot: a 78 x 78 plate per spell. HUD row at y 216, x 32 / 120 / 208 / 296 (10 px gutters).
+   Inside the 2 px rim: a 64 x 64 sunk well holding the 48 px spell glyph; SP cost rivets (Spell Point data, not
+   ornament) straddle the top edge at the right; the input keycap hangs off the bottom-left corner. */
+.tt-spell { position: relative; width: 78px; height: 78px; flex: none; }
+.tt-spell__well { position: absolute; inset: 5px; border-radius: 8px; background: var(--well); border: 2px solid var(--lip); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.tt-spell__icon { color: var(--text); }
+.tt-spell__icon--fire { color: var(--dmg-fire); }
+.tt-spell__icon--heal { color: var(--heal); }
+
+/* SP cost rivets: 14 px discs centred on the top edge, right-aligned, 3 px apart (max 4 = 65 px). */
+.tt-spell__cost { position: absolute; top: -9px; right: 6px; display: flex; gap: 3px; z-index: 2; }
+.tt-spell__dot { width: 14px; height: 14px; flex: none; border-radius: 50%; background: var(--spell-points); border: 2px solid var(--ink); }
+.tt-spell__dot.is-hollow { background: var(--well); box-shadow: inset 0 0 0 2px var(--lip); }
+
+/* Keycap: hangs off the bottom-left corner, 6 px past the left edge (3 px clear of the previous slot's outline)
+   and 10 px below the bottom edge. Gamepad D-pad Up is Keycap's 32 px cross (.tt-key--sm.tt-key--dpad). */
+.tt-spell__key { position: absolute; left: -6px; bottom: -10px; z-index: 3; }
+.tt-spell__key.tt-key--none { background: var(--plate); }
+
+/* Cooling: the SpellSlot shutter (asset manifest): an opaque tin roller shutter (4 px plate-raised slats, 2 px well
+   grooves) hangs from the top of the well and rolls up as the cooldown runs (height = remaining / total), uncovering
+   the icon from the bottom. Its 3 px rim lip is the progress edge. Seconds sit centred with a 2 px ink outline. */
+.tt-spell__shutter { position: absolute; left: 0; right: 0; top: 0; height: var(--cd, 50%); background: repeating-linear-gradient(180deg, var(--plate-raised) 0 4px, var(--well) 4px 6px); border-bottom: 3px solid var(--rim); }
+.tt-spell.is-cooling .tt-spell__icon { opacity: var(--opacity-unaffordable); }
+.tt-spell__time { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text); -webkit-text-stroke: 5px var(--ink); paint-order: stroke fill; z-index: 1; }
+
+/* Ready glint: one 140 ms tin glint across the well when a cooldown ends (static frame shown mid-sweep). */
+.tt-spell.is-glint .tt-spell__well { border-color: var(--rim); }
+.tt-spell.is-glint .tt-spell__well::before,
+.tt-spell.is-glint .tt-spell__well::after { content: ""; position: absolute; top: -40px; height: 150px; background: var(--rim); transform: rotate(35deg); }
+.tt-spell.is-glint .tt-spell__well::before { left: 16px; width: 9px; }
+.tt-spell.is-glint .tt-spell__well::after { left: 32px; width: 3px; }
+
+/* Unaffordable: icon at opacity-unaffordable, hollow rivets, an "SP" lock chip over the well. */
+.tt-spell.is-broke .tt-spell__icon { opacity: var(--opacity-unaffordable); }
+.tt-spell__lock { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; display: inline-flex; align-items: center; gap: 2px; height: 30px; padding: 0 7px 0 4px; border-radius: var(--radius-pill); background: var(--plate-raised); color: var(--text); border: 2px solid var(--lip); white-space: nowrap; }
+
+/* Casting: the plate rim and the well lip turn spell-points and the well lip doubles to 4 px (a 6 px violet
+   frame), so it also reads by width in High Contrast, where rim and lip are white; the keycap sinks. */
+.tt-spell.is-casting { border-color: var(--spell-points); }
+.tt-spell.is-casting .tt-spell__well { border-color: var(--spell-points); box-shadow: inset 0 0 0 2px var(--spell-points); }
+
+/* Silenced: icon dimmed, a muzzle badge with a debuff rim. Rivets stay filled (you can afford it, you cannot cast). */
+.tt-spell.is-silenced .tt-spell__icon { opacity: var(--opacity-unaffordable); }
+.tt-spell__muzzle { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; z-index: 2; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--plate); border: 3px solid var(--debuff); color: var(--debuff); }
+
+/* Refused press (not enough SP, cooling, silenced): Motion Shake. */
+.tt-spell.is-refused { animation: tt-spell-refuse 180ms linear; }
+@keyframes tt-spell-refuse { 0%, 100% { transform: translateX(0); } 17% { transform: translateX(-6px); } 50% { transform: translateX(6px); } 83% { transform: translateX(-6px); } }
+
+/* SkillRadial (proposal, TODO(DECISION)): the bindings spec's alternative spell model. Up to 8 options on a ring
+   round the player (radius 128 to the option centres), open while Skill A / B is held, committed on release, no
+   time slow, so no veil and the centre stays clear. Options are 64 px round plates with a 40 px glyph:
+   equipped = Selected (enamel), aimed = the focus ring, empty = a dashed lip ring (unavailable).
+   The aimed option's name and cost sit on a plate above the ring, clear of the callout lane below the player. */
+.tt-spell-radial { position: absolute; width: 0; height: 0; }
+.tt-spell-radial__opt { position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text); }
+.tt-spell-radial__opt.is-selected { color: var(--ink); }
+.tt-spell-radial__glyph { width: 40px; height: 40px; }
+.tt-spell-radial__opt--empty { background: var(--plate); border: 2px dashed var(--lip); box-shadow: 0 0 0 var(--tt-outline) var(--ink); }
+.tt-spell-radial__info { position: absolute; left: 0; top: -246px; transform: translateX(-50%); display: flex; align-items: center; gap: var(--space-3); padding: 8px 16px 8px 10px; white-space: nowrap; }
+.tt-spell-radial__name { color: var(--text); }
+.tt-spell-radial__meta { color: var(--text-muted); }
+
+/* ---- Preview scaffolding ---- */
+.tt-spell-sheet { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); background: var(--plate); }
+.tt-spell-sheet__row { display: flex; gap: 10px; }
+.tt-spell-sheet__stage { display: flex; align-items: center; gap: var(--space-6); padding: 22px 24px 26px; }
+.tt-spell-sheet__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4) var(--space-3); }
+.tt-spell-sheet__cell { display: flex; flex-direction: column; gap: var(--space-2); }
+.tt-spell-sheet__cell .tt-spell-sheet__stage { justify-content: center; }
+.tt-spell-sheet__cap { display: flex; flex-direction: column; gap: 0; min-height: 52px; }
+.tt-spell-sheet__cap b { color: var(--text); font-weight: 700; }
+.tt-spell-sheet__radial { position: relative; height: 520px; overflow: hidden; }
+.tt-spell-sheet__player { position: absolute; width: 56px; height: 56px; margin: -40px 0 0 -28px; display: flex; align-items: center; justify-content: center; color: var(--world-dark); }
+.tt-spell-sheet__player::before { content: ""; position: absolute; left: 4px; top: 40px; width: 48px; height: 16px; border-radius: 50%; background: var(--world-shade); }

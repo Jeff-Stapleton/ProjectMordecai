@@ -1,0 +1,40 @@
+/* Button: menu buttons. Core gives .tt-btn (default), --primary, --danger (destructive actions only, never
+   Quit), --block, hover lift, pressed sink, disabled and focus. This partial adds the parts, the row-action
+   size and the button groups. ONE lead before the label (D4): a 32 px keycap (.tt-btn__key) when a key fires
+   the button, otherwise an optional 24 px glyph (.tt-btn__glyph). Disabled: the lead becomes the lock glyph. */
+
+.tt-btn__glyph { display: inline-flex; flex: none; width: 24px; height: 24px; }
+.tt-btn__key { display: inline-flex; flex: none; margin-left: -6px; }
+.tt-btn__label { flex: 0 1 auto; min-width: 0; white-space: nowrap; }
+.tt-btn[aria-disabled="true"] .tt-btn__key, .tt-btn:disabled .tt-btn__key { display: none; }
+
+/* Row action (.tt-btn--sm): the one look for actions inside list rows (InventoryTab's Identify, SkillsTab's
+   Allocate). Default variant, 48 tall (the minimum mouse target), padding 6 / 16, a 20 px leading glyph
+   (mage-tower, skill-point; lock when disabled), label 22 / 28 700. Never cream: Selected owns the cream. */
+.tt-btn--sm { min-height: 48px; padding: 6px var(--space-4); gap: var(--space-2); font: 700 22px/28px var(--font-ui); }
+.tt-btn--sm .tt-btn__glyph { width: 20px; height: 20px; }
+
+/* State cues beyond the core lift and sink, so no two states read alike at a glance, in either theme.
+   Hover: the edge doubles to 4 px (rim on default, ink on primary and danger).
+   Pressed: the face darkens one step (plate, enamel-shade, danger mixed 18% toward ink) and a 3 px
+   pushed-in band prints along the top edge. In High Contrast the white edge stays whole (D22): the band and
+   the collapsed print carry the press. */
+.tt-btn:hover:not([aria-disabled="true"]):not(:disabled), .tt-btn.is-hover { border-color: var(--rim); box-shadow: 0 6px 0 0 var(--ink), inset 0 0 0 2px var(--rim); }
+.tt-btn--primary:hover:not([aria-disabled="true"]):not(:disabled), .tt-btn--primary.is-hover,
+.tt-btn--danger:hover:not([aria-disabled="true"]):not(:disabled), .tt-btn--danger.is-hover { border-color: var(--ink); box-shadow: 0 6px 0 0 var(--ink), inset 0 0 0 2px var(--ink); }
+.tt-btn.is-pressed, .tt-btn:active:not([aria-disabled="true"]):not(:disabled) { background: var(--plate); border-color: var(--rim); box-shadow: 0 1px 0 0 var(--ink), inset 0 3px 0 0 var(--rim-shade); }
+.tt-btn--primary.is-pressed, .tt-btn--primary:active:not([aria-disabled="true"]):not(:disabled) { background: var(--enamel-shade); border-color: var(--ink); box-shadow: 0 1px 0 0 var(--ink), inset 0 3px 0 0 color-mix(in srgb, var(--ink) 30%, var(--enamel-shade)); }
+.tt-btn--danger.is-pressed, .tt-btn--danger:active:not([aria-disabled="true"]):not(:disabled) { background: color-mix(in srgb, var(--danger) 82%, var(--ink)); border-color: var(--ink); box-shadow: 0 1px 0 0 var(--ink), inset 0 3px 0 0 color-mix(in srgb, var(--ink) 40%, var(--danger)); }
+
+/* Disabled keeps one edge colour for every variant: a dashed lip (ink would vanish on plate). */
+.tt-btn--primary[aria-disabled="true"], .tt-btn--primary:disabled,
+.tt-btn--danger[aria-disabled="true"], .tt-btn--danger:disabled { border-color: var(--lip); }
+
+/* A row of buttons (dialogs, confirms): Dialog's rule. Right-aligned, 16 px apart, each at least 152 wide.
+   Markup order = screen order: the risky action LEFT, the safe action RIGHT (primary, default focus, Back). */
+.tt-btn-row { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-4); }
+.tt-btn-row > .tt-btn { min-width: 152px; justify-content: center; }
+
+/* A stacked list of buttons (a screen with more than two choices). 12 px apart. Front-end menus are tags on
+   a rail (TitleScreen), not this list. */
+.tt-btn-list { display: flex; flex-direction: column; gap: var(--space-3); }

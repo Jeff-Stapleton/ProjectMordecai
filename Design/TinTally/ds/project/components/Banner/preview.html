@@ -1,0 +1,109 @@
+<!-- @dsCard group="World" height=1914 width=1024 subtitle="World-voice title card at (0, 296): biome name, boss intro, boss phase, new area; biome swatch inlays, no remarks" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Banner</title>
+<style>
+/* Preview scaffolding only. */
+.pv { display: flex; flex-direction: column; gap: 30px; padding: 24px 24px 32px; }
+.pv-sec { display: flex; flex-direction: column; gap: 14px; }
+.pv-h { margin: 0; color: var(--text-muted); }
+.pv-fig { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.pv-box { border-radius: 10px; box-shadow: 0 0 0 2px var(--lip); }
+.pv-stage { display: flex; justify-content: center; padding: 28px 0 32px; }
+.pv-tok { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.pv-label b { color: var(--text); }
+/* In place at 1:1: the top 424 px of the 1920 x 1080 screen, centred (screen x 960 = box x 488). */
+.pv-ctx { position: relative; height: 424px; }
+.pv-ctx__edge { position: absolute; left: 0; right: 0; top: 0; height: 32px; border-bottom: 2px solid var(--ink); opacity: .45; }
+.pv-ctx__boss { position: absolute; left: 48px; top: 32px; }
+.pv-ctx__phase { position: absolute; left: 208px; top: 296px; }
+</style>
+</head>
+<body>
+<div class="tt-root pv">
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Kinds · World voice, tracked caps, no ornament and no remarks</h2>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-mire pv-stage">
+        <div class="tt-plate tt-banner tt-banner--mire" role="status">
+          <div class="tt-banner__mat"><div class="tt-banner__panel">
+            <span class="tt-banner__title world-heading tt-caps">Mire of Echoes</span>
+          </div></div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Biome title card</b> · first entry only. An inlay mat in <span class="pv-tok">biome-mire</span> (56 px ends, 10 px rails, a <span class="pv-tok">lip</span> ring outside and an <span class="pv-tok">ink</span> line inside) frames the inner <span class="pv-tok">plate</span> panel; the biome name alone in <span class="pv-tok">world-heading</span>. 3 s.</figcaption>
+    </figure>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-sand pv-stage">
+        <div class="tt-plate tt-banner tt-banner--boss" role="status">
+          <div class="tt-banner__mat"><div class="tt-banner__panel">
+            <span class="tt-banner__title world-heading tt-caps">Iron Warden</span>
+            <span class="tt-banner__line ui-body">Enforces strict patterns. Punishes deviation.</span>
+          </div></div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Boss intro</b> · mat in <span class="pv-tok">foe</span>, the same red as the boss bar that follows it; the boss's one IntroLine in <span class="pv-tok">ui-body</span> (example). 3.5 s, then the fight.</figcaption>
+    </figure>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-sand pv-ctx">
+        <span class="pv-ctx__edge" aria-hidden="true"></span>
+        <div class="tt-boss pv-ctx__boss">
+          <div class="tt-plate tt-boss__plate">
+            <div class="tt-bar tt-bar--foe tt-boss__hp" style="--v:58%;--t:58%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-boss__po" style="--v:62%"><span class="tt-bar__fill"></span></div>
+          </div>
+          <div class="tt-plate tt-boss__name"><h3 class="world-heading tt-caps tt-boss__title">Iron Warden</h3></div>
+          <div class="tt-plate tt-boss__phase"><span class="tt-boss__ph tt-caps">Phase 2</span><span class="tt-pips tt-pips--lg tt-boss__pips" role="img" aria-label="Phase 2 of 3"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip"></span></span></div>
+        </div>
+        <div class="tt-plate tt-banner tt-banner--phase pv-ctx__phase" role="status">
+          <div class="tt-banner__mat"><div class="tt-banner__panel">
+            <span class="tt-banner__title world-heading tt-caps">Phase 2</span>
+          </div></div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Boss phase, in place at 1:1</b> · the top of the screen (the guide is the 32 px edge). The boss reaches phase 2: the boss bar stays at (0, 32) and counts the phase with its pips; the phase card lands top-centred in the banner slot at (0, 296), 560 x 96, the slim <span class="pv-tok">foe</span> mat and the phase word alone. 1.5 s. The fight does not wait for it.</figcaption>
+    </figure>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-night pv-stage">
+        <div class="tt-plate tt-banner tt-banner--phase" role="status">
+          <div class="tt-banner__mat"><div class="tt-banner__panel">
+            <span class="tt-banner__title world-heading tt-caps">Enraged</span>
+          </div></div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Boss phase, enraged</b> · phase 3 announces the enrage instead of its number ("Enraged", matching the boss bar's ENRAGED chip). The same 560 x 96 piece; on night the plate's <span class="pv-tok">rim</span> carries its edge. 2 s.</figcaption>
+    </figure>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-blockout pv-stage">
+        <div class="tt-plate tt-banner tt-banner--area tt-banner--mire" role="status">
+          <div class="tt-banner__mat"><div class="tt-banner__panel">
+            <span class="tt-banner__title world-heading tt-caps">Sunken Causeway</span>
+            <span class="tt-banner__line ui-body"><span class="tt-banner__chip" aria-hidden="true"></span>Mire of Echoes</span>
+          </div></div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>New area</b> (example name) · a slim mat in the biome's swatch, the area name, and the biome it belongs to with its swatch chip. 2.5 s.</figcaption>
+    </figure>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Biome mats · fills only, never under text</h2>
+    <div class="tt-banner-key">
+      <div class="tt-plate tt-banner-key__item tt-banner--verdant"><span class="tt-banner-key__swatch" aria-hidden="true"></span><span>Verdant Wilds<span class="tt-banner-key__tok">biome-verdant</span></span></div>
+      <div class="tt-plate tt-banner-key__item tt-banner--searing"><span class="tt-banner-key__swatch" aria-hidden="true"></span><span>Searing Expanse<span class="tt-banner-key__tok">biome-searing</span></span></div>
+      <div class="tt-plate tt-banner-key__item tt-banner--mire"><span class="tt-banner-key__swatch" aria-hidden="true"></span><span>Mire of Echoes<span class="tt-banner-key__tok">biome-mire</span></span></div>
+      <div class="tt-plate tt-banner-key__item tt-banner--crystal"><span class="tt-banner-key__swatch" aria-hidden="true"></span><span>Crystal Caverns<span class="tt-banner-key__tok">biome-crystal</span></span></div>
+      <div class="tt-plate tt-banner-key__item tt-banner--storm"><span class="tt-banner-key__swatch" aria-hidden="true"></span><span>Storm Peaks<span class="tt-banner-key__tok">biome-storm</span></span></div>
+      <div class="tt-plate tt-banner-key__item tt-banner--withered"><span class="tt-banner-key__swatch" aria-hidden="true"></span><span>Withered Kingdom<span class="tt-banner-key__tok">biome-withered</span></span></div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

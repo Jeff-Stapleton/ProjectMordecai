@@ -1,0 +1,211 @@
+<!-- @dsCard group="World" height=1266 width=960 subtitle="World tag over each enemy: tier diamonds, name pill, foe health and posture in one dual-edged gauge, statuses, summons, break and riposte states" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>EnemyTag</title>
+<style>
+/* preview-only layout scaffolding */
+.pv-row { display: grid; grid-template-columns: repeat(4, 1fr); }
+.pv-row--3 { grid-template-columns: 1fr 1.2fr 1fr; }
+.pv-row--crit { grid-template-columns: 1fr 1fr 1.6fr 0.9fr; }
+.pv-col { display: flex; flex-direction: column; }
+.pv-floor { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 28px 6px 22px; background-attachment: fixed; }
+.pv-floor > .tt-etag { margin-bottom: 14px; }
+.pv-cap { margin: 0; padding: 10px 8px 18px; text-align: center; }
+.pv-cap b { color: var(--text); }
+.pv-crit { position: relative; display: flex; flex-direction: column; align-items: center; padding: 16px 22px 10px; }
+.pv-critwrap { display: flex; align-items: center; gap: 10px; }
+.pv-far { display: flex; flex-direction: column; align-items: center; margin-bottom: 30px; }
+.pv-far .tt-etag { margin-bottom: 10px; }
+.pv-spec > .tt-specband__item { flex: 1 1 240px; max-width: none; }
+</style>
+</head>
+<body>
+<div class="tt-root">
+
+  <!-- 1. Basic enemies after aggro, statuses, Elite (light blockout floor) -->
+  <section class="pv-row">
+    <div class="pv-col">
+      <div class="pv-floor tt-floor-blockout">
+        <div class="tt-etag">
+          <div class="tt-etag__head"><span class="ui-label tt-etag__name">Frontliner</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:100%;--t:100%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:100%"><span class="tt-bar__fill"></span></div>
+          </div>
+        </div>
+        <div class="tt-etag__body"></div><div class="tt-etag__shadow"></div>
+      </div>
+      <p class="tt-label pv-cap"><b>Basic</b> · after aggro</p>
+    </div>
+    <div class="pv-col">
+      <div class="pv-floor tt-floor-blockout">
+        <div class="tt-etag">
+          <div class="tt-etag__head"><span class="ui-label tt-etag__name">Goblin Skirmisher</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:58%;--t:72%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:64%"><span class="tt-bar__fill"></span></div>
+          </div>
+          <div class="tt-etag__fx"><span class="tt-etag__st"><span class="tt-glyph" data-glyph="bleeding" aria-label="Bleeding"></span></span></div>
+        </div>
+        <div class="tt-etag__body tt-etag__body--small"></div><div class="tt-etag__shadow"></div>
+      </div>
+      <p class="tt-label pv-cap"><b>Hit</b> · DamageTrail</p>
+    </div>
+    <div class="pv-col">
+      <div class="pv-floor tt-floor-blockout">
+        <div class="tt-etag">
+          <div class="tt-etag__head"><span class="ui-label tt-etag__name">Skeletal Archer</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:21%;--t:21%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:100%"><span class="tt-bar__fill"></span></div>
+          </div>
+          <div class="tt-etag__fx">
+            <span class="tt-etag__st"><span class="tt-glyph" data-glyph="burning" aria-label="Burning"></span></span>
+            <span class="tt-etag__st"><span class="tt-glyph" data-glyph="exposed" aria-label="Exposed"></span></span>
+            <span class="tt-etag__st"><span class="tt-glyph" data-glyph="poisoned" aria-label="Poisoned"></span></span>
+            <span class="tt-etag__st tt-etag__more">+1</span>
+          </div>
+        </div>
+        <div class="tt-etag__body tt-etag__body--steel"></div><div class="tt-etag__shadow"></div>
+      </div>
+      <p class="tt-label pv-cap"><b>Under 25%</b> · 3 + N</p>
+    </div>
+    <div class="pv-col">
+      <div class="pv-floor tt-floor-blockout">
+        <div class="tt-etag">
+          <div class="tt-etag__head"><span class="tt-etag__marks" aria-label="Elite"><i class="tt-etag__dia"></i></span><span class="ui-label tt-etag__name">Corrupted Knight</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:86%;--t:86%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:42%"><span class="tt-bar__fill"></span></div>
+          </div>
+          <div class="tt-etag__fx"><span class="tt-etag__st"><span class="tt-glyph" data-glyph="weakened" aria-label="Weakened"></span></span></div>
+        </div>
+        <div class="tt-etag__body tt-etag__body--elite"></div><div class="tt-etag__shadow"></div>
+      </div>
+      <p class="tt-label pv-cap"><b>Elite</b> · 1 diamond</p>
+    </div>
+  </section>
+
+  <!-- 2. Higher tiers and summons (sand floor) -->
+  <section class="pv-row pv-row--3">
+    <div class="pv-col">
+      <div class="pv-floor tt-floor-sand">
+        <div class="tt-etag">
+          <div class="tt-etag__head"><span class="tt-etag__marks" aria-label="Champion"><i class="tt-etag__dia"></i><i class="tt-etag__dia"></i></span><span class="ui-label tt-etag__name">Sentinel Frame</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:100%;--t:100%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:100%"><span class="tt-bar__fill"></span></div>
+          </div>
+          <div class="tt-etag__fx"><span class="tt-etag__st tt-etag__st--buff"><span class="tt-glyph" data-glyph="focused" aria-label="Focused"></span></span></div>
+        </div>
+        <div class="tt-etag__body tt-etag__body--elite tt-etag__body--steel"></div><div class="tt-etag__shadow"></div>
+      </div>
+      <p class="tt-label pv-cap"><b>Champion</b> · 2 diamonds, buff</p>
+    </div>
+    <div class="pv-col">
+      <div class="pv-floor tt-floor-sand">
+        <div class="tt-etag">
+          <div class="tt-etag__ribbon"><div class="tt-etag__head"><span class="tt-etag__marks" aria-label="Miniboss"><i class="tt-etag__dia"></i><i class="tt-etag__dia"></i><i class="tt-etag__dia"></i></span><span class="ui-label tt-etag__name">Drowned Automaton</span></div></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:64%;--t:64%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:80%"><span class="tt-bar__fill"></span></div>
+          </div>
+        </div>
+        <div class="tt-etag__body tt-etag__body--elite tt-etag__body--ghost"></div><div class="tt-etag__shadow"></div>
+      </div>
+      <p class="tt-label pv-cap"><b>Miniboss</b> · 3 on a ribbon</p>
+    </div>
+    <div class="pv-col">
+      <div class="pv-floor tt-floor-sand">
+        <div class="tt-etag tt-etag--summon">
+          <div class="tt-etag__head"><span class="tt-glyph tt-etag__kind" data-glyph="summon" aria-label="Summoned"></span><span class="ui-label tt-etag__name">Echo Clone</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:100%;--t:100%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:100%"><span class="tt-bar__fill"></span></div>
+          </div>
+        </div>
+        <div class="tt-etag__body tt-etag__body--small tt-etag__body--ghost"></div><div class="tt-etag__shadow"></div>
+      </div>
+      <p class="tt-label pv-cap"><b>Summon</b> · glyph, lighter pill</p>
+    </div>
+  </section>
+
+  <!-- 3. Break states, critical window and far LOD (dark mire floor: the rim line carries the gauge edge) -->
+  <section class="pv-row pv-row--crit">
+    <div class="pv-col">
+      <div class="pv-floor tt-floor-mire">
+        <div class="tt-etag is-broken">
+          <div class="tt-etag__head"><span class="ui-label tt-etag__name">Frontliner</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:46%;--t:58%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:70%"><span class="tt-bar__fill"></span></div>
+          </div>
+          <span class="tt-etag__state">Broken <span class="tt-num">×1.5</span></span>
+        </div>
+        <div class="tt-etag__body"></div><div class="tt-etag__shadow"></div>
+      </div>
+      <p class="tt-label pv-cap"><b>Posture Broken</b> · 1 s</p>
+    </div>
+    <div class="pv-col">
+      <div class="pv-floor tt-floor-mire">
+        <div class="tt-etag is-broken">
+          <div class="tt-etag__head"><span class="ui-label tt-etag__name">Frontliner</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:19%;--t:38%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:85%"><span class="tt-bar__fill"></span></div>
+          </div>
+          <span class="tt-etag__state">Down <span class="tt-num">×2.0</span></span>
+        </div>
+        <div class="tt-etag__body tt-etag__body--down"></div><div class="tt-etag__shadow" style="width:110px;"></div>
+      </div>
+      <p class="tt-label pv-cap"><b>Knocked Down</b> · 2 s</p>
+    </div>
+    <div class="pv-col">
+      <div class="pv-floor tt-floor-mire">
+        <div class="tt-etag is-broken">
+          <div class="tt-etag__head"><span class="ui-label tt-etag__name">Frontliner</span></div>
+          <div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:40%;--t:40%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:55%"><span class="tt-bar__fill"></span></div>
+          </div>
+          <span class="tt-etag__state">Broken <span class="tt-num">×1.5</span></span>
+        </div>
+        <div class="pv-critwrap">
+          <div class="pv-crit">
+            <div class="tt-etag__crit"><i class="tt-etag__corner tt-etag__corner--tl"></i><i class="tt-etag__corner tt-etag__corner--tr"></i><i class="tt-etag__corner tt-etag__corner--bl"></i><i class="tt-etag__corner tt-etag__corner--br"></i></div>
+            <div class="tt-etag__body"></div><div class="tt-etag__shadow"></div>
+          </div>
+          <span class="tt-tag tt-tag--plain tt-etag__riposte"><span class="tt-key tt-key--sm tt-key--mouse" aria-label="Left mouse button"><span class="tt-key__mouse tt-key__mouse--l"></span></span><span class="ui-label">Riposte</span></span>
+        </div>
+      </div>
+      <p class="tt-label pv-cap"><b>Critical window</b> · riposte</p>
+    </div>
+    <div class="pv-col">
+      <div class="pv-floor tt-floor-mire">
+        <div class="pv-far">
+          <div class="tt-etag"><div class="tt-etag__far"><span class="tt-etag__marks" aria-label="Elite"><i class="tt-etag__dia"></i></span><div class="tt-etag__gauge"><div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:72%;--t:72%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div></div></div></div>
+          <div class="tt-etag__body tt-etag__body--far tt-etag__body--elite"></div><div class="tt-etag__shadow" style="width:44px;height:12px;margin-top:-6px;"></div>
+        </div>
+      </div>
+      <p class="tt-label pv-cap"><b>Far</b> · past 14 m</p>
+    </div>
+  </section>
+
+  <div class="tt-specband pv-spec">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Gauge edge</p>
+      <p class="tt-label">Ink outline outside, a rim line inside: on blockout and sand the ink holds, on mire and night the rim does.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Gamepad</p>
+      <p class="tt-label">The Riposte key swaps to the RT trigger cap with the last input device. Each screen shows one device.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Dashed means unavailable</p>
+      <p class="tt-label">A summon is marked by the summon glyph and the lighter pill, never by a dashed rim.</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

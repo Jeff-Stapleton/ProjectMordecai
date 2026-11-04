@@ -1,0 +1,73 @@
+/* Dialogue: town NPC conversation (UMordecaiDialogueWidget on UI.Layer.GameMenu, over the `veil`).
+   A speaker nameplate tag (core eyelet tag, the name in the World voice) on the top edge of an enamel speech
+   panel at bottom centre; up to four choice buttons on a menu plate above its right end; one hint bar under
+   it. Plain voice only: no Tally remarks in NPC speech. */
+
+.tt-dlgue-sheet { display: flex; flex-direction: column; width: 1920px; background: var(--plate); }
+.tt-dlgue-screen { position: relative; width: 1920px; height: 1080px; flex: none; overflow: hidden; }
+/* z-index 0 makes the HUD stage its own stacking context, so its keycaps and tokens stay under the veil. */
+.tt-dlgue-screen > .tt-hud { position: absolute; left: 0; top: 0; z-index: 0; }
+.tt-dlgue__veil { position: absolute; inset: 0; }
+
+/* --- The dialogue unit, placed in design px. Panel x 432-1488, y 792-960: a fixed three-line box, so it
+       never resizes between lines. */
+.tt-dlgue__panel {
+  position: absolute; left: 432px; top: 792px; width: 1056px; height: 168px;
+  padding: 50px 40px 28px; background: var(--enamel); color: var(--ink); border-radius: var(--radius-tag);
+  box-shadow: inset 0 -4px 0 var(--enamel-shade), 0 0 0 var(--tt-outline) var(--ink), 0 6px 0 var(--tt-outline) var(--tt-print);
+}
+.tt-dlgue__line { margin: 0; max-width: 940px; color: var(--ink); }
+/* NextCue: the arrow-down glyph (24, ink) in the panel's bottom-right corner, shown once the line is complete
+   and another line follows. Static: it does not bob (no motion row). */
+.tt-dlgue__next { position: absolute; right: 28px; bottom: 18px; color: var(--ink); }
+/* SpeakerTag: the core eyelet tag on the panel's top edge (x 472, y 756; 36 px over the panel). */
+.tt-dlgue__speaker { position: absolute; left: 472px; top: 756px; z-index: 1; gap: 12px; min-height: 68px; padding-right: 28px; }
+.tt-dlgue__speaker .tt-glyph { color: var(--ink); }
+.tt-dlgue__name { color: var(--ink); white-space: nowrap; }
+/* Hint bar: core .tt-hintbar, centred under the panel (y 984-1036), clear of the HUD's Inventory hint at x 1242. */
+.tt-dlgue__hints { position: absolute; left: 960px; top: 984px; z-index: 1; transform: translateX(-50%); }
+/* Choices: a menu plate above the panel's right end (x 968-1488, bottom at y 768), up to four buttons. */
+.tt-dlgue__choices {
+  position: absolute; left: 968px; bottom: 312px; width: 520px; z-index: 1;
+  display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 16px; list-style: none;
+}
+.tt-dlgue__choice { justify-content: flex-start; gap: var(--space-3); }
+.tt-dlgue__note { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; padding-left: var(--space-3); font: 600 20px/26px var(--font-ui); color: var(--text-muted); white-space: nowrap; }
+.tt-dlgue__choice[aria-disabled="true"] .tt-dlgue__note { color: var(--text-disabled); }
+.tt-dlgue__choice.is-selected .tt-dlgue__note { color: var(--ink-muted); }
+
+/* --- Preview scaffolding: town stand-ins (scenery, theme-invariant world-* and biome-* tokens), frame heads,
+       the 1:1 crop of the choice state and the states sheet. */
+.tt-dlgue-house {
+  position: absolute; width: 192px; height: 168px; border-radius: 8px;
+  background:
+    linear-gradient(90deg, transparent 0 80px, color-mix(in srgb, var(--biome-searing) 38%, var(--world-dark)) 80px 112px, transparent 112px) left bottom / 100% 54px no-repeat,
+    linear-gradient(180deg, var(--tt-house-roof) 0 52%, color-mix(in srgb, var(--tt-house-roof) 62%, var(--world-dark)) 52% 60%, color-mix(in srgb, var(--biome-searing) 64%, var(--world-snow)) 60% 100%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--biome-withered) 40%, var(--world-dark)), 0 10px 0 3px var(--world-shade);
+  --tt-house-roof: color-mix(in srgb, var(--biome-withered) 82%, var(--world-snow));
+}
+.tt-dlgue-house--alchemist { --tt-house-roof: color-mix(in srgb, var(--biome-crystal) 78%, var(--world-dark)); }
+.tt-dlgue-house--alchemist::before {
+  content: ""; position: absolute; right: 26px; top: -22px; width: 26px; height: 34px; border-radius: 4px 4px 0 0;
+  background: color-mix(in srgb, var(--biome-withered) 70%, var(--world-dark));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--biome-withered) 40%, var(--world-dark));
+}
+.tt-dlgue-npc { position: absolute; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -39px); }
+.tt-dlgue-npc__body {
+  width: 44px; height: 78px; border-radius: 22px 22px 14px 14px;
+  background: color-mix(in srgb, var(--biome-storm) 70%, var(--world-dark));
+  box-shadow: inset 0 14px 0 color-mix(in srgb, var(--biome-storm) 55%, var(--world-snow));
+}
+.tt-dlgue-head { display: flex; flex-direction: column; gap: 4px; padding: 22px 32px 16px; }
+.tt-dlgue-head .kicker { color: var(--text); }
+/* The choice state at 1:1: the lower 680 px of the screen (y 400-1080). */
+.tt-dlgue-crop { position: relative; width: 1920px; height: 680px; flex: none; overflow: hidden; }
+.tt-dlgue-crop > .tt-dlgue-screen { position: absolute; left: 0; top: -400px; }
+.tt-dlgue-states { display: flex; flex-direction: column; gap: 20px; padding: 28px 32px 32px; border-top: 3px solid var(--ink); }
+.tt-dlgue-states__row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 28px 40px; }
+.tt-dlgue-specimen { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; width: 320px; margin: 0; }
+.tt-dlgue-specimen--wide { width: 480px; }
+.tt-dlgue-specimen--tag { width: 360px; }
+.tt-dlgue-specimen .tt-dlgue__speaker { position: relative; left: auto; top: auto; }
+/* Four spec notes share one row. */
+.tt-dlgue-sheet > .tt-specband > .tt-specband__item { flex: 1 1 0; }

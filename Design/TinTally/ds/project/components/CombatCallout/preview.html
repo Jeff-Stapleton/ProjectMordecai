@@ -1,0 +1,119 @@
+<!-- @dsCard group="HUD" height=1664 width=960 subtitle="Defence callouts under the player's feet, the three callout sizes, and the Hit N combo plate" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>CombatCallout</title>
+<style>
+/* preview-only layout scaffolding */
+.pv-pair { display: grid; grid-template-columns: 1fr 1fr; }
+.pv-col { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px 0; }
+.pv-caps { display: grid; grid-template-columns: 1fr 1fr; padding: 10px 0 18px; text-align: center; }
+.pv-caps--3 { grid-template-columns: repeat(3, 1fr); }
+.pv-caps p, .pv-side p { margin: 0; }
+.pv-caps b, .pv-side b, .pv-head b { color: var(--text); }
+.pv-head { margin: 0; padding: 18px 24px 10px; }
+.pv-place { display: grid; grid-template-columns: 200px 1fr; }
+.pv-side { position: relative; }
+.pv-side p { position: absolute; left: 24px; right: 12px; }
+.pv-floor { position: relative; height: 316px; padding: 0; }
+.pv-abs { position: absolute; }
+.pv-floor.pv-sizes { height: 384px; }
+.pv-combos { display: grid; grid-template-columns: repeat(3, 1fr); }
+.pv-combos > div { display: flex; justify-content: center; padding: 30px 0; }
+.pv-spec > .tt-specband__item { flex: 1 1 240px; max-width: none; }
+</style>
+</head>
+<body>
+<div class="tt-root">
+
+  <!-- A. The five shipping callouts over a light and a dark floor -->
+  <section class="pv-pair">
+    <div class="tt-stage tt-floor-blockout pv-col">
+      <div class="tt-callout"><span class="callout tt-outlined-4 tt-callout__text">Perfect Dodge!</span></div>
+      <div class="tt-callout"><span class="callout tt-outlined-4 tt-callout__text">Perfect Block!</span></div>
+      <div class="tt-callout"><span class="callout tt-outlined-4 tt-callout__text">Parried!</span></div>
+      <div class="tt-callout"><span class="callout tt-outlined-4 tt-callout__text">Posture Broken!</span></div>
+      <div class="tt-callout tt-callout--bad"><span class="callout tt-outlined-4 tt-callout__text">Parry Failed!</span></div>
+    </div>
+    <div class="tt-stage tt-floor-night pv-col">
+      <div class="tt-callout"><span class="callout tt-outlined-4 tt-callout__text">Perfect Dodge!</span></div>
+      <div class="tt-callout"><span class="callout tt-outlined-4 tt-callout__text">Perfect Block!</span></div>
+      <div class="tt-callout"><span class="callout tt-outlined-4 tt-callout__text">Parried!</span></div>
+      <div class="tt-callout"><span class="callout tt-outlined-4 tt-callout__text">Posture Broken!</span></div>
+      <div class="tt-callout tt-callout--bad"><span class="callout tt-outlined-4 tt-callout__text">Parry Failed!</span></div>
+    </div>
+  </section>
+  <div class="pv-caps">
+    <p class="tt-label"><b>Light floor</b> · blockout</p>
+    <p class="tt-label"><b>Dark floor</b> · night</p>
+  </div>
+
+  <!-- B. In place, 1:1 design px: the player is the screen centre; callout slot +128 to +180, combo +184 to +220 -->
+  <p class="tt-label pv-head"><b>In place</b> · 1:1 at 1920 × 1080 · callout 520 × 52, combo 220 × 36</p>
+  <section class="pv-place">
+    <div class="pv-side">
+      <p class="tt-label" style="top:54px;"><b>Screen centre</b><br>the player</p>
+      <p class="tt-label" style="top:221px;"><b>Callout</b> · +128</p>
+      <p class="tt-label" style="top:269px;"><b>Combo</b> · +184</p>
+    </div>
+    <div class="tt-stage tt-floor-grass pv-floor">
+      <div class="pv-abs tt-callout__guide" style="left:0; right:0; top:80px;"></div>
+      <div class="pv-abs" style="left:342px; top:41px; display:flex; flex-direction:column; align-items:center;">
+        <div class="tt-callout__pawn"></div>
+        <div class="tt-callout__foot"></div>
+      </div>
+      <div class="pv-abs tt-callout tt-callout__spec" style="left:120px; top:208px;"><span class="callout tt-outlined-4 tt-callout__text">Posture Broken!</span></div>
+      <div class="pv-abs tt-combo-slot tt-callout__spec" style="left:270px; top:264px;">
+        <div class="tt-plate tt-combo"><span class="num-m tt-combo__n">Hit 2</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C. Callout size (Settings > Accessibility): the slot grows upward from a fixed bottom edge -->
+  <p class="tt-label pv-head"><b>Callout size</b> · Normal 40 · Large 48 · XL 56 px · the bottom edge and the combo never move</p>
+  <section class="pv-place">
+    <div class="pv-side">
+      <p class="tt-label" style="top:30px;"><b>Normal</b> · 40 px<br>slot +128 to +180</p>
+      <p class="tt-label" style="top:146px;"><b>Large</b> · 48 px<br>slot +120 to +180</p>
+      <p class="tt-label" style="top:270px;"><b>XL</b> · 56 px<br>slot +112 to +180</p>
+    </div>
+    <div class="tt-stage tt-floor-sand pv-floor pv-sizes">
+      <div class="pv-abs tt-callout tt-callout__spec" style="left:120px; top:20px;"><span class="callout tt-outlined-4 tt-callout__text">Perfect Block!</span></div>
+      <div class="pv-abs tt-combo-slot tt-callout__spec" style="left:270px; top:76px;"><div class="tt-plate tt-combo"><span class="num-m tt-combo__n">Hit 3</span></div></div>
+      <div class="pv-abs tt-callout tt-callout--lg tt-callout--bad tt-callout__spec" style="left:120px; top:132px;"><span class="callout tt-outlined-4 tt-callout__text">Parry Failed!</span></div>
+      <div class="pv-abs tt-combo-slot tt-callout__spec" style="left:270px; top:196px;"><div class="tt-plate tt-combo"><span class="num-m tt-combo__n">Hit 1</span></div></div>
+      <div class="pv-abs tt-callout tt-callout--xl tt-callout__spec" style="left:120px; top:252px;"><span class="callout tt-outlined-4 tt-callout__text">Posture Broken!</span></div>
+      <div class="pv-abs tt-combo-slot tt-callout__spec" style="left:270px; top:324px;"><div class="tt-plate tt-combo"><span class="num-m tt-combo__n">Hit 5</span></div></div>
+    </div>
+  </section>
+
+  <!-- D. The combo plate: "Hit N" alone, during the combo window -->
+  <p class="tt-label pv-head"><b>Combo</b> · "Hit N" alone, no strokes · fixed 5-cell text box</p>
+  <section class="pv-combos">
+    <div class="tt-floor-blockout"><div class="tt-combo-slot"><div class="tt-plate tt-combo"><span class="num-m tt-combo__n">Hit 1</span></div></div></div>
+    <div class="tt-floor-snow"><div class="tt-combo-slot"><div class="tt-plate tt-combo"><span class="num-m tt-combo__n">Hit 3</span></div></div></div>
+    <div class="tt-floor-mire"><div class="tt-combo-slot"><div class="tt-plate tt-combo"><span class="num-m tt-combo__n">Hit 5</span></div></div></div>
+  </section>
+  <div class="pv-caps pv-caps--3">
+    <p class="tt-label"><b>Window opens</b> · blockout</p>
+    <p class="tt-label"><b>Longsword</b> chain end · snow</p>
+    <p class="tt-label"><b>Dagger</b>, longest · mire</p>
+  </div>
+
+  <div class="tt-specband pv-spec">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Lane</p>
+      <p class="tt-label">One callout at a time; the newest replaces the last. Never queued, also during the combat hold.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Motion</p>
+      <p class="tt-label">CalloutPop for every callout; "Parry Failed!" adds Shake. Reduce Motion: 150 ms fades.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">High Contrast</p>
+      <p class="tt-label">The letters sit on a plate anchored to the slot bottom; its outline ends 4 px above the combo's at every size.</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!-- @dsCard group="Menus" height=2508 width=960 subtitle="Menu buttons: default, primary and danger through every state, the keycap or glyph lead, the row action and the quit dialog row" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Button</title>
+<style>
+/* Preview scaffolding only. */
+.pv { display: flex; flex-direction: column; gap: 30px; padding: 24px 24px 32px; }
+.pv-sec { display: flex; flex-direction: column; gap: 14px; }
+.pv-h { margin: 0; color: var(--text-muted); }
+.pv-fig { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.pv-tok { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.pv-anat { display: grid; grid-template-columns: 380px 1fr; gap: 28px; align-items: center; }
+.pv-anat__stage { position: relative; padding: 44px 40px 48px; display: flex; justify-content: center; }
+.pv-pin { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--enamel); color: var(--ink); font: 800 20px/1 var(--font-mono); box-shadow: 0 0 0 3px var(--ink); z-index: 2; }
+.pv-legend { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.pv-legend li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; }
+.pv-legend .pv-pin { position: static; margin: 0; }
+.pv-legend b { color: var(--text); font-weight: 700; }
+.pv-matrix { display: grid; grid-template-columns: 112px repeat(3, 1fr); align-items: center; column-gap: 12px; row-gap: 24px; padding: 22px 20px 28px; }
+.pv-matrix__c { display: flex; justify-content: center; }
+.pv-matrix__h { text-align: center; }
+.pv-dlgstage { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--space-5); padding: 36px 24px 40px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 2px var(--lip); }
+.pv-dlgstage > .tt-veil { position: absolute; inset: 0; }
+.pv-dlgstage > .tt-dlg, .pv-dlgstage > .tt-hintbar { position: relative; z-index: 1; }
+.pv-rows { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+.pv-irow { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; }
+.pv-irow__name { flex: 1; }
+.pv-smstates { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; padding: 20px 20px 24px; }
+.pv-smstates .pv-fig { align-items: center; }
+.pv-front { display: grid; grid-template-columns: 464px 1fr; gap: 24px; align-items: center; }
+.pv-title { position: relative; height: 484px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 2px var(--lip); background: color-mix(in srgb, var(--plate) 45%, var(--ink)); }
+.pv-title__rail { position: absolute; left: 40px; top: 28px; width: 408px; }
+.pv-title__cord { left: 86px; top: 48px; height: 412px; }
+.pv-title__tags { position: absolute; z-index: 2; left: 64px; top: 92px; display: flex; flex-direction: column; gap: 28px; margin: 0; padding: 0; list-style: none; }
+</style>
+</head>
+<body>
+<div class="tt-root pv">
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Anatomy · one lead, then the label</h2>
+    <div class="pv-anat">
+      <div class="tt-plate tt-plate--menu pv-anat__stage">
+        <button class="tt-btn tt-btn--primary" type="button" style="min-width:200px">
+          <span class="tt-btn__key"><span class="tt-key tt-key--sm">Esc</span></span>
+          <span class="tt-btn__label">Stay</span>
+        </button>
+        <span class="pv-pin" style="left:132px; top:22px">1</span>
+        <span class="pv-pin" style="left:214px; top:22px">2</span>
+        <span class="pv-pin" style="left:190px; top:124px">3</span>
+        <span class="pv-pin" style="left:316px; top:88px">4</span>
+      </div>
+      <ol class="pv-legend tt-label">
+        <li><span class="pv-pin">1</span><span><b>Lead</b>, one only: a 32 px keycap when a key fires the button (it leads, D4), else an optional 24 px glyph; the <span class="pv-tok">lock</span> glyph when disabled.</span></li>
+        <li><span class="pv-pin">2</span><span><b>Label</b> <span class="pv-tok">ui-title</span> 26 / 32, a verb, sentence case. The first TextBlock.</span></li>
+        <li><span class="pv-pin">3</span><span><b>Print</b> 0, 4 <span class="pv-tok">ink</span>: lifts to 6 on hover, sinks to 1.</span></li>
+        <li><span class="pv-pin">4</span><span><b>Body</b> 56 min, padding 10 / 24, gap 12, radius 10, 2 px edge.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Variants by state</h2>
+    <div class="tt-plate tt-plate--menu pv-matrix">
+      <span></span>
+      <span class="tt-label pv-matrix__h">Default</span><span class="tt-label pv-matrix__h">Primary · the safe answer</span><span class="tt-label pv-matrix__h">Danger · destructive only</span>
+
+      <span class="tt-label">Rest</span>
+      <span class="pv-matrix__c"><button class="tt-btn" type="button"><span class="tt-btn__label">Quit</span></button></span>
+      <span class="pv-matrix__c"><button class="tt-btn tt-btn--primary" type="button"><span class="tt-btn__key"><span class="tt-key tt-key--sm">Esc</span></span><span class="tt-btn__label">Stay</span></button></span>
+      <span class="pv-matrix__c"><button class="tt-btn tt-btn--danger" type="button"><span class="tt-btn__label">Delete save</span></button></span>
+
+      <span class="tt-label">Hover</span>
+      <span class="pv-matrix__c"><button class="tt-btn is-hover" type="button"><span class="tt-btn__label">Quit</span></button></span>
+      <span class="pv-matrix__c"><button class="tt-btn tt-btn--primary is-hover" type="button"><span class="tt-btn__key"><span class="tt-key tt-key--sm">Esc</span></span><span class="tt-btn__label">Stay</span></button></span>
+      <span class="pv-matrix__c"><button class="tt-btn tt-btn--danger is-hover" type="button"><span class="tt-btn__label">Delete save</span></button></span>
+
+      <span class="tt-label">Pressed</span>
+      <span class="pv-matrix__c"><button class="tt-btn is-pressed" type="button"><span class="tt-btn__label">Quit</span></button></span>
+      <span class="pv-matrix__c"><button class="tt-btn tt-btn--primary is-pressed" type="button"><span class="tt-btn__key"><span class="tt-key tt-key--sm is-pressed">Esc</span></span><span class="tt-btn__label">Stay</span></button></span>
+      <span class="pv-matrix__c"><button class="tt-btn tt-btn--danger is-pressed" type="button"><span class="tt-btn__label">Delete save</span></button></span>
+
+      <span class="tt-label">Focused</span>
+      <span class="pv-matrix__c"><button class="tt-btn is-focused" type="button"><span class="tt-btn__label">Quit</span></button></span>
+      <span class="pv-matrix__c"><button class="tt-btn tt-btn--primary is-focused" type="button"><span class="tt-btn__key"><span class="tt-key tt-key--sm">Esc</span></span><span class="tt-btn__label">Stay</span></button></span>
+      <span class="pv-matrix__c"><button class="tt-btn tt-btn--danger is-focused" type="button"><span class="tt-btn__label">Delete save</span></button></span>
+
+      <span class="tt-label">Disabled</span>
+      <span class="pv-matrix__c"><button class="tt-btn" type="button" aria-disabled="true"><span class="tt-btn__glyph tt-glyph" data-glyph="lock" aria-hidden="true"></span><span class="tt-btn__label">Quit</span></button></span>
+      <span class="pv-matrix__c"><button class="tt-btn tt-btn--primary" type="button" aria-disabled="true"><span class="tt-btn__glyph tt-glyph" data-glyph="lock" aria-hidden="true"></span><span class="tt-btn__key"><span class="tt-key tt-key--sm">Esc</span></span><span class="tt-btn__label">Stay</span></button></span>
+      <span class="pv-matrix__c"><button class="tt-btn tt-btn--danger" type="button" aria-disabled="true"><span class="tt-btn__glyph tt-glyph" data-glyph="lock" aria-hidden="true"></span><span class="tt-btn__label">Delete save</span></button></span>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">A row of buttons · the quit dialog (Dialog)</h2>
+    <figure class="pv-fig">
+      <div class="pv-dlgstage tt-floor-grass">
+        <div class="tt-veil"></div>
+        <section class="tt-plate tt-plate--menu tt-dlg" role="alertdialog" aria-labelledby="bq1t">
+          <div class="tt-dlg__main">
+            <span class="tt-dlg__stamp"><span class="tt-glyph tt-glyph--32" data-glyph="seal" aria-label="The Tally seal"></span></span>
+            <div class="tt-dlg__text">
+              <h2 class="tally-heading tt-dlg__title" id="bq1t">Quit to desktop?</h2>
+              <p class="ui-body tt-dlg__body">The Tally will keep count.</p>
+            </div>
+          </div>
+          <div class="tt-dlg__foot">
+            <div class="tt-btn-row">
+              <button class="tt-btn" type="button"><span class="tt-btn__label">Quit</span></button>
+              <button class="tt-btn tt-btn--primary is-focused" type="button"><span class="tt-btn__key"><span class="tt-key tt-key--sm">Esc</span></span><span class="tt-btn__label">Stay</span></button>
+            </div>
+          </div>
+        </section>
+        <div class="tt-hintbar" aria-label="Dialog actions"><span class="tt-hint"><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-left" aria-label="Left"></span></span><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-right" aria-label="Right"></span></span>Move</span><span class="tt-hintbar__sep" aria-hidden="true"></span><span class="tt-hint"><span class="tt-key tt-key--sm tt-key--wide">Enter</span>Select</span></div>
+      </div>
+      <figcaption class="tt-label"><span class="pv-tok">.tt-btn-row</span>: the risky action left (Quit, a plain button, no keycap), the safe action right (Stay: primary, default focus, the Back keycap leads it). Right-aligned, 16 apart, 152 min. No hint inside the footer: Dialog's core <span class="pv-tok">.tt-hintbar</span> sits centred 24 px under the plate.</figcaption>
+    </figure>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Row action · .tt-btn--sm with a leading glyph</h2>
+    <figure class="pv-fig">
+      <div class="tt-plate tt-plate--menu pv-rows">
+        <div class="tt-plate tt-plate--inset pv-irow"><span class="tt-rarity tt-r-purple" data-rarity="purple"></span><span class="ui-body pv-irow__name" style="color:var(--rarity-purple)">? Unidentified Purple Amulet</span><button class="tt-btn tt-btn--sm" type="button"><span class="tt-btn__glyph tt-glyph" data-glyph="mage-tower" aria-hidden="true"></span><span class="tt-btn__label">Identify</span></button></div>
+        <div class="tt-plate tt-plate--inset pv-irow"><span class="tt-glyph tt-glyph--20" data-glyph="skill-point" aria-hidden="true"></span><span class="ui-body pv-irow__name">Longswords</span><span class="num-m" style="color:var(--text-muted)">12 / 20</span><button class="tt-btn tt-btn--sm" type="button"><span class="tt-btn__glyph tt-glyph" data-glyph="skill-point" aria-hidden="true"></span><span class="tt-btn__label">Allocate</span></button></div>
+        <div class="tt-plate tt-plate--inset pv-irow"><span class="tt-glyph tt-glyph--20" data-glyph="skill-point" aria-hidden="true" style="color:var(--text-disabled)"></span><span class="ui-body pv-irow__name">Dodging</span><span class="num-m" style="color:var(--text-muted)">20 / 20</span><button class="tt-btn tt-btn--sm" type="button" aria-disabled="true"><span class="tt-btn__glyph tt-glyph" data-glyph="lock" aria-hidden="true"></span><span class="tt-btn__label">Allocate</span></button></div>
+      </div>
+      <figcaption class="tt-label">InventoryTab's Identify (<span class="pv-tok">mage-tower</span>) and SkillsTab's Allocate (<span class="pv-tok">skill-point</span>): default variant, 48 tall, right end of the row. Disabled at 0 skill points or rank 20, with the <span class="pv-tok">lock</span> glyph.</figcaption>
+    </figure>
+    <div class="tt-plate tt-plate--menu pv-smstates">
+      <figure class="pv-fig"><button class="tt-btn tt-btn--sm" type="button"><span class="tt-btn__glyph tt-glyph" data-glyph="mage-tower" aria-hidden="true"></span><span class="tt-btn__label">Identify</span></button><figcaption class="tt-label">Rest</figcaption></figure>
+      <figure class="pv-fig"><button class="tt-btn tt-btn--sm is-hover" type="button"><span class="tt-btn__glyph tt-glyph" data-glyph="mage-tower" aria-hidden="true"></span><span class="tt-btn__label">Identify</span></button><figcaption class="tt-label">Hover</figcaption></figure>
+      <figure class="pv-fig"><button class="tt-btn tt-btn--sm is-pressed" type="button"><span class="tt-btn__glyph tt-glyph" data-glyph="mage-tower" aria-hidden="true"></span><span class="tt-btn__label">Identify</span></button><figcaption class="tt-label">Pressed</figcaption></figure>
+      <figure class="pv-fig"><button class="tt-btn tt-btn--sm is-focused" type="button"><span class="tt-btn__glyph tt-glyph" data-glyph="mage-tower" aria-hidden="true"></span><span class="tt-btn__label">Identify</span></button><figcaption class="tt-label">Focused</figcaption></figure>
+      <figure class="pv-fig"><button class="tt-btn tt-btn--sm" type="button" aria-disabled="true"><span class="tt-btn__glyph tt-glyph" data-glyph="lock" aria-hidden="true"></span><span class="tt-btn__label">Identify</span></button><figcaption class="tt-label">Disabled</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Not a button · the title menu is tags on a rail (TitleScreen)</h2>
+    <div class="pv-front">
+      <div class="pv-title">
+        <span class="tt-railbar pv-title__rail"></span>
+        <span class="tt-string tt-string--light tt-fe-cord tt-fe-cord--threaded tt-fe-cord--knot pv-title__cord" aria-hidden="true"></span>
+        <ul class="pv-title__tags">
+          <li class="tt-tag tt-fe-tag is-focused" role="button"><span class="tt-fe-thread" aria-hidden="true"></span><span class="tt-key tt-key--sm tt-key--wide">Enter</span><span class="tally-heading tt-fe-tag__label">Play</span></li>
+          <li class="tt-tag tt-fe-tag" role="button"><span class="tt-fe-thread" aria-hidden="true"></span><span class="tally-heading tt-fe-tag__label">Options</span></li>
+          <li class="tt-tag tt-fe-tag" role="button"><span class="tt-fe-thread" aria-hidden="true"></span><span class="tally-heading tt-fe-tag__label">Credits</span></li>
+          <li class="tt-tag tt-fe-tag" role="button"><span class="tt-fe-thread" aria-hidden="true"></span><span class="tally-heading tt-fe-tag__label">Quit</span></li>
+        </ul>
+      </div>
+      <div class="tt-col">
+        <p class="tt-label" style="margin:0">A crop of the TitleScreen menu, built from its classes: four tags threaded on one light cord under the rail. They are tags, not buttons, so they never take <span class="pv-tok">.tt-btn</span> styling.</p>
+        <p class="tt-label" style="margin:0">Quit there is a plain tag: it only opens the quit dialog above, where Quit is a plain button too.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!-- @dsCard group="Foundations" height=360 width=960 subtitle="The cover: the Tin Tally nameplate, a Kills rail with three tickets, a feat medallion and the Inventory keycap over the toy island" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Tin Tally</title></head>
+<body>
+<div class="tt-root tt-cover">
+<!--
+  blocks      enamel nameplate face ~466 x 138 (the name, ink; tagline ink-muted) · plate rail head 320 x 56 · enamel tickets 320 x 88 / 88 / 56 with
+              good, rarity-purple and rarity-common stubs · feat-common badge 96 · the island in world-grass / world-sand / biome-crystal / biome-searing
+  arrangement the Paused-style nameplate hung top-left on two light cords, the feat badge stamped on its corner, the rail top-right 32 px in,
+              the title island's corner across the bottom with the rail's tickets hanging over it, the Inventory pill at the island's foot
+  pattern     the Tally's own vocabulary, not shapes: eyelets on light cords, kind-coloured stubs and perforations, the 96 px diorama checker;
+              Carl = the counting (Kills, SKILL UP 6 / 20 and its deadpan remark, an ITEM ticket, a feat), Link's Awakening = the toy island in its case
+  scales      1:1 design px (no text under 20); 32 px edge margin; radius-tag faces, radius-plate head, radius-pill hint; outline 3 (4 in High Contrast)
+  data        Kills 7, Dodging 6 / 20, "Six. Up from five.", Iron Ore x3 and the tagline are example values; every other string is shipping or real item data
+-->
+
+  <!-- The world:the front-end level's dark display case and its toy island (TitleScreen). Level art, not UI. -->
+  <div class="tt-fe-world" aria-hidden="true"></div>
+  <div class="tt-cover__place tt-cover__island" aria-hidden="true">
+    <div class="tt-fe-dio__top">
+      <div class="tt-diorama">
+        <span class="tt-diorama__pond" style="left:24px;top:22px;width:156px;height:72px"></span>
+        <span class="tt-diorama__path" style="left:240px;top:0;width:96px;height:120px"></span>
+      </div>
+    </div>
+    <div class="tt-fe-dio__cliff"></div>
+    <div class="tt-fe-dio__fringe"></div>
+    <div class="tt-fe-dio__plinth"></div>
+    <span class="tt-diorama__post" style="left:206px;top:18px"></span>
+    <span class="tt-diorama__post" style="left:206px;top:68px"></span>
+    <span class="tt-diorama__bush" style="left:362px;top:36px"></span>
+    <span class="tt-diorama__tree" style="left:452px;top:6px"></span>
+    <span class="tt-fe-flower" style="left:146px;top:104px"></span>
+    <span class="tt-fe-flower tt-fe-flower--storm" style="left:172px;top:92px"></span>
+    <span class="tt-fe-flower tt-fe-flower--storm" style="left:430px;top:20px"></span>
+  </div>
+
+  <!-- The wordmark on Tag's two-string nameplate, the tagline on the same enamel. -->
+  <div class="tt-cover__place tt-tag-nameplate tt-cover__name">
+    <div class="tt-tag-nameplate__face">
+      <h1 class="tally-display tt-cover__word">Tin Tally</h1>
+      <p class="ui-body tt-cover__tagline">The interface of Project Mordecai.</p>
+    </div>
+  </div>
+
+  <!-- The feat medallion (TallyPlate badge): Pyromaniac, Common circle, its own fire glyph (D14). -->
+  <span class="tt-cover__place tt-tallyplate__badge tt-tallyplate__badge--common tt-cover__badge" style="left:450px;top:76px"><span class="tt-glyph tt-glyph--48" data-glyph="fire" aria-label="Pyromaniac"></span></span>
+
+  <!-- The rail (TallyRail): Kills: 7, the slot printing, three ticket kinds on the light cord. -->
+  <div class="tt-cover__place tt-rail tt-cover__rail" style="left:608px;top:20px;--tt-rail-tail:28px">
+    <div class="tt-plate tt-plate--rail tt-railhead is-printing">
+      <div class="tt-plate__row"><span class="tt-railhead__kills num-l">Kills: 7</span></div>
+      <span class="tt-railhead__slot" aria-hidden="true"></span>
+    </div>
+    <div class="tt-tag-stack tt-tag-stack--light">
+      <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill has-foot is-new">
+        <div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">6 / 20</span></div>
+        <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Dodging</span></div>
+        <div class="tt-ticket__foot"><span class="tt-glyph tt-glyph--20" data-glyph="seal" aria-label="The Tally"></span><span class="tt-ticket__foottext">Six. Up from five.</span></div>
+        <span class="tt-ticket__peel" aria-hidden="true"></span>
+      </div>
+      <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--r-purple">
+        <div class="tt-ticket__row"><span class="tt-tag__kicker">Item · Purple</span><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple"></span></span></div>
+        <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name tt-ticket__name--wrap">Unidentified Purple Amulet</span></div>
+      </div>
+      <div class="tt-tag tt-ticket tt-ticket--slip tt-ticket--r-common">
+        <span class="tt-glyph" data-glyph="ore" aria-label="Iron Ore"></span>
+        <span class="tt-tag__line tt-ticket__name">Iron Ore</span>
+        <span class="tt-ticket__count num-s">x3</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- The one keycap: the always-visible Inventory hint (InteractPrompt). -->
+  <div class="tt-cover__place tt-iprompt__hint tt-cover__hint" style="left:236px;top:302px"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+
+</div>
+</body>
+</html>

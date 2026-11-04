@@ -1,0 +1,161 @@
+<!-- @dsCard group="HUD" height=1830 width=960 subtitle="The meter: well, lip, fill, damage trail, heal lead, notches, stripes, the stamina debt and the break floods, at gauge, enemy and boss sizes" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Bar</title>
+<style>
+/* Preview scaffolding only. */
+.pv { display: flex; flex-direction: column; gap: 30px; padding: 24px 24px 32px; }
+.pv-sec { display: flex; flex-direction: column; gap: 14px; }
+.pv-h { margin: 0; color: var(--text-muted); }
+.pv-fig { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.pv-tok { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.pv-anat { display: grid; grid-template-columns: 1fr 236px; gap: 24px; align-items: start; }
+.pv-anat__plate { position: relative; padding: 26px 22px 18px; display: flex; flex-direction: column; gap: 0; }
+.pv-x2 { transform: scale(2); transform-origin: 0 0; margin-bottom: 52px; }
+.pv-x2--st { margin-bottom: 46px; }
+.pv-x2cap { margin: -2px 0 10px; }
+.pv-pin { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--enamel); color: var(--ink); font: 800 20px/1 var(--font-mono); box-shadow: 0 0 0 3px var(--ink); z-index: 2; }
+.pv-legend { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.pv-legend li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; }
+.pv-legend .pv-pin { position: static; margin: 0; }
+.pv-legend b { color: var(--text); font-weight: 700; }
+.pv-tiers { display: grid; grid-template-columns: 112px 268px 80px 1fr; align-items: center; column-gap: 16px; row-gap: 14px; padding: 20px 24px; }
+.pv-posture { display: grid; grid-template-columns: 34px 268px 1fr; align-items: center; column-gap: 12px; row-gap: 14px; padding: 20px 24px; }
+.pv-hudrow { display: grid; grid-template-columns: 34px 268px; align-items: center; column-gap: 10px; row-gap: 10px; padding: 16px; }
+.pv-sizes { display: grid; grid-template-columns: 364px 1fr; gap: 20px; align-items: start; }
+.pv-floors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.pv-floor { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; height: 92px; border-radius: 10px; box-shadow: 0 0 0 2px var(--lip); }
+.pv-bossstage { padding: 4px 16px 18px; border-radius: 10px; box-shadow: 0 0 0 2px var(--lip); }
+.pv-time { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 18px 20px; }
+.pv-time .tt-bar { width: 100%; height: 24px; }
+</style>
+</head>
+<body>
+<div class="tt-root pv">
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Anatomy at 2x · the gauge meters, 268 wide</h2>
+    <div class="pv-anat">
+      <div class="tt-plate tt-plate--menu pv-anat__plate">
+        <div class="tt-bar tt-bar--hud pv-x2" style="--v:58%; --t:74%"><div class="tt-bar__trail"></div><div class="tt-bar__fill"></div><div class="tt-bar__notch" style="--at:25%"></div></div>
+        <span class="tt-label pv-x2cap">Health, just hit: 74% to 58%</span>
+        <div class="tt-bar tt-bar--hud pv-x2" style="--v:40%; --l:66%"><div class="tt-bar__lead"></div><div class="tt-bar__fill"></div><div class="tt-bar__notch" style="--at:25%"></div></div>
+        <span class="tt-label pv-x2cap">Health, healing: 40% to 66%</span>
+        <div class="tt-bar tt-bar--hud-st tt-bar--red is-striped pv-x2 pv-x2--st" style="--v:22%"><div class="tt-bar__fill"></div><div class="tt-bar__notch" style="--at:33%"></div><div class="tt-bar__notch" style="--at:66%"></div></div>
+        <span class="tt-label pv-x2cap">Stamina, Red tier: 22%</span>
+        <div class="tt-bar tt-bar--hud-st tt-bar--exhausted pv-x2 pv-x2--st" style="--v:0%; --d:37%"><div class="tt-bar__fill"></div><div class="tt-bar__debt"></div><div class="tt-bar__notch" style="--at:33%"></div><div class="tt-bar__notch" style="--at:66%"></div></div>
+        <span class="tt-label pv-x2cap" style="margin-bottom:0">Stamina, Exhausted at the floor: −50 of 134 = 37%, from the left</span>
+        <span class="pv-pin" style="left:24px; top:22px">1</span>
+        <span class="pv-pin" style="left:500px; top:50px">2</span>
+        <span class="pv-pin" style="left:100px; top:50px">3</span>
+        <span class="pv-pin" style="left:376px; top:50px">4</span>
+        <span class="pv-pin" style="left:156px; top:22px">5</span>
+        <span class="pv-pin" style="left:306px; top:160px">6</span>
+        <span class="pv-pin" style="left:80px; top:264px">7</span>
+        <span class="pv-pin" style="left:100px; top:362px">8</span>
+      </div>
+      <ol class="pv-legend tt-label">
+        <li><span class="pv-pin">1</span><span><b>Lip</b> 2 px <span class="pv-tok">lip</span>, radius 6</span></li>
+        <li><span class="pv-pin">2</span><span><b>Well</b> <span class="pv-tok">well</span></span></li>
+        <li><span class="pv-pin">3</span><span><b>Fill</b> <span class="pv-tok">vital</span>, radius 3</span></li>
+        <li><span class="pv-pin">4</span><span><b>Trail</b> <span class="pv-tok">vital-trail</span> · DamageTrail</span></li>
+        <li><span class="pv-pin">5</span><span><b>Notch</b> 2 px <span class="pv-tok">ink</span>, <span class="pv-tok">lip</span> sides</span></li>
+        <li><span class="pv-pin">6</span><span><b>Heal lead</b> <span class="pv-tok">heal</span> · HealLead</span></li>
+        <li><span class="pv-pin">7</span><span><b>Stripes</b> <span class="pv-tok">ink</span> 35%, −45°</span></li>
+        <li><span class="pv-pin">8</span><span><b>Debt</b> StaminaDebtBar: <span class="pv-tok">danger</span> hatch +45° on <span class="pv-tok">well</span>, from the left; solid edge where regen bites</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Stamina tiers · colour, notches, pill and pattern together</h2>
+    <div class="tt-plate tt-plate--menu pv-tiers">
+      <span class="ui-body">Green</span>
+      <div class="tt-bar tt-bar--hud-st tt-bar--green" style="--v:82%"><div class="tt-bar__fill"></div><div class="tt-bar__notch" style="--at:33%"></div><div class="tt-bar__notch" style="--at:66%"></div></div>
+      <span class="tt-pill tt-pill--green">×1.25</span><span class="tt-label">66% and up · solid</span>
+      <span class="ui-body">Yellow</span>
+      <div class="tt-bar tt-bar--hud-st tt-bar--yellow" style="--v:48%"><div class="tt-bar__fill"></div><div class="tt-bar__notch" style="--at:33%"></div><div class="tt-bar__notch" style="--at:66%"></div></div>
+      <span class="tt-pill tt-pill--yellow">×1.0</span><span class="tt-label">33% to 66% · solid</span>
+      <span class="ui-body">Red</span>
+      <div class="tt-bar tt-bar--hud-st tt-bar--red is-striped" style="--v:22%"><div class="tt-bar__fill"></div><div class="tt-bar__notch" style="--at:33%"></div><div class="tt-bar__notch" style="--at:66%"></div></div>
+      <span class="tt-pill tt-pill--red">×0.75</span><span class="tt-label">above 0, under 33% · striped</span>
+      <span class="ui-body">Exhausted</span>
+      <div class="tt-bar tt-bar--hud-st tt-bar--exhausted" style="--v:0%; --d:19%"><div class="tt-bar__fill"></div><div class="tt-bar__debt"></div><div class="tt-bar__notch" style="--at:33%"></div><div class="tt-bar__notch" style="--at:66%"></div></div>
+      <span class="tt-pill tt-pill--exhausted">×0.5</span><span class="tt-label">0 and below · hatch, −26 of 134 = 19%</span>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Player posture · steady and broken, beside the Red stamina tier</h2>
+    <div class="tt-plate tt-plate--menu pv-posture">
+      <span class="num-s" style="color:var(--text-muted)">ST</span>
+      <div class="tt-bar tt-bar--hud-st tt-bar--red is-striped" style="--v:22%"><div class="tt-bar__fill"></div><div class="tt-bar__notch" style="--at:33%"></div><div class="tt-bar__notch" style="--at:66%"></div></div>
+      <span class="tt-label">Red tier for comparison: <span class="pv-tok">danger</span>, −45° stripes, 18 tall</span>
+      <span></span>
+      <div class="tt-bar tt-bar--hud-thin tt-bar--posture" style="--v:64%"><div class="tt-bar__fill"></div></div>
+      <span class="tt-label">Posture: <span class="pv-tok">posture</span> fill, 1 px <span class="pv-tok">lip</span></span>
+      <span></span>
+      <div class="tt-bar tt-bar--hud-thin tt-bar--posture is-posture-broken"><div class="tt-bar__fill"></div></div>
+      <span class="tt-label">Broken: <span class="pv-tok">posture</span> under an <span class="pv-tok">ink</span> hatch +45°, lip to <span class="pv-tok">rim</span>. No red, no chip.</span>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Sizes · design px at 1920 x 1080 · the owner sizes each meter</h2>
+    <div class="pv-sizes">
+      <figure class="pv-fig">
+        <div class="tt-plate pv-hudrow">
+          <span class="num-s" style="color:var(--text-muted)">HP</span>
+          <div class="tt-bar tt-bar--hud" style="--v:62%; --t:70%"><div class="tt-bar__trail"></div><div class="tt-bar__fill"></div><div class="tt-bar__notch" style="--at:25%"></div></div>
+          <span class="num-s" style="color:var(--text-muted)">ST</span>
+          <div class="tt-bar tt-bar--hud-st tt-bar--yellow" style="--v:54%"><div class="tt-bar__fill"></div><div class="tt-bar__notch" style="--at:33%"></div><div class="tt-bar__notch" style="--at:66%"></div></div>
+          <span></span>
+          <div class="tt-bar tt-bar--hud-thin tt-bar--posture" style="--v:72%"><div class="tt-bar__fill"></div></div>
+        </div>
+        <figcaption class="tt-label">GaugePlate: HP <span class="pv-tok">--hud</span> 268 x 24, ST <span class="pv-tok">--hud-st</span> 268 x 18, posture <span class="pv-tok">--hud-thin</span> 268 x 8.</figcaption>
+      </figure>
+      <figure class="pv-fig">
+        <div class="pv-floors" style="grid-template-columns: repeat(3, 1fr)">
+          <div class="pv-floor tt-floor-blockout"><div class="tt-etag"><div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:46%;--t:60%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:80%"><span class="tt-bar__fill"></span></div>
+          </div></div></div>
+          <div class="pv-floor tt-floor-mire"><div class="tt-etag"><div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:18%;--t:30%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:80%"><span class="tt-bar__fill"></span></div>
+          </div></div></div>
+          <div class="pv-floor tt-floor-night"><div class="tt-etag is-broken"><div class="tt-etag__gauge">
+            <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:46%;--t:46%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:60%"><span class="tt-bar__fill"></span></div>
+          </div></div></div>
+        </div>
+        <figcaption class="tt-label">EnemyTag's gauge: health 136 x 10 (2 px <span class="pv-tok">lip</span>) over posture 136 x 5 (1 px; 8 while broken) in one framed piece: <span class="pv-tok">ink</span> outline, <span class="pv-tok">rim</span> line. Right: broken, draining.</figcaption>
+      </figure>
+    </div>
+    <figure class="pv-fig">
+      <div class="pv-bossstage tt-floor-sand">
+        <div class="tt-boss">
+          <div class="tt-plate tt-boss__plate">
+            <div class="tt-bar tt-bar--foe tt-boss__hp" style="--v:63%;--t:71%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+            <div class="tt-bar tt-bar--posture tt-boss__po" style="--v:35%"><span class="tt-bar__fill"></span></div>
+          </div>
+        </div>
+      </div>
+      <figcaption class="tt-label">BossBar's plate (880 wide): health 848 x 22 and posture 848 x 8 are plain wells with a 2 px (1 px) <span class="pv-tok">lip</span>. The plate carries the dual edge, so they never take <span class="pv-tok">.tt-bar--world</span>.</figcaption>
+    </figure>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">DamageTrail · health 74% hit for 16</h2>
+    <div class="tt-plate tt-plate--menu pv-time">
+      <figure class="pv-fig"><div class="tt-bar" style="--v:58%; --t:74%"><div class="tt-bar__trail"></div><div class="tt-bar__fill"></div></div><figcaption class="tt-label">Hit · the fill snaps</figcaption></figure>
+      <figure class="pv-fig"><div class="tt-bar" style="--v:58%; --t:74%"><div class="tt-bar__trail"></div><div class="tt-bar__fill"></div></div><figcaption class="tt-label">Hold · the ghost waits</figcaption></figure>
+      <figure class="pv-fig"><div class="tt-bar" style="--v:58%; --t:66%"><div class="tt-bar__trail"></div><div class="tt-bar__fill"></div></div><figcaption class="tt-label">Drain</figcaption></figure>
+      <figure class="pv-fig"><div class="tt-bar" style="--v:58%; --t:58%"><div class="tt-bar__trail"></div><div class="tt-bar__fill"></div></div><figcaption class="tt-label">Settled</figcaption></figure>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

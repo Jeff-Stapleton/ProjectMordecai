@@ -1,0 +1,72 @@
+<!-- @dsCard group="Foundations" height=4022 width=960 subtitle="All 117 stamp glyphs at 32 px on plate and 20 px on enamel, plus the sibling groups kept apart" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Glyphs</title></head>
+<body>
+<div class="tt-root tt-pad-lg tt-glyphsheet" id="sheet"></div>
+<script>
+(function () {
+  /* Markup is built with single-quoted attributes so the static checker does not read the JS as markup. */
+  var SETS = [
+    ['Status', 'burning bleeding poisoned frostbitten frozen shocked weakened brittle silenced rooted blinded fear cursed exposed corroded drenched focused stoneskin fireward blessed restoration enchanted blurred resolved sleeping'],
+    ['Damage', 'physical slash pierce blunt fire frost lightning poison corrosive arcane shadow radiant heal crit block immune'],
+    ['Spells', 'fireball blink cone-of-cold magic-missile'],
+    ['Weapons', 'longsword greatsword shortsword dagger axe mace spear quarterstaff unarmed bow crossbow throwable wand'],
+    ['Items', 'all weapon armor trinket consumable material quest magical potion ore stone upgrade-key amulet chest currency bandage tonic'],
+    ['System', 'lock unknown check cross arrow-up arrow-down arrow-left arrow-right drawback pin skill-point diamond map gate player character skills feats inventory settings new seal search'],
+    ['Options', 'display audio controls accessibility'],
+    ['HUD and world', 'summon sprint reticle speech'],
+    ['Tools and town', 'explosives magnet shock-device invisibility phase glider mage-tower alchemist blacksmith clinic keep']
+  ];
+  /* Sibling groups that must never be confused at 20 px. Each entry: title, the tell, members.
+     A member 'rarity:purple' draws the Purple rarity badge (tally strokes) instead of a glyph. */
+  var APART = [
+    ['Blades', 'Long narrow blade · wide leaf with a round pommel · short triangle with a ring pommel · straight staff with two wraps', 'longsword shortsword dagger quarterstaff'],
+    ['Helmets and shields', 'T-visor helmet · bitten helmet with a drip · nested shield · ward dome over a flame', 'armor corroded block fireward'],
+    ['Figures', 'Pawn · bust with a stone-tile torso · figure rising from a ring under sparkles · framed bust', 'player stoneskin summon character'],
+    ['Bottles and dressings', 'Round flask · tipped bottle pouring · corked vial · strip with a pad (never a cross)', 'potion consumable tonic bandage'],
+    ['Boxes', 'Wide lidded box · tall pack with a carry loop, flap and buckle · shackle and keyhole · tipped seesaw', 'chest inventory lock drawback'],
+    ['Drops', 'Drop and bubbles · drop over a wave · cut drop and two drops · pitted ring with a drop bore', 'poison drenched bleeding corrosive'],
+    ['Bursts', 'Uneven impact burst · cog with a round bore · five-point star · four-point shuriken', 'physical settings new throwable'],
+    ['Bars and streaks', 'Folded map with a pin, never three bars beside the Purple badge · claw marks · star-headed bolts', 'map rarity:purple slash magic-missile'],
+    ['Targets and talk', 'Corner brackets · four points inward · two bubbles · one bubble with a cross', 'reticle focused speech silenced']
+  ];
+  var have = (window.TinTally && TinTally.glyphs) || {};
+
+  function cell(n) {
+    if (n.indexOf('rarity:') === 0) {
+      var r = n.slice(7), label = r.charAt(0).toUpperCase() + r.slice(1);
+      return "<figure class='tt-glyphsheet__cell'>" +
+        "<span class='tt-glyphsheet__dark'><span class='tt-rarity tt-r-" + r + "' data-rarity='" + r + "' data-height='32' aria-label='" + label + "'></span></span>" +
+        "<span class='tt-glyphsheet__light'><span class='tt-socket'><span class='tt-rarity tt-r-" + r + "' data-rarity='" + r + "' aria-label='" + label + "'></span></span></span>" +
+        "<figcaption class='tt-glyphsheet__name'>" + label + "</figcaption></figure>";
+    }
+    var missing = !have[n];
+    return "<figure class='tt-glyphsheet__cell" + (missing ? " is-missing" : "") + "'>" +
+      "<span class='tt-glyphsheet__dark'><span class='tt-glyph tt-glyph--32' data-glyph='" + n + "' aria-label='" + n + "'></span></span>" +
+      "<span class='tt-glyphsheet__light'><span class='tt-glyph tt-glyph--20' data-glyph='" + n + "' aria-label='" + n + "'></span></span>" +
+      "<figcaption class='tt-glyphsheet__name'>" + n + "</figcaption></figure>";
+  }
+
+  var html = '';
+  SETS.forEach(function (s) {
+    var names = s[1].split(' ');
+    html += "<section class='tt-glyphsheet__set'><h2 class='kicker tt-caps tt-glyphsheet__head'>" + s[0] + " · " + names.length + "</h2><div class='tt-glyphsheet__grid'>";
+    names.forEach(function (n) { html += cell(n); });
+    html += "</div></section>";
+  });
+  html += "<section class='tt-glyphsheet__set'><h2 class='kicker tt-caps tt-glyphsheet__head'>Kept apart at 20 px</h2><div class='tt-glyphsheet__pairs'>";
+  APART.forEach(function (g) {
+    html += "<div class='tt-glyphsheet__pair'><div class='tt-glyphsheet__pairtext'><p class='tt-glyphsheet__pairname'>" + g[0] + "</p><p class='tt-label tt-glyphsheet__pairtell'>" + g[1].replace(/ · /g, ' · ') + "</p></div><div class='tt-glyphsheet__pairgrid'>";
+    g[2].split(' ').forEach(function (n) { html += cell(n); });
+    html += "</div></div>";
+  });
+  html += "</div></section>";
+
+  var el = document.getElementById('sheet');
+  el.innerHTML = html;
+  TinTally.mount(el);
+})();
+</script>
+</body>
+</html>

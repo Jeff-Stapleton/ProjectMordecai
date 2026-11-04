@@ -1,0 +1,57 @@
+/* CombatCallout: the centre lane under the player's feet.
+   .tt-callout   the callout slot, centre (0, +128), 520 wide, letters only: callout type, 4 px ink outline, hard
+                 print shadow. Its BOTTOM edge stays at +180 (4 px above the combo slot); the Large / XL callout
+                 sizes and the High Contrast plate grow it upward only, so the combo slot never moves.
+   .tt-combo     the 220 x 36 combo slot at centre (0, +184): a small tin plate holding "Hit N" alone. No tally
+                 strokes here (D1: strokes are ranks, rarity and the seal / throbber only).
+   Sizes are design px at 1920x1080. */
+
+.tt-callout { display: flex; align-items: center; justify-content: center; width: 520px; max-width: 100%; height: 52px; }
+.tt-callout__text {
+  display: inline-block; white-space: nowrap;
+  color: var(--good);
+  text-shadow: 0 4px 0 var(--ink);
+}
+.tt-callout--bad .tt-callout__text { color: var(--danger-text); }
+
+/* Callout size (Settings > Accessibility, D16): Normal 40 / Large 48 / XL 56 px letters. The slot grows upward
+   (52 / 60 / 68 high) and keeps its bottom edge, so the letters' print still ends 4 px above the combo slot. */
+.tt-callout--lg { height: 60px; }
+.tt-callout--lg .tt-callout__text { font-size: 48px; line-height: 52px; }
+.tt-callout--xl { height: 68px; }
+.tt-callout--xl .tt-callout__text { font-size: 56px; line-height: 60px; }
+
+/* High Contrast: the letters sit on a plate (black, white rim, 4 px outline), with no print. The plate is anchored
+   to the slot's bottom with 8 px to spare, so its outline ends 4 px above the combo plate's outline at every size. */
+[data-theme="high-contrast"] .tt-callout { align-items: flex-end; padding-bottom: 8px; }
+[data-theme="high-contrast"] .tt-callout__text {
+  line-height: 40px; padding: 0 20px;
+  background: var(--plate);
+  border: var(--stroke-rim) solid var(--rim); border-radius: var(--radius-plate);
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink);
+  text-shadow: none;
+  -webkit-text-stroke: 0; /* the plate is the edge; an ink stroke would only notch the rim */
+}
+[data-theme="high-contrast"] .tt-callout--lg .tt-callout__text { line-height: 48px; }
+[data-theme="high-contrast"] .tt-callout--xl .tt-callout__text { line-height: 56px; }
+
+/* Combo counter: ComboText "Hit N" in num-m, good, on a 36 px tin plate centred in the 220 x 36 slot.
+   The text box is fixed at the longest value ("Hit 5", 5 Mono cells), so the plate never changes width. */
+.tt-combo-slot { display: flex; align-items: center; justify-content: center; width: 220px; height: 36px; }
+.tt-combo { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 14px; border-radius: var(--radius-plate); }
+.tt-combo__n { display: inline-block; width: 5ch; text-align: center; color: var(--good); white-space: nowrap; }
+/* Retired (D1): the chain-stroke span. HUDLayout's combat frame still carries it; until that markup drops it,
+   it draws nothing. */
+.tt-combo__chain { display: none; }
+
+/* Preview stand-ins (world, not UI; theme-invariant biome-* and world-* tokens, so the world never changes with
+   the UI theme): the player pawn, its contact shadow, and the slot guides. The guides are thin solid lines:
+   a dashed edge means unavailable, so no guide is dashed. */
+.tt-callout__pawn {
+  width: 44px; height: 78px; border-radius: 22px 22px 16px 16px;
+  background: color-mix(in srgb, var(--biome-crystal) 50%, var(--world-dark));
+  box-shadow: inset 0 12px 0 color-mix(in srgb, var(--biome-crystal) 78%, var(--world-dark));
+}
+.tt-callout__foot { width: 76px; height: 22px; margin-top: -12px; border-radius: 50%; background: var(--world-shade); }
+.tt-callout__spec { outline: 2px solid color-mix(in srgb, var(--world-dark) 55%, transparent); outline-offset: 0; }
+.tt-callout__guide { height: 0; border-top: 2px solid color-mix(in srgb, var(--world-dark) 40%, transparent); }

@@ -1,0 +1,104 @@
+/* HUDLayout: the whole HUD at 1920 x 1080, every piece at its HUD map box (BUILD.md, 02-hud-and-pacing.md).
+   Composition only. Inside a frame each region is its component's own markup and classes, untouched:
+   screen space  GaugePlate (with its LowHealthFrame), SpellSlot, StatusChip, TallyRail, TallyPlate, BossBar,
+                 Banner, CombatCallout, InteractPrompt, QuickItems, LoadoutPlate;
+   world space   EnemyTag, DamageNumber, PickupLabel, WorldMarkers (and their stand-in bodies).
+   This partial only places them, draws the world stand-in under them and the Map frame's diagram.
+   Every placement rule is scoped under .tt-hud so later partials never move a placed piece. */
+
+/* ---- Sheet: frames stacked at 1:1 (1920 wide). A kicker title above each frame, its notes in a core
+   .tt-specband below it (D7: never inside the 1920 x 1080 frame). ---- */
+.tt-hud-sheet { display: flex; flex-direction: column; width: 1920px; background: var(--plate); }
+.tt-hud-sheet__head { display: flex; flex-direction: column; gap: 4px; padding: 26px 32px 6px; }
+.tt-hud-sheet__head .kicker { color: var(--text-muted); }
+.tt-hud-sheet__head b, .tt-hud-sheet .tt-specband b { color: var(--text); font-weight: 700; }
+.tt-hud-frame__title { display: block; padding: 26px 32px 14px; color: var(--text); }
+.tt-hud-sheet .tt-specband__item { max-width: 600px; flex: 1 1 360px; }
+/* SVG pattern definitions for the WorldMarkers decals (preview plumbing, nothing visible). */
+.tt-hud-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ---- Stage: one 1920 x 1080 screen. Every direct child is placed absolutely. ---- */
+.tt-hud { position: relative; width: 1920px; height: 1080px; flex: none; overflow: hidden; }
+.tt-hud > * { position: absolute; }
+
+/* ---- Screen space: the HUD map boxes (anchor, offset). ---- */
+/* Left is you. */
+.tt-hud .tt-hud__gauge { left: 32px; top: 32px; }                      /* top-left (32, 32), 456 x 152 */
+.tt-hud .tt-hud__spells { left: 32px; top: 216px; display: flex; gap: 10px; } /* 78 x 78 at x 32 / 120 / 208 / 296 */
+.tt-hud .tt-hud__status { left: 32px; top: 318px; }                    /* .tt-status-row: 456 x 112, 2 rows */
+/* Top right is news. */
+.tt-hud .tt-hud__rail { right: 32px; top: 32px; }                      /* head 320 x 56; tickets from y 104 */
+/* Top centre is for big moments. */
+.tt-hud .tt-hud__boss { left: 520px; top: 32px; }                      /* top-centre (0, 32), 880 x 96 */
+.tt-hud .tt-hud__plate { left: 640px; top: 40px; }                     /* top-centre (0, 40), 640 x 128 */
+.tt-hud .tt-hud__plate--low { top: 168px; }                            /* (0, 168) under a boss bar */
+.tt-hud .tt-hud__banner { left: 496px; top: 296px; }                   /* top-centre (0, 296), 928 x 132 */
+.tt-hud .tt-hud__banner--phase { left: 680px; }                        /* the phase card, 560 x 96, top-centred in the slot */
+/* The centre is now: the camera holds the player at (960, 540). */
+.tt-hud .tt-hud__callout { left: 700px; top: 668px; }                  /* centre (0, +128), 520 x 52 */
+.tt-hud .tt-hud__combo { left: 850px; top: 724px; }                    /* centre (0, +184), 220 x 36 */
+/* Bottom centre is interaction. */
+.tt-hud .tt-hud__prompt { left: 690px; top: 984px; }                   /* bottom-centre (0, -36), 540 x 60; hint pill at x 1242 */
+/* Bottom right is the loadout. */
+.tt-hud .tt-hud__quick { right: 32px; bottom: 132px; }                 /* bottom-right (-32, -132), 336 x 56 */
+.tt-hud .tt-hud__loadout { right: 32px; bottom: 32px; }                /* bottom-right (-32, -32), 340 x 84 */
+/* LowHealthFrame is GaugePlate's .tt-gauge-frame, a direct child of the stage: inset 0, over everything. */
+
+/* ---- World space: anchored to actors, not to the screen. Set left/top inline to the actor's point. ---- */
+.tt-hud .tt-hud__player { left: 960px; top: 540px; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -39px); }
+.tt-hud .tt-hud__foot { display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); } /* left/top = foot point */
+.tt-hud .tt-hud__foot > .tt-etag { margin-bottom: 14px; }             /* EnemyTag at Z +120: 14 px over the head at this camera */
+.tt-hud .tt-hud__hit { transform: translate(-50%, -50%); }             /* a damage pop: left/top = where it is now */
+.tt-hud .tt-hud__hit--old { opacity: .45; }                            /* the oldest pop, in its last 300 ms fade */
+/* Critical window: EnemyTag's corner brackets round the body; the Riposte tag docks to the right of them. */
+.tt-hud .tt-hud__crit { position: relative; display: flex; flex-direction: column; align-items: center; padding: 16px 22px 10px; }
+.tt-hud .tt-hud__crit > .tt-hud__riposte { position: absolute; left: 100%; top: 50%; transform: translate(8px, -50%); }
+/* A ground pickup: left/top = the item's foot. The PickupLabel's string meets the item top. */
+.tt-hud .tt-hud__pick { width: 0; height: 0; }
+.tt-hud .tt-hud__pick > .tt-pitem { left: 0; top: 0; }
+.tt-hud .tt-hud__pick > .tt-plabel { position: absolute; left: -11px; bottom: calc(var(--ih) + var(--drop) + var(--tt-outline)); }
+.tt-hud .tt-hud__pick > .tt-plabel--focus { left: -12px; }
+
+/* ---- World stand-ins (preview only, not UI): core's toy diorama (.tt-diorama floor tiles and props, D12)
+   under the HUD, in the theme-invariant world-* and biome-* tokens, so the world never changes with the UI
+   theme. A zone is a rounded patch of another floor (a nested .tt-diorama); place it on the 96 px grid. ---- */
+.tt-hud .tt-hud-world { inset: 0; }
+.tt-hud-world > * { position: absolute; }
+.tt-hud-world__zone { overflow: hidden; }
+.tt-hud-world__scorch { border-radius: 50%; background: color-mix(in srgb, var(--world-dark) 22%, transparent); }
+/* The boss stand-in: EnemyTag's steel elite body at boss scale. */
+.tt-hud .tt-hud-world__colossus { width: 128px; height: 216px; border-radius: 64px / 30px; }
+.tt-hud .tt-hud-world__colossus + .tt-etag__shadow { width: 190px; height: 40px; margin-top: -20px; }
+
+/* ---- Map frame: the HUD map as a diagram on the spec plate (not a screen), every box at 1:1.
+   Always visible = a lit 6 px rim bar along the top, a 3 px rim edge and a plate fill.
+   Contextual = a 2 px lip outline on the map ground. (Solid lines only: a dashed edge means unavailable, D24.)
+   The TV margin: the band from 32 to 96 px is shaded and the 96 px safe line is a 2 px rim line.
+   The screen edge carries the LowHealthFrame look (8 px vital, 3 px ink inner line). ---- */
+.tt-hud-map { background: var(--plate-raised); }
+.tt-hud-map > .tt-hud-map__edge { inset: 0; border: 8px solid var(--vital); box-shadow: inset 0 0 0 3px var(--ink); }
+.tt-hud-map > .tt-hud-map__tv { inset: 32px; border: 64px solid color-mix(in srgb, var(--well) 70%, transparent); }
+.tt-hud-map > .tt-hud-map__safe { inset: 96px; border: 2px solid var(--rim); border-radius: 2px; }
+.tt-hud-map__box {
+  display: flex; flex-direction: column; justify-content: center; gap: 0; padding: 4px 12px;
+  border: 2px solid var(--lip); border-radius: 6px; white-space: nowrap; overflow: hidden;
+  background: var(--plate-raised); /* the map ground: hides the TV band and safe line under a box */
+}
+.tt-hud-map__box--always { border: 3px solid var(--rim); background: var(--plate); box-shadow: inset 0 6px 0 var(--rim); padding-top: 10px; }
+.tt-hud-map__box--top { justify-content: flex-start; }
+.tt-hud-map__box--bottom { justify-content: flex-end; padding-bottom: 6px; }
+.tt-hud-map__box--centre { align-items: center; text-align: center; }
+.tt-hud-map__note { display: flex; flex-direction: column; white-space: nowrap; }
+.tt-hud-map b { color: var(--text); font-weight: 700; }
+.tt-hud .tt-hud-map__centre {
+  left: 960px; top: 540px; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
+  border: 2px solid var(--rim);
+}
+.tt-hud .tt-hud-map__centre::before, .tt-hud .tt-hud-map__centre::after { content: ""; position: absolute; left: 50%; top: 50%; background: var(--rim); }
+.tt-hud .tt-hud-map__centre::before { width: 2px; height: 84px; margin: -42px 0 0 -1px; }
+.tt-hud .tt-hud-map__centre::after { width: 84px; height: 2px; margin: -1px 0 0 -42px; }
+/* Legend swatches in the map's spec band. */
+.tt-hud-map__swatch { display: inline-block; width: 44px; height: 26px; margin-right: 10px; vertical-align: -6px; border: 2px solid var(--lip); border-radius: 4px; }
+.tt-hud-map__swatch--always { border: 3px solid var(--rim); background: var(--plate); box-shadow: inset 0 6px 0 var(--rim); }
+.tt-hud-map__swatch--tv { border: 0; background: color-mix(in srgb, var(--well) 70%, var(--plate-raised)); box-shadow: inset -3px 0 0 var(--rim); }
+.tt-hud-map__swatch--edge { border: 6px solid var(--vital); box-shadow: inset 0 0 0 2px var(--ink); }

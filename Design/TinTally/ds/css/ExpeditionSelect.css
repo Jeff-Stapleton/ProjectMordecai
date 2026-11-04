@@ -1,0 +1,76 @@
+/* ExpeditionSelect (tt-xsel-*): "Choose an Expedition". Large enamel tag cards hung from the rail,
+   one per front-end playlist, a locked Continue / New Game slot, and dev-only test-map cards.
+   Uses the front-end family from TitleScreen.css (tt-fe-*), Tag's front-end header (.tt-tag--header in
+   .tt-tag-hang--light) and core .tt-railbar, .tt-empty, .tt-hintbar and .tt-specband. The backdrop is core
+   .tt-diorama (the title island's top face, with TitleScreen's relic and flowers) under core .tt-veil (D12). */
+
+/* --- Header: Tag's front-end header (.tt-tag.tt-tag--header, 64 tall) hung on one light cord
+       (.tt-tag-hang.tt-tag-hang--light) from the top edge: the tag's top at y 72, its eyelet centre at y 104. */
+.tt-tag-hang.tt-xsel-head { position: absolute; z-index: 2; left: 160px; top: 0; --tt-tag-drop: 72px; --tt-tag-half: 32px; }
+/* --- The rail (core .tt-railbar, D23): placed only. Caps overhang 16 px: visual x 120-1800. */
+.tt-railbar.tt-xsel-rail { position: absolute; z-index: 3; left: 136px; top: 200px; width: 1648px; }
+
+/* --- Large vertical tag card: eyelet at top centre in a perforated stub. */
+.tt-xsel-card { position: absolute; z-index: 2; display: flex; flex-direction: column; height: 604px; border-radius: var(--radius-tag); background: var(--enamel); color: var(--ink); box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 6px 0 var(--tt-outline) var(--tt-print); transform-origin: 50% 28px; }
+.tt-xsel-card__stub { position: relative; flex: none; display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 24px; border-radius: var(--radius-tag) var(--radius-tag) 0 0; background: var(--enamel-shade); color: var(--ink-muted); }
+/* Eyelet: core Tag's grommet (12 px well hole, 3 px ring, 2 px ink ring). On the enamel-shade stub the
+   ring is enamel, so it reads raised instead of vanishing into the band. */
+.tt-xsel-card__stub::before { content: ""; position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--well); box-shadow: 0 0 0 3px var(--enamel), 0 0 0 5px var(--ink); }
+.tt-xsel-card__stub::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; background: repeating-linear-gradient(90deg, var(--ink-muted) 0 7px, transparent 7px 13px); }
+/* Thumbnail frame: the TileIcon is level art, not UI, so no theme recolours it. The frame carries the
+   theme instead: an ink ring that grows with --tt-outline (2 px, 3 px in High Contrast). */
+.tt-xsel-card__thumb { position: relative; flex: none; height: 284px; margin: 20px 24px 0; border-radius: var(--radius-key); overflow: hidden; box-shadow: 0 0 0 calc(var(--tt-outline) - 1px) var(--ink); }
+.tt-xsel-card__body { flex: 1; display: flex; flex-direction: column; padding: 18px 28px 0; }
+.tt-xsel-card__title { margin: 0; color: var(--ink); }
+.tt-xsel-card__sub { margin: 2px 0 0; color: var(--ink-muted); }
+.tt-xsel-card__desc { margin: 10px 0 0; color: var(--ink); }
+/* Footer band: the keycap leads its label ("[Enter] Start", D4), right-aligned. */
+.tt-xsel-card__foot { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); height: 60px; padding: 0 20px; border-radius: 0 0 var(--radius-tag) var(--radius-tag); background: var(--enamel-shade); color: var(--ink); font: 700 22px/28px var(--font-ui); }
+/* Focus is core's ring right outside the ink outline; the card keeps its outline and print and swings 1 deg. */
+.tt-xsel-card.is-focused { transform: rotate(-1deg); }
+
+/* Locked slot: plate ground, dashed lip (dashed = unavailable, D24), no print, lock glyphs, and the one
+   empty state (.tt-empty "Coming Soon") centred in what is left of the card. */
+.tt-xsel-card.is-disabled { background: var(--plate); color: var(--text-disabled); border: var(--stroke-rim) dashed var(--lip); box-shadow: 0 0 0 var(--tt-outline) var(--ink); }
+/* The stub sits INSIDE the dashed border, so the unavailable edge runs round all four sides (in High
+   Contrast too, where the ink outline vanishes on black). */
+.tt-xsel-card.is-disabled .tt-xsel-card__stub { border-radius: calc(var(--radius-tag) - 2px) calc(var(--radius-tag) - 2px) 0 0; background: var(--plate-raised); color: var(--text-disabled); }
+.tt-xsel-card.is-disabled .tt-xsel-card__stub::before { box-shadow: 0 0 0 3px var(--plate-raised), 0 0 0 5px var(--lip); }
+.tt-xsel-card.is-disabled .tt-xsel-card__stub::after { background: repeating-linear-gradient(90deg, var(--lip) 0 7px, transparent 7px 13px); }
+.tt-xsel-locked { display: flex; align-items: center; justify-content: center; height: 284px; margin: 20px 24px 0; border-radius: var(--radius-key); background: var(--well); border: var(--stroke-rim) dashed var(--lip); color: var(--text-disabled); }
+.tt-xsel-slot { display: flex; flex-direction: column; gap: 10px; padding: 22px 28px 0; }
+.tt-xsel-slot__row { display: flex; align-items: center; gap: var(--space-3); color: var(--text-disabled); }
+.tt-xsel-card .tt-empty-box { flex: 1; min-height: 0; padding: var(--space-4); }
+
+/* --- Dev card: horizontal enamel tag (core .tt-tag eyelet), thumbnail left. Non-Shipping only. */
+.tt-tag.tt-xsel-dev { position: absolute; z-index: 2; display: flex; align-items: flex-start; gap: 22px; width: 560px; height: 272px; padding: 24px 24px 24px 64px; transform-origin: 22px 50%; }
+.tt-xsel-dev::after { content: ""; position: absolute; left: 44px; top: 12px; bottom: 12px; width: 2px; background: repeating-linear-gradient(180deg, var(--ink-muted) 0 7px, transparent 7px 13px); }
+.tt-xsel-dev__thumb { position: relative; flex: none; width: 176px; height: 224px; border-radius: var(--radius-key); overflow: hidden; box-shadow: 0 0 0 calc(var(--tt-outline) - 1px) var(--ink); }
+.tt-xsel-dev__info { display: flex; flex-direction: column; min-width: 0; }
+.tt-xsel-dev__top { display: flex; align-items: center; gap: var(--space-2); color: var(--ink-muted); }
+.tt-xsel-dev__title { margin: 6px 0 0; color: var(--ink); white-space: nowrap; }
+.tt-xsel-dev__desc { margin: 12px 0 0; color: var(--ink); }
+.tt-xsel-pill { height: 26px; padding: 0 8px; font-size: 20px; }
+.tt-tag.tt-xsel-dev.is-hover { transform: translateY(-2px); box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 6px 0 var(--tt-outline) var(--tt-print); }
+/* Focus is core's (outline and print kept, ring right outside); the card swings 1 deg about its eyelet. */
+.tt-tag.tt-xsel-dev.is-focused { transform: rotate(1deg); }
+.tt-tag.tt-xsel-dev.is-pressed { transform: rotate(1deg) translateY(3px); background-color: var(--enamel-shade); box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 1px 0 var(--tt-outline) var(--tt-print), inset 0 5px 0 color-mix(in srgb, var(--ink) 24%, transparent); }
+/* Confirm punch: a hole punched through the stub under the eyelet; then the screen hands over to Loading. */
+.tt-xsel-punch { position: absolute; left: 13px; bottom: 26px; width: 18px; height: 18px; border-radius: 50%; background: var(--well); box-shadow: 0 0 0 2px var(--ink); }
+
+/* --- Thumbnail stand-ins (TileIcon art goes here): a grey blockout floor seen from the game camera.
+       Level art: built only from the theme-invariant world-* and biome-* tokens, so it renders the same
+       in both themes, as a texture would. */
+.tt-xsel-scene { position: absolute; inset: 0; background-color: var(--world-blockout); background-image: linear-gradient(var(--world-blockout-line) 2px, transparent 2px), linear-gradient(90deg, var(--world-blockout-line) 2px, transparent 2px); background-size: 44px 44px; }
+.tt-xsel-block { position: absolute; border-radius: 4px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--biome-storm) 30%, var(--world-dark)); background: linear-gradient(180deg, var(--world-snow) 0 var(--top, 30%), color-mix(in srgb, var(--biome-storm) 55%, var(--world-blockout-line)) var(--top, 30%) 100%); }
+/* Enemy pawns borrow foe so they read as enemies (it shifts slightly lighter in High Contrast). */
+.tt-xsel-pawn { position: absolute; width: 22px; height: 34px; border-radius: 11px 11px 6px 6px; box-shadow: 0 0 0 2px var(--world-dark); background: linear-gradient(180deg, color-mix(in srgb, var(--foe) 60%, var(--world-snow)) 0 34%, var(--foe) 34% 100%); }
+.tt-xsel-pawn--dummy { background: linear-gradient(180deg, color-mix(in srgb, var(--biome-searing) 60%, var(--world-snow)) 0 34%, var(--biome-searing) 34% 100%); }
+/* Spawn pads: a solid ring (dashed means unavailable, so scenery never uses it). */
+.tt-xsel-pad { position: absolute; width: 64px; height: 30px; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--biome-storm) 60%, var(--world-dark)); background: color-mix(in srgb, var(--biome-storm) 25%, var(--world-blockout)); }
+.tt-xsel-shadow { position: absolute; width: 30px; height: 10px; border-radius: 50%; background: var(--world-shade); }
+
+/* --- Spec band: the dev-card states (each specimen box is the card's own size). */
+.tt-xsel-specimen { position: relative; width: 560px; height: 292px; }
+.tt-xsel-specimen .tt-tag.tt-xsel-dev { left: 0; top: 8px; }
+.tt-specband__item.tt-xsel-specitem { width: 560px; max-width: 560px; }

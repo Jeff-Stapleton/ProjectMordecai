@@ -1,0 +1,97 @@
+/* Keycap: the shape tells the device. Core gives the square key (.tt-key), the round face
+   button (--pad), the pill (--shoulder), --wide, --sm, .is-pressed and aria-disabled.
+   This partial adds triggers, sticks, the D-pad, mouse caps, the face-position diamond,
+   the unbound cap, chords and the device map. Letters are Mono 800 22 px (20 px on --sm caps), ink on enamel. */
+
+/* Trigger: a pill with a flat foot, so LT/RT never read as LB/RB. */
+.tt-key--trigger { border-radius: 20px 20px 6px 6px; min-width: 56px; padding: 0 12px 3px; }
+
+/* Stick click (L3 / R3): round, with the stick's dished top in enamel-shade under the letter.
+   A 2 px ring (ink 35%) draws the dish edge, so the stick still differs from a face button in
+   High Contrast, where enamel and enamel-shade are both white. */
+.tt-key--stick {
+  --tt-stick-dish: color-mix(in srgb, var(--ink) 35%, var(--enamel-shade));
+  border-radius: 50%; width: 40px; min-width: 40px; padding: 0; background: var(--enamel-shade);
+  box-shadow: inset 0 0 0 5px var(--enamel), inset 0 0 0 7px var(--tt-stick-dish);
+}
+.tt-key--stick.is-pressed { background: color-mix(in srgb, var(--ink) 22%, var(--enamel-shade)); box-shadow: inset 0 0 0 5px var(--enamel-shade), inset 0 0 0 7px var(--tt-stick-dish); }
+.tt-key--sm.tt-key--stick { width: 32px; min-width: 32px; box-shadow: inset 0 0 0 3px var(--enamel), inset 0 0 0 5px var(--tt-stick-dish); }
+
+/* Mouse cap: a square key (same device family as the keyboard) holding a drawn mouse.
+   The lit button is solid ink; the other is open. */
+.tt-key--mouse { width: 40px; min-width: 40px; padding: 0 0 4px; }
+.tt-key__mouse {
+  position: relative; display: block; width: 20px; height: 27px; flex: none;
+  border: 2px solid currentColor; border-radius: 10px;
+  background: linear-gradient(currentColor, currentColor) 0 10px / 100% 2px no-repeat;
+}
+.tt-key__mouse::before { content: ""; position: absolute; left: 50%; top: 0; width: 2px; height: 11px; margin-left: -1px; background: currentColor; }
+.tt-key__mouse::after { content: ""; position: absolute; top: 0; height: 10px; width: 50%; background: currentColor; }
+.tt-key__mouse--l::after { left: 0; border-top-left-radius: 8px; }
+.tt-key__mouse--r::after { right: 0; border-top-right-radius: 8px; }
+.tt-key__mouse--m::after { left: 50%; width: 6px; height: 9px; margin-left: -3px; top: 1px; border-radius: 3px; }
+.tt-key--sm.tt-key--mouse { width: 32px; min-width: 32px; padding: 0 0 3px; }
+.tt-key--sm .tt-key__mouse { width: 16px; height: 22px; border-radius: 8px; background-position: 0 8px; }
+.tt-key--sm .tt-key__mouse::before { height: 9px; }
+.tt-key--sm .tt-key__mouse::after { height: 8px; }
+
+/* D-pad: the cross itself, 40 px: 12 px enamel arms inside a 2 px ink edge. The pressed direction gets an
+   ink insert that keeps 2 px of enamel round it, so the cross never loses an arm against a dark plate.
+   --tt-dpad-at / --tt-dpad-size pick the insert. The cross is drawn from custom properties, so the 32 px
+   cap (--sm) and the disabled cap only change the numbers, never the build. */
+.tt-key--dpad {
+  --tt-dpad-face: var(--enamel); --tt-dpad-edge: var(--ink); --tt-dpad-arm: var(--ink);
+  --tt-dpad-box: 40px; --tt-dpad-w: 12px; --tt-dpad-len: 36px; --tt-dpad-ew: 16px;
+  width: var(--tt-dpad-box); min-width: var(--tt-dpad-box); height: var(--tt-dpad-box);
+  padding: 0; border: 0; border-radius: 0; box-shadow: none;
+}
+.tt-key--dpad, .tt-key--dpad[aria-disabled="true"] {
+  background:
+    linear-gradient(var(--tt-dpad-arm), var(--tt-dpad-arm)) var(--tt-dpad-at, 50% 50%) / var(--tt-dpad-size, 0 0) no-repeat,
+    linear-gradient(var(--tt-dpad-face), var(--tt-dpad-face)) 50% 50% / var(--tt-dpad-w) var(--tt-dpad-len) no-repeat,
+    linear-gradient(var(--tt-dpad-face), var(--tt-dpad-face)) 50% 50% / var(--tt-dpad-len) var(--tt-dpad-w) no-repeat,
+    linear-gradient(var(--tt-dpad-edge), var(--tt-dpad-edge)) 50% 50% / var(--tt-dpad-ew) var(--tt-dpad-box) no-repeat,
+    linear-gradient(var(--tt-dpad-edge), var(--tt-dpad-edge)) 50% 50% / var(--tt-dpad-box) var(--tt-dpad-ew) no-repeat;
+}
+.tt-key--dpad-up { --tt-dpad-at: 50% 4px; --tt-dpad-size: 8px 9px; }
+.tt-key--dpad-down { --tt-dpad-at: 50% calc(100% - 4px); --tt-dpad-size: 8px 9px; }
+.tt-key--dpad-left { --tt-dpad-at: 4px 50%; --tt-dpad-size: 9px 8px; }
+.tt-key--dpad-right { --tt-dpad-at: calc(100% - 4px) 50%; --tt-dpad-size: 9px 8px; }
+/* 32 px D-pad (--sm), drawn for 32 px rather than scaled (scaling blurred the inked arm): 10 px enamel arms
+   in a 2 px ink edge; the bound arm carries a 6 x 8 ink insert, 4 px from the tip, 2 px of enamel round it.
+   SpellSlot corners and QuickItems use it. */
+.tt-key--sm.tt-key--dpad { --tt-dpad-box: 32px; --tt-dpad-w: 10px; --tt-dpad-len: 28px; --tt-dpad-ew: 14px; }
+.tt-key--sm.tt-key--dpad-up, .tt-key--sm.tt-key--dpad-down { --tt-dpad-size: 6px 8px; }
+.tt-key--sm.tt-key--dpad-left, .tt-key--sm.tt-key--dpad-right { --tt-dpad-size: 8px 6px; }
+/* Pressed: the face darkens like the pressed stick dish, so it still reads in High Contrast. */
+.tt-key--dpad.is-pressed { --tt-dpad-face: color-mix(in srgb, var(--ink) 22%, var(--enamel-shade)); box-shadow: none; }
+.tt-key--dpad[aria-disabled="true"] { --tt-dpad-face: var(--plate); --tt-dpad-edge: var(--lip); --tt-dpad-arm: var(--lip); box-shadow: none; }
+
+/* Face position: four dots, the pressed one filled. Reads on any pad layout. */
+.tt-key__diamond { position: relative; display: block; width: 26px; height: 26px; flex: none; }
+.tt-key__diamond i { position: absolute; width: 10px; height: 10px; border-radius: 50%; border: 2px solid currentColor; }
+.tt-key__diamond i:nth-child(1) { left: 8px; top: 0; }
+.tt-key__diamond i:nth-child(2) { left: 16px; top: 8px; }
+.tt-key__diamond i:nth-child(3) { left: 8px; top: 16px; }
+.tt-key__diamond i:nth-child(4) { left: 0; top: 8px; }
+.tt-key__diamond i.is-on { background: currentColor; }
+
+/* Unbound: an action with no key on this device (Stone Skin on gamepad today). */
+.tt-key--none { background: transparent; border: 2px dashed var(--lip); box-shadow: none; color: var(--text-disabled); }
+
+/* Pressed: on top of the core 3 px sink and 1 px lip, the face drops to enamel-shade with a
+   pushed-in top edge, so a pressed cap reads without its unpressed neighbour beside it.
+   (Refines the core .tt-key.is-pressed; reported to core.) */
+.tt-key.is-pressed:not(.tt-key--dpad):not(.tt-key--stick) { background: var(--enamel-shade); box-shadow: inset 0 3px 0 color-mix(in srgb, var(--ink) 30%, var(--enamel-shade)), inset 0 -1px 0 var(--enamel-shade); }
+
+/* Chords and holds: caps joined by "+", or led by the word Hold. */
+.tt-keys { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.tt-keys__plus { font: 700 20px/1 var(--font-mono); color: var(--text-muted); }
+.tt-keys__word { font: 600 20px/26px var(--font-ui); color: var(--text-muted); }
+.tt-tag .tt-keys__plus, .tt-tag .tt-keys__word { color: var(--ink-muted); }
+
+/* Device map: one action per row, KBM and gamepad side by side. */
+.tt-keymap { display: grid; grid-template-columns: minmax(0, 1fr) 104px 136px; align-items: center; column-gap: var(--space-3); row-gap: 10px; }
+.tt-keymap__head { font: 600 20px/26px var(--font-ui); color: var(--text-muted); padding-bottom: 4px; border-bottom: 2px solid color-mix(in srgb, var(--rim) 40%, transparent); }
+.tt-keymap__action { font: 500 22px/30px var(--font-ui); color: var(--text); white-space: nowrap; }
+.tt-keymap__keys { display: flex; align-items: center; gap: 6px; min-height: 40px; }

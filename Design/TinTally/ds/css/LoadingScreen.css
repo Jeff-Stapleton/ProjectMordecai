@@ -1,0 +1,22 @@
+/* LoadingScreen (tt-load-*): UMordecaiLoadingScreenWidget. An opaque plate ground, the wordmark,
+   "Loading..." beside the throbber (Tally's .tt-tally-throbber, motion row Throbber), one tip line.
+   World voice: exactly two Tally pieces (the wordmark and the throbber, D1); no tally field, no tally
+   rule, no seal, no remarks, no swing. 100% opaque: the world renders behind it. */
+
+.tt-load { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--plate); }
+
+.tt-load__lockup { position: absolute; left: 0; right: 0; top: 432px; display: flex; flex-direction: column; align-items: center; }
+.tt-load__word { margin: 0; color: var(--text); text-shadow: 0 5px 0 var(--ink); white-space: nowrap; }
+.tt-load__status { display: flex; align-items: center; gap: var(--space-4); margin-top: 44px; color: var(--text-muted); }
+/* The Throbber motion row draws it in `text` (D18). */
+.tt-load__status .tt-tally-throbber { color: var(--text); }
+.tt-load__status-text { min-width: 116px; }
+
+/* Tip line: one plain sentence on a raised strip, bottom centre (bottom edge at y 984). */
+.tt-load__tip { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); display: flex; align-items: center; gap: var(--space-3); margin: 0; padding: 12px 28px 12px 16px; border-radius: var(--radius-tag); background: var(--plate-raised); border: var(--stroke-rim) solid var(--lip); color: var(--text); white-space: nowrap; }
+.tt-load__tip-label { padding-right: var(--space-3); margin-right: var(--space-1); border-right: var(--stroke-rim) solid var(--lip); color: var(--text-muted); }
+
+/* Spec band: the six throbber frames at 2x (five strokes, then blank), in sunk wells. */
+.tt-load-frames { display: flex; gap: var(--space-4); }
+.tt-load-frame { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.tt-load-frame__well { display: flex; align-items: center; justify-content: center; width: 112px; height: 104px; border-radius: var(--radius-tag); background: var(--well); border: var(--stroke-rim) solid var(--lip); color: var(--text); }

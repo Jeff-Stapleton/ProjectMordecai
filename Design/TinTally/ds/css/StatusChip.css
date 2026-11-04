@@ -1,0 +1,64 @@
+/* StatusChip: one active status on the player. A 36 px body (glyph 24, name, stack pips, time) in a 3 px ink outline.
+   Buff  = enamel chip, buff rim, a raised buff notch on top.
+   Debuff = plate chip, debuff rim, a pinked (sawtooth) bottom edge.
+   Row: HUD top-left (32,318), 456 wide, max 8 chips in 2 rows, sorted Control > DoT > Debuff > Environmental > Buff. */
+.tt-status { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 8px 0 6px; flex: none; white-space: nowrap; border-radius: 10px; box-shadow: 0 0 0 var(--tt-outline) var(--ink); }
+.tt-status__name { font: 600 20px/26px var(--font-ui); }
+/* DurationText sits in a box sized from the status's full duration (3 Mono cells under 10 s, 4 from 10 s),
+   left-aligned, so a chip never changes width while it ticks. Words ("1 hit") use the UI face. */
+.tt-status__time { display: inline-block; min-width: 38px; text-align: left; }
+.tt-status__time--4 { min-width: 51px; }
+.tt-status__time--word { min-width: 0; }
+.tt-status__time--text { min-width: 0; font: 600 20px/24px var(--font-ui); }
+/* Stack pips (D1): core .tt-pips, 14 px, 6 apart. Lit pips take the status colour (text by default); pips still
+   ahead are hollow lip rings, so lit vs ahead reads by shape in High Contrast too. Never tally strokes. */
+.tt-status__pips { color: var(--text); }
+.tt-status__pips--frost { color: var(--dmg-frost); }
+.tt-status__pips--lightning { color: var(--dmg-lightning); }
+
+/* Debuff: plate, debuff rim, pinked hem (ink teeth 3 px proud of debuff teeth, same 10 px pitch). */
+.tt-status--debuff { background: var(--plate); color: var(--text); border: 2px solid var(--debuff); border-radius: 10px 10px 3px 3px; }
+.tt-status--debuff::before,
+.tt-status--debuff::after { content: ""; position: absolute; left: 4px; right: 4px; height: 10px; background-repeat: repeat-x; background-size: 10px 10px; }
+.tt-status--debuff::before { bottom: -9px; background-image: linear-gradient(135deg, var(--ink) 50%, transparent 50%), linear-gradient(225deg, var(--ink) 50%, transparent 50%); }
+.tt-status--debuff::after { bottom: -6px; background-image: linear-gradient(135deg, var(--debuff) 50%, transparent 50%), linear-gradient(225deg, var(--debuff) 50%, transparent 50%); }
+
+/* Buff: enamel, buff rim, a raised tab over the glyph. */
+.tt-status--buff { background: var(--enamel); color: var(--ink); border: 2px solid var(--buff); }
+.tt-status--buff::before { content: ""; position: absolute; left: 4px; top: -12px; width: 30px; height: 10px; background: var(--buff); border: var(--tt-outline) solid var(--ink); border-bottom: 0; border-radius: 6px 6px 0 0; }
+
+/* Glyph tint confirms the status family; the glyph shape and the name carry it. Buff glyphs stay ink. */
+.tt-status__glyph { color: var(--text); }
+.tt-status--buff .tt-status__glyph { color: var(--ink); }
+.tt-status__glyph--fire { color: var(--dmg-fire); }
+.tt-status__glyph--frost { color: var(--dmg-frost); }
+.tt-status__glyph--lightning { color: var(--dmg-lightning); }
+.tt-status__glyph--poison { color: var(--dmg-poison); }
+.tt-status__glyph--corrosive { color: var(--dmg-corrosive); }
+.tt-status__glyph--curse { color: var(--dmg-shadow-edge); }
+.tt-status__glyph--vital { color: var(--vital); }
+.tt-status__glyph--danger { color: var(--danger-text); }
+
+/* Overflow "+N": when even compact chips need a third row, the last chips in sort order give way to one plain
+   plate chip (lip rim, no tab, no teeth: it is neither a buff nor a debuff). */
+.tt-status--more { background: var(--plate); color: var(--text); border: 2px solid var(--lip); padding: 0 10px; }
+
+/* Compact: when the chips will not fit in two rows, every chip drops its name (one switch on the row, never mixed). */
+.tt-status-row.is-compact .tt-status__name { display: none; }
+
+/* The row (UWrapBox): 12 px headroom for buff tabs (they rise 10), two 36 px rows 20 px apart,
+   8 px under the last row for the teeth (they hang 7). Box (32,318) 456 x 112. */
+.tt-status-row { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 20px 10px; width: 456px; padding: 12px 0 8px; }
+
+/* ---- Preview scaffolding ---- */
+.tt-status-sheet { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); background: var(--plate); }
+.tt-status-sheet__stage { display: flex; flex-wrap: wrap; align-items: center; gap: 26px 14px; padding: 24px 24px 26px; }
+.tt-status-sheet__zoom { display: flex; gap: 96px; align-items: center; justify-content: center; padding: 44px 40px 46px; }
+.tt-status-sheet__zoom > .tt-status { zoom: 2; }
+.tt-status-sheet__cap { display: flex; flex-direction: column; gap: 0; }
+.tt-status-sheet__cap b { color: var(--text); font-weight: 700; }
+.tt-status-sheet__pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.tt-status-sheet__crop { position: relative; display: flex; align-items: flex-start; gap: 32px; padding: 14px 24px 14px 32px; }
+.tt-status-sheet__crop > .tt-plate { flex: 1; }
+.tt-status-sheet__crop > .tt-status-row { flex: none; }
+.tt-status-sheet__arrow { color: var(--text-muted); }

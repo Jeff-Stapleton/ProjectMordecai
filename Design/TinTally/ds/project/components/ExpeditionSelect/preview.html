@@ -1,0 +1,179 @@
+<!-- @dsCard group="Front end" height=1744 width=1920 subtitle="Choose an Expedition: one hanging tag card per playlist, a locked Continue / New Game slot, dev test-map cards threaded on one cord" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ExpeditionSelect</title></head>
+<body>
+<div class="tt-root">
+
+  <!-- 1920x1080: pushed by Play on the title screen. The camera has dollied in over the title island (no rotation), so its top face fills the frame;
+       the veil dims it. Keyboard and mouse (D5). -->
+  <section class="tt-fe-screen" aria-label="Choose an Expedition at 1920 by 1080">
+    <!-- World stand-in: the title island's top face (core diorama tiles) with a few of its props, placed where the cards leave floor showing. Not UI. -->
+    <div class="tt-fe-world" aria-hidden="true">
+      <div class="tt-diorama">
+        <span class="tt-diorama__path" style="left:1152px;top:864px;width:768px;height:96px"></span>
+        <span class="tt-diorama__path" style="left:1824px;top:0;width:96px;height:864px"></span>
+        <span class="tt-diorama__pond" style="left:1290px;top:44px"></span>
+        <span class="tt-diorama__tree" style="left:668px;top:30px"></span>
+        <span class="tt-diorama__tree" style="left:764px;top:56px"></span>
+        <span class="tt-fe-relic" style="left:1600px;top:34px">
+          <span class="tt-fe-relic__slot"></span>
+          <span class="tt-fe-relic__ticket"></span>
+          <span class="tt-fe-relic__rivet" style="left:12px;top:44px"></span>
+          <span class="tt-fe-relic__rivet" style="right:12px;top:44px"></span>
+          <span class="tt-fe-relic__rivet" style="left:12px;bottom:12px"></span>
+          <span class="tt-fe-relic__rivet" style="right:12px;bottom:12px"></span>
+          <span class="tt-fe-relic__moss"></span>
+        </span>
+        <span class="tt-diorama__rock" style="left:1010px;top:104px"></span>
+        <span class="tt-diorama__tree" style="left:40px;top:520px"></span>
+        <span class="tt-diorama__post" style="left:1784px;top:300px"></span>
+        <span class="tt-diorama__post" style="left:1784px;top:380px"></span>
+        <span class="tt-diorama__post" style="left:1784px;top:460px"></span>
+        <span class="tt-diorama__rock" style="left:700px;top:996px"></span>
+        <span class="tt-diorama__bush" style="left:860px;top:990px"></span>
+        <span class="tt-fe-flower" style="left:1110px;top:1006px"></span>
+        <span class="tt-fe-flower tt-fe-flower--storm" style="left:1138px;top:1030px"></span>
+        <span class="tt-fe-flower tt-fe-flower--storm" style="left:1180px;top:140px"></span>
+        <span class="tt-fe-flower" style="left:60px;top:330px"></span>
+      </div>
+    </div>
+    <div class="tt-veil tt-fe-layer" style="z-index:1"></div>
+
+    <!-- Header: Tag's front-end header (.tt-tag--header: one eyelet, ink outline, menu print) hung on one light cord (.tt-tag-hang--light) from the top edge into its eyelet. -->
+    <div class="tt-tag-hang tt-tag-hang--light tt-xsel-head"><span class="tt-tag tt-tag--header"><span class="tally-heading">Choose an Expedition</span></span></div>
+
+    <!-- The rail across the screen (core .tt-railbar); every card hangs from it. -->
+    <span class="tt-railbar tt-xsel-rail" aria-hidden="true"></span>
+    <span class="tt-string tt-string--light tt-fe-cord" style="left:460px;top:220px;height:60px" aria-hidden="true"></span>
+    <span class="tt-string tt-string--light tt-fe-cord" style="left:980px;top:220px;height:60px" aria-hidden="true"></span>
+    <span class="tt-string tt-string--light tt-fe-cord tt-fe-cord--threaded tt-fe-cord--knot" style="left:1222px;top:220px;height:660px" aria-hidden="true"></span>
+
+    <!-- 1. The playlist card (DA_Mordecai_Arena): focused on open. -->
+    <article class="tt-xsel-card is-focused" style="left:160px;top:252px;width:600px" aria-label="Mordecai Arena">
+      <div class="tt-xsel-card__stub"><span class="kicker tt-caps">Expedition</span></div>
+      <div class="tt-xsel-card__thumb">
+        <div class="tt-xsel-scene">
+          <span class="tt-xsel-block" style="left:0;top:0;width:552px;height:60px;--top:42%"></span>
+          <span class="tt-xsel-block" style="left:0;top:0;width:26px;height:264px;--top:100%"></span>
+          <span class="tt-xsel-block" style="left:526px;top:0;width:26px;height:264px;--top:100%"></span>
+          <span class="tt-xsel-block" style="left:110px;top:96px;width:48px;height:70px"></span>
+          <span class="tt-xsel-block" style="left:400px;top:132px;width:48px;height:70px"></span>
+          <span class="tt-xsel-pad" style="left:244px;top:178px"></span>
+          <span class="tt-xsel-shadow" style="left:236px;top:142px"></span><span class="tt-xsel-pawn" style="left:240px;top:112px"></span>
+          <span class="tt-xsel-shadow" style="left:300px;top:170px"></span><span class="tt-xsel-pawn" style="left:304px;top:140px"></span>
+          <span class="tt-xsel-shadow" style="left:196px;top:206px"></span><span class="tt-xsel-pawn" style="left:200px;top:176px"></span>
+        </div>
+      </div>
+      <div class="tt-xsel-card__body">
+        <h2 class="tally-title tt-xsel-card__title">Mordecai Arena</h2>
+        <p class="ui-title tt-xsel-card__sub">Dev test arena</p>
+        <p class="ui-body tt-xsel-card__desc">Project Mordecai diorama arena (DevTestMap)</p>
+      </div>
+      <div class="tt-xsel-card__foot"><span class="tt-key tt-key--sm tt-key--wide">Enter</span>Start</div>
+    </article>
+
+    <!-- 2. Continue / New Game: locked until saves exist. TODO(DECISION) in the README. -->
+    <article class="tt-xsel-card is-disabled" style="left:800px;top:252px;width:360px" aria-label="Continue and New Game, coming soon" aria-disabled="true">
+      <div class="tt-xsel-card__stub"><span class="kicker tt-caps">Save</span></div>
+      <div class="tt-xsel-locked"><span class="tt-glyph tt-glyph--64" data-glyph="lock" aria-label="Locked"></span></div>
+      <div class="tt-xsel-slot">
+        <span class="tt-xsel-slot__row tally-heading"><span class="tt-glyph" data-glyph="lock" aria-hidden="true"></span>Continue</span>
+        <span class="tt-xsel-slot__row tally-heading"><span class="tt-glyph" data-glyph="lock" aria-hidden="true"></span>New Game</span>
+      </div>
+      <div class="tt-empty-box"><p class="tt-empty">Coming Soon</p></div>
+    </article>
+
+    <!-- 3-4. Dev cards (non-Shipping builds): the US-100 test maps, threaded on one cord that runs behind the
+         cards, crosses each stub from the top edge into the eyelet, and ends in a knot under the last card. -->
+    <article class="tt-tag tt-xsel-dev" style="left:1200px;top:252px" aria-label="MovementTestMap">
+      <span class="tt-fe-thread" aria-hidden="true"></span>
+      <div class="tt-xsel-dev__thumb">
+        <div class="tt-xsel-scene">
+          <span class="tt-xsel-block" style="left:0;top:0;width:176px;height:44px;--top:42%"></span>
+          <span class="tt-xsel-block" style="left:14px;top:156px;width:48px;height:46px;--top:40%"></span>
+          <span class="tt-xsel-block" style="left:62px;top:124px;width:48px;height:78px;--top:30%"></span>
+          <span class="tt-xsel-block" style="left:110px;top:92px;width:48px;height:110px;--top:24%"></span>
+        </div>
+      </div>
+      <div class="tt-xsel-dev__info">
+        <span class="tt-xsel-dev__top"><span class="tt-pill tt-xsel-pill">Dev</span><span class="ui-label">Dev test map</span></span>
+        <h3 class="ui-title tt-xsel-dev__title">MovementTestMap</h3>
+        <p class="ui-body tt-xsel-dev__desc">An enemy-free floor with steps.</p>
+      </div>
+    </article>
+
+    <article class="tt-tag tt-xsel-dev" style="left:1200px;top:584px" aria-label="CombatTestMap">
+      <span class="tt-fe-thread" aria-hidden="true"></span>
+      <div class="tt-xsel-dev__thumb">
+        <div class="tt-xsel-scene">
+          <span class="tt-xsel-block" style="left:0;top:0;width:176px;height:44px;--top:42%"></span>
+          <span class="tt-xsel-pad" style="left:20px;top:132px"></span>
+          <span class="tt-xsel-shadow" style="left:38px;top:140px"></span><span class="tt-xsel-pawn tt-xsel-pawn--dummy" style="left:42px;top:108px"></span>
+          <span class="tt-xsel-pad" style="left:96px;top:168px"></span>
+          <span class="tt-xsel-shadow" style="left:114px;top:176px"></span><span class="tt-xsel-pawn" style="left:118px;top:144px"></span>
+        </div>
+      </div>
+      <div class="tt-xsel-dev__info">
+        <span class="tt-xsel-dev__top"><span class="tt-pill tt-xsel-pill">Dev</span><span class="ui-label">Dev test map</span></span>
+        <h3 class="ui-title tt-xsel-dev__title">CombatTestMap</h3>
+        <p class="ui-body tt-xsel-dev__desc">A passive TestDummy and a fixed-cadence TestAttacker.</p>
+      </div>
+    </article>
+
+    <div class="tt-plate tt-fe-version num-s"><span class="tt-fe-version__tag">Dev</span>0.1.0-dev · 797972d · Development</div>
+    <div class="tt-hintbar tt-fe-hints" aria-label="Screen actions">
+      <span class="tt-hint"><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-left" aria-label="Left"></span></span><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-right" aria-label="Right"></span></span>Move</span>
+      <span class="tt-hintbar__sep" aria-hidden="true"></span>
+      <span class="tt-hint"><span class="tt-key tt-key--sm tt-key--wide">Enter</span>Start</span>
+      <span class="tt-hintbar__sep" aria-hidden="true"></span>
+      <span class="tt-hint"><span class="tt-key tt-key--sm tt-key--wide">Esc</span>Back</span>
+    </div>
+  </section>
+
+  <!-- Spec band (D7): card states, shown on the dev card (the large card follows the same rules), and the gamepad hint bar. -->
+  <section class="tt-specband tt-fe-band" aria-label="Card states">
+    <div class="tt-specband__item tt-xsel-specitem">
+      <p class="tt-specband__title">Hover (mouse)</p>
+      <div class="tt-xsel-specimen">
+        <article class="tt-tag tt-xsel-dev is-hover">
+          <div class="tt-xsel-dev__thumb"><div class="tt-xsel-scene"><span class="tt-xsel-block" style="left:0;top:0;width:176px;height:44px;--top:42%"></span><span class="tt-xsel-block" style="left:14px;top:156px;width:48px;height:46px;--top:40%"></span><span class="tt-xsel-block" style="left:62px;top:124px;width:48px;height:78px;--top:30%"></span><span class="tt-xsel-block" style="left:110px;top:92px;width:48px;height:110px;--top:24%"></span></div></div>
+          <div class="tt-xsel-dev__info"><span class="tt-xsel-dev__top"><span class="tt-pill tt-xsel-pill">Dev</span><span class="ui-label">Dev test map</span></span><h3 class="ui-title tt-xsel-dev__title">MovementTestMap</h3><p class="ui-body tt-xsel-dev__desc">An enemy-free floor with steps.</p></div>
+        </article>
+      </div>
+      <p class="tt-label">Lifts 2 px; the print grows by 2 px.</p>
+    </div>
+    <div class="tt-specband__item tt-xsel-specitem">
+      <p class="tt-specband__title">Focused</p>
+      <div class="tt-xsel-specimen">
+        <article class="tt-tag tt-xsel-dev is-focused">
+          <div class="tt-xsel-dev__thumb"><div class="tt-xsel-scene"><span class="tt-xsel-block" style="left:0;top:0;width:176px;height:44px;--top:42%"></span><span class="tt-xsel-block" style="left:14px;top:156px;width:48px;height:46px;--top:40%"></span><span class="tt-xsel-block" style="left:62px;top:124px;width:48px;height:78px;--top:30%"></span><span class="tt-xsel-block" style="left:110px;top:92px;width:48px;height:110px;--top:24%"></span></div></div>
+          <div class="tt-xsel-dev__info"><span class="tt-xsel-dev__top"><span class="tt-pill tt-xsel-pill">Dev</span><span class="ui-label">Dev test map</span></span><h3 class="ui-title tt-xsel-dev__title">MovementTestMap</h3><p class="ui-body tt-xsel-dev__desc">An enemy-free floor with steps.</p></div>
+        </article>
+      </div>
+      <p class="tt-label">Swings 1° about the eyelet; core focus ring; outline and print kept.</p>
+    </div>
+    <div class="tt-specband__item tt-xsel-specitem">
+      <p class="tt-specband__title">Confirmed</p>
+      <div class="tt-xsel-specimen">
+        <article class="tt-tag tt-xsel-dev is-focused is-pressed">
+          <span class="tt-xsel-punch" aria-hidden="true"></span>
+          <div class="tt-xsel-dev__thumb"><div class="tt-xsel-scene"><span class="tt-xsel-block" style="left:0;top:0;width:176px;height:44px;--top:42%"></span><span class="tt-xsel-pad" style="left:20px;top:132px"></span><span class="tt-xsel-shadow" style="left:38px;top:140px"></span><span class="tt-xsel-pawn tt-xsel-pawn--dummy" style="left:42px;top:108px"></span><span class="tt-xsel-pad" style="left:96px;top:168px"></span><span class="tt-xsel-shadow" style="left:114px;top:176px"></span><span class="tt-xsel-pawn" style="left:118px;top:144px"></span></div></div>
+          <div class="tt-xsel-dev__info"><span class="tt-xsel-dev__top"><span class="tt-pill tt-xsel-pill">Dev</span><span class="ui-label">Dev test map</span></span><h3 class="ui-title tt-xsel-dev__title">CombatTestMap</h3><p class="ui-body tt-xsel-dev__desc">A passive TestDummy and a fixed-cadence TestAttacker.</p></div>
+        </article>
+      </div>
+      <p class="tt-label">Sinks 3 px, a hole punches through the stub, then the LoadingScreen cuts in.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Gamepad hint bar</p>
+      <div class="tt-fe-specimen"><div class="tt-hintbar"><span class="tt-hint"><span class="tt-key tt-key--dpad tt-key--dpad-right" aria-label="D-pad"></span>Move</span><span class="tt-hintbar__sep" aria-hidden="true"></span><span class="tt-hint"><span class="tt-key tt-key--pad">A</span>Start</span><span class="tt-hintbar__sep" aria-hidden="true"></span><span class="tt-hint"><span class="tt-key tt-key--pad">B</span>Back</span></div></div>
+      <p class="tt-label">Shown only after a pad is used; the large card's footer then reads [A] Start.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Locked slot</p>
+      <p class="tt-label">Not focusable: Left and Right skip it. The dashed edge and the lock glyphs say unavailable; the core empty state says why.</p>
+    </div>
+  </section>
+</div>
+</body>
+</html>

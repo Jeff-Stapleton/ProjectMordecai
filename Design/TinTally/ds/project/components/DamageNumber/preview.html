@@ -1,0 +1,148 @@
+<!-- @dsCard group="World" height=1586 width=960 subtitle="Damage pops in context over an enemy, every type colour and glyph (Physical carries none), crit, heal, blocked, weak and resist, immune" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>DamageNumber</title>
+<style>
+/* preview-only layout scaffolding */
+.pv { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.pv-head { margin: 0; }
+.pv-head b, .pv-cap b { color: var(--text); }
+.pv-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px 12px; }
+.pv-grid--4 { grid-template-columns: repeat(4, 1fr); }
+.pv-cell { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.pv-cell > div { overflow: hidden; border-radius: 12px; }
+.pv-stack > div, .pv-one { display: flex; align-items: center; justify-content: center; height: 72px; }
+.pv-one { height: 124px; }
+.pv-cap { margin: 0; text-align: center; }
+.pv-scene { position: relative; height: 330px; padding: 0; border-radius: 12px; }
+.pv-foe { position: absolute; left: 50%; top: 60px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.pv-foe > .tt-etag { margin-bottom: 14px; }
+.pv-pop { position: absolute; transform: translate(-50%, -50%); }
+.pv-nopop { display: flex; flex-direction: column; align-items: center; padding-top: 18px; }
+.pv-spec { margin: 8px -24px -24px; }
+.pv-spec > .tt-specband__item { flex: 1 1 240px; max-width: none; }
+</style>
+</head>
+<body>
+<div class="tt-root pv">
+
+  <p class="tt-label pv-head"><b>In context</b> · a Longsword chain, a Fireball and a burn on one Frontliner · 1:1</p>
+  <section class="tt-stage tt-floor-blockout pv-scene">
+    <div class="pv-foe">
+      <div class="tt-etag">
+        <div class="tt-etag__head"><span class="ui-label tt-etag__name">Frontliner</span></div>
+        <div class="tt-etag__gauge">
+          <div class="tt-bar tt-bar--foe tt-etag__hp" style="--v:38%;--t:52%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+          <div class="tt-bar tt-bar--posture tt-etag__po" style="--v:46%"><span class="tt-bar__fill"></span></div>
+        </div>
+        <div class="tt-etag__fx"><span class="tt-etag__st"><span class="tt-glyph" data-glyph="burning" aria-label="Burning"></span></span></div>
+      </div>
+      <div class="tt-etag__body"></div><div class="tt-etag__shadow"></div>
+    </div>
+    <!-- Oldest to newest. Ages 1.4 / 1.0 / 0.6 / 0.25 / 0.05 s; sides alternate L R L R L; each fans out and up, under the tag. -->
+    <div class="pv-pop" style="left:296px; top:150px; opacity:.4;"><span class="tt-dmg"><span class="pop tt-dmg__n">12</span></span></div>
+    <div class="pv-pop" style="left:600px; top:166px;"><span class="tt-dmg"><span class="pop tt-dmg__n">14</span></span></div>
+    <div class="pv-pop" style="left:360px; top:186px;"><span class="tt-dmg"><span class="pop tt-dmg__n">18</span></span></div>
+    <div class="pv-pop" style="left:540px; top:200px;"><span class="tt-dmg tt-dmg--fire"><span class="pop tt-dmg__n">25</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="fire" aria-label="Fire"></span></span></span></div>
+    <div class="pv-pop" style="left:420px; top:218px;"><span class="tt-dmg tt-dmg--fire"><span class="pop tt-dmg__n">3</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="fire" aria-label="Fire"></span></span></span></div>
+  </section>
+  <p class="tt-label pv-cap" style="text-align:left;"><b>Newest</b> at the hit point; older pops fan out and up on alternating sides, never over the tag. <b>Oldest</b> fades over its last 300 ms.</p>
+
+  <p class="tt-label pv-head"><b>Every damage type</b> · light floor over dark floor</p>
+  <div class="pv-grid">
+    <figure class="pv-cell">
+      <div class="pv-stack"><div class="tt-floor-blockout"><span class="tt-dmg"><span class="pop tt-dmg__n">14</span></span></div><div class="tt-floor-night"><span class="tt-dmg"><span class="pop tt-dmg__n">14</span></span></div></div>
+      <figcaption class="tt-label pv-cap"><b>Physical</b></figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-stack"><div class="tt-floor-blockout"><span class="tt-dmg tt-dmg--fire"><span class="pop tt-dmg__n">25</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="fire" aria-label="Fire"></span></span></span></div><div class="tt-floor-night"><span class="tt-dmg tt-dmg--fire"><span class="pop tt-dmg__n">25</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="fire" aria-label="Fire"></span></span></span></div></div>
+      <figcaption class="tt-label pv-cap"><b>Fire</b></figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-stack"><div class="tt-floor-blockout"><span class="tt-dmg tt-dmg--frost"><span class="pop tt-dmg__n">21</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="frost" aria-label="Frost"></span></span></span></div><div class="tt-floor-night"><span class="tt-dmg tt-dmg--frost"><span class="pop tt-dmg__n">21</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="frost" aria-label="Frost"></span></span></span></div></div>
+      <figcaption class="tt-label pv-cap"><b>Frost</b></figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-stack"><div class="tt-floor-blockout"><span class="tt-dmg tt-dmg--lightning"><span class="pop tt-dmg__n">17</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="lightning" aria-label="Lightning"></span></span></span></div><div class="tt-floor-night"><span class="tt-dmg tt-dmg--lightning"><span class="pop tt-dmg__n">17</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="lightning" aria-label="Lightning"></span></span></span></div></div>
+      <figcaption class="tt-label pv-cap"><b>Lightning</b></figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-stack"><div class="tt-floor-blockout"><span class="tt-dmg tt-dmg--poison"><span class="pop tt-dmg__n">4</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="poison" aria-label="Poison"></span></span></span></div><div class="tt-floor-night"><span class="tt-dmg tt-dmg--poison"><span class="pop tt-dmg__n">4</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="poison" aria-label="Poison"></span></span></span></div></div>
+      <figcaption class="tt-label pv-cap"><b>Poison</b></figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-stack"><div class="tt-floor-blockout"><span class="tt-dmg tt-dmg--corrosive"><span class="pop tt-dmg__n">9</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="corrosive" aria-label="Corrosive"></span></span></span></div><div class="tt-floor-night"><span class="tt-dmg tt-dmg--corrosive"><span class="pop tt-dmg__n">9</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="corrosive" aria-label="Corrosive"></span></span></span></div></div>
+      <figcaption class="tt-label pv-cap"><b>Corrosive</b></figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-stack"><div class="tt-floor-blockout"><span class="tt-dmg tt-dmg--arcane"><span class="pop tt-dmg__n">12</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="arcane" aria-label="Arcane"></span></span></span></div><div class="tt-floor-night"><span class="tt-dmg tt-dmg--arcane"><span class="pop tt-dmg__n">12</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="arcane" aria-label="Arcane"></span></span></span></div></div>
+      <figcaption class="tt-label pv-cap"><b>Arcane</b></figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-stack"><div class="tt-floor-blockout"><span class="tt-dmg tt-dmg--shadow"><span class="pop tt-dmg__n" data-n="16">16</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="shadow" aria-label="Shadow"></span></span></span></div><div class="tt-floor-night"><span class="tt-dmg tt-dmg--shadow"><span class="pop tt-dmg__n" data-n="16">16</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="shadow" aria-label="Shadow"></span></span></span></div></div>
+      <figcaption class="tt-label pv-cap"><b>Shadow</b> · inverted</figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-stack"><div class="tt-floor-blockout"><span class="tt-dmg tt-dmg--radiant"><span class="pop tt-dmg__n" data-n="22">22</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="radiant" aria-label="Radiant"></span></span></span></div><div class="tt-floor-night"><span class="tt-dmg tt-dmg--radiant"><span class="pop tt-dmg__n" data-n="22">22</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="radiant" aria-label="Radiant"></span></span></span></div></div>
+      <figcaption class="tt-label pv-cap"><b>Radiant</b> · halo</figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-stack"><div class="tt-floor-blockout"><span class="tt-dmg tt-dmg--heal"><span class="pop tt-dmg__n">+40</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="heal" aria-label="Heal"></span></span></span></div><div class="tt-floor-night"><span class="tt-dmg tt-dmg--heal"><span class="pop tt-dmg__n">+40</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="heal" aria-label="Heal"></span></span></span></div></div>
+      <figcaption class="tt-label pv-cap"><b>Heal</b> · "+"</figcaption>
+    </figure>
+  </div>
+
+  <p class="tt-label pv-head"><b>Modifiers</b></p>
+  <div class="pv-grid pv-grid--4">
+    <figure class="pv-cell">
+      <div class="pv-one tt-floor-grass"><span class="tt-dmg tt-dmg--crit"><span class="tt-dmg__core"><span class="tt-dmg__burst"></span><span class="pop tt-dmg__n">42!</span></span></span></div>
+      <figcaption class="tt-label pv-cap"><b>Crit</b> · ×1.5 and "!"</figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-one tt-floor-night"><span class="tt-dmg tt-dmg--crit tt-dmg--fire"><span class="tt-dmg__core"><span class="tt-dmg__burst"></span><span class="pop tt-dmg__n">38!</span></span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="fire" aria-label="Fire"></span></span></span></div>
+      <figcaption class="tt-label pv-cap"><b>Crit</b> · Fireball</figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-one tt-floor-sand"><span class="tt-dmg tt-dmg--blocked"><span class="pop tt-dmg__n">8</span><span class="tt-dmg__stamp"><span class="tt-glyph tt-dmg__mod" data-glyph="block" aria-label="Blocked"></span></span></span></div>
+      <figcaption class="tt-label pv-cap"><b>Blocked</b> · 80% size</figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-one tt-floor-mire"><span class="tt-dmg tt-dmg--heal"><span class="pop tt-dmg__n">+8</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="heal" aria-label="Heal"></span></span></span></div>
+      <figcaption class="tt-label pv-cap"><b>Restoration</b> · tick</figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-one tt-floor-snow"><span class="tt-dmg tt-dmg--fire"><span class="pop tt-dmg__n">31</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="fire" aria-label="Fire"></span><span class="tt-glyph tt-dmg__mod" data-glyph="arrow-up" aria-label="Weakness"></span></span></span></div>
+      <figcaption class="tt-label pv-cap"><b>Weakness</b> · fire</figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-one tt-floor-blockout"><span class="tt-dmg tt-dmg--poison"><span class="pop tt-dmg__n">2</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="poison" aria-label="Poison"></span><span class="tt-glyph tt-dmg__mod" data-glyph="arrow-down" aria-label="Resisted"></span></span></span></div>
+      <figcaption class="tt-label pv-cap"><b>Resisted</b> · poison</figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-one tt-floor-mire"><span class="tt-dmg tt-dmg--immune tt-dmg--fire"><span class="pop tt-dmg__n">Immune</span><span class="tt-dmg__stamp"><span class="tt-glyph" data-glyph="fire" aria-label="Fire"></span><span class="tt-glyph tt-dmg__mod" data-glyph="immune" aria-label="Immune"></span></span></span></div>
+      <figcaption class="tt-label pv-cap"><b>Immune</b> · fire</figcaption>
+    </figure>
+    <figure class="pv-cell">
+      <div class="pv-one tt-floor-grass"><div class="pv-nopop" aria-label="No number"><div class="tt-etag__body tt-etag__body--small"></div><div class="tt-etag__shadow"></div></div></div>
+      <figcaption class="tt-label pv-cap"><b>Evaded</b> or <b>parried</b> · no number</figcaption>
+    </figure>
+  </div>
+
+  <div class="tt-specband pv-spec">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Glyph rule</p>
+      <p class="tt-label">Every non-Physical number carries its type glyph in the stamp. Physical, Slash, Pierce and Blunt carry none: colour alone marks melee.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Stamp</p>
+      <p class="tt-label">At most one type glyph and one modifier glyph. A blocked or resisted Physical hit shows the modifier alone.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Build</p>
+      <p class="tt-label">A pool of 20 UMG pops on the HUD root's damage-pop canvas. No Niagara text.</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

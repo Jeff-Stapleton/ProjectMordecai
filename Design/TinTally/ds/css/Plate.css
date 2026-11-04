@@ -1,0 +1,60 @@
+/* Plate: the pressed-tin panel. Core gives .tt-plate (HUD), .tt-plate--menu, .tt-plate--inset, the
+   Selected fill (.tt-selectable.is-selected), the focus variants and the High Contrast unlit outline.
+   This partial adds the sunk well, the plate header, the HUD sizes, the rivets (Tally and front-end
+   menu plates only, D13), the inset card's hover and the unlit state the Acceptance ending uses.
+   Depth ladder: world > plate > inset > well. The fill is always 100% opaque; a whole widget may fade. */
+
+/* HUD boxes at 1920x1080 (BUILD.md HUD map). Use on the outermost plate; content pads 16. */
+.tt-plate--gauge { width: 456px; height: 152px; }
+.tt-plate--rail { width: 320px; height: 56px; }
+.tt-plate--slot { width: 78px; height: 78px; padding: 5px; }
+.tt-plate--loadout { width: 340px; height: 84px; }
+.tt-plate--moment { width: 640px; height: 128px; }
+
+/* A one-line HUD plate: content centred on the row, 16 px sides. */
+.tt-plate__row { display: flex; align-items: center; gap: var(--space-3); height: 100%; padding: 0 var(--space-4); }
+
+/* Plate header: title left, a count or action right, then the core .tt-divider under it. Menu plates only. */
+.tt-plate__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding-bottom: var(--space-3); }
+.tt-plate__head + .tt-divider { margin-bottom: var(--space-4); }
+
+/* The well: sunk into a plate for an icon, a socket or a meter. Lip 2 px, radius 8. The spell slot's
+   well is 64 x 64 (SpellSlot's), 5 px inside the 78 x 78 slot plate's rim. */
+.tt-plate__well {
+  display: flex; align-items: center; justify-content: center; flex: none;
+  background: var(--well); color: var(--text);
+  border: var(--stroke-rim) solid var(--lip); border-radius: var(--radius-key);
+}
+.tt-plate__well--slot { width: 64px; height: 64px; }
+
+/* Rivets (D13): only on Tally plates (TallyPlate) and front-end menu plates (the title wordmark, Credits).
+   Never on HUD plates or World-voice plates. Four 12 px pressed rivets, 8 px in from the rim's corners:
+   a rim-shade face with a rim highlight on top, inside a 2 px ink ring. Drawn as background layers so
+   the plate keeps its pseudo-elements for the component. */
+.tt-plate--riveted {
+  --tt-rivet: radial-gradient(circle at 50% 30%, var(--rim) 0 1.5px, transparent 2px), radial-gradient(circle closest-side, var(--rim-shade) 0 4px, var(--ink) 4px 5.5px, transparent 6px);
+  background-image: var(--tt-rivet), var(--tt-rivet), var(--tt-rivet), var(--tt-rivet);
+  background-size: 12px 12px; background-repeat: no-repeat;
+  background-position: left 8px top 8px, left 8px top 8px, right 8px top 8px, right 8px top 8px,
+    left 8px bottom 8px, left 8px bottom 8px, right 8px bottom 8px, right 8px bottom 8px;
+}
+
+/* Inset cards inside a menu plate (attribute cards, detail panes, list rows). Selected is the core cream
+   fill (.tt-selectable.is-selected, D6); focus is core .tt-focus--fill-gap (an ink ring in the gap, the focus
+   ring outside it, no keyline). Hover doubles the edge to 4 px rim, so it still differs from rest in High
+   Contrast, where lip and rim are both white; the doubled edge sits in --tt-shadow so focus keeps it. */
+.tt-plate--inset.is-hover { border-color: var(--rim); --tt-shadow: inset 0 0 0 2px var(--rim); }
+.tt-plate--inset.is-selected.is-hover { border-color: var(--ink); --tt-shadow: inset 0 0 0 2px var(--ink); }
+.tt-plate--inset.is-hover:not(.is-focused):not(:focus-visible) { box-shadow: var(--tt-shadow); }
+
+/* Unlit: the Acceptance ending. The tin stays, the print stays, the lettering and rim go dark.
+   Opaque as ever: only colours change. In High Contrast the full white outline stays (core, D22):
+   the dark fills and the disabled lettering carry the change, and wells keep their white lip. */
+.tt-plate.is-unlit { border-color: var(--lip); border-right-color: var(--well); border-bottom-color: var(--well); }
+.tt-plate.is-unlit, .tt-plate.is-unlit * { color: var(--text-disabled); }
+.tt-plate.is-unlit .tt-plate__well { border-color: var(--plate-raised); }
+.tt-plate.is-unlit .tt-bar { border-color: var(--plate-raised); }
+.tt-plate.is-unlit .tt-bar__fill { background: var(--plate-raised); }
+.tt-plate.is-unlit .tt-bar__trail, .tt-plate.is-unlit .tt-bar__lead, .tt-plate.is-unlit .tt-bar__notch { display: none; }
+[data-theme="high-contrast"] .tt-plate.is-unlit .tt-plate__well,
+[data-theme="high-contrast"] .tt-plate.is-unlit .tt-bar { border-color: var(--lip); }

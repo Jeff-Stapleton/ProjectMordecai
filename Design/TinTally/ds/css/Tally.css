@@ -1,0 +1,70 @@
+/* Tally: the counting motif, four upright strokes closed by a slash. Core draws the strokes
+   (.tt-tally via TinTally.tally; unlit strokes dotted in every theme) and the rarity badges (.tt-rarity).
+   EXACTLY THREE JOBS (D1): skill ranks, rarity badges, and the seal / loading throbber. Everything else that
+   counts uses another mark (pips, numbers, thin bars, notched tracks, dividers, tokens).
+   This partial adds the skill-rank row and its milestone ruler, the seal, the throbber, and the Spell Point
+   tokens (discs, not strokes). Lit strokes take currentColor: text on plate, ink on enamel, never good. */
+
+/* Skill rank row: name, 20 strokes (slashes on 5/10/15/20, a cap dot on rank 1), "rank / 20".
+   Row size (SkillsTab rows, TallyPlate's technique kicker): data-height 24, stroke 3, pitch 7 = 148 x 24.
+   Detail size: 32 / 4 / 9 = 180 x 32. Rank 20 is a full bundle in the same text colour. */
+.tt-tally-rank { display: grid; grid-template-columns: minmax(0, 1fr) auto 112px; align-items: center; column-gap: var(--space-4); color: var(--text); }
+.tt-tally-rank__name { font: 500 22px/30px var(--font-ui); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-tally-rank__value { font: 700 24px/28px var(--font-mono); color: var(--text); text-align: right; white-space: nowrap; }
+.tt-tally-rank.is-unlearned .tt-tally-rank__name, .tt-tally-rank.is-unlearned .tt-tally-rank__value { color: var(--text-muted); }
+
+/* Milestone ruler under a detail-size rank bar (data-height 32 / stroke 4 / pitch 9). "1" sits
+   under rank 1's stroke (x 6); 5, 10, 15, 20 sit under each bundle's fourth stroke, where its slash
+   ends (x 34, 81, 128, 175). */
+.tt-tally-ruler { position: relative; width: 188px; height: 24px; }
+.tt-tally-ruler > span { position: absolute; top: 0; transform: translateX(-50%); font: 600 20px/24px var(--font-mono); color: var(--text-muted); }
+.tt-tally-ruler > span.is-reached { color: var(--text); }
+
+/* A live count beside a mark ("12 / 20", "13 / 13"): one line, tabular. */
+.tt-tally-count { font: 700 24px/28px var(--font-mono); color: var(--text); white-space: nowrap; }
+
+/* Spell Point tokens (D17): flat discs in groups of five, like coins stacked for counting, never strokes.
+   The row is designed for 10-16 tokens and always fits GaugePlate's 268 px track:
+     22 px (default)  up to 10 tokens: gap 4, 12 between fives (10 = 264 px)
+     16 px (--16)     11-13 tokens:   gap 3, 8 between fives  (13 = 254 px; 13 / 13 is the default INT)
+     14 px (--14)     14-16 tokens:   gap 2, 6 between fives  (16 = 266 px)
+   Above 16 the gauge falls back to SpellPointsProgressBar (TODO(DECISION), US-090). */
+.tt-tally-sp { display: inline-flex; align-items: center; gap: 12px; }
+.tt-tally-sp__group { display: inline-flex; align-items: center; gap: 4px; }
+.tt-tally-sp__token { position: relative; width: 22px; height: 22px; flex: none; border-radius: 50%; background: var(--well); box-shadow: inset 0 0 0 2px var(--lip); }
+.tt-tally-sp__token.is-on { background: var(--spell-points); box-shadow: inset 0 0 0 2px var(--ink); }
+.tt-tally-sp__token.is-on::after { content: ""; position: absolute; left: 50%; top: 3px; width: 4px; height: 7px; margin-left: -2px; border-radius: 2px; background: var(--ink); }
+.tt-tally-sp--16 { gap: 8px; }
+.tt-tally-sp--16 .tt-tally-sp__group { gap: 3px; }
+.tt-tally-sp--16 .tt-tally-sp__token { width: 16px; height: 16px; }
+.tt-tally-sp--16 .tt-tally-sp__token.is-on::after { top: 2px; width: 4px; height: 5px; }
+.tt-tally-sp--14 { gap: 6px; }
+.tt-tally-sp--14 .tt-tally-sp__group { gap: 2px; }
+.tt-tally-sp--14 .tt-tally-sp__token { width: 14px; height: 14px; }
+.tt-tally-sp--14 .tt-tally-sp__token.is-on::after { top: 2px; width: 4px; height: 4px; }
+
+/* The seal: the Tally's stamp, a double ring around one full bundle. 96 px on plates
+   (rim on plate), --stamp on enamel (ink, turned -8 degrees as if pressed by hand). */
+.tt-tally-seal {
+  --tt-seal-ground: var(--plate);
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 96px; height: 96px; border-radius: 50%; color: var(--rim);
+  border: 4px solid currentColor; background: var(--tt-seal-ground);
+  box-shadow: inset 0 0 0 5px var(--tt-seal-ground), inset 0 0 0 7px currentColor;
+}
+.tt-tally-seal--stamp { --tt-seal-ground: var(--enamel); color: var(--ink); transform: rotate(-8deg); }
+.tt-tally-seal--48 { width: 48px; height: 48px; border-width: 3px; box-shadow: inset 0 0 0 3px var(--tt-seal-ground), inset 0 0 0 5px currentColor; }
+
+/* The throbber (Motion: Throbber, D18): one bundle drawn stroke by stroke over its own dotted ghost, in
+   `text`, on the loading screen only. Children: frame 0 (the ghost, always shown), then frames 1-5.
+   It keeps looping under Reduce Motion (core keeps its 1200 ms duration): it proves the game has not hung. */
+.tt-tally-throbber { position: relative; display: inline-flex; flex: none; color: var(--text); }
+.tt-tally-throbber > .tt-tally { position: absolute; left: 0; top: 0; visibility: hidden; animation: tt-tally-frame 1200ms steps(1, end) infinite; }
+.tt-tally-throbber > .tt-tally:first-child { position: relative; visibility: visible; animation: none; }
+.tt-tally-throbber > .tt-tally:nth-child(2) { animation-delay: 0ms; }
+.tt-tally-throbber > .tt-tally:nth-child(3) { animation-delay: 160ms; }
+.tt-tally-throbber > .tt-tally:nth-child(4) { animation-delay: 320ms; }
+.tt-tally-throbber > .tt-tally:nth-child(5) { animation-delay: 480ms; }
+.tt-tally-throbber > .tt-tally:nth-child(6) { animation-name: tt-tally-frame-hold; animation-delay: 640ms; }
+@keyframes tt-tally-frame { 0% { visibility: visible; } 13.33% { visibility: hidden; } 100% { visibility: hidden; } }
+@keyframes tt-tally-frame-hold { 0% { visibility: visible; } 33.33% { visibility: hidden; } 100% { visibility: hidden; } }

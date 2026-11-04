@@ -1,0 +1,128 @@
+/* ItemCard: the enamel tag card used for item tooltips, the inventory detail column,
+   compare pairs and the Mage Tower appraisal tray. Ink text only; rarity rides on the band. */
+.tt-itemcard {
+  --band: var(--rarity-common);
+  position: relative; display: flex; flex-direction: column; flex: none;
+  width: 384px; background: var(--enamel); color: var(--ink);
+  border-radius: var(--radius-tag);
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 6px 0 var(--tt-outline) var(--tt-print);
+}
+.tt-itemcard--compact { width: 320px; }
+.tt-itemcard--fill { width: 100%; }
+.tt-itemcard--common { --band: var(--rarity-common); }
+.tt-itemcard--green { --band: var(--rarity-green); }
+.tt-itemcard--blue { --band: var(--rarity-blue); }
+.tt-itemcard--purple { --band: var(--rarity-purple); }
+.tt-itemcard--red { --band: var(--rarity-red); }
+.tt-itemcard--gold { --band: var(--rarity-gold); }
+
+/* Rarity band: badge + "PURPLE · Amulet" in ink on the rarity fill; the grommet eyelet is punched at the left
+   (the core tag grommet: well hole, enamel-shade ring, ink ring). */
+.tt-itemcard__band {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  min-height: 48px; padding: 0 14px 0 44px;
+  background: var(--band); color: var(--ink);
+  border-radius: calc(var(--radius-tag) - 1px) calc(var(--radius-tag) - 1px) 0 0;
+  border-bottom: 3px solid var(--ink);
+  font: 800 20px/26px var(--font-ui); letter-spacing: .02em; white-space: nowrap;
+}
+.tt-itemcard__band::before {
+  content: ""; position: absolute; left: 16px; top: 50%; width: 10px; height: 10px; margin-top: -5px;
+  border-radius: 50%; background: var(--well); box-shadow: 0 0 0 3px var(--enamel-shade), 0 0 0 5px var(--ink);
+}
+.tt-itemcard__band .tt-rarity { color: var(--ink); }
+.tt-itemcard__band-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* The Equipped pill: one piece wherever an item is equipped (this card's band, the Inventory row). It is the
+   core chip (.tt-chip: plate, ink outline) with a rim edge, the pin glyph and "Equipped". Static by default;
+   on a pinned card it sits across the band's top edge. */
+.tt-itemcard__flag { --chip-rim: var(--rim); gap: 6px; padding: 0 14px 0 10px; letter-spacing: 0; }
+.tt-itemcard__band > .tt-itemcard__flag { position: absolute; right: 16px; top: -24px; z-index: 1; }
+/* A hung card: the string runs from above the card into the eyelet. It is the core light string, read through
+   --tt-string-light-* (a 4 px rim cord with ink sides), so it holds on dark plates and light floors alike. */
+.tt-itemcard--hung .tt-itemcard__band::after {
+  content: ""; position: absolute; left: 19px; bottom: 50%; width: var(--tt-string-light-w); height: var(--tt-itemcard-string, 58px);
+  background: var(--tt-string-light-core); box-shadow: var(--tt-string-light-shadow);
+}
+/* Pinned (equipped) card: a pin token drives through the eyelet; the band text clears the token. */
+.tt-itemcard__pin {
+  position: absolute; left: 1px; top: -14px; z-index: 1;
+  display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+  border-radius: 50%; background: var(--enamel); color: var(--ink);
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 3px 0 var(--tt-outline) var(--tt-print);
+}
+.tt-itemcard__pin + .tt-itemcard__band { padding-left: 58px; }
+.tt-itemcard__pin + .tt-itemcard__band::before { display: none; }
+
+.tt-itemcard__body { --tt-ic-pad: 18px; display: flex; flex-direction: column; gap: 10px; padding: 14px var(--tt-ic-pad) 18px; }
+/* Compact: the inventory detail column (no action footer; the row carries the Identify keycap). */
+.tt-itemcard--compact .tt-itemcard__body { --tt-ic-pad: 16px; gap: 8px; padding-top: 12px; padding-bottom: 14px; }
+.tt-itemcard--compact .tt-itemcard__stats--sealed { padding-top: 6px; padding-bottom: 6px; }
+.tt-itemcard__head { display: flex; align-items: center; gap: 12px; }
+.tt-itemcard__head > div { min-width: 0; }
+.tt-itemcard__name { margin: 0; color: var(--ink); }
+.tt-itemcard__type { margin: 0; color: var(--ink-muted); }
+/* The "?" stamp: a struck rubber stamp beside an unidentified name. */
+.tt-itemcard__stamp {
+  display: flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px;
+  border-radius: 50%; border: 3px solid var(--ink); color: var(--ink); background: var(--enamel-shade);
+  transform: rotate(-8deg);
+}
+
+.tt-itemcard__note {
+  display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 8px 12px;
+  border-radius: 6px; background: var(--enamel-shade); color: var(--ink); border: 2px dashed var(--ink-muted);
+}
+.tt-itemcard__note .tt-glyph { margin-top: 1px; }
+
+/* Stat block: a full-bleed printed strip. Label (ui-label, ink-muted), value (num-s, ink),
+   delta pill (ink on a fill + arrow glyph + sign). */
+.tt-itemcard__stats {
+  display: grid; grid-template-columns: 1fr auto auto; align-items: center; column-gap: 8px; row-gap: 6px;
+  margin: 0 calc(var(--tt-ic-pad, 18px) * -1); padding: 10px var(--tt-ic-pad, 18px); background: var(--enamel-shade);
+  border-top: 2px dashed color-mix(in srgb, var(--ink) 30%, transparent);
+  border-bottom: 2px dashed color-mix(in srgb, var(--ink) 30%, transparent);
+}
+.tt-itemcard__stats dt { color: var(--ink-muted); }
+.tt-itemcard__stats dd { margin: 0; color: var(--ink); text-align: right; font-weight: 700; }
+.tt-itemcard__stats dd.tt-itemcard__dcell { min-width: 0; }
+.tt-itemcard__stats--sealed {
+  grid-template-columns: auto 1fr; padding-top: 8px; padding-bottom: 8px;
+  background-image: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ink) 12%, transparent) 0 3px, transparent 3px 10px);
+}
+.tt-itemcard__stats--sealed dd { text-align: left; }
+.tt-itemcard__delta {
+  display: inline-flex; align-items: center; justify-content: flex-end; gap: 0;
+  height: 28px; padding: 0 8px 0 3px; border-radius: var(--radius-pill); border: 2px solid var(--ink);
+  background: var(--delta-up); color: var(--ink); font: 700 20px/1 var(--font-mono); white-space: nowrap;
+}
+.tt-itemcard__delta--down { background: var(--delta-down); }
+.tt-itemcard__delta--same { background: var(--enamel); padding: 0 10px; }
+.tt-itemcard__delta .tt-glyph { width: 20px; height: 20px; }
+/* Dot delta for the 320 px compact card: glyph only; the number moves to the accessible name. */
+.tt-itemcard__delta--dot { width: 28px; padding: 0; justify-content: center; }
+
+.tt-itemcard__effects { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tt-itemcard__effect { display: flex; align-items: flex-start; gap: 8px; color: var(--ink); }
+.tt-itemcard__effect .tt-glyph { margin-top: 1px; }
+.tt-itemcard__desc { margin: 0; color: var(--ink); }
+
+.tt-itemcard__actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin-top: auto; padding: 10px 18px 12px;
+  background: var(--enamel-shade); border-top: 2px solid color-mix(in srgb, var(--ink) 30%, transparent);
+  border-radius: 0 0 calc(var(--radius-tag) - 1px) calc(var(--radius-tag) - 1px);
+}
+.tt-itemcard__action { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font: 700 20px/26px var(--font-ui); }
+
+/* Compare pair and the "hung from the focused row" context (the row in its list well). The tooltip's eyelet
+   (x 21) sits under the row's badge centre (x 30 = 2 edge + 10 padding + 18), so the card is offset 9 px; the
+   string (58 px from the eyelet) crosses the 34 px gap into the row's foot. */
+.tt-itemcard-pair { display: flex; align-items: flex-start; gap: 32px; padding-top: 16px; }
+.tt-itemcard-hang { display: flex; flex-direction: column; align-items: flex-start; gap: 34px; padding: 8px 8px 14px; border-radius: var(--radius-tag); background: var(--well); border: var(--stroke-rim) solid var(--lip); }
+.tt-itemcard-hang > .tt-itemcard { margin-left: 9px; }
+.tt-itemcard-hang > .tt-inv-row { align-self: stretch; }
+
+/* Preview scaffolding: the specimen sheet. */
+.tt-itemcard-sheet { display: flex; flex-direction: column; gap: 56px; padding: 48px; background: var(--plate); }
+.tt-itemcard-sheet__row { display: flex; align-items: flex-start; gap: 40px; }
+.tt-itemcard-sheet__cell { display: flex; flex-direction: column; gap: 20px; }
+.tt-itemcard-sheet__cell--hang { width: 520px; }

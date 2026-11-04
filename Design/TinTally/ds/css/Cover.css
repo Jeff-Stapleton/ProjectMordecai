@@ -1,0 +1,34 @@
+/* Cover: the system's face on Overview, one 960 x 360 picture. Composition only: every piece is a real
+   Tin Tally part, drawn by its own classes, at 1:1 design px (no scaling, so no text under 20 px):
+   Tag's two-string nameplate (.tt-tag-nameplate), TallyRail's rail head and tickets (.tt-railhead,
+   .tt-ticket kinds), TallyPlate's feat badge (.tt-tallyplate__badge--common), InteractPrompt's hint pill
+   (.tt-iprompt__hint) and TitleScreen's toy island in its dark case (.tt-fe-world, .tt-fe-dio__*,
+   core .tt-diorama props). This file only places and sizes them; it restyles nothing outside .tt-cover. */
+
+.tt-cover { position: relative; width: 960px; height: 360px; overflow: hidden; isolation: isolate; background-color: var(--world-night); }
+.tt-cover .tt-cover__place { position: absolute; }
+
+/* The island: the title island's top face, grass fringe, cliff and tin plinth, cut down to a 112 px face.
+   Level art (world-* and biome-* tokens), so High Contrast leaves it alone. */
+.tt-cover__island { left: 32px; top: 180px; width: 880px; height: 172px; z-index: 1; }
+.tt-cover__island .tt-fe-dio__top { top: 0; width: 100%; height: 120px; border-radius: 28px 28px 0 0; }
+.tt-cover__island .tt-fe-dio__fringe { top: 118px; width: 100%; }
+.tt-cover__island .tt-fe-dio__cliff { top: 120px; width: 100%; height: 36px; background-position: 0 0, 0 10px; }
+.tt-cover__island .tt-fe-dio__plinth { top: 156px; left: -12px; width: calc(100% + 24px); height: 16px; border-radius: 0 0 6px 6px; }
+.tt-cover__island .tt-fe-dio__plinth::before { top: 2px; }
+
+/* The wordmark: Tag's in-game nameplate on two light cords from the top edge, holding the name in
+   tally-display and one tagline line in ink-muted (on the enamel, never on the world). */
+.tt-cover__name { left: 32px; top: 0; z-index: 3; --tt-tag-drop: 20px; }
+.tt-cover__name .tt-tag-nameplate__face { flex-direction: column; align-items: flex-start; gap: 0; padding: 12px 56px 18px; }
+.tt-cover__word { margin: 0; color: var(--ink); white-space: nowrap; }
+.tt-cover__tagline { margin: 0; color: var(--ink-muted); white-space: nowrap; }
+
+/* The feat medallion, stamped (Motion: StampReveal) over the nameplate's corner: Pyromaniac, Common. */
+.tt-cover__badge { z-index: 4; transform: rotate(-8deg); }
+
+/* The rail: TallyRail's head and its threaded stack, top right, 32 px in like the HUD. */
+.tt-cover__rail { z-index: 3; }
+
+/* The one keycap: InteractPrompt's always-visible "[I] Inventory" pill. */
+.tt-cover__hint { z-index: 3; }

@@ -1,0 +1,59 @@
+/* ServiceScreen: the town service screen PATTERN (UI.Layer.Menu, over the veil). The Mage Tower's Identify
+   screen is one instance; this card draws the Alchemist's Restock as the second. Shared frame:
+   PauseShell's service-screen nameplate (.tt-pause__title--screen: 52 px light strings, glyph + title) and
+   hint bar (core .tt-hintbar placed by .tt-pause__footer, moved with --tt-pause-footer-top), MageTower's
+   one menu plate (.tt-mage-shell) split into the list panel (.tt-mage-panel) and the main column
+   (.tt-mage-main): the tray (.tt-mage-tray) with the selected thing hung from the one rail (core .tt-railbar)
+   on the light string, and the counter (.tt-mage-counter: quote rows, one plain line, the action keycap
+   .tt-mage-identify). This partial adds the list rows (plate cards, D6 Selected) and the placements. */
+
+.tt-svc-sheet { display: flex; flex-direction: column; width: 1920px; background: var(--plate); }
+/* The hint bar sits under this screen's taller shell (it ends at y 936). */
+.tt-svc-screen { flex: none; --tt-pause-footer-top: 966px; }
+/* z-index 0 makes the HUD stage its own stacking context, so its keycaps and tokens stay under the veil. */
+.tt-svc-screen > .tt-hud { position: absolute; left: 0; top: 0; z-index: 0; }
+.tt-svc__veil { position: absolute; inset: 0; }
+
+/* --- List panel: the head carries the building tier on the right; a "Next batch" ledger sits at the foot. */
+.tt-svc-tier { margin-left: auto; color: var(--text-muted); }
+.tt-svc-list { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 4px 0 0; list-style: none; }
+/* StockRow: a plate card in the plate-raised panel. Selected = the enamel fill (core .tt-selectable.is-selected),
+   focus = core .tt-focus--fill-gap. Out of stock and locked are dashed (unavailable, D24). */
+.tt-svc-row {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; column-gap: 12px;
+  min-height: 84px; padding: 12px 16px 12px 12px; border-radius: var(--radius-tag);
+  background: var(--plate); color: var(--text); border: var(--stroke-rim) solid var(--lip);
+}
+.tt-svc-row__well {
+  display: flex; align-items: center; justify-content: center; width: 52px; height: 52px;
+  border-radius: var(--radius-key); background: var(--well); color: var(--text); border: var(--stroke-rim) solid var(--lip);
+}
+.tt-svc-row__text { display: flex; flex-direction: column; min-width: 0; }
+.tt-svc-row__name { color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-svc-row__sub { white-space: nowrap; }
+/* The separator between the two counts gets room on both sides, so "5 · Shelf" never crowds. */
+.tt-svc-row__dot { display: inline-block; margin: 0 10px; }
+.tt-svc-row.is-out, .tt-svc-row.is-locked { border-style: dashed; }
+.tt-svc-row.is-out .tt-svc-row__sub, .tt-svc-row.is-locked .tt-svc-row__sub { color: var(--text-disabled); }
+.tt-svc-row.is-locked { color: var(--text-disabled); }
+.tt-svc-row.is-locked .tt-svc-row__well { color: var(--text-disabled); border-style: dashed; }
+.tt-svc-batch { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+.tt-svc-batch__title { margin: 4px 0 0; color: var(--text); }
+
+/* --- Tray: the rail, the light string into the card's ear, the card hung at 1.25 (the counter has three
+       quote rows, so the tray is shorter than the Mage Tower's). */
+.tt-svc-rail { position: absolute; left: 50%; top: 40px; z-index: 3; width: 440px; margin-left: -220px; }
+.tt-svc-string { position: absolute; left: 50%; top: 58px; z-index: 2; height: 42px; margin: 0 0 0 -2px; }
+.tt-svc-screen .tt-mage-tray__hang { --tt-mage-scale: 1.25; top: 116px; }
+/* Quote values that change carry an arrow glyph between the before and after values. */
+.tt-svc-change { display: inline-flex; align-items: center; gap: 4px; }
+
+/* --- Preview scaffolding: frame head, the states sheet. */
+.tt-svc-head { display: flex; flex-direction: column; gap: 4px; padding: 22px 32px 16px; }
+.tt-svc-head .kicker { color: var(--text); }
+.tt-svc-states { display: flex; flex-direction: column; gap: 18px; padding: 28px 32px 32px; border-top: 3px solid var(--ink); }
+.tt-svc-states__grid { display: grid; grid-template-columns: repeat(3, 560px); gap: 24px 40px; }
+.tt-svc-specimen { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 16px 18px 14px; border-radius: 10px; background: var(--plate-raised); border: var(--stroke-rim) solid var(--lip); }
+.tt-svc-states__row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px 40px; padding: 20px 24px 14px; border-radius: var(--radius-plate); background: var(--plate-raised); border: var(--stroke-rim) solid var(--lip); }
+.tt-svc-btnspec { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; width: 300px; margin: 0; }
+.tt-svc-sheet > .tt-specband > .tt-specband__item { flex: 1 1 0; }

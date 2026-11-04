@@ -1,0 +1,55 @@
+/* DeathScreen: UMordecaiDeathScreenWidget, the one push on UI.Layer.Game besides the HUD root (as the top of
+   that stack it hides the HUD). World voice: "You Died", the countdown and the kill count; no remark, no
+   second line, no rivets, no eyelets, no tally strokes. Family frame (D11): Banner's inlay mat (.tt-banner__mat and
+   .tt-banner__panel, coloured through --cap) in `foe` on a menu plate; the countdown ring takes the seal
+   treatment (ink outline, print, a dashed inner ring). The world keeps running under `veil-death`. */
+
+.tt-death-sheet { display: flex; flex-direction: column; width: 1920px; background: var(--plate); }
+.tt-death-screen { position: relative; width: 1920px; height: 1080px; flex: none; overflow: hidden; }
+.tt-death__veil { position: absolute; inset: 0; background: var(--veil-death); }
+
+/* The plate: 600 wide, centred on (960, 540). The mat is Banner's, in foe, with taller rails for a tall plate. */
+.tt-death__plate {
+  --cap: var(--foe); --mat-y: 14px; --mat-x: 36px;
+  position: absolute; left: 50%; top: 50%; width: 600px; padding: 8px; transform: translate(-50%, -50%);
+}
+.tt-death__plate .tt-death__panel { padding: 28px 28px 32px; gap: 0; }
+.tt-death__title { margin: 0; color: var(--danger-text); white-space: nowrap; }
+.tt-death__plate .tt-death__rule { align-self: stretch; margin: 16px 0 26px; }
+
+/* Countdown ring, seal treatment: ink outline and print outside, a 2 px lip, the progress band (rim =
+   time left, from 12 o'clock clockwise; well = time spent), an ink ring, the well disc and a 2 px dashed
+   lip ring inside it. --p = remaining / RespawnDelaySeconds. */
+.tt-death__ring {
+  position: relative; display: flex; flex: none; align-items: center; justify-content: center;
+  width: 132px; height: 132px; border-radius: 50%;
+  border: var(--stroke-rim) solid var(--lip);
+  background: conic-gradient(var(--rim) calc(var(--p, 1) * 360deg), var(--well) 0);
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print);
+}
+.tt-death__ring::before { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: var(--well); box-shadow: 0 0 0 var(--stroke-rim) var(--ink); }
+.tt-death__ring::after { content: ""; position: absolute; inset: 18px; border-radius: 50%; border: var(--stroke-rim) dashed var(--lip); }
+.tt-death__num { position: relative; z-index: 1; display: block; width: 72px; min-height: 60px; text-align: center; color: var(--text); }
+/* KillCountText: a fixed box for the longest value, "Kills: 999" in num-l (10 Mono cells x 19 px = 190). */
+.tt-death__kills { display: block; width: 190px; margin-top: 22px; text-align: center; white-space: nowrap; color: var(--text); }
+
+/* --- Preview scaffolding: frame heads, the 1:1 sequence crops and the motion frames. --- */
+.tt-death-head { display: flex; flex-direction: column; gap: 4px; padding: 22px 32px 16px; }
+.tt-death-head .kicker { color: var(--text); }
+/* Motion frames (whole-widget opacity, D13; the plate fill stays opaque). The World voice moves like the
+   Banner: BannerFade. Enter: halfway through its in-motion (half the drop still to go, half opacity).
+   Leave: halfway through its out-fade (no movement). The veil fades with the plate. */
+.tt-death-screen.is-entering .tt-death__veil, .tt-death-screen.is-leaving .tt-death__veil { opacity: .5; }
+.tt-death-screen.is-entering .tt-death__plate { transform: translate(-50%, calc(-50% - 8px)); opacity: .5; }
+.tt-death-screen.is-leaving .tt-death__plate { opacity: .5; }
+/* Three 640 x 520 crops around the plate, at 1:1 so no letter shrinks. */
+.tt-death-strip { display: grid; grid-template-columns: repeat(3, 640px); border-top: 3px solid var(--ink); }
+.tt-death-strip__cell { display: flex; flex-direction: column; gap: 14px; padding-top: 24px; min-width: 0; }
+.tt-death-strip__cell > .tt-label { min-height: 52px; padding: 0 24px; }
+.tt-death-strip__cell + .tt-death-strip__cell .tt-death-crop { border-left: 2px solid var(--ink); }
+.tt-death-crop { position: relative; width: 640px; height: 520px; overflow: hidden; border-top: 2px solid var(--ink); }
+.tt-death-crop > .tt-death-screen { position: absolute; left: -640px; top: -280px; }
+/* The HUD in the respawn frame is HUDLayout's own markup; this only lays its stage over the world. */
+.tt-death-screen > .tt-hud { position: absolute; left: 0; top: 0; z-index: 0; }
+/* Four spec notes share one row. */
+.tt-death-sheet > .tt-specband > .tt-specband__item { flex: 1 1 0; }

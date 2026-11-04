@@ -1,0 +1,128 @@
+<!-- @dsCard group="Front end" height=3106 width=1920 subtitle="Options in the pause-shell frame over the toy world: the Accessibility rows (switches, segmented keys, a notched track) with a live rail preview, and the Controls rows" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>OptionsScreen</title></head>
+<body>
+<div class="tt-root">
+
+  <!-- 1920x1080: Options from the title screen, Accessibility section (in game the same panel becomes the pause menu's
+       Settings tab). The toy world under the veil (D12). Keyboard and mouse (D5): no bumpers at the tab-bar ends. -->
+  <section class="tt-pause tt-opt-screen" aria-label="Options, Accessibility, at 1920 by 1080">
+    <div class="tt-diorama" aria-hidden="true"><span class="tt-diorama__path" style="left:864px;top:0;width:96px;height:1080px"></span><span class="tt-diorama__path" style="left:0;top:576px;width:1920px;height:96px"></span><span class="tt-diorama__pond" style="left:1500px;top:760px"></span><span class="tt-diorama__tree" style="left:120px;top:150px"></span><span class="tt-diorama__tree" style="left:230px;top:200px"></span><span class="tt-diorama__tree" style="left:1640px;top:420px"></span><span class="tt-diorama__bush" style="left:300px;top:820px"></span><span class="tt-diorama__bush" style="left:1180px;top:860px"></span><span class="tt-diorama__rock" style="left:620px;top:120px"></span><span class="tt-diorama__rock" style="left:1440px;top:180px"></span><span class="tt-diorama__crate" style="left:1000px;top:470px"></span><span class="tt-diorama__crate" style="left:1064px;top:470px"></span><span class="tt-diorama__post" style="left:760px;top:700px"></span><span class="tt-diorama__post" style="left:760px;top:780px"></span></div><div class="tt-veil tt-opt-veil" aria-hidden="true"></div>
+    <div class="tt-pause__title"><span class="tt-pause__strings" aria-hidden="true"></span><h1 class="tt-pause__nameplate tally-heading">Options</h1></div>
+    <nav class="tt-pause__tabbar tt-pause__tabbar--kbm" aria-label="Options sections">
+      <div class="tt-pause__tabs" role="tablist">
+        <button class="tt-pause__tab tt-selectable" role="tab" aria-selected="false"><span class="tt-glyph" data-glyph="settings" aria-hidden="true"></span><span class="ui-title">Gameplay</span></button>
+        <button class="tt-pause__tab tt-selectable" role="tab" aria-selected="false"><span class="tt-glyph" data-glyph="display" aria-hidden="true"></span><span class="ui-title">Display</span></button>
+        <button class="tt-pause__tab tt-selectable" role="tab" aria-selected="false"><span class="tt-glyph" data-glyph="audio" aria-hidden="true"></span><span class="ui-title">Audio</span></button>
+        <button class="tt-pause__tab tt-selectable" role="tab" aria-selected="false"><span class="tt-glyph" data-glyph="controls" aria-hidden="true"></span><span class="ui-title">Controls</span></button>
+        <button class="tt-pause__tab tt-selectable is-active is-selected" role="tab" aria-selected="true"><span class="tt-glyph" data-glyph="accessibility" aria-hidden="true"></span><span class="ui-title">Accessibility</span></button>
+      </div>
+    </nav>
+    <section class="tt-plate tt-plate--menu tt-pause__content tt-opt-content" role="tabpanel" aria-label="Accessibility">
+      <ul class="tt-opt-list">
+        <li class="tt-opt-row tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">High Contrast</span><span class="tt-opt-switch tt-opt-hc-off" role="switch" aria-checked="false"><span class="tt-glyph tt-opt-switch__mark" data-glyph="cross" aria-hidden="true"></span><span class="tt-opt-switch__key">Off</span></span><span class="tt-opt-switch is-on tt-opt-hc-on" role="switch" aria-checked="true"><span class="tt-glyph tt-opt-switch__mark" data-glyph="check" aria-hidden="true"></span><span class="tt-opt-switch__key">On</span></span></li>
+        <li class="tt-opt-row tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Reduce motion</span><span class="tt-opt-switch" role="switch" aria-checked="false"><span class="tt-glyph tt-opt-switch__mark" data-glyph="cross" aria-hidden="true"></span><span class="tt-opt-switch__key">Off</span></span></li>
+        <li class="tt-opt-row tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Tally notifications</span><span class="tt-opt-seg" role="radiogroup"><span class="tt-opt-seg__opt tt-selectable is-selected" role="radio" aria-checked="true">Full</span><span class="tt-opt-seg__opt tt-selectable" role="radio" aria-checked="false">Calm</span><span class="tt-opt-seg__opt tt-selectable" role="radio" aria-checked="false">Minimal</span></span></li>
+        <li class="tt-opt-row tt-focus--fill-gap is-focused"><span class="ui-title tt-opt-row__label">Tally remarks</span><span class="tt-opt-switch is-on" role="switch" aria-checked="true"><span class="tt-glyph tt-opt-switch__mark" data-glyph="check" aria-hidden="true"></span><span class="tt-opt-switch__key">On</span></span></li>
+        <li class="tt-opt-row tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Ticket duration</span><span class="tt-opt-seg" role="radiogroup"><span class="tt-opt-seg__opt num-s tt-selectable is-selected" role="radio" aria-checked="true">×1</span><span class="tt-opt-seg__opt num-s tt-selectable" role="radio" aria-checked="false">×1.5</span><span class="tt-opt-seg__opt num-s tt-selectable" role="radio" aria-checked="false">×2</span></span></li>
+        <li class="tt-opt-row tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Callout size</span><span class="tt-opt-seg" role="radiogroup"><span class="tt-opt-seg__opt tt-selectable is-selected" role="radio" aria-checked="true">Normal</span><span class="tt-opt-seg__opt tt-selectable" role="radio" aria-checked="false">Large</span><span class="tt-opt-seg__opt tt-selectable" role="radio" aria-checked="false">XL</span></span></li>
+        <li class="tt-opt-row tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Damage numbers</span><span class="tt-opt-seg" role="radiogroup"><span class="tt-opt-seg__opt tt-selectable is-selected" role="radio" aria-checked="true">All</span><span class="tt-opt-seg__opt tt-selectable" role="radio" aria-checked="false">Mine</span><span class="tt-opt-seg__opt tt-selectable" role="radio" aria-checked="false">Off</span></span></li>
+        <li class="tt-opt-row tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">UI scale</span><span class="tt-opt-slider" role="slider" aria-valuemin="80" aria-valuemax="150" aria-valuenow="100"><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-left" aria-label="Smaller"></span></span><span class="tt-opt-track" style="--v:28.57%"><span class="tt-bar"><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:14.29%"></span><span class="tt-bar__notch" style="--at:28.57%"></span><span class="tt-bar__notch" style="--at:42.86%"></span><span class="tt-bar__notch" style="--at:57.14%"></span><span class="tt-bar__notch" style="--at:71.43%"></span><span class="tt-bar__notch" style="--at:85.71%"></span></span><span class="tt-opt-track__thumb" aria-hidden="true"></span></span><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-right" aria-label="Larger"></span></span><span class="num-m tt-opt-slider__val">100%</span></span></li>
+        <li class="tt-opt-row tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">HUD margin</span><span class="tt-opt-seg" role="radiogroup"><span class="tt-opt-seg__opt num-s tt-selectable is-selected" role="radio" aria-checked="true">32 px</span><span class="tt-opt-seg__opt num-s tt-selectable" role="radio" aria-checked="false">96 px</span></span></li>
+      </ul>
+      <p class="tt-opt-desc ui-label"><span class="tt-opt-desc__name">Tally remarks</span><span class="tt-opt-desc__text">The Tally's second line on tickets and plates. Headlines read complete without it.</span></p>
+    </section>
+    <div class="tt-hintbar tt-opt-footer" aria-label="Options actions"><span class="tt-hint"><span class="tt-key tt-key--sm tt-key--wide">Esc</span>Back</span><span class="tt-hintbar__sep" aria-hidden="true"></span><span class="tt-hint"><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-left" aria-label="Left"></span></span><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-right" aria-label="Right"></span></span>Change</span></div>
+    <aside class="tt-opt-preview" aria-label="Live preview">
+      <div class="tt-rail" style="--tt-rail-tail:28px">
+        <div class="tt-plate tt-plate--rail tt-railhead"><div class="tt-plate__row"><span class="tt-railhead__kills num-l">Kills: 12</span></div><span class="tt-railhead__slot" aria-hidden="true"></span></div>
+        <div class="tt-tag-stack">
+          <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill has-foot is-new">
+            <div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">6 / 20</span></div>
+            <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Dodging</span></div>
+            <div class="tt-ticket__foot"><span class="tt-glyph tt-glyph--20" data-glyph="seal" aria-label="The Tally"></span><span class="tt-ticket__foottext">Six. Up from five.</span></div>
+            <span class="tt-ticket__peel" aria-hidden="true"></span>
+          </div>
+          <div class="tt-tag tt-ticket tt-ticket--slip tt-ticket--r-common"><span class="tt-glyph" data-glyph="ore" aria-label="Iron Ore"></span><span class="tt-tag__line tt-ticket__name">Iron Ore</span><span class="tt-ticket__count num-s">x2</span></div>
+        </div>
+      </div>
+      <span class="tt-plate tt-opt-preview__label tt-label">Live preview</span>
+    </aside>
+  </section>
+
+  <!-- Spec band (D7): control states, the remarks-off preview and the gamepad hint bar. -->
+  <section class="tt-specband tt-fe-band" aria-label="Accessibility controls">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Keycap switch: Off, On, Locked</p>
+      <div class="tt-opt-states"><div class="tt-opt-states__row"><span class="tt-opt-switch" role="switch" aria-checked="false"><span class="tt-glyph tt-opt-switch__mark" data-glyph="cross" aria-hidden="true"></span><span class="tt-opt-switch__key">Off</span></span><span class="tt-opt-switch is-on" role="switch" aria-checked="true"><span class="tt-glyph tt-opt-switch__mark" data-glyph="check" aria-hidden="true"></span><span class="tt-opt-switch__key">On</span></span><span class="tt-opt-switch is-disabled" role="switch" aria-checked="false" aria-disabled="true"><span class="tt-glyph tt-opt-switch__mark" data-glyph="lock" aria-hidden="true"></span><span class="tt-opt-switch__key">Off</span></span></div><p class="tt-label">Two values. The keycap slides and prints its word; a check or cross marks the other half. Enter, a click, or Left / Right toggles it.</p></div>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Segmented keys: Calm chosen</p>
+      <div class="tt-opt-states"><span class="tt-opt-seg" role="radiogroup"><span class="tt-opt-seg__opt tt-selectable" role="radio" aria-checked="false">Full</span><span class="tt-opt-seg__opt tt-selectable is-selected" role="radio" aria-checked="true">Calm</span><span class="tt-opt-seg__opt tt-selectable" role="radio" aria-checked="false">Minimal</span></span><p class="tt-label">Three or four values. The chosen key is Selected: the cream fill with ink text used for every selected piece.</p></div>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Notched track: the two ends</p>
+      <div class="tt-opt-states"><span class="tt-opt-slider" role="slider" aria-valuemin="80" aria-valuemax="150" aria-valuenow="80"><span class="tt-key tt-key--sm" aria-disabled="true"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-left" aria-label="Smaller"></span></span><span class="tt-opt-track" style="--v:0.00%"><span class="tt-bar"><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:14.29%"></span><span class="tt-bar__notch" style="--at:28.57%"></span><span class="tt-bar__notch" style="--at:42.86%"></span><span class="tt-bar__notch" style="--at:57.14%"></span><span class="tt-bar__notch" style="--at:71.43%"></span><span class="tt-bar__notch" style="--at:85.71%"></span></span><span class="tt-opt-track__thumb" aria-hidden="true"></span></span><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-right" aria-label="Larger"></span></span><span class="num-m tt-opt-slider__val">80%</span></span><span class="tt-opt-slider" role="slider" aria-valuemin="80" aria-valuemax="150" aria-valuenow="150"><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-left" aria-label="Smaller"></span></span><span class="tt-opt-track" style="--v:100.00%"><span class="tt-bar"><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:14.29%"></span><span class="tt-bar__notch" style="--at:28.57%"></span><span class="tt-bar__notch" style="--at:42.86%"></span><span class="tt-bar__notch" style="--at:57.14%"></span><span class="tt-bar__notch" style="--at:71.43%"></span><span class="tt-bar__notch" style="--at:85.71%"></span></span><span class="tt-opt-track__thumb" aria-hidden="true"></span></span><span class="tt-key tt-key--sm" aria-disabled="true"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-right" aria-label="Larger"></span></span><span class="num-m tt-opt-slider__val">150%</span></span><p class="tt-label">UI scale, 80-150%. The value moves in 5% steps; a notch marks every 10%. At an end its arrow keycap is disabled.</p></div>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Live preview, Tally remarks Off</p>
+      <div class="tt-opt-states"><div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill"><div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">6 / 20</span></div><div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Dodging</span></div></div><p class="tt-label">The preview re-prints on every change: here the footer band is gone.</p></div>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Gamepad hint bar</p>
+      <div class="tt-opt-states"><div class="tt-hintbar" aria-label="Options actions"><span class="tt-hint"><span class="tt-key tt-key--pad">B</span>Back</span><span class="tt-hintbar__sep" aria-hidden="true"></span><span class="tt-hint"><span class="tt-key tt-key--shoulder">LB</span><span class="tt-keys__plus">/</span><span class="tt-key tt-key--shoulder">RB</span>Sections</span><span class="tt-hintbar__sep" aria-hidden="true"></span><span class="tt-hint"><span class="tt-key tt-key--dpad tt-key--dpad-right" aria-label="D-pad"></span>Change</span></div><p class="tt-label">Shown only after a pad is used; LB and RB pills then sit at the tab-bar ends. Keyboard section cycling is undecided (Q / E proposed), so it is never drawn.</p></div>
+    </div>
+  </section>
+
+  <!-- 1920x1080: the Controls section while Dodge listens for a new key. Rows carry the game's bindings today. -->
+  <section class="tt-pause tt-opt-screen" aria-label="Options, Controls, at 1920 by 1080">
+    <div class="tt-diorama" aria-hidden="true"><span class="tt-diorama__path" style="left:864px;top:0;width:96px;height:1080px"></span><span class="tt-diorama__path" style="left:0;top:576px;width:1920px;height:96px"></span><span class="tt-diorama__pond" style="left:1500px;top:760px"></span><span class="tt-diorama__tree" style="left:120px;top:150px"></span><span class="tt-diorama__tree" style="left:230px;top:200px"></span><span class="tt-diorama__tree" style="left:1640px;top:420px"></span><span class="tt-diorama__bush" style="left:300px;top:820px"></span><span class="tt-diorama__bush" style="left:1180px;top:860px"></span><span class="tt-diorama__rock" style="left:620px;top:120px"></span><span class="tt-diorama__rock" style="left:1440px;top:180px"></span><span class="tt-diorama__crate" style="left:1000px;top:470px"></span><span class="tt-diorama__crate" style="left:1064px;top:470px"></span><span class="tt-diorama__post" style="left:760px;top:700px"></span><span class="tt-diorama__post" style="left:760px;top:780px"></span></div><div class="tt-veil tt-opt-veil" aria-hidden="true"></div>
+    <div class="tt-pause__title"><span class="tt-pause__strings" aria-hidden="true"></span><h1 class="tt-pause__nameplate tally-heading">Options</h1></div>
+    <nav class="tt-pause__tabbar tt-pause__tabbar--kbm" aria-label="Options sections">
+      <div class="tt-pause__tabs" role="tablist">
+        <button class="tt-pause__tab tt-selectable" role="tab" aria-selected="false"><span class="tt-glyph" data-glyph="settings" aria-hidden="true"></span><span class="ui-title">Gameplay</span></button>
+        <button class="tt-pause__tab tt-selectable" role="tab" aria-selected="false"><span class="tt-glyph" data-glyph="display" aria-hidden="true"></span><span class="ui-title">Display</span></button>
+        <button class="tt-pause__tab tt-selectable" role="tab" aria-selected="false"><span class="tt-glyph" data-glyph="audio" aria-hidden="true"></span><span class="ui-title">Audio</span></button>
+        <button class="tt-pause__tab tt-selectable is-active is-selected" role="tab" aria-selected="true"><span class="tt-glyph" data-glyph="controls" aria-hidden="true"></span><span class="ui-title">Controls</span></button>
+        <button class="tt-pause__tab tt-selectable" role="tab" aria-selected="false"><span class="tt-glyph" data-glyph="accessibility" aria-hidden="true"></span><span class="ui-title">Accessibility</span></button>
+      </div>
+    </nav>
+    <section class="tt-plate tt-plate--menu tt-pause__content" role="tabpanel" aria-label="Controls">
+      <div class="tt-opt-ctl">
+        <div class="tt-opt-ctl__head tt-label"><span>Action</span><span>Keyboard and mouse</span><span>Gamepad</span></div>
+        <div class="tt-opt-ctl__body">
+          <ul class="tt-opt-list">
+          <li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Move</span><span class="tt-opt-keys"><span class="tt-key">W</span><span class="tt-key">A</span><span class="tt-key">S</span><span class="tt-key">D</span></span><span class="tt-opt-keys"><span class="tt-key tt-key--stick">L</span></span></li>
+          <li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Sprint (toggle)</span><span class="tt-opt-keys"><span class="tt-key tt-key--wide">Shift</span></span><span class="tt-opt-keys"><span class="tt-key tt-key--stick">L</span><span class="tt-keys__word">Click</span></span></li>
+          <li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Jump</span><span class="tt-opt-keys"><span class="tt-key tt-key--wide">Space</span></span><span class="tt-opt-keys"><span class="tt-key tt-key--pad">A</span></span></li>
+          <li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap is-focused"><span class="ui-title tt-opt-row__label">Dodge</span><span class="tt-opt-keys"><span class="tt-opt-listen">Press a key...</span></span><span class="tt-opt-keys"><span class="tt-key tt-key--pad">B</span></span></li>
+          <li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Light attack</span><span class="tt-opt-keys"><span class="tt-key tt-key--mouse" aria-label="Left mouse button"><span class="tt-key__mouse tt-key__mouse--l"></span></span></span><span class="tt-opt-keys"><span class="tt-key tt-key--trigger">RT</span></span></li>
+          <li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Heavy attack</span><span class="tt-opt-keys"><span class="tt-keys__word">Hold</span><span class="tt-key tt-key--mouse" aria-label="Left mouse button"><span class="tt-key__mouse tt-key__mouse--l"></span></span></span><span class="tt-opt-keys"><span class="tt-keys__word">Hold</span><span class="tt-key tt-key--trigger">RT</span></span></li>
+          <li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Block</span><span class="tt-opt-keys"><span class="tt-keys__word">Hold</span><span class="tt-key tt-key--mouse" aria-label="Right mouse button"><span class="tt-key__mouse tt-key__mouse--r"></span></span></span><span class="tt-opt-keys"><span class="tt-keys__word">Hold</span><span class="tt-key tt-key--trigger">LT</span></span></li>
+          <li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Parry</span><span class="tt-opt-keys"><span class="tt-key tt-key--mouse" aria-label="Right mouse button"><span class="tt-key__mouse tt-key__mouse--r"></span></span><span class="tt-keys__plus">+</span><span class="tt-key tt-key--mouse" aria-label="Left mouse button"><span class="tt-key__mouse tt-key__mouse--l"></span></span></span><span class="tt-opt-keys"><span class="tt-key tt-key--trigger">LT</span><span class="tt-keys__plus">+</span><span class="tt-key tt-key--trigger">RT</span></span></li>
+          <li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Fireball</span><span class="tt-opt-keys"><span class="tt-key">Q</span></span><span class="tt-opt-keys"><span class="tt-key tt-key--shoulder">LB</span></span></li>
+          <li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Blink</span><span class="tt-opt-keys"><span class="tt-key">E</span></span><span class="tt-opt-keys"><span class="tt-key tt-key--shoulder">RB</span></span></li>
+          <li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Stone Skin</span><span class="tt-opt-keys"><span class="tt-key">R</span></span><span class="tt-opt-keys"><span class="tt-key tt-key--none" aria-label="Unbound"></span></span></li>
+          </ul>
+          <span class="tt-opt-scrollbar" aria-hidden="true"><span class="tt-opt-scrollbar__thumb"></span></span>
+        </div>
+      </div>
+    </section>
+    <div class="tt-hintbar tt-opt-footer" aria-label="Options actions"><span class="tt-hint"><span class="tt-key tt-key--sm tt-key--wide">Esc</span>Cancel</span></div>
+  </section>
+
+  <!-- Spec band (D7): Controls row states and the rebind flow. -->
+  <section class="tt-specband tt-fe-band" aria-label="Controls rows">
+    <div class="tt-specband__item tt-opt-specitem--rows">
+      <p class="tt-specband__title">Controls rows: idle, D-pad, unbound</p>
+      <div class="tt-opt-states"><div class="tt-opt-specrows"><ul class="tt-opt-list"><li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Interact</span><span class="tt-opt-keys"><span class="tt-key">F</span></span><span class="tt-opt-keys"><span class="tt-key tt-key--pad">X</span></span></li><li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Restoration</span><span class="tt-opt-keys"><span class="tt-key">1</span></span><span class="tt-opt-keys"><span class="tt-key tt-key--dpad tt-key--dpad-up" aria-label="D-pad Up"></span></span></li><li class="tt-opt-row tt-opt-ctlrow tt-focus--fill-gap"><span class="ui-title tt-opt-row__label">Inventory</span><span class="tt-opt-keys"><span class="tt-key">I</span></span><span class="tt-opt-keys"><span class="tt-key tt-key--none" aria-label="Unbound"></span></span></li></ul></div><p class="tt-label">Action in ui-title; the keyboard-and-mouse cap and the gamepad cap in fixed columns, drawn as Keycap draws them (mouse buttons as a mouse, "Hold" before a held input, "+" for a chord). An action with no button on a device shows the dashed unbound cap. The list scrolls; below Blink: Stone Skin (R / none), Restoration (1 / D-pad Up), Interact (F / X), Next weapon (Tab / Y), Previous weapon (\ / none), Inventory (I / none), Pause (Esc / Menu).</p></div>
+    </div>
+    <div class="tt-specband__item tt-opt-specitem--dlg">
+      <p class="tt-specband__title">Listening, then already bound</p>
+      <div class="tt-opt-states"><p class="tt-label">Enter or a click on a cap: the slot reads "Press a key..." and the next key binds; Esc cancels (so Esc cannot be bound). A key another action uses opens the Dialog's Key already bound variant (example copy):</p><section class="tt-plate tt-plate--menu tt-dlg" role="alertdialog" aria-labelledby="okt" aria-describedby="okb"><div class="tt-dlg__main"><span class="tt-dlg__stamp"><span class="tt-glyph tt-glyph--32" data-glyph="seal" aria-label="The Tally seal"></span></span><div class="tt-dlg__text"><h2 class="tally-heading tt-dlg__title" id="okt">Key already bound</h2><p class="ui-body tt-dlg__body" id="okb"><span class="tt-key tt-key--sm">Q</span>is Fireball's key. Bind it to Blink and leave Fireball without one?</p></div></div><div class="tt-dlg__foot"><button class="tt-btn tt-dlg__btn" type="button">Replace</button><button class="tt-btn tt-btn--primary tt-dlg__btn is-focused" type="button"><span class="tt-key tt-key--sm">Esc</span>Cancel</button></div></section></div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

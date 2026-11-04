@@ -1,0 +1,91 @@
+/* TallyPlate: the big-moment plate, 640 x 128 at top centre (640 x 184 with the Drawback box).
+   Builds on .tt-plate.tt-plate--moment, .tt-plate--riveted (the system's rivets: a Tally plate, D13) and
+   .tt-plate.is-unlit (Plate), .tt-tag-hang.tt-tag-hang--light (Tag) and core .tt-drawback.
+   Adds: the badge silhouettes (feat circle / flat-top hexagon / starburst carrying the feat's own glyph,
+   technique square, level drums, key tag for upgrade keys and tools, unlit seal), the text column, the
+   remark tag's light cord and the ending slot. */
+
+.tt-tallyplate-unit { display: flex; flex-direction: column; align-items: flex-start; width: 640px; }
+
+/* Padding 0 24: the rivets sit 8 px inside the rim's corners (x 10-22), so the badge starts at x 26 and never
+   touches them; the text column runs from x 140, 474 px wide, and ends clear of the right-hand rivets. */
+.tt-tallyplate {
+  --tp-accent: var(--good);
+  position: relative; display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: 18px;
+  align-items: center; padding: 0 24px;
+}
+
+/* Text column: kicker 24 + title 54 + cause 26 = 104 in the 124 px inside. */
+.tt-tallyplate__text { display: flex; flex-direction: column; min-width: 0; }
+.tt-tallyplate__kicker { color: var(--tp-accent); white-space: nowrap; }
+.tt-tallyplate__title { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Technique: the 20-stroke rank tally rides the kicker row at Tally's skill-row size (24 tall, stroke 3,
+   pitch 7: 148 px), so the title keeps all 490 px. Lit strokes are text on plate (D1: never good). */
+.tt-tallyplate__kickerrow { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.tt-tallyplate__kickerrow .tt-tally { color: var(--text); }
+.tt-tallyplate__cause { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Kinds: accent = kicker colour. */
+.tt-tallyplate--common { --tp-accent: var(--feat-common); }
+.tt-tallyplate--rare { --tp-accent: var(--feat-rare); }
+.tt-tallyplate--legendary { --tp-accent: var(--feat-legendary); }
+
+/* --- Badge, 96 x 96: an ink silhouette with the face 3 px (HC 4 px) inside it. Shape = the meaning.
+   Feat silhouettes match FeatsTab's (one texture set): circle, FLAT-TOP hexagon, eight-point starburst. */
+.tt-tallyplate__badge {
+  --shape: circle(50%); --face: var(--enamel);
+  position: relative; width: 96px; height: 96px; display: grid; place-items: center; color: var(--ink);
+  filter: drop-shadow(0 4px 0 var(--tt-print));
+}
+.tt-tallyplate__badge::before, .tt-tallyplate__badge::after { content: ""; position: absolute; clip-path: var(--shape); }
+.tt-tallyplate__badge::before { inset: 0; background: var(--ink); }
+.tt-tallyplate__badge::after { inset: var(--tt-outline); background: var(--face); }
+.tt-tallyplate__badge > * { position: relative; z-index: 1; }
+.tt-tallyplate__badge--common { --face: var(--feat-common); }
+.tt-tallyplate__badge--rare { --face: var(--feat-rare); --shape: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%); }
+.tt-tallyplate__badge--legendary { --face: var(--feat-legendary); --shape: polygon(50% 0, 61% 23%, 85% 15%, 77% 39%, 100% 50%, 77% 61%, 85% 85%, 61% 77%, 50% 100%, 39% 77%, 15% 85%, 23% 61%, 0 50%, 23% 39%, 15% 15%, 39% 23%); }
+.tt-tallyplate__badge--legendary > .tt-glyph { width: 40px; height: 40px; }
+.tt-tallyplate__badge--technique { --face: var(--good); --shape: inset(0 round 16px); }
+.tt-tallyplate__badge--level { --face: var(--enamel); --shape: inset(0 round 16px); }
+/* Key tag (chamfered top corners, a grommet): Upgrade key on enamel, Tool on good. */
+.tt-tallyplate__badge--key, .tt-tallyplate__badge--tool { --shape: polygon(28% 0, 72% 0, 100% 24%, 100% 100%, 0 100%, 0 24%); }
+.tt-tallyplate__badge--key { --face: var(--enamel); }
+.tt-tallyplate__badge--tool { --face: var(--good); }
+.tt-tallyplate__badge--key > .tt-glyph, .tt-tallyplate__badge--tool > .tt-glyph { margin-top: 16px; }
+.tt-tallyplate__hole {
+  position: absolute; z-index: 1; left: 42px; top: 12px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--well); box-shadow: 0 0 0 3px var(--enamel-shade), 0 0 0 5px var(--ink);
+}
+/* Unlit: a lamp that went out. The well face keeps a 2 px lip ring so the disc still reads (white in High Contrast). */
+.tt-tallyplate__badge--off { --face: var(--well); filter: none; }
+.tt-tallyplate__badge--off::after { border-radius: 50%; box-shadow: inset 0 0 0 var(--stroke-rim) var(--lip); }
+.tt-tallyplate__badgenum { color: var(--ink); }
+
+/* Level: two odometer drums (well + lip) showing the level in num-xl. */
+.tt-tallyplate__drums { display: flex; gap: 3px; }
+.tt-tallyplate__drum { width: 40px; height: 62px; display: grid; place-items: center; background: var(--well); color: var(--text); border: var(--stroke-rim) solid var(--lip); border-radius: 6px; }
+
+/* --- Drawback (Rare and Legendary feats, a tool with a cost): the plate grows to 184 and the core
+   .tt-drawback box (D14: the one Drawback box) spans it. This only places and sizes it. */
+.tt-tallyplate--drawback { height: 184px; grid-template-rows: 104px 44px; row-gap: 10px; align-content: start; padding-top: 10px; }
+.tt-tallyplate > .tt-drawback { grid-column: 1 / -1; min-height: 44px; white-space: nowrap; overflow: hidden; }
+
+/* --- Remark tag: the Tally's optional second line, hung at the text column (eyelet x 140), at most 518 px wide
+   so it ends (outline included) inside the plate's 640 px box. Its string and the last ticket's are the light
+   cord (mark-up: Tag's .tt-tag-hang--light; the rule below keeps it for copies that forget the modifier, same
+   core --tt-string-light-* values), so they hold on every floor: a 2 px ink string vanishes on night and mire. */
+.tt-tallyplate__hang { --tt-tag-drop: 18px; --tt-tag-half: 24px; margin-left: 118px; }
+.tt-tag-hang.tt-tallyplate__hang::after, .tt-tag-hang.tt-tallyplate__last::after {
+  left: 20px; width: var(--tt-string-light-w); background: var(--tt-string-light-core); box-shadow: var(--tt-string-light-shadow);
+}
+.tt-tallyplate__remark { min-height: 48px; padding-top: 8px; padding-bottom: 8px; gap: var(--space-2); color: var(--ink-muted); font: 600 20px/26px var(--font-ui); white-space: nowrap; }
+.tt-tallyplate__remark .tt-glyph { color: var(--ink-muted); }
+
+/* --- Unlit (Acceptance ending): with .tt-plate.is-unlit. The rivets go and the badge goes dark; the seal stays.
+   The plate keeps a ticket slot (x 200-440, centred under the seal) and the last ticket hangs from its
+   left end, as tickets leave the rail head: the eyelet sits 12 px inside the slot, at x 212. */
+.tt-tallyplate--off { display: flex; justify-content: center; }
+.tt-plate.is-unlit.tt-tallyplate { background-image: none; }
+.tt-tallyplate__slot { position: absolute; left: 198px; bottom: -2px; width: 240px; height: 6px; border-radius: 3px 3px 0 0; background: var(--ink); box-shadow: 0 -2px 0 0 var(--lip); }
+.tt-tallyplate__last { --tt-tag-drop: 22px; --tt-tag-half: 26px; align-self: flex-start; margin-left: 190px; }
+.tt-tallyplate__last > .tt-tag { min-width: 250px; padding-right: 24px; }

@@ -1,0 +1,115 @@
+/* EnemyTag: the world indicator over an enemy (US-092; replaces WBP_EnemyHealthBar).
+   Anchored bottom-centre at Z +120. Top to bottom: name pill (tier diamonds + EnemyDisplayName),
+   gauge (foe health 136 x 10 over posture 136 x 5 in one framed piece), state chip, status tokens (max 3 + "+N").
+   Sizes are design px at 1920x1080. */
+
+.tt-etag { display: inline-flex; flex-direction: column; align-items: center; gap: 10px; }
+
+/* Name pill: plate, rim, ink outline. Tier diamonds sit inside, left of the name. */
+.tt-etag__head {
+  position: relative; z-index: 1;
+  display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px;
+  background: var(--plate); color: var(--text);
+  border: var(--stroke-rim) solid var(--rim); border-right-color: var(--rim-shade); border-bottom-color: var(--rim-shade);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 3px 0 var(--tt-outline) var(--tt-print);
+  white-space: nowrap;
+}
+.tt-etag__name { color: var(--text); }
+.tt-etag__marks { display: inline-flex; align-items: center; gap: 7px; padding: 0 3px; }
+.tt-etag__dia { display: block; width: 11px; height: 11px; transform: rotate(45deg); background: var(--good); box-shadow: 0 0 0 2px var(--ink); }
+
+/* Miniboss: the pill rides a cream ribbon with swallowtail ends. */
+.tt-etag__ribbon { position: relative; display: inline-flex; padding: 0 24px; }
+.tt-etag__ribbon::before, .tt-etag__ribbon::after {
+  content: ""; position: absolute; top: 50%;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 50%, 100% 100%, 0 100%, 12px 50%);
+}
+.tt-etag__ribbon::before { left: -3px; right: -3px; height: 30px; margin-top: -15px; background: var(--ink); }
+.tt-etag__ribbon::after { left: 2px; right: 2px; height: 22px; margin-top: -11px; background: var(--rim); }
+
+/* Summon (D24): the summon glyph before the name and a lighter pill fill. Never a dashed rim: dashed means
+   unavailable. */
+/* The lighter fill: plate mixed 18% toward rim (text holds 7.6:1 on it; 13:1 in High Contrast). */
+.tt-etag--summon .tt-etag__head { background: color-mix(in srgb, var(--plate) 82%, var(--rim)); padding-left: 8px; }
+.tt-etag__kind { width: 20px; height: 20px; color: var(--text-muted); }
+
+/* Gauge: both lanes in one framed piece with the dual edge: the 3 px ink outline outside, a 2 px rim line
+   inside it, then a 2 px ink gap round the lanes. On light floors the ink holds; on mire and night the rim
+   does (ink alone is 2.5:1 on mire, and the lanes' lip 1.9:1). 144 x 25 (28 broken), 150 x 31 with the outline. */
+.tt-etag__gauge {
+  display: flex; flex-direction: column; gap: 2px; width: 144px; padding: 2px;
+  background: var(--ink); border: var(--stroke-rim) solid var(--rim); border-radius: 8px;
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 3px 0 var(--tt-outline) var(--tt-print);
+}
+.tt-etag__hp { height: 10px; border-radius: 4px; }
+.tt-etag__po { height: 5px; border-width: 1px; border-radius: 2px; }
+.tt-etag__po .tt-bar__fill { border-radius: 1px; }
+
+/* Posture Broken / Knocked Down: the posture lane opens to 8 px and floods with good/ink stripes that drain with the timer. */
+.tt-etag.is-broken .tt-etag__po { height: 8px; }
+.tt-etag.is-broken .tt-etag__po .tt-bar__fill { background: repeating-linear-gradient(-45deg, var(--good) 0 4px, var(--ink) 4px 7px); }
+
+/* State chip: good fill, ink text, 3 px ink edge. */
+.tt-etag__state {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+  border-radius: var(--radius-pill); background: var(--good); color: var(--ink);
+  border: 2px solid var(--ink); box-shadow: 0 0 0 1px var(--ink), 0 3px 0 1px var(--tt-print);
+  font: 700 20px/1 var(--font-ui); white-space: nowrap;
+}
+.tt-etag__state .tt-num { font-weight: 700; }
+
+/* Status tokens: debuff = dark plate + debuff rim; buff = enamel + ink. Max 3, then "+N". */
+.tt-etag__fx { display: inline-flex; align-items: center; gap: 5px; }
+.tt-etag__st {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+  border-radius: 50%; background: var(--plate); color: var(--text);
+  border: 2px solid var(--debuff); box-shadow: 0 0 0 2px var(--ink);
+}
+.tt-etag__st .tt-glyph { width: 20px; height: 20px; }
+.tt-etag__st--buff { background: var(--enamel); color: var(--ink); border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 2px var(--buff); }
+.tt-etag__more { width: auto; min-width: 30px; padding: 0 6px; border-radius: var(--radius-pill); border-color: var(--lip); font: 600 20px/1 var(--font-mono); }
+
+/* Far LOD (> 1400 cm): tier diamonds + the health lane only. */
+.tt-etag__far { display: inline-flex; align-items: center; gap: 8px; }
+.tt-etag__far .tt-etag__gauge { width: 112px; }
+
+/* Critical window: good corner brackets with an ink edge around the enemy, and the Riposte key tag. */
+.tt-etag__crit { position: absolute; inset: 0; pointer-events: none; }
+.tt-etag__corner {
+  position: absolute; width: 20px; height: 20px; border: 0 solid var(--good);
+  filter: drop-shadow(2px 0 0 var(--ink)) drop-shadow(-2px 0 0 var(--ink)) drop-shadow(0 2px 0 var(--ink)) drop-shadow(0 -2px 0 var(--ink));
+}
+.tt-etag__corner--tl { left: 0; top: 0; border-top-width: 5px; border-left-width: 5px; border-top-left-radius: 4px; }
+.tt-etag__corner--tr { right: 0; top: 0; border-top-width: 5px; border-right-width: 5px; border-top-right-radius: 4px; }
+.tt-etag__corner--bl { left: 0; bottom: 0; border-bottom-width: 5px; border-left-width: 5px; border-bottom-left-radius: 4px; }
+.tt-etag__corner--br { right: 0; bottom: 0; border-bottom-width: 5px; border-right-width: 5px; border-bottom-right-radius: 4px; }
+.tt-etag__riposte { min-height: 40px; height: 40px; padding: 0 12px 0 4px; gap: 8px; }
+/* The riposte key is the light attack: a drawn mouse cap on KBM (left button lit), never "LMB" spelled out. */
+
+/* Preview stand-ins (world, not UI): enemy bodies and contact shadows, in the theme-invariant biome-* and world-*
+   tokens so the level art never changes with the UI theme. Basic = a rust-brown capsule, Elite = storm slate,
+   steel = blockout grey, ghost (summons, the drowned miniboss) = a pale crystal. */
+.tt-etag__body {
+  --tt-etag-body: color-mix(in srgb, var(--biome-searing) 52%, var(--world-dark));
+  --tt-etag-top: color-mix(in srgb, var(--biome-searing) 74%, var(--world-dark));
+  width: 46px; height: 92px; border-radius: 23px / 12px;
+  background: var(--tt-etag-body); box-shadow: inset 0 14px 0 var(--tt-etag-top);
+}
+.tt-etag__body--elite {
+  --tt-etag-body: color-mix(in srgb, var(--biome-storm) 55%, var(--world-dark));
+  --tt-etag-top: color-mix(in srgb, var(--biome-storm) 78%, var(--world-dark));
+  width: 58px; height: 108px; border-radius: 29px / 14px; box-shadow: inset 0 16px 0 var(--tt-etag-top);
+}
+.tt-etag__body--small { width: 38px; height: 70px; border-radius: 19px / 10px; }
+.tt-etag__body--steel {
+  --tt-etag-body: color-mix(in srgb, var(--world-blockout) 45%, var(--world-dark));
+  --tt-etag-top: color-mix(in srgb, var(--world-blockout) 70%, var(--world-dark));
+}
+.tt-etag__body--ghost {
+  --tt-etag-body: color-mix(in srgb, var(--biome-crystal) 62%, var(--world-dark));
+  --tt-etag-top: color-mix(in srgb, var(--biome-crystal) 70%, var(--world-snow));
+}
+.tt-etag__body--down { width: 92px; height: 40px; border-radius: 12px / 20px; box-shadow: inset 14px 0 0 var(--tt-etag-top); }
+.tt-etag__body--far { width: 26px; height: 50px; border-radius: 13px / 7px; }
+.tt-etag__shadow { width: 76px; height: 20px; margin-top: -10px; border-radius: 50%; background: var(--world-shade); }

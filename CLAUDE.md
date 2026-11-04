@@ -66,6 +66,9 @@ Read these before starting any work:
 ### Input & Controls
 - **Control Bindings v1.1:** `Specs/control_bindings_v1.1.md`
 
+### UI
+- **UI Design System (Tin Tally):** `Design/TinTally/README.md` — tokens, brand book, build contract (`ds/BUILD.md`, rules D1-D27) and a spec card for every menu, screen and HUD widget. Read the relevant card before any UI story.
+
 ### Enemies & AI
 - **Enemy Archetypes:** `Specs/enemy_archetypes_v1.md`
 - **Enemy AI Framework:** `Specs/enemy_ai_framework_v1.md`

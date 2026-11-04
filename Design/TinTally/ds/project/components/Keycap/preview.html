@@ -1,0 +1,183 @@
+<!-- @dsCard group="Foundations" height=2030 width=960 subtitle="Keycaps: square keys and mouse caps for KBM, round face buttons, shoulder pills, triggers and the D-pad for gamepad" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Keycap</title>
+<style>
+/* Preview scaffolding only. */
+.pv { display: flex; flex-direction: column; gap: 30px; padding: 24px 24px 32px; }
+.pv-sec { display: flex; flex-direction: column; gap: 14px; }
+.pv-h { margin: 0; color: var(--text-muted); }
+.pv-fig { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.pv-tok { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.pv-dev { display: grid; grid-template-columns: 1fr; gap: 20px; }
+.pv-panel { padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 14px; }
+.pv-panel__title { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.pv-caps { display: flex; flex-wrap: wrap; gap: 14px 12px; align-items: flex-end; }
+.pv-cap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.pv-cap .tt-label { white-space: nowrap; }
+.pv-sub { display: flex; flex-wrap: wrap; gap: 14px 30px; align-items: flex-end; }
+.pv-states { display: grid; grid-template-columns: 120px repeat(8, 1fr); align-items: center; row-gap: 14px; column-gap: 8px; padding: 18px 20px; }
+.pv-states > .tt-label { white-space: nowrap; }
+.pv-states__c { display: flex; justify-content: center; align-items: center; min-height: 46px; }
+.pv-maps { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.pv-maps .tt-plate { padding: 16px 16px 18px; }
+.pv-ctx { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.pv-floor { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 22px 16px 24px; border-radius: 10px; box-shadow: 0 0 0 2px var(--lip); }
+.pv-floor--row { flex-direction: row; justify-content: flex-start; padding: 24px 24px 28px; }
+</style>
+</head>
+<body>
+<div class="tt-root pv">
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Shape tells the device</h2>
+    <div class="pv-dev">
+      <div class="tt-plate tt-plate--menu pv-panel">
+        <div class="pv-panel__title"><span class="ui-title">Keyboard and mouse · square caps</span><span class="tt-label">Radius 8 · 40 x 40 · words use <span class="pv-tok">--wide</span></span></div>
+        <div class="pv-sub">
+          <span class="pv-caps"><span class="tt-key">F</span><span class="tt-key">I</span><span class="tt-key">Q</span><span class="tt-key">E</span><span class="tt-key">R</span><span class="tt-key">1</span><span class="tt-key tt-key--wide">Tab</span><span class="tt-key tt-key--wide">Esc</span><span class="tt-key tt-key--wide">Shift</span><span class="tt-key tt-key--wide">Alt</span><span class="tt-key tt-key--wide" style="min-width:104px">Space</span></span>
+        </div>
+        <div class="pv-sub">
+          <span class="pv-cap"><span class="tt-key tt-key--mouse" aria-label="Left mouse button"><span class="tt-key__mouse tt-key__mouse--l"></span></span><span class="tt-label">LMB</span></span>
+          <span class="pv-cap"><span class="tt-key tt-key--mouse" aria-label="Right mouse button"><span class="tt-key__mouse tt-key__mouse--r"></span></span><span class="tt-label">RMB</span></span>
+          <span class="pv-cap"><span class="tt-key tt-key--mouse" aria-label="Middle mouse button"><span class="tt-key__mouse tt-key__mouse--m"></span></span><span class="tt-label">MMB</span></span>
+          <span class="tt-label" style="align-self:center; padding-bottom:26px">Mouse buttons are drawn, not spelled: the lit button is solid ink.</span>
+        </div>
+      </div>
+      <div class="tt-plate tt-plate--menu pv-panel">
+        <div class="pv-panel__title"><span class="ui-title">Gamepad · round, pill, cross</span><span class="tt-label">Plain letters, no brand colours</span></div>
+        <div class="pv-sub">
+          <span class="pv-cap"><span class="tt-row" style="gap:10px"><span class="tt-key tt-key--pad">A</span><span class="tt-key tt-key--pad">B</span><span class="tt-key tt-key--pad">X</span><span class="tt-key tt-key--pad">Y</span></span><span class="tt-label">Face buttons</span></span>
+          <span class="pv-cap"><span class="tt-key tt-key--pad" aria-label="Face button bottom"><span class="tt-key__diamond"><i></i><i></i><i class="is-on"></i><i></i></span></span><span class="tt-label">Position</span></span>
+          <span class="pv-cap"><span class="tt-row" style="gap:10px"><span class="tt-key tt-key--shoulder">LB</span><span class="tt-key tt-key--shoulder">RB</span></span><span class="tt-label">Shoulders</span></span>
+          <span class="pv-cap"><span class="tt-row" style="gap:10px"><span class="tt-key tt-key--trigger">LT</span><span class="tt-key tt-key--trigger">RT</span></span><span class="tt-label">Triggers</span></span>
+          <span class="pv-cap"><span class="tt-row" style="gap:10px"><span class="tt-key tt-key--stick">L</span><span class="tt-key tt-key--stick">R</span></span><span class="tt-label">Stick clicks</span></span>
+        </div>
+        <div class="pv-sub">
+          <span class="pv-cap"><span class="tt-row" style="gap:12px"><span class="tt-key tt-key--dpad tt-key--dpad-up" aria-label="D-pad Up"></span><span class="tt-key tt-key--dpad tt-key--dpad-right" aria-label="D-pad Right"></span><span class="tt-key tt-key--dpad tt-key--dpad-down" aria-label="D-pad Down"></span><span class="tt-key tt-key--dpad tt-key--dpad-left" aria-label="D-pad Left"></span></span><span class="tt-label">D-pad Up, Right, Down, Left</span></span>
+          <span class="pv-cap"><span class="tt-row" style="gap:12px"><span class="tt-key tt-key--sm tt-key--dpad tt-key--dpad-up" aria-label="D-pad Up"></span><span class="tt-key tt-key--sm tt-key--dpad tt-key--dpad-left" aria-label="D-pad Left"></span></span><span class="tt-label">32 px D-pad</span></span>
+          <span class="pv-cap"><span class="tt-row" style="gap:10px"><span class="tt-key tt-key--shoulder">Menu</span><span class="tt-key tt-key--shoulder">View</span></span><span class="tt-label">Start, Select</span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">States</h2>
+    <div class="tt-plate tt-plate--menu pv-states">
+      <span></span>
+      <span class="tt-label" style="text-align:center">Key</span><span class="tt-label" style="text-align:center">Wide</span><span class="tt-label" style="text-align:center">Mouse</span><span class="tt-label" style="text-align:center">Face</span><span class="tt-label" style="text-align:center">Shoulder</span><span class="tt-label" style="text-align:center">Trigger</span><span class="tt-label" style="text-align:center">Stick</span><span class="tt-label" style="text-align:center">D-pad</span>
+
+      <span class="tt-label">Normal</span>
+      <span class="pv-states__c"><span class="tt-key">Q</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--wide">Esc</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--mouse"><span class="tt-key__mouse tt-key__mouse--l"></span></span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--pad">A</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--shoulder">LB</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--trigger">RT</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--stick">L</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--dpad tt-key--dpad-up"></span></span>
+
+      <span class="tt-label">Pressed</span>
+      <span class="pv-states__c"><span class="tt-key is-pressed">Q</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--wide is-pressed">Esc</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--mouse is-pressed"><span class="tt-key__mouse tt-key__mouse--l"></span></span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--pad is-pressed">A</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--shoulder is-pressed">LB</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--trigger is-pressed">RT</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--stick is-pressed">L</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--dpad tt-key--dpad-up is-pressed"></span></span>
+
+      <span class="tt-label">Disabled</span>
+      <span class="pv-states__c"><span class="tt-key" aria-disabled="true">Q</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--wide" aria-disabled="true">Esc</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--mouse" aria-disabled="true"><span class="tt-key__mouse tt-key__mouse--l"></span></span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--pad" aria-disabled="true">A</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--shoulder" aria-disabled="true">LB</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--trigger" aria-disabled="true">RT</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--stick" aria-disabled="true">L</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--dpad tt-key--dpad-up" aria-disabled="true"></span></span>
+
+      <span class="tt-label">Focused</span>
+      <span class="pv-states__c"><span class="tt-key tt-focus--border is-focused">Q</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--wide tt-focus--border is-focused">Esc</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--mouse tt-focus--border is-focused"><span class="tt-key__mouse tt-key__mouse--l"></span></span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--pad tt-focus--border is-focused">A</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--shoulder tt-focus--border is-focused">LB</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--trigger tt-focus--border is-focused">RT</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--stick tt-focus--border is-focused">L</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--dpad tt-key--dpad-up tt-focus--border is-focused"></span></span>
+
+      <span class="tt-label">32 px <span class="pv-tok">--sm</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--sm">Q</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--sm tt-key--wide" style="min-width:56px">Esc</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--sm tt-key--mouse"><span class="tt-key__mouse tt-key__mouse--l"></span></span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--sm tt-key--pad">A</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--sm tt-key--shoulder">LB</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--sm tt-key--trigger">RT</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--sm tt-key--stick">L</span></span>
+      <span class="pv-states__c"><span class="tt-key tt-key--sm tt-key--dpad tt-key--dpad-up"></span></span>
+
+      <span class="tt-label">Unbound</span>
+      <span class="pv-states__c"><span class="tt-key tt-key--none" aria-label="Unbound"></span></span>
+      <span class="tt-label" style="grid-column: 3 / -1; white-space: normal">No key on this device: a dashed <span class="pv-tok">lip</span> outline, never a guessed glyph.</span>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">One action, two devices · the shipping bindings today</h2>
+    <div class="pv-maps">
+      <div class="tt-plate tt-plate--menu">
+        <div class="tt-keymap">
+          <span class="tt-keymap__head">Combat</span><span class="tt-keymap__head">KBM</span><span class="tt-keymap__head">Gamepad</span>
+          <span class="tt-keymap__action">Light attack</span><span class="tt-keymap__keys"><span class="tt-key tt-key--mouse"><span class="tt-key__mouse tt-key__mouse--l"></span></span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--trigger">RT</span></span>
+          <span class="tt-keymap__action">Heavy attack</span><span class="tt-keymap__keys"><span class="tt-keys"><span class="tt-keys__word">Hold</span><span class="tt-key tt-key--mouse"><span class="tt-key__mouse tt-key__mouse--l"></span></span></span></span><span class="tt-keymap__keys"><span class="tt-keys"><span class="tt-keys__word">Hold</span><span class="tt-key tt-key--trigger">RT</span></span></span>
+          <span class="tt-keymap__action">Block</span><span class="tt-keymap__keys"><span class="tt-key tt-key--mouse"><span class="tt-key__mouse tt-key__mouse--r"></span></span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--trigger">LT</span></span>
+          <span class="tt-keymap__action">Parry</span><span class="tt-keymap__keys"><span class="tt-keys"><span class="tt-key tt-key--mouse"><span class="tt-key__mouse tt-key__mouse--r"></span></span><span class="tt-keys__plus">+</span><span class="tt-key tt-key--mouse"><span class="tt-key__mouse tt-key__mouse--l"></span></span></span></span><span class="tt-keymap__keys"><span class="tt-keys"><span class="tt-key tt-key--trigger">LT</span><span class="tt-keys__plus">+</span><span class="tt-key tt-key--trigger">RT</span></span></span>
+          <span class="tt-keymap__action">Dodge</span><span class="tt-keymap__keys"><span class="tt-key tt-key--wide">Alt</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--pad">B</span></span>
+          <span class="tt-keymap__action">Jump</span><span class="tt-keymap__keys"><span class="tt-key tt-key--wide" style="min-width:104px">Space</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--pad">A</span></span>
+          <span class="tt-keymap__action">Sprint</span><span class="tt-keymap__keys"><span class="tt-key tt-key--wide">Shift</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--stick">L</span></span>
+          <span class="tt-keymap__action">Interact</span><span class="tt-keymap__keys"><span class="tt-key">F</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--pad">X</span></span>
+        </div>
+      </div>
+      <div class="tt-plate tt-plate--menu">
+        <div class="tt-keymap">
+          <span class="tt-keymap__head">Spells, menus</span><span class="tt-keymap__head">KBM</span><span class="tt-keymap__head">Gamepad</span>
+          <span class="tt-keymap__action">Fireball</span><span class="tt-keymap__keys"><span class="tt-key">Q</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--shoulder">LB</span></span>
+          <span class="tt-keymap__action">Blink</span><span class="tt-keymap__keys"><span class="tt-key">E</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--shoulder">RB</span></span>
+          <span class="tt-keymap__action">Stone Skin</span><span class="tt-keymap__keys"><span class="tt-key">R</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--none" aria-label="Unbound"></span></span>
+          <span class="tt-keymap__action">Restoration</span><span class="tt-keymap__keys"><span class="tt-key">1</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--dpad tt-key--dpad-up" aria-label="D-pad Up"></span></span>
+          <span class="tt-keymap__action">Next weapon</span><span class="tt-keymap__keys"><span class="tt-key tt-key--wide">Tab</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--pad">Y</span></span>
+          <span class="tt-keymap__action">Inventory</span><span class="tt-keymap__keys"><span class="tt-key">I</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--none" aria-label="Unbound"></span></span>
+          <span class="tt-keymap__action">Pause</span><span class="tt-keymap__keys"><span class="tt-key tt-key--wide">Esc</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--shoulder">Menu</span></span>
+          <span class="tt-keymap__action">Back</span><span class="tt-keymap__keys"><span class="tt-key tt-key--wide">Esc</span></span><span class="tt-keymap__keys"><span class="tt-key tt-key--pad">B</span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">In place · the prompt swaps with the last device used</h2>
+    <figure class="pv-fig">
+      <div class="pv-floor pv-floor--row tt-floor-blockout">
+        <div class="tt-iprompt">
+          <div class="tt-iprompt__box"><div class="tt-tag tt-iprompt__tag"><span class="tt-key">F</span><span class="ui-body tt-iprompt__text">Pick up Health Potion</span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span></div></div>
+          <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+        </div>
+      </div>
+      <figcaption class="tt-label">Keyboard and mouse: a 40 px cap leads the prompt; the 32 px <span class="pv-tok">--sm</span> cap leads the Inventory hint pill, docked 12 px right of the prompt box (InteractPrompt).</figcaption>
+    </figure>
+    <figure class="pv-fig">
+      <div class="pv-floor pv-floor--row tt-floor-grass">
+        <div class="tt-iprompt">
+          <div class="tt-iprompt__box"><div class="tt-tag tt-iprompt__tag"><span class="tt-key tt-key--pad">X</span><span class="ui-body tt-iprompt__text">Pick up Health Potion</span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span></div></div>
+          <div class="tt-iprompt__hint" style="visibility:hidden"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+        </div>
+      </div>
+      <figcaption class="tt-label">Gamepad: the same tag with a round X. No pad button opens Inventory today, so the hint hides (its box stays).</figcaption>
+    </figure>
+  </section>
+
+</div>
+</body>
+</html>

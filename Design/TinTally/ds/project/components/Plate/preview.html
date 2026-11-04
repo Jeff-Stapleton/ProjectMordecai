@@ -1,0 +1,210 @@
+<!-- @dsCard group="Foundations" height=2150 width=960 subtitle="The pressed-tin panel: HUD, menu and inset plates, the sunk well, rivets and fades, and the dual edge on every floor" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Plate</title>
+<style>
+/* Preview scaffolding only. */
+.pv { display: flex; flex-direction: column; gap: 30px; padding: 24px 24px 0; }
+.pv-sec { display: flex; flex-direction: column; gap: 14px; }
+.pv-h { margin: 0; color: var(--text-muted); }
+.pv-anat { display: grid; grid-template-columns: 400px 1fr; gap: 28px; align-items: center; }
+.pv-zoom { position: relative; height: 236px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 2px var(--lip); }
+.pv-zoom__half { position: absolute; top: 0; bottom: 0; width: 50%; }
+.pv-zoom__half--r { right: 0; }
+.pv-zoom__plate { position: absolute; left: 56px; top: 22px; width: 72px; height: 42px; transform: scale(4); transform-origin: 0 0; }
+.pv-pin { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--enamel); color: var(--ink); font: 800 20px/1 var(--font-mono); box-shadow: 0 0 0 3px var(--ink); z-index: 2; }
+.pv-legend { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.pv-legend li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; }
+.pv-legend .pv-pin { position: static; margin: 0; }
+.pv-tok { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.pv-legend b { color: var(--text); font-weight: 700; }
+.pv-depth { display: grid; grid-template-columns: 400px 1fr; gap: 28px; align-items: start; }
+.pv-fig { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.pv-hudcol { display: flex; flex-direction: column; gap: 34px; padding: 24px 24px 34px 30px; border-radius: 10px; box-shadow: 0 0 0 2px var(--lip); }
+.pv-slots { display: flex; gap: 10px; padding-top: 8px; }
+.pv-ledger { display: grid; grid-template-columns: 1fr auto; row-gap: 6px; column-gap: 16px; align-items: center; }
+.pv-floors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 16px; }
+.pv-floor { display: flex; align-items: center; justify-content: center; height: 100px; border-radius: 10px; box-shadow: 0 0 0 2px var(--lip); }
+.pv-d13 { display: grid; grid-template-columns: 300px 240px minmax(0, 1fr); gap: 20px; align-items: start; }
+.pv-rivet { display: flex; flex-direction: column; gap: 4px; min-height: 118px; justify-content: center; padding: 20px 30px; }
+.pv-rivet .kicker { color: var(--text-muted); }
+.pv-plain { display: flex; flex-direction: column; justify-content: center; min-height: 118px; padding: 16px 18px; }
+.pv-fade { display: flex; align-items: center; justify-content: space-around; gap: 12px; height: 118px; padding: 0 12px; border-radius: 10px; box-shadow: 0 0 0 2px var(--lip); }
+.pv-fade .tt-plate { width: 146px; height: 56px; white-space: nowrap; }
+.pv-fade .tt-plate__row { padding: 0 12px; }
+.pv-states { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px 24px; align-items: start; }
+.pv-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px 22px; align-items: start; padding: 22px 22px 20px; }
+.pv-mini { display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 8px; padding: 14px 16px; }
+.pv-band { margin: 0 -24px; }
+.pv-band .tt-specband__item { max-width: 400px; }
+</style>
+</head>
+<body>
+<div class="tt-root pv">
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Anatomy at 4x · one plate across a light and a dark floor</h2>
+    <div class="pv-anat">
+      <div class="pv-zoom">
+        <div class="pv-zoom__half tt-floor-blockout"></div>
+        <div class="pv-zoom__half pv-zoom__half--r tt-floor-night"></div>
+        <div class="tt-plate pv-zoom__plate"></div>
+        <span class="pv-pin" style="left:44px; top:106px">1</span>
+        <span class="pv-pin" style="left:150px; top:26px">2</span>
+        <span class="pv-pin" style="left:340px; top:182px">3</span>
+        <span class="pv-pin" style="left:200px; top:106px">4</span>
+        <span class="pv-pin" style="left:132px; top:214px">5</span>
+        <span class="pv-pin" style="left:72px; top:38px">6</span>
+      </div>
+      <ol class="pv-legend tt-label">
+        <li><span class="pv-pin">1</span><span><b>Ink outline</b> 3 px outside (HC 4) · <span class="pv-tok">ink</span>. Holds light floors.</span></li>
+        <li><span class="pv-pin">2</span><span><b>Rim</b> 2 px, top and left · <span class="pv-tok">rim</span>. Holds dark floors.</span></li>
+        <li><span class="pv-pin">3</span><span><b>Rim shade</b> 2 px, bottom and right · <span class="pv-tok">rim-shade</span>.</span></li>
+        <li><span class="pv-pin">4</span><span><b>Fill</b> · <span class="pv-tok">plate</span>, always 100% opaque.</span></li>
+        <li><span class="pv-pin">5</span><span><b>Print</b> 0, 4 · <span class="pv-tok">ink</span> 55%. Menu plates 0, 6.</span></li>
+        <li><span class="pv-pin">6</span><span><b>Radius</b> 12; the outline follows at 15.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Depth ladder · world, plate, inset, well</h2>
+    <div class="pv-depth">
+      <figure class="pv-fig">
+        <div class="pv-hudcol tt-floor-blockout">
+          <div class="tt-plate tt-plate--rail tt-railhead">
+            <div class="tt-plate__row"><span class="tt-railhead__kills num-l">Kills: 12</span></div>
+            <span class="tt-railhead__slot" aria-hidden="true"></span>
+          </div>
+          <div class="pv-slots">
+            <div class="tt-plate tt-spell" aria-label="Fireball, Q, 3 SP, ready">
+              <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--fire" data-glyph="fireball" aria-label="Fireball"></span></div>
+              <div class="tt-spell__cost"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+              <span class="tt-key tt-key--sm tt-spell__key">Q</span>
+            </div>
+            <div class="tt-plate tt-spell" aria-label="Blink, E, 2 SP, ready">
+              <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="blink" aria-label="Blink"></span></div>
+              <div class="tt-spell__cost"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+              <span class="tt-key tt-key--sm tt-spell__key">E</span>
+            </div>
+            <div class="tt-plate tt-plate--slot"><div class="tt-plate__well tt-plate__well--slot"><span class="tt-glyph tt-glyph--48" data-glyph="stoneskin" aria-label="Stone Skin"></span></div></div>
+          </div>
+        </div>
+        <figcaption class="tt-label">HUD plates on the world: the real rail head (320 x 56) and spell slots (SpellSlot, 78 x 78 around a 64 x 64 well). Right: the bare build, <span class="pv-tok">.tt-plate--slot</span> + <span class="pv-tok">__well--slot</span>.</figcaption>
+      </figure>
+      <figure class="pv-fig">
+        <div class="tt-plate tt-plate--menu tt-pad-lg">
+          <div class="tt-plate__head">
+            <span class="ui-title">Stored Resources</span>
+          </div>
+          <hr class="tt-divider">
+          <div class="tt-row" style="gap:16px; align-items:stretch; flex-wrap:nowrap">
+            <div class="tt-plate tt-plate--inset tt-pad" style="flex:1">
+              <div class="pv-ledger ui-body">
+                <span>Iron Ore</span><span class="num-s">x1</span>
+                <span>Town Stone</span><span class="num-s">x1</span>
+              </div>
+            </div>
+            <div class="tt-plate__well" style="width:96px">
+              <span class="tt-glyph tt-glyph--48" data-glyph="ore" aria-label="Iron Ore"></span>
+            </div>
+          </div>
+        </div>
+        <figcaption class="tt-label">Menu plate <span class="pv-tok">.tt-plate--menu</span>: padding 24, header over the core <span class="pv-tok">.tt-divider</span>. Inset <span class="pv-tok">.tt-plate--inset</span>: <span class="pv-tok">plate-raised</span>, <span class="pv-tok">lip</span> border, no outline. Well <span class="pv-tok">.tt-plate__well</span>: <span class="pv-tok">well</span> + <span class="pv-tok">lip</span>, radius 8.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Rivets and fades · where rivets go, and how a plate shows and hides</h2>
+    <div class="pv-d13">
+      <figure class="pv-fig">
+        <div class="tt-plate tt-plate--menu tt-plate--riveted pv-rivet">
+          <span class="kicker tt-caps">Feat unlocked</span>
+          <span class="tally-heading">Pyromaniac</span>
+        </div>
+        <figcaption class="tt-label">Riveted <span class="pv-tok">.tt-plate--riveted</span>: Tally plates and front-end menu plates only (TallyPlate, the title wordmark, Credits).</figcaption>
+      </figure>
+      <figure class="pv-fig">
+        <div class="tt-plate tt-plate--menu pv-plain">
+          <span class="world-heading tt-caps">Searing Expanse</span>
+        </div>
+        <figcaption class="tt-label">No rivets on HUD plates or World-voice plates (banners, the boss bar, death, loading).</figcaption>
+      </figure>
+      <figure class="pv-fig">
+        <div class="pv-fade tt-floor-blockout">
+          <div class="tt-plate"><div class="tt-plate__row"><span class="num-m">Kills: 4</span></div></div>
+          <div class="tt-plate" style="opacity:.45"><div class="tt-plate__row"><span class="num-m">Kills: 4</span></div></div>
+        </div>
+        <figcaption class="tt-label">Show / hide: the whole widget fades or moves; its fill alpha is never below 100%.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Dual edge · the same HUD plate on six floors (diorama ratios)</h2>
+    <div class="pv-floors">
+      <figure class="pv-fig"><div class="pv-floor tt-floor-blockout"><div class="tt-plate tt-plate--rail" style="width:220px"><div class="tt-plate__row"><span class="num-l">Kills: 12</span></div></div></div><figcaption class="tt-label">Blockout · ink holds, 14.4:1</figcaption></figure>
+      <figure class="pv-fig"><div class="pv-floor tt-floor-snow"><div class="tt-plate tt-plate--rail" style="width:220px"><div class="tt-plate__row"><span class="num-l">Kills: 12</span></div></div></div><figcaption class="tt-label">Snow · ink holds, 16.8:1</figcaption></figure>
+      <figure class="pv-fig"><div class="pv-floor tt-floor-sand"><div class="tt-plate tt-plate--rail" style="width:220px"><div class="tt-plate__row"><span class="num-l">Kills: 12</span></div></div></div><figcaption class="tt-label">Sand · ink holds, 11.2:1</figcaption></figure>
+      <figure class="pv-fig"><div class="pv-floor tt-floor-grass"><div class="tt-plate tt-plate--rail" style="width:220px"><div class="tt-plate__row"><span class="num-l">Kills: 12</span></div></div></div><figcaption class="tt-label">Grass · ink holds, 7.6:1</figcaption></figure>
+      <figure class="pv-fig"><div class="pv-floor tt-floor-mire"><div class="tt-plate tt-plate--rail" style="width:220px"><div class="tt-plate__row"><span class="num-l">Kills: 12</span></div></div></div><figcaption class="tt-label">Mire · rim holds, 5.7:1</figcaption></figure>
+      <figure class="pv-fig"><div class="pv-floor tt-floor-night"><div class="tt-plate tt-plate--rail" style="width:220px"><div class="tt-plate__row"><span class="num-l">Kills: 12</span></div></div></div><figcaption class="tt-label">Night · rim holds, 12.1:1</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">States · lit and unlit</h2>
+    <div class="pv-states">
+      <figure class="pv-fig">
+        <div class="tt-plate"><div class="pv-mini"><span class="num-s" style="color:var(--text-muted)">HP</span><div class="tt-bar" style="--v:62%; --t:74%"><div class="tt-bar__trail"></div><div class="tt-bar__fill"></div><div class="tt-bar__notch" style="--at:25%"></div></div></div></div>
+        <figcaption class="tt-label">HUD plate · lit (default)</figcaption>
+      </figure>
+      <figure class="pv-fig">
+        <div class="tt-plate is-unlit"><div class="pv-mini"><span class="num-s">HP</span><div class="tt-bar" style="--v:62%; --t:74%"><div class="tt-bar__trail"></div><div class="tt-bar__fill"></div><div class="tt-bar__notch" style="--at:25%"></div></div></div></div>
+        <figcaption class="tt-label">Unlit <span class="pv-tok">.is-unlit</span> · Acceptance ending. High Contrast keeps the whole white outline.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">States · inset card</h2>
+    <div class="tt-plate tt-plate--menu pv-cards">
+      <figure class="pv-fig">
+        <div class="tt-plate tt-plate--inset tt-selectable tt-focus--fill-gap tt-pad ui-body">Strength</div>
+        <figcaption class="tt-label">Rest</figcaption>
+      </figure>
+      <figure class="pv-fig">
+        <div class="tt-plate tt-plate--inset tt-selectable tt-focus--fill-gap tt-pad ui-body is-hover">Strength</div>
+        <figcaption class="tt-label">Hover · 4 px <span class="pv-tok">rim</span></figcaption>
+      </figure>
+      <figure class="pv-fig">
+        <div class="tt-plate tt-plate--inset tt-selectable tt-focus--fill-gap tt-pad ui-body is-focused">Strength</div>
+        <figcaption class="tt-label">Focused · ink gap, ring</figcaption>
+      </figure>
+      <figure class="pv-fig">
+        <div class="tt-plate tt-plate--inset tt-selectable tt-focus--fill-gap tt-pad ui-body is-selected">Strength</div>
+        <figcaption class="tt-label">Selected · cream</figcaption>
+      </figure>
+      <figure class="pv-fig">
+        <div class="tt-plate tt-plate--inset tt-selectable tt-focus--fill-gap tt-pad ui-body is-selected is-focused">Strength</div>
+        <figcaption class="tt-label">Selected + focused</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <div class="tt-specband pv-band">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">HUD plates (body, 1920 x 1080)</p>
+      <p class="tt-label">Gauge 456 x 152 at (32, 32). Spell slot 78 x 78, well 64 x 64. Rail head 320 x 56 at (-32, 32). Big-moment plate 640 x 128 at (0, 40). Loadout 340 x 84 at (-32, -32).</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Pause shell</p>
+      <p class="tt-label">TabContentBorder: a menu plate 1000 x 584 at (460, 276), under the 56 px tab bar. Content box 948 x 540 (padding 20 / 24).</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

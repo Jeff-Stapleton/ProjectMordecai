@@ -1,0 +1,57 @@
+/* PickupLabel: the world tag tied to a ground pickup (replaces the faint TextRender NameLabel).
+   An enamel tag whose left cap is a rarity band with the eyelet; the light cord runs from the eyelet down to the item.
+   Contents: rarity socket + name (ui-label, ink). Focused adds the interact keycap and the focus ring. Far = band + socket only.
+   Set --r to the rarity token. Sizes are design px at 1920x1080. */
+
+.tt-plabel { --r: var(--rarity-common); --drop: 30px; --band: 22px; --hole: 8px; position: relative; display: inline-flex; flex-direction: column; align-items: flex-start; }
+
+.tt-plabel__tag {
+  position: relative; display: inline-flex; align-items: center; gap: var(--space-2);
+  height: 36px; padding: 0 12px 0 0;
+  background: var(--enamel); color: var(--ink);
+  border-radius: 4px var(--radius-tag) var(--radius-tag) 4px;
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print);
+  white-space: nowrap;
+}
+/* Rarity band: the tag's left cap, rarity fill with an ink seam, the system grommet in it
+   (well hole, enamel-shade ring, ink ring: the same eyelet as core .tt-tag, scaled to the band). */
+.tt-plabel__band { position: relative; align-self: stretch; flex: none; width: var(--band); background: var(--r); border-right: 2px solid var(--ink); border-radius: 3px 0 0 3px; }
+.tt-plabel__band::before { content: ""; position: absolute; left: 50%; top: 50%; width: var(--hole); height: var(--hole); margin: calc(var(--hole) / -2) 0 0 calc(var(--hole) / -2); border-radius: 50%; background: var(--well); box-shadow: 0 0 0 2px var(--enamel-shade), 0 0 0 4px var(--ink); }
+/* The string: core's light cord (4 px rim core, 1 px ink sides, so it holds on night and mire as on blockout), from
+   the eyelet down past the tag to the item. It hangs from the label, not from the tag, so the
+   focused tag's keyline (core filter) never thickens it: the cord keeps its width in every state. */
+.tt-plabel::after { content: ""; position: absolute; z-index: 1; left: calc(var(--band) / 2 - var(--tt-string-light-w) / 2); top: calc(50% + var(--hole) / 2); width: var(--tt-string-light-w); height: calc(50% - var(--hole) / 2 + var(--tt-outline) + var(--drop)); background: var(--tt-string-light-core); box-shadow: var(--tt-string-light-shadow); }
+.tt-plabel__name { color: var(--ink); }
+.tt-plabel .tt-socket { padding: 4px 5px; }
+.tt-plabel__unk { color: var(--ink); }
+
+/* Focused (the pickup F will take): taller tag, the interact keycap, a longer string and the core focus
+   (.is-focused on the tag, default variant: the 3 px focus ring right outside the ink outline and core's 2 px ink
+   keyline outside the ring, so it reads on blockout and snow too). No local ring: the tag keeps its own outline
+   and print. */
+.tt-plabel--focus { --drop: 40px; --band: 24px; }
+.tt-plabel--focus .tt-plabel__tag { height: 44px; gap: var(--space-2); padding-right: 14px; }
+.tt-plabel--focus .tt-key { margin-left: 2px; }
+
+/* Far LOD: band + socket only. */
+.tt-plabel--far { --drop: 18px; --band: 18px; --hole: 6px; }
+.tt-plabel--far .tt-plabel__tag { height: 30px; padding-right: 5px; gap: 5px; }
+.tt-plabel--far .tt-socket { padding: 3px 4px; }
+
+.tt-plabel--green { --r: var(--rarity-green); }
+.tt-plabel--blue { --r: var(--rarity-blue); }
+.tt-plabel--purple { --r: var(--rarity-purple); }
+.tt-plabel--red { --r: var(--rarity-red); }
+.tt-plabel--gold { --r: var(--rarity-gold); }
+
+/* Preview stand-ins (world, not UI): the test pickups' engine shapes and their contact shadows, in the
+   theme-invariant biome-* and world-* tokens so the level art never changes with the UI theme. */
+.tt-pitem { position: absolute; transform: translate(-50%, -100%); display: block; }
+.tt-pitem::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 34px; height: 12px; margin-left: -17px; border-radius: 50%; background: var(--world-shade); z-index: -1; }
+.tt-pitem--potion { width: 18px; height: 28px; border-radius: 6px 6px 5px 5px; background: color-mix(in srgb, var(--biome-withered) 70%, var(--world-dark)); box-shadow: inset 0 6px 0 color-mix(in srgb, var(--biome-withered) 80%, var(--world-snow)); }
+.tt-pitem--ore { width: 24px; height: 22px; border-radius: 3px; background: color-mix(in srgb, var(--world-blockout) 42%, var(--world-dark)); box-shadow: inset 0 7px 0 color-mix(in srgb, var(--world-blockout) 66%, var(--world-dark)); }
+.tt-pitem--stone { width: 24px; height: 22px; border-radius: 3px; background: color-mix(in srgb, var(--biome-searing) 80%, var(--world-dark)); box-shadow: inset 0 7px 0 var(--biome-searing); }
+.tt-pitem--key { width: 24px; height: 30px; clip-path: polygon(50% 0, 100% 100%, 0 100%); background: color-mix(in srgb, var(--biome-crystal) 62%, var(--world-dark)); }
+.tt-pitem--amulet { width: 24px; height: 24px; border-radius: 50%; background: color-mix(in srgb, var(--biome-storm) 62%, var(--world-dark)); box-shadow: inset 5px 5px 0 color-mix(in srgb, var(--biome-storm) 85%, var(--world-snow)); }
+.tt-pitem--sword { width: 12px; height: 34px; border-radius: 4px; background: color-mix(in srgb, var(--biome-searing) 50%, var(--world-dark)); box-shadow: inset 0 8px 0 color-mix(in srgb, var(--biome-searing) 75%, var(--world-dark)); }
+.tt-pitem--far { transform: translate(-50%, -100%) scale(0.7); }

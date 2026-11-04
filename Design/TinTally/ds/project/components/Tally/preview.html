@@ -1,0 +1,243 @@
+<!-- @dsCard group="Foundations" height=2900 width=960 subtitle="The counting motif: four strokes and a slash, kept to three jobs (skill ranks, rarity, the seal and throbber); everything else counts with another mark" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Tally</title>
+<style>
+/* Preview scaffolding only. */
+.pv { display: flex; flex-direction: column; gap: 30px; padding: 24px 24px 32px; }
+.pv-sec { display: flex; flex-direction: column; gap: 14px; }
+.pv-h { margin: 0; color: var(--text-muted); }
+.pv-fig { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.pv-tok { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.pv-uses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.pv-use { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 12px; }
+.pv-use__n { display: flex; align-items: baseline; gap: 10px; }
+.pv-use__demo { display: flex; align-items: center; gap: 14px; min-height: 64px; }
+.pv-anat { display: grid; grid-template-columns: 330px 1fr; gap: 24px; align-items: center; }
+.pv-anat__stage { position: relative; height: 200px; display: flex; align-items: center; justify-content: center; color: var(--text); }
+.pv-pin { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--enamel); color: var(--ink); font: 800 20px/1 var(--font-mono); box-shadow: 0 0 0 3px var(--ink); z-index: 2; }
+.pv-legend { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.pv-legend li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; }
+.pv-legend .pv-pin { position: static; margin: 0; }
+.pv-legend b { color: var(--text); font-weight: 700; }
+.pv-ranks { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
+.pv-ranklist { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.pv-detail { padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+.pv-rar { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.pv-rarrow { display: grid; grid-template-columns: repeat(6, 1fr); padding: 18px 12px 16px; gap: 6px; }
+.pv-rarrow--mono { padding: 22px 12px; }
+.pv-rarcell { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.pv-rarcell .tt-rarity, .pv-rarcell .tt-socket { height: 28px; display: flex; align-items: center; }
+.pv-items { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.pv-item { display: flex; align-items: center; gap: 12px; padding: 8px 14px; }
+.pv-sp { padding: 18px 20px; display: grid; grid-template-columns: 268px 112px 1fr; align-items: center; column-gap: 16px; row-gap: 16px; }
+.pv-mark { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; align-items: stretch; }
+.pv-film { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+.pv-film__row { display: flex; gap: 10px; }
+.pv-frame { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.pv-frame__well { display: flex; align-items: center; justify-content: center; width: 72px; height: 64px; color: var(--text); }
+.pv-seals { padding: 18px 20px; display: flex; align-items: center; justify-content: space-around; gap: 16px; }
+.pv-not { padding: 20px 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; }
+.pv-not__cell { display: grid; grid-template-columns: 196px 1fr; gap: 6px 14px; align-items: center; }
+.pv-not__what { color: var(--text); font-weight: 700; }
+.pv-not__mark { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.pv-not__who { grid-column: 1 / -1; margin: 0; }
+.pv-hit { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; color: var(--good); }
+</style>
+</head>
+<body>
+<div class="tt-root pv">
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">One mark, exactly three jobs · nothing else draws strokes</h2>
+    <div class="pv-uses">
+      <div class="tt-plate tt-plate--menu pv-use">
+        <div class="pv-use__n"><span class="num-l" style="color:var(--text-muted)">1</span><span class="ui-title">Skill ranks</span></div>
+        <div class="pv-use__demo"><span class="tt-tally" data-tally="12" data-max="20" data-height="24" data-pitch="7" data-cap></span><span class="tt-tally-count">12 / 20</span></div>
+        <span class="tt-label">20 strokes in <span class="pv-tok">text</span>; slashes on milestones 5, 10, 15, 20; rank 1 wears a cap dot.</span>
+      </div>
+      <div class="tt-plate tt-plate--menu pv-use">
+        <div class="pv-use__n"><span class="num-l" style="color:var(--text-muted)">2</span><span class="ui-title">Rarity</span></div>
+        <div class="pv-use__demo"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="24"></span><span class="tt-rarity tt-r-green" data-rarity="green" data-height="24"></span><span class="tt-rarity tt-r-blue" data-rarity="blue" data-height="24"></span><span class="tt-rarity tt-r-purple" data-rarity="purple" data-height="24"></span><span class="tt-rarity tt-r-red" data-rarity="red" data-height="24"></span><span class="tt-rarity tt-r-gold" data-rarity="gold" data-height="24"></span></div>
+        <span class="tt-label">A ring, then 1 to 4 strokes, then the full bundle: gold means rarity Gold only.</span>
+      </div>
+      <div class="tt-plate tt-plate--menu pv-use">
+        <div class="pv-use__n"><span class="num-l" style="color:var(--text-muted)">3</span><span class="ui-title">Seal, throbber</span></div>
+        <div class="pv-use__demo"><span class="tt-tally-seal tt-tally-seal--48"><span class="tt-tally" data-tally="5" data-max="5" data-height="20" data-stroke="3" data-pitch="5"></span></span><span class="tt-tally-throbber"><span class="tt-tally" data-tally="0" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span><span class="tt-tally" data-tally="1" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span><span class="tt-tally" data-tally="2" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span><span class="tt-tally" data-tally="3" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span><span class="tt-tally" data-tally="4" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span><span class="tt-tally" data-tally="5" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span></span></div>
+        <span class="tt-label">The seal (title, receipts, the last ticket); the throbber on the loading screen only.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Anatomy, enlarged · rank 7 of 10</h2>
+    <div class="pv-anat">
+      <div class="tt-plate tt-plate--menu pv-anat__stage">
+        <span class="tt-tally" data-tally="7" data-max="10" data-cap data-height="96" data-stroke="12" data-pitch="28"></span>
+        <span class="pv-pin" style="left:63px; top:30px">1</span>
+        <span class="pv-pin" style="left:104px; top:174px">2</span>
+        <span class="pv-pin" style="left:160px; top:34px">3</span>
+        <span class="pv-pin" style="left:262px; top:174px">4</span>
+      </div>
+      <ol class="pv-legend tt-label">
+        <li><span class="pv-pin">1</span><span><b>Cap dot</b> on stroke 1 only, and only for skill rank 1, the first milestone.</span></li>
+        <li><span class="pv-pin">2</span><span><b>Strokes</b> 1 to 4: upright, round caps, lit in <span class="pv-tok">text</span> on plate, <span class="pv-tok">ink</span> on enamel. Row size: 3 px wide, 7 apart, 24 tall.</span></li>
+        <li><span class="pv-pin">3</span><span><b>Slash</b> = 5, one px heavier, corner to corner across its four strokes. Bundles stand 8 apart.</span></li>
+        <li><span class="pv-pin">4</span><span><b>Unlit</b> strokes stay printed as dots in <span class="pv-tok">lip</span> (<span class="pv-tok">ink-muted</span> on enamel), in every theme, so 20 always reads as the whole.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Skill ranks · the Skills tab row (148 x 24) and the detail size (180 x 32)</h2>
+    <div class="pv-ranks">
+      <div class="tt-plate tt-plate--menu pv-ranklist">
+        <div class="tt-tally-rank is-unlearned"><span class="tt-tally-rank__name">Parrying</span><span class="tt-tally" data-tally="0" data-max="20" data-height="24" data-pitch="7"></span><span class="tt-tally-rank__value">0 / 20</span></div>
+        <div class="tt-tally-rank"><span class="tt-tally-rank__name">Fireball</span><span class="tt-tally" data-tally="1" data-max="20" data-height="24" data-pitch="7" data-cap></span><span class="tt-tally-rank__value">1 / 20</span></div>
+        <div class="tt-tally-rank"><span class="tt-tally-rank__name">Blink</span><span class="tt-tally" data-tally="4" data-max="20" data-height="24" data-pitch="7" data-cap></span><span class="tt-tally-rank__value">4 / 20</span></div>
+        <div class="tt-tally-rank"><span class="tt-tally-rank__name">Stone Skin</span><span class="tt-tally" data-tally="5" data-max="20" data-height="24" data-pitch="7" data-cap></span><span class="tt-tally-rank__value">5 / 20</span></div>
+        <div class="tt-tally-rank"><span class="tt-tally-rank__name">Longswords</span><span class="tt-tally" data-tally="12" data-max="20" data-height="24" data-pitch="7" data-cap></span><span class="tt-tally-rank__value">12 / 20</span></div>
+        <div class="tt-tally-rank"><span class="tt-tally-rank__name">Dodging</span><span class="tt-tally" data-tally="20" data-max="20" data-height="24" data-pitch="7" data-cap></span><span class="tt-tally-rank__value">20 / 20</span></div>
+      </div>
+      <div class="tt-plate tt-plate--menu pv-detail">
+        <span class="ui-title">Longswords</span>
+        <span class="tt-tally" data-tally="12" data-max="20" data-cap data-height="32" data-stroke="4" data-pitch="9"></span>
+        <div class="tt-tally-ruler"><span class="is-reached" style="left:6px">1</span><span class="is-reached" style="left:34px">5</span><span class="is-reached" style="left:81px">10</span><span style="left:128px">15</span><span style="left:175px">20</span></div>
+        <span class="tt-label">Detail size: milestones 1, 5, 10, 15, 20 printed under the mark. Rank 20 is the full bundle in <span class="pv-tok">text</span>, never gold.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Rarity · stroke count + colour + the colour word</h2>
+    <div class="tt-plate tt-plate--menu pv-rarrow">
+      <span class="pv-rarcell"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="24"></span><span class="tt-label" style="color:var(--rarity-common)">Common · 0</span></span>
+      <span class="pv-rarcell"><span class="tt-rarity tt-r-green" data-rarity="green" data-height="24"></span><span class="tt-label" style="color:var(--rarity-green)">Green · 1</span></span>
+      <span class="pv-rarcell"><span class="tt-rarity tt-r-blue" data-rarity="blue" data-height="24"></span><span class="tt-label" style="color:var(--rarity-blue)">Blue · 2</span></span>
+      <span class="pv-rarcell"><span class="tt-rarity tt-r-purple" data-rarity="purple" data-height="24"></span><span class="tt-label" style="color:var(--rarity-purple)">Purple · 3</span></span>
+      <span class="pv-rarcell"><span class="tt-rarity tt-r-red" data-rarity="red" data-height="24"></span><span class="tt-label" style="color:var(--rarity-red)">Red · 4</span></span>
+      <span class="pv-rarcell"><span class="tt-rarity tt-r-gold" data-rarity="gold" data-height="24"></span><span class="tt-label" style="color:var(--rarity-gold)">Gold · 5</span></span>
+    </div>
+    <div class="pv-rar">
+      <figure class="pv-fig">
+        <div class="tt-plate tt-plate--menu pv-rarrow pv-rarrow--mono">
+          <span class="pv-rarcell"><span class="tt-rarity" data-rarity="common" data-height="24"></span></span>
+          <span class="pv-rarcell"><span class="tt-rarity" data-rarity="green" data-height="24"></span></span>
+          <span class="pv-rarcell"><span class="tt-rarity" data-rarity="blue" data-height="24"></span></span>
+          <span class="pv-rarcell"><span class="tt-rarity" data-rarity="purple" data-height="24"></span></span>
+          <span class="pv-rarcell"><span class="tt-rarity" data-rarity="red" data-height="24"></span></span>
+          <span class="pv-rarcell"><span class="tt-rarity" data-rarity="gold" data-height="24"></span></span>
+        </div>
+        <figcaption class="tt-label">The same six with no colour: the count still sorts them (Blue and Purple converge for deuteranopes).</figcaption>
+      </figure>
+      <figure class="pv-fig">
+        <div class="tt-plate tt-plate--menu pv-items">
+          <div class="tt-plate tt-plate--inset pv-item"><span class="tt-rarity tt-r-blue" data-rarity="blue"></span><span class="ui-body" style="color:var(--rarity-blue)">Upgrade Key</span></div>
+          <div class="tt-plate tt-plate--inset pv-item"><span class="tt-rarity tt-r-purple" data-rarity="purple"></span><span class="ui-body" style="color:var(--rarity-purple)">? Unidentified Purple Amulet</span></div>
+          <div class="tt-tag"><span class="tt-tag__line">Emberfang</span><span class="tt-tag__end"><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple"></span></span></span></div>
+        </div>
+        <figcaption class="tt-label">In rows the badge leads the name; on enamel it sits in an ink socket.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Spell Points · counted in fives, drawn as tokens, 10 to 16 in the 268 px track</h2>
+    <div class="tt-plate tt-plate--menu pv-sp">
+      <span class="tt-tally-sp tt-tally-sp--16"><span class="tt-tally-sp__group"><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i></span><span class="tt-tally-sp__group"><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i></span><span class="tt-tally-sp__group"><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i></span></span>
+      <span class="tt-tally-count" style="text-align:right">13 / 13</span><span class="tt-label">Default INT: full, 16 px tokens (254 px)</span>
+      <span class="tt-tally-sp tt-tally-sp--16"><span class="tt-tally-sp__group"><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i></span><span class="tt-tally-sp__group"><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i></span><span class="tt-tally-sp__group"><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i></span></span>
+      <span class="tt-tally-count" style="text-align:right">10 / 13</span><span class="tt-label">After Fireball (3 SP)</span>
+      <span class="tt-tally-sp tt-tally-sp--16"><span class="tt-tally-sp__group"><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i></span><span class="tt-tally-sp__group"><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i></span><span class="tt-tally-sp__group"><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i><i class="tt-tally-sp__token"></i></span></span>
+      <span class="tt-tally-count" style="text-align:right">0 / 13</span><span class="tt-label">Empty: well discs with a lip ring</span>
+      <span class="tt-tally-sp"><span class="tt-tally-sp__group"><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i></span><span class="tt-tally-sp__group"><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i></span></span>
+      <span class="tt-tally-count" style="text-align:right">10 / 10</span><span class="tt-label">Up to 10: 22 px tokens (264 px)</span>
+      <span class="tt-tally-sp tt-tally-sp--14"><span class="tt-tally-sp__group"><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i></span><span class="tt-tally-sp__group"><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i></span><span class="tt-tally-sp__group"><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token"></i></span><span class="tt-tally-sp__group"><i class="tt-tally-sp__token"></i></span></span>
+      <span class="tt-tally-count" style="text-align:right">14 / 16</span><span class="tt-label">14 to 16: 14 px tokens (266 px). Example values.</span>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Job 3 · the throbber's frames and the seal</h2>
+    <div class="pv-mark">
+      <div class="tt-plate tt-plate--menu pv-film">
+        <div class="pv-film__row">
+          <span class="pv-frame"><span class="tt-plate__well pv-frame__well"><span class="tt-tally" data-tally="1" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span></span><span class="tt-label">1</span></span>
+          <span class="pv-frame"><span class="tt-plate__well pv-frame__well"><span class="tt-tally" data-tally="2" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span></span><span class="tt-label">2</span></span>
+          <span class="pv-frame"><span class="tt-plate__well pv-frame__well"><span class="tt-tally" data-tally="3" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span></span><span class="tt-label">3</span></span>
+          <span class="pv-frame"><span class="tt-plate__well pv-frame__well"><span class="tt-tally" data-tally="4" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span></span><span class="tt-label">4</span></span>
+          <span class="pv-frame"><span class="tt-plate__well pv-frame__well"><span class="tt-tally" data-tally="5" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span></span><span class="tt-label">Slash</span></span>
+          <span class="pv-frame"><span class="tt-plate__well pv-frame__well"><span class="tt-tally" data-tally="0" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span></span><span class="tt-label">Blank</span></span>
+        </div>
+        <span class="tt-label">Throbber (Motion: Throbber): one stroke per frame, the slash holds, a blank, loop. Drawn in <span class="pv-tok">text</span> under "Loading...", and it keeps looping under Reduce Motion.</span>
+      </div>
+      <div class="tt-plate tt-plate--menu pv-seals">
+        <span class="tt-tally-seal"><span class="tt-tally" data-tally="5" data-max="5" data-height="40" data-stroke="5" data-pitch="8"></span></span>
+        <div class="tt-tag tt-tag--plain" style="flex-direction:column; align-items:center; gap:8px; padding:14px 20px">
+          <span class="tt-tally-seal tt-tally-seal--stamp tt-tally-seal--48"><span class="tt-tally" data-tally="5" data-max="5" data-height="20" data-stroke="3" data-pitch="5"></span></span>
+          <span class="tt-tag__line" style="font-size:22px; line-height:28px">Count closed.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Not a tally · everything else counts with another mark</h2>
+    <div class="tt-plate tt-plate--menu pv-not tt-label">
+      <div class="pv-not__cell">
+        <span class="pv-not__what">Light-attack combo</span>
+        <span class="pv-not__mark"><span class="tt-plate pv-hit num-m">Hit 3</span></span>
+        <p class="pv-not__who tt-label">"Hit N" alone (CombatCallout). No strokes under the weapon name (LoadoutPlate).</p>
+      </div>
+      <div class="pv-not__cell">
+        <span class="pv-not__what">Boss phases</span>
+        <span class="pv-not__mark"><span class="tt-pips tt-pips--lg" role="img" aria-label="Phase 2 of 3"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip"></span></span></span>
+        <p class="pv-not__who tt-label">Pips, 20 px (BossBar). Filled = reached, hollow = ahead.</p>
+      </div>
+      <div class="pv-not__cell">
+        <span class="pv-not__what">Status stacks</span>
+        <span class="pv-not__mark"><span class="tt-pips" role="img" aria-label="3 stacks of 5"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip"></span><span class="tt-pip"></span></span></span>
+        <p class="pv-not__who tt-label">Pips, 14 px (StatusChip). Example: 3 of 5.</p>
+      </div>
+      <div class="pv-not__cell">
+        <span class="pv-not__what">Feat conditions</span>
+        <span class="pv-not__mark"><span class="tt-bar tt-bar--thin" style="width:120px; --fill: var(--feat-common); --v:60%"><span class="tt-bar__fill"></span></span><span class="num-s" style="color:var(--text)">6 / 10</span></span>
+        <p class="pv-not__who tt-label">A thin bar and a count (FeatsTab, TallyRail). Example values.</p>
+      </div>
+      <div class="pv-not__cell">
+        <span class="pv-not__what">Options ranges</span>
+        <span class="pv-not__mark"><span class="tt-bar" style="width:180px; --fill: var(--text-muted); --v:60%"><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:20%"></span><span class="tt-bar__notch" style="--at:40%"></span><span class="tt-bar__notch" style="--at:60%"></span><span class="tt-bar__notch" style="--at:80%"></span></span></span>
+        <p class="pv-not__who tt-label">A notched track (OptionsScreen).</p>
+      </div>
+      <div class="pv-not__cell">
+        <span class="pv-not__what">Dividers</span>
+        <span class="pv-not__mark"><hr class="tt-divider" style="width:180px"></span>
+        <p class="pv-not__who tt-label"><span class="pv-tok">.tt-divider</span>, a quiet 2 px rule (TitleScreen, Credits, every menu).</p>
+      </div>
+      <div class="pv-not__cell">
+        <span class="pv-not__what">Loading, printing</span>
+        <span class="pv-not__mark"><span class="ui-body" style="color:var(--text)">Printing...</span></span>
+        <p class="pv-not__who tt-label">LoadingScreen: the wordmark and the throbber only, no tally field, rule or seal medallion. Credits: "Printing..." with no throbber.</p>
+      </div>
+      <div class="pv-not__cell">
+        <span class="pv-not__what">Pending, charted</span>
+        <span class="pv-not__mark"><span class="tt-pill num-s">+3</span><span class="num-m" style="color:var(--text)">7 / 24</span></span>
+        <p class="pv-not__who tt-label">The rail's pending badge is the number only (TallyRail). The world map counts charted cells in numerals (WorldMap; example values).</p>
+      </div>
+      <div class="pv-not__cell">
+        <span class="pv-not__what">Kills, enemy tier</span>
+        <span class="pv-not__mark"><span class="num-m" style="color:var(--text)">Kills: 12</span><span class="tt-glyph tt-glyph--20" data-glyph="diamond" aria-label="Elite" style="color:var(--good)"></span></span>
+        <p class="pv-not__who tt-label">A number (TallyRail). Gold diamonds (EnemyTag).</p>
+      </div>
+      <div class="pv-not__cell">
+        <span class="pv-not__what">Spell Points, feat tier</span>
+        <span class="pv-not__mark"><span class="tt-tally-sp tt-tally-sp--16"><span class="tt-tally-sp__group"><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token is-on"></i><i class="tt-tally-sp__token"></i></span></span></span>
+        <p class="pv-not__who tt-label">Tokens (above). Feat tier: badge silhouettes, circle, flat-top hexagon, starburst (FeatsTab).</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

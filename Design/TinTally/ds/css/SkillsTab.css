@@ -1,0 +1,111 @@
+/* SkillsTab: the skill list inside the pause shell's 948 x 540 content box.
+   Header (52) / body (474): category rail 198 | skill rows 454 (ScrollBox) | milestone detail 268. */
+.tt-skills { display: flex; flex-direction: column; gap: 14px; height: 540px; }
+
+/* --- Header: the skill-point badge, prominent; the category and count on the right. */
+.tt-skills__head { flex: none; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+.tt-skills__headmeta { color: var(--text-muted); }
+.tt-skills__headmeta b { color: var(--text); font-weight: 700; }
+
+/* The skill-point badge: ONE look on the Character and Skills tabs. A 48 px gold coin (2 px ink edge, an ink
+   ring 3 px inside) holding the skill-point glyph, then "Skill Points" over the count in gold. At 0 the coin
+   turns plate with lip rings and the count turns text-disabled. */
+.tt-skills__points { flex: none; display: flex; align-items: center; gap: 10px; }
+.tt-skills__coin {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%;
+  background: var(--good); color: var(--ink); border: 2px solid var(--ink); box-shadow: inset 0 0 0 3px var(--good), inset 0 0 0 5px var(--ink);
+}
+.tt-skills__pointstext { display: flex; flex-direction: column; }
+.tt-skills__pointstext .ui-label { color: var(--text-muted); line-height: 22px; }
+.tt-skills__pointstext .num-l { color: var(--good); line-height: 30px; min-width: 38px; }
+.tt-skills__points.is-empty .tt-skills__coin { background: var(--plate); color: var(--text-disabled); border-color: var(--lip); box-shadow: inset 0 0 0 3px var(--plate), inset 0 0 0 5px var(--lip); }
+.tt-skills__points.is-empty .num-l { color: var(--text-disabled); }
+
+.tt-skills__body { flex: 1 1 auto; display: grid; grid-template-columns: 198px 454px 268px; gap: 14px; min-height: 0; }
+
+/* --- Category rail: five tags with a grommet; selected = the cream enamel fill (core .is-selected, D6).
+       Focus: core .tt-focus--fill-gap (the tags have a lip edge, no ink outline). */
+.tt-skills__rail { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.tt-skills__cat {
+  appearance: none; position: relative; display: flex; align-items: center; gap: var(--space-2); width: 100%; height: 68px; margin: 0; padding: 0 8px 0 32px;
+  font: inherit; text-align: left; cursor: pointer; color: var(--text-muted); background: var(--plate-raised);
+  border: 2px solid var(--lip); border-radius: 4px var(--radius-tag) var(--radius-tag) 4px; box-shadow: var(--tt-shadow, none);
+}
+/* Grommet: tin tag = well hole, plate ring, lip ring; selected (enamel) = the core grommet (enamel-shade ring, ink ring). */
+.tt-skills__cat::before { content: ""; position: absolute; left: 10px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--well); box-shadow: 0 0 0 3px var(--plate), 0 0 0 5px var(--lip); }
+.tt-skills__cat .ui-label { line-height: 24px; }
+.tt-skills__cat .tt-glyph { flex: none; margin-right: -2px; }
+.tt-skills__cat.is-selected { --tt-shadow: inset 0 -4px 0 var(--enamel-shade); }
+.tt-skills__cat.is-selected::before { box-shadow: 0 0 0 3px var(--enamel-shade), 0 0 0 5px var(--ink); }
+.tt-skills__cat.is-selected .ui-label { color: var(--ink); font-weight: 700; }
+.tt-skills__cat.is-hover { color: var(--text); border-color: var(--rim); }
+
+/* --- Skill rows (ScrollBox). Line 1: name + "Rank 12 / 20". Line 2: the 20-stroke tally bar (Tally's skill-row
+       size, 148 x 24), the reason, Allocate (Button's .tt-btn--sm row action). */
+.tt-skills__listwrap { position: relative; min-height: 0; }
+/* The list box reaches 8 px into the gutters so a focus ring (6 px out, 7 in High Contrast) is never clipped. */
+.tt-skills__list { height: calc(100% + 16px); overflow: hidden; display: flex; flex-direction: column; gap: 8px; margin: -8px; padding: 8px; list-style: none; }
+.tt-skills__row {
+  --tt-shadow: inset 0 -2px 0 color-mix(in srgb, var(--rim) 30%, transparent);
+  position: relative; flex: none; display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 100px; padding: 0 8px;
+  border: 2px solid transparent; border-radius: var(--radius-tag); background: transparent; box-shadow: var(--tt-shadow);
+}
+/* Selected (drives the detail panel): the cream enamel fill (D6); text turns ink, lit strokes ink, unlit dots
+   ink-muted (.tt-tally--enamel). Focus adds core's ring on top (.tt-focus--fill-gap). */
+.tt-skills__row.is-selected { --tt-shadow: 0 0 0 0 transparent; }
+.tt-skills__row.is-selected .tt-skills__name, .tt-skills__row.is-selected .tt-skills__rank .num-m, .tt-skills__row.is-selected .tt-skills__bar { color: var(--ink); }
+.tt-skills__row.is-selected .tt-skills__rank .ui-label, .tt-skills__row.is-selected .tt-skills__why { color: var(--ink-muted); }
+.tt-skills__line1, .tt-skills__line2 { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tt-skills__line1 { height: 32px; }
+.tt-skills__line2 { height: 48px; }
+.tt-skills__name { color: var(--text); white-space: nowrap; }
+.tt-skills__row.is-unlearned .tt-skills__name { color: var(--text-muted); }
+.tt-skills__rank { display: inline-flex; align-items: baseline; gap: 6px; flex: none; }
+.tt-skills__rank .ui-label { color: var(--text-muted); }
+.tt-skills__rank .num-m { color: var(--text); min-width: 106px; text-align: right; }
+/* Lit strokes are text on plate (D1), Rank 20 included: a full bundle in text, never gold. */
+.tt-skills__bar { flex: none; color: var(--text); }
+.tt-skills__why { flex: 1 1 auto; min-width: 0; text-align: right; color: var(--text-muted); white-space: nowrap; }
+.tt-skills__allocate { flex: none; }
+
+/* Scroll affordance: a sunk track with a rim thumb in the gutter, plus the clipped fifth row. */
+.tt-skills__scroll { position: absolute; top: 0; bottom: 0; right: -13px; width: 8px; border-radius: 4px; background: var(--well); box-shadow: 0 0 0 1px var(--lip); }
+.tt-skills__thumb { position: absolute; left: -2px; right: -2px; top: 0; height: 38%; border-radius: 6px; background: var(--rim); border: 2px solid var(--ink); }
+
+/* --- Detail: the selected skill and its five milestone stamps on a track. */
+.tt-skills__detail { display: flex; flex-direction: column; min-height: 0; padding: 12px 14px; background: var(--plate-raised); border: 2px solid var(--lip); border-radius: var(--radius-tag); }
+.tt-skills__dname { color: var(--text); }
+.tt-skills__drank { display: flex; align-items: baseline; gap: 6px; }
+.tt-skills__drank .ui-label { color: var(--text-muted); }
+.tt-skills__drank .num-m { color: var(--text); }
+.tt-skills__ddiv { margin: 8px 0 6px; }
+.tt-skills__dhead { margin: 0 0 4px; color: var(--text-muted); letter-spacing: 0.06em; }
+.tt-skills__miles { position: relative; display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.tt-skills__mile { position: relative; display: grid; grid-template-columns: 40px 1fr; column-gap: 10px; align-items: start; min-height: 52px; }
+.tt-skills__miles::before { content: ""; position: absolute; left: 19px; top: 20px; bottom: 30px; width: 2px; background: var(--lip); }
+.tt-skills__stamp {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%;
+  font: 800 20px/1 var(--font-mono); letter-spacing: -0.07em; color: var(--text); background: var(--plate); border: 2px solid var(--rim);
+}
+/* Reached: enamel-shade face, enamel inner ring, ink rim, plus a rim halo. */
+.tt-skills__mile.is-reached .tt-skills__stamp { color: var(--ink); background: var(--enamel-shade); border-color: var(--ink); box-shadow: inset 0 0 0 3px var(--enamel), 0 0 0 2px var(--rim); }
+.tt-skills__mile.is-locked .tt-skills__stamp { color: var(--text-disabled); border: 2px dashed var(--lip); background: var(--plate-raised); }
+.tt-skills__mtext { display: flex; flex-direction: column; padding-top: 7px; }
+.tt-skills__mtext .ui-label { color: var(--text); line-height: 24px; }
+.tt-skills__mile.is-locked .tt-skills__mtext .ui-label { color: var(--text-disabled); }
+.tt-skills__togo { color: var(--good); }
+.tt-skills__locked { display: flex; align-items: flex-start; gap: var(--space-1); color: var(--text-disabled); }
+.tt-skills__locked .tt-glyph { margin-top: 2px; }
+
+/* --- Spec band helpers (below the screen only). Specimens sit on the band's plate, as in the content plate. */
+.tt-skills__note { display: flex; flex-direction: column; gap: 10px; }
+.tt-skills__list--note { width: 454px; height: auto; overflow: visible; margin: 0; padding: 0; }
+.tt-skills__head--note { justify-content: flex-start; gap: var(--space-4); }
+.tt-skills__headwhy { color: var(--text-muted); }
+.tt-skills__specimens { flex-direction: row; flex-wrap: wrap; gap: 16px 20px; }
+.tt-skills__specimen { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; }
+.tt-skills__notemiles { flex-direction: row; gap: var(--space-5); }
+.tt-skills__notemiles .tt-skills__mile { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 0; }
+.tt-skills__notemiles .ui-label { color: var(--text-muted); }
+.tt-skills__noteempty { width: 454px; }
+.tt-skills__noteempty .tt-empty-box { height: auto; min-height: 0; padding: var(--space-3) 0; }

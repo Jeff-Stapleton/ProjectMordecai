@@ -1,0 +1,109 @@
+/* CharacterTab: the character sheet inside the pause shell's 948 x 540 content box.
+   Header strip (76) / body (450): the Active statuses row over 3 x 3 attribute cards (600) + the derived-stat receipt (328). */
+.tt-charsheet { display: flex; flex-direction: column; gap: 14px; height: 540px; }
+
+/* --- Header strip: Level (unbound), the Skill Points badge (SkillsTab's .tt-skills__points, one look on
+       both tabs), a core vertical divider, the four resources "Current / Max". */
+.tt-charsheet__head {
+  flex: none; display: flex; align-items: center; gap: 14px; height: 76px; padding: 0 14px;
+  background: var(--plate-raised); border: 2px solid var(--lip); border-radius: var(--radius-tag);
+}
+/* Level does not exist yet (TODO(DECISION)): an unavailable badge, so dashed (D24), reading "--". */
+.tt-charsheet__level {
+  flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 84px; height: 58px;
+  background: var(--plate); border: 2px dashed var(--lip); border-radius: var(--radius-key);
+}
+.tt-charsheet__level .ui-label { color: var(--text-muted); line-height: 22px; }
+.tt-charsheet__level .num-l { color: var(--text-disabled); line-height: 30px; }
+.tt-charsheet__sep { margin: 16px 0; }
+.tt-charsheet__resources { flex: none; display: flex; align-items: center; gap: 14px; }
+.tt-charsheet__res { flex: none; display: flex; flex-direction: column; gap: 2px; width: 138px; }
+.tt-charsheet__res--sp { width: 170px; }
+.tt-charsheet__res .ui-label { color: var(--text-muted); line-height: 22px; }
+.tt-charsheet__res .num-m { color: var(--text); white-space: nowrap; }
+.tt-charsheet__res .tt-bar { margin-top: 4px; }
+.tt-charsheet__res.is-low .num-m { color: var(--danger-text); }
+/* Spell Points are tokens, never a bar: Tally's .tt-tally-sp at 8 px (the hair bars' height), 2 px apart,
+   6 px between fives, so 16 fit the 170 px cell. No punch slot at this size; empty = well + 1 px lip ring. */
+.tt-tally-sp.tt-charsheet__tokens { gap: 6px; height: 8px; margin-top: 4px; }
+.tt-charsheet__tokens .tt-tally-sp__group { gap: 2px; }
+.tt-charsheet__tokens .tt-tally-sp__token { width: 8px; height: 8px; box-shadow: inset 0 0 0 1px var(--lip); }
+.tt-charsheet__tokens .tt-tally-sp__token.is-on { box-shadow: none; }
+.tt-charsheet__tokens .tt-tally-sp__token.is-on::after { display: none; }
+
+/* --- Body: the left column (the Active statuses row over the attribute grid) | the receipt. */
+.tt-charsheet__body { flex: 1 1 auto; display: grid; grid-template-columns: 600px 328px; gap: 20px; min-height: 0; }
+.tt-charsheet__left { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+/* Active statuses (StatusTooltip's host): 600 x 46, 10 px headroom for a buff chip's tab, the label "Statuses" (79),
+   14 px (a focused chip's ring stays clear of it), then StatusChip's chips 10 apart (focusable; focus or hover hangs
+   the StatusTooltip). The teeth hang into the 12 px gap. 507 px for chips: Frostbitten (272) + Focused (169) leave
+   66; more go compact, then "+N" (StatusChip's rules, one row). */
+.tt-charsheet__statuses { flex: none; display: flex; align-items: center; gap: 14px; height: 46px; padding-top: 10px; }
+.tt-charsheet__statlabel { flex: none; color: var(--text-muted); }
+.tt-charsheet__chips { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* No status: the one empty state (core .tt-empty, D8) at chip height, beside the label. */
+.tt-charsheet__statuses > .tt-empty { min-height: 36px; margin: 0; padding: 3px 14px; }
+.tt-charsheet__attrs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.tt-charsheet__group { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.tt-charsheet__grouphead { display: flex; align-items: center; gap: var(--space-2); height: 26px; margin: 0 0 -2px; color: var(--text-muted); letter-spacing: 0.06em; }
+.tt-charsheet__grouphead > .tt-divider { flex: 1 1 auto; }
+
+/* Attribute card: tin card with an abbreviation keycap, the base value, the name and the Effective Mod.
+   Focus is core's .tt-focus--fill-gap (the card has no ink outline of its own). */
+.tt-charsheet__card {
+  position: relative; display: flex; flex-direction: column; justify-content: space-between; height: 112px; padding: 10px 10px 12px;
+  background: var(--plate-raised); border: 2px solid var(--lip); border-radius: var(--radius-tag);
+}
+.tt-charsheet__cardtop { display: flex; align-items: center; justify-content: space-between; height: 34px; }
+.tt-charsheet__abbr {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 58px; height: 32px; padding: 0 8px 3px;
+  font: 800 20px/1 var(--font-mono); letter-spacing: 0.04em; color: var(--ink); background: var(--enamel);
+  border: 2px solid var(--ink); border-radius: var(--radius-key); box-shadow: inset 0 -4px 0 var(--enamel-shade);
+}
+.tt-charsheet__base { color: var(--text); text-align: right; min-width: 38px; }
+.tt-charsheet__name { color: var(--text); }
+.tt-charsheet__modrow { display: flex; align-items: flex-end; justify-content: space-between; height: 28px; }
+.tt-charsheet__mod { color: var(--text); min-width: 76px; text-align: right; line-height: 22px; }
+
+/* The band meter: four wells for Mod 1-5 / 6-10 / 11-15 / 16-20, stepping down 100 / 70 / 45 / 25 %
+   in height, so the staircase itself says "each point counts for less". --f = points in that band / 5. */
+.tt-charsheet__bands { display: flex; align-items: flex-end; gap: 3px; height: 28px; }
+.tt-charsheet__band { position: relative; width: 17px; background: var(--well); border: 2px solid var(--lip); border-radius: 3px; overflow: hidden; }
+.tt-charsheet__band::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--f, 0%); background: var(--rim); }
+.tt-charsheet__band:nth-child(1) { height: 28px; }
+.tt-charsheet__band:nth-child(2) { height: 20px; }
+.tt-charsheet__band:nth-child(3) { height: 13px; }
+.tt-charsheet__band:nth-child(4) { height: 8px; }
+
+/* --- The receipt: derived stats printed by the Tally on enamel paper, dotted leaders, torn foot. */
+.tt-charsheet__receipt {
+  position: relative; align-self: start; display: flex; flex-direction: column; padding: 10px 12px 20px;
+  background: var(--enamel); color: var(--ink); border-radius: var(--radius-tag) var(--radius-tag) 0 0;
+  box-shadow: inset 0 4px 0 var(--enamel-shade);
+}
+.tt-charsheet__receipt::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -10px; height: 10px; background: var(--enamel);
+  clip-path: polygon(0% 0, 2.5% 100%, 5% 0, 7.5% 100%, 10% 0, 12.5% 100%, 15% 0, 17.5% 100%, 20% 0, 22.5% 100%, 25% 0, 27.5% 100%, 30% 0, 32.5% 100%, 35% 0, 37.5% 100%, 40% 0, 42.5% 100%, 45% 0, 47.5% 100%, 50% 0, 52.5% 100%, 55% 0, 57.5% 100%, 60% 0, 62.5% 100%, 65% 0, 67.5% 100%, 70% 0, 72.5% 100%, 75% 0, 77.5% 100%, 80% 0, 82.5% 100%, 85% 0, 87.5% 100%, 90% 0, 92.5% 100%, 95% 0, 97.5% 100%, 100% 0);
+}
+.tt-charsheet__rhead { display: flex; align-items: center; height: 24px; margin: 0 0 4px; color: var(--ink-muted); }
+.tt-charsheet__rows { display: flex; flex-direction: column; margin: 0; padding: 0; }
+.tt-charsheet__rdiv { margin: 7px -12px; }
+.tt-charsheet__row { position: relative; display: flex; align-items: center; gap: 4px; height: 24px; margin: 0 -6px; padding: 0 6px; border-radius: 4px; }
+.tt-charsheet__row dt { flex: 1 1 auto; display: flex; align-items: center; gap: 4px; min-width: 0; }
+.tt-charsheet__row dt .ui-label { flex: none; color: var(--ink-muted); }
+.tt-charsheet__row dd { flex: none; margin: 0; min-width: 76px; text-align: right; color: var(--ink); }
+.tt-charsheet__leader { flex: 1 1 auto; min-width: 8px; height: 2px; align-self: center; margin-top: 8px; background-image: radial-gradient(circle, var(--ink-muted) 1.2px, transparent 1.6px); background-size: 7px 2px; background-repeat: repeat-x; }
+.tt-charsheet__row.is-linked { background: var(--enamel-shade); }
+.tt-charsheet__row.is-linked dt .ui-label { color: var(--ink); font-weight: 700; }
+.tt-charsheet__row.is-linked::before { content: ""; position: absolute; left: -2px; top: 3px; bottom: 3px; width: 4px; border-radius: 2px; background: var(--ink); }
+
+/* --- Spec band helpers (below the screen only). */
+.tt-charsheet__notecards { display: grid; grid-template-columns: 196px; }
+.tt-charsheet__notestatuses { display: flex; flex-direction: column; gap: 8px; }
+.tt-charsheet__legend { display: flex; flex-direction: column; align-self: stretch; padding: 4px 12px; background: var(--plate-raised); border: 2px solid var(--lip); border-radius: var(--radius-key); }
+.tt-charsheet__legendcell { display: grid; grid-template-columns: 80px 1fr auto; column-gap: 14px; align-items: end; height: 38px; padding-bottom: 5px; }
+.tt-charsheet__legendcell + .tt-charsheet__legendcell { border-top: 2px solid color-mix(in srgb, var(--rim) 30%, transparent); }
+.tt-charsheet__legendcell .num-s { color: var(--text); }
+.tt-charsheet__legendcell .ui-label { color: var(--text-muted); }
+.tt-charsheet__head--note { height: auto; min-height: 76px; padding: 8px 14px; gap: var(--space-4); flex-wrap: wrap; align-self: stretch; }
+.tt-charsheet__notetext { color: var(--danger-text); }

@@ -1,0 +1,40 @@
+/* SpellCard: the spell detail card (ability_schema section 3), ItemCard's sibling. It IS an ItemCard
+   (.tt-itemcard: enamel card, ink outline, menu print; band with the grommet; body; stat strip; effect lines;
+   description) with a .tt-spellcard modifier. This partial only adds what a spell needs: the spell-points band
+   with the SP cost as pips, the 64 px glyph well (SpellSlot's well), a two-column stat strip and the
+   damage-type pill. Ink text only; colour rides the band, the well glyph and the pill. */
+.tt-spellcard { --band: var(--spell-points); }
+.tt-spellcard .tt-itemcard__band .tt-pips { flex: none; }
+
+/* The glyph well: SpellSlot's 64 x 64 well (D13) with the 48 px spell glyph in its HUD colour
+   (SpellSlot's .tt-spell__icon, --fire, --heal), so the card and the slot show the same picture. */
+.tt-spellcard__well {
+  display: flex; align-items: center; justify-content: center; flex: none; width: 64px; height: 64px;
+  border-radius: var(--radius-key); background: var(--well); border: var(--stroke-rim) solid var(--lip);
+}
+
+/* Stat strip: label | value, two columns (the item strip's third, delta, column is not used). */
+.tt-spellcard .tt-itemcard__stats { grid-template-columns: 1fr auto; row-gap: 4px; }
+.tt-spellcard .tt-itemcard__stats dd { display: flex; align-items: center; justify-content: flex-end; min-height: 30px; }
+.tt-spellcard__word { font-weight: 700; color: var(--ink); }
+
+/* Damage type: a core pill in the type's colour, ink text, the type glyph leading (Colour + glyph, never colour
+   alone). Heal uses the heal token and glyph. Physical would carry no glyph (D15); no spell here deals it. */
+.tt-spellcard__type { height: 30px; padding: 0 10px 0 6px; gap: 4px; font: 700 20px/1 var(--font-ui); }
+.tt-spellcard__type .tt-glyph { width: 20px; height: 20px; }
+.tt-spellcard__type--fire { --pill: var(--dmg-fire); }
+.tt-spellcard__type--heal { --pill: var(--heal); }
+
+/* --- Preview scaffolding: the specimen sheet and the "hung from a focused slot" proposal. */
+.tt-spellcard-sheet { display: flex; flex-direction: column; width: 1760px; background: var(--plate); }
+.tt-spellcard-sheet__body { display: flex; flex-direction: column; gap: 48px; padding: 44px 48px 48px; }
+.tt-spellcard-sheet__row { display: flex; align-items: flex-start; gap: 40px; }
+.tt-spellcard-sheet__cell { display: flex; flex-direction: column; gap: 18px; }
+/* The loadout panel: four SpellSlots in a plate-raised panel; the focused slot's card hangs from it on the light
+   string. The card's eyelet (x 21) sits under the first slot's centre (x 39 + 20 padding). */
+.tt-spellcard-hang { display: flex; flex-direction: column; align-items: flex-start; gap: 42px; padding: 24px 20px 28px; border-radius: var(--radius-tag); background: var(--plate-raised); border: var(--stroke-rim) solid var(--lip); }
+.tt-spellcard-hang__slots { display: flex; gap: 10px; }
+.tt-spellcard-hang > .tt-itemcard { --tt-itemcard-string: 66px; margin-left: 18px; }
+.tt-spellcard-sheet__cell--hang { width: 420px; }
+.tt-spellcard-sheet__cell--hang > .tt-spellcard-hang { align-self: flex-start; }
+.tt-spellcard-sheet > .tt-specband > .tt-specband__item { flex: 1 1 0; }

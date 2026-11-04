@@ -1,0 +1,45 @@
+/* InteractPrompt: bottom-centre (0, -36), 540 x 60, plus the "[I] Inventory" hint pill docked 12 px to its right.
+   An enamel tag with the eyelet, the interact keycap, PromptText ("Pick up {item}"; ui-body size at 700) and a socket
+   at the right end: the rarity badge for items, a context glyph for Talk / Activate / Climb / Open.
+   The tag is RIGHT-aligned in its box, so it always meets the pill across the same gap: one unit at any length.
+   Sizes are design px at 1920x1080. */
+
+/* The unit: tag + hint pill on one centre line, 12 px apart. */
+.tt-iprompt { display: inline-flex; align-items: center; gap: var(--space-3); }
+/* The prompt box (PickupPrompt's 540 x 60 map box): the tag hugs its content against the box's right edge. */
+.tt-iprompt__box { display: flex; align-items: center; justify-content: flex-end; width: 540px; height: 60px; flex: none; }
+
+/* The tag: core .tt-tag (grommet eyelet at x 16) at 60 px, capped at 540. */
+.tt-iprompt__tag { height: 60px; min-height: 60px; max-width: 540px; gap: var(--space-3); padding: 0 14px 0 40px; }
+.tt-iprompt__text {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 700; color: var(--ink);
+}
+.tt-iprompt__tag .tt-socket { padding: 5px 6px; }
+.tt-iprompt__ctx { color: var(--enamel); }
+.tt-iprompt__ctx .tt-glyph { width: 22px; height: 22px; }
+
+/* Inventory hint: a plate pill, I keycap + "Inventory" in text-muted. Always visible during play (D20), never moves:
+   x 1242-1393, y 994-1034. */
+.tt-iprompt__hint {
+  display: inline-flex; align-items: center; gap: var(--space-2); flex: none;
+  height: 40px; padding: 0 16px 0 4px; border-radius: var(--radius-pill);
+  background: var(--plate);
+  border: var(--stroke-rim) solid var(--rim); border-right-color: var(--rim-shade); border-bottom-color: var(--rim-shade);
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print);
+  white-space: nowrap;
+}
+.tt-iprompt__hint .tt-key { margin-left: 0; }
+.tt-iprompt__hint-text { color: var(--text-muted); }
+
+/* Today's build: PromptText and InventoryHintText still hold the bracket strings, so no keycaps are drawn yet. */
+.tt-iprompt--legacy .tt-iprompt__tag { padding-left: 44px; }
+.tt-iprompt--legacy .tt-iprompt__hint { padding-left: 16px; }
+
+/* Targeting (proposed with ground targeting, WorldMarkers): while the reticle is up the box holds the core hint bar
+   (TargetingHint), right-aligned against the pill like the tag. */
+.tt-iprompt__box > .tt-hintbar { flex: none; }
+
+/* Preview scaffolding: the prompt box outline in the 1:1 crops, a thin solid guide (a dashed edge means
+   unavailable, so no guide is dashed). */
+.tt-iprompt__spec { outline: 2px solid color-mix(in srgb, var(--world-dark) 45%, transparent); outline-offset: 0; }
