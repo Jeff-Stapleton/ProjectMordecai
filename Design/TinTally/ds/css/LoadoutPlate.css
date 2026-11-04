@@ -1,0 +1,33 @@
+/* LoadoutPlate: the equipped weapon. HUD bottom-right, offset (-32,-32), alignment (1,1), 340 x 84, a child of the
+   HUD root. [64 px well + 48 px weapon glyph] [name / damage subtype] [Tab keycap].
+   Inside the 2 px rim: 8 px left pad, 12 px gaps, 12 px right pad; the text column is 166 px (188 with round Y).
+   No strokes under the name (D1): the light-attack combo shows only as "Hit N" (CombatCallout). */
+.tt-loadout { position: relative; width: 340px; height: 84px; display: flex; align-items: center; gap: 12px; padding: 0 12px 0 8px; flex: none; }
+.tt-loadout__well { width: 64px; height: 64px; flex: none; border-radius: 8px; background: var(--well); border: 2px solid var(--lip); display: flex; align-items: center; justify-content: center; color: var(--text); }
+.tt-loadout__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tt-loadout__name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-loadout__sub { display: flex; align-items: center; gap: 4px; color: var(--text-muted); white-space: nowrap; }
+.tt-loadout__sub .tt-glyph { width: 20px; height: 20px; }
+.tt-loadout__fire { color: var(--dmg-fire); margin-left: 4px; }
+.tt-loadout__key { flex: none; }
+/* Retired (D1): the light-chain tally under the name. HUDLayout's copied markup still carries it; hidden until it
+   drops the element. Never draw it. */
+.tt-loadout__chain { display: none; }
+
+/* Unarmed: the fist glyph drops to text-muted; the name reads "Unarmed". The lip stays solid: dashed means
+   unavailable (D24), and having no weapon is a loadout, not a locked slot. */
+.tt-loadout.is-unarmed .tt-loadout__well { color: var(--text-muted); }
+
+/* Swap (OnWeaponChanged): the keycap sinks (KeyPress) and the plate dips 3 px, then springs back. The ink outline
+   stays whole (D22): only the print collapses. */
+.tt-loadout.is-swapping { transform: translateY(3px); box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 1px 0 var(--tt-outline) var(--tt-print); }
+
+/* ---- Preview scaffolding ---- */
+.tt-loadout-sheet { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); background: var(--plate); }
+.tt-loadout-sheet__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.tt-loadout-sheet__cell { display: flex; flex-direction: column; gap: var(--space-2); }
+.tt-loadout-sheet__cap { display: flex; flex-direction: column; gap: 0; }
+.tt-loadout-sheet__cap b { color: var(--text); font-weight: 700; }
+.tt-loadout-sheet__stage { display: flex; justify-content: center; align-items: center; padding: 22px 16px 26px; }
+.tt-loadout-sheet__corner { position: relative; height: 264px; overflow: hidden; }
+.tt-loadout-sheet__br { position: absolute; right: 32px; display: flex; justify-content: flex-end; }

@@ -1,0 +1,73 @@
+<!-- @dsCard group="HUD" height=1394 width=960 subtitle="Buff and debuff chips: glyph, name, stack pips, time; a sorted two-row strip under the spell slots" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>StatusChip</title></head>
+<body>
+<div class="tt-root tt-status-sheet" id="sheet">
+
+  <span class="kicker tt-caps tt-label">Polarity · shown at 2x</span>
+  <div class="tt-status-sheet__pair">
+    <div class="tt-status-sheet__cap tt-label"><b>Buff</b><span>Enamel chip, ink text, buff rim, a raised tab on top</span></div>
+    <div class="tt-status-sheet__cap tt-label"><b>Debuff</b><span>Plate chip, debuff rim, a pinked (sawtooth) hem</span></div>
+  </div>
+  <div class="tt-status-sheet__zoom tt-floor-blockout" data-chips="stoneskin:9.2 burning:4.2"></div>
+
+  <span class="kicker tt-caps tt-label">Every launch status at 1:1</span>
+  <div class="tt-status-sheet__stage tt-floor-blockout" data-chips="burning:4.2 bleeding:5.6 poisoned:7.1 weakened:6.3 brittle:2.9 cursed:8.8 corroded:9.5 stoneskin:9.2 restoration:4.0"></div>
+  <div class="tt-status-sheet__stage tt-floor-night" data-chips="silenced:4.1 rooted:2.4 blinded:3.3 fear:1.7 exposed:hit drenched:14.0 focused:streak"></div>
+
+  <span class="kicker tt-caps tt-label">Stack pips · Frostbitten 1-4, the 5th is Frozen · Shocked 1-3</span>
+  <div class="tt-status-sheet__stage tt-floor-grass" data-chips="frostbitten:5.8:1 frostbitten:5.1:3 frostbitten:4.4:4 frozen:2.0 shocked:4.6:1 shocked:3.2:3"></div>
+
+  <span class="kicker tt-caps tt-label">Strip at (32, 318) · Control, DoT, Debuff, Environmental, Buff</span>
+  <div class="tt-status-sheet__crop tt-floor-blockout">
+    <div class="tt-status-row" data-chips="burning:4.2 frostbitten:5.1:3 stoneskin:9.2 focused:streak"></div>
+    <div class="tt-plate tt-pad tt-status-sheet__cap tt-label"><b>4 statuses: full chips</b><span>Glyph, name and time while every chip fits in two rows of 456 px.</span></div>
+  </div>
+  <div class="tt-status-sheet__crop tt-floor-mire">
+    <div class="tt-status-row is-compact" data-chips="shocked:3.8:2 silenced:4.1 burning:4.2 frostbitten:5.1:3 exposed:hit drenched:14.0 more:2"></div>
+    <div class="tt-plate tt-pad tt-status-sheet__cap tt-label"><b>8 statuses: compact, +2</b><span>Every chip drops its name at once. Still a third row, so the last two in sort order (Stone Skin, Focused) give way to "+2".</span></div>
+  </div>
+</div>
+<script>
+(function () {
+  /* C(...) builds a class attribute, G(name) a glyph attribute. */
+  function C() { return ' class=' + JSON.stringify([].filter.call(arguments, Boolean).join(' ')); }
+  function G(n) { return ' data-glyph=' + JSON.stringify(n); }
+  /* id: [display name, polarity, glyph tint, full duration s, max stacks] */
+  var S = {
+    burning: ['Burning', 'debuff', 'fire', 5], bleeding: ['Bleeding', 'debuff', 'vital', 6], poisoned: ['Poisoned', 'debuff', 'poison', 8],
+    frostbitten: ['Frostbitten', 'debuff', 'frost', 6, 4], frozen: ['Frozen', 'debuff', 'frost', 2], shocked: ['Shocked', 'debuff', 'lightning', 5, 3],
+    weakened: ['Weakened', 'debuff', '', 8], brittle: ['Brittle', 'debuff', 'frost', 7], silenced: ['Silenced', 'debuff', '', 5],
+    rooted: ['Rooted', 'debuff', '', 3], blinded: ['Blinded', 'debuff', '', 4], fear: ['Fear', 'debuff', 'curse', 5],
+    cursed: ['Cursed', 'debuff', 'curse', 10], exposed: ['Exposed', 'debuff', 'danger', 5], corroded: ['Corroded', 'debuff', 'corrosive', 10],
+    drenched: ['Drenched', 'debuff', 'frost', 15], focused: ['Focused', 'buff', '', 0], stoneskin: ['Stone Skin', 'buff', '', 10],
+    restoration: ['Restoration', 'buff', '', 5]
+  };
+  function chip(spec) {
+    var a = spec.split(':');
+    if (a[0] === 'more') return '<span class="tt-status tt-status--more" aria-label="' + a[1] + ' more statuses"><span class="num-s">+' + a[1] + '</span></span>';
+    var s = S[a[0]], t = a[1], n = +a[2] || 0, time, wide = '';
+    if (t === 'hit') { time = '1 hit'; wide = 'tt-status__time--text'; }
+    else if (t === 'streak') { time = '3/3'; wide = 'tt-status__time--word'; }
+    else { time = t; wide = s[3] >= 10 && 'tt-status__time--4'; }
+    /* Stacks are pips (D1): a filled disc per stack reached, a hollow ring per stack still ahead. */
+    var pips = '';
+    if (s[4]) {
+      pips = '<span' + C('tt-pips', 'tt-status__pips', s[2] && 'tt-status__pips--' + s[2]) + ' role="img" aria-label="' + n + ' of ' + s[4] + ' stacks">';
+      for (var k = 0; k < s[4]; k++) pips += '<span' + C('tt-pip', k < n && 'is-on') + '></span>';
+      pips += '</span>';
+    }
+    return '<span' + C('tt-status', 'tt-status--' + s[1]) + ' aria-label="' + s[0] + '">' +
+      '<span' + C('tt-glyph', 'tt-status__glyph', s[2] && 'tt-status__glyph--' + s[2]) + G(a[0]) + ' aria-hidden="true"></span>' +
+      '<span class="tt-status__name">' + s[0] + '</span>' + pips +
+      '<span' + C('num-s', 'tt-status__time', wide) + '>' + time + '</span></span>';
+  }
+  document.querySelectorAll('[data-chips]').forEach(function (el) {
+    el.innerHTML = el.getAttribute('data-chips').split(' ').map(chip).join('');
+  });
+  TinTally.mount(document.getElementById('sheet'));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!-- @dsCard group="Front end" height=1540 width=1920 subtitle="Title screen: the wordmark plate, four menu tags threaded under the rail, the toy island backdrop, the hint bar and the dev stamp" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>TitleScreen</title></head>
+<body>
+<div class="tt-root">
+
+  <!-- 1920x1080: the first screen after boot (replaces W_LyraFrontEnd on L_LyraFrontEnd). Keyboard and mouse (D5). -->
+  <section class="tt-fe-screen" aria-label="Title screen at 1920 by 1080">
+
+    <!-- World stand-in: the front-end level, a toy island in a dark case. Not UI. -->
+    <div class="tt-fe-world" aria-hidden="true">
+      <div class="tt-fe-dio">
+        <div class="tt-fe-dio__shadow"></div>
+        <div class="tt-fe-dio__top">
+          <div class="tt-diorama">
+            <span class="tt-diorama__path" style="left:384px;top:192px;width:288px;height:96px"></span>
+            <span class="tt-diorama__path" style="left:384px;top:192px;width:96px;height:208px"></span>
+            <span class="tt-diorama__pond" style="left:72px;top:200px"></span>
+          </div>
+        </div>
+        <div class="tt-fe-dio__cliff"></div>
+        <div class="tt-fe-dio__fringe"></div>
+        <div class="tt-fe-dio__plinth"></div>
+
+        <span class="tt-diorama__tree" style="left:36px;top:40px"></span>
+        <span class="tt-diorama__tree" style="left:132px;top:66px"></span>
+        <span class="tt-fe-relic" style="left:596px;top:104px">
+          <span class="tt-fe-relic__slot"></span>
+          <span class="tt-fe-relic__ticket"></span>
+          <span class="tt-fe-relic__rivet" style="left:12px;top:44px"></span>
+          <span class="tt-fe-relic__rivet" style="right:12px;top:44px"></span>
+          <span class="tt-fe-relic__rivet" style="left:12px;bottom:12px"></span>
+          <span class="tt-fe-relic__rivet" style="right:12px;bottom:12px"></span>
+          <span class="tt-fe-relic__moss"></span>
+        </span>
+        <span class="tt-diorama__tree" style="left:712px;top:150px"></span>
+        <span class="tt-diorama__rock" style="left:246px;top:180px"></span>
+        <span class="tt-diorama__bush" style="left:600px;top:420px"></span>
+        <span class="tt-fe-flower" style="left:168px;top:420px"></span>
+        <span class="tt-fe-flower tt-fe-flower--storm" style="left:196px;top:444px"></span>
+        <span class="tt-fe-flower tt-fe-flower--storm" style="left:560px;top:392px"></span>
+        <span class="tt-diorama__post" style="left:326px;top:262px"></span>
+        <span class="tt-diorama__post" style="left:326px;top:342px"></span>
+        <span class="tt-diorama__post" style="left:326px;top:422px"></span>
+        <span class="tt-diorama__rock" style="left:714px;top:370px"></span>
+      </div>
+      <div class="tt-fe-vignette"></div>
+    </div>
+
+    <!-- Wordmark: pressed-tin menu plate with rivets, the seal, two-line PROJECT MORDECAI, a quiet rule, the tagline. -->
+    <header class="tt-plate tt-plate--menu tt-title-mark">
+      <span class="tt-title-rivet" style="left:12px;top:12px"></span>
+      <span class="tt-title-rivet" style="right:12px;top:12px"></span>
+      <span class="tt-title-rivet" style="left:12px;bottom:12px"></span>
+      <span class="tt-title-rivet" style="right:12px;bottom:12px"></span>
+      <span class="tt-title-seal"><span class="tt-glyph tt-glyph--64" data-glyph="seal" aria-label="The Tally seal"></span></span>
+      <div class="tt-title-lockup">
+        <h1 class="tally-display tt-caps tt-title-word"><span>Project</span> <span>Mordecai</span></h1>
+        <hr class="tt-divider tt-title-rule">
+        <p class="ui-title tt-title-tagline">Everything counts. Nothing lasts.</p>
+      </div>
+    </header>
+
+    <!-- Menu: four tags threaded on one cord under the rail. The cord runs behind the tags, crosses each face
+         from the top edge into the eyelet, and ends in a knot under Quit. Play has focus on boot. -->
+    <nav class="tt-title-menu" aria-label="Main menu">
+      <span class="tt-railbar tt-title-menu__rail" aria-hidden="true"></span>
+      <span class="tt-string tt-string--light tt-fe-cord tt-fe-cord--threaded tt-fe-cord--knot tt-title-menu__cord" aria-hidden="true"></span>
+      <ul class="tt-title-menu__tags">
+        <li class="tt-tag tt-fe-tag is-focused" role="button"><span class="tt-fe-thread" aria-hidden="true"></span><span class="tt-key tt-key--sm tt-key--wide">Enter</span><span class="tally-heading tt-fe-tag__label">Play</span></li>
+        <li class="tt-tag tt-fe-tag" role="button"><span class="tt-fe-thread" aria-hidden="true"></span><span class="tally-heading tt-fe-tag__label">Options</span></li>
+        <li class="tt-tag tt-fe-tag" role="button"><span class="tt-fe-thread" aria-hidden="true"></span><span class="tally-heading tt-fe-tag__label">Credits</span></li>
+        <li class="tt-tag tt-fe-tag" role="button"><span class="tt-fe-thread" aria-hidden="true"></span><span class="tally-heading tt-fe-tag__label">Quit</span></li>
+      </ul>
+    </nav>
+
+    <!-- Dev builds only: version stamp. No Lyra watermarks, no Player 1/2, no ADD PLAYER, no UE roundel. -->
+    <div class="tt-plate tt-fe-version num-s"><span class="tt-fe-version__tag">Dev</span>0.1.0-dev · 797972d · Development</div>
+
+    <div class="tt-hintbar tt-fe-hints" aria-label="Menu actions">
+      <span class="tt-hint"><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-up" aria-label="Up"></span></span><span class="tt-key tt-key--sm"><span class="tt-glyph tt-glyph--20" data-glyph="arrow-down" aria-label="Down"></span></span>Move</span>
+      <span class="tt-hintbar__sep" aria-hidden="true"></span>
+      <span class="tt-hint"><span class="tt-key tt-key--sm tt-key--wide">Enter</span>Select</span>
+    </div>
+  </section>
+
+  <!-- Spec band (D7): menu tag states and the gamepad hint bar. -->
+  <section class="tt-specband tt-fe-band" aria-label="Menu tag states">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Default</p>
+      <div class="tt-fe-specimen"><span class="tt-tag tt-fe-tag"><span class="tally-heading tt-fe-tag__label">Options</span></span></div>
+      <p class="tt-label">Enamel tag, ink outline, 4 px print.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Hover (mouse)</p>
+      <div class="tt-fe-specimen"><span class="tt-tag tt-fe-tag is-hover"><span class="tally-heading tt-fe-tag__label">Credits</span></span></div>
+      <p class="tt-label">Lifts 2 px, print 6 px.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Focused</p>
+      <div class="tt-fe-specimen"><span class="tt-tag tt-fe-tag is-focused"><span class="tt-key tt-key--sm tt-key--wide">Enter</span><span class="tally-heading tt-fe-tag__label">Play</span></span></div>
+      <p class="tt-label">Swings 3° about the eyelet; core focus ring; the Enter keycap leads the label.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Pressed</p>
+      <div class="tt-fe-specimen"><span class="tt-tag tt-fe-tag is-focused is-pressed"><span class="tt-key tt-key--sm tt-key--wide is-pressed">Enter</span><span class="tally-heading tt-fe-tag__label">Play</span></span></div>
+      <p class="tt-label">Sinks 3 px, print 1 px, a sunk lip along the top.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Gamepad hint bar</p>
+      <div class="tt-fe-specimen"><div class="tt-hintbar"><span class="tt-hint"><span class="tt-key tt-key--dpad tt-key--dpad-up" aria-label="D-pad"></span>Move</span><span class="tt-hintbar__sep" aria-hidden="true"></span><span class="tt-hint"><span class="tt-key tt-key--pad">A</span>Select</span></div></div>
+      <p class="tt-label">Shown only after a pad is used (one device per screen). Left stick also moves.</p>
+    </div>
+  </section>
+</div>
+</body>
+</html>

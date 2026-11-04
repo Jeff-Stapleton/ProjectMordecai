@@ -1,0 +1,45 @@
+<!-- @dsCard group="Front end" height=1320 width=1920 subtitle="Loading screen: an opaque plate with the wordmark, Loading... beside the throbber, and one tip" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>LoadingScreen</title></head>
+<body>
+<div class="tt-root">
+
+  <!-- 1920x1080: shown on every map and experience load, held 2 s after the experience loads. Opaque. -->
+  <section class="tt-load" aria-label="Loading screen at 1920 by 1080">
+    <div class="tt-load__lockup">
+      <h1 class="tally-display tt-caps tt-load__word">Project Mordecai</h1>
+      <div class="tt-load__status">
+        <span class="tt-tally-throbber" role="img" aria-label="Loading"><span class="tt-tally" data-tally="0" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span><span class="tt-tally" data-tally="1" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span><span class="tt-tally" data-tally="2" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span><span class="tt-tally" data-tally="3" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span><span class="tt-tally" data-tally="4" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span><span class="tt-tally" data-tally="5" data-max="5" data-height="32" data-stroke="4" data-pitch="7"></span></span>
+        <span class="ui-body tt-load__status-text">Loading...</span>
+      </div>
+    </div>
+
+    <p class="tt-load__tip"><span class="ui-label tt-load__tip-label">Tip</span><span class="tt-key tt-key--sm">F</span><span class="ui-body">Pick up items. You can carry everything you find.</span></p>
+  </section>
+
+  <!-- Spec band (D7): the throbber frames at 2x and the rules. -->
+  <section class="tt-specband tt-fe-band" aria-label="Throbber frames">
+    <div class="tt-specband__item tt-fe-specwide">
+      <p class="tt-specband__title">Throbber frames (2x)</p>
+      <div class="tt-load-frames">
+        <div class="tt-load-frame"><span class="tt-load-frame__well"><span class="tt-tally" data-tally="1" data-max="5" data-height="64" data-stroke="8" data-pitch="14"></span></span><span class="tt-label">1</span></div>
+        <div class="tt-load-frame"><span class="tt-load-frame__well"><span class="tt-tally" data-tally="2" data-max="5" data-height="64" data-stroke="8" data-pitch="14"></span></span><span class="tt-label">2</span></div>
+        <div class="tt-load-frame"><span class="tt-load-frame__well"><span class="tt-tally" data-tally="3" data-max="5" data-height="64" data-stroke="8" data-pitch="14"></span></span><span class="tt-label">3</span></div>
+        <div class="tt-load-frame"><span class="tt-load-frame__well"><span class="tt-tally" data-tally="4" data-max="5" data-height="64" data-stroke="8" data-pitch="14"></span></span><span class="tt-label">4</span></div>
+        <div class="tt-load-frame"><span class="tt-load-frame__well"><span class="tt-tally" data-tally="5" data-max="5" data-height="64" data-stroke="8" data-pitch="14"></span></span><span class="tt-label">Slash</span></div>
+        <div class="tt-load-frame"><span class="tt-load-frame__well"><span class="tt-tally" data-tally="0" data-max="5" data-height="64" data-stroke="8" data-pitch="14"></span></span><span class="tt-label">Blank</span></div>
+      </div>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Timing</p>
+      <p class="tt-label">The Throbber row in the brand book's Motion table. Lit strokes in the text colour; unlit strokes stay drawn, dotted, so the bundle never changes size. It keeps looping under Reduce Motion: it is the proof the game has not hung.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Ground</p>
+      <p class="tt-label">An opaque plate, no veil. World voice: the wordmark and the throbber are its only Tally pieces. No tally field, no tally rule, no seal, no remarks.</p>
+    </div>
+  </section>
+</div>
+</body>
+</html>

@@ -1,0 +1,123 @@
+/* MageTower: the Identify service screen (UI.Layer.Menu), the first instance of the ServiceScreen pattern.
+   PauseShell's service-screen hooks frame it: .tt-pause__title--screen (the nameplate on 52 px light strings,
+   glyph + title) and the hint bar (core .tt-hintbar placed by .tt-pause__footer, moved with
+   --tt-pause-footer-top). One menu plate: the sealed tags on the left, the appraisal tray (the selected item's
+   card hung from the one rail, core .tt-railbar, on the light string) and the counter with the Identify keycap.
+   ServiceScreen reuses .tt-mage-screen, -shell, -panel, -main, -tray, -tray__hang, -ear, -counter, -quote__*
+   and -identify: keep those names. */
+
+/* --- Screen frame (preview scaffolding for the 1920x1080 mockup): the toy diorama and the real HUD under the veil. */
+.tt-mage-sheet { display: flex; flex-direction: column; width: 1920px; background: var(--plate); }
+.tt-mage-screen { position: relative; flex: none; width: 1920px; height: 1080px; overflow: hidden; isolation: isolate; --tt-pause-footer-top: 966px; }
+.tt-mage-screen__world, .tt-mage-screen__veil { position: absolute; inset: 0; }
+/* The HUD (HUDLayout's .tt-hud stage) as its own stacking context, so its keycaps and rivets stay under the veil. */
+.tt-mage-screen > .tt-pause__hud { position: absolute; left: 0; top: 0; z-index: 0; }
+
+/* Shell: one menu plate, two columns. */
+.tt-mage-shell {
+  position: absolute; left: 96px; top: 140px; width: 1728px; height: 796px; padding: var(--space-5);
+  display: grid; grid-template-columns: 560px 1fr; gap: var(--space-5);
+}
+.tt-mage-main { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+.tt-mage-main > .tt-mage-tray { flex: 1; }
+/* The counter under the tray: the quote (ledger rows), one plain line, the Identify keycap. */
+.tt-mage-counter {
+  display: flex; align-items: center; gap: 28px; padding: 14px 16px 14px 22px;
+  border-radius: var(--radius-tag); background: var(--plate-raised); border: var(--stroke-rim) solid var(--lip);
+}
+.tt-mage-counter .tt-mage-quote__rows { flex: none; width: 260px; }
+.tt-mage-counter .tt-mage-quote__body { flex: 1; min-width: 0; }
+.tt-mage-counter .tt-mage-identify { flex: none; width: 300px; margin-top: 0; }
+
+/* Left: the sealed tags (core .tt-tag: enamel, ink outline, grommet eyelet). */
+.tt-mage-panel {
+  display: flex; flex-direction: column; gap: 14px; min-height: 0; padding: 16px 18px 18px;
+  border-radius: var(--radius-tag); background: var(--plate-raised); border: var(--stroke-rim) solid var(--lip);
+}
+.tt-mage-panel__head { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--text); }
+.tt-mage-panel__head .tt-glyph { color: var(--text-muted); }
+.tt-mage-panel__count { margin-left: auto; }
+.tt-mage-list { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 6px 0 0; list-style: none; }
+/* Tags stop 12 px short of the panel edge so the selected one can slide 12 px right and its core focus ring
+   (outline width out, plus the keyline) still clears the panel's lip. */
+.tt-mage-tag { display: flex; width: calc(100% - 12px); min-height: 68px; gap: 12px; padding-right: 14px; }
+.tt-mage-tag.is-selected { transform: translateX(12px); }
+.tt-mage-tag__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.tt-mage-tag__name { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-mage-tag__sub { color: var(--ink-muted); }
+.tt-mage-tag__stamp {
+  display: flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px;
+  border-radius: 50%; border: 2px solid var(--ink); color: var(--ink); transform: rotate(-8deg);
+}
+/* Empty: the one empty state (core .tt-empty, D8) centred in what is left of the panel. */
+.tt-mage-panel > .tt-empty-box { flex: 1 1 auto; min-height: 0; }
+
+/* Centre: the appraisal tray. The one rail (core .tt-railbar, D23), the core light string, the selected item's
+   ItemCard hung from a reinforced ear at the top centre. */
+.tt-mage-tray {
+  position: relative; min-height: 0; overflow: hidden;
+  border-radius: var(--radius-plate); background: var(--well); border: var(--stroke-rim) solid var(--lip);
+}
+.tt-mage-tray__rail { position: absolute; left: 50%; top: 36px; z-index: 2; width: 440px; margin-left: -220px; }
+.tt-mage-tray__string { position: absolute; left: 50%; top: 48px; z-index: 1; margin: 0 0 0 -2px; height: 32px; }
+.tt-mage-tray__hang { position: absolute; left: 50%; top: 96px; transform: translateX(-50%) scale(var(--tt-mage-scale, 1.4)); transform-origin: 50% 0; }
+.tt-mage-tray__hang--1x { --tt-mage-scale: 1; }
+/* The tray card hangs from a reinforced ear at the top centre instead of the band's side eyelet.
+   The hole is the core grommet (well hole, enamel-shade ring, ink ring). */
+.tt-mage-ear {
+  position: absolute; left: 50%; top: -30px; width: 58px; height: 36px; margin-left: -29px; z-index: 0;
+  border-radius: 12px 12px 0 0; background: var(--enamel);
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink);
+}
+.tt-mage-ear::before {
+  content: ""; position: absolute; left: 50%; top: 11px; width: 10px; height: 10px; margin-left: -5px;
+  border-radius: 50%; background: var(--well); box-shadow: 0 0 0 3px var(--enamel-shade), 0 0 0 5px var(--ink);
+}
+.tt-mage-ear + .tt-itemcard__band { padding-left: 18px; }
+.tt-mage-ear + .tt-itemcard__band::before { display: none; }
+
+/* Reveal overlay pieces (drawn on an overlay layer above the tag; the name TextBlock is set once). */
+.tt-mage-stamp {
+  position: absolute; left: 4px; top: 80px; z-index: 2; display: flex; align-items: center; justify-content: center;
+  width: 60px; height: 60px; border-radius: 50%; background: var(--band, var(--rarity-purple)); color: var(--ink);
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 0 0 calc(var(--tt-outline) + 5px) var(--band, var(--rarity-purple)), 0 0 0 calc(var(--tt-outline) + 8px) var(--ink);
+  transform: rotate(-12deg) scale(.92);
+}
+.tt-itemcard__stamp.is-struck { background: var(--band); }
+/* The retainer mask: the full name sits under it; the mask slides off to the right behind a 4 px wipe head
+   in the rarity colour. Hatched like the sealed strip, so a frame reads "not yet revealed", never "clipped". */
+.tt-mage-wipe { position: relative; display: inline-block; white-space: nowrap; }
+.tt-mage-wipe__mask {
+  position: absolute; left: 58%; right: -8px; top: -3px; bottom: -3px;
+  display: flex; align-items: center; padding-left: 8px; color: var(--ink-muted);
+  background-color: var(--enamel);
+  background-image: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ink) 14%, transparent) 0 3px, transparent 3px 10px);
+  border-left: 4px solid var(--band); box-shadow: -2px 0 0 var(--ink), inset 0 0 0 2px color-mix(in srgb, var(--ink) 25%, transparent);
+  border-radius: 0 4px 4px 0;
+}
+
+/* The quote rows and the Identify keycap. */
+.tt-mage-quote__rows { display: flex; flex-direction: column; gap: 8px; }
+.tt-mage-quote__row { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+.tt-mage-quote__row b { color: var(--text); font-weight: 700; }
+.tt-mage-quote__dots { flex: 1; min-width: 24px; height: 0; margin-top: 12px; border-bottom: 3px dotted var(--lip); }
+.tt-mage-quote__body { margin: 0; color: var(--text-muted); }
+/* Identify: a big keycap button, the Enter keycap leading its verb (D4). It carries its own ink outline, so the
+   core focus ring and keyline sit right outside it with no local rule. */
+.tt-mage-identify {
+  display: flex; align-items: center; justify-content: center; gap: 14px; width: 100%; height: 72px; margin-top: auto;
+  border: 3px solid var(--ink); border-radius: var(--radius-tag); background: var(--enamel); color: var(--ink);
+  box-shadow: inset 0 -6px 0 var(--enamel-shade), 0 0 0 var(--tt-outline) var(--ink), 0 6px 0 var(--tt-outline) var(--tt-print);
+}
+.tt-mage-identify.is-pressed { transform: translateY(4px); box-shadow: inset 0 -2px 0 var(--enamel-shade), 0 0 0 var(--tt-outline) var(--ink), 0 2px 0 var(--tt-outline) var(--tt-print); }
+.tt-mage-identify[aria-disabled="true"] { background: var(--plate); color: var(--text-disabled); border: 2px dashed var(--lip); box-shadow: none; }
+
+/* --- Spec band (below the screen only): the reveal storyboard at 1:1, four columns of 416. */
+.tt-mage-band > .tt-specband__item { flex: 0 0 416px; max-width: 416px; }
+.tt-mage-band .tt-mage-tray { width: 416px; height: 500px; flex: none; }
+.tt-mage-band .tt-mage-tray__rail { top: 34px; width: 300px; margin-left: -150px; }
+.tt-mage-band .tt-mage-tray__string { top: 46px; height: 34px; }
+.tt-mage-band .tt-mage-tray__hang { top: 112px; }
+.tt-mage-band .tt-mage-panel { width: 416px; height: 500px; flex: none; }
+.tt-mage-states { display: grid; grid-template-columns: 300px; gap: 14px; }
+.tt-mage-specimen { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin: 0; width: 300px; }

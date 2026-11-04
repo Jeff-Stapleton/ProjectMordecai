@@ -1,0 +1,199 @@
+<!-- @dsCard group="Menus" height=3236 width=1920 subtitle="You Died: a World-voice plate in the foe inlay mat with a seal countdown ring, over veil-death and the live arena; the HUD hidden, then back at Kills: 0" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>DeathScreen</title></head>
+<body>
+<div class="tt-root tt-death-sheet" id="sheet">
+
+  <header class="tt-death-head">
+    <span class="kicker tt-caps">1 · Countdown 3 · the HUD is hidden, the arena keeps running</span>
+    <span class="tt-label">The death screen is the top of the UI.Layer.Game stack, so the HUD under it is not drawn. Death does not pause: the world moves under veil-death.</span>
+  </header>
+
+  <!-- 1920x1080, countdown 3 (RespawnDelaySeconds 3.0, ring just started to drain). -->
+  <section class="tt-death-screen" id="death-main" aria-label="Death screen, countdown 3">
+    <div class="tt-diorama" id="arena" aria-hidden="true">
+      <div class="tt-diorama__patch" style="left:1150px; top:600px; width:640px; height:380px;"></div>
+      <div class="tt-diorama__patch" style="left:-120px; top:-80px; width:560px; height:300px;"></div>
+      <div class="tt-diorama__path" style="left:864px; top:800px; height:300px;"></div>
+      <div class="tt-diorama__pond" style="left:210px; top:760px;"></div>
+      <div class="tt-diorama__tree" style="left:120px; top:250px;"></div>
+      <div class="tt-diorama__tree" style="left:300px; top:90px;"></div>
+      <div class="tt-diorama__tree" style="left:1640px; top:120px;"></div>
+      <div class="tt-diorama__tree" style="left:1772px; top:380px;"></div>
+      <div class="tt-diorama__tree" style="left:520px; top:880px;"></div>
+      <div class="tt-diorama__tree" style="left:1600px; top:860px;"></div>
+      <div class="tt-diorama__bush" style="left:452px; top:300px;"></div>
+      <div class="tt-diorama__bush" style="left:1420px; top:250px;"></div>
+      <div class="tt-diorama__bush" style="left:1300px; top:930px;"></div>
+      <div class="tt-diorama__bush" style="left:96px; top:520px;"></div>
+      <div class="tt-diorama__rock" style="left:700px; top:150px;"></div>
+      <div class="tt-diorama__rock" style="left:1190px; top:120px;"></div>
+      <div class="tt-diorama__rock" style="left:1720px; top:660px;"></div>
+      <div class="tt-diorama__crate" style="left:400px; top:610px;"></div>
+      <div class="tt-diorama__crate" style="left:470px; top:650px;"></div>
+      <div class="tt-diorama__crate" style="left:1460px; top:470px;"></div>
+      <div class="tt-diorama__post" style="left:820px; top:60px;"></div>
+      <div class="tt-diorama__post" style="left:884px; top:60px;"></div>
+      <div class="tt-diorama__post" style="left:948px; top:60px;"></div>
+      <div class="tt-diorama__post" style="left:1012px; top:60px;"></div>
+      <div class="tt-diorama__post" style="left:1076px; top:60px;"></div>
+    </div>
+    <div class="tt-death__veil"></div>
+    <div class="tt-death__plate tt-plate tt-plate--menu" role="alert">
+      <div class="tt-banner__mat"><div class="tt-banner__panel tt-death__panel">
+        <h1 class="tt-death__title world-title tt-caps">You Died</h1>
+        <hr class="tt-divider tt-death__rule">
+        <div class="tt-death__ring" style="--p: .9"><span class="tt-death__num num-xl">3</span></div>
+        <span class="tt-death__kills num-l">Kills: 4</span>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- The sequence at 1:1 (640 x 520 crops of the same screen), filled from #death-main by the script below. -->
+  <section class="tt-death-strip" aria-label="Death screen sequence">
+    <div class="tt-death-strip__cell">
+      <span class="tt-label"><b>2 · Enter</b> · halfway through BannerFade in (Banner's World-voice motion); the veil fades in with it.</span>
+      <div class="tt-death-crop" data-death='{"state":"is-entering","p":1,"n":"3"}'></div>
+    </div>
+    <div class="tt-death-strip__cell">
+      <span class="tt-label"><b>3 · Countdown 1</b> · CountdownText "1", the ring at a quarter.</span>
+      <div class="tt-death-crop" data-death='{"state":"","p":0.25,"n":"1"}'></div>
+    </div>
+    <div class="tt-death-strip__cell">
+      <span class="tt-label"><b>4 · Leave</b> · CountdownText empty: halfway through BannerFade out; the veil clears with it.</span>
+      <div class="tt-death-crop" data-death='{"state":"is-leaving","p":0,"n":""}'></div>
+    </div>
+  </section>
+
+  <header class="tt-death-head">
+    <span class="kicker tt-caps">5 · Respawned · the death screen pops, the HUD returns at Kills: 0</span>
+    <span class="tt-label">HUDLayout's markup and classes, refreshed in NativeOnActivated: full Health, Green stamina, 13 / 13 Spell Points, Kills reset by Mordecai.Event.PlayerDeath. Contextual pieces (status chips, quick items, prompts) come back when they have something to show.</span>
+  </header>
+
+  <section class="tt-death-screen" aria-label="After respawn: the HUD is back">
+    <div class="tt-diorama" data-world="arena" aria-hidden="true"></div>
+    <div class="tt-hud" aria-label="The HUD after respawn">
+      <div class="tt-hud__player" aria-label="Player"><div class="tt-callout__pawn"></div><div class="tt-callout__foot"></div></div>
+
+      <div class="tt-hud__gauge" data-gauge='{"hp":100,"st":100,"tier":"green","po":null,"sp":13,"spMax":13}'></div>
+
+      <div class="tt-hud__spells">
+        <div class="tt-plate tt-spell" aria-label="Fireball, Q, 3 SP, ready">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--fire" data-glyph="fireball" aria-label="Fireball"></span></div>
+          <div class="tt-spell__cost"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">Q</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Blink, E, 2 SP, ready">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="blink" aria-label="Blink"></span></div>
+          <div class="tt-spell__cost"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">E</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Stone Skin, R, 4 SP, ready">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="stoneskin" aria-label="Stone Skin"></span></div>
+          <div class="tt-spell__cost"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">R</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Restoration, 1, 3 SP, ready">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--heal" data-glyph="restoration" aria-label="Restoration"></span></div>
+          <div class="tt-spell__cost"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">1</span>
+        </div>
+      </div>
+
+      <div class="tt-hud__rail">
+        <div class="tt-rail">
+          <div class="tt-plate tt-plate--rail tt-railhead">
+            <div class="tt-plate__row"><span class="tt-railhead__kills num-l">Kills: 0</span></div>
+            <span class="tt-railhead__slot" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tt-hud__prompt">
+        <div class="tt-iprompt">
+          <div class="tt-iprompt__box"></div>
+          <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+        </div>
+      </div>
+
+      <div class="tt-hud__loadout">
+        <div class="tt-plate tt-loadout" aria-label="Equipped weapon">
+          <div class="tt-loadout__well"><span class="tt-glyph tt-glyph--48" data-glyph="longsword" aria-hidden="true"></span></div>
+          <div class="tt-loadout__body"><span class="ui-title tt-loadout__name">Longsword</span><span class="ui-label tt-loadout__sub"><span class="tt-glyph" data-glyph="slash" aria-hidden="true"></span><span>Slash</span></span></div>
+          <span class="tt-key tt-loadout__key">Tab</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tt-specband" aria-label="Spec notes">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Frame</p>
+      <p class="tt-label">A 600-wide menu plate holding Banner's inlay mat in foe (36 px ends, 14 px rails), the same frame as the boss intro. All text sits on the inner plate panel: one headline, one number, one count. No rivets, no eyelets, no tally strokes, no remark, no second line.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Countdown ring</p>
+      <p class="tt-label">The seal treatment: ink outline and print, a lip edge, the rim band for the time left, a dashed lip ring inside the well. It drains anticlockwise to 12 o'clock over RespawnDelaySeconds (3.0, AMordecaiGameMode); CountdownText shows the ceiling.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">HUD and input</p>
+      <p class="tt-label">Hidden while dead, back when the screen pops. The screen takes no input and shows no hint bar, so keyboard and gamepad look the same. Today the HUD is still AddToViewport and draws over the dim until the HUD moves to UI.Layer.Game.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Motion and open items</p>
+      <p class="tt-label">BannerFade in and out, as the World-voice Banner (no swing, no bounce); Reduce Motion drops the 16 px drop. Campaign death (what is lost, where you respawn, a button or not) is TODO(DECISION); this is the arena flow.</p>
+    </div>
+  </section>
+</div>
+<script>
+(function () {
+  /* The gauge plate, built exactly as GaugePlate's and HUDLayout's previews build it (same markup, same classes). */
+  function C() { return ' class=' + JSON.stringify([].filter.call(arguments, Boolean).join(' ')); }
+  var TIER = { green: ['green', '×1.25'], yellow: ['yellow', '×1.0'], red: ['red', '×0.75'], ex: ['exhausted', '×0.5'] };
+  function tokens(n, max) {
+    var h = '<span' + C('tt-tally-sp', max > 10 && 'tt-tally-sp--16') + ' aria-hidden="true">';
+    for (var g = 0; g < Math.ceil(max / 5); g++) {
+      h += '<span class="tt-tally-sp__group">';
+      for (var i = g * 5; i < Math.min(max, g * 5 + 5); i++) h += '<span' + C('tt-tally-sp__token', i < n && 'is-on') + '></span>';
+      h += '</span>';
+    }
+    return h + '</span>';
+  }
+  function notch(at) { return '<span class="tt-bar__notch" style="--at:' + at + '%"></span>'; }
+  function tick(at) { return '<span class="tt-gauge__tick" style="--at:' + at + '%"></span>'; }
+  function gauge(o) {
+    var t = TIER[o.tier], ex = o.tier === 'ex', low = o.hp <= 25, max = o.spMax || 10, po = o.po, stMax = o.stMax || 100;
+    var h = '<div' + C('tt-plate', 'tt-gauge', low && 'tt-gauge--low') + ' role="group" aria-label="Player resources">';
+    h += '<div class="tt-gauge__row tt-gauge__row--hp"><span class="num-s tt-gauge__label">HP</span><div class="tt-gauge__track">' + tick(25) +
+      '<div class="tt-bar tt-bar--vital" style="--v:' + o.hp + '%;--t:' + (o.trail || 0) + '%;--l:' + (o.lead || 0) + '%"><span class="tt-bar__trail"></span><span class="tt-bar__lead"></span><span class="tt-bar__fill"></span>' + notch(25) + '</div></div>' +
+      '<span class="num-l tt-gauge__value tt-gauge__value--hp">' + o.hp + '%</span></div>';
+    h += '<div class="tt-gauge__row tt-gauge__row--st"><span class="num-s tt-gauge__label">ST</span><div class="tt-gauge__track">' + tick(33) + tick(66) +
+      '<div' + C('tt-bar', ex ? 'tt-bar--exhausted' : 'tt-bar--' + t[0], o.tier === 'red' && 'is-striped') + ' style="--v:' + (ex ? 0 : o.st) + '%;--d:' + (ex ? Math.min(-o.st / stMax * 100, 50) : 0) + '%">' +
+      (ex ? '<span class="tt-bar__debt"></span>' : '<span class="tt-bar__fill"></span>') + notch(33) + notch(66) + '</div></div>' +
+      '<span' + C('tt-pill', 'tt-pill--' + t[0], 'tt-gauge__pill') + '>' + t[1] + '</span></div>';
+    h += '<div' + C('tt-gauge__row', 'tt-gauge__row--po', po === null && 'is-hidden') + '><span></span><div class="tt-gauge__track">' +
+      '<div class="tt-bar tt-bar--posture" style="--v:' + (typeof po === 'number' ? po : 0) + '%"><span class="tt-bar__fill"></span></div></div><span></span></div>';
+    h += '<div class="tt-gauge__row tt-gauge__row--sp"><span class="num-s tt-gauge__label">SP</span>' + tokens(o.sp, max) +
+      '<span class="num-m tt-gauge__value">' + o.sp + ' / ' + max + '</span></div>';
+    return h + '</div>';
+  }
+  document.querySelectorAll('[data-gauge]').forEach(function (el) { el.innerHTML = gauge(JSON.parse(el.getAttribute('data-gauge'))); });
+  /* The respawn frame stands in the same arena. */
+  document.querySelectorAll('[data-world]').forEach(function (el) { el.innerHTML = document.getElementById(el.getAttribute('data-world')).innerHTML; });
+  /* Sequence crops: copies of the main screen with the ring, the digit and the motion state changed. */
+  var src = document.getElementById('death-main');
+  document.querySelectorAll('[data-death]').forEach(function (host) {
+    var o = JSON.parse(host.getAttribute('data-death')), s = src.cloneNode(true);
+    s.removeAttribute('id'); s.setAttribute('aria-hidden', 'true');
+    s.querySelector('.tt-diorama').removeAttribute('id');
+    if (o.state) s.classList.add(o.state);
+    s.querySelector('.tt-death__ring').style.setProperty('--p', o.p);
+    s.querySelector('.tt-death__num').textContent = o.n;
+    host.appendChild(s);
+  });
+  TinTally.mount(document.getElementById('sheet'));
+})();
+</script>
+</body>
+</html>

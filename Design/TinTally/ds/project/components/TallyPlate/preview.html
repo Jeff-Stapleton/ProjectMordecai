@@ -1,0 +1,218 @@
+<!-- @dsCard group="Tally" height=3642 width=960 subtitle="The big-moment plate at top centre: feat tiers with their own glyphs and the Drawback box, technique, upgrade key, tool, level, and the last ticket" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>TallyPlate</title>
+<style>
+/* Preview scaffolding only. */
+.pv { display: flex; flex-direction: column; gap: 30px; padding: 24px 24px 32px; }
+.pv-sec { display: flex; flex-direction: column; gap: 14px; }
+.pv-h { margin: 0; color: var(--text-muted); }
+.pv-fig { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.pv-box { border-radius: 10px; box-shadow: 0 0 0 2px var(--lip); }
+.pv-top { position: relative; display: flex; justify-content: center; padding: 40px 0 36px; }
+/* The screen's top edge to the plate: the 40 px offset, a solid guide (dashed means "unavailable" in this system). */
+.pv-edge { position: absolute; top: 0; left: 50%; width: 2px; height: 40px; margin-left: -1px; background: var(--ink); opacity: .45; }
+.pv-tok { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.pv-label b { color: var(--text); }
+/* The tool badge sheet: six badges in a row on a spec plate. */
+.pv-tools { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; padding: 22px 10px 18px; }
+.pv-tool { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.pv-tool .tt-tallyplate__badge { margin-bottom: 10px; }
+.pv-tool__name { font: 600 20px/24px var(--font-ui); color: var(--text); }
+</style>
+</head>
+<body>
+<div class="tt-root pv">
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Feat unlocked · silhouette and word carry the tier</h2>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-blockout pv-top">
+        <span class="pv-edge" aria-hidden="true"></span>
+        <div class="tt-tallyplate-unit">
+          <div class="tt-plate tt-plate--moment tt-plate--riveted tt-tallyplate tt-tallyplate--common">
+            <span class="tt-tallyplate__badge tt-tallyplate__badge--common"><span class="tt-glyph tt-glyph--48" data-glyph="fire" aria-label="Pyromaniac"></span></span>
+            <div class="tt-tallyplate__text">
+              <span class="tt-tallyplate__kicker kicker tt-caps">Feat unlocked · Common</span>
+              <span class="tt-tallyplate__title tally-title">Pyromaniac</span>
+              <span class="tt-tallyplate__cause ui-label">Burned 6 enemies at once.</span>
+            </div>
+          </div>
+          <div class="tt-tag-hang tt-tag-hang--light tt-tallyplate__hang">
+            <span class="tt-tag tt-tallyplate__remark"><span class="tt-glyph tt-glyph--20" data-glyph="seal" aria-label="The Tally"></span>Six at once. The Tally checked twice.</span>
+          </div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Common</b> · circle in <span class="pv-tok">feat-common</span> carrying Pyromaniac's own glyph (<span class="pv-tok">fire</span>), kicker in the tier colour. Kicker, title and cause (CauseText) are complete on their own; the remark hangs below on the light cord and disappears with Tally remarks Off. 4 s.</figcaption>
+    </figure>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-mire pv-top">
+        <span class="pv-edge" aria-hidden="true"></span>
+        <div class="tt-tallyplate-unit">
+          <div class="tt-plate tt-plate--moment tt-plate--riveted tt-tallyplate tt-tallyplate--rare tt-tallyplate--drawback">
+            <span class="tt-tallyplate__badge tt-tallyplate__badge--rare"><span class="tt-glyph tt-glyph--48" data-glyph="block" aria-label="Steel Rhythm"></span></span>
+            <div class="tt-tallyplate__text">
+              <span class="tt-tallyplate__kicker kicker tt-caps">Feat unlocked · Rare</span>
+              <span class="tt-tallyplate__title tally-title">Steel Rhythm</span>
+              <span class="tt-tallyplate__cause ui-label">Landed 50 perfect parries.</span>
+            </div>
+            <div class="tt-drawback"><p class="tt-drawback__text"><span class="tt-drawback__label">Drawback</span>Blocking costs 25% more Stamina.</p></div>
+          </div>
+          <div class="tt-tag-hang tt-tag-hang--light tt-tallyplate__hang">
+            <span class="tt-tag tt-tallyplate__remark"><span class="tt-glyph tt-glyph--20" data-glyph="seal" aria-label="The Tally"></span>Fifty parries. The Tally kept time.</span>
+          </div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Rare</b> (example feat) · FLAT-TOP hexagon in <span class="pv-tok">feat-rare</span>. The plate grows to 184 for the one Drawback box (core <span class="pv-tok">.tt-drawback</span>: hatch strip, "Drawback", then DrawbackText). The light cord holds on the mire. 4 s.</figcaption>
+    </figure>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-grass pv-top">
+        <span class="pv-edge" aria-hidden="true"></span>
+        <div class="tt-tallyplate-unit">
+          <div class="tt-plate tt-plate--moment tt-plate--riveted tt-tallyplate tt-tallyplate--legendary tt-tallyplate--drawback">
+            <span class="tt-tallyplate__badge tt-tallyplate__badge--legendary"><span class="tt-glyph tt-glyph--48" data-glyph="fireball" aria-label="Living Furnace"></span></span>
+            <div class="tt-tallyplate__text">
+              <span class="tt-tallyplate__kicker kicker tt-caps">Feat unlocked · Legendary</span>
+              <span class="tt-tallyplate__title tally-title">Living Furnace</span>
+              <span class="tt-tallyplate__cause ui-label">Burned 6 enemies at once, 10 times.</span>
+            </div>
+            <div class="tt-drawback"><p class="tt-drawback__text"><span class="tt-drawback__label">Drawback</span>Frost damage taken +50%.</p></div>
+          </div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Legendary</b> (example feat), <b>remarks Off</b> · eight-point starburst in <span class="pv-tok">feat-legendary</span>, the glyph at 40 so the points stay clear. No tag hangs; nothing else changes. 5.5 s.</figcaption>
+    </figure>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Technique, upgrade key, tool, level</h2>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-sand pv-top">
+        <span class="pv-edge" aria-hidden="true"></span>
+        <div class="tt-tallyplate-unit">
+          <div class="tt-plate tt-plate--moment tt-plate--riveted tt-tallyplate">
+            <span class="tt-tallyplate__badge tt-tallyplate__badge--technique"><span class="tt-tallyplate__badgenum num-xl">10</span></span>
+            <div class="tt-tallyplate__text">
+              <span class="tt-tallyplate__kickerrow"><span class="tt-tallyplate__kicker kicker tt-caps">Technique · Rank 10</span><span class="tt-tally" data-tally="10" data-max="20" data-height="24" data-pitch="7" data-cap></span></span>
+              <span class="tt-tallyplate__title tally-title">Dodging</span>
+              <span class="tt-tallyplate__cause ui-label">Dodging now cancels light-attack recovery.</span>
+            </div>
+          </div>
+          <div class="tt-tag-hang tt-tag-hang--light tt-tallyplate__hang">
+            <span class="tt-tag tt-tallyplate__remark"><span class="tt-glyph tt-glyph--20" data-glyph="seal" aria-label="The Tally"></span>Ten. A tidy number.</span>
+          </div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Technique</b> (milestone 1 / 5 / 10 / 15 / 20) · square in <span class="pv-tok">good</span> with the rank; the 20-stroke rank tally rides the kicker row at Tally's skill-row size (24 tall, pitch 7, 148 px), lit in <span class="pv-tok">text</span> with the cap dot on rank 1, the rest dotted. The line is the milestone text from the skill data (example copy).</figcaption>
+    </figure>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-night pv-top">
+        <span class="pv-edge" aria-hidden="true"></span>
+        <div class="tt-tallyplate-unit">
+          <div class="tt-plate tt-plate--moment tt-plate--riveted tt-tallyplate">
+            <span class="tt-tallyplate__badge tt-tallyplate__badge--technique"><span class="tt-tallyplate__badgenum num-xl">20</span></span>
+            <div class="tt-tallyplate__text">
+              <span class="tt-tallyplate__kickerrow"><span class="tt-tallyplate__kicker kicker tt-caps">Technique · Rank 20</span><span class="tt-tally" data-tally="20" data-max="20" data-height="24" data-pitch="7" data-cap></span></span>
+              <span class="tt-tallyplate__title tally-heading">Two-Weapon Fighting</span>
+              <span class="tt-tallyplate__cause ui-label">Combo finishers now strike with both weapons.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Rank 20, longest title</b>, remarks Off · the full bundle in <span class="pv-tok">text</span> (a gold full bundle means rarity Gold only). "Two-Weapon Fighting" is 531 px in <span class="pv-tok">tally-title</span>, over the 474 px column, so it drops to <span class="pv-tok">tally-heading</span> (354 px). Line: example copy from the skill sheet's rank 20.</figcaption>
+    </figure>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-snow pv-top">
+        <span class="pv-edge" aria-hidden="true"></span>
+        <div class="tt-tallyplate-unit">
+          <div class="tt-plate tt-plate--moment tt-plate--riveted tt-tallyplate">
+            <span class="tt-tallyplate__badge tt-tallyplate__badge--key"><span class="tt-tallyplate__hole" aria-hidden="true"></span><span class="tt-glyph tt-glyph--48" data-glyph="upgrade-key" aria-label="Upgrade Key"></span></span>
+            <div class="tt-tallyplate__text">
+              <span class="tt-tallyplate__kicker kicker tt-caps">Upgrade key</span>
+              <span class="tt-tallyplate__title tally-title">Philosopher's Stone</span>
+              <span class="tt-tallyplate__cause ui-label">Unlocks the next Mage Tower tier.</span>
+            </div>
+          </div>
+          <div class="tt-tag-hang tt-tag-hang--light tt-tallyplate__hang">
+            <span class="tt-tag tt-tallyplate__remark"><span class="tt-glyph tt-glyph--20" data-glyph="seal" aria-label="The Tally"></span>One stone. Philosophy not included.</span>
+          </div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Upgrade key</b> · key-tag silhouette with a grommet, on <span class="pv-tok">enamel</span>. "Philosopher's Stone" (471 px) is the longest title the 474 px column takes; longer ones drop to <span class="pv-tok">tally-heading</span>.</figcaption>
+    </figure>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-grass pv-top">
+        <span class="pv-edge" aria-hidden="true"></span>
+        <div class="tt-tallyplate-unit">
+          <div class="tt-plate tt-plate--moment tt-plate--riveted tt-tallyplate">
+            <span class="tt-tallyplate__badge tt-tallyplate__badge--tool"><span class="tt-tallyplate__hole" aria-hidden="true"></span><span class="tt-glyph tt-glyph--48" data-glyph="explosives" aria-label="Explosives"></span></span>
+            <div class="tt-tallyplate__text">
+              <span class="tt-tallyplate__kicker kicker tt-caps">Tool</span>
+              <span class="tt-tallyplate__title tally-title">Explosives</span>
+              <span class="tt-tallyplate__cause ui-label">Opens cracked walls.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Tool</b> (traversal unlock), remarks Off · the key tag on <span class="pv-tok">good</span> with the tool's glyph, kicker "Tool", the tool's name, what it opens ("Opens cracked walls.", example copy). 4 s.</figcaption>
+    </figure>
+
+    <figure class="pv-fig">
+      <div class="tt-plate tt-plate--menu pv-tools">
+        <div class="pv-tool"><span class="tt-tallyplate__badge tt-tallyplate__badge--tool"><span class="tt-tallyplate__hole" aria-hidden="true"></span><span class="tt-glyph tt-glyph--48" data-glyph="explosives" aria-label="Explosives"></span></span><span class="pv-tool__name">Explosives</span></div>
+        <div class="pv-tool"><span class="tt-tallyplate__badge tt-tallyplate__badge--tool"><span class="tt-tallyplate__hole" aria-hidden="true"></span><span class="tt-glyph tt-glyph--48" data-glyph="magnet" aria-label="Magnetic Device"></span></span><span class="pv-tool__name">Magnetic Device</span></div>
+        <div class="pv-tool"><span class="tt-tallyplate__badge tt-tallyplate__badge--tool"><span class="tt-tallyplate__hole" aria-hidden="true"></span><span class="tt-glyph tt-glyph--48" data-glyph="shock-device" aria-label="Shock Device"></span></span><span class="pv-tool__name">Shock Device</span></div>
+        <div class="pv-tool"><span class="tt-tallyplate__badge tt-tallyplate__badge--tool"><span class="tt-tallyplate__hole" aria-hidden="true"></span><span class="tt-glyph tt-glyph--48" data-glyph="invisibility" aria-label="Invisibility Potion"></span></span><span class="pv-tool__name">Invisibility Potion</span></div>
+        <div class="pv-tool"><span class="tt-tallyplate__badge tt-tallyplate__badge--tool"><span class="tt-tallyplate__hole" aria-hidden="true"></span><span class="tt-glyph tt-glyph--48" data-glyph="phase" aria-label="Phase Talisman"></span></span><span class="pv-tool__name">Phase Talisman</span></div>
+        <div class="pv-tool"><span class="tt-tallyplate__badge tt-tallyplate__badge--tool"><span class="tt-tallyplate__hole" aria-hidden="true"></span><span class="tt-glyph tt-glyph--48" data-glyph="glider" aria-label="Glider Cloak"></span></span><span class="pv-tool__name">Glider Cloak</span></div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Tool badges</b> · one key tag per traversal tool (world design), each with its own glyph: <span class="pv-tok">explosives</span>, <span class="pv-tok">magnet</span>, <span class="pv-tok">shock-device</span>, <span class="pv-tok">invisibility</span>, <span class="pv-tok">phase</span>, <span class="pv-tok">glider</span>. The Phase Talisman drains Health, so its plate also carries the Drawback box and grows to 184.</figcaption>
+    </figure>
+
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-blockout pv-top">
+        <span class="pv-edge" aria-hidden="true"></span>
+        <div class="tt-tallyplate-unit">
+          <div class="tt-plate tt-plate--moment tt-plate--riveted tt-tallyplate">
+            <span class="tt-tallyplate__badge tt-tallyplate__badge--level"><span class="tt-tallyplate__drums"><span class="tt-tallyplate__drum num-xl">0</span><span class="tt-tallyplate__drum num-xl">7</span></span></span>
+            <div class="tt-tallyplate__text">
+              <span class="tt-tallyplate__kicker kicker tt-caps">Level up</span>
+              <span class="tt-tallyplate__title tally-title">Level 7</span>
+              <span class="tt-tallyplate__cause ui-label">+1 Skill Point</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Level up</b>, remarks Off · two odometer drums (max 60). <b>TODO(DECISION)</b>: there is no Level or XP system yet; the plate is specified so it lands in the family.</figcaption>
+    </figure>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Acceptance ending · the plate goes dark and prints its last ticket</h2>
+    <figure class="pv-fig">
+      <div class="pv-box tt-floor-night pv-top">
+        <span class="pv-edge" aria-hidden="true"></span>
+        <div class="tt-tallyplate-unit">
+          <div class="tt-plate tt-plate--moment tt-plate--riveted tt-tallyplate tt-tallyplate--off is-unlit">
+            <span class="tt-tallyplate__badge tt-tallyplate__badge--off"><span class="tt-glyph tt-glyph--64" data-glyph="seal" aria-label="The Tally"></span></span>
+            <span class="tt-tallyplate__slot" aria-hidden="true"></span>
+          </div>
+          <div class="tt-tag-hang tt-tag-hang--light tt-tallyplate__last">
+            <span class="tt-tag ui-title">Count closed.</span>
+          </div>
+        </div>
+      </div>
+      <figcaption class="tt-label pv-label"><b>Last ticket.</b> Rim, rivets and seal step to <span class="pv-tok">.is-unlit</span> and the rail head stops. A slot opens under the dark seal and one plain ticket drops from it on the light cord and stays. No kicker, no remark, no sound but the print tick.</figcaption>
+    </figure>
+  </section>
+
+</div>
+</body>
+</html>

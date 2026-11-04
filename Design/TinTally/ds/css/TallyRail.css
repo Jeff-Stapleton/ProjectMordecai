@@ -1,0 +1,119 @@
+/* TallyRail: the rail head (KillCounter, pending badge, ticket slot) and the tickets threaded under it.
+   Builds on .tt-plate--rail (Plate), .tt-tag, .tt-tag-stack, .tt-tag__kicker/__line (Tag).
+   Adds: the slot, the pending badge, ticket kinds (coloured stub + perforation), the 56 px slip,
+   the 88 px ticket with its footer band, the peeled corner of a new ticket, and the overflow stub. */
+
+.tt-rail { position: relative; width: 320px; display: flex; flex-direction: column; }
+
+/* --- Rail head: 320 x 56 plate. Kills left in a box sized for "Kills: 999"; badge right. */
+.tt-railhead { position: relative; }
+.tt-railhead > .tt-plate__row { justify-content: space-between; gap: var(--space-1); padding: 0 8px 4px 14px; }
+.tt-railhead__kills { flex: none; width: 190px; color: var(--text); white-space: nowrap; }
+
+/* Pending badge: shown while entries wait (the combat hold) and while the receipt counts them down.
+   The number only, "+3" (D1: no tally bundle), in a fixed box sized for "+99". */
+.tt-railhead__pending { height: 32px; padding: 0 8px; flex: none; }
+.tt-railhead__pendingnum { width: 46px; text-align: center; color: var(--ink); }
+
+/* The ticket slot: a 240 x 6 ink slit cut through the bottom rim, its lit lip above it. It starts at x 10,
+   so the string drops out of its left end at x 22, straight into the eyelets. Paper shows while printing. */
+.tt-railhead__slot { position: absolute; left: 8px; bottom: -2px; width: 240px; height: 6px; border-radius: 3px 3px 0 0; background: var(--ink); box-shadow: 0 -2px 0 0 var(--lip); }
+.tt-railhead.is-printing .tt-railhead__slot::after { content: ""; position: absolute; left: 20px; right: 20px; bottom: 0; height: 3px; border-radius: 1px 1px 0 0; background: var(--enamel); }
+.tt-railhead.is-unlit .tt-railhead__slot { box-shadow: none; }
+
+/* --- The stack: one string from under the head through every eyelet (Tag's .tt-tag-stack.tt-tag-stack--light).
+   16 px from the head to the first ticket (screen y 104), 8 px between. --tt-rail-tail = half the last piece.
+   The rail's string is ALWAYS the light cord (core .tt-string--light: a 4 px rim core with 1 px ink sides,
+   x 20-24, centre 22), because the floor behind the rail can be any colour: a 2 px ink string vanishes on
+   night (1.2:1) and mire (2.5:1). Mark-up uses Tag's --light modifier; the rule below makes any stack under a
+   rail head the light cord even where a copy forgets it (same core --tt-string-light-* values).
+   The rail head has no "held" look of its own: during the combat hold the pending badge is the signal. */
+.tt-rail > .tt-tag-stack { --tt-tag-drop: 16px; }
+.tt-rail > .tt-tag-stack::before { bottom: var(--tt-rail-tail, 28px); }
+.tt-rail > .tt-tag-stack::before, .tt-rail > .tt-tag-stack > .tt-tag::after {
+  left: 20px; width: var(--tt-string-light-w); background: var(--tt-string-light-core); box-shadow: var(--tt-string-light-shadow);
+}
+
+/* --- Ticket: an enamel tag with a 44 px kind-coloured stub, the eyelet punched through it,
+   and a perforation between stub and face. Text starts at 58. */
+.tt-ticket {
+  --stub: var(--enamel-shade);
+  display: flex; width: 320px; gap: var(--space-2); padding: 0 14px 0 58px;
+  background:
+    linear-gradient(var(--ink-muted) 0 4px, transparent 4px) 44px 2px / 2px 8px repeat-y,
+    linear-gradient(90deg, var(--stub) 0 44px, var(--enamel) 44px) 0 0 / 100% 100% no-repeat;
+}
+.tt-ticket .tt-glyph { color: var(--ink); }
+
+/* Slip, 56 px: glyph + one line + count (or rarity socket). The right 20 px stay clear for the peel. */
+.tt-ticket--slip { height: 56px; min-height: 56px; align-items: center; gap: 6px; padding: 0 16px 0 54px; }
+
+/* Ticket, 88 px: kicker + line (+ footer band). The text column is 248 px (x 58 to 306). */
+.tt-ticket--tall { height: 88px; min-height: 88px; flex-direction: column; align-items: stretch; justify-content: center; gap: 0; padding-top: 0; padding-bottom: 0; }
+.tt-ticket--tall.has-foot { justify-content: flex-start; padding-top: 4px; }
+.tt-ticket__row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.tt-ticket__row > .tt-tag__kicker { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; }
+.tt-ticket--tall > .tt-ticket__row:first-child { padding-right: 14px; }
+/* Names: one line, ellipsis as the last resort. --fit is the size a DownOnly ScaleBox lands on (floor 22 px). */
+.tt-ticket__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tt-ticket__name--fit { font-size: var(--fit, 26px); }
+.tt-ticket__name--wrap { white-space: normal; line-height: 30px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tt-ticket__rank { flex: none; color: var(--ink); white-space: nowrap; }
+/* SKILL UP keeps its rank on the kicker row, right-aligned in a box sized for "20 / 20" (106 px), so the name gets all 248 px. */
+.tt-ticket__rank--head { width: 108px; text-align: right; line-height: 24px; }
+.tt-ticket__count { flex: none; width: 38px; text-align: right; color: var(--ink); } /* num-s, sized for "x99" */
+.tt-ticket__list { display: flex; flex-direction: column; }
+.tt-ticket__list .tt-ticket__row { height: 30px; }
+.tt-ticket__list .tt-tag__line { line-height: 30px; }
+
+/* Footer band: the plain detail line, or (when the kind has none and remarks are on) the Tally's remark,
+   which carries the seal glyph. 28 px, enamel-shade, ink-muted, behind a dashed tear line.
+   Text box: 248 px, 222 px after the seal; the text span ellipsizes inside it, never into the edge. */
+.tt-ticket__foot {
+  position: absolute; left: 46px; right: 0; bottom: 0; height: 28px;
+  display: flex; align-items: center; gap: 6px; padding: 0 14px 0 12px;
+  background: var(--enamel-shade); color: var(--ink-muted);
+  border-top: 2px dashed color-mix(in srgb, var(--ink-muted) 55%, var(--enamel-shade));
+  border-radius: 0 0 var(--radius-tag) 0;
+  font: 600 20px/24px var(--font-ui); white-space: nowrap; overflow: hidden;
+}
+.tt-ticket__foottext { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tt-ticket__footnum { color: var(--ink); }
+.tt-ticket__foot .tt-glyph { color: var(--ink-muted); }
+.tt-ticket__foot .tt-socket { padding: 2px 5px; }
+
+/* New: the newest ticket prints with its top-right corner peeled (fold line, ink void, flap). */
+.tt-ticket.is-new { border-top-right-radius: 3px; }
+.tt-ticket__peel {
+  position: absolute; top: 0; right: 0; width: 20px; height: 20px; pointer-events: none;
+  background: linear-gradient(225deg, var(--ink) 0 50%, var(--enamel-shade) 50%);
+  box-shadow: inset 2px -2px 0 0 var(--ink);
+}
+
+/* Kinds: the stub carries the kind's colour; the kicker word carries the meaning. */
+.tt-ticket--skill { --stub: var(--good); }
+.tt-ticket--feat-common { --stub: var(--feat-common); }
+.tt-ticket--feat-rare { --stub: var(--feat-rare); }
+.tt-ticket--feat-legendary { --stub: var(--feat-legendary); }
+.tt-ticket--r-common { --stub: var(--rarity-common); }
+.tt-ticket--r-green { --stub: var(--rarity-green); }
+.tt-ticket--r-blue { --stub: var(--rarity-blue); }
+.tt-ticket--r-purple { --stub: var(--rarity-purple); }
+.tt-ticket--r-red { --stub: var(--rarity-red); }
+.tt-ticket--r-gold { --stub: var(--rarity-gold); }
+
+/* --- Overflow: "N more on the spike". A dark plate stub that ends the light cord at a pin. */
+.tt-rail__more {
+  position: relative; display: flex; align-items: center; gap: var(--space-2);
+  width: 320px; height: 48px; padding: 0 14px 0 8px;
+  background: var(--plate); color: var(--text-muted);
+  border: var(--stroke-rim) solid var(--lip); border-radius: 4px var(--radius-tag) var(--radius-tag) 4px;
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print);
+  font: 600 20px/26px var(--font-ui);
+}
+.tt-rail__more::after {
+  content: ""; position: absolute; left: 18px; top: calc(-2px - var(--tt-outline)); height: calc(var(--tt-outline) + 13px);
+  width: var(--tt-string-light-w); background: var(--tt-string-light-core); box-shadow: var(--tt-string-light-shadow);
+}
+.tt-rail__more .tt-glyph { color: var(--text); }
+.tt-rail__morenum { color: var(--text); }

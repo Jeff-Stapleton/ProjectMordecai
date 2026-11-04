@@ -1,0 +1,141 @@
+<!-- @dsCard group="Menus" height=1226 width=1700 subtitle="Enamel item tag: rarity band, name, Mono stats with deltas, sealed unidentified card, compare pair" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ItemCard</title></head>
+<body>
+<div class="tt-root tt-itemcard-sheet">
+
+  <div class="tt-itemcard-sheet__row">
+    <!-- Unidentified, partial info on (the shipping Mysterious Amulet before Identify) -->
+    <div class="tt-itemcard-sheet__cell">
+      <span class="tt-label">Unidentified · partial info on</span>
+      <article class="tt-itemcard tt-itemcard--purple">
+        <div class="tt-itemcard__band"><span class="tt-rarity" data-rarity="purple"></span><span class="tt-itemcard__band-text">PURPLE · Amulet</span></div>
+        <div class="tt-itemcard__body">
+          <div class="tt-itemcard__head">
+            <span class="tt-itemcard__stamp"><span class="tt-glyph" data-glyph="unknown" aria-label="Unidentified"></span></span>
+            <div><p class="tt-itemcard__name ui-title">Unidentified Purple Amulet</p><p class="tt-itemcard__type ui-label">Magical Item · Amulet</p></div>
+          </div>
+          <p class="tt-itemcard__note ui-label"><span class="tt-glyph tt-glyph--20" data-glyph="mage-tower"></span><span>Unidentified — the Mage Tower can read this.</span></p>
+          <dl class="tt-itemcard__stats tt-itemcard__stats--sealed"><dt class="ui-label">Properties</dt><dd class="num-m">???</dd></dl>
+          <p class="tt-itemcard__desc ui-body">An amulet of unknown power.</p>
+        </div>
+        <div class="tt-itemcard__actions"><span class="tt-itemcard__action"><span class="tt-key tt-key--sm">Enter</span>Identify</span></div>
+      </article>
+    </div>
+
+    <!-- Common consumable, stacked -->
+    <div class="tt-itemcard-sheet__cell">
+      <span class="tt-label">Common · stacked · Use waits on N22</span>
+      <article class="tt-itemcard tt-itemcard--common">
+        <div class="tt-itemcard__band"><span class="tt-rarity" data-rarity="common"></span><span class="tt-itemcard__band-text">COMMON · Consumable</span></div>
+        <div class="tt-itemcard__body">
+          <div><p class="tt-itemcard__name ui-title">Health Potion</p><p class="tt-itemcard__type ui-label">Consumable · stacks to 10</p></div>
+          <dl class="tt-itemcard__stats"><dt class="ui-label">Carried</dt><dd class="num-s">x3</dd><dd class="tt-itemcard__dcell"></dd></dl>
+          <p class="tt-itemcard__desc ui-body">Restores a chunk of health. The Alchemist limits how many you can field.</p>
+        </div>
+        <div class="tt-itemcard__actions"><span class="tt-itemcard__action"><span class="tt-key tt-key--sm">Enter</span>Use</span></div>
+      </article>
+    </div>
+
+    <!-- Unidentified, partial info off -->
+    <div class="tt-itemcard-sheet__cell">
+      <span class="tt-label">Unidentified · partial info off (example)</span>
+      <article class="tt-itemcard tt-itemcard--red">
+        <div class="tt-itemcard__band"><span class="tt-rarity" data-rarity="red"></span><span class="tt-itemcard__band-text">RED · Magical Item</span></div>
+        <div class="tt-itemcard__body">
+          <div class="tt-itemcard__head">
+            <span class="tt-itemcard__stamp"><span class="tt-glyph" data-glyph="unknown" aria-label="Unidentified"></span></span>
+            <div><p class="tt-itemcard__name ui-title">Unknown Item</p><p class="tt-itemcard__type ui-label">Magical Item</p></div>
+          </div>
+          <p class="tt-itemcard__note ui-label"><span class="tt-glyph tt-glyph--20" data-glyph="mage-tower"></span><span>Unidentified — the Mage Tower can read this.</span></p>
+          <dl class="tt-itemcard__stats tt-itemcard__stats--sealed"><dt class="ui-label">Properties</dt><dd class="num-m">???</dd></dl>
+        </div>
+        <div class="tt-itemcard__actions"><span class="tt-itemcard__action"><span class="tt-key tt-key--sm">Enter</span>Identify</span></div>
+      </article>
+    </div>
+
+    <!-- Compact (inventory right column, 320): dot deltas, no footer -->
+    <div class="tt-itemcard-sheet__cell">
+      <span class="tt-label">Compact · inventory column (320)</span>
+      <article class="tt-itemcard tt-itemcard--purple tt-itemcard--compact">
+        <div class="tt-itemcard__band"><span class="tt-rarity" data-rarity="purple"></span><span class="tt-itemcard__band-text">PURPLE · Sword</span></div>
+        <div class="tt-itemcard__body">
+          <div><p class="tt-itemcard__name ui-title">Emberfang</p><p class="tt-itemcard__type ui-label">Magical Item · Sword</p></div>
+          <dl class="tt-itemcard__stats">
+            <dt class="ui-label">Damage</dt><dd class="num-s">18</dd><dd class="tt-itemcard__dcell"><span class="tt-itemcard__delta tt-itemcard__delta--dot"><span class="tt-glyph" data-glyph="arrow-up" aria-label="Higher, +9"></span></span></dd>
+            <dt class="ui-label">Attack speed</dt><dd class="num-s">×1.0</dd><dd class="tt-itemcard__dcell"><span class="tt-itemcard__delta tt-itemcard__delta--same tt-itemcard__delta--dot" aria-label="Same">=</span></dd>
+            <dt class="ui-label">Posture damage</dt><dd class="num-s">+6</dd><dd class="tt-itemcard__dcell"><span class="tt-itemcard__delta tt-itemcard__delta--down tt-itemcard__delta--dot"><span class="tt-glyph" data-glyph="arrow-down" aria-label="Lower, −4"></span></span></dd>
+            <dt class="ui-label">Crit chance</dt><dd class="num-s">5.0%</dd><dd class="tt-itemcard__dcell"><span class="tt-itemcard__delta tt-itemcard__delta--dot"><span class="tt-glyph" data-glyph="arrow-up" aria-label="Higher, +5.0%"></span></span></dd>
+            <dt class="ui-label">Fire damage</dt><dd class="num-s">12.0%</dd><dd class="tt-itemcard__dcell"><span class="tt-itemcard__delta tt-itemcard__delta--dot"><span class="tt-glyph" data-glyph="arrow-up" aria-label="Higher, +12.0%"></span></span></dd>
+          </dl>
+          <p class="tt-itemcard__desc ui-body">A named sword that kindles fire with every strike.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <div class="tt-itemcard-sheet__row">
+    <!-- Compare pair: equipped (pinned) + candidate with deltas -->
+    <div class="tt-itemcard-sheet__cell">
+      <span class="tt-label">Compare · equipped (pinned) and the candidate · Equip waits on N22</span>
+      <div class="tt-itemcard-pair">
+        <article class="tt-itemcard tt-itemcard--common">
+          <span class="tt-itemcard__pin"><span class="tt-glyph" data-glyph="pin" aria-label="Pinned"></span></span>
+          <div class="tt-itemcard__band"><span class="tt-rarity" data-rarity="common"></span><span class="tt-itemcard__band-text">COMMON · Sword</span><span class="tt-chip tt-itemcard__flag"><span class="tt-glyph tt-glyph--20" data-glyph="pin" aria-hidden="true"></span>Equipped</span></div>
+          <div class="tt-itemcard__body">
+            <div><p class="tt-itemcard__name ui-title">Rusty Sword</p><p class="tt-itemcard__type ui-label">Weapon · Sword · Main hand</p></div>
+            <dl class="tt-itemcard__stats">
+              <dt class="ui-label">Damage</dt><dd class="num-s">9</dd><dd class="tt-itemcard__dcell"></dd>
+              <dt class="ui-label">Attack speed</dt><dd class="num-s">×1.0</dd><dd class="tt-itemcard__dcell"></dd>
+              <dt class="ui-label">Posture damage</dt><dd class="num-s">+10</dd><dd class="tt-itemcard__dcell"></dd>
+              <dt class="ui-label">Crit chance</dt><dd class="num-s">0.0%</dd><dd class="tt-itemcard__dcell"></dd>
+              <dt class="ui-label">Fire damage</dt><dd class="num-s">0.0%</dd><dd class="tt-itemcard__dcell"></dd>
+            </dl>
+            <p class="tt-itemcard__desc ui-body">A worn blade. Barely holds an edge, but it is honest work.</p>
+          </div>
+        </article>
+
+        <article class="tt-itemcard tt-itemcard--purple">
+          <div class="tt-itemcard__band"><span class="tt-rarity" data-rarity="purple"></span><span class="tt-itemcard__band-text">PURPLE · Sword</span></div>
+          <div class="tt-itemcard__body">
+            <div><p class="tt-itemcard__name ui-title">Emberfang</p><p class="tt-itemcard__type ui-label">Magical Item · Sword · Main hand</p></div>
+            <dl class="tt-itemcard__stats">
+              <dt class="ui-label">Damage</dt><dd class="num-s">18</dd><dd class="tt-itemcard__dcell"><span class="tt-itemcard__delta"><span class="tt-glyph" data-glyph="arrow-up" aria-label="Higher"></span>+9</span></dd>
+              <dt class="ui-label">Attack speed</dt><dd class="num-s">×1.0</dd><dd class="tt-itemcard__dcell"><span class="tt-itemcard__delta tt-itemcard__delta--same">=</span></dd>
+              <dt class="ui-label">Posture damage</dt><dd class="num-s">+6</dd><dd class="tt-itemcard__dcell"><span class="tt-itemcard__delta tt-itemcard__delta--down"><span class="tt-glyph" data-glyph="arrow-down" aria-label="Lower"></span>−4</span></dd>
+              <dt class="ui-label">Crit chance</dt><dd class="num-s">5.0%</dd><dd class="tt-itemcard__dcell"><span class="tt-itemcard__delta"><span class="tt-glyph" data-glyph="arrow-up" aria-label="Higher"></span>+5.0%</span></dd>
+              <dt class="ui-label">Fire damage</dt><dd class="num-s">12.0%</dd><dd class="tt-itemcard__dcell"><span class="tt-itemcard__delta"><span class="tt-glyph" data-glyph="arrow-up" aria-label="Higher"></span>+12.0%</span></dd>
+            </dl>
+            <ul class="tt-itemcard__effects ui-label">
+              <li class="tt-itemcard__effect"><span class="tt-glyph tt-glyph--20" data-glyph="burning"></span><span>On hit: 25% chance to build Burning (2.0 s cooldown)</span></li>
+              <li class="tt-itemcard__effect"><span class="tt-glyph tt-glyph--20" data-glyph="fire"></span><span>Grants Flame Arc</span></li>
+            </ul>
+            <p class="tt-itemcard__desc ui-body">A named sword that kindles fire with every strike.</p>
+          </div>
+          <div class="tt-itemcard__actions"><span class="tt-itemcard__action"><span class="tt-key tt-key--sm">Enter</span>Equip</span></div>
+        </article>
+      </div>
+    </div>
+
+    <!-- In context: the tooltip hangs on a string from the focused row -->
+    <div class="tt-itemcard-sheet__cell tt-itemcard-sheet__cell--hang">
+      <span class="tt-label">Tooltip hung from the selected, focused row (InventoryTab's row)</span>
+      <div class="tt-itemcard-hang">
+        <div class="tt-inv-row tt-selectable tt-focus--fill-gap is-selected is-focused">
+          <span class="tt-inv-row__badge"><span class="tt-socket"><span class="tt-rarity tt-r-blue" data-rarity="blue"></span></span></span>
+          <span class="tt-inv-row__name ui-title tt-r-blue">Upgrade Key</span>
+        </div>
+        <article class="tt-itemcard tt-itemcard--blue tt-itemcard--hung">
+          <div class="tt-itemcard__band"><span class="tt-rarity" data-rarity="blue"></span><span class="tt-itemcard__band-text">BLUE · Upgrade Key</span></div>
+          <div class="tt-itemcard__body">
+            <div><p class="tt-itemcard__name ui-title">Upgrade Key</p><p class="tt-itemcard__type ui-label">Upgrade Key · not wearable</p></div>
+            <p class="tt-itemcard__desc ui-body">Breaks a building's upgrade cap, or unlocks a special structure in town.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

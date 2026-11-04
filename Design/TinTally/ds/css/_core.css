@@ -1,0 +1,365 @@
+/* ==========================================================================
+   Tin Tally — core primitives. Every colour comes from tokens.css (tokens.json).
+   Component rules follow below, one section per component, prefixed tt-.
+   Sizes are design px at 1920x1080 (UMG points = px x 0.75). BUILD.md is the contract.
+   ========================================================================== */
+:root {
+  --tt-outline: 3px;
+  --tt-print: color-mix(in srgb, var(--ink) 55%, transparent);
+  /* Focus keyline: a 2 px ink ring outside the focus ring (hard, 0 blur), so focus reads on every ground. */
+  --tt-focus-keyline: drop-shadow(2px 0 0 var(--ink)) drop-shadow(-2px 0 0 var(--ink)) drop-shadow(0 2px 0 var(--ink)) drop-shadow(0 -2px 0 var(--ink));
+  /* The light string (.tt-string--light), exposed so pseudo-element copies (nameplate strings, cords) match it. */
+  --tt-string-light-w: 4px;
+  --tt-string-light-core: var(--rim);
+  --tt-string-light-side: var(--ink);
+  --tt-string-light-shadow: -1px 0 0 var(--tt-string-light-side), 1px 0 0 var(--tt-string-light-side);
+  /* Drawback / warning hatch: one pattern system-wide (.tt-hatch, .tt-drawback). */
+  --tt-hatch: repeating-linear-gradient(-45deg, var(--danger) 0 7px, var(--ink) 7px 14px);
+}
+[data-theme="high-contrast"] { --tt-outline: 4px; --tt-print: var(--ink); }
+
+body { margin: 0; font-family: var(--font-ui); color: var(--text); background: var(--plate); -webkit-font-smoothing: antialiased; }
+.tt-root, .tt-root * { box-sizing: border-box; }
+.tt-root { font-family: var(--font-ui); color: var(--text); }
+.tt-caps { text-transform: uppercase; }
+.tt-num { font-family: var(--font-mono); }
+.tt-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.tt-col { display: flex; flex-direction: column; gap: var(--space-3); }
+.tt-label { font: 600 20px/26px var(--font-ui); color: var(--text-muted); }
+.tt-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* --- World stand-ins for previews only. These are NOT UI colours: they fake the diorama floor so every
+       HUD preview proves its edge on light, green, sand, dark and swamp ground. Theme-invariant world-*
+       tokens (level art never changes with the UI theme). */
+.tt-stage { position: relative; padding: var(--space-6); overflow: hidden; }
+.tt-floor-blockout { background-color: var(--world-blockout); background-image: linear-gradient(var(--world-blockout-line) 2px, transparent 2px), linear-gradient(90deg, var(--world-blockout-line) 2px, transparent 2px); background-size: 96px 96px; }
+.tt-floor-grass { background-color: var(--world-grass); background-image: radial-gradient(var(--world-grass-dot) 18%, transparent 19%); background-size: 28px 28px; }
+.tt-floor-sand { background-color: var(--world-sand); background-image: radial-gradient(var(--world-sand-dot) 16%, transparent 17%); background-size: 34px 34px; }
+.tt-floor-mire { background-color: var(--world-mire); background-image: radial-gradient(var(--world-mire-dot) 22%, transparent 23%); background-size: 40px 40px; }
+.tt-floor-night { background-color: var(--world-night); background-image: radial-gradient(var(--world-night-dot) 20%, transparent 21%); background-size: 36px 36px; }
+.tt-floor-snow { background-color: var(--world-snow); background-image: radial-gradient(var(--world-snow-dot) 18%, transparent 19%); background-size: 30px 30px; }
+.tt-floors { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.tt-floors > * { padding: var(--space-5); display: flex; align-items: center; justify-content: center; min-height: 120px; }
+.tt-veil { background: var(--veil); }
+
+/* --- Diorama backdrop (D12): the toy world behind the pause, death and options veils. Never a flat grid,
+       never blurred. Floor tiles in a soft 96 px checker with 2 px seams, plus a few blocky props (a lit top
+       face over a shaded front face: the fixed camera's 3/4 read). Scenery only, so world-* and biome-*
+       tokens, which are theme-invariant. Place props with left/top in design px; size the pond, path and
+       patch with width/height. The veil (.tt-veil, absolute over it) goes on top. */
+.tt-diorama {
+  --tt-dio-floor: var(--world-grass); --tt-dio-tile: var(--world-grass-dot);
+  --tt-dio-seam: color-mix(in srgb, var(--world-grass) 84%, var(--world-dark));
+  position: absolute; inset: 0; overflow: hidden; background-color: var(--tt-dio-floor);
+  background-image:
+    linear-gradient(var(--tt-dio-seam) 2px, transparent 2px),
+    linear-gradient(90deg, var(--tt-dio-seam) 2px, transparent 2px),
+    conic-gradient(var(--tt-dio-tile) 0 25%, transparent 0 50%, var(--tt-dio-tile) 0 75%, transparent 0);
+  background-size: 96px 96px, 96px 96px, 192px 192px;
+}
+.tt-diorama--blockout { --tt-dio-floor: var(--world-blockout); --tt-dio-tile: color-mix(in srgb, var(--world-blockout) 55%, var(--world-blockout-line)); --tt-dio-seam: var(--world-blockout-line); }
+.tt-diorama--sand { --tt-dio-floor: var(--world-sand); --tt-dio-tile: var(--world-sand-dot); --tt-dio-seam: color-mix(in srgb, var(--world-sand) 84%, var(--world-dark)); }
+.tt-diorama--mire { --tt-dio-floor: var(--world-mire); --tt-dio-tile: var(--world-mire-dot); --tt-dio-seam: color-mix(in srgb, var(--world-mire) 80%, var(--world-dark)); }
+.tt-diorama--snow { --tt-dio-floor: var(--world-snow); --tt-dio-tile: var(--world-snow-dot); --tt-dio-seam: color-mix(in srgb, var(--world-snow) 88%, var(--world-dark)); }
+.tt-diorama--night { --tt-dio-floor: var(--world-night); --tt-dio-tile: var(--world-night-dot); --tt-dio-seam: color-mix(in srgb, var(--world-night) 70%, var(--world-dark)); }
+.tt-diorama__tree, .tt-diorama__bush, .tt-diorama__rock, .tt-diorama__crate, .tt-diorama__post,
+.tt-diorama__pond, .tt-diorama__path, .tt-diorama__patch { position: absolute; }
+.tt-diorama__tree {
+  width: 80px; height: 80px; border-radius: 18px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--world-grass) 78%, var(--world-snow)) 0 44%, color-mix(in srgb, var(--world-grass) 70%, var(--world-dark)) 44% 100%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--world-grass) 40%, var(--world-dark));
+}
+.tt-diorama__tree::before { content: ""; position: absolute; left: 6px; top: 96px; width: 68px; height: 18px; border-radius: 50%; background: var(--world-shade); }
+.tt-diorama__tree::after { content: ""; position: absolute; left: 32px; top: 83px; width: 16px; height: 24px; border-radius: 0 0 4px 4px; background: color-mix(in srgb, var(--biome-searing) 42%, var(--world-dark)); }
+.tt-diorama__bush {
+  width: 60px; height: 40px; border-radius: 18px 18px 12px 12px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--world-grass) 82%, var(--world-snow)) 0 45%, color-mix(in srgb, var(--world-grass) 74%, var(--world-dark)) 45% 100%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--world-grass) 40%, var(--world-dark)), 0 8px 0 3px var(--world-shade);
+}
+.tt-diorama__rock {
+  width: 60px; height: 42px; border-radius: 12px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--biome-storm) 60%, var(--world-snow)) 0 45%, var(--biome-withered) 45% 100%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--biome-withered) 55%, var(--world-dark)), 0 8px 0 3px var(--world-shade);
+}
+.tt-diorama__crate {
+  width: 56px; height: 60px; border-radius: 6px;
+  background:
+    linear-gradient(180deg, transparent 0 calc(34% + 14px), color-mix(in srgb, var(--biome-searing) 40%, var(--world-dark)) 0 calc(34% + 17px), transparent 0),
+    linear-gradient(180deg, color-mix(in srgb, var(--biome-searing) 70%, var(--world-snow)) 0 34%, color-mix(in srgb, var(--biome-searing) 78%, var(--world-dark)) 34% 100%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--biome-searing) 35%, var(--world-dark)), 0 8px 0 3px var(--world-shade);
+}
+.tt-diorama__post {
+  width: 18px; height: 34px; border-radius: 4px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--biome-searing) 75%, var(--world-snow)) 0 30%, color-mix(in srgb, var(--biome-searing) 48%, var(--world-dark)) 30% 100%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--biome-searing) 30%, var(--world-dark));
+}
+.tt-diorama__pond {
+  width: 180px; height: 110px; border-radius: 16px; background: var(--biome-crystal);
+  box-shadow: inset 0 8px 0 color-mix(in srgb, var(--biome-crystal) 62%, var(--world-dark)), 0 0 0 4px color-mix(in srgb, var(--biome-searing) 62%, var(--world-dark));
+}
+.tt-diorama__pond::after { content: ""; position: absolute; left: 26px; top: 34px; width: 44px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--biome-crystal) 45%, var(--world-snow)); box-shadow: 52px 22px 0 color-mix(in srgb, var(--biome-crystal) 45%, var(--world-snow)); }
+.tt-diorama__path {
+  width: 96px; height: 288px; background-color: var(--world-sand);
+  background-image: radial-gradient(var(--world-sand-dot) 16%, transparent 17%); background-size: 34px 34px;
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--biome-searing) 75%, var(--world-dark));
+}
+.tt-diorama__patch {
+  width: 480px; height: 320px; border-radius: 64px; background-color: var(--world-sand);
+  background-image: radial-gradient(var(--world-sand-dot) 16%, transparent 17%); background-size: 34px 34px;
+}
+
+/* --- Plate: the pressed-tin panel. Dual edge = ink outline outside, printed rim inside. 100% opaque fill;
+       a whole widget may fade for show/hide or Reduce Motion, its fill never (D13). */
+.tt-plate {
+  background: var(--plate); color: var(--text);
+  border: var(--stroke-rim) solid var(--rim); border-right-color: var(--rim-shade); border-bottom-color: var(--rim-shade);
+  border-radius: var(--radius-plate);
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print);
+}
+.tt-plate--menu { box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 6px 0 var(--tt-outline) var(--tt-print); }
+.tt-plate--inset { box-shadow: none; border-color: var(--lip); background: var(--plate-raised); }
+.tt-pad { padding: var(--space-4); }
+.tt-pad-lg { padding: var(--space-5); }
+
+/* --- Divider: a quiet 2 px rule for menus and the front end (title, credits, plate headers). Rim at 50% on
+       plate (3.7:1; 5.3:1 in High Contrast); --enamel on tags; --v stands between items in a row.
+       Never a row of tally strokes (D1). */
+.tt-divider { display: block; flex: none; height: 2px; border: 0; margin: 0; border-radius: 1px; background: color-mix(in srgb, var(--rim) 50%, transparent); }
+.tt-divider--enamel { background: color-mix(in srgb, var(--ink) 30%, transparent); }
+.tt-divider--v { width: 2px; height: auto; align-self: stretch; }
+
+/* --- Tag: enamel ticket with an eyelet (the grommet: 12 px well hole, 3 px enamel-shade ring, 2 px ink ring).
+       Always inside the ink outline. */
+.tt-tag {
+  position: relative; display: inline-flex; align-items: center; gap: var(--space-3);
+  background: var(--enamel); color: var(--ink);
+  border-radius: 4px var(--radius-tag) var(--radius-tag) 4px;
+  padding: 10px var(--space-4) 10px 44px; min-height: 52px;
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print);
+}
+.tt-tag::before {
+  content: ""; position: absolute; left: 16px; top: 50%; width: 12px; height: 12px; margin-top: -6px;
+  border-radius: 50%; background: var(--well); box-shadow: 0 0 0 3px var(--enamel-shade), 0 0 0 5px var(--ink);
+}
+.tt-tag--plain { padding-left: var(--space-4); }
+.tt-tag--plain::before { display: none; }
+.tt-tag .tt-sub { color: var(--ink-muted); }
+.tt-string { width: 2px; background: var(--ink); margin: 0 auto; }
+/* Light string: a 4 px rim core with 1 px ink sides; holds on every floor and on the veil. Copies in
+   pseudo-elements use the custom properties: width var(--tt-string-light-w), background
+   var(--tt-string-light-core), box-shadow var(--tt-string-light-shadow). */
+.tt-string--light { width: var(--tt-string-light-w); background: var(--tt-string-light-core); box-shadow: var(--tt-string-light-shadow); }
+.tt-tag--block { display: flex; width: 100%; }
+/* Drawback / warning hatch: one pattern system-wide. */
+.tt-hatch { background: var(--tt-hatch); }
+
+/* --- Empty state (D8): ONE look for every empty list and placeholder ("Inventory is empty.",
+       "No items match this filter.", "No resources stored.", "Coming Soon"). A plain enamel tag: no eyelet,
+       no radio dot, ink text, centred in its content box. Put it in .tt-empty-box (fills its box and centres
+       the tag) or in any flex or grid parent (margin: auto centres it). Optional second line: .tt-empty__sub. */
+.tt-empty-box { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 160px; padding: var(--space-5); }
+.tt-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  width: fit-content; max-width: 100%; min-height: 56px; margin: auto; padding: 12px var(--space-5);
+  background: var(--enamel); color: var(--ink); border-radius: var(--radius-tag); text-align: center;
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print);
+  font: 700 22px/30px var(--font-ui);
+}
+.tt-empty__sub { font: 600 20px/26px var(--font-ui); color: var(--ink-muted); }
+
+/* --- Drawback box (D14): one look everywhere (feat plates, feat detail, tickets): the hatch strip, then
+       "Drawback" as an inline label (.tt-drawback__label) and the text. On plate by default; --enamel on tags. */
+.tt-drawback {
+  display: flex; align-items: stretch; gap: var(--space-3); padding: 8px 12px 8px 8px;
+  border-radius: var(--radius-key); background: var(--plate-raised); color: var(--text);
+  font: 600 20px/26px var(--font-ui);
+}
+.tt-drawback::before { content: ""; flex: none; width: 14px; min-height: 26px; border-radius: 4px; background: var(--tt-hatch); box-shadow: 0 0 0 2px var(--ink); }
+.tt-drawback__text { margin: 0; align-self: center; }
+.tt-drawback__label { font-weight: 800; color: var(--danger-text); margin-right: var(--space-2); }
+.tt-drawback--enamel { background: var(--enamel-shade); color: var(--ink); }
+.tt-drawback--enamel .tt-drawback__label { color: var(--ink); }
+
+/* --- Keycaps: shape tells the device. Square = keyboard, round = gamepad face, pill = shoulder/trigger.
+       The keycap LEADS its label everywhere ("[Esc] Stay", "[F] Pick up ..."). */
+.tt-key {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  min-width: 40px; height: 40px; padding: 0 8px 4px;
+  font: 800 22px/1 var(--font-mono); color: var(--ink); background: var(--enamel);
+  border: 2px solid var(--ink); border-radius: var(--radius-key);
+  box-shadow: inset 0 -4px 0 var(--enamel-shade);
+}
+.tt-key--pad { border-radius: 50%; width: 40px; min-width: 40px; padding: 0 0 3px; }
+.tt-key--shoulder { border-radius: var(--radius-pill); min-width: 56px; padding: 0 12px 3px; }
+.tt-key--wide { min-width: 72px; }
+.tt-key--sm { min-width: 32px; height: 32px; padding: 0 6px 3px; font-size: 20px; }
+.tt-key--sm.tt-key--pad { width: 32px; min-width: 32px; padding: 0 0 2px; }
+.tt-key.is-pressed { transform: translateY(3px); box-shadow: inset 0 -1px 0 var(--enamel-shade); }
+.tt-key[aria-disabled="true"] { background: var(--plate); color: var(--text-disabled); border-color: var(--lip); border-style: dashed; box-shadow: none; }
+.tt-hint { display: inline-flex; align-items: center; gap: var(--space-2); font: 600 20px/26px var(--font-ui); color: var(--text-muted); }
+
+/* --- Hint bar (D25): one style everywhere. Keycap leads its label, "|" separators (.tt-hintbar__sep), fixed
+       gaps (8 px key to label, 16 px around a separator), on its own plate: never on the veil or the world.
+       Placement may vary per screen; the look does not. Draw ONE device per screen (D5). */
+.tt-hintbar {
+  display: inline-flex; align-items: center; gap: var(--space-4); min-height: 52px; padding: 8px 20px;
+  white-space: nowrap; background: var(--plate); color: var(--text-muted);
+  border: var(--stroke-rim) solid var(--rim); border-right-color: var(--rim-shade); border-bottom-color: var(--rim-shade);
+  border-radius: var(--radius-plate);
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print);
+}
+.tt-hintbar .tt-hint { gap: var(--space-2); }
+.tt-hintbar__sep { flex: none; width: 2px; height: 24px; border-radius: 1px; background: var(--lip); }
+
+/* --- Buttons: tag-shaped, lift on hover, sink on press. --danger is for destructive actions only (delete save),
+       never Quit (D4). Rows: risky action left, safe action right, default focus on the safe one. */
+.tt-btn {
+  appearance: none; display: inline-flex; align-items: center; gap: var(--space-3);
+  min-height: 56px; padding: 10px var(--space-5);
+  font: 700 26px/32px var(--font-ui); color: var(--text); text-align: left;
+  background: var(--plate-raised); border: 2px solid var(--lip); border-radius: var(--radius-tag);
+  box-shadow: 0 4px 0 0 var(--ink); cursor: pointer;
+  transition: transform 100ms ease-out, box-shadow 100ms ease-out;
+}
+.tt-btn:hover, .tt-btn.is-hover { transform: translateY(-2px); box-shadow: 0 6px 0 0 var(--ink); }
+.tt-btn:active, .tt-btn.is-pressed { transform: translateY(3px); box-shadow: 0 1px 0 0 var(--ink); }
+.tt-btn--primary { background: var(--enamel); color: var(--ink); border-color: var(--ink); }
+.tt-btn--danger { background: var(--danger); color: var(--ink); border-color: var(--ink); }
+.tt-btn:disabled, .tt-btn[aria-disabled="true"] { color: var(--text-disabled); background: var(--plate); border-style: dashed; box-shadow: none; transform: none; cursor: not-allowed; }
+.tt-btn--block { display: flex; width: 100%; }
+
+/* --- Selected (D6): cream (`enamel`) fill everywhere: tabs, filter chips, categories, plate cards. Opt in with
+       .tt-selectable; the focus ring goes on top when the selected piece is focused. Text inside turns ink;
+       core label and hint text turn ink-muted. Never put a rarity or feat colour on the cream. */
+.tt-selectable.is-selected { background-color: var(--enamel); color: var(--ink); border-color: var(--ink); }
+.tt-selectable.is-selected .tt-label, .tt-selectable.is-selected .tt-hint, .tt-selectable.is-selected .tt-sub { color: var(--ink-muted); }
+
+/* --- Focus: ink | focus | ink. A 3 px `focus` ring sits right outside the piece's own ink outline (offset =
+       the outline width), and a 2 px `ink` keyline runs outside the ring, so focus reads on every ground:
+       white / yellow on plates, the veil and dark floors; the ink keyline on blockout, sand and snow (where the
+       ring alone is 1.1-1.3:1). Focus never removes a piece's own outline or print. .is-focused shows it in
+       static previews. (Preview build: outline = ring, a hard 0-blur drop-shadow chain = keyline. In UMG:
+       one ring Image, ink 2 | focus 3, drawn var(--tt-outline) outside the piece.)
+       Variants:
+       - default: outlined pieces whose ink is an outer outline (plates, tags, chips, pills, nameplates).
+       - .tt-focus--border: pieces whose ink is their BORDER (keycaps, folder tabs): the ring sits at offset 0.
+       - .tt-focus--fill-gap: unoutlined pieces inside a plate (cards, rows, cells): an ink ring fills the gap,
+         the ring sits outside it, no keyline (the plate is the ground). Put the piece's own shadows in
+         --tt-shadow to keep them. REQUIRED on any transparent piece: the keyline would also edge its text.
+       - .tt-focus--own: the piece draws its own ring (an open-bottom folder tab fused to its plate, a map
+         cursor): core draws neither ring nor keyline.
+       - .tt-btn: built in (2 px ink gap and keyline). */
+.tt-focusable:focus-visible, .is-focused { outline: var(--stroke-focus) solid var(--focus); outline-offset: var(--tt-outline); filter: var(--tt-focus-keyline); }
+.tt-focus--border:focus-visible, .tt-focus--border.is-focused { outline-offset: 0; }
+.tt-focus--fill-gap:focus-visible, .tt-focus--fill-gap.is-focused { filter: none; box-shadow: 0 0 0 var(--tt-outline) var(--ink), var(--tt-shadow, 0 0 0 0 transparent); }
+.tt-focus--own:focus-visible, .tt-focus--own.is-focused { outline: none; filter: none; }
+.tt-btn:focus-visible, .tt-btn.is-focused { outline: var(--stroke-focus) solid var(--focus); outline-offset: 2px; box-shadow: 0 0 0 2px var(--ink), 0 4px 0 2px var(--ink); filter: var(--tt-focus-keyline); }
+
+/* --- High Contrast (D22): sunk, pressed and unlit states keep their full white outline. Sinking shows by the
+       print offset only, never by darkening the rim. */
+[data-theme="high-contrast"] .tt-plate.is-unlit { border-color: var(--lip); }
+
+/* --- Bars: sunk well + lip; fill, trail, lead, notches, patterns. Set --v (fill) and --t (trail) as %. */
+.tt-bar { position: relative; height: 20px; background: var(--well); border: var(--stroke-rim) solid var(--lip); border-radius: 6px; overflow: hidden; }
+.tt-bar--world { border-color: var(--rim); box-shadow: 0 0 0 2px var(--ink); }
+.tt-bar__trail, .tt-bar__lead, .tt-bar__fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 3px; }
+.tt-bar__trail { width: var(--t, 0%); background: var(--vital-trail); }
+.tt-bar__lead { width: var(--l, 0%); background: var(--heal); }
+.tt-bar__fill { width: var(--v, 100%); background: var(--fill, var(--vital)); }
+.tt-bar__notch { position: absolute; top: 0; bottom: 0; left: var(--at); width: 2px; margin-left: -1px; background: var(--ink); box-shadow: 1px 0 0 var(--lip), -1px 0 0 var(--lip); }
+/* Debt rule (D2, system-wide; widget StaminaDebtBar, a UProgressBar LeftToRight with the M_UI_PatternFill hatch,
+   percent clamped 0..1): stamina below 0 fills from the LEFT, width = |Stamina| / MaxStamina; regen eats it
+   from its right edge, then the fill grows from the same left edge (one scale for debt and fill). The floor is
+   an absolute -50, so the deepest debt is 50 / MaxStamina (37% at the default 134). */
+.tt-bar__debt { position: absolute; top: 0; bottom: 0; left: 0; width: var(--d, 0%); border-radius: 3px 0 0 3px; background: repeating-linear-gradient(45deg, var(--well) 0 5px, var(--danger) 5px 7px); box-shadow: inset -2px 0 0 var(--danger); }
+.tt-bar--vital { --fill: var(--vital); }
+.tt-bar--green { --fill: var(--stamina-green); }
+.tt-bar--yellow { --fill: var(--stamina-yellow); }
+.tt-bar--red { --fill: var(--stamina-red); }
+.tt-bar--posture { --fill: var(--posture); }
+.tt-bar--foe { --fill: var(--foe); }
+.tt-bar--sp { --fill: var(--spell-points); }
+.tt-bar.is-striped .tt-bar__fill { background-image: repeating-linear-gradient(-45deg, transparent 0 6px, color-mix(in srgb, var(--ink) 35%, transparent) 6px 10px); }
+.tt-bar--thin { height: 10px; border-radius: 4px; }
+.tt-bar--hair { height: 8px; border-width: 1px; border-radius: 3px; }
+
+/* --- Pills: multiplier and state pills, ink text on a token fill. */
+.tt-pill { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); height: 28px; padding: 0 10px; border-radius: var(--radius-pill); background: var(--pill, var(--enamel)); color: var(--ink); font: 700 20px/1 var(--font-mono); border: 2px solid var(--ink); white-space: nowrap; }
+.tt-pill--green { --pill: var(--stamina-green); }
+.tt-pill--yellow { --pill: var(--stamina-yellow); }
+.tt-pill--red { --pill: var(--stamina-red); }
+.tt-pill--exhausted { --pill: var(--ink); color: var(--danger-text); border-color: var(--danger); }
+.tt-pill--good { --pill: var(--good); }
+.tt-pill--danger { --pill: var(--danger); }
+
+/* --- Chips: plate pills for statuses and small states. */
+.tt-chip { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 36px; padding: 0 12px; border-radius: var(--radius-pill); background: var(--plate); color: var(--text); border: 2px solid var(--chip-rim, var(--lip)); box-shadow: 0 0 0 var(--tt-outline) var(--ink); font: 600 20px/26px var(--font-ui); white-space: nowrap; }
+
+/* --- Pips (D1): small counters that are NOT tally strokes: boss phases, status stacks. Reached = a filled disc
+       in currentColor (text on plate), ahead = a hollow 2 px ring (lip), so they differ by shape. 14 px, 6 apart;
+       --lg 20 px for boss phases; --enamel on tags (ink / ink-muted). Markup:
+       <span class="tt-pips" role="img" aria-label="Phase 2 of 3"><span class="tt-pip is-on"></span>...</span> */
+.tt-pips { display: inline-flex; align-items: center; gap: 6px; flex: none; line-height: 0; color: var(--text); --tt-pip-empty: var(--lip); }
+.tt-pip { display: inline-block; flex: none; width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--tt-pip-empty); }
+.tt-pip.is-on { background: currentColor; box-shadow: none; }
+.tt-pips--lg { gap: 8px; }
+.tt-pips--lg .tt-pip { width: 20px; height: 20px; }
+.tt-pips--lg .tt-pip:not(.is-on) { box-shadow: inset 0 0 0 3px var(--tt-pip-empty); }
+.tt-pips--enamel { color: var(--ink); --tt-pip-empty: var(--ink-muted); }
+
+/* --- Rail bar (D23): the ONE rail family. A teal tin bar with an end cap at each end, each cap holding an
+       eyelet. The title-menu rail, the MageTower rod and the spike's base plate are all this piece: set its width.
+       The caps overhang each end by 16 px and stand 12 px above and below the 20 px bar. */
+.tt-railbar {
+  position: relative; display: block; height: 20px; border-radius: 10px; background: var(--plate);
+  border-top: var(--stroke-rim) solid var(--rim); border-bottom: var(--stroke-rim) solid var(--rim-shade);
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print);
+}
+.tt-railbar::before, .tt-railbar::after {
+  content: ""; position: absolute; top: -12px; width: 26px; height: 40px; border-radius: 7px;
+  background: radial-gradient(circle, var(--rim) 0 4px, var(--ink) 4px 6px, transparent 6px) center / 100% 100% no-repeat, var(--plate-raised);
+  border: var(--stroke-rim) solid var(--rim); box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print);
+}
+.tt-railbar::before { left: -16px; }
+.tt-railbar::after { right: -16px; }
+
+/* --- Spec band (D7): annotations live BELOW the screen, in a band under a rule, in plain .tt-label text.
+       Never chip or pill shapes, never inside a 1920x1080 screen frame. Items are columns of notes. */
+.tt-specband { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-5) var(--space-7); padding: var(--space-5) var(--space-6) var(--space-6); background: var(--plate); border-top: var(--stroke-rim) solid var(--rim); }
+.tt-specband__item { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); max-width: 440px; }
+.tt-specband__title { margin: 0; font: 700 20px/26px var(--font-ui); color: var(--text); }
+.tt-specband .tt-label { margin: 0; }
+
+/* --- Glyphs, tally strokes and rarity badges (drawn by TinTally.mount from components/bundle.js). */
+.tt-glyph { display: inline-flex; flex: none; width: 24px; height: 24px; color: currentColor; }
+.tt-glyph svg { width: 100%; height: 100%; display: block; }
+.tt-glyph--20 { width: 20px; height: 20px; }
+.tt-glyph--24 { width: 24px; height: 24px; }
+.tt-glyph--32 { width: 32px; height: 32px; }
+.tt-glyph--48 { width: 48px; height: 48px; }
+.tt-glyph--64 { width: 64px; height: 64px; }
+.tt-tally, .tt-rarity { display: inline-flex; flex: none; color: currentColor; line-height: 0; }
+.tt-tally svg, .tt-rarity svg { display: block; }
+/* Tally strokes have exactly three jobs (D1): skill ranks, rarity badges, the seal / loading throbber.
+   Lit strokes: text on plate, ink on enamel (never good). Unlit strokes are rows of dots in every theme
+   (drawn by core.js), so lit vs unlit differs by shape, not colour alone. On enamel use ink-muted dots. */
+.tt-tally-empty { fill: var(--lip); stroke: none; }
+.tt-tag .tt-tally-empty, .tt-tally--enamel .tt-tally-empty { fill: var(--ink-muted); }
+.tt-socket { display: inline-flex; align-items: center; justify-content: center; flex: none; padding: 4px 6px; border-radius: 6px; background: var(--ink); line-height: 0; }
+.tt-r-common { color: var(--rarity-common); }
+.tt-r-green { color: var(--rarity-green); }
+.tt-r-blue { color: var(--rarity-blue); }
+.tt-r-purple { color: var(--rarity-purple); }
+.tt-r-red { color: var(--rarity-red); }
+.tt-r-gold { color: var(--rarity-gold); }
+
+/* --- Ink-outlined lettering for world-space text (callouts, damage numbers). */
+.tt-outlined { -webkit-text-stroke: calc(var(--tt-outline) * 2) var(--ink); paint-order: stroke fill; }
+.tt-outlined-4 { -webkit-text-stroke: 8px var(--ink); paint-order: stroke fill; }
+
+/* Reduce Motion: swings, stamps and shakes collapse. The loading throbber is the one exception (D18): it keeps
+   looping, because it proves the game has not hung. */
+@media (prefers-reduced-motion: reduce) {
+  .tt-root *, .tt-root *::before, .tt-root *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+  .tt-root .tt-tally-throbber > .tt-tally { animation-duration: 1200ms !important; }
+}

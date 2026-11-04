@@ -1,0 +1,77 @@
+/* WorldMarkers: the world-space combat readability layer for the fixed diorama camera (pitch -50, 1800 cm,
+   60 deg FOV: about 0.92 px per cm across the floor at the screen centre and 0.71 px per cm up the screen).
+   Floor decals (enemy telegraphs, hazard zones, the aim chevron, the ground-target reticle) and screen-edge
+   threat pips. No text on the floor. Every edge is the dual edge, drawn as an ink | rim | ink sandwich so it holds
+   on every floor: the outer ink on blockout, sand and snow, the rim on mire and night.
+   Decal strokes are screen-constant (vector-effect here; in UE the decal material widens them with distance), so
+   the 3 px ink (4 in High Contrast) and 2 px rim hold at every depth. Colours: danger = threat (enemy telegraphs
+   and hazards); rim cream on ink = the player's own markers; foe = the off-screen threat pips. */
+
+/* Floor decals: one SVG per crop. Ground shapes sit in a group scaled (1, 0.77) for the camera's foreshortening. */
+.tt-wm-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.tt-wm-svg path, .tt-wm-svg circle, .tt-wm-svg line { vector-effect: non-scaling-stroke; }
+
+/* The edge sandwich: an ink stroke (outline x 2 + 2 px) under a 2 px rim stroke on the same path, so the edge reads
+   ink 3 | rim 2 | ink 3 from outside in (ink 4 | rim 2 | ink 4 in High Contrast). */
+.tt-wm__ink { fill: none; stroke: var(--ink); stroke-width: calc(var(--tt-outline) * 2 + 2px); stroke-linejoin: round; stroke-linecap: round; }
+.tt-wm__rim { fill: none; stroke: var(--rim); stroke-width: 2px; stroke-linejoin: round; stroke-linecap: round; }
+/* The player's markers carry a bolder cream core: ink 3 | rim 4 | ink 3. */
+.tt-wm__ink--wide { stroke-width: calc(var(--tt-outline) * 2 + 4px); }
+.tt-wm__rim--wide { stroke-width: 4px; }
+/* Unavailable (an invalid ground target): the rim breaks into dashes over the solid ink. Dashed means unavailable. */
+.tt-wm__rim--dash { stroke-dasharray: 12 9; stroke-linecap: butt; }
+
+/* Telegraph fill: the danger hatch over the whole shape, then the windup charge (solid danger) growing from the
+   attacker to the edge; the hit lands when it reaches the edge. */
+.tt-wm__p-danger { fill: var(--danger); }
+.tt-wm__p-rim { fill: var(--rim); }
+.tt-wm__charge { fill: var(--danger); }
+/* Jump-avoidable band (a low sweep): a hurdle rail of rim and ink blocks just inside the arc's outer edge. */
+.tt-wm__band-base { fill: none; stroke: var(--ink); stroke-width: 10px; }
+.tt-wm__band { fill: none; stroke: var(--rim); stroke-width: 10px; stroke-dasharray: 7 7; }
+/* Hazard zones: a solid danger band just inside the edge (telegraphs have none), the hatch, and a type stamp. The band
+   is a 28 px stroke on the shape's own path, clipped to the shape, so it never shows outside the ink outline: 10 px
+   of it shows inside the edge sandwich. */
+.tt-wm__hazard-band { fill: none; stroke: var(--danger); stroke-width: 28px; stroke-linejoin: round; }
+
+/* The aim chevron: an open "^" laid flat on the floor, a 6 px cream stroke inside the ink outline (ink 3 | rim 6 |
+   ink 3). Open, not a filled arrowhead, so it never reads as the mouse cursor. */
+.tt-wm__chev-ink { fill: none; stroke: var(--ink); stroke-width: calc(var(--tt-outline) * 2 + 6px); stroke-linejoin: round; stroke-linecap: round; }
+.tt-wm__chev { fill: none; stroke: var(--rim); stroke-width: 6px; stroke-linejoin: round; stroke-linecap: round; }
+/* The reticle's centre: a small cream cross or a filled pin, ink-edged. */
+.tt-wm__mark { fill: var(--rim); stroke: var(--ink); stroke-width: 6px; stroke-linecap: round; paint-order: stroke; }
+.tt-wm__mark-line { fill: none; stroke: var(--rim); stroke-width: 3px; stroke-linecap: round; }
+.tt-wm__mark-line-ink { fill: none; stroke: var(--ink); stroke-width: 9px; stroke-linecap: round; }
+
+/* Floor stamp: a glyph on an ink disc with a rim ring, laid flat (scaled 0.77 tall). Hazards: the damage type's
+   glyph in its dmg colour. Invalid ground target: the cross glyph in rim. Never text. */
+.tt-wm-stamp {
+  position: absolute; display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%;
+  background: var(--ink); color: var(--wm-stamp, var(--danger)); box-shadow: 0 0 0 2px var(--rim), 0 0 0 calc(2px + var(--tt-outline)) var(--ink);
+  transform: scaleY(0.77);
+}
+.tt-wm-stamp .tt-glyph { width: 28px; height: 28px; }
+.tt-wm-stamp--fire { --wm-stamp: var(--dmg-fire); }
+.tt-wm-stamp--poison { --wm-stamp: var(--dmg-poison); }
+.tt-wm-stamp--player { --wm-stamp: var(--rim); }
+
+/* Screen-edge threat pip: a foe teardrop whose point aims at the off-screen enemy (dual edge: ink 3 | rim 2),
+   32 px for Basic, 40 px with a good diamond for Elite and up; a winding-up enemy adds an ink | rim | ink ring. */
+.tt-wm-pip { position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; pointer-events: none; }
+.tt-wm-pip svg { display: block; overflow: visible; }
+.tt-wm-pip__body { fill: var(--foe); stroke: var(--ink); stroke-width: calc(var(--tt-outline) * 2 + 2px); stroke-linejoin: round; paint-order: stroke; }
+.tt-wm-pip__edge { fill: none; stroke: var(--rim); stroke-width: 2px; stroke-linejoin: round; }
+.tt-wm-pip__dia { fill: var(--good); stroke: var(--ink); stroke-width: 4px; paint-order: stroke; }
+/* Map scale (preview only): the same pip at half size on the 1/2-scale placement diagram. */
+.tt-wm-pip--map { width: 32px; height: 32px; margin: -16px 0 0 -16px; }
+
+/* Preview stand-ins (world, not UI): the pit an invalid target sits over, and the placement diagram (the screen at
+   1/2 on the spec plate: HUD boxes, the pip lane, rays from the player). */
+.tt-wm__pit { position: absolute; border-radius: 18px; background: var(--world-dark); box-shadow: inset 0 10px 0 color-mix(in srgb, var(--world-dark) 70%, var(--world-shade)); }
+.tt-wm-map { position: relative; background: var(--plate-raised); border-top: 2px solid var(--rim); border-bottom: 2px solid var(--rim); overflow: hidden; }
+.tt-wm-map__box { position: absolute; border: 2px solid var(--lip); border-radius: 4px; background: var(--plate-raised); display: flex; align-items: center; justify-content: center; color: var(--text-muted); white-space: nowrap; line-height: 22px; }
+.tt-wm-map__lane { position: absolute; border: 2px solid color-mix(in srgb, var(--rim) 45%, transparent); border-radius: 4px; }
+.tt-wm-map__ray { position: absolute; height: 2px; transform-origin: 0 50%; background: color-mix(in srgb, var(--rim) 35%, transparent); }
+.tt-wm-map__you { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--rim); box-shadow: 0 0 0 2px var(--ink); }
+.tt-wm-map__ghost { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid var(--rim); }

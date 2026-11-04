@@ -1,0 +1,51 @@
+/* BossBar: top-centre, (0, 32), 880 x 96 (x 520-1400). World voice: no remarks, no Tally ornament.
+   A bar plate (880 x 62) with two raised tabs on its top edge: the nameplate (left) and the phase tab (right).
+   Inside the bar plate: health 848 x 22 (foe, trail, 25% notch) over posture 848 x 8. They are plain wells with
+   the lip: the plate already carries the dual edge, so they never take the world edge (.tt-bar--world). */
+
+.tt-boss { position: relative; width: 880px; height: 96px; }
+
+.tt-boss__plate {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 62px;
+  display: flex; flex-direction: column; gap: 5px; padding: 19px 14px 0;
+}
+.tt-boss__hp { height: 22px; }
+.tt-boss__po { height: 8px; border-width: 1px; border-radius: 3px; }
+
+/* Nameplate: plate tab, World voice heading in tracked caps. */
+.tt-boss__name {
+  position: absolute; left: 22px; top: 0; z-index: 1;
+  display: flex; align-items: center; height: 48px; padding: 0 22px 2px;
+}
+.tt-boss__title { margin: 0; line-height: 40px; color: var(--text); white-space: nowrap; }
+/* A name wider than 432 px at 40 px (only TEMPEST ASCENDANT) steps down to 36 px; never truncate. */
+.tt-boss__title--long { font-size: 36px; }
+
+/* Phase tab: phase word + 3 pips (core .tt-pips--lg: reached = filled disc, ahead = hollow lip ring; never tally
+   strokes, D1), then ONE state chip. */
+.tt-boss__phase {
+  position: absolute; right: 22px; top: 6px; z-index: 1;
+  display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 8px 0 14px;
+}
+.tt-boss__ph { font: 700 20px/1 var(--font-ui); letter-spacing: 0.06em; color: var(--text-muted); white-space: nowrap; }
+.tt-boss__pips { color: var(--text); }
+.tt-boss__chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+  border-radius: var(--radius-pill); border: 2px solid var(--ink); color: var(--ink);
+  font: 800 20px/1 var(--font-ui); letter-spacing: 0.06em; white-space: nowrap;
+}
+.tt-boss__chip .tt-num { font-weight: 700; letter-spacing: 0; text-transform: none; }
+.tt-boss__chip--enraged { background: var(--danger); }
+.tt-boss__chip--broken { background: var(--good); }
+
+/* Enraged: the reached pips go danger-text so phase 3 reads before the chip is read, and still reads
+   (word + 3 filled pips + colour) while a Broken / Down chip temporarily takes the chip's place. */
+.tt-boss.is-enraged .tt-boss__pips { color: var(--danger-text); }
+
+/* Posture broken: the posture lane floods with good / ink stripes that drain with the stagger timer. */
+.tt-boss.is-broken .tt-boss__po { height: 8px; }
+.tt-boss.is-broken .tt-boss__po .tt-bar__fill { background: repeating-linear-gradient(-45deg, var(--good) 0 5px, var(--ink) 5px 9px); }
+
+/* Preview scaffolding: placement boxes on the 1920 canvas, drawn on the spec plate with plain labels. */
+.tt-boss__box { position: absolute; display: flex; align-items: center; justify-content: center; border: 2px solid var(--lip); border-radius: 8px; white-space: nowrap; line-height: 22px; }
+.tt-boss__box--solid { border-color: var(--rim); background: var(--plate-raised); }

@@ -1,0 +1,76 @@
+<!-- @dsCard group="HUD" height=1724 width=960 subtitle="Equipped weapon, bottom-right: glyph well, name, damage subtype and the swap key" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>LoadoutPlate</title></head>
+<body>
+<div class="tt-root tt-loadout-sheet" id="sheet">
+
+  <span class="kicker tt-caps tt-label">In context · the bottom-right corner of the screen at 1:1 · keyboard and mouse</span>
+  <div class="tt-loadout-sheet__corner tt-floor-blockout">
+    <div class="tt-loadout-sheet__br" style="bottom:132px">
+      <div class="tt-quick">
+        <div class="tt-plate tt-quick__slot tt-quick__slot--throw" aria-label="Throwing Knife, 5"><span class="tt-glyph tt-quick__icon" data-glyph="throwable" aria-hidden="true"></span><span class="num-s tt-quick__count">x5</span><span class="tt-key tt-key--sm tt-quick__key">G</span></div>
+        <div class="tt-plate tt-quick__slot" aria-label="Health Potion, 3, Item A, no key yet"><span class="tt-glyph tt-quick__icon tt-quick__icon--potion" data-glyph="potion" aria-hidden="true"></span><span class="num-s tt-quick__count">x3</span><span class="tt-key tt-key--sm tt-key--none tt-quick__key" aria-label="Unbound"></span></div>
+        <div class="tt-plate tt-quick__slot" aria-label="Antidote, 1"><span class="tt-glyph tt-quick__icon" data-glyph="tonic" aria-hidden="true"></span><span class="num-s tt-quick__count">x1</span><span class="tt-key tt-key--sm tt-quick__key">2</span></div>
+        <div class="tt-plate tt-quick__slot" aria-label="Bandage, 2"><span class="tt-glyph tt-quick__icon" data-glyph="bandage" aria-hidden="true"></span><span class="num-s tt-quick__count">x2</span><span class="tt-key tt-key--sm tt-quick__key">3</span></div>
+        <div class="tt-plate tt-quick__slot is-empty" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div class="tt-loadout-sheet__br" style="bottom:32px" data-weapon="longsword"></div>
+  </div>
+  <div class="tt-specband">
+    <div class="tt-specband__item"><p class="tt-specband__title">Loadout plate</p><p class="tt-label">(−32, −32) · 340 x 84 · x 1548-1888, y 964-1048 · always on.</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">Quick items above it</p><p class="tt-label">(−32, −132) · Throw + 4 x 56 = 336 wide · keycaps rise to y 868 · Item A has no key yet (1 is Restoration's) · Item D empty, so Hidden (QuickItems).</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">The combo is not here</p><p class="tt-label">No strokes under the weapon name (D1): the light-attack chain shows only as "Hit N" under the player (CombatCallout).</p></div>
+  </div>
+
+  <span class="kicker tt-caps tt-label">States</span>
+  <div class="tt-loadout-sheet__grid">
+    <div class="tt-loadout-sheet__cell"><div class="tt-loadout-sheet__cap tt-label"><b>At rest</b><span>Longsword, Slash</span></div>
+      <div class="tt-loadout-sheet__stage tt-floor-grass" data-weapon="longsword"></div></div>
+    <div class="tt-loadout-sheet__cell"><div class="tt-loadout-sheet__cap tt-label"><b>Dagger</b><span>Pierce</span></div>
+      <div class="tt-loadout-sheet__stage tt-floor-sand" data-weapon="dagger"></div></div>
+    <div class="tt-loadout-sheet__cell"><div class="tt-loadout-sheet__cap tt-label"><b>Swapping</b><span>Tab sunk, plate dips 3 px, Mace types in</span></div>
+      <div class="tt-loadout-sheet__stage tt-floor-mire" data-weapon="mace:swap"></div></div>
+    <div class="tt-loadout-sheet__cell"><div class="tt-loadout-sheet__cap tt-label"><b>Unarmed</b><span>Fist glyph in text-muted, Blunt</span></div>
+      <div class="tt-loadout-sheet__stage tt-floor-night" data-weapon="unarmed"></div></div>
+    <div class="tt-loadout-sheet__cell"><div class="tt-loadout-sheet__cap tt-label"><b>Gamepad</b><span>Greatsword, Slash, Y swaps</span></div>
+      <div class="tt-loadout-sheet__stage tt-floor-snow" data-weapon="greatsword:pad"></div></div>
+    <div class="tt-loadout-sheet__cell"><div class="tt-loadout-sheet__cap tt-label"><b>Longest type name</b><span>Quarterstaff, 149 of the 166 px column</span></div>
+      <div class="tt-loadout-sheet__stage tt-floor-blockout" data-weapon="quarterstaff"></div></div>
+    <div class="tt-loadout-sheet__cell"><div class="tt-loadout-sheet__cap tt-label"><b>Spear</b><span>Pierce</span></div>
+      <div class="tt-loadout-sheet__stage tt-floor-grass" data-weapon="spear"></div></div>
+    <div class="tt-loadout-sheet__cell"><div class="tt-loadout-sheet__cap tt-label"><b>Found weapon (example)</b><span>Emberfang, Purple badge, Fire glyph</span></div>
+      <div class="tt-loadout-sheet__stage tt-floor-night" data-weapon="emberfang"></div></div>
+  </div>
+</div>
+<script>
+(function () {
+  /* C(...) builds a class attribute, G(name) a glyph attribute. */
+  function C() { return ' class=' + JSON.stringify([].filter.call(arguments, Boolean).join(' ')); }
+  function G(n) { return ' data-glyph=' + JSON.stringify(n); }
+  /* id: [DisplayedWeaponName, glyph, damage subtype, rarity] */
+  var W = {
+    longsword: ['Longsword', 'longsword', 'Slash'], dagger: ['Dagger', 'dagger', 'Pierce'],
+    greatsword: ['Greatsword', 'greatsword', 'Slash'], spear: ['Spear', 'spear', 'Pierce'],
+    mace: ['Mace', 'mace', 'Blunt'], quarterstaff: ['Quarterstaff', 'quarterstaff', 'Blunt'],
+    unarmed: ['Unarmed', 'unarmed', 'Blunt'], emberfang: ['Emberfang', 'longsword', 'Slash', 'purple']
+  };
+  function plate(spec) {
+    var a = spec.split(':'), w = W[a[0]], swap = a[1] === 'swap', pad = a[1] === 'pad';
+    var name = w[3] ? '<span' + C('tt-rarity', 'tt-r-' + w[3]) + ' data-rarity="' + w[3] + '" aria-label="Purple"></span> ' : '';
+    var fire = a[0] === 'emberfang' ? '<span class="tt-glyph tt-loadout__fire" data-glyph="fire" aria-label="Fire"></span>' : '';
+    var key = pad ? '<span class="tt-key tt-key--pad tt-loadout__key" aria-label="Y">Y</span>'
+                  : '<span' + C('tt-key', 'tt-loadout__key', swap && 'is-pressed') + '>Tab</span>';
+    return '<div' + C('tt-plate', 'tt-loadout', a[0] === 'unarmed' && 'is-unarmed', swap && 'is-swapping') + ' aria-label="Equipped weapon">' +
+      '<div class="tt-loadout__well"><span class="tt-glyph tt-glyph--48"' + G(w[1]) + ' aria-hidden="true"></span></div>' +
+      '<div class="tt-loadout__body"><span' + C('ui-title', 'tt-loadout__name', w[3] && 'tt-r-' + w[3]) + '>' + name + w[0] + '</span>' +
+      '<span class="ui-label tt-loadout__sub"><span class="tt-glyph"' + G(w[2].toLowerCase()) + ' aria-hidden="true"></span><span>' + w[2] + '</span>' + fire + '</span></div>' +
+      key + '</div>';
+  }
+  document.querySelectorAll('[data-weapon]').forEach(function (el) { el.innerHTML = plate(el.getAttribute('data-weapon')); });
+  TinTally.mount(document.getElementById('sheet'));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+/* Credits (tt-cred-*): one long enamel ticket printing up out of the Tally's slot at 40 px/s.
+   Receipt rows with dot leaders, the engine notice and the three OFL font notices.
+   Uses the front-end family from TitleScreen.css (tt-fe-*), core .tt-divider--enamel for every rule
+   (never tally strokes, D1) and core .tt-hintbar. The status is text only: no throbber (D1).
+   The backdrop is core .tt-diorama (the title island's top face, with TitleScreen's relic and flowers)
+   under core .tt-veil (D12). */
+
+/* --- The ticket: 720 wide, rising out of the slot; its top end is a perforated tear line. */
+.tt-cred-ticket { position: absolute; z-index: 2; left: 600px; width: 720px; display: flex; flex-direction: column; padding: 36px 48px 56px; background: var(--enamel); color: var(--ink); border-radius: 4px 4px 0 0; box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print); }
+.tt-cred-ticket--live { overflow: hidden; }
+.tt-cred-ticket--seg { position: relative; left: auto; padding-top: 0; border-radius: 0; }
+/* The tear line is the paper's perforation (as on every ticket stub), not a divider. */
+.tt-cred-tear { position: absolute; left: 16px; right: 16px; top: 14px; height: 2px; background: repeating-linear-gradient(90deg, var(--ink-muted) 0 8px, transparent 8px 14px); }
+
+.tt-cred-head { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 12px 0 0; }
+/* The seal: the Tally's mark, the only mark on the ticket. */
+.tt-cred-seal { position: relative; flex: none; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background: var(--enamel-shade); color: var(--ink); box-shadow: 0 0 0 var(--stroke-rim) var(--ink); }
+.tt-cred-seal::before { content: ""; position: absolute; inset: 5px; border-radius: 50%; border: 2px dashed var(--ink-muted); }
+.tt-cred-kicker { margin: 18px 0 0; color: var(--ink-muted); }
+.tt-cred-title { margin: 2px 0 0; color: var(--ink); }
+/* Rules: core .tt-divider--enamel, across the column, after the head and between sections. */
+.tt-divider.tt-cred-sep { margin: 28px 0; }
+
+.tt-cred-sec { display: flex; flex-direction: column; gap: 6px; }
+.tt-cred-sec__kicker { margin: 0 0 6px; color: var(--ink-muted); }
+.tt-cred-row { display: flex; align-items: baseline; gap: 10px; min-height: 36px; }
+.tt-cred-row__role { flex: none; color: var(--ink); }
+.tt-cred-row__dots { flex: 1; min-width: 24px; height: 0; border-bottom: 3px dotted var(--ink-muted); transform: translateY(-6px); }
+.tt-cred-row__name { flex: none; color: var(--ink); }
+/* A name not given yet: a dashed placeholder chip (dashed = unavailable). Development builds only. */
+.tt-cred-todo { flex: none; display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border-radius: 6px; border: 2px dashed var(--ink-muted); color: var(--ink-muted); font: 700 20px/1 var(--font-mono); }
+.tt-cred-fine { margin: 0; color: var(--ink-muted); overflow-wrap: anywhere; }
+.tt-cred-fine + .tt-cred-fine { margin-top: 4px; }
+.tt-cred-font { display: flex; flex-direction: column; gap: 2px; padding: 8px 0 10px; }
+.tt-cred-font__name { margin: 0; color: var(--ink); }
+.tt-cred-font__by { margin: 0; color: var(--ink-muted); }
+.tt-cred-font__copy { margin: 2px 0 0; color: var(--ink); overflow-wrap: anywhere; }
+.tt-cred-end { display: flex; flex-direction: column; align-items: center; gap: 14px; padding-top: 2px; }
+.tt-cred-end__line { margin: 0; color: var(--ink); }
+
+/* --- The machine: an 800 x 136 menu plate at bottom centre (rivets: a front-end menu plate); the slot
+       mouth sits over the ticket's foot. It holds the seal and the status, centred. */
+.tt-cred-machine { position: absolute; z-index: 3; left: 560px; top: 912px; width: 800px; height: 136px; display: flex; align-items: center; justify-content: center; gap: var(--space-4); padding: 26px 36px 10px; }
+.tt-cred-mouth { position: absolute; z-index: 4; left: 584px; top: 902px; width: 752px; height: 20px; border-radius: 10px; background: var(--well); border: var(--stroke-rim) solid var(--lip); box-shadow: 0 0 0 var(--tt-outline) var(--ink); }
+.tt-cred-machine .tt-title-rivet { z-index: 1; }
+.tt-cred-status { display: flex; align-items: center; gap: var(--space-3); min-width: 160px; color: var(--text-muted); }
+.tt-cred-status .tt-glyph { color: var(--text); }
+
+/* --- Spec band. */
+.tt-cred-seg { position: relative; width: 728px; padding: 4px 4px 8px; }
+.tt-cred-states { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; }
+.tt-cred-mini { position: relative; display: flex; align-items: center; justify-content: center; gap: var(--space-4); width: 728px; height: 96px; padding: 0 24px; }
+
+/* Cut pieces: where the spec band cuts a piece out of the long ticket, the paper ends in a torn
+   zigzag (16 px teeth, 8 px deep) with a 3 px ink edge, so a cut reads as paper, never as clipping.
+   The teeth are the band's plate colour and cover the outline and print along the cut. */
+.tt-cred-cut-top { padding-top: 26px; }
+.tt-cred-cut-top::before, .tt-cred-cut-bottom::after { content: ""; position: absolute; z-index: 1; left: calc(-1 * var(--tt-outline) - 2px); right: calc(-1 * var(--tt-outline) - 2px); pointer-events: none; }
+.tt-cred-cut-top::before { top: calc(-1 * var(--tt-outline) - 2px); height: 20px;
+  background:
+    conic-gradient(from -45deg at 50% 100%, var(--plate) 90deg, transparent 0) 0 8px / 16px 8px repeat-x,
+    linear-gradient(var(--plate), var(--plate)) 0 0 / 100% 8px no-repeat,
+    conic-gradient(from -45deg at 50% 100%, var(--ink) 90deg, transparent 0) 0 11px / 16px 8px repeat-x,
+    linear-gradient(var(--ink), var(--ink)) 0 0 / 100% 11px no-repeat; }
+.tt-cred-cut-bottom::after { bottom: calc(-1 * var(--tt-outline) - 6px); height: 26px;
+  background:
+    conic-gradient(from 135deg at 50% 0, var(--plate) 90deg, transparent 0) 0 3px / 16px 8px repeat-x,
+    linear-gradient(var(--plate), var(--plate)) 0 11px / 100% calc(100% - 11px) no-repeat,
+    conic-gradient(from 135deg at 50% 0, var(--ink) 90deg, transparent 0) 0 0 / 16px 8px repeat-x,
+    linear-gradient(var(--ink), var(--ink)) 0 8px / 100% calc(100% - 8px) no-repeat; }
+/* The real foot of the ticket: the machine cuts it on the same perforation as the top end. */
+.tt-cred-tear--foot { top: auto; bottom: 14px; }
+.tt-specband__item.tt-cred-specitem { width: 736px; max-width: 736px; }

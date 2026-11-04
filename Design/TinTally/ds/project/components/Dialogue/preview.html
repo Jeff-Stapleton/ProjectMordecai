@@ -1,0 +1,215 @@
+<!-- @dsCard group="Menus" height=2600 width=1920 subtitle="Town NPC dialogue over the veiled HUD: speaker tag in the World voice, enamel speech panel, Enter Continue, then up to four choices with a Charisma-locked one" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Dialogue</title></head>
+<body>
+<div class="tt-root tt-dlgue-sheet" id="sheet">
+
+  <header class="tt-dlgue-head">
+    <span class="kicker tt-caps">1 · A line · keyboard and mouse</span>
+    <span class="tt-label">The player pressed F on "Talk to Alchemist". The world and the HUD stay under the veil; the speaker's line is on the enamel panel, the arrow in its corner says another line follows, and Enter moves on.</span>
+  </header>
+
+  <!-- 1920x1080, line state. -->
+  <section class="tt-dlgue-screen" id="dlgue-line" aria-label="Dialogue, a line">
+    <div class="tt-diorama" id="town" aria-hidden="true">
+      <div class="tt-diorama__patch" style="left:600px; top:330px; width:720px; height:420px;"></div>
+      <div class="tt-diorama__path" style="left:912px; top:740px; height:340px;"></div>
+      <div class="tt-diorama__path" style="left:1320px; top:470px; width:600px; height:96px;"></div>
+      <div class="tt-dlgue-house" style="left:300px; top:150px;"></div>
+      <div class="tt-dlgue-house tt-dlgue-house--alchemist" style="left:984px; top:150px;"></div>
+      <div class="tt-dlgue-house" style="left:1520px; top:150px;"></div>
+      <div class="tt-diorama__crate" style="left:1210px; top:340px;"></div>
+      <div class="tt-diorama__crate" style="left:1276px; top:362px;"></div>
+      <div class="tt-diorama__tree" style="left:110px; top:430px;"></div>
+      <div class="tt-diorama__tree" style="left:560px; top:110px;"></div>
+      <div class="tt-diorama__tree" style="left:1780px; top:420px;"></div>
+      <div class="tt-diorama__tree" style="left:240px; top:860px;"></div>
+      <div class="tt-diorama__bush" style="left:780px; top:250px;"></div>
+      <div class="tt-diorama__bush" style="left:1400px; top:640px;"></div>
+      <div class="tt-diorama__bush" style="left:420px; top:620px;"></div>
+      <div class="tt-diorama__pond" style="left:1580px; top:720px;"></div>
+      <div class="tt-diorama__rock" style="left:80px; top:700px;"></div>
+      <div class="tt-diorama__post" style="left:300px; top:380px;"></div>
+      <div class="tt-diorama__post" style="left:360px; top:380px;"></div>
+      <div class="tt-diorama__post" style="left:420px; top:380px;"></div>
+      <div class="tt-diorama__post" style="left:480px; top:380px;"></div>
+      <div class="tt-dlgue-npc" style="left:1068px; top:440px;"><div class="tt-dlgue-npc__body"></div><div class="tt-callout__foot"></div></div>
+    </div>
+
+    <!-- The HUD under the veil: HUDLayout's markup and classes. The interact prompt hides while talking. -->
+    <div class="tt-hud" id="hud-town" aria-label="The HUD, veiled">
+      <div class="tt-hud__player" aria-label="Player"><div class="tt-callout__pawn"></div><div class="tt-callout__foot"></div></div>
+      <div class="tt-hud__gauge" data-gauge='{"hp":82,"st":134,"po":null,"sp":9}'></div>
+      <div class="tt-hud__spells">
+        <div class="tt-plate tt-spell" aria-label="Fireball, 3 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--fire" data-glyph="fireball" aria-label="Fireball"></span></div>
+          <div class="tt-spell__cost" aria-label="3 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">Q</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Blink, 2 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="blink" aria-label="Blink"></span></div>
+          <div class="tt-spell__cost" aria-label="2 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">E</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Stone Skin, 4 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon" data-glyph="stoneskin" aria-label="Stone Skin"></span></div>
+          <div class="tt-spell__cost" aria-label="4 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">R</span>
+        </div>
+        <div class="tt-plate tt-spell" aria-label="Restoration, 3 SP">
+          <div class="tt-spell__well"><span class="tt-glyph tt-glyph--48 tt-spell__icon tt-spell__icon--heal" data-glyph="restoration" aria-label="Restoration"></span></div>
+          <div class="tt-spell__cost" aria-label="3 SP"><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span><span class="tt-spell__dot"></span></div>
+          <span class="tt-key tt-key--sm tt-spell__key">1</span>
+        </div>
+      </div>
+      <div class="tt-hud__rail">
+        <div class="tt-rail">
+          <div class="tt-plate tt-plate--rail tt-railhead">
+            <div class="tt-plate__row"><span class="tt-railhead__kills num-l">Kills: 12</span></div>
+            <span class="tt-railhead__slot" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>
+      <div class="tt-hud__prompt">
+        <div class="tt-iprompt">
+          <div class="tt-iprompt__box"></div>
+          <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+        </div>
+      </div>
+      <div class="tt-hud__quick">
+        <div class="tt-quick">
+          <div class="tt-plate tt-quick__slot tt-quick__slot--throw" aria-label="Throwing Knife, 5"><span class="tt-glyph tt-quick__icon" data-glyph="throwable" aria-hidden="true"></span><span class="num-s tt-quick__count">x5</span><span class="tt-key tt-key--sm tt-quick__key">G</span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Health Potion, 3"><span class="tt-glyph tt-quick__icon tt-quick__icon--potion" data-glyph="potion" aria-hidden="true"></span><span class="num-s tt-quick__count">x3</span><span class="tt-key tt-key--sm tt-key--none tt-quick__key" aria-label="Unbound"></span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Antidote, 1"><span class="tt-glyph tt-quick__icon" data-glyph="tonic" aria-hidden="true"></span><span class="num-s tt-quick__count">x1</span><span class="tt-key tt-key--sm tt-quick__key">2</span></div>
+          <div class="tt-plate tt-quick__slot" aria-label="Bandage, 2"><span class="tt-glyph tt-quick__icon" data-glyph="bandage" aria-hidden="true"></span><span class="num-s tt-quick__count">x2</span><span class="tt-key tt-key--sm tt-quick__key">3</span></div>
+          <div class="tt-plate tt-quick__slot is-empty" aria-hidden="true"></div>
+        </div>
+      </div>
+      <div class="tt-hud__loadout">
+        <div class="tt-plate tt-loadout" aria-label="Equipped weapon">
+          <div class="tt-loadout__well"><span class="tt-glyph tt-glyph--48" data-glyph="longsword" aria-hidden="true"></span></div>
+          <div class="tt-loadout__body"><span class="ui-title tt-loadout__name">Longsword</span><span class="ui-label tt-loadout__sub"><span class="tt-glyph" data-glyph="slash" aria-hidden="true"></span><span>Slash</span></span></div>
+          <span class="tt-key tt-loadout__key">Tab</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tt-veil tt-dlgue__veil"></div>
+
+    <div class="tt-tag tt-dlgue__speaker"><span class="tt-glyph tt-glyph--32" data-glyph="alchemist" aria-hidden="true"></span><span class="tt-dlgue__name world-heading tt-caps">Alchemist</span></div>
+    <div class="tt-dlgue__panel" role="dialog" aria-label="Alchemist">
+      <p class="tt-dlgue__line ui-body">Back already? The kiln has been busy. Six health potions are on the shelf, and the antidotes are still cooling, so take what you need and mind the step.</p>
+      <span class="tt-glyph tt-dlgue__next" data-glyph="arrow-down" aria-label="More follows"></span>
+    </div>
+    <div class="tt-hintbar tt-dlgue__hints"><span class="tt-hint"><span class="tt-key tt-key--sm">Enter</span>Continue</span><span class="tt-hintbar__sep"></span><span class="tt-hint"><span class="tt-key tt-key--sm">Esc</span>Leave</span></div>
+  </section>
+
+  <header class="tt-dlgue-head">
+    <span class="kicker tt-caps">2 · A choice · the lower 680 px of the screen at 1:1</span>
+    <span class="tt-label">The line asks; four choices hang on a menu plate above the panel's right end. Focus starts on the first. The Charisma choice is locked: dashed, the lock glyph and the stat it needs.</span>
+  </header>
+
+  <div class="tt-dlgue-crop">
+    <section class="tt-dlgue-screen" aria-label="Dialogue, a choice">
+      <div class="tt-diorama" data-copy="town" aria-hidden="true"></div>
+      <div class="tt-hud" data-copy="hud-town" aria-hidden="true"></div>
+      <div class="tt-veil tt-dlgue__veil"></div>
+      <ul class="tt-plate tt-plate--menu tt-dlgue__choices" aria-label="Choices">
+        <li><button class="tt-btn tt-btn--block tt-dlgue__choice is-focused" type="button">Restock my potions.</button></li>
+        <li><button class="tt-btn tt-btn--block tt-dlgue__choice" type="button">What do you brew here?</button></li>
+        <li><button class="tt-btn tt-btn--block tt-dlgue__choice" type="button" aria-disabled="true"><span class="tt-glyph" data-glyph="lock" aria-label="Locked"></span>Spare a few extra?<span class="tt-dlgue__note">Charisma 14</span></button></li>
+        <li><button class="tt-btn tt-btn--block tt-dlgue__choice" type="button">Goodbye.</button></li>
+      </ul>
+      <div class="tt-tag tt-dlgue__speaker"><span class="tt-glyph tt-glyph--32" data-glyph="alchemist" aria-hidden="true"></span><span class="tt-dlgue__name world-heading tt-caps">Alchemist</span></div>
+      <div class="tt-dlgue__panel" role="dialog" aria-label="Alchemist">
+        <p class="tt-dlgue__line ui-body">What'll it be? Six on the shelf today.</p>
+      </div>
+      <div class="tt-hintbar tt-dlgue__hints"><span class="tt-hint"><span class="tt-key tt-key--sm">Enter</span>Choose</span><span class="tt-hintbar__sep"></span><span class="tt-hint"><span class="tt-key tt-key--sm">Esc</span>Leave</span></div>
+    </section>
+  </div>
+
+  <section class="tt-dlgue-states" aria-label="Choice and speaker states">
+    <span class="kicker tt-caps">3 · ChoiceButton and SpeakerTag states</span>
+    <div class="tt-dlgue-states__row">
+      <figure class="tt-dlgue-specimen"><button class="tt-btn tt-btn--block tt-dlgue__choice" type="button">Restock my potions.</button><figcaption class="tt-label">Idle</figcaption></figure>
+      <figure class="tt-dlgue-specimen"><button class="tt-btn tt-btn--block tt-dlgue__choice is-hover" type="button">Restock my potions.</button><figcaption class="tt-label">Hover (mouse)</figcaption></figure>
+      <figure class="tt-dlgue-specimen"><button class="tt-btn tt-btn--block tt-dlgue__choice is-pressed" type="button">Restock my potions.</button><figcaption class="tt-label">Pressed</figcaption></figure>
+      <figure class="tt-dlgue-specimen"><button class="tt-btn tt-btn--block tt-dlgue__choice is-focused" type="button">Restock my potions.</button><figcaption class="tt-label">Focused</figcaption></figure>
+      <figure class="tt-dlgue-specimen"><button class="tt-btn tt-btn--block tt-dlgue__choice tt-selectable is-selected is-focused" type="button">Restock my potions.</button><figcaption class="tt-label">Picked: selected + focused while the reply prints</figcaption></figure>
+    </div>
+    <div class="tt-dlgue-states__row">
+      <figure class="tt-dlgue-specimen tt-dlgue-specimen--wide"><button class="tt-btn tt-btn--block tt-dlgue__choice" type="button" aria-disabled="true"><span class="tt-glyph" data-glyph="lock" aria-label="Locked"></span>Spare a few extra?<span class="tt-dlgue__note">Charisma 14</span></button><figcaption class="tt-label">Locked: stat too low (example threshold). Not focusable.</figcaption></figure>
+      <figure class="tt-dlgue-specimen tt-dlgue-specimen--wide"><button class="tt-btn tt-btn--block tt-dlgue__choice" type="button">Spare a few extra?<span class="tt-dlgue__note"><span class="tt-glyph tt-glyph--20" data-glyph="check" aria-label="Met"></span>Charisma 14</span></button><figcaption class="tt-label">Check met: the stat stays named, with the check glyph</figcaption></figure>
+      <figure class="tt-dlgue-specimen tt-dlgue-specimen--tag"><div class="tt-tag tt-dlgue__speaker"><span class="tt-glyph tt-glyph--32" data-glyph="alchemist" aria-hidden="true"></span><span class="tt-dlgue__name world-heading tt-caps">Alchemist</span></div><figcaption class="tt-label">SpeakerTag: a building NPC carries its building glyph</figcaption></figure>
+      <figure class="tt-dlgue-specimen tt-dlgue-specimen--tag"><div class="tt-tag tt-dlgue__speaker"><span class="tt-glyph tt-glyph--32" data-glyph="speech" aria-hidden="true"></span><span class="tt-dlgue__name world-heading tt-caps">Villager</span></div><figcaption class="tt-label">Anyone else: the speech glyph (example speaker)</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="tt-specband" aria-label="Spec notes">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Widget and layer</p>
+      <p class="tt-label">UMordecaiDialogueWidget, a ULyraActivatableWidget on UI.Layer.GameMenu, InputConfig Menu. It draws the veil over the world and the HUD; the pause menu (UI.Layer.Menu) still opens above it. Opened by Interact (F) on a "Talk to ..." prompt.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Gamepad (not drawn)</p>
+      <p class="tt-label">The hint bar reads "A Continue | B Leave", then "A Choose | B Leave"; the D-pad and left stick move between choices. Mouse: click the panel to continue, click a choice to pick it.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Data</p>
+      <p class="tt-label">No dialogue system exists: TODO(DECISION) for the data (speaker, lines, choices, conditions, what a choice opens). Every line and choice here is example copy; "Restock my potions." opens the Alchemist ServiceScreen.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Charisma</p>
+      <p class="tt-label">attribute_scaling_v1 gives CHA "dialogue leverage"; character_attributes_v1 gives it cast speed and magic crit instead. Whether CHA gates choices, and at what value, is TODO(DECISION). 14 is an example.</p>
+    </div>
+  </section>
+</div>
+<script>
+(function () {
+  /* The gauge plate, built exactly as HUDLayout's preview builds it (its gauge() copied verbatim: same markup, same classes). */
+  function C() { return ' class=' + JSON.stringify([].filter.call(arguments, Boolean).join(' ')); }
+  var MAXST = 134; /* MaxStamina = 100 x (1 + 0.04 x EffEnd) at default attributes */
+  var TIER = { green: ['green', '×1.25'], yellow: ['yellow', '×1.0'], red: ['red', '×0.75'], ex: ['exhausted', '×0.5'] };
+  function tierOf(st) { var f = st / MAXST; return st <= 0 ? 'ex' : f >= 0.66 ? 'green' : f >= 0.33 ? 'yellow' : 'red'; }
+  /* Spell Point tokens (D17): 22 px up to 10, 16 px for 11-13, 14 px for 14-16; above 16 the bar fallback. */
+  function tokens(n, max) {
+    if (max > 16) return '<div class="tt-bar tt-bar--sp" style="--v:' + (n / max * 100) + '%" role="img" aria-label="' + n + ' of ' + max + ' Spell Points"><span class="tt-bar__fill"></span></div>';
+    var h = '<span' + C('tt-tally-sp', max > 13 ? 'tt-tally-sp--14' : max > 10 && 'tt-tally-sp--16') + ' aria-hidden="true">';
+    for (var g = 0; g < Math.ceil(max / 5); g++) {
+      h += '<span class="tt-tally-sp__group">';
+      for (var i = g * 5; i < Math.min(max, g * 5 + 5); i++) h += '<span' + C('tt-tally-sp__token', i < n && 'is-on') + '></span>';
+      h += '</span>';
+    }
+    return h + '</span>';
+  }
+  function notch(at) { return '<span class="tt-bar__notch" style="--at:' + at + '%"></span>'; }
+  function tick(at) { return '<span class="tt-gauge__tick" style="--at:' + at + '%"></span>'; }
+  function gauge(o) {
+    var tier = tierOf(o.st), t = TIER[tier], ex = tier === 'ex', low = o.hp <= 25, max = o.spMax || 13, po = o.po;
+    var h = '<div' + C('tt-plate', 'tt-gauge', low && 'tt-gauge--low', low && o.peak && 'is-peak') + ' role="group" aria-label="Player resources">';
+    h += '<div class="tt-gauge__row tt-gauge__row--hp"><span class="num-s tt-gauge__label">HP</span><div class="tt-gauge__track">' + tick(25) +
+      '<div class="tt-bar tt-bar--vital" style="--v:' + o.hp + '%;--t:' + (o.trail || 0) + '%;--l:' + (o.lead || 0) + '%"><span class="tt-bar__trail"></span><span class="tt-bar__lead"></span><span class="tt-bar__fill"></span>' + notch(25) + '</div></div>' +
+      '<span class="num-l tt-gauge__value tt-gauge__value--hp">' + o.hp + '%</span></div>';
+    h += '<div class="tt-gauge__row tt-gauge__row--st"><span class="num-s tt-gauge__label">ST</span><div class="tt-gauge__track">' + tick(33) + tick(66) +
+      '<div' + C('tt-bar', ex ? 'tt-bar--exhausted' : 'tt-bar--' + t[0], tier === 'red' && 'is-striped') + ' style="--v:' + (ex ? 0 : o.st / MAXST * 100) + '%;--d:' + (ex ? Math.min(-o.st / MAXST * 100, 100) : 0) + '%">' +
+      (ex ? '<span class="tt-bar__debt"></span>' : '<span class="tt-bar__fill"></span>') + notch(33) + notch(66) + '</div>' +
+      (o.guard ? '<span class="tt-gauge__guard"><span class="tt-glyph" data-glyph="block" aria-hidden="true"></span>Guard broken</span>' : '') + '</div>' +
+      '<span class="tt-gauge__stend"><span' + C('tt-gauge__sprint', o.sprint && 'is-on') + ' role="img" aria-label="Sprint ' + (o.sprint ? 'on' : 'off') + '"><span class="tt-glyph" data-glyph="sprint" aria-hidden="true"></span></span>' +
+      '<span' + C('tt-pill', 'tt-pill--' + t[0], 'tt-gauge__pill') + '>' + t[1] + '</span></span></div>';
+    var broken = po === 'broken';
+    h += '<div' + C('tt-gauge__row', 'tt-gauge__row--po', po === null && 'is-hidden') + '><span></span><div class="tt-gauge__track">' +
+      '<div' + C('tt-bar', 'tt-bar--hair', 'tt-bar--posture', broken && 'is-posture-broken') + ' style="--v:' + (broken ? 100 : (typeof po === 'number' ? po : 0)) + '%"><span class="tt-bar__fill"></span></div>' +
+      '</div><span></span></div>';
+    h += '<div class="tt-gauge__row tt-gauge__row--sp"><span class="num-s tt-gauge__label">SP</span>' + tokens(o.sp, max) +
+      '<span class="num-m tt-gauge__value">' + o.sp + ' / ' + max + '</span></div>';
+    return h + '</div>';
+  }
+  document.querySelectorAll('[data-gauge]').forEach(function (el) { el.innerHTML = gauge(JSON.parse(el.getAttribute('data-gauge'))); });
+  /* The choice frame stands in the same town with the same HUD under the veil. */
+  document.querySelectorAll('[data-copy]').forEach(function (el) { el.innerHTML = document.getElementById(el.getAttribute('data-copy')).innerHTML; });
+  TinTally.mount(document.getElementById('sheet'));
+})();
+</script>
+</body>
+</html>

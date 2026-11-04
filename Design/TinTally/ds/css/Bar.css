@@ -1,0 +1,26 @@
+/* Bar: the meter. Core gives the well (.tt-bar), lip, fill, trail, heal lead, notch, the debt hatch
+   (StaminaDebtBar: anchored left, |Stamina| / MaxStamina, D2), stripes, the colour modifiers and the world
+   edge (.tt-bar--world). This partial adds the gauge sizes, the Exhausted tier, the player posture-broken
+   hatch (D3) and the enemy / boss break flood. Set --v (fill), --t (trail), --l (lead) and --d (debt) as %.
+   Enemy lanes and boss bars are sized by their owners (EnemyTag's gauge, BossBar's plate), not here.
+   In Unreal every pattern here is M_UI_PatternFill (03), never a texture per bar. */
+
+/* Gauge plate sizes (GaugePlate is the source): HP 268 x 24, ST 268 x 18, posture 268 x 8 (1 px lip). */
+.tt-bar--hud { width: 268px; height: 24px; }
+.tt-bar--hud-st { width: 268px; height: 18px; }
+.tt-bar--hud-thin { width: 268px; height: 8px; border-width: 1px; border-radius: 3px; }
+.tt-bar--hud-thin .tt-bar__fill { border-radius: 2px; }
+
+/* Exhausted (stamina at or below 0): no fill, only the core debt hatch. The class names the tier for the
+   stamina widget; the debt itself is core .tt-bar__debt (StaminaDebtBar). */
+.tt-bar--exhausted .tt-bar__fill { display: none; }
+
+/* Player posture broken (D3): the posture fill floods 100% under an ink hatch at +45 deg and the lip turns
+   rim. No red, no chip: Red means threat only, and the hatch angle, the pewter ground and the hairline height
+   keep it apart from the Red stamina tier's -45 deg ink stripes on danger. */
+.tt-bar.is-posture-broken { border-color: var(--rim); }
+.tt-bar.is-posture-broken .tt-bar__fill { width: 100%; background: repeating-linear-gradient(45deg, var(--posture) 0 4px, var(--ink) 4px 6px); }
+
+/* Enemy and boss break flood: the posture lane floods with good / ink stripes at -45 deg and drains over the
+   stagger duration (Posture Broken 1 s, Knocked Down 2 s): --v runs from 100% to 0. */
+.tt-bar.is-broken .tt-bar__fill { width: var(--v, 100%); background: repeating-linear-gradient(-45deg, var(--good) 0 5px, var(--ink) 5px 9px); }

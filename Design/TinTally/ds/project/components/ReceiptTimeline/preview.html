@@ -1,0 +1,252 @@
+<!-- @dsCard group="Tally" height=1903 width=1280 subtitle="The pacing source of truth: one fight held and printed, the +N badge, 2.5 s of calm, 350 ms apart, the 20 s cap, overflow, pause and Tally notifications" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ReceiptTimeline</title>
+<style>
+/* Preview scaffolding only. */
+.pv { padding: 24px 24px 32px; }
+.pv-legend { margin: 18px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 32px; }
+.pv-legend li { display: flex; align-items: flex-start; gap: 12px; font: 600 20px/26px var(--font-ui); color: var(--ink); }
+.pv-legend .tt-receipt__mark { margin-top: -1px; }
+.pv-legend .num-s { color: var(--ink-muted); min-width: 84px; white-space: nowrap; }
+.pv-muted { color: var(--ink-muted); }
+.pv-right { display: flex; flex-direction: column; gap: 24px; }
+</style>
+</head>
+<body>
+<div class="tt-root pv">
+<div class="tt-receipt">
+
+  <div class="tt-plate tt-plate--menu tt-receipt__head">
+    <span class="tt-receipt__title tally-heading">Receipt pacing</span>
+    <span class="tt-receipt__sub ui-body">One fight, as the Tally holds it and prints it. Callouts and damage numbers never wait.</span>
+    <span class="tt-receipt__slot" aria-hidden="true"></span>
+  </div>
+
+  <div class="tt-receipt__paper">
+    <div class="tt-receipt__grid">
+      <div class="tt-receipt__guides" aria-hidden="true">
+        <span class="tt-receipt__guide" style="--t:10.5"></span>
+        <span class="tt-receipt__guide" style="--t:14.5"></span>
+        <span class="tt-receipt__guide" style="--t:17"></span>
+      </div>
+      <span class="tt-receipt__name tt-receipt__name--axis">Seconds</span>
+      <div class="tt-receipt__track tt-receipt__track--axis">
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:0"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:0">0</span>
+            <span class="tt-receipt__tick" style="--t:1"></span>
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:2"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:2">2</span>
+            <span class="tt-receipt__tick" style="--t:3"></span>
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:4"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:4">4</span>
+            <span class="tt-receipt__tick" style="--t:5"></span>
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:6"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:6">6</span>
+            <span class="tt-receipt__tick" style="--t:7"></span>
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:8"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:8">8</span>
+            <span class="tt-receipt__tick" style="--t:9"></span>
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:10"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:10">10</span>
+            <span class="tt-receipt__tick" style="--t:11"></span>
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:12"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:12">12</span>
+            <span class="tt-receipt__tick" style="--t:13"></span>
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:14"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:14">14</span>
+            <span class="tt-receipt__tick" style="--t:15"></span>
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:16"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:16">16</span>
+            <span class="tt-receipt__tick" style="--t:17"></span>
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:18"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:18">18</span>
+            <span class="tt-receipt__tick" style="--t:19"></span>
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:20"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:20">20</span>
+            <span class="tt-receipt__tick" style="--t:21"></span>
+            <span class="tt-receipt__tick tt-receipt__tick--major" style="--t:22"></span>
+            <span class="tt-receipt__ticklabel num-s" style="--t:22">22</span>
+            <span class="tt-receipt__tick" style="--t:23"></span>
+      </div>
+
+      <span class="tt-receipt__name">Hits</span>
+      <div class="tt-receipt__track">
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:0" aria-label="Damage dealt at 0 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:0.5" aria-label="Damage dealt at 0.5 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit tt-receipt__hit--taken" style="--t:1" aria-label="Damage taken at 1 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:1.6" aria-label="Damage dealt at 1.6 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:2.2" aria-label="Damage dealt at 2.2 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:3" aria-label="Damage dealt at 3 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:3.4" aria-label="Damage dealt at 3.4 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit tt-receipt__hit--taken" style="--t:4.1" aria-label="Damage taken at 4.1 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:5" aria-label="Damage dealt at 5 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:5.6" aria-label="Damage dealt at 5.6 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:7" aria-label="Damage dealt at 7 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:7.5" aria-label="Damage dealt at 7.5 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit tt-receipt__hit--taken" style="--t:8.3" aria-label="Damage taken at 8.3 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:9.2" aria-label="Damage dealt at 9.2 s"></span>
+            <span class="tt-receipt__at tt-receipt__hit" style="--t:10.5" aria-label="Damage dealt at 10.5 s"></span>
+      </div>
+
+      <span class="tt-receipt__name">Earned</span>
+      <div class="tt-receipt__track">
+            <span class="tt-receipt__mark" style="--t:1" aria-label="Event 1">1</span>
+            <span class="tt-receipt__mark" style="--t:3" aria-label="Event 2">2</span>
+            <span class="tt-receipt__mark" style="--t:5" aria-label="Event 3">3</span>
+            <span class="tt-receipt__mark" style="--t:6" aria-label="Event 4">4</span>
+            <span class="tt-receipt__mark" style="--t:7.5" aria-label="Event 5">5</span>
+            <span class="tt-receipt__mark" style="--t:9.5" aria-label="Event 6">6</span>
+      </div>
+
+      <span class="tt-receipt__name">Badge</span>
+      <div class="tt-receipt__track">
+            <span class="tt-receipt__span tt-receipt__band tt-receipt__band--live" style="--t:1; --d:16.7"></span>
+            <span class="tt-receipt__at tt-pill tt-receipt__pill" style="--t:1" aria-label="1 waiting"><span class="num-s">+1</span></span>
+            <span class="tt-receipt__at tt-pill tt-receipt__pill" style="--t:3" aria-label="2 waiting"><span class="num-s">+2</span></span>
+            <span class="tt-receipt__at tt-pill tt-receipt__pill" style="--t:5" aria-label="3 waiting"><span class="num-s">+3</span></span>
+            <span class="tt-receipt__at tt-pill tt-receipt__pill" style="--t:7.5" aria-label="3 waiting"><span class="num-s">+3</span></span>
+            <span class="tt-receipt__at tt-pill tt-receipt__pill" style="--t:9.5" aria-label="3 waiting"><span class="num-s">+3</span></span>
+            <span class="tt-receipt__after" style="--t:1; --d:16.7">counts down</span>
+      </div>
+
+      <span class="tt-receipt__name">Hold</span>
+      <div class="tt-receipt__track tt-receipt__track--tall tt-receipt__track--hold">
+            <span class="tt-receipt__span tt-receipt__band tt-receipt__band--hold tt-receipt__y1" style="--t:0; --d:14.5"><span class="tt-receipt__note">Combat hold</span></span>
+            <span class="tt-receipt__span tt-receipt__band tt-receipt__band--calm tt-receipt__y1" style="--t:14.5; --d:2.5">Calm</span>
+            <span class="tt-receipt__dim" style="--t:10.5; --d:4"></span>
+            <span class="tt-receipt__at tt-receipt__note tt-receipt__y3" style="--t:12.5">4 s, no hits</span>
+            <span class="tt-receipt__dim" style="--t:14.5; --d:2.5"></span>
+            <span class="tt-receipt__at tt-receipt__note tt-receipt__y3" style="--t:15.75">2.5 s</span>
+      </div>
+
+      <span class="tt-receipt__name">Slips</span>
+      <div class="tt-receipt__track">
+            <span class="tt-receipt__span tt-receipt__band tt-receipt__band--slip" style="--t:6; --d:2"></span>
+            <span class="tt-receipt__after" style="--t:6; --d:2">Health Potion x1 (2 s)</span>
+      </div>
+
+      <span class="tt-receipt__name">Tickets</span>
+      <div class="tt-receipt__track tt-receipt__track--tall">
+        <div class="tt-receipt__stack">
+            <span class="tt-receipt__span tt-receipt__band tt-receipt__band--ticket" style="--t:17; --d:5">Dodging, +2 ranks</span>
+            <span class="tt-receipt__span tt-receipt__band tt-receipt__band--ticket" style="--t:17.35; --d:5">Parrying</span>
+        </div>
+      </div>
+
+      <span class="tt-receipt__name">Plate</span>
+      <div class="tt-receipt__track">
+            <span class="tt-receipt__span tt-receipt__band tt-receipt__band--plate" style="--t:17.7; --d:4"><span class="tt-glyph tt-glyph--20" data-glyph="fire" aria-label="Pyromaniac"></span>Pyromaniac</span>
+      </div>
+
+      <span class="tt-receipt__name"></span>
+      <div class="tt-receipt__track">
+            <span class="tt-receipt__guidelabel tt-receipt__guidelabel--end tt-receipt__note" style="--t:10.5">Last hit</span>
+            <span class="tt-receipt__guidelabel tt-receipt__guidelabel--end tt-receipt__note" style="--t:14.5">Hold ends</span>
+            <span class="tt-receipt__guidelabel tt-receipt__guidelabel--start tt-receipt__note" style="--t:17">Receipt prints</span>
+      </div>
+
+
+    </div>
+
+    <ol class="pv-legend">
+      <li><span class="tt-receipt__mark" aria-label="Event 1">1</span><span class="num-s">1.0 s</span><span>Dodging reaches 5 / 20. Held: the badge reads +1.</span></li>
+      <li><span class="tt-receipt__mark" aria-label="Event 4">4</span><span class="num-s">6.0 s</span><span>You press F on a Health Potion: a 2 s slip prints now. Pressed pickups never wait.</span></li>
+      <li><span class="tt-receipt__mark" aria-label="Event 2">2</span><span class="num-s">3.0 s</span><span>Parrying reaches 3 / 20. +2.</span></li>
+      <li><span class="tt-receipt__mark" aria-label="Event 5">5</span><span class="num-s">7.5 s</span><span>Pyromaniac unlocks. Its plate replaces the progress ticket: still +3.</span></li>
+      <li><span class="tt-receipt__mark" aria-label="Event 3">3</span><span class="num-s">5.0 s</span><span>Pyromaniac progress 4 / 6. +3.</span></li>
+      <li><span class="tt-receipt__mark" aria-label="Event 6">6</span><span class="num-s">9.5 s</span><span>Dodging 6 / 20 merges with 1 into one ticket ("+2 ranks"): still +3.</span></li>
+    </ol>
+  </div>
+
+  <div class="tt-receipt__lower">
+    <div class="pv-right">
+      <div class="tt-plate tt-plate--menu tt-receipt__box">
+        <span class="tt-receipt__boxtitle ui-title">Print order · 350 ms apart</span>
+        <p class="tt-receipt__boxtext ui-label">Slips first, then tickets, then plates one at a time. Each prints with a tick; the badge counts down.</p>
+        <div class="tt-receipt__order">
+          <span class="tt-receipt__stamp num-m">+0 ms</span>
+          <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill has-foot">
+            <div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">6 / 20</span></div>
+            <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Dodging</span></div>
+            <div class="tt-ticket__foot"><span class="tt-ticket__foottext"><span class="tt-ticket__footnum num-s">+2</span> ranks</span></div>
+          </div>
+          <span class="tt-receipt__stamp num-m">+350 ms</span>
+          <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill">
+            <div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">3 / 20</span></div>
+            <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Parrying</span></div>
+          </div>
+          <span class="tt-receipt__stamp num-m">+700 ms</span>
+          <div class="tt-receipt__band tt-receipt__band--plate tt-receipt__band--big"><span class="tt-glyph" data-glyph="fire" aria-label="Pyromaniac"></span>Pyromaniac plate, top centre</div>
+        </div>
+      </div>
+      <div class="tt-plate tt-plate--menu tt-receipt__box">
+        <span class="tt-receipt__boxtitle ui-title">Pause</span>
+        <p class="tt-receipt__boxtext ui-label">Pausing files every waiting slip and ticket onto the spike, unread; they never print afterwards, and the badge clears. A waiting plate prints after the menu closes, once it is calm.</p>
+      </div>
+    </div>
+
+    <div class="pv-right">
+      <div class="tt-plate tt-plate--menu tt-receipt__box">
+        <span class="tt-receipt__boxtitle ui-title">Hard cap · 20 s</span>
+        <p class="tt-receipt__boxtext ui-label">A fight that never calms down: 20 s after the oldest waiting entry, the waiting slips and tickets print anyway, without remarks. Plates are never forced: they wait for calm.</p>
+        <div class="tt-receipt__mini">
+          <span class="tt-receipt__span tt-receipt__band tt-receipt__band--cap tt-receipt__y1" style="--t:0.4; --d:29.2"></span>
+          <span class="tt-receipt__at tt-receipt__note tt-receipt__y1" style="--t:9">Combat hold, 30 s</span>
+          <span class="tt-receipt__span tt-receipt__band tt-receipt__band--live tt-receipt__y2" style="--t:2; --d:20"></span>
+          <span class="tt-receipt__mark tt-receipt__y2" style="--t:2" aria-label="Event 1">1</span>
+          <span class="tt-receipt__at tt-receipt__note tt-receipt__y2" style="--t:12">20 s</span>
+          <span class="tt-receipt__span tt-receipt__band tt-receipt__band--ticket tt-receipt__y2" style="--t:22; --d:5">Prints</span>
+        </div>
+      </div>
+      <div class="tt-plate tt-plate--menu tt-receipt__box">
+        <span class="tt-receipt__boxtitle ui-title">Overflow · more than 4</span>
+        <p class="tt-receipt__boxtext ui-label">When more than 4 pieces would hang, 3 hang and the 4th place is the stub. The spike keeps the last 12 (8 visible, the rest scroll).</p>
+        <div class="tt-receipt__more">
+          <div class="tt-rail__more">
+            <span class="tt-glyph" data-glyph="pin" aria-label="Spike"></span>
+            <span><span class="tt-rail__morenum num-s">6</span> more on the spike</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tt-plate tt-plate--menu tt-receipt__density">
+    <div class="tt-receipt__dgrid">
+      <span class="tt-receipt__dhead tt-receipt__boxtitle ui-title">Tally notifications</span>
+      <span class="tt-receipt__dhead"><span class="tt-receipt__dtab tt-selectable is-selected tt-focus--border is-focused">Full</span></span>
+      <span class="tt-receipt__dhead"><span class="tt-receipt__dtab tt-selectable">Calm</span></span>
+      <span class="tt-receipt__dhead"><span class="tt-receipt__dtab tt-selectable">Minimal</span></span>
+
+      <span class="tt-receipt__drow">Pickup slips</span>
+      <span class="tt-receipt__yes"><span class="tt-glyph" data-glyph="check" aria-label="Yes"></span>Always</span>
+      <span class="tt-receipt__yes"><span class="tt-glyph" data-glyph="check" aria-label="Yes"></span>Out of combat</span>
+      <span class="tt-receipt__no"><span class="tt-glyph" data-glyph="cross" aria-label="No"></span>Spike only</span>
+
+      <span class="tt-receipt__drow">Tickets and the +N badge</span>
+      <span class="tt-receipt__yes"><span class="tt-glyph" data-glyph="check" aria-label="Yes"></span>Receipt</span>
+      <span class="tt-receipt__yes"><span class="tt-glyph" data-glyph="check" aria-label="Yes"></span>Receipt</span>
+      <span class="tt-receipt__no"><span class="tt-glyph" data-glyph="cross" aria-label="No"></span>Spike only</span>
+
+      <span class="tt-receipt__drow">Plates</span>
+      <span class="tt-receipt__yes"><span class="tt-glyph" data-glyph="check" aria-label="Yes"></span>4 s / 5.5 s</span>
+      <span class="tt-receipt__yes"><span class="tt-glyph" data-glyph="check" aria-label="Yes"></span>4 s / 5.5 s</span>
+      <span class="tt-receipt__yes"><span class="tt-glyph" data-glyph="check" aria-label="Yes"></span>4 s / 5.5 s</span>
+
+      <span class="tt-receipt__drow">Tally remarks</span>
+      <span class="tt-receipt__yes"><span class="tt-glyph" data-glyph="check" aria-label="Yes"></span>If remarks are On</span>
+      <span class="tt-receipt__no"><span class="tt-glyph" data-glyph="cross" aria-label="No"></span>Off</span>
+      <span class="tt-receipt__no"><span class="tt-glyph" data-glyph="cross" aria-label="No"></span>Off</span>
+
+      <span class="tt-receipt__drow">Spike (12 kept, 8 visible)</span>
+      <span class="tt-receipt__yes"><span class="tt-glyph" data-glyph="check" aria-label="Yes"></span>Everything</span>
+      <span class="tt-receipt__yes"><span class="tt-glyph" data-glyph="check" aria-label="Yes"></span>Everything</span>
+      <span class="tt-receipt__yes"><span class="tt-glyph" data-glyph="check" aria-label="Yes"></span>Everything</span>
+    </div>
+  </div>
+
+</div>
+</div>
+</body>
+</html>

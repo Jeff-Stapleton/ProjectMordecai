@@ -1,0 +1,130 @@
+<!-- @dsCard group="HUD" height=1562 width=960 subtitle="Bottom-centre interact tag docked to the always-visible Inventory hint: long, short and no target, today's strings, targeting, and Talk / Activate / Climb / Open" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>InteractPrompt</title>
+<style>
+/* preview-only layout scaffolding */
+.pv-head { margin: 0; padding: 16px 20px 10px; }
+.pv-head b, .pv-side b, .pv-cap b { color: var(--text); }
+.pv-place { display: grid; grid-template-columns: 140px 820px; }
+.pv-side { position: relative; }
+.pv-side p { position: absolute; left: 20px; margin: 0; }
+.pv-crop { position: relative; height: 424px; }
+.pv-rows { position: relative; height: 288px; }
+.pv-abs { position: absolute; }
+.pv-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.pv-cell { display: flex; flex-direction: column; }
+.pv-cell > div { display: flex; justify-content: center; padding: 26px 0; }
+.pv-cap { margin: 0; padding: 10px 20px 16px; }
+.pv-spec > .tt-specband__item { flex: 1 1 240px; max-width: none; }
+</style>
+</head>
+<body>
+<div class="tt-root">
+
+  <!-- A. 1:1 crops of the bottom of the screen, x 620-1440, four moments. The prompt box is x 690-1230 (here 70-610);
+       the hint pill starts at x 1242 (here 622) and never moves. The tag is right-aligned against it. -->
+  <p class="tt-label pv-head"><b>1:1</b> · x 620–1440 · prompt box 540 × 60 at (0, −36) · hint pill x 1242–1393</p>
+  <section class="pv-place">
+    <div class="pv-side">
+      <p class="tt-label" style="top:81px;"><b>Long</b> name</p>
+      <p class="tt-label" style="top:173px;"><b>Short</b> name</p>
+      <p class="tt-label" style="top:265px;"><b>No target</b></p>
+      <p class="tt-label" style="top:357px;"><b>Today</b></p>
+    </div>
+    <div class="tt-floor-blockout pv-crop">
+      <div class="pv-abs tt-iprompt__spec" style="left:70px; top:64px; width:540px; height:60px;"></div>
+      <div class="pv-abs tt-iprompt" style="left:70px; top:64px;">
+        <div class="tt-iprompt__box"><div class="tt-tag tt-iprompt__tag"><span class="tt-key">F</span><span class="ui-body tt-iprompt__text">Pick up Unidentified Purple Amulet</span><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple" data-height="18"></span></span></div></div>
+        <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+      </div>
+
+      <div class="pv-abs tt-iprompt__spec" style="left:70px; top:156px; width:540px; height:60px;"></div>
+      <div class="pv-abs tt-iprompt" style="left:70px; top:156px;">
+        <div class="tt-iprompt__box"><div class="tt-tag tt-iprompt__tag"><span class="tt-key">F</span><span class="ui-body tt-iprompt__text">Pick up Iron Ore</span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span></div></div>
+        <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+      </div>
+
+      <div class="pv-abs tt-iprompt__spec" style="left:70px; top:248px; width:540px; height:60px;"></div>
+      <div class="pv-abs tt-iprompt" style="left:70px; top:248px;">
+        <div class="tt-iprompt__box"></div>
+        <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+      </div>
+
+      <div class="pv-abs tt-iprompt__spec" style="left:70px; top:340px; width:540px; height:60px;"></div>
+      <div class="pv-abs tt-iprompt tt-iprompt--legacy" style="left:70px; top:340px;">
+        <div class="tt-iprompt__box"><div class="tt-tag tt-iprompt__tag"><span class="ui-body tt-iprompt__text">[F] Pick up Unidentified Purple Amulet</span><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple" data-height="18"></span></span></div></div>
+        <div class="tt-iprompt__hint"><span class="ui-label tt-iprompt__hint-text">[I] Inventory</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B. More states of the docked unit, same crop, keyboard and mouse (the gamepad form is in the spec band) -->
+  <section class="pv-place">
+    <div class="pv-side">
+      <p class="tt-label" style="top:35px;"><b>Pressed</b></p>
+      <p class="tt-label" style="top:131px;"><b>No partial</b><br>info</p>
+      <p class="tt-label" style="top:215px;"><b>Targeting</b><br>proposed</p>
+    </div>
+    <div class="pv-rows">
+      <div class="pv-abs tt-floor-grass" style="left:0; right:0; top:0; height:96px;"></div>
+      <div class="pv-abs tt-floor-sand" style="left:0; right:0; top:96px; height:96px;"></div>
+      <div class="pv-abs tt-floor-night" style="left:0; right:0; top:192px; height:96px;"></div>
+      <div class="pv-abs tt-iprompt" style="left:70px; top:18px;">
+        <div class="tt-iprompt__box"><div class="tt-tag tt-iprompt__tag"><span class="tt-key is-pressed">F</span><span class="ui-body tt-iprompt__text">Pick up Health Potion</span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span></div></div>
+        <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+      </div>
+      <div class="pv-abs tt-iprompt" style="left:70px; top:114px;">
+        <div class="tt-iprompt__box"><div class="tt-tag tt-iprompt__tag"><span class="tt-key">F</span><span class="ui-body tt-iprompt__text">Pick up Unknown Item</span><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple" data-height="18"></span></span></div></div>
+        <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+      </div>
+      <div class="pv-abs tt-iprompt" style="left:70px; top:210px;">
+        <div class="tt-iprompt__box"><div class="tt-hintbar"><span class="tt-hint"><span class="tt-key tt-key--sm tt-key--mouse" aria-label="Left mouse button"><span class="tt-key__mouse tt-key__mouse--l"></span></span>Cast</span><span class="tt-hintbar__sep"></span><span class="tt-hint"><span class="tt-key tt-key--sm tt-key--mouse" aria-label="Right mouse button"><span class="tt-key__mouse tt-key__mouse--r"></span></span>Cancel</span></div></div>
+        <div class="tt-iprompt__hint"><span class="tt-key tt-key--sm">I</span><span class="ui-label tt-iprompt__hint-text">Inventory</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C. Other interactions reuse the tag; a context glyph replaces the rarity badge (all example copy) -->
+  <p class="tt-label pv-head"><b>Other interactions</b> · example verbs and targets; a context glyph in the socket</p>
+  <section class="pv-grid">
+    <div class="pv-cell">
+      <div class="tt-floor-mire"><div class="tt-tag tt-iprompt__tag"><span class="tt-key">F</span><span class="ui-body tt-iprompt__text">Talk to Alchemist</span><span class="tt-socket tt-iprompt__ctx"><span class="tt-glyph" data-glyph="alchemist" aria-label="Alchemist"></span></span></div></div>
+      <p class="tt-label pv-cap"><b>Talk</b> · mire</p>
+    </div>
+    <div class="pv-cell">
+      <div class="tt-floor-snow"><div class="tt-tag tt-iprompt__tag"><span class="tt-key">F</span><span class="ui-body tt-iprompt__text">Activate Shortcut Gate</span><span class="tt-socket tt-iprompt__ctx"><span class="tt-glyph" data-glyph="gate" aria-label="Gate"></span></span></div></div>
+      <p class="tt-label pv-cap"><b>Activate</b> · snow</p>
+    </div>
+    <div class="pv-cell">
+      <div class="tt-floor-grass"><div class="tt-tag tt-iprompt__tag"><span class="tt-key">F</span><span class="ui-body tt-iprompt__text">Climb Ledge</span><span class="tt-socket tt-iprompt__ctx"><span class="tt-glyph" data-glyph="arrow-up" aria-label="Climb"></span></span></div></div>
+      <p class="tt-label pv-cap"><b>Climb</b> · grass</p>
+    </div>
+    <div class="pv-cell">
+      <div class="tt-floor-night"><div class="tt-tag tt-iprompt__tag"><span class="tt-key">F</span><span class="ui-body tt-iprompt__text">Open Chest</span><span class="tt-socket tt-iprompt__ctx"><span class="tt-glyph" data-glyph="chest" aria-label="Chest"></span></span></div></div>
+      <p class="tt-label pv-cap"><b>Open</b> · night</p>
+    </div>
+  </section>
+
+  <div class="tt-specband pv-spec">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Docked unit</p>
+      <p class="tt-label">The tag is right-aligned in its box, so it always meets the hint pill across the same 12 px gap. Only the tag comes and goes.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Gamepad</p>
+      <p class="tt-label">Every crop above is keyboard and mouse. On gamepad the tag's keycap is a round X. Inventory has no direct gamepad button, so the pill's gamepad form is TODO(DECISION) and is not drawn.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Today</p>
+      <p class="tt-label">The TextBlocks keep "[F] Pick up ..." and "[I] Inventory" until device glyphs ship with the playtests.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Targeting</p>
+      <p class="tt-label">While a ground-target reticle is up (proposed, WorldMarkers), the box holds the hint bar "Cast | Cancel"; the pill stays.</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

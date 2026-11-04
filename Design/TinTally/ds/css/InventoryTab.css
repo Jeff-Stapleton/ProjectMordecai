@@ -1,0 +1,102 @@
+/* InventoryTab: the pause menu's Inventory tab (UMordecaiInventoryWidget), drawn inside PauseShell's 948 x 540
+   content box. FilterBar (a WrapBox): eight filter tags and the proposed search field, two rows, 104 tall.
+   Body (424 tall, 12 below): the ItemListBox well (604 = 948 - 24 - 320) and a 320 px column with the
+   selected row's compact ItemCard over the Stored Resources ledger. */
+.tt-inv { display: flex; flex-direction: column; gap: 12px; height: 100%; }
+/* The HUD under the veil makes its own stacking context, so the spell keycaps and cost rivets (z 2-3 inside
+   their slots) stay under the veil. Scoped to this tab's frame until PauseShell's .tt-pause__hud carries it. */
+.tt-pause[data-active-tab="inventory"] > .tt-pause__hud { z-index: 0; }
+
+/* --- FilterBar: tags 48 tall, 8 apart both ways. The tag is SkillsTab's category tag build: tin face, 2 px lip
+       edge, a grommet at the left. Selected = the cream fill (core .tt-selectable.is-selected, D6) with an
+       enamel-shade foot; focus = core .tt-focus--fill-gap (no ink outline of its own). */
+.tt-inv-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tt-inv-filter {
+  appearance: none; position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex: none;
+  height: 48px; margin: 0; padding: 0 14px 0 34px; cursor: pointer;
+  font: 600 20px/26px var(--font-ui); white-space: nowrap; color: var(--text-muted); background: var(--plate-raised);
+  border: var(--stroke-rim) solid var(--lip); border-radius: 4px var(--radius-tag) var(--radius-tag) 4px;
+  box-shadow: var(--tt-shadow, none);
+}
+.tt-inv-filter::before {
+  content: ""; position: absolute; left: 10px; top: 50%; width: 12px; height: 12px; margin-top: -6px;
+  border-radius: 50%; background: var(--well); box-shadow: 0 0 0 3px var(--plate), 0 0 0 5px var(--lip);
+}
+/* Hover (mouse only) lifts 2 px and turns the edge rim, so it still reads in High Contrast, where rim and lip match. */
+.tt-inv-filter.is-hover { color: var(--text); border-color: var(--rim); transform: translateY(-2px); }
+/* Press sinks 2 px with a pushed-in top band; the lip edge stays whole, so High Contrast keeps the outline (D22). */
+.tt-inv-filter.is-pressed { color: var(--text); background: var(--plate); transform: translateY(2px); --tt-shadow: inset 0 3px 0 var(--rim-shade); }
+.tt-inv-filter.is-selected { font-weight: 700; --tt-shadow: inset 0 -4px 0 var(--enamel-shade); }
+.tt-inv-filter.is-selected::before { box-shadow: 0 0 0 3px var(--enamel-shade), 0 0 0 5px var(--ink); }
+
+/* --- Search field (proposed, TODO(DECISION)): the last piece in the wrap row, filling what the tags leave.
+       A sunk well (the system's text-entry look): the search glyph, the query or the placeholder, a clear key. */
+.tt-inv-search {
+  position: relative; display: flex; align-items: center; gap: var(--space-2); flex: 1 1 280px; min-width: 280px; height: 48px;
+  margin: 0; padding: 0 6px 0 12px; cursor: text; color: var(--text-muted);
+  border-radius: var(--radius-key); background: var(--well); border: var(--stroke-rim) solid var(--lip);
+  font: 600 20px/26px var(--font-ui);
+}
+.tt-inv-search__text { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-inv-search.has-query .tt-inv-search__text { color: var(--text); font-weight: 700; }
+.tt-inv-search__caret { display: inline-block; width: 2px; height: 24px; margin-left: 2px; vertical-align: -5px; background: var(--focus); }
+.tt-inv-search.is-focused { border-color: var(--rim); }
+/* The clear key: a 32 px mouse target on the right edge, the cross glyph. Only while there is a query. */
+.tt-inv-search__clear {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 34px; height: 34px;
+  border-radius: var(--radius-key); background: var(--plate-raised); color: var(--text); border: var(--stroke-rim) solid var(--lip);
+}
+
+/* --- Body: the list well (604) and the right column (320), 24 apart. */
+.tt-inv-body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 604px 320px; gap: 24px; }
+/* ItemListBox: a ScrollBox in a sunk well. 8 px padding, so a focused row's ring (6 px, 7 in High Contrast) is never cut. */
+.tt-inv-list {
+  display: flex; flex-direction: column; gap: 6px; min-height: 0; margin: 0; padding: 8px; list-style: none;
+  border-radius: var(--radius-tag); background: var(--well); border: var(--stroke-rim) solid var(--lip); overflow: hidden;
+}
+
+/* Row: a tin slot, 56 tall. Rarity badge (in its ink socket) | the name TextBlock (rarity colour) | the trailing
+   slot: the Equipped pill or the Identify row action. Selected (the row that drives the card) = the cream fill
+   with ink text (D6); rarity colour never sits on the cream, so the name turns ink and the badge keeps it. */
+.tt-inv-row {
+  position: relative; display: flex; align-items: center; gap: 10px; flex: none; height: 56px; padding: 0 4px 0 10px; cursor: pointer;
+  border-radius: var(--radius-key); background: var(--plate-raised); border: var(--stroke-rim) solid transparent;
+}
+.tt-inv-row__badge { display: flex; align-items: center; justify-content: center; flex: none; width: 36px; }
+.tt-inv-row__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+.tt-inv-row__end { flex: none; display: flex; align-items: center; }
+/* Identify is Button's row action (.tt-btn--sm, 48 tall): it keeps its width; the name ellipsizes first. */
+.tt-inv-row__action { flex: none; }
+.tt-inv-row.is-hover { border-color: var(--rim); }
+.tt-inv-row.is-selected .tt-inv-row__name { color: var(--ink); }
+
+/* --- Right column: the selected row's compact ItemCard over the Stored Resources ledger. */
+.tt-inv-side { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.tt-inv-ledger {
+  display: flex; flex-direction: column; gap: 4px; padding: 8px 16px 10px;
+  border-radius: var(--radius-tag); background: var(--plate-raised); border: var(--stroke-rim) solid var(--lip);
+}
+.tt-inv-ledger__head { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; color: var(--text); }
+.tt-inv-ledger__head .tt-glyph { color: var(--text-muted); }
+.tt-inv-ledger__row { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.tt-inv-ledger__row .tt-glyph { color: var(--text-muted); }
+.tt-inv-ledger__dots { flex: 1; min-width: 24px; height: 0; margin-top: 12px; border-bottom: 3px dotted var(--lip); }
+.tt-inv-ledger__count { flex: none; min-width: 40px; text-align: right; color: var(--text); }
+/* An empty ledger keeps its header; the one empty state (core .tt-empty, D8) sits under it, centred. */
+.tt-inv-ledger .tt-empty { margin: 4px auto 6px; }
+
+/* --- Spec band specimens (below the screen only). */
+.tt-inv-specimens { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: var(--space-4) var(--space-5); padding: 6px 4px 0; }
+.tt-inv-specimens--4 { grid-template-columns: repeat(4, auto); }
+.tt-inv-specimens--2 { grid-template-columns: repeat(2, auto); }
+.tt-inv-specimen { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin: 0; }
+.tt-inv-rowspec { display: grid; grid-template-columns: 380px auto; align-items: center; gap: 10px 16px; padding: 10px; margin: 0; border-radius: var(--radius-tag); background: var(--well); border: var(--stroke-rim) solid var(--lip); }
+.tt-inv-rowspec .tt-label { margin: 0; }
+.tt-inv-mini { width: 344px; height: 132px; }
+.tt-inv-mini .tt-empty-box { min-height: 0; padding: 0; }
+.tt-inv-mini--ledger { width: 320px; }
+.tt-inv-searchspec { display: flex; flex-direction: column; gap: 12px; width: 520px; }
+.tt-inv-searchspec .tt-inv-search { flex: none; width: 471px; }
+.tt-inv-sort { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0 0 0 24px; color: var(--text); }
+.tt-inv-sort li { font: 600 20px/26px var(--font-ui); }
+.tt-inv-sort li span { color: var(--text-muted); }

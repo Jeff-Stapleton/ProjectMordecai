@@ -1,0 +1,41 @@
+/* QuickItems: four 56 x 56 consumable slots (Item A-D) and the round Throw slot, a child of the HUD root.
+   HUD bottom-right, offset (-32,-132), alignment (1,1): a 336 x 56 row right-aligned over the loadout plate.
+   Footprint to reserve: x 1552-1888, y 868-948 (Throw + 4 x 56 + gaps = 336 wide; the keycaps perch up to y 868;
+   the count pills hang into the 16 px gap above the loadout plate, to y 955).
+   Order left to right: Throw, 20 px gap, A B C D 12 px apart.
+   Each slot stacks three things so none covers another (border-box px, slot top = 0):
+     keycap  perched on the top-left corner, y -24..8, x -4..28 (5 px clear of the left neighbour's outline);
+             the round Throw slot centres it instead;
+     glyph   28 px, centred across, y 8..36;
+     count   26 px plate pill, centred, y 34..60: it hangs 4 px, so its ink outline ends 7 px below the slot and
+             stays 6 px clear of the loadout plate's outline (16 px below); it never pokes past the slot's sides.
+   (Offsets in the rules below are from the 2 px rim's inner edge.)
+   (Spell slots hang their keycap from the bottom-left; here the loadout plate is too close below.) */
+.tt-quick { display: flex; align-items: flex-end; gap: 12px; }
+.tt-quick__slot { position: relative; width: 56px; height: 56px; flex: none; color: var(--text); }
+.tt-quick__slot--throw { border-radius: 50%; margin-right: 8px; }
+.tt-quick__icon { position: absolute; left: 12px; top: 6px; width: 28px; height: 28px; }
+.tt-quick__icon--potion { color: var(--vital); }
+.tt-quick__key { position: absolute; left: -6px; top: -26px; z-index: 2; }
+.tt-quick__slot--throw .tt-quick__key { left: 50%; transform: translateX(-50%); }
+.tt-quick__slot--throw .tt-quick__key.is-pressed { transform: translateX(-50%) translateY(3px); }
+/* Unbound key (the spec's key is taken by another action today, TODO(DECISION) US-097): Keycap's dashed cap on a
+   plate face, so it reads over light and dark floors. Gamepad D-pad caps are Keycap's 32 px cross. */
+.tt-quick__key.tt-key--none { background: var(--plate); }
+.tt-quick__count { position: absolute; left: 50%; bottom: -6px; z-index: 2; transform: translateX(-50%); display: inline-flex; align-items: center; height: 26px; padding: 0 5px; border-radius: var(--radius-pill); background: var(--plate); color: var(--text); border: 2px solid var(--lip); box-shadow: 0 0 0 var(--tt-outline) var(--ink); line-height: 1; white-space: nowrap; }
+
+/* Empty (nothing assigned, or the stack ran out): Hidden, so A-D never slide sideways. */
+.tt-quick__slot.is-empty { visibility: hidden; }
+/* Used: the keycap sinks (KeyPress), the slot dips 2 px for 60 ms, the count steps down and its lip flashes rim once.
+   The ink outline stays whole (D22): only the print collapses. */
+.tt-quick__slot.is-used { transform: translateY(2px); box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 2px 0 var(--tt-outline) var(--tt-print); }
+.tt-quick__slot.is-used .tt-quick__count { border-color: var(--rim); }
+
+/* ---- Preview scaffolding ---- */
+.tt-quick-sheet { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); background: var(--plate); }
+.tt-quick-sheet__stage { display: flex; align-items: center; gap: var(--space-6); padding: 40px 32px 22px; }
+.tt-quick-sheet__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4) var(--space-3); }
+.tt-quick-sheet__cell { display: flex; flex-direction: column; gap: var(--space-2); }
+.tt-quick-sheet__cell .tt-quick-sheet__stage { justify-content: center; padding: 40px 16px 22px; }
+.tt-quick-sheet__cap { display: flex; flex-direction: column; gap: 0; }
+.tt-quick-sheet__cap b { color: var(--text); font-weight: 700; }

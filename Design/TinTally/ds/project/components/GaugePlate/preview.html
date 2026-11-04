@@ -1,0 +1,142 @@
+<!-- @dsCard group="HUD" height=2500 width=1120 subtitle="Health, Stamina tier, sprint, posture and Spell Points on one 456 x 152 plate, top-left" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>GaugePlate</title></head>
+<body>
+<div class="tt-root tt-gauge-sheet" id="sheet">
+
+  <span class="kicker tt-caps tt-label">In context · the top-left corner of the screen at 1:1 (1920 x 1080 design px)</span>
+  <div class="tt-gauge-sheet__crops">
+    <div class="tt-gauge-sheet__crop tt-floor-blockout">
+      <div class="tt-gauge-sheet__at" style="left:32px;top:32px" data-gauge='{"hp":58,"lead":66,"st":70,"po":70,"sp":3}'></div>
+      <div class="tt-gauge-sheet__at" style="left:32px;top:216px" data-slots="cool:70:1.4,ready,broke,cool:80:8.0"></div>
+      <div class="tt-gauge-sheet__at tt-status-row" style="left:32px;top:318px">
+        <span class="tt-status tt-status--debuff" aria-label="Burning"><span class="tt-glyph tt-status__glyph tt-status__glyph--fire" data-glyph="burning" aria-hidden="true"></span><span class="tt-status__name">Burning</span><span class="num-s tt-status__time">4.2</span></span>
+        <span class="tt-status tt-status--debuff" aria-label="Frostbitten, 3 stacks"><span class="tt-glyph tt-status__glyph tt-status__glyph--frost" data-glyph="frostbitten" aria-hidden="true"></span><span class="tt-status__name">Frostbitten</span><span class="tt-pips tt-status__pips tt-status__pips--frost" role="img" aria-label="3 of 4 stacks"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip"></span></span><span class="num-s tt-status__time">5.1</span></span>
+        <span class="tt-status tt-status--buff" aria-label="Restoration"><span class="tt-glyph tt-status__glyph" data-glyph="restoration" aria-hidden="true"></span><span class="tt-status__name">Restoration</span><span class="num-s tt-status__time">3.0</span></span>
+      </div>
+    </div>
+    <div class="tt-gauge-sheet__crop tt-floor-night">
+      <span class="tt-gauge-frame tt-gauge-frame--corner" aria-hidden="true"></span>
+      <div class="tt-gauge-sheet__at" style="left:32px;top:32px" data-gauge='{"hp":18,"trail":27,"st":50,"po":30,"sp":5,"sprint":true,"peak":true}'></div>
+      <div class="tt-gauge-sheet__at" style="left:32px;top:216px" data-slots="ready,cool:35:1.4,ready,cool:60:6.0"></div>
+      <div class="tt-gauge-sheet__at tt-status-row" style="left:32px;top:318px">
+        <span class="tt-status tt-status--debuff" aria-label="Bleeding"><span class="tt-glyph tt-status__glyph tt-status__glyph--vital" data-glyph="bleeding" aria-hidden="true"></span><span class="tt-status__name">Bleeding</span><span class="num-s tt-status__time">3.4</span></span>
+      </div>
+    </div>
+  </div>
+  <div class="tt-specband">
+    <div class="tt-specband__item"><p class="tt-specband__title">Gauge plate</p><p class="tt-label">(32, 32) · 456 x 152 · always on. Below it: the spell slots at y 216 (SpellSlot) and the status strip at (32, 318), 456 x 112 (StatusChip).</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">Left · in a fight on blockout</p><p class="tt-label">Health 58% with a heal lead to 66 (Restoration ticking), Stamina 70 / 134 Yellow, sprint off, posture 70, 3 / 13 SP, so Stone Skin (4 SP) is locked.</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">Right · low health on a dark floor</p><p class="tt-label">Health 18%: danger-text number, the rim on its vital step, and LowHealthFrame along the screen's top and left edges (8 px vital, 3 px ink inner line, no pulse). Sprint on.</p></div>
+  </div>
+
+  <span class="kicker tt-caps tt-label">States · MaxStamina 134 and MaxSpellPoints 13 at default attributes</span>
+  <div class="tt-gauge-sheet__grid">
+    <div class="tt-gauge-sheet__cell">
+      <div class="tt-gauge-sheet__cap tt-label"><b>Full (the default)</b><span>HP 100% · ST 134 / 134 Green ×1.25 · sprint off · posture hidden (keeps its space) · SP 13 / 13</span></div>
+      <div class="tt-gauge-sheet__stage tt-floor-blockout"><div data-gauge='{"hp":100,"st":134,"po":null,"sp":13}'></div></div>
+    </div>
+    <div class="tt-gauge-sheet__cell">
+      <div class="tt-gauge-sheet__cap tt-label"><b>Mid fight, sprinting</b><span>HP 64% with the damage trail from 76 (DamageTrail) · ST 70 Yellow ×1.0 · sprint on · posture 70 · SP 9 / 13</span></div>
+      <div class="tt-gauge-sheet__stage tt-floor-grass"><div data-gauge='{"hp":64,"trail":76,"st":70,"po":70,"sp":9,"sprint":true}'></div></div>
+    </div>
+    <div class="tt-gauge-sheet__cell">
+      <div class="tt-gauge-sheet__cap tt-label"><b>Red tier, healing</b><span>ST 30 (22%) ×0.75 with ink stripes · heal lead 41 to 55 (HealLead) · SP 4 / 13</span></div>
+      <div class="tt-gauge-sheet__stage tt-floor-sand"><div data-gauge='{"hp":41,"lead":55,"st":30,"po":45,"sp":4}'></div></div>
+    </div>
+    <div class="tt-gauge-sheet__cell">
+      <div class="tt-gauge-sheet__cap tt-label"><b>Guard broken (800 ms)</b><span>A blocked hit drained Stamina to −8 while blocking: the debt shows 6% and the stamp holds for the guard break</span></div>
+      <div class="tt-gauge-sheet__stage tt-floor-mire"><div data-gauge='{"hp":70,"st":-8,"po":60,"sp":6,"guard":true}'></div></div>
+    </div>
+    <div class="tt-gauge-sheet__cell">
+      <div class="tt-gauge-sheet__cap tt-label"><b>Exhausted at −26, recovering</b><span>Debt hatch from the left: 26 / 134 = 19%; regen eats its right edge · ×0.5 pill · SP 0 / 13</span></div>
+      <div class="tt-gauge-sheet__stage tt-floor-snow"><div data-gauge='{"hp":72,"st":-26,"po":88,"sp":0}'></div></div>
+    </div>
+    <div class="tt-gauge-sheet__cell">
+      <div class="tt-gauge-sheet__cap tt-label"><b>Exhausted at the −50 floor (today)</b><span>The floor is an absolute −50: 50 / 134 = 37%, the deepest debt. No stamina regen yet (N30), so it sits here</span></div>
+      <div class="tt-gauge-sheet__stage tt-floor-blockout"><div data-gauge='{"hp":86,"st":-50,"po":null,"sp":2}'></div></div>
+    </div>
+    <div class="tt-gauge-sheet__cell">
+      <div class="tt-gauge-sheet__cap tt-label"><b>16 Spell Points (example)</b><span>14 px tokens for 14-16 max: 16 fit in 266 of the 268 px track · "12 / 16" keeps its 7-cell box</span></div>
+      <div class="tt-gauge-sheet__stage tt-floor-grass"><div data-gauge='{"hp":90,"st":120,"po":null,"sp":12,"spMax":16}'></div></div>
+    </div>
+    <div class="tt-gauge-sheet__cell">
+      <div class="tt-gauge-sheet__cap tt-label"><b>Above 16 (example, TODO)</b><span>The tokens collapse and SpellPointsProgressBar shows in the same track (US-090)</span></div>
+      <div class="tt-gauge-sheet__stage tt-floor-night"><div data-gauge='{"hp":90,"st":120,"po":null,"sp":14,"spMax":18}'></div></div>
+    </div>
+    <div class="tt-gauge-sheet__cell">
+      <div class="tt-gauge-sheet__cap tt-label"><b>Posture broken (player break: TODO)</b><span>The posture fill under an ink hatch, its lip turned rim. No red, no chip: red means threat only</span></div>
+      <div class="tt-gauge-sheet__stage tt-floor-mire"><div data-gauge='{"hp":49,"trail":57,"st":28,"po":"broken","sp":6}'></div></div>
+    </div>
+    <div class="tt-gauge-sheet__cell">
+      <div class="tt-gauge-sheet__cap tt-label"><b>Low health, 25% and under</b><span>HP 18% in danger-text · the rim steps rim / vital at 1 Hz (LowHealthPulse; vital step shown) · plus LowHealthFrame</span></div>
+      <div class="tt-gauge-sheet__stage tt-floor-sand"><div data-gauge='{"hp":18,"trail":27,"st":50,"po":30,"sp":5,"peak":true}'></div></div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  /* C(...) builds a class attribute from parts, so the markup below stays readable. */
+  function C() { return ' class=' + JSON.stringify([].filter.call(arguments, Boolean).join(' ')); }
+  var MAXST = 134; /* MaxStamina = 100 x (1 + 0.04 x EffEnd) at default attributes */
+  var TIER = { green: ['green', '×1.25'], yellow: ['yellow', '×1.0'], red: ['red', '×0.75'], ex: ['exhausted', '×0.5'] };
+  function tierOf(st) { var f = st / MAXST; return st <= 0 ? 'ex' : f >= 0.66 ? 'green' : f >= 0.33 ? 'yellow' : 'red'; }
+  /* Spell Point tokens (D17): 22 px up to 10, 16 px for 11-13, 14 px for 14-16; above 16 the bar fallback. */
+  function tokens(n, max) {
+    if (max > 16) return '<div class="tt-bar tt-bar--sp" style="--v:' + (n / max * 100) + '%" role="img" aria-label="' + n + ' of ' + max + ' Spell Points"><span class="tt-bar__fill"></span></div>';
+    var h = '<span' + C('tt-tally-sp', max > 13 ? 'tt-tally-sp--14' : max > 10 && 'tt-tally-sp--16') + ' aria-hidden="true">';
+    for (var g = 0; g < Math.ceil(max / 5); g++) {
+      h += '<span class="tt-tally-sp__group">';
+      for (var i = g * 5; i < Math.min(max, g * 5 + 5); i++) h += '<span' + C('tt-tally-sp__token', i < n && 'is-on') + '></span>';
+      h += '</span>';
+    }
+    return h + '</span>';
+  }
+  function notch(at) { return '<span class="tt-bar__notch" style="--at:' + at + '%"></span>'; }
+  function tick(at) { return '<span class="tt-gauge__tick" style="--at:' + at + '%"></span>'; }
+  function gauge(o) {
+    var tier = tierOf(o.st), t = TIER[tier], ex = tier === 'ex', low = o.hp <= 25, max = o.spMax || 13, po = o.po;
+    var h = '<div' + C('tt-plate', 'tt-gauge', low && 'tt-gauge--low', low && o.peak && 'is-peak') + ' role="group" aria-label="Player resources">';
+    /* HP: trail and heal lead under the vital fill, 25% notch, HealthPercentText */
+    h += '<div class="tt-gauge__row tt-gauge__row--hp"><span class="num-s tt-gauge__label">HP</span><div class="tt-gauge__track">' + tick(25) +
+      '<div class="tt-bar tt-bar--vital" style="--v:' + o.hp + '%;--t:' + (o.trail || 0) + '%;--l:' + (o.lead || 0) + '%"><span class="tt-bar__trail"></span><span class="tt-bar__lead"></span><span class="tt-bar__fill"></span>' + notch(25) + '</div></div>' +
+      '<span class="num-l tt-gauge__value tt-gauge__value--hp">' + o.hp + '%</span></div>';
+    /* ST: tier fill (Red striped) or the StaminaDebtBar hatch (D2: from the LEFT, |Stamina| / MaxStamina, one scale
+       with the fill), notches 33/66, the GuardBrokenStamp, then the sprint pip and the StaminaTierText pill. */
+    h += '<div class="tt-gauge__row tt-gauge__row--st"><span class="num-s tt-gauge__label">ST</span><div class="tt-gauge__track">' + tick(33) + tick(66) +
+      '<div' + C('tt-bar', ex ? 'tt-bar--exhausted' : 'tt-bar--' + t[0], tier === 'red' && 'is-striped') + ' style="--v:' + (ex ? 0 : o.st / MAXST * 100) + '%;--d:' + (ex ? Math.min(-o.st / MAXST * 100, 100) : 0) + '%">' +
+      (ex ? '<span class="tt-bar__debt"></span>' : '<span class="tt-bar__fill"></span>') + notch(33) + notch(66) + '</div>' +
+      (o.guard ? '<span class="tt-gauge__guard"><span class="tt-glyph" data-glyph="block" aria-hidden="true"></span>Guard broken</span>' : '') + '</div>' +
+      '<span class="tt-gauge__stend"><span' + C('tt-gauge__sprint', o.sprint && 'is-on') + ' role="img" aria-label="Sprint ' + (o.sprint ? 'on' : 'off') + '"><span class="tt-glyph" data-glyph="sprint" aria-hidden="true"></span></span>' +
+      '<span' + C('tt-pill', 'tt-pill--' + t[0], 'tt-gauge__pill') + '>' + t[1] + '</span></span></div>';
+    /* Posture: hidden at max (keeps its space); broken = Bar's .is-posture-broken (D3) */
+    var broken = po === 'broken';
+    h += '<div' + C('tt-gauge__row', 'tt-gauge__row--po', po === null && 'is-hidden') + '><span></span><div class="tt-gauge__track">' +
+      '<div' + C('tt-bar', 'tt-bar--hair', 'tt-bar--posture', broken && 'is-posture-broken') + ' style="--v:' + (broken ? 100 : (typeof po === 'number' ? po : 0)) + '%"><span class="tt-bar__fill"></span></div>' +
+      '</div><span></span></div>';
+    /* SP: tokens in fives (or the bar above 16) + SpellPointsText "x / y" */
+    h += '<div class="tt-gauge__row tt-gauge__row--sp"><span class="num-s tt-gauge__label">SP</span>' + tokens(o.sp, max) +
+      '<span class="num-m tt-gauge__value">' + o.sp + ' / ' + max + '</span></div>';
+    return h + '</div>';
+  }
+  /* The spell slot row (SpellSlot's markup): Q Fireball 3, E Blink 2, R Stone Skin 4, 1 Restoration 3. */
+  var SPELLS = [['fireball', 'Fireball', 3, 'Q', 'tt-spell__icon--fire'], ['blink', 'Blink', 2, 'E', ''], ['stoneskin', 'Stone Skin', 4, 'R', ''], ['restoration', 'Restoration', 3, '1', 'tt-spell__icon--heal']];
+  function slots(states) {
+    return '<div class="tt-row" style="gap:10px;flex-wrap:nowrap">' + states.split(',').map(function (s, i) {
+      var sp = SPELLS[i], a = s.split(':'), cool = a[0] === 'cool', broke = a[0] === 'broke', dots = '';
+      for (var k = 0; k < sp[2]; k++) dots += '<span' + C('tt-spell__dot', broke && 'is-hollow') + '></span>';
+      return '<div' + C('tt-plate', 'tt-spell', cool && 'is-cooling', broke && 'is-broke') + ' aria-label="' + sp[1] + ', ' + sp[3] + ', ' + sp[2] + ' SP">' +
+        '<div class="tt-spell__well"><span' + C('tt-glyph', 'tt-glyph--48', 'tt-spell__icon', sp[4]) + ' data-glyph=' + JSON.stringify(sp[0]) + ' aria-label="' + sp[1] + '"></span>' +
+        (cool ? '<div class="tt-spell__shutter" style="--cd:' + a[1] + '%"></div><span class="tt-spell__time num-m">' + a[2] + '</span>' : '') + '</div>' +
+        (broke ? '<span class="tt-spell__lock"><span class="tt-glyph tt-glyph--20" data-glyph="lock" aria-label="Locked"></span><span class="ui-label">SP</span></span>' : '') +
+        '<div class="tt-spell__cost">' + dots + '</div><span class="tt-key tt-key--sm tt-spell__key">' + sp[3] + '</span></div>';
+    }).join('') + '</div>';
+  }
+  document.querySelectorAll('[data-gauge]').forEach(function (el) { el.innerHTML = gauge(JSON.parse(el.getAttribute('data-gauge'))); });
+  document.querySelectorAll('[data-slots]').forEach(function (el) { el.innerHTML = slots(el.getAttribute('data-slots')); });
+  TinTally.mount(document.getElementById('sheet'));
+})();
+</script>
+</body>
+</html>

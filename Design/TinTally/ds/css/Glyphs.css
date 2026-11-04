@@ -1,0 +1,20 @@
+/* Glyphs: the contact sheet. Every glyph at 32 px on plate and 20 px on enamel, named underneath.
+   Six columns so the longest names ("consumable", "quarterstaff", 111 px at ui-label) never break
+   mid-word; hyphenated names wrap at the hyphen. "Kept apart" rows set a sibling group (four cells)
+   beside its title and the tell that separates the members. */
+.tt-glyphsheet__set { margin: 0; }
+.tt-glyphsheet { display: flex; flex-direction: column; gap: var(--space-5); background: var(--plate); }
+.tt-glyphsheet__head { margin: 0 0 var(--space-2); color: var(--text-muted); font-weight: 400; }
+.tt-glyphsheet__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: var(--space-2); }
+.tt-glyphsheet__cell { margin: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; align-content: start; gap: var(--space-1); padding: var(--space-2); border-radius: var(--radius-key); background: var(--plate-raised); border: 2px solid var(--lip); }
+.tt-glyphsheet__cell.is-missing { border-style: dashed; opacity: .5; }
+.tt-glyphsheet__dark { display: flex; align-items: center; justify-content: center; height: 44px; color: var(--text); }
+.tt-glyphsheet__light { display: flex; align-items: center; justify-content: center; height: 44px; border-radius: 6px; background: var(--enamel); color: var(--ink); }
+.tt-glyphsheet__name { grid-column: 1 / -1; font: 600 20px/24px var(--font-ui); color: var(--text-muted); text-align: center; overflow-wrap: normal; word-break: normal; }
+
+.tt-glyphsheet__pairs { display: flex; flex-direction: column; gap: var(--space-4); }
+.tt-glyphsheet__pair { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-4); align-items: center; }
+.tt-glyphsheet__pairtext { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.tt-glyphsheet__pairname { margin: 0; font: 700 20px/26px var(--font-ui); color: var(--text); }
+.tt-glyphsheet__pairtell { margin: 0; }
+.tt-glyphsheet__pairgrid { display: grid; grid-template-columns: repeat(4, 136px); gap: var(--space-2); }

@@ -1,0 +1,296 @@
+<!-- @dsCard group="Tally" height=2526 width=960 subtitle="The rail head (Kills, the +N badge, slot) and the tickets hung under it on the light cord: hold, receipt, overflow, every kind and the text-fit rules" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>TallyRail</title>
+<style>
+/* Preview scaffolding only. */
+.pv { display: flex; flex-direction: column; gap: 30px; padding: 24px 24px 32px; }
+.pv-sec { display: flex; flex-direction: column; gap: 14px; }
+.pv-h { margin: 0; color: var(--text-muted); }
+.pv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 16px; align-items: start; }
+.pv-fig { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.pv-fig--wide { grid-column: 1 / -1; }
+.pv-box { border-radius: 10px; box-shadow: 0 0 0 2px var(--lip); }
+.pv-screen { position: relative; display: flex; justify-content: flex-end; align-items: flex-start; padding: 32px 32px 40px; }
+.pv-screen--short { height: 204px; }
+.pv-screen--tall { height: 432px; }
+/* The screen corner: the 32 px HUD margin, a solid guide (dashed means "unavailable" in this system). */
+.pv-edge { position: absolute; top: 0; right: 0; width: 32px; height: 32px; border-top: 2px solid var(--ink); border-right: 2px solid var(--ink); border-radius: 0 10px 0 0; opacity: .45; }
+.pv-kind { display: flex; align-items: center; justify-content: center; height: 124px; }
+.pv-kind--pair { height: 176px; }
+.pv-kind--short { height: 96px; }
+.pv-col { display: flex; flex-direction: column; gap: 16px; }
+.pv-tok { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.pv-label b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="tt-root pv">
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">States · top-right of the screen, 32 px from the edges</h2>
+    <div class="pv-grid">
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-blockout pv-screen pv-screen--short">
+          <span class="pv-edge" aria-hidden="true"></span>
+          <div class="tt-rail" style="--tt-rail-tail:28px">
+            <div class="tt-plate tt-plate--rail tt-railhead">
+              <div class="tt-plate__row"><span class="tt-railhead__kills num-l">Kills: 12</span></div>
+              <span class="tt-railhead__slot" aria-hidden="true"></span>
+            </div>
+            <div class="tt-tag-stack tt-tag-stack--light">
+              <div class="tt-tag tt-ticket tt-ticket--slip tt-ticket--r-common is-new">
+                <span class="tt-glyph" data-glyph="ore" aria-label="Iron Ore"></span>
+                <span class="tt-tag__line tt-ticket__name">Iron Ore</span>
+                <span class="tt-ticket__count num-s">x3</span>
+                <span class="tt-ticket__peel" aria-hidden="true"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>Out of combat.</b> A pickup prints at once as a slip. Identical slips merge: three Iron Ore read "Iron Ore x3".</figcaption>
+      </figure>
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-grass pv-screen pv-screen--short">
+          <span class="pv-edge" aria-hidden="true"></span>
+          <div class="tt-rail" style="--tt-rail-tail:28px">
+            <div class="tt-plate tt-plate--rail tt-railhead">
+              <div class="tt-plate__row">
+                <span class="tt-railhead__kills num-l">Kills: 14</span>
+                <span class="tt-pill tt-railhead__pending" aria-label="3 waiting"><span class="tt-railhead__pendingnum num-m">+3</span></span>
+              </div>
+              <span class="tt-railhead__slot" aria-hidden="true"></span>
+            </div>
+            <div class="tt-tag-stack tt-tag-stack--light">
+              <div class="tt-tag tt-ticket tt-ticket--slip tt-ticket--r-common is-new">
+                <span class="tt-glyph" data-glyph="potion" aria-label="Health Potion"></span>
+                <span class="tt-tag__line tt-ticket__name">Health Potion</span>
+                <span class="tt-ticket__count num-s">x1</span>
+                <span class="tt-ticket__peel" aria-hidden="true"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>Combat hold.</b> Earned entries wait; the badge shows the number only (+3). A pickup you pressed F for still prints at once for 2 s: a slip, or an ITEM ticket if it is Green or up.</figcaption>
+      </figure>
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-mire pv-screen pv-screen--tall">
+          <span class="pv-edge" aria-hidden="true"></span>
+          <div class="tt-rail" style="--tt-rail-tail:44px">
+            <div class="tt-plate tt-plate--rail tt-railhead is-printing">
+              <div class="tt-plate__row">
+                <span class="tt-railhead__kills num-l">Kills: 17</span>
+                <span class="tt-pill tt-railhead__pending" aria-label="1 waiting"><span class="tt-railhead__pendingnum num-m">+1</span></span>
+              </div>
+              <span class="tt-railhead__slot" aria-hidden="true"></span>
+            </div>
+            <div class="tt-tag-stack tt-tag-stack--light">
+              <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill has-foot is-new">
+                <div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">6 / 20</span></div>
+                <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Dodging</span></div>
+                <div class="tt-ticket__foot"><span class="tt-ticket__foottext"><span class="tt-ticket__footnum num-s">+2</span> ranks</span></div>
+                <span class="tt-ticket__peel" aria-hidden="true"></span>
+              </div>
+              <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--feat-common has-foot">
+                <div class="tt-ticket__row"><span class="tt-tag__kicker">Feat progress</span></div>
+                <div class="tt-ticket__row">
+                  <span class="tt-tag__line tt-ticket__name">Pyromaniac</span>
+                  <span class="tt-ticket__rank num-m">4 / 6</span>
+                </div>
+                <div class="tt-ticket__foot"><span class="tt-ticket__foottext">Burn 6 enemies at once.</span></div>
+              </div>
+              <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--r-common">
+                <div class="tt-ticket__row"><span class="tt-tag__kicker">Stored</span></div>
+                <div class="tt-ticket__list">
+                  <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Iron Ore</span><span class="tt-ticket__count num-s">x2</span></div>
+                  <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Town Stone</span><span class="tt-ticket__count num-s">x1</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>Receipt.</b> After 2.5 s of calm the waiting entries print 350 ms apart, newest on top with its corner peeled. The slot shows paper; the badge counts down and goes. The light cord holds on the mire.</figcaption>
+      </figure>
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-night pv-screen pv-screen--tall">
+          <span class="pv-edge" aria-hidden="true"></span>
+          <div class="tt-rail" style="--tt-rail-tail:24px">
+            <div class="tt-plate tt-plate--rail tt-railhead">
+              <div class="tt-plate__row"><span class="tt-railhead__kills num-l">Kills: 23</span></div>
+              <span class="tt-railhead__slot" aria-hidden="true"></span>
+            </div>
+            <div class="tt-tag-stack tt-tag-stack--light">
+              <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--r-purple is-new">
+                <div class="tt-ticket__row"><span class="tt-tag__kicker">Item · Purple</span><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple"></span></span></div>
+                <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name tt-ticket__name--wrap">Unidentified Purple Amulet</span></div>
+                <span class="tt-ticket__peel" aria-hidden="true"></span>
+              </div>
+              <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill has-foot">
+                <div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">3 / 20</span></div>
+                <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Parrying</span></div>
+                <div class="tt-ticket__foot"><span class="tt-glyph tt-glyph--20" data-glyph="seal" aria-label="The Tally"></span><span class="tt-ticket__foottext">Three. Up from two.</span></div>
+              </div>
+              <div class="tt-tag tt-ticket tt-ticket--slip tt-ticket--r-common">
+                <span class="tt-glyph" data-glyph="potion" aria-label="Health Potion"></span>
+                <span class="tt-tag__line tt-ticket__name">Health Potion</span>
+                <span class="tt-ticket__count num-s">x2</span>
+              </div>
+              <div class="tt-rail__more">
+                <span class="tt-glyph" data-glyph="pin" aria-label="Spike"></span>
+                <span><span class="tt-rail__morenum num-s">6</span> more on the spike</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>Overflow.</b> When more than 4 pieces would hang, 3 hang and the fourth place reads "6 more on the spike". The pause menu's spike keeps the last 12 (8 visible).</figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Kinds at 1:1 · slip 56 px, ticket 88 px, 320 wide</h2>
+    <div class="pv-grid">
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-sand pv-kind">
+          <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill has-foot">
+            <div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">6 / 20</span></div>
+            <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Dodging</span></div>
+            <div class="tt-ticket__foot"><span class="tt-glyph tt-glyph--20" data-glyph="seal" aria-label="The Tally"></span><span class="tt-ticket__foottext">Six. Up from five.</span></div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>SKILL UP</b> · stub <span class="pv-tok">good</span> · the rank rides the kicker row in <span class="pv-tok">num-m</span> (108 px box, "20 / 20"), so the name owns the 248 px line. Remark in the footer, after the seal.</figcaption>
+      </figure>
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-sand pv-kind">
+          <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill has-foot">
+            <div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">12 / 20</span></div>
+            <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name tt-ticket__name--fit" style="--fit:24px">Two-Weapon Fighting</span></div>
+            <div class="tt-ticket__foot"><span class="tt-ticket__foottext"><span class="tt-ticket__footnum num-s">+2</span> ranks</span></div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>Merged, longest name</b> · two rank-ups, one ticket: the footer reads "+2 ranks" (plain detail beats a remark). "Two-Weapon Fighting" is 264 px at 26, so it scales to 24.</figcaption>
+      </figure>
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-sand pv-kind">
+          <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--skill">
+            <div class="tt-ticket__row"><span class="tt-tag__kicker">Skill up</span><span class="tt-ticket__rank tt-ticket__rank--head num-m">3 / 20</span></div>
+            <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Parrying</span></div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>SKILL UP, remarks Off</b> · no footer: kicker row and name centre in the 88.</figcaption>
+      </figure>
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-sand pv-kind">
+          <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--feat-common has-foot">
+            <div class="tt-ticket__row"><span class="tt-tag__kicker">Feat progress</span></div>
+            <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Pyromaniac</span><span class="tt-ticket__rank num-m">4 / 6</span></div>
+            <div class="tt-ticket__foot"><span class="tt-ticket__foottext">Burn 6 enemies at once.</span></div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>FEAT PROGRESS</b> · stub = feat tier colour · name and count share the line · footer = the condition's DisplayLabel, plain (never a remark).</figcaption>
+      </figure>
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-sand pv-kind">
+          <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--r-common">
+            <div class="tt-ticket__row"><span class="tt-tag__kicker">Stored</span></div>
+            <div class="tt-ticket__list">
+              <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Iron Ore</span><span class="tt-ticket__count num-s">x2</span></div>
+              <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Town Stone</span><span class="tt-ticket__count num-s">x1</span></div>
+            </div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>STORED</b> · auto-stored resources, two rows max; a third resource starts a new STORED ticket.</figcaption>
+      </figure>
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-sand pv-kind">
+          <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--r-purple">
+            <div class="tt-ticket__row"><span class="tt-tag__kicker">Item · Purple</span><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple"></span></span></div>
+            <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name tt-ticket__name--wrap">Unidentified Purple Amulet</span></div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>ITEM</b> · stub = rarity colour, socket badge, colour word in kicker and name. Names wrap to two lines, then end in an ellipsis.</figcaption>
+      </figure>
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-sand pv-kind">
+          <div class="tt-tag tt-ticket tt-ticket--tall tt-ticket--r-purple has-foot">
+            <div class="tt-ticket__row"><span class="tt-tag__kicker">Identified</span></div>
+            <div class="tt-ticket__row"><span class="tt-tag__line tt-ticket__name">Mysterious Amulet</span></div>
+            <div class="tt-ticket__foot"><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple" data-height="16"></span></span><span class="tt-ticket__foottext">Purple · Magical Item</span></div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>IDENTIFIED</b> · the real name on one line; the footer keeps the rarity word, badge and type.</figcaption>
+      </figure>
+
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-sand pv-kind pv-kind--pair">
+          <div class="pv-col">
+            <div class="tt-tag tt-ticket tt-ticket--slip tt-ticket--r-common">
+              <span class="tt-glyph" data-glyph="stone" aria-label="Town Stone"></span>
+              <span class="tt-tag__line tt-ticket__name">Town Stone</span>
+              <span class="tt-ticket__count num-s">x1</span>
+            </div>
+            <div class="tt-tag tt-ticket tt-ticket--slip tt-ticket--r-common">
+              <span class="tt-glyph" data-glyph="weapon" aria-label="Weapon"></span>
+              <span class="tt-tag__line tt-ticket__name">Rusty Sword</span>
+              <span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common"></span></span>
+            </div>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>Slips</b> · Common pickups only: glyph + name (176 px box) + count, or a rarity socket when the item does not stack.</figcaption>
+      </figure>
+
+      <figure class="pv-fig pv-fig--wide">
+        <div class="pv-box tt-floor-night pv-kind pv-kind--short">
+          <div class="tt-rail__more">
+            <span class="tt-glyph" data-glyph="pin" aria-label="Spike"></span>
+            <span><span class="tt-rail__morenum num-s">6</span> more on the spike</span>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>Overflow</b> · <span class="pv-tok">plate</span> stub, 48 px, <span class="pv-tok">lip</span> border; the light cord ends at the pin (centre x 22).</figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <section class="pv-sec">
+    <h2 class="kicker tt-caps pv-h">Rail head · longest values and the stopped rail</h2>
+    <div class="pv-grid">
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-snow pv-kind">
+          <div class="tt-plate tt-plate--rail tt-railhead">
+            <div class="tt-plate__row">
+              <span class="tt-railhead__kills num-l">Kills: 999</span>
+              <span class="tt-pill tt-railhead__pending" aria-label="99 waiting"><span class="tt-railhead__pendingnum num-m">+99</span></span>
+            </div>
+            <span class="tt-railhead__slot" aria-hidden="true"></span>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>Fixed boxes.</b> KillCountText 190 px ("Kills: 999"), PendingText 46 px ("+99"). Nothing shifts as they tick.</figcaption>
+      </figure>
+      <figure class="pv-fig">
+        <div class="pv-box tt-floor-mire pv-kind">
+          <div class="tt-plate tt-plate--rail tt-railhead is-unlit">
+            <div class="tt-plate__row"><span class="tt-railhead__kills num-l">Kills: 412</span></div>
+            <span class="tt-railhead__slot" aria-hidden="true"></span>
+          </div>
+        </div>
+        <figcaption class="tt-label pv-label"><b>Stopped</b> (Acceptance ending) · Plate's <span class="pv-tok">.is-unlit</span>: the count stays, nothing prints again. Its last ticket is on TallyPlate.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

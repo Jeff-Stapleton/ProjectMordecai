@@ -1,0 +1,43 @@
+/* Banner: the World-voice title card, 928 x 132 at top centre (0, 296). Biome title card, boss intro,
+   boss phase, new area. Serious register, built like an inlaid plaque: the tin plate, a coloured inlay mat in the
+   biome swatch (or foe for a boss), and a dark inner panel that holds the words. Text never sits on the mat.
+   No rivets, no tally, no remarks.
+   Mat edge: a 2 px lip ring outside (3.45:1 on plate) and a 2 px ink line inside, so dark swatches
+   (biome-mire is 2.3:1 on plate, biome-withered 2.8:1) still separate from the tin. */
+
+.tt-banner { --cap: var(--biome-verdant); --mat-y: 10px; --mat-x: 56px; width: 928px; height: 132px; padding: 8px; }
+.tt-banner__mat {
+  height: 100%; padding: var(--mat-y) var(--mat-x); border-radius: 8px; background: var(--cap);
+  box-shadow: 0 0 0 var(--stroke-rim) var(--lip), inset 0 0 0 var(--stroke-rim) var(--ink);
+}
+.tt-banner__panel {
+  height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: 0 32px; text-align: center; min-width: 0;
+  background: var(--plate); border-radius: 4px;
+  box-shadow: 0 0 0 var(--stroke-rim) var(--ink), inset 0 var(--stroke-rim) 0 0 color-mix(in srgb, var(--rim) 25%, var(--plate));
+}
+.tt-banner__title { color: var(--text); white-space: nowrap; }
+.tt-banner__line { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tt-banner__chip { display: inline-block; width: 16px; height: 16px; margin-right: 10px; vertical-align: -2px; border-radius: 4px; background: var(--cap); box-shadow: 0 0 0 2px var(--ink), 0 0 0 4px var(--lip); }
+
+/* Kinds. Boss intro: foe mat. Phase (a boss phase change, "PHASE 2" / "ENRAGED"): a smaller beat in the
+   middle of a fight, so a smaller piece: 560 x 96, top-centred in the banner slot (y 296-392), the slim mat
+   (20 px ends, 5 px rails, like a new area) in foe, the title alone. */
+.tt-banner--boss { --cap: var(--foe); }
+.tt-banner--area { --mat-y: 5px; --mat-x: 20px; }
+.tt-banner--phase { --cap: var(--foe); --mat-y: 5px; --mat-x: 20px; width: 560px; height: 96px; }
+
+/* Biome swatches (tokens biome-*): fills only, never under text. */
+.tt-banner--verdant { --cap: var(--biome-verdant); }
+.tt-banner--searing { --cap: var(--biome-searing); }
+.tt-banner--mire { --cap: var(--biome-mire); }
+.tt-banner--crystal { --cap: var(--biome-crystal); }
+.tt-banner--storm { --cap: var(--biome-storm); }
+.tt-banner--withered { --cap: var(--biome-withered); }
+
+/* Swatch key: the six biome mats with their names, for the implementer. */
+.tt-banner-key { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.tt-banner-key__item { display: flex; align-items: center; gap: var(--space-3); padding: 8px 12px 8px 8px; color: var(--text); font: 600 20px/26px var(--font-ui); }
+.tt-banner-key__swatch { flex: none; width: 56px; height: 40px; margin-left: 2px; padding: 5px 14px; border-radius: 6px; background: var(--cap); box-shadow: 0 0 0 var(--stroke-rim) var(--lip), inset 0 0 0 var(--stroke-rim) var(--ink); }
+.tt-banner-key__swatch::after { content: ""; display: block; height: 100%; border-radius: 3px; background: var(--plate); box-shadow: 0 0 0 var(--stroke-rim) var(--ink); }
+.tt-banner-key__tok { display: block; color: var(--text-muted); font: 600 20px/24px var(--font-mono); }

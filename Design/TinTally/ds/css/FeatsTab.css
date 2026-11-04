@@ -1,0 +1,108 @@
+/* FeatsTab: earned feats as stamped badges inside the pause shell's 948 x 540 content box.
+   Header (44) / body (482): unlocked medal board + locked list (598) | detail panel with the Drawback box (330). */
+.tt-feats { display: flex; flex-direction: column; gap: 14px; height: 540px; }
+.tt-feats__head { flex: none; display: flex; align-items: center; height: 44px; color: var(--text); }
+.tt-feats__title { margin: 0; }
+.tt-feats__body { flex: 1 1 auto; display: grid; grid-template-columns: 598px 330px; gap: 20px; min-height: 0; }
+.tt-feats__main { display: flex; flex-direction: column; min-height: 0; }
+.tt-feats__sechead { display: flex; align-items: center; gap: var(--space-2); height: 26px; margin: 0 0 8px; color: var(--text-muted); letter-spacing: 0.06em; }
+.tt-feats__sechead > .tt-divider { flex: 1 1 auto; }
+.tt-feats__sechead .num-s { color: var(--text); letter-spacing: 0; }
+
+/* --- Badge (the feat medallion): silhouette = tier (circle Common, FLAT-TOP hexagon Rare, 8-point starburst
+       Legendary), ink rim, tier fill, and the feat's own glyph in ink (D14). */
+.tt-feats__badge { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--s, 56px); height: var(--s, 56px); color: var(--ink); --o: 3px; }
+.tt-feats__badge::before, .tt-feats__badge::after { content: ""; position: absolute; clip-path: var(--shape); }
+.tt-feats__badge::before { inset: 0; background: var(--ink); }
+.tt-feats__badge::after { inset: var(--o); background: var(--tier); }
+.tt-feats__badge > .tt-glyph { position: relative; z-index: 1; }
+.tt-feats__badge--common { --tier: var(--feat-common); --shape: circle(50% at 50% 50%); }
+/* Flat-top hexagon: flat edges top and bottom, points left and right. */
+.tt-feats__badge--rare { --tier: var(--feat-rare); --shape: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%); --o: 4px; }
+.tt-feats__badge--legendary { --tier: var(--feat-legendary); --o: 5px;
+  --shape: polygon(50% 0, 61% 23%, 85% 15%, 77% 39%, 100% 50%, 77% 61%, 85% 85%, 61% 77%, 50% 100%, 39% 77%, 15% 85%, 23% 61%, 0 50%, 23% 39%, 15% 15%, 39% 23%); }
+.tt-feats__badge.is-locked { color: var(--text-disabled); --tier: var(--plate); }
+.tt-feats__badge.is-locked::before { background: var(--lip); }
+.tt-feats__badge--lg { --s: 88px; --o: 4px; }
+.tt-feats__badge--lg.tt-feats__badge--rare { --o: 5px; }
+.tt-feats__badge--lg.tt-feats__badge--legendary { --o: 7px; }
+
+/* --- Unlocked medals: a medal board of 194 x 76 cells, three to a row, every row centred (a WrapBox with
+       HorizontalAlignment Center), so 5 feats hang 3 + 2 and the last row never leaves an empty socket.
+       Selected = the cream enamel fill (core .is-selected, D6); focus = core .tt-focus--fill-gap on top. */
+.tt-feats__grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 14px; padding: 0; list-style: none; }
+.tt-feats__cell {
+  position: relative; flex: 0 0 194px; display: flex; align-items: center; gap: 10px; height: 76px; padding: 0 6px 0 8px;
+  background: var(--plate); border: 2px solid var(--lip); border-radius: var(--radius-tag); cursor: pointer;
+}
+.tt-feats__cell .tt-feats__badge { --s: 48px; }
+/* At 48 the starburst's body is only ~26 px across: its glyph drops to 20 so the points stay clear. */
+.tt-feats__cell .tt-feats__badge--legendary > .tt-glyph { width: 20px; height: 20px; }
+.tt-feats__ctext { display: flex; flex-direction: column; min-width: 0; }
+/* Names wrap at 118 px, two lines at most: name 2 x 22 + tier 22 = 66 in the 72 px face, 3 px clear top and
+   bottom ("Steel Rhythm", "Living Furnace" take two lines). */
+.tt-feats__cname { color: var(--text); line-height: 22px; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.tt-feats__ctext .tt-feats__tier { line-height: 22px; }
+.tt-feats__tier { white-space: nowrap; }
+.tt-feats__tier--common { color: var(--feat-common); }
+.tt-feats__tier--rare { color: var(--feat-rare); }
+.tt-feats__tier--legendary { color: var(--feat-legendary); }
+.tt-feats__cell.is-selected .tt-feats__cname { color: var(--ink); }
+.tt-feats__cell.is-selected .tt-feats__tier { color: var(--ink-muted); }
+/* New since the last visit: TallyRail's peeled corner (.tt-ticket__peel), on the cell's top-right corner. */
+.tt-feats__cell.is-new { border-top-right-radius: 3px; }
+.tt-feats__cell > .tt-ticket__peel { top: -2px; right: -2px; }
+
+/* --- Locked list: hollow silhouette, the name, "???", and one row per unlock condition. Dashed = locked (D24). */
+.tt-feats__locked { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tt-feats__lrow {
+  display: grid; grid-template-columns: 48px 138px 1fr; column-gap: 10px; align-items: center; min-height: 68px; padding: 6px 12px 6px 10px;
+  background: var(--plate); border: 2px dashed var(--lip); border-radius: var(--radius-tag);
+}
+.tt-feats__lrow .tt-feats__badge { --s: 48px; }
+.tt-feats__lname { display: flex; flex-direction: column; min-width: 0; }
+.tt-feats__lname .ui-label { color: var(--text-muted); white-space: nowrap; }
+.tt-feats__q { color: var(--text-disabled); letter-spacing: 0.06em; }
+.tt-feats__lsub { display: flex; align-items: baseline; gap: 6px; }
+/* Condition rows: label | thin bar (core .tt-bar--thin, rim fill) + count in a box sized for "88 / 200". */
+.tt-feats__conds { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.tt-feats__cond { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; align-items: center; height: 26px; }
+.tt-feats__cond dt { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-feats__cond dd { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 0; }
+.tt-feats__condbar { --fill: var(--rim); flex: none; width: 80px; }
+.tt-feats__val { min-width: 101px; text-align: right; color: var(--text); }
+.tt-feats__req { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
+.tt-feats__req.is-met { color: var(--good); }
+.tt-feats__req.is-unmet { color: var(--text-muted); }
+.tt-feats__req .tt-glyph { width: 20px; height: 20px; }
+
+/* --- Detail panel: badge, tier pill, name, description, effect counts, "Earned by", the Drawback box. */
+.tt-feats__detail { display: flex; flex-direction: column; gap: 10px; min-height: 0; padding: 14px 16px 16px; background: var(--plate-raised); border: 2px solid var(--lip); border-radius: var(--radius-tag); }
+.tt-feats__dtop { display: flex; align-items: center; gap: 14px; }
+.tt-feats__dmeta { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.tt-feats__pill { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: var(--radius-pill); border: 2px solid var(--ink); color: var(--ink); background: var(--tier); font: 700 20px/1 var(--font-ui); }
+.tt-feats__pill--legendary { --tier: var(--feat-legendary); }
+.tt-feats__pill--rare { --tier: var(--feat-rare); }
+.tt-feats__pill--common { --tier: var(--feat-common); }
+.tt-feats__dstatus { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-muted); }
+.tt-feats__dname { margin: 2px 0 0; color: var(--text); }
+.tt-feats__ddesc { margin: 0; color: var(--text); }
+.tt-feats__dcount { color: var(--text-muted); }
+.tt-feats__dsec { display: flex; flex-direction: column; gap: 6px; }
+.tt-feats__sechead--sub { margin: 2px 0 0; }
+.tt-feats__dsec .tt-feats__condbar { width: 64px; }
+.tt-feats__dsec .tt-feats__val { min-width: 76px; }
+/* The Drawback box is core .tt-drawback; on the plate-raised panel it takes the plate ground so it reads as a box. */
+.tt-feats__drawback { margin-top: 2px; background: var(--plate); }
+
+/* --- Spec band helpers (below the screen only). */
+.tt-feats__noteshapes { display: flex; flex-wrap: wrap; gap: 14px 22px; }
+.tt-feats__noteshape { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tt-feats__notecells { display: flex; flex-wrap: wrap; gap: 14px 16px; }
+.tt-feats__notecell { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 0; }
+.tt-feats__grid--note { margin: 0; }
+.tt-feats__conds--note { width: 420px; }
+.tt-feats__noteempty { display: flex; flex-direction: column; gap: 6px; width: 680px; }
+.tt-feats__noteempty > .ui-title { white-space: nowrap; }
+.tt-feats__noteempty .tt-empty-box { min-height: 0; padding: var(--space-3) 0; }
+.tt-feats__notedetail { width: 298px; padding: 12px; background: var(--plate-raised); border: 2px solid var(--lip); border-radius: var(--radius-tag); }

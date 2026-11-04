@@ -1,0 +1,72 @@
+/* GaugePlate: the always-on resource plate. HUD top-left (32,32), 456 x 152 design px, a child of the HUD root.
+   Rows: HP 34 / ST 28 / posture 8 / SP 28 with 8-7-7 gaps inside 14 px padding.
+   Columns: label 28 | track 268 | value 108, 10 px gutters (424 px inside the rim). */
+.tt-gauge { position: relative; width: 456px; height: 152px; padding: 14px; flex: none; }
+.tt-gauge__row { display: grid; grid-template-columns: 28px 268px 108px; column-gap: 10px; align-items: center; }
+.tt-gauge__row--hp { height: 34px; }
+.tt-gauge__row--st { height: 28px; margin-top: 8px; }
+.tt-gauge__row--po { height: 8px; margin-top: 7px; }
+.tt-gauge__row--sp { height: 28px; margin-top: 7px; }
+.tt-gauge__label { color: var(--text-muted); text-transform: uppercase; line-height: 24px; }
+.tt-gauge__value { justify-self: end; text-align: right; white-space: nowrap; color: var(--text); }
+
+/* Track: the bar plus printed scale ticks that overhang the well by 5 px (cream on the plate, ink in the bar). */
+.tt-gauge__track { position: relative; height: 100%; display: flex; align-items: center; }
+.tt-gauge__track > .tt-bar { width: 100%; }
+.tt-gauge__row--hp .tt-bar { height: 24px; }
+.tt-gauge__row--st .tt-bar { height: 18px; }
+.tt-gauge__tick { position: absolute; top: 0; bottom: 0; left: var(--at); width: 2px; margin-left: -1px; background: var(--rim); }
+.tt-gauge__track .tt-bar__notch { z-index: 2; }
+
+/* ST value column: the sprint pip (20) and the tier pill (84), 4 px apart = 108. The pill is one fixed box so the
+   plate never shifts between x1.25 and x0.5 ("x1.25" = 5 Mono cells, 63 px, + 8 px padding + 2 px border a side). */
+.tt-gauge__stend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; justify-self: end; }
+.tt-gauge__pill { width: 84px; padding: 0 8px; justify-self: end; }
+
+/* Sprint pip (Shift / L3 toggle) in a fixed 20 x 20 box. Off: a hollow 14 px pip ring (2 px lip), centred.
+   On: the 20 px sprint glyph (a boot with speed lines) in text. Off and on differ by shape, not colour alone. */
+.tt-gauge__sprint { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; width: 20px; height: 20px; color: var(--text); }
+.tt-gauge__sprint::before { content: ""; width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--lip); }
+.tt-gauge__sprint .tt-glyph { position: absolute; inset: 0; width: 20px; height: 20px; visibility: hidden; }
+.tt-gauge__sprint.is-on::before { display: none; }
+.tt-gauge__sprint.is-on .tt-glyph { visibility: visible; }
+
+/* Guard broken (Mordecai.State.GuardBroken, 800 ms): stamina hit 0 while blocking. A stamp across the right end of
+   the ST track in the Exhausted pill's colours (ink ground, danger-text letters, danger border): it is a stamina
+   event, so it stays in the stamina family. 28 px tall, so its edge sits in the 8 / 7 px gaps. */
+.tt-gauge__guard { position: absolute; right: 0; top: 50%; z-index: 3; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px 0 8px; border-radius: var(--radius-pill); background: var(--ink); color: var(--danger-text); border: 2px solid var(--danger); font: 700 20px/20px var(--font-ui); white-space: nowrap; }
+.tt-gauge__guard .tt-glyph { width: 20px; height: 20px; }
+
+/* Posture: contextual pewter hairline (core .tt-bar--hair: 8 px, 1 px lip). Hidden (keeps its space) at max.
+   Broken (D3): Bar's .tt-bar.is-posture-broken, the posture fill under an ink hatch with the lip turned rim. */
+.tt-gauge__row--po .tt-bar { height: 8px; border-width: 1px; border-radius: 3px; }
+.tt-gauge__row--po.is-hidden .tt-gauge__track { visibility: hidden; }
+
+/* Spell Point tokens: the Tally partial's .tt-tally-sp discs, sized by MaxSpellPoints so the row always fits the
+   268 px track (D17): 22 px up to 10, --16 for 11-13 (13 / 13 at the default INT), --14 for 14-16.
+   Above 16 the row falls back to SpellPointsProgressBar, an 18 px spell-points bar (TODO(DECISION), US-090). */
+.tt-gauge__row--sp .tt-tally-sp { align-self: center; }
+.tt-gauge__row--sp .tt-bar { height: 18px; }
+
+/* Low health (Health <= 25%): the number turns danger-text and the rim steps to vital (LowHealthPulse, 1 Hz). */
+.tt-gauge--low .tt-gauge__value--hp { color: var(--danger-text); }
+.tt-gauge--low { animation: tt-gauge-pulse 1s steps(1, end) infinite; }
+.tt-gauge--low.is-peak { animation: none; border-color: var(--vital); }
+@keyframes tt-gauge-pulse { 0% { border-color: var(--vital); } 50% { border-color: var(--rim) var(--rim-shade) var(--rim-shade) var(--rim); } }
+
+/* LowHealthFrame (D21): an 8 px opaque vital band round the screen edge with a 3 px ink line on its inner side,
+   at 25% Health or below. Not a plate (no rim, no print); it does not pulse. --corner extends it past a crop's
+   right and bottom so only the screen's top and left edges show. */
+.tt-gauge-frame { position: absolute; inset: 0; pointer-events: none; z-index: 5; border: 8px solid var(--vital); box-shadow: inset 0 0 0 3px var(--ink); }
+.tt-gauge-frame--corner { right: -40px; bottom: -40px; }
+
+/* ---- Preview scaffolding (in-context crops and the state grid). ---- */
+.tt-gauge-sheet { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); background: var(--plate); }
+.tt-gauge-sheet__crops { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.tt-gauge-sheet__crop { position: relative; height: 448px; overflow: hidden; }
+.tt-gauge-sheet__at { position: absolute; }
+.tt-gauge-sheet__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5) var(--space-4); }
+.tt-gauge-sheet__cell { display: flex; flex-direction: column; gap: var(--space-2); }
+.tt-gauge-sheet__stage { position: relative; display: flex; align-items: flex-start; justify-content: center; padding: 16px 12px 24px; overflow: hidden; }
+.tt-gauge-sheet__cap { display: flex; flex-direction: column; gap: 2px; min-height: 78px; }
+.tt-gauge-sheet__cap b { color: var(--text); font-weight: 700; }

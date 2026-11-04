@@ -1,0 +1,96 @@
+<!-- @dsCard group="HUD" height=1352 width=960 subtitle="Boss name, phase pips, health with trail and posture: phase 1, phase 2, enraged, and the longest name while broken" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>BossBar</title>
+<style>
+/* preview-only layout scaffolding */
+.pv-head { margin: 0; padding: 16px 40px 10px; }
+.pv-head b { color: var(--text); }
+.pv-map { position: relative; height: 230px; margin: 0 0 8px; }
+.pv-state { display: flex; justify-content: center; padding: 22px 40px 26px; }
+.pv-spec > .tt-specband__item { flex: 1 1 240px; max-width: none; }
+</style>
+</head>
+<body>
+<div class="tt-root">
+
+  <!-- 0. Placement on the 1920 x 1080 canvas, drawn at 50% (boxes only, on the spec plate) -->
+  <p class="tt-label pv-head"><b>Placement</b> · the top of the 1920 × 1080 screen at 50%</p>
+  <section class="pv-map">
+    <div class="tt-boss__box tt-label" style="left:16px; top:16px; width:228px; height:76px;">Gauge plate</div>
+    <div class="tt-boss__box tt-boss__box--solid tt-label" style="left:260px; top:16px; width:440px; height:48px;"><b style="color:var(--text);">Boss bar</b>&nbsp;· x 520–1400</div>
+    <div class="tt-boss__box tt-label" style="left:320px; top:84px; width:320px; height:64px;">Plate drops to y 168</div>
+    <div class="tt-boss__box tt-label" style="left:248px; top:148px; width:464px; height:66px;">Banner · y 296</div>
+    <div class="tt-boss__box tt-label" style="left:784px; top:16px; width:160px; height:28px;">Rail head</div>
+  </section>
+
+  <!-- 1. Phase 1 -->
+  <p class="tt-label pv-head"><b>Phase 1</b> · full</p>
+  <section class="tt-floor-sand pv-state">
+    <div class="tt-boss">
+      <div class="tt-plate tt-boss__plate">
+        <div class="tt-bar tt-bar--foe tt-boss__hp" style="--v:100%;--t:100%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+        <div class="tt-bar tt-bar--posture tt-boss__po" style="--v:100%"><span class="tt-bar__fill"></span></div>
+      </div>
+      <div class="tt-plate tt-boss__name"><h3 class="world-heading tt-caps tt-boss__title">Iron Warden</h3></div>
+      <div class="tt-plate tt-boss__phase"><span class="tt-boss__ph tt-caps">Phase 1</span><span class="tt-pips tt-pips--lg tt-boss__pips" role="img" aria-label="Phase 1 of 3"><span class="tt-pip is-on"></span><span class="tt-pip"></span><span class="tt-pip"></span></span></div>
+    </div>
+  </section>
+
+  <!-- 2. Phase 2 with a damage trail -->
+  <p class="tt-label pv-head"><b>Phase 2</b> · hit, the DamageTrail ghost draining</p>
+  <section class="tt-floor-sand pv-state">
+    <div class="tt-boss">
+      <div class="tt-plate tt-boss__plate">
+        <div class="tt-bar tt-bar--foe tt-boss__hp" style="--v:58%;--t:66%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+        <div class="tt-bar tt-bar--posture tt-boss__po" style="--v:62%"><span class="tt-bar__fill"></span></div>
+      </div>
+      <div class="tt-plate tt-boss__name"><h3 class="world-heading tt-caps tt-boss__title">Iron Warden</h3></div>
+      <div class="tt-plate tt-boss__phase"><span class="tt-boss__ph tt-caps">Phase 2</span><span class="tt-pips tt-pips--lg tt-boss__pips" role="img" aria-label="Phase 2 of 3"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip"></span></span></div>
+    </div>
+  </section>
+
+  <!-- 3. Phase 3, enraged -->
+  <p class="tt-label pv-head"><b>Phase 3</b> · enraged</p>
+  <section class="tt-floor-night pv-state">
+    <div class="tt-boss is-enraged">
+      <div class="tt-plate tt-boss__plate">
+        <div class="tt-bar tt-bar--foe tt-boss__hp" style="--v:21%;--t:21%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+        <div class="tt-bar tt-bar--posture tt-boss__po" style="--v:84%"><span class="tt-bar__fill"></span></div>
+      </div>
+      <div class="tt-plate tt-boss__name"><h3 class="world-heading tt-caps tt-boss__title">Iron Warden</h3></div>
+      <div class="tt-plate tt-boss__phase"><span class="tt-boss__ph tt-caps">Phase 3</span><span class="tt-pips tt-pips--lg tt-boss__pips" role="img" aria-label="Phase 3 of 3"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span></span><span class="tt-boss__chip tt-boss__chip--enraged tt-caps">Enraged</span></div>
+    </div>
+  </section>
+
+  <!-- 4. Worst case: the longest boss name, phase 3, posture broken (Broken takes the Enraged chip's place) -->
+  <p class="tt-label pv-head"><b>Longest name</b> · 36 px · while the stagger lasts, Broken replaces Enraged and the phase word</p>
+  <section class="tt-floor-mire pv-state">
+    <div class="tt-boss is-enraged is-broken">
+      <div class="tt-plate tt-boss__plate">
+        <div class="tt-bar tt-bar--foe tt-boss__hp" style="--v:17%;--t:23%"><span class="tt-bar__trail"></span><span class="tt-bar__fill"></span><span class="tt-bar__notch" style="--at:25%"></span></div>
+        <div class="tt-bar tt-bar--posture tt-boss__po" style="--v:70%"><span class="tt-bar__fill"></span></div>
+      </div>
+      <div class="tt-plate tt-boss__name"><h3 class="world-heading tt-caps tt-boss__title tt-boss__title--long">Tempest Ascendant</h3></div>
+      <div class="tt-plate tt-boss__phase"><span class="tt-pips tt-pips--lg tt-boss__pips" role="img" aria-label="Phase 3 of 3"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span></span><span class="tt-boss__chip tt-boss__chip--broken tt-caps">Broken <span class="tt-num">×1.5</span></span></div>
+    </div>
+  </section>
+
+  <div class="tt-specband pv-spec">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Phases</p>
+      <p class="tt-label">Pips, never tally strokes: a filled disc per phase reached, a hollow ring per phase ahead. Phase changes are announced by the Banner's phase card.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">World voice</p>
+      <p class="tt-label">No rivets, no remarks, no Rowdies. The nameplate, the pips and one state chip are the whole identity.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Motion</p>
+      <p class="tt-label">DamageTrail on health; PlateDrop on the intro, after the intro banner clears.</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

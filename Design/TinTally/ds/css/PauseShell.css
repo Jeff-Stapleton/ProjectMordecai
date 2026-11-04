@@ -1,0 +1,151 @@
+/* PauseShell: the pause screen frame at 1920 x 1080 design px (BUILD.md "Menus and screens").
+   The toy diorama (core .tt-diorama) and the real HUD (HUDLayout's classes) under the veil; the "Paused"
+   nameplate on two light strings; five folder tabs (a 56 px bar at y 220) fused to the 1000 x 584 content
+   plate at (460, 276), content box 948 x 540; the hint bar (core .tt-hintbar) at y 892; the Tally spike at
+   x 1500-1880. Spec notes go in a core .tt-specband under the screen (.tt-pause-sheet). */
+.tt-pause-sheet { display: flex; flex-direction: column; width: 1920px; background: var(--plate); }
+.tt-pause { position: relative; flex: none; width: 1920px; height: 1080px; overflow: hidden; isolation: isolate; }
+.tt-pause__world, .tt-pause__veil { position: absolute; inset: 0; }
+/* The HUD under the veil is HUDLayout's .tt-hud stage, laid over the screen instead of in the flow. */
+.tt-pause > .tt-pause__hud { position: absolute; inset: 0; z-index: 0; } /* own stacking context: the HUD's keycaps and rivets stay under the veil */
+
+/* --- "Paused" nameplate: an enamel sign hung from the top edge on two light strings (core's light string
+       through --tt-string-light-*), each threaded into a grommet. Service screens on UI.Layer.Menu use
+       .tt-pause__title--screen (52 px strings, a glyph before the title) or set --tt-pause-strings. */
+.tt-pause__title { position: absolute; left: 50%; top: 0; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; }
+.tt-pause__strings { position: relative; z-index: 1; align-self: stretch; height: var(--tt-pause-strings, 140px); }
+.tt-pause__strings::before, .tt-pause__strings::after {
+  content: ""; position: absolute; top: 0; bottom: -5px; width: var(--tt-string-light-w);
+  background: var(--tt-string-light-core); box-shadow: var(--tt-string-light-shadow);
+}
+.tt-pause__strings::before { left: 24px; }
+.tt-pause__strings::after { right: 24px; }
+.tt-pause__nameplate {
+  position: relative; margin: 0; padding: 11px 64px 13px; color: var(--ink); background: var(--enamel);
+  border-radius: var(--radius-tag); box-shadow: inset 0 -4px 0 var(--enamel-shade), 0 0 0 var(--tt-outline) var(--ink), 0 6px 0 var(--tt-outline) var(--tt-print);
+}
+/* Grommets, as on the core tag: well hole, enamel-shade ring, ink ring; centred on the strings (x 26). */
+.tt-pause__nameplate::before, .tt-pause__nameplate::after {
+  content: ""; position: absolute; top: 10px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--well); box-shadow: 0 0 0 3px var(--enamel-shade), 0 0 0 5px var(--ink);
+}
+.tt-pause__nameplate::before { left: 20px; }
+.tt-pause__nameplate::after { right: 20px; }
+.tt-pause__title--screen { --tt-pause-strings: 52px; }
+.tt-pause__title--screen .tt-pause__nameplate { display: flex; align-items: center; gap: var(--space-3); white-space: nowrap; }
+
+/* --- TabBar: five folder tabs centred (keyboard and mouse, --kbm, every screen: D5). The gamepad bar
+       (spec band only) puts LB / RB keycaps at the ends. Inactive tabs tuck under the plate's outline; the
+       selected tab is the cream enamel fill (D6), raised 6 px and drawn over the plate's top outline so it
+       fuses with the rim. */
+.tt-pause__tabbar { position: absolute; left: 460px; top: 220px; width: 1000px; height: 56px; display: flex; align-items: flex-end; justify-content: space-between; }
+.tt-pause__tabbar--kbm { justify-content: center; }
+.tt-pause__bumper { margin-bottom: 5px; }
+.tt-pause__tabs { display: flex; align-items: flex-end; gap: 6px; }
+.tt-pause__tab {
+  appearance: none; position: relative; z-index: 0; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-width: 140px; height: 50px; margin: 0; padding: 0 16px 2px; cursor: pointer;
+  font: inherit; color: var(--text-muted); background: var(--plate-raised);
+  border: var(--tt-outline) solid var(--ink); border-bottom: 0; border-radius: var(--radius-tag) var(--radius-tag) 0 0;
+  box-shadow: inset 0 2px 0 var(--lip), inset 2px 0 0 var(--lip), inset -2px 0 0 var(--lip);
+}
+.tt-pause__tab .tt-glyph { width: 24px; height: 24px; }
+.tt-pause__tab.is-hover { height: 53px; color: var(--text); background: color-mix(in srgb, var(--plate-raised) 82%, var(--lip)); box-shadow: inset 0 2px 0 var(--rim), inset 2px 0 0 var(--lip), inset -2px 0 0 var(--lip); }
+/* Press sinks 3 px. The lip edge stays on all three sides, so High Contrast keeps the full outline (D22);
+   the 4 px well band under the top lip is the pushed-in shade (it vanishes in High Contrast, the edge does not). */
+.tt-pause__tab.is-pressed { height: 47px; color: var(--text); background: var(--plate); box-shadow: inset 0 2px 0 var(--lip), inset 2px 0 0 var(--lip), inset -2px 0 0 var(--lip), inset 0 6px 0 var(--well); }
+.tt-pause__tab.is-selected, .tt-pause__tab.is-active { z-index: 2; height: 56px; padding-bottom: 4px; color: var(--ink); background: var(--enamel); border-color: var(--ink); box-shadow: none; }
+/* Focus (.tt-focus--own): the core ring and keyline, drawn by the tab because it is open at the bottom: the
+   3 px focus ring sits right on the tab's own ink border (which is the inner ink), the 2 px ink keyline
+   outside it, and the bottom stays open so the fused join is intact. It goes on top of every state. */
+.tt-pause__tab.is-focused::after, .tt-pause__tab:focus-visible::after {
+  content: ""; position: absolute; pointer-events: none;
+  left: calc(-1 * (var(--tt-outline) + var(--stroke-focus))); right: calc(-1 * (var(--tt-outline) + var(--stroke-focus)));
+  top: calc(-1 * (var(--tt-outline) + var(--stroke-focus))); bottom: 0;
+  border: var(--stroke-focus) solid var(--focus); border-bottom: 0;
+  border-radius: calc(var(--radius-tag) + var(--tt-outline) + var(--stroke-focus)) calc(var(--radius-tag) + var(--tt-outline) + var(--stroke-focus)) 0 0;
+  filter: var(--tt-focus-keyline);
+}
+
+/* --- TabContentBorder: the plate. Content box 948 x 540 at padding 20 / 24. */
+.tt-pause__content { position: absolute; left: 460px; top: 276px; width: 1000px; height: 584px; z-index: 1; padding: 20px 24px; overflow: hidden; }
+
+/* --- The hint bar (core .tt-hintbar) under the plate, centred. Service screens set --tt-pause-footer-top. */
+.tt-pause__footer { position: absolute; left: 50%; top: var(--tt-pause-footer-top, 892px); transform: translateX(-50%); z-index: 1; display: flex; align-items: center; gap: var(--space-4); padding: 8px 20px; white-space: nowrap; }
+.tt-pause__slash { color: var(--text-disabled); }
+
+/* --- The Tally spike (D9): the rail's ticket kinds on one line each, impaled on a rod that stands in a
+       rail-family base (.tt-railbar, D23). Head 0-60; the ScrollBox shows entries from 80 to 606: 8 one-line
+       entries (56 + 8 gap) end at 584 and the 9th shows its top 14 px (edge and stub, no text) as the scroll cue;
+       with one entry opened (88) the 8th is cut 10 px under its text. Nothing is ever cut by 1-3 px, which would
+       read as a mistake. Base bar at 660-680, its left end cap on the rod (x 18). Screen y = 142 + these. */
+.tt-pause__spike { position: absolute; left: 1500px; top: 142px; width: 380px; height: 692px; z-index: 1; }
+.tt-pause__spikehead { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; height: 60px; padding: 0 var(--space-4); }
+.tt-pause__spikehead .kicker { color: var(--text); }
+.tt-pause__spikehead .tt-label { color: var(--text-muted); }
+.tt-pause__rod { position: absolute; z-index: 0; left: 15px; top: 78px; width: 6px; height: 592px; background: var(--lip); box-shadow: 0 0 0 2px var(--ink); }
+.tt-pause__rod::before { content: ""; position: absolute; left: -4px; top: -16px; width: 14px; height: 16px; background: var(--ink); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.tt-pause__rod::after { content: ""; position: absolute; left: -1px; top: -11px; width: 8px; height: 11px; background: var(--lip); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.tt-pause__spikebase { position: absolute; z-index: 1; left: 21px; right: 21px; top: 660px; }
+/* The ScrollBox reaches 10 px past the entries on the sides and top, so a focus ring is never clipped. */
+.tt-pause__list { position: absolute; z-index: 1; left: -10px; right: -10px; top: 70px; height: 536px; display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 10px 10px 0; list-style: none; overflow: hidden; }
+
+/* An entry is TallyRail's ticket (.tt-tag.tt-ticket + kind stub) at spike width, one line, 56 tall (the slip's
+   height). The stub is 36 (not 44) so the line keeps 324 px of text; the grommet hole shows the rod (lip).
+   Three-class selectors because Tag and TallyRail load after this partial. */
+.tt-pause__spike .tt-ticket.tt-pause__entry {
+  flex: none; width: 100%; height: 56px; min-height: 56px; gap: var(--space-2); padding: 0 10px 0 46px; align-items: center; cursor: pointer;
+  background:
+    linear-gradient(var(--ink-muted) 0 4px, transparent 4px) 36px 2px / 2px 8px repeat-y,
+    linear-gradient(90deg, var(--stub) 0 36px, var(--enamel) 36px) 0 0 / 100% 100% no-repeat;
+}
+.tt-pause__spike .tt-tag.tt-pause__entry::before { left: 12px; background: var(--lip); }
+.tt-pause__spike .tt-pause__entry > .tt-tag__kicker { flex: none; white-space: nowrap; }
+.tt-pause__spike .tt-pause__entry:not(.tt-ticket--tall) > .tt-ticket__name { font-size: 20px; line-height: 26px; }
+.tt-pause__entryrank { width: 90px; text-align: right; }
+/* Unread: the rail's peeled corner at spike scale (16 px), so it clears the 20 px digits centred in the 56 px line. */
+.tt-pause__spike .tt-pause__entry > .tt-ticket__peel { width: 16px; height: 16px; }
+/* Focused (or hovered) entry: it opens to the full rail ticket, 88 tall, so a cut name reads in full. */
+.tt-pause__spike .tt-ticket--tall.tt-pause__entry { height: 88px; min-height: 88px; flex-direction: column; align-items: stretch; justify-content: center; gap: 0; }
+
+/* --- Spec band helpers (below the screen only). Items run 580 wide here so three notes fill a row. */
+.tt-pause__band .tt-specband__item { max-width: 580px; }
+.tt-pause__band .tt-specband__item.tt-pause__bandwide { max-width: 700px; }
+.tt-pause__states { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: var(--space-3) var(--space-4); }
+.tt-pause__state { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 0; }
+.tt-pause__statebar {
+  position: relative; display: flex; align-items: flex-end; justify-content: center; height: 66px; padding: 0 10px;
+  border-bottom: var(--tt-outline) solid var(--ink); box-shadow: 0 2px 0 var(--rim);
+}
+.tt-pause__statebar .tt-pause__tab.is-selected { margin-bottom: calc(-1 * var(--tt-outline)); height: calc(56px + var(--tt-outline)); }
+.tt-pause__statebar--pad { justify-content: space-between; align-self: stretch; }
+.tt-pause__bandbar { align-self: flex-start; }
+/* A service-screen nameplate specimen: the box's top rule stands for the screen's top edge. */
+.tt-pause__bandscreen { position: relative; align-self: stretch; height: 124px; border-top: 2px solid var(--lip); }
+
+/* --- DEPRECATED: the previous shell markup (stand-in HUD, old spike, old footer). InventoryTab and
+       OptionsScreen still use some of these; remove once they render their frame from pause_gen/shell.py. */
+.tt-pause__patch { position: absolute; border-radius: 64px; }
+.tt-pause__patch--grass { left: 1180px; top: 600px; width: 900px; height: 620px; }
+.tt-pause__patch--sand { left: -120px; top: 700px; width: 760px; height: 520px; }
+.tt-pause__ghost { position: absolute; }
+.tt-pause__ghost--gauge { left: 32px; top: 32px; width: 456px; height: 152px; padding: var(--space-4); display: flex; flex-direction: column; justify-content: center; gap: var(--space-3); }
+.tt-pause__ghost--rail { right: 32px; top: 32px; width: 320px; height: 56px; padding: 0 var(--space-4); display: flex; align-items: center; justify-content: flex-end; }
+.tt-pause__ghost--loadout { right: 32px; bottom: 32px; width: 340px; height: 84px; padding: 0 var(--space-4); display: flex; align-items: center; gap: var(--space-3); }
+.tt-pause__footsep { flex: none; width: 2px; height: 24px; border-radius: 1px; background: var(--lip); }
+.tt-pause__footer--static { position: static; transform: none; display: inline-flex; align-self: flex-start; gap: var(--space-3); padding: 8px 14px; }
+.tt-plate.tt-pause__spikebase { display: none; }
+.tt-pause__tickets { position: absolute; left: 0; right: 0; top: 86px; z-index: 1; display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.tt-pause__ticket {
+  position: relative; display: flex; align-items: center; gap: var(--space-2); height: 38px; padding: 0 14px 0 36px;
+  background: var(--enamel); color: var(--ink); border-radius: 4px var(--radius-tag) var(--radius-tag) 4px;
+  box-shadow: 0 0 0 var(--tt-outline) var(--ink);
+}
+.tt-pause__ticket::before { content: ""; position: absolute; left: 12px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--lip); box-shadow: 0 0 0 3px var(--enamel-shade), 0 0 0 5px var(--ink); }
+.tt-pause__ticketname { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-pause__ticketmeta { flex: none; color: var(--ink-muted); white-space: nowrap; }
+.tt-pause__ticket--lead { height: 68px; padding-top: 6px; padding-bottom: 10px; }
+.tt-pause__ticketstack { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.tt-pause__ticketstack .kicker { color: var(--ink-muted); }
+.tt-pause__featmark { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: var(--feat-common); color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
+.tt-pause__stampmark { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; background: var(--enamel-shade); color: var(--ink); border: 2px solid var(--ink); box-shadow: inset 0 0 0 3px var(--enamel); font-weight: 800; }

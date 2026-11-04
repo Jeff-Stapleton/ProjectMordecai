@@ -1,0 +1,69 @@
+/* DamageNumber: world-space pops at the hit point (a pool of 20 UMG pops on the HUD root's damage-pop canvas).
+   .tt-dmg            one pop: digits (pop type, 3 px ink outline) and, for every non-Physical type, a stamp after them.
+   .tt-dmg__n         the digits. Set --dmg on .tt-dmg (the modifier classes do it).
+   .tt-dmg__stamp     ink capsule holding the type glyph and at most one modifier glyph (block, arrow-up/down, immune).
+                      Physical, Slash, Pierce and Blunt carry NO type glyph (D15): a plain Physical pop has no stamp
+                      at all, and a blocked or resisted Physical pop shows the modifier glyph alone.
+   Crit = 45 px digits on a starburst + "!". Shadow prints inverted. Radiant adds a 2 px good halo. */
+
+.tt-dmg { --dmg: var(--dmg-physical); position: relative; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; line-height: 0; }
+.tt-dmg__core { position: relative; z-index: 0; display: inline-flex; align-items: center; justify-content: center; }
+.tt-dmg__n {
+  position: relative; z-index: 0;
+  color: var(--dmg);
+  -webkit-text-stroke: calc(var(--tt-outline) * 2) var(--ink); paint-order: stroke fill;
+  text-shadow: 0 3px 0 var(--ink);
+}
+.tt-dmg__stamp {
+  display: inline-flex; align-items: center; justify-content: center; gap: 1px;
+  height: 30px; min-width: 30px; padding: 0 4px;
+  border-radius: var(--radius-pill); background: var(--ink); color: var(--dmg);
+}
+.tt-dmg__stamp .tt-glyph { width: 22px; height: 22px; }
+.tt-dmg__mod { color: var(--text); }
+
+/* Types: colour token + stamp glyph. Physical and its subtypes keep dmg-physical and no glyph. */
+.tt-dmg--fire { --dmg: var(--dmg-fire); }
+.tt-dmg--frost { --dmg: var(--dmg-frost); }
+.tt-dmg--lightning { --dmg: var(--dmg-lightning); }
+.tt-dmg--poison { --dmg: var(--dmg-poison); }
+.tt-dmg--corrosive { --dmg: var(--dmg-corrosive); }
+.tt-dmg--arcane { --dmg: var(--dmg-arcane); }
+.tt-dmg--heal { --dmg: var(--heal); }
+
+/* Shadow (Curse): inverted print. Dark fill inside a light edge, closed by a 2 px ink keyline (a second copy
+   of the digits behind) so the light edge never melts into a light floor; the stamp inverts too. */
+.tt-dmg--shadow { --dmg: var(--dmg-shadow); }
+.tt-dmg--shadow .tt-dmg__n { -webkit-text-stroke-color: var(--dmg-shadow-edge); text-shadow: none; }
+.tt-dmg--shadow .tt-dmg__stamp { background: var(--dmg-shadow-edge); color: var(--dmg-shadow); box-shadow: 0 0 0 2px var(--ink); }
+
+/* Radiant (Holy): radiant fill, a 2 px good halo, then the ink outline (a second copy of the digits behind). */
+.tt-dmg--radiant { --dmg: var(--dmg-radiant); }
+.tt-dmg--radiant .tt-dmg__n { -webkit-text-stroke: 4px var(--good); text-shadow: none; }
+
+/* The back copy (HaloText in UE) for Radiant and Shadow: set data-n to the same string as the digits. */
+.tt-dmg--radiant .tt-dmg__n::before, .tt-dmg--shadow .tt-dmg__n::before {
+  content: attr(data-n); position: absolute; left: 0; top: 0; z-index: -1;
+  color: var(--ink); -webkit-text-stroke: calc(4px + var(--tt-outline) * 2) var(--ink); paint-order: stroke fill;
+  text-shadow: 0 3px 0 var(--ink);
+}
+.tt-dmg--radiant .tt-dmg__stamp { box-shadow: inset 0 0 0 2px var(--good); }
+
+/* Crit: x1.5 size (45 px), a 12-point starburst in good with a 6 px ink edge behind the digits, "!" suffix. */
+.tt-dmg--crit .tt-dmg__n { font-size: 45px; line-height: 45px; }
+.tt-dmg__burst {
+  position: absolute; left: 50%; top: 50%; z-index: -1;
+  width: 96px; height: 96px; margin: -50px 0 0 -48px;
+  background: var(--ink);
+  clip-path: polygon(50% 0%, 60.1% 12.3%, 75% 6.7%, 77.6% 22.4%, 93.3% 25%, 87.7% 39.9%, 100% 50%, 87.7% 60.1%, 93.3% 75%, 77.6% 77.6%, 75% 93.3%, 60.1% 87.7%, 50% 100%, 39.9% 87.7%, 25% 93.3%, 22.4% 77.6%, 6.7% 75%, 12.3% 60.1%, 0% 50%, 12.3% 39.9%, 6.7% 25%, 22.4% 22.4%, 25% 6.7%, 39.9% 12.3%);
+}
+.tt-dmg__burst::after { content: ""; position: absolute; inset: 6px; background: var(--good); clip-path: inherit; }
+.tt-dmg--crit .tt-dmg__stamp { margin-left: 8px; }
+
+/* Blocked: the mitigated amount at 80% (24 px) with the block glyph. */
+.tt-dmg--blocked .tt-dmg__n { font-size: 24px; line-height: 24px; }
+.tt-dmg--blocked .tt-dmg__stamp { height: 26px; min-width: 26px; }
+.tt-dmg--blocked .tt-dmg__stamp .tt-glyph { width: 20px; height: 20px; }
+
+/* Immune: the word, muted, with the attempted type and the immune glyph. */
+.tt-dmg--immune .tt-dmg__n { color: var(--text-muted); }

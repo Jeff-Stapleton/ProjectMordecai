@@ -1,0 +1,100 @@
+/* ==========================================================================
+   TitleScreen, plus the front-end family it shares with ExpeditionSelect,
+   OptionsScreen, Credits and Dialog (tt-fe-*): the 1920x1080 frame, the
+   front-end level stand-in, cords, hanging menu tags, the placement of the
+   hint bar and the dev version stamp, and spec-band helpers.
+   Core pieces do the rest: .tt-railbar (the rail), .tt-string--light (the
+   cord's look), .tt-hintbar, .tt-divider, .tt-specband, .tt-diorama props.
+   ========================================================================== */
+
+/* --- Frame. Everything is placed in design px at 1920x1080. */
+.tt-fe-screen { position: relative; width: 1920px; height: 1080px; overflow: hidden; isolation: isolate; background-color: var(--world-night); }
+.tt-fe-layer { position: absolute; inset: 0; }
+
+/* --- World stand-in: the front-end level (#58), a lit toy island in a dark display case.
+       Level art, so only the theme-invariant world-* and biome-* tokens: High Contrast never
+       recolours it. The pool of light and the vignette are post-process in the level, never UI. */
+.tt-fe-world { position: absolute; inset: 0; z-index: 0; overflow: hidden;
+  background-image: radial-gradient(ellipse 1020px 600px at 72% 60%, color-mix(in srgb, var(--world-night) 80%, var(--biome-verdant)) 0%, color-mix(in srgb, var(--world-night) 90%, var(--biome-verdant)) 45%, transparent 75%); }
+.tt-fe-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 1250px 760px at 62% 54%, transparent 50%, color-mix(in srgb, var(--world-dark) 60%, var(--world-shade)) 100%); }
+
+/* The island: core diorama tiles on the top face, a cliff, a fringe of grass and a tin plinth. */
+.tt-fe-dio { position: absolute; left: 1000px; top: 236px; width: 800px; height: 620px; }
+.tt-fe-dio__shadow { position: absolute; left: -40px; top: 586px; width: 880px; height: 56px; border-radius: 50%; background: var(--world-shade); }
+.tt-fe-dio__top { position: absolute; left: 0; top: 80px; width: 800px; height: 400px; border-radius: 36px 36px 0 0; overflow: hidden; }
+.tt-fe-dio__fringe { position: absolute; left: 0; top: 478px; width: 800px; height: 16px; z-index: 1; background: radial-gradient(circle at 10px 2px, color-mix(in srgb, var(--biome-verdant) 72%, var(--world-dark)) 9px, transparent 10px) 0 0 / 20px 16px repeat-x; }
+.tt-fe-dio__cliff { position: absolute; left: 0; top: 480px; width: 800px; height: 104px;
+  background-color: color-mix(in srgb, var(--biome-searing) 58%, var(--world-dark));
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--world-dark) 28%, transparent) 2px, transparent 2px), linear-gradient(color-mix(in srgb, var(--world-dark) 24%, transparent) 4px, transparent 4px);
+  background-size: 96px 100%, 100% 34px; background-position: 0 0, 0 40px; }
+.tt-fe-dio__plinth { position: absolute; left: -28px; top: 584px; width: 856px; height: 34px; border-radius: 0 0 10px 10px; background: color-mix(in srgb, var(--biome-mire) 35%, var(--world-dark)); border-top: 4px solid color-mix(in srgb, var(--biome-mire) 80%, var(--biome-crystal)); box-shadow: 0 0 0 3px var(--world-dark); }
+.tt-fe-dio__plinth::before { content: ""; position: absolute; left: 24px; right: 24px; top: 9px; height: 8px; background: radial-gradient(circle, color-mix(in srgb, var(--biome-mire) 80%, var(--biome-crystal)) 3px, transparent 4px) 0 0 / 96px 8px repeat-x; }
+.tt-fe-flower { position: absolute; width: 10px; height: 10px; border-radius: 3px; background: color-mix(in srgb, var(--biome-searing) 55%, var(--world-snow)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--biome-verdant) 40%, var(--world-dark)); }
+.tt-fe-flower--storm { background: color-mix(in srgb, var(--biome-storm) 70%, var(--world-snow)); }
+
+/* The relic: an Automation-Age counting machine gone to moss, still printing a ticket. Level art. */
+.tt-fe-relic { position: absolute; width: 108px; height: 140px; border-radius: 12px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--biome-mire) 40%, var(--world-dark));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--biome-crystal) 70%, var(--biome-mire)) 0 24%, color-mix(in srgb, var(--biome-mire) 70%, var(--world-dark)) 24% 100%); }
+.tt-fe-relic__slot { position: absolute; left: 22px; top: 52px; width: 64px; height: 10px; border-radius: 5px; background: var(--world-dark); }
+.tt-fe-relic__ticket { position: absolute; left: 40px; top: 56px; width: 30px; height: 50px; border-radius: 2px 2px 6px 6px; background: var(--world-snow); box-shadow: 0 0 0 2px var(--world-dark); transform: rotate(7deg); transform-origin: 50% 0; }
+.tt-fe-relic__ticket::after { content: ""; position: absolute; left: 6px; right: 6px; top: 12px; height: 3px; background: color-mix(in srgb, var(--world-dark) 60%, var(--world-snow)); box-shadow: 0 8px 0 color-mix(in srgb, var(--world-dark) 60%, var(--world-snow)), 0 16px 0 color-mix(in srgb, var(--world-dark) 60%, var(--world-snow)); }
+.tt-fe-relic__moss { position: absolute; left: -8px; top: -10px; width: 64px; height: 30px; border-radius: 14px 18px 12px 8px; background: color-mix(in srgb, var(--biome-verdant) 78%, var(--world-snow)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--biome-verdant) 45%, var(--world-dark)); }
+.tt-fe-relic__rivet { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: color-mix(in srgb, var(--biome-crystal) 55%, var(--world-snow)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--biome-mire) 40%, var(--world-dark)); }
+
+/* --- Cords. The look is core's light string (.tt-string.tt-string--light: a 4 px rim core with 1 px ink
+       sides), so it reads over the dark case, the veil and enamel. These classes only place it.
+       A cord that hangs ONE piece runs in front, from the rail straight into that eyelet. A cord that
+       threads SEVERAL pieces follows Tag's threaded stack: it runs behind them (--threaded), shows only
+       in the gaps, crosses each face from the top edge into the eyelet (.tt-fe-thread inside the piece,
+       a copy through core's --tt-string-light-* properties), and ends in a knot under the last one. */
+.tt-fe-cord { position: absolute; z-index: 3; margin: 0 0 0 -2px; pointer-events: none; }
+.tt-fe-cord--threaded { z-index: 1; }
+.tt-fe-cord--knot::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--tt-string-light-core); box-shadow: 0 0 0 2px var(--ink); }
+.tt-fe-thread { position: absolute; z-index: 1; left: 20px; top: calc(-1 * var(--tt-outline)); width: var(--tt-string-light-w); height: calc(var(--tt-thread-to, 50%) + var(--tt-outline)); background: var(--tt-string-light-core); box-shadow: var(--tt-string-light-shadow); pointer-events: none; }
+
+/* --- Hanging menu tag (title menu): 360 x 64, eyelet stub with a perforation, Rowdies label.
+       The focused tag shows the confirm keycap LEADING its label (D4), so the label steps right. */
+.tt-tag.tt-fe-tag { display: flex; width: 360px; height: 64px; min-height: 64px; padding: 0 16px 0 64px; gap: var(--space-3); transform-origin: 22px 50%; transition: transform 120ms ease-out; }
+.tt-fe-tag::after { content: ""; position: absolute; left: 44px; top: 10px; bottom: 10px; width: 2px; background: repeating-linear-gradient(180deg, var(--ink-muted) 0 6px, transparent 6px 11px); }
+.tt-fe-tag__label { flex: 1; color: var(--ink); white-space: nowrap; }
+.tt-tag.tt-fe-tag.is-hover { transform: translateY(-2px); box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 6px 0 var(--tt-outline) var(--tt-print); }
+/* Focus is core's (ink | focus | ink, outline and print kept); the tag only swings 3 deg about its eyelet. */
+.tt-tag.tt-fe-tag.is-focused { transform: rotate(3deg); }
+/* Pressed: sinks 3 px, print collapses, and the face shows a sunk ink lip along its top edge, so it
+   still differs from Focused in High Contrast, where enamel-shade and the print both vanish. */
+.tt-tag.tt-fe-tag.is-pressed { transform: rotate(3deg) translateY(3px); background-color: var(--enamel-shade); box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 1px 0 var(--tt-outline) var(--tt-print), inset 0 5px 0 color-mix(in srgb, var(--ink) 24%, transparent); }
+
+/* --- Hint bar placement (core .tt-hintbar, D25): bottom-right, 32 px margin, on every front-end screen. */
+.tt-fe-hints { position: absolute; z-index: 4; right: 32px; bottom: 32px; }
+/* Dev version stamp (bottom-left, non-Shipping only). */
+.tt-fe-version { position: absolute; z-index: 2; left: 32px; bottom: 32px; display: flex; align-items: center; gap: var(--space-2); height: 52px; padding: 0 14px; color: var(--text-muted); white-space: nowrap; }
+.tt-fe-version__tag { padding: 2px 8px; border-radius: 6px; background: var(--well); border: var(--stroke-rim) solid var(--lip); color: var(--text); }
+
+/* --- Spec-band helpers (preview only): a specimen box that leaves room for rings, swings and prints,
+       and a wide item for specimens over 440 px (core items cap at 440). */
+.tt-fe-specimen { display: flex; align-items: center; gap: var(--space-5); padding: 10px 10px 14px; }
+.tt-fe-specwide { max-width: none; }
+.tt-specband.tt-fe-band { padding-left: 64px; padding-right: 64px; }
+
+/* ==========================================================================
+   TitleScreen (tt-title-*): wordmark plate, rail of four menu tags.
+   ========================================================================== */
+.tt-title-mark { position: absolute; z-index: 2; left: 160px; top: 120px; display: flex; align-items: center; gap: 36px; padding: 36px 48px 34px 36px; }
+/* Rivets: only on front-end menu plates and Tally plates (D13). */
+.tt-title-rivet { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--rim-shade); box-shadow: inset 0 2px 0 var(--rim), 0 0 0 2px var(--ink); }
+/* The seal: the Tally's mark (one of the tally mark's three jobs). */
+.tt-title-seal { position: relative; flex: none; display: flex; align-items: center; justify-content: center; width: 136px; height: 136px; border-radius: 50%; background: var(--enamel); color: var(--ink); box-shadow: 0 0 0 var(--tt-outline) var(--ink), 0 4px 0 var(--tt-outline) var(--tt-print); transform: rotate(-8deg); }
+.tt-title-seal::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; border: 2px dashed var(--ink-muted); }
+.tt-title-lockup { display: flex; flex-direction: column; align-items: flex-start; }
+.tt-title-word { margin: 0; color: var(--text); text-shadow: 0 5px 0 var(--ink); }
+.tt-title-word span { display: block; }
+/* The rule under the word: core's quiet divider, never a row of tally strokes (D1). */
+.tt-divider.tt-title-rule { width: 448px; margin-top: 18px; }
+.tt-title-tagline { margin: 16px 0 0; color: var(--text-muted); }
+
+.tt-title-menu { position: absolute; z-index: 2; left: 160px; top: 536px; width: 360px; height: 400px; }
+/* The rail is core .tt-railbar (D23); this only places it. Caps overhang 16 px: visual x 120-560. */
+.tt-railbar.tt-title-menu__rail { position: absolute; z-index: 3; left: -24px; top: 0; width: 408px; }
+.tt-title-menu__tags { position: absolute; z-index: 2; left: 0; top: 64px; display: flex; flex-direction: column; gap: 28px; margin: 0; padding: 0; list-style: none; }
+/* Rail bottom (y 20) to 24 px under the Quit tag (bottom y 404): the knot clears the tag's print. */
+.tt-title-menu__cord { left: 22px; top: 20px; height: 408px; }

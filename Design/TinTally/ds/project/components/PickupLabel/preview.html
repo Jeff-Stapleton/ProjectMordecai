@@ -1,0 +1,126 @@
+<!-- @dsCard group="World" height=1124 width=960 subtitle="Tags tied to ground pickups: rarity band and socket, focused with the interact key, far form, unidentified names" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>PickupLabel</title>
+<style>
+/* preview-only layout scaffolding */
+.pv-scene { position: relative; height: 300px; overflow: hidden; }
+.pv-pick { position: absolute; width: 0; height: 0; }
+.pv-pick > .tt-pitem { left: 0; top: 0; }
+.pv-pick > .tt-plabel { position: absolute; left: -11px; bottom: calc(var(--ih) + var(--drop) + var(--tt-outline)); }
+.pv-pick > .tt-plabel--focus { left: -12px; }
+.pv-pick > .tt-plabel--far { left: -9px; }
+.pv-caps { position: relative; height: 50px; }
+.pv-caps p { position: absolute; top: 10px; margin: 0; }
+.pv-caps b, .pv-rcap b { color: var(--text); }
+.pv-ramp { display: grid; grid-template-columns: repeat(6, 1fr); }
+.pv-ramp > div { position: relative; height: 120px; }
+.pv-rcaps { display: grid; grid-template-columns: repeat(6, 1fr); padding: 10px 0 16px; }
+.pv-rcap { margin: 0; text-align: center; }
+.pv-spec > .tt-specband__item { flex: 1 1 240px; max-width: none; }
+</style>
+</head>
+<body>
+<div class="tt-root">
+
+  <!-- A. Light floor: unfocused labels and the focused pickup (keyboard and mouse) -->
+  <section class="tt-floor-blockout pv-scene">
+    <div class="pv-pick" style="left:60px; top:128px; --ih:22px;">
+      <span class="tt-pitem tt-pitem--ore"></span>
+      <div class="tt-plabel"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span><span class="ui-label tt-plabel__name">Iron Ore</span></div></div>
+    </div>
+    <div class="pv-pick" style="left:330px; top:122px; --ih:22px;">
+      <span class="tt-pitem tt-pitem--stone"></span>
+      <div class="tt-plabel"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span><span class="ui-label tt-plabel__name">Town Stone</span></div></div>
+    </div>
+    <div class="pv-pick" style="left:690px; top:128px; --ih:34px;">
+      <span class="tt-pitem tt-pitem--sword"></span>
+      <div class="tt-plabel"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span><span class="ui-label tt-plabel__name">Rusty Sword</span></div></div>
+    </div>
+    <div class="pv-pick" style="left:90px; top:270px; --ih:28px;">
+      <span class="tt-pitem tt-pitem--potion"></span>
+      <div class="tt-plabel"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span><span class="ui-label tt-plabel__name">Health Potion</span></div></div>
+    </div>
+    <div class="pv-pick" style="left:440px; top:266px; --ih:24px;">
+      <span class="tt-pitem tt-pitem--amulet"></span>
+      <div class="tt-plabel tt-plabel--focus tt-plabel--purple"><div class="tt-plabel__tag is-focused"><span class="tt-plabel__band"></span><span class="tt-key tt-key--sm">F</span><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple" data-height="18"></span></span><span class="tt-glyph tt-glyph--20 tt-plabel__unk" data-glyph="unknown" aria-label="Unidentified"></span><span class="ui-label tt-plabel__name">Unidentified Purple Amulet</span></div></div>
+    </div>
+  </section>
+  <div class="pv-caps">
+    <p class="tt-label" style="left:24px;"><b>Unfocused</b> · Common, blockout</p>
+    <p class="tt-label" style="left:420px;"><b>Focused</b> · nearest in reach · keyboard F</p>
+  </div>
+
+  <!-- B. Dark floor: identified Purple and Blue, Unknown Item, far forms, gamepad focus -->
+  <section class="tt-floor-night pv-scene">
+    <div class="pv-pick" style="left:70px; top:130px; --ih:30px;">
+      <span class="tt-pitem tt-pitem--key"></span>
+      <div class="tt-plabel tt-plabel--blue"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-blue" data-rarity="blue" data-height="18"></span></span><span class="ui-label tt-plabel__name">Upgrade Key</span></div></div>
+    </div>
+    <div class="pv-pick" style="left:330px; top:126px; --ih:34px;">
+      <span class="tt-pitem tt-pitem--sword"></span>
+      <div class="tt-plabel tt-plabel--purple"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple" data-height="18"></span></span><span class="ui-label tt-plabel__name">Emberfang</span></div></div>
+    </div>
+    <div class="pv-pick" style="left:630px; top:100px; --ih:17px;">
+      <span class="tt-pitem tt-pitem--amulet tt-pitem--far"></span>
+      <div class="tt-plabel tt-plabel--far tt-plabel--purple"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple" data-height="16"></span></span></div></div>
+    </div>
+    <div class="pv-pick" style="left:730px; top:104px; --ih:20px;">
+      <span class="tt-pitem tt-pitem--potion tt-pitem--far"></span>
+      <div class="tt-plabel tt-plabel--far"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="16"></span></span></div></div>
+    </div>
+    <div class="pv-pick" style="left:830px; top:98px; --ih:21px;">
+      <span class="tt-pitem tt-pitem--key tt-pitem--far"></span>
+      <div class="tt-plabel tt-plabel--far tt-plabel--blue"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-blue" data-rarity="blue" data-height="16"></span></span></div></div>
+    </div>
+    <div class="pv-pick" style="left:90px; top:270px; --ih:24px;">
+      <span class="tt-pitem tt-pitem--amulet"></span>
+      <div class="tt-plabel tt-plabel--purple"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple" data-height="18"></span></span><span class="tt-glyph tt-glyph--20 tt-plabel__unk" data-glyph="unknown" aria-label="Unidentified"></span><span class="ui-label tt-plabel__name">Unknown Item</span></div></div>
+    </div>
+    <div class="pv-pick" style="left:470px; top:268px; --ih:28px;">
+      <span class="tt-pitem tt-pitem--potion"></span>
+      <div class="tt-plabel tt-plabel--focus"><div class="tt-plabel__tag is-focused"><span class="tt-plabel__band"></span><span class="tt-key tt-key--sm">F</span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="18"></span></span><span class="ui-label tt-plabel__name">Health Potion</span></div></div>
+    </div>
+  </section>
+  <div class="pv-caps">
+    <p class="tt-label" style="left:24px;"><b>Partial info off</b> · night</p>
+    <p class="tt-label" style="left:420px;"><b>Focused</b> · night</p>
+    <p class="tt-label" style="left:700px;"><b>Far</b> · badge only</p>
+  </div>
+
+  <!-- C. The far form for every rarity, on the sand floor -->
+  <section class="pv-ramp tt-floor-sand">
+    <div><div class="pv-pick" style="left:70px; top:96px; --ih:20px;"><span class="tt-pitem tt-pitem--potion tt-pitem--far"></span><div class="tt-plabel tt-plabel--far"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-common" data-rarity="common" data-height="16"></span></span></div></div></div></div>
+    <div><div class="pv-pick" style="left:70px; top:96px; --ih:17px;"><span class="tt-pitem tt-pitem--amulet tt-pitem--far"></span><div class="tt-plabel tt-plabel--far tt-plabel--green"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-green" data-rarity="green" data-height="16"></span></span></div></div></div></div>
+    <div><div class="pv-pick" style="left:70px; top:96px; --ih:21px;"><span class="tt-pitem tt-pitem--key tt-pitem--far"></span><div class="tt-plabel tt-plabel--far tt-plabel--blue"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-blue" data-rarity="blue" data-height="16"></span></span></div></div></div></div>
+    <div><div class="pv-pick" style="left:70px; top:96px; --ih:17px;"><span class="tt-pitem tt-pitem--amulet tt-pitem--far"></span><div class="tt-plabel tt-plabel--far tt-plabel--purple"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-purple" data-rarity="purple" data-height="16"></span></span></div></div></div></div>
+    <div><div class="pv-pick" style="left:70px; top:96px; --ih:24px;"><span class="tt-pitem tt-pitem--sword tt-pitem--far"></span><div class="tt-plabel tt-plabel--far tt-plabel--red"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-red" data-rarity="red" data-height="16"></span></span></div></div></div></div>
+    <div><div class="pv-pick" style="left:70px; top:96px; --ih:24px;"><span class="tt-pitem tt-pitem--sword tt-pitem--far"></span><div class="tt-plabel tt-plabel--far tt-plabel--gold"><div class="tt-plabel__tag"><span class="tt-plabel__band"></span><span class="tt-socket"><span class="tt-rarity tt-r-gold" data-rarity="gold" data-height="16"></span></span></div></div></div></div>
+  </section>
+  <div class="pv-rcaps">
+    <p class="tt-label pv-rcap"><b>Common</b></p>
+    <p class="tt-label pv-rcap"><b>Green</b></p>
+    <p class="tt-label pv-rcap"><b>Blue</b></p>
+    <p class="tt-label pv-rcap"><b>Purple</b></p>
+    <p class="tt-label pv-rcap"><b>Red</b></p>
+    <p class="tt-label pv-rcap"><b>Gold</b></p>
+  </div>
+
+  <div class="tt-specband pv-spec">
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Focus</p>
+      <p class="tt-label">Core focus: the ring right outside the tag's ink outline, the ink keyline outside the ring. It holds on blockout and snow as on night.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">Rarity, three ways</p>
+      <p class="tt-label">The band colour, the stroke count in the socket, and the colour word in an unidentified name.</p>
+    </div>
+    <div class="tt-specband__item">
+      <p class="tt-specband__title">One device</p>
+      <p class="tt-label">The card draws keyboard and mouse (F). On gamepad the keycap is a round X, the Interact button. Never both at once.</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!-- @dsCard group="Menus" height=2148 width=960 subtitle="The status readout behind a chip: glyph, name, tagline, time left, stack pips and the spec's counterplay" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>StatusTooltip</title></head>
+<body>
+<div class="tt-root tt-statustip-sheet" id="sheet">
+
+  <span class="kicker tt-caps tt-label">In the pause menu · keyboard and mouse · CharacterTab's Active statuses row, Frostbitten focused, its tooltip hung below · 1:1</span>
+  <div class="tt-statustip-sheet__stage" style="height:600px">
+    <div class="tt-diorama">
+      <span class="tt-diorama__path" style="left:672px;top:0;height:600px"></span>
+      <span class="tt-diorama__tree" style="left:780px;top:60px"></span>
+      <span class="tt-diorama__bush" style="left:560px;top:470px"></span>
+      <span class="tt-diorama__rock" style="left:820px;top:430px"></span>
+      <span class="tt-diorama__crate" style="left:70px;top:500px"></span>
+    </div>
+    <div class="tt-veil tt-statustip-sheet__veil"></div>
+    <div class="tt-plate tt-plate--menu tt-pad-lg tt-statustip-sheet__menu">
+      <section class="tt-charsheet__statuses" aria-label="Active statuses">
+        <span class="tt-charsheet__statlabel ui-label">Statuses</span>
+        <div class="tt-charsheet__chips">
+          <span class="tt-statustip-hang">
+            <span class="tt-status tt-status--debuff is-focused" tabindex="0" aria-label="Frostbitten" aria-describedby="tip-frost"><span class="tt-glyph tt-status__glyph tt-status__glyph--frost" data-glyph="frostbitten" aria-hidden="true"></span><span class="tt-status__name">Frostbitten</span><span class="tt-pips tt-status__pips tt-status__pips--frost" role="img" aria-label="2 of 4 stacks"><span class="tt-pip is-on"></span><span class="tt-pip is-on"></span><span class="tt-pip"></span><span class="tt-pip"></span></span><span class="num-s tt-status__time">5.1</span></span>
+            <span class="tt-statustip-hang__drop"><span class="tt-string tt-string--light tt-statustip-hang__string" aria-hidden="true"></span><span data-tip="frostbitten" data-id="tip-frost"></span></span>
+          </span>
+          <span class="tt-status tt-status--buff" tabindex="0" aria-label="Focused"><span class="tt-glyph tt-status__glyph" data-glyph="focused" aria-hidden="true"></span><span class="tt-status__name">Focused</span><span class="num-s tt-status__time tt-status__time--word">3/3</span></span>
+        </div>
+      </section>
+    </div>
+  </div>
+  <div class="tt-specband">
+    <div class="tt-specband__item"><p class="tt-specband__title">Where it appears</p><p class="tt-label">When a chip in CharacterTab's "Active statuses" row (under its header strip) takes hover or focus. Above is that row with its markup and the example moment (Frostbitten 2 of 4, Focused); the HUD chips never take focus in play.</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">How it hangs</p><p class="tt-label">On the top layer, under the chip, on a 20 px light string from below the chip's hem. It overlays the menu and never moves the layout. Mouse leaves or focus moves: it goes at once.</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">Gamepad</p><p class="tt-label">The D-pad or left stick moves focus between chips and the tooltip follows focus; no extra button opens it.</p></div>
+  </div>
+
+  <span class="kicker tt-caps tt-label">Four statuses on a menu plate · a timed debuff, a stacking control debuff, a streak buff, a buff the spec gives no text</span>
+  <div class="tt-statustip-sheet__stage">
+    <div class="tt-diorama tt-diorama--sand">
+      <span class="tt-diorama__rock" style="left:40px;top:40px"></span>
+      <span class="tt-diorama__post" style="left:880px;top:300px"></span>
+      <span class="tt-diorama__bush" style="left:860px;top:620px"></span>
+    </div>
+    <div class="tt-veil tt-statustip-sheet__veil"></div>
+    <div class="tt-plate tt-plate--menu tt-pad-lg">
+      <div class="tt-statustip-sheet__grid">
+        <div class="tt-statustip-sheet__cell"><span class="tt-label tt-statustip-sheet__cap"><b>Debuff, timed</b> · DoT</span><span data-tip="burning"></span></div>
+        <div class="tt-statustip-sheet__cell"><span class="tt-label tt-statustip-sheet__cap"><b>Debuff, stacks</b> · Control</span><span data-tip="shocked"></span></div>
+        <div class="tt-statustip-sheet__cell"><span class="tt-label tt-statustip-sheet__cap"><b>Buff, streak</b> · no timer</span><span data-tip="focused"></span></div>
+        <div class="tt-statustip-sheet__cell"><span class="tt-label tt-statustip-sheet__cap"><b>Buff, no spec text</b> · lines omitted</span><span data-tip="stoneskin"></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  /* C(...) builds a class attribute from parts. */
+  function C() { return ' class=' + JSON.stringify([].filter.call(arguments, Boolean).join(' ')); }
+  /* Taglines verbatim (BUILD.md); counterplay verbatim from the status spec's "Skillful Counterplay" column. */
+  var T = {
+    burning: { name: 'Burning', pol: 'debuff', kind: 'Debuff · Damage over time', tint: 'fire', tagline: "You're on a clock", time: ['4.2', '5.0'],
+      counter: 'Break line with fire source; roll through water/dust to douse; perfect dodge reduces tick damage' },
+    frostbitten: { name: 'Frostbitten', pol: 'debuff', kind: 'Debuff', tint: 'frost', tagline: 'Sluggish body, slower reactions', time: ['5.1', '6.0'], stacks: [2, 4, 'Frozen at the 5th'],
+      counter: 'Perfect dodge breaks frost stacks; heat sources thaw; keep stamina high tiers' },
+    shocked: { name: 'Shocked', pol: 'debuff', kind: 'Debuff · Control', tint: 'lightning', tagline: 'Timing disruption', time: ['3.2', '5.0'], stacks: [2, 3],
+      counter: 'Don’t eat chains; perfect block grounds and clears one stack; reposition' },
+    focused: { name: 'Focused', pol: 'buff', kind: 'Buff', tagline: 'Mastery streak reward', until: 'Until you are hit',
+      counter: 'Maintain spacing; don’t get greedy; reset fights if lost' },
+    stoneskin: { name: 'Stone Skin', pol: 'buff', kind: 'Buff', time: ['9.2', '10.0'] }
+  };
+  function tip(id, domId) {
+    var t = T[id], buff = t.pol === 'buff', h = '';
+    h += '<div' + C('tt-statustip', 'tt-statustip--' + t.pol) + ' role="tooltip"' + (domId ? ' id="' + domId + '"' : '') + '>';
+    h += '<div class="tt-statustip__head"><span class="tt-statustip__well"><span' + C('tt-glyph', 'tt-glyph--32', t.tint && 'tt-status__glyph--' + t.tint) + ' data-glyph=' + JSON.stringify(id) + ' aria-hidden="true"></span></span>' +
+      '<div><p class="ui-title tt-statustip__name">' + t.name + '</p><p class="ui-label tt-statustip__kind">' + t.kind + '</p></div></div>';
+    if (t.tagline) h += '<p class="ui-body tt-statustip__tagline">' + t.tagline + '</p>';
+    h += '<dl class="tt-statustip__facts"><dt>Time left</dt><dd>' + (t.until ? t.until : '<span><span class="num-s">' + t.time[0] + '</span> of <span class="num-s">' + t.time[1] + '</span> s</span>') + '</dd>';
+    if (t.stacks) {
+      var p = '<span' + C('tt-pips', buff ? 'tt-pips--enamel' : 'tt-status__pips', !buff && t.tint && 'tt-status__pips--' + t.tint) + ' role="img" aria-label="' + t.stacks[0] + ' of ' + t.stacks[1] + ' stacks">';
+      for (var k = 0; k < t.stacks[1]; k++) p += '<span' + C('tt-pip', k < t.stacks[0] && 'is-on') + '></span>';
+      h += '<dt>Stacks</dt><dd>' + p + '</span><span><span class="num-s">' + t.stacks[0] + '</span> of <span class="num-s">' + t.stacks[1] + '</span>' + (t.stacks[2] ? ' · ' + t.stacks[2] : '') + '</span></dd>';
+    }
+    h += '</dl>';
+    if (t.counter) h += '<hr' + C('tt-divider', buff && 'tt-divider--enamel') + '><div class="tt-statustip__counter"><p class="tt-statustip__label">Counterplay</p><p>' + t.counter + '</p></div>';
+    return h + '</div>';
+  }
+  document.querySelectorAll('[data-tip]').forEach(function (el) { el.outerHTML = tip(el.getAttribute('data-tip'), el.getAttribute('data-id')); });
+  TinTally.mount(document.getElementById('sheet'));
+})();
+</script>
+</body>
+</html>

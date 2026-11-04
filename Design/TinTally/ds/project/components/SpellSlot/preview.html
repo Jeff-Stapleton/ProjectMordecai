@@ -1,0 +1,104 @@
+<!-- @dsCard group="HUD" height=2396 width=960 subtitle="78 x 78 spell plates for Q E R 1: glyph, keycap, SP cost rivets, cooldown shutter; the SkillRadial proposal" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>SpellSlot</title></head>
+<body>
+<div class="tt-root tt-spell-sheet" id="sheet">
+
+  <span class="kicker tt-caps tt-label">HUD row · keyboard and mouse · 1:1</span>
+  <div class="tt-spell-sheet__stage tt-floor-blockout">
+    <div class="tt-spell-sheet__row" data-row="Q,E,R,1" data-states="ready,cool:65:2.6,broke,ready"></div>
+  </div>
+  <span class="kicker tt-caps tt-label">HUD row · gamepad · 1:1</span>
+  <div class="tt-spell-sheet__stage tt-floor-night">
+    <div class="tt-spell-sheet__row" data-row="LB,RB,none,up" data-states="casting,ready,ready,cool:40:4.0"></div>
+  </div>
+  <div class="tt-specband">
+    <div class="tt-specband__item"><p class="tt-specband__title">The four spells (real data)</p><p class="tt-label">Q Fireball · 3 SP · 2.0 s<br>E Blink · 2 SP · 4.0 s<br>R Stone Skin · 4 SP · 15.0 s<br>1 Restoration · 3 SP · 10.0 s</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">Keyboard row</p><p class="tt-label">At 3 / 13 SP: Blink cooling 2.6 s, Stone Skin locked (4 SP). Box x 32-374, y 216-294; rivets rise to y 207, keycaps hang to y 304.</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">Gamepad row</p><p class="tt-label">LB and RB are pill keycaps; Spell 4 is the 32 px D-pad cross with Up inked. R shows the dashed unbound cap: Spell 3 has no gamepad button (TODO(DECISION), US-097). Fireball casting: violet frame, LB sunk.</p></div>
+  </div>
+
+  <span class="kicker tt-caps tt-label">States</span>
+  <div class="tt-spell-sheet__grid">
+    <div class="tt-spell-sheet__cell"><div class="tt-spell-sheet__cap tt-label"><b>Ready</b><span>Rivets filled, glyph full</span></div>
+      <div class="tt-spell-sheet__stage tt-floor-grass" data-one="fireball,Q,ready"></div></div>
+    <div class="tt-spell-sheet__cell"><div class="tt-spell-sheet__cap tt-label"><b>Ready glint</b><span>One 140 ms sweep</span></div>
+      <div class="tt-spell-sheet__stage tt-floor-sand" data-one="blink,E,glint"></div></div>
+    <div class="tt-spell-sheet__cell"><div class="tt-spell-sheet__cap tt-label"><b>Cooling</b><span>Fireball, 1.4 of 2.0 s</span></div>
+      <div class="tt-spell-sheet__stage tt-floor-blockout" data-one="fireball,Q,cool:70:1.4"></div></div>
+    <div class="tt-spell-sheet__cell"><div class="tt-spell-sheet__cap tt-label"><b>Cooling, long</b><span>Stone Skin, 12.6 of 15 s</span></div>
+      <div class="tt-spell-sheet__stage tt-floor-mire" data-one="stoneskin,R,cool:84:12.6"></div></div>
+    <div class="tt-spell-sheet__cell"><div class="tt-spell-sheet__cap tt-label"><b>Not enough SP</b><span>Hollow rivets, lock chip</span></div>
+      <div class="tt-spell-sheet__stage tt-floor-snow" data-one="stoneskin,R,broke"></div></div>
+    <div class="tt-spell-sheet__cell"><div class="tt-spell-sheet__cap tt-label"><b>Casting</b><span>Violet frame, keycap sunk</span></div>
+      <div class="tt-spell-sheet__stage tt-floor-night" data-one="restoration,1,casting"></div></div>
+    <div class="tt-spell-sheet__cell"><div class="tt-spell-sheet__cap tt-label"><b>Silenced</b><span>Muzzle badge</span></div>
+      <div class="tt-spell-sheet__stage tt-floor-grass" data-one="fireball,Q,silenced"></div></div>
+    <div class="tt-spell-sheet__cell"><div class="tt-spell-sheet__cap tt-label"><b>Cooling, can't afford</b><span>Hollow rivets, no chip</span></div>
+      <div class="tt-spell-sheet__stage tt-floor-blockout" data-one="blink,E,cool:20:0.8,broke"></div></div>
+  </div>
+
+  <span class="kicker tt-caps tt-label">SkillRadial · proposal, TODO(DECISION) · Skill A held on Q, aiming at Blink · 1:1 round the player</span>
+  <div class="tt-spell-sheet__radial tt-floor-grass">
+    <span class="tt-spell-sheet__player" style="left:456px;top:300px"><span class="tt-glyph tt-glyph--48" data-glyph="player" aria-label="Player"></span></span>
+    <div class="tt-spell-radial" style="left:456px;top:300px" role="listbox" aria-label="Skill A">
+      <div class="tt-plate tt-spell-radial__info"><span class="tt-key tt-key--sm is-pressed">Q</span><span class="ui-title tt-spell-radial__name">Blink</span><span class="num-s tt-spell-radial__meta">2 SP · 4.0 s</span></div>
+      <div id="radial"></div>
+    </div>
+  </div>
+  <div class="tt-specband">
+    <div class="tt-specband__item"><p class="tt-specband__title">How it works (control_bindings_v1.1)</p><p class="tt-label">Hold Skill A (Q / RB) or Skill B (E / LB): up to 8 known spells ring the player. Aim with the mouse or the right stick; release to equip the aimed one. A tap still casts the equipped skill. Time does not slow, so there is no veil.</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">States drawn</p><p class="tt-label">Fireball is equipped (Selected, enamel). Blink is aimed (the focus ring). Cone of Cold and Magic Missile are example spells. Two empty sockets are dashed (nothing to pick).</p></div>
+    <div class="tt-specband__item"><p class="tt-specband__title">Not built</p><p class="tt-label">The game has four direct slots (Q, E, R, 1). A Skill A / B HUD would show two SpellSlots and this radial. Decide with US-097.</p></div>
+  </div>
+</div>
+<script>
+(function () {
+  /* C(...) builds a class attribute, G(name) a glyph attribute. */
+  function C() { return ' class=' + JSON.stringify([].filter.call(arguments, Boolean).join(' ')); }
+  function G(n) { return ' data-glyph=' + JSON.stringify(n); }
+  var SPELL = {
+    fireball: ['Fireball', 3, 'tt-spell__icon--fire'], blink: ['Blink', 2, ''],
+    stoneskin: ['Stone Skin', 4, ''], restoration: ['Restoration', 3, 'tt-spell__icon--heal'],
+    'cone-of-cold': ['Cone of Cold (example)', 0, ''], 'magic-missile': ['Magic Missile (example)', 0, '']
+  };
+  var ORDER = ['fireball', 'blink', 'stoneskin', 'restoration'];
+  function key(k, pressed) {
+    if (k === 'LB' || k === 'RB') return '<span' + C('tt-key', 'tt-key--sm', 'tt-key--shoulder', 'tt-spell__key', pressed && 'is-pressed') + '>' + k + '</span>';
+    if (k === 'none') return '<span class="tt-key tt-key--sm tt-key--none tt-spell__key" aria-label="Unbound"></span>';
+    if (k === 'up') return '<span' + C('tt-key', 'tt-key--sm', 'tt-key--dpad', 'tt-key--dpad-up', 'tt-spell__key', pressed && 'is-pressed') + ' aria-label="D-pad Up"></span>';
+    return '<span' + C('tt-key', 'tt-key--sm', 'tt-spell__key', pressed && 'is-pressed') + '>' + k + '</span>';
+  }
+  function slot(id, k, states) {
+    var s = SPELL[id], st = {}, cool = null, over = '', inner = '', dots = '';
+    states.forEach(function (x) { var a = x.split(':'); st[a[0]] = true; if (a[0] === 'cool') cool = a; });
+    if (cool) inner = '<div class="tt-spell__shutter" style="--cd:' + cool[1] + '%"></div><span class="tt-spell__time num-m">' + cool[2] + '</span>';
+    if (st.broke && !cool) over += '<span class="tt-spell__lock"><span class="tt-glyph tt-glyph--20" data-glyph="lock" aria-label="Locked"></span><span class="ui-label">SP</span></span>';
+    if (st.silenced) over += '<span class="tt-spell__muzzle"><span class="tt-glyph tt-glyph--32" data-glyph="silenced" aria-label="Silenced"></span></span>';
+    for (var i = 0; i < s[1]; i++) dots += '<span' + C('tt-spell__dot', st.broke && 'is-hollow') + '></span>';
+    return '<div' + C('tt-plate', 'tt-spell', st.glint && 'is-glint', cool && 'is-cooling', st.broke && 'is-broke', st.casting && 'is-casting', st.silenced && 'is-silenced') + ' aria-label="' + s[0] + ', ' + s[1] + ' SP">' +
+      '<div class="tt-spell__well"><span' + C('tt-glyph', 'tt-glyph--48', 'tt-spell__icon', s[2]) + G(id) + ' aria-label="' + s[0] + '"></span>' + inner + '</div>' +
+      over + '<div class="tt-spell__cost" aria-label="' + s[1] + ' SP">' + dots + '</div>' + key(k, st.casting) + '</div>';
+  }
+  document.querySelectorAll('[data-row]').forEach(function (el) {
+    var keys = el.getAttribute('data-row').split(','), sts = el.getAttribute('data-states').split(',');
+    el.innerHTML = ORDER.map(function (id, i) { return slot(id, keys[i], [sts[i]]); }).join('');
+  });
+  document.querySelectorAll('[data-one]').forEach(function (el) {
+    var a = el.getAttribute('data-one').split(',');
+    el.innerHTML = slot(a[0], a[1], a.slice(2));
+  });
+  /* SkillRadial: 8 sockets clockwise from the top, 45 degrees apart, 128 px from the player. */
+  var RING = [['fireball', 'equipped'], ['blink', 'aimed'], ['stoneskin'], ['restoration'], ['cone-of-cold'], ['magic-missile'], [null], [null]];
+  document.getElementById('radial').outerHTML = RING.map(function (o, i) {
+    var a = i * Math.PI / 4, x = Math.round(128 * Math.sin(a)), y = Math.round(-128 * Math.cos(a)), pos = ' style="left:' + x + 'px;top:' + y + 'px"';
+    if (!o[0]) return '<span class="tt-spell-radial__opt tt-spell-radial__opt--empty"' + pos + ' role="option" aria-label="Empty" aria-disabled="true"></span>';
+    var s = SPELL[o[0]], sel = o[1] === 'equipped';
+    return '<span' + C('tt-plate', 'tt-selectable', 'tt-spell-radial__opt', sel ? 'is-selected' : s[2], o[1] === 'aimed' && 'is-focused') + pos + ' role="option" aria-selected="' + sel + '" aria-label="' + s[0] + '"><span class="tt-glyph tt-spell-radial__glyph"' + G(o[0]) + ' aria-hidden="true"></span></span>';
+  }).join('');
+  TinTally.mount(document.getElementById('sheet'));
+})();
+</script>
+</body>
+</html>

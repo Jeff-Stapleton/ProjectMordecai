@@ -1,0 +1,62 @@
+/* StatusTooltip: the readout behind a status chip in the pause menu. One status: glyph, display name, polarity and
+   category, the tagline (verbatim), time left, stack pips, and the spec's counterplay line when it has one.
+   It carries StatusChip's polarity look at card size:
+     buff   = enamel card, ink text, 2 px buff rim, a raised buff tab on top over the glyph;
+     debuff = plate card, text, 2 px debuff rim, radius 12 12 4 4, a pinked (sawtooth) hem along the bottom.
+   World voice: no Tally remarks, no rivets, no tally strokes (stacks are pips). 3 px ink outline, no print:
+   it floats on the top layer like the chip it hangs from. 380 px wide; height follows the content. */
+.tt-statustip { position: relative; display: flex; flex-direction: column; gap: 10px; width: 380px; padding: 14px 18px 18px 14px; border-radius: var(--radius-plate); box-shadow: 0 0 0 var(--tt-outline) var(--ink); text-align: left; }
+.tt-statustip p { margin: 0; }
+
+/* Debuff: plate, debuff rim, pinked hem (ink teeth 3 px proud of debuff teeth, 12 px pitch, 8 px in from the sides). */
+.tt-statustip--debuff { background: var(--plate); color: var(--text); border: 2px solid var(--debuff); border-radius: 12px 12px 4px 4px; margin-bottom: 10px; }
+.tt-statustip--debuff::before,
+.tt-statustip--debuff::after { content: ""; position: absolute; left: 8px; right: 8px; height: 12px; background-repeat: repeat-x; background-size: 12px 12px; }
+.tt-statustip--debuff::before { bottom: -11px; background-image: linear-gradient(135deg, var(--ink) 50%, transparent 50%), linear-gradient(225deg, var(--ink) 50%, transparent 50%); }
+.tt-statustip--debuff::after { bottom: -8px; background-image: linear-gradient(135deg, var(--debuff) 50%, transparent 50%), linear-gradient(225deg, var(--debuff) 50%, transparent 50%); }
+
+/* Buff: enamel, buff rim, a raised 44 x 12 tab over the glyph well. */
+.tt-statustip--buff { background: var(--enamel); color: var(--ink); border: 2px solid var(--buff); margin-top: 12px; }
+.tt-statustip--buff::before { content: ""; position: absolute; left: 14px; top: -16px; width: 44px; height: 12px; background: var(--buff); border: var(--tt-outline) solid var(--ink); border-bottom: 0; border-radius: 8px 8px 0 0; }
+
+/* Head: a 48 px glyph well, then the name (ui-title) over the polarity · category line (ui-label). */
+.tt-statustip__head { display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 12px; align-items: center; }
+.tt-statustip__well { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--radius-key); background: var(--well); border: 2px solid var(--lip); color: var(--text); }
+.tt-statustip--buff .tt-statustip__well { background: var(--enamel-shade); border-color: var(--ink); color: var(--ink); }
+.tt-statustip__name { color: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-statustip__kind { color: var(--text-muted); }
+.tt-statustip--buff .tt-statustip__kind { color: var(--ink-muted); }
+
+/* Tagline: the status's identity line, verbatim, in ui-body. Never a remark. */
+.tt-statustip__tagline { color: inherit; }
+
+/* Facts: Time left and Stacks as label / value rows. Numbers in Mono (num-s). */
+.tt-statustip__facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; align-items: start; }
+.tt-statustip__facts dt { font: 600 20px/26px var(--font-ui); color: var(--text-muted); }
+.tt-statustip__facts dd { display: flex; flex-wrap: wrap; align-items: center; min-height: 26px; gap: 4px 10px; margin: 0; font: 600 20px/26px var(--font-ui); color: var(--text); }
+.tt-statustip--buff .tt-statustip__facts dt { color: var(--ink-muted); }
+.tt-statustip--buff .tt-statustip__facts dd { color: var(--ink); }
+
+/* Counterplay: only when the status spec gives one. A divider, the label, then the spec's line. */
+.tt-statustip__counter { display: flex; flex-direction: column; gap: 2px; }
+.tt-statustip__label { font: 700 20px/26px var(--font-ui); color: var(--text); }
+.tt-statustip__counter p:not(.tt-statustip__label) { font: 600 20px/26px var(--font-ui); color: var(--text-muted); }
+.tt-statustip--buff .tt-statustip__label { color: var(--ink); }
+.tt-statustip--buff .tt-statustip__counter p:not(.tt-statustip__label) { color: var(--ink-muted); }
+
+/* Hung from its chip on the top layer: a 20 px light string (core .tt-string--light) from below the chip's hem,
+   under its glyph, down to the card. The drop overlays whatever is below; it never pushes the layout. */
+.tt-statustip-hang { position: relative; display: inline-flex; flex: none; }
+.tt-statustip-hang__drop { position: absolute; left: 0; top: calc(100% + 7px); z-index: 4; display: flex; flex-direction: column; align-items: flex-start; }
+.tt-statustip-hang__string { height: 20px; margin: 0 0 0 16px; }
+
+/* ---- Preview scaffolding ---- */
+.tt-statustip-sheet { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); background: var(--plate); }
+.tt-statustip-sheet__stage { position: relative; overflow: hidden; padding: 32px; }
+.tt-statustip-sheet__stage > :not(.tt-diorama):not(.tt-veil) { position: relative; }
+.tt-statustip-sheet__veil { position: absolute; inset: 0; }
+/* The menu plate carries CharacterTab's own Active statuses row (.tt-charsheet__statuses), the tooltip's host. */
+.tt-statustip-sheet__menu { display: flex; flex-direction: column; gap: var(--space-3); width: 720px; }
+.tt-statustip-sheet__grid { display: grid; grid-template-columns: repeat(2, 380px); justify-content: space-between; gap: 18px 24px; }
+.tt-statustip-sheet__cell { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.tt-statustip-sheet__cap b { color: var(--text); font-weight: 700; }
