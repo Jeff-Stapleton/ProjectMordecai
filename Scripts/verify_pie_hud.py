@@ -88,6 +88,25 @@ def _run():
         except Exception as e:
             check("GetBoundChildCount accessible", False, str(e))
 
+    # Kill counter (US-086, issue #6): bound to the game mode, whose count it shows (the number the
+    # agent bridge reports as player.kills). Read-only: nothing here kills anything (Tier 1 and the
+    # Tier 4 us054_combat run kill through the real damage path).
+    game_mode = unreal.GameplayStatics.get_game_mode(world)
+    is_mordecai = isinstance(game_mode, unreal.MordecaiGameMode)
+    check("Game mode is MordecaiGameMode", is_mordecai,
+          f"Got {game_mode.get_class().get_name() if game_mode else None}")
+    counters = unreal.WidgetLibrary.get_all_widgets_of_class(
+        world, unreal.MordecaiKillCounterWidget, False)
+    check("One HUD kill counter", len(counters) == 1, f"Found {len(counters)}")
+    if is_mordecai and len(counters) == 1:
+        bound = counters[0].get_bound_game_mode()
+        check("Kill counter is bound to the game mode", bound == game_mode,
+              f"bound to {bound.get_name() if bound else None}: it would never change")
+        shown = counters[0].get_kill_count()
+        count = game_mode.get_enemy_kill_count()
+        check(f"Kill counter shows the game mode's count ({shown} == {count})", shown == count,
+              "the HUD counter and player.kills disagree")
+
     print("")
     print(f"RESULT: {pass_count} passed, {fail_count} failed")
 

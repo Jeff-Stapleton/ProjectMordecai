@@ -142,12 +142,14 @@ bool FMordecai_Recovery_DeathScreen_ShownOnDeathRemovedOnRespawn::RunTest(const 
 	TestEqual("respawned: the Game layer is empty", GameLayer->GetNumWidgets(), 0);
 	TestNull("respawned: no death screen", Component->GetDeathScreenWidget());
 
-	// The second death reads the game mode: a 5 s respawn and 2 kills. The pool hands the first death's instance back,
-	// so these new values also show that every push sets the screen up again.
+	// The second death reads the game mode: a 5 s respawn and the 2 kills of the life that ended. The pool hands the
+	// first death's instance back, so these new values also show that every push sets the screen up again.
+	// HandlePlayerDeath ends the life on the world's auth game mode; this override is not one, so the test does it.
 	AMordecaiGameMode* GameMode = NewObject<AMordecaiGameMode>();
 	GameMode->RespawnDelaySeconds = 5.f;
-	GameMode->NotifyEnemyKilled(nullptr);
-	GameMode->NotifyEnemyKilled(nullptr);
+	GameMode->NotifyEnemyKilled(nullptr, Env.PlayerState);
+	GameMode->NotifyEnemyKilled(nullptr, Env.PlayerState);
+	GameMode->NotifyPlayerDeath(Env.Player);
 	Component->SetGameModeOverride(GameMode);
 	Env.ApplyPlayerHealthDelta(-1000.f);
 	UMordecaiDeathScreenWidget* SecondScreen = OnlyDeathScreen(GameLayer);

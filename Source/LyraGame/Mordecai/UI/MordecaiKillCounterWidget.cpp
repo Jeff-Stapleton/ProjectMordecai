@@ -1,12 +1,13 @@
-// Project Mordecai — Kill Counter Widget (US-063)
+// Project Mordecai — Kill Counter Widget (US-063, US-086)
 
 #include "Mordecai/UI/MordecaiKillCounterWidget.h"
-#include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/MordecaiGameMode.h"
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
+#include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiKillCounterWidget)
 
@@ -52,7 +53,7 @@ FString UMordecaiKillCounterWidget::FormatKillCount(int32 Kills)
 }
 
 // ---------------------------------------------------------------------------
-// ASC Binding
+// Game Mode Binding (issue #6)
 // ---------------------------------------------------------------------------
 
 void UMordecaiKillCounterWidget::BindToASC(UAbilitySystemComponent* ASC)
@@ -61,40 +62,31 @@ void UMordecaiKillCounterWidget::BindToASC(UAbilitySystemComponent* ASC)
 	{
 		return;
 	}
-
-	BoundASC = ASC;
-
-	// Listen for enemy kill events (increment)
-	ASC->RegisterGameplayTagEvent(MordecaiGameplayTags::Event_EnemyKill, EGameplayTagEventType::NewOrRemoved)
-		.AddUObject(this, &UMordecaiKillCounterWidget::OnEnemyKillEvent);
-
-	// Listen for player death events (reset)
-	ASC->RegisterGameplayTagEvent(MordecaiGameplayTags::Event_PlayerDeath, EGameplayTagEventType::NewOrRemoved)
-		.AddUObject(this, &UMordecaiKillCounterWidget::OnPlayerDeathEvent);
-
-	UpdateDisplay();
+	UWorld* World = ASC->GetWorld();
+	BindToGameMode(World ? World->GetAuthGameMode<AMordecaiGameMode>() : nullptr);
 }
 
-void UMordecaiKillCounterWidget::OnEnemyKillEvent(const FGameplayTag Tag, int32 NewCount)
+void UMordecaiKillCounterWidget::BindToGameMode(AMordecaiGameMode* GameMode)
 {
-	if (NewCount > 0)
+	if (AMordecaiGameMode* Previous = BoundGameMode.Get())
 	{
-		KillCount++;
-		UpdateDisplay();
+		Previous->OnEnemyKillCountChanged.Remove(KillCountChangedHandle);
 	}
-}
+	KillCountChangedHandle.Reset();
+	BoundGameMode = GameMode;
 
-void UMordecaiKillCounterWidget::OnPlayerDeathEvent(const FGameplayTag Tag, int32 NewCount)
-{
-	if (NewCount > 0)
+	// No unbind on NativeDestruct: the HUD binds once (CreateCombatHUD), and a weak UObject binding is skipped once
+	// this widget is gone
+	if (GameMode)
 	{
-		ResetKillCount();
+		KillCountChangedHandle = GameMode->OnEnemyKillCountChanged.AddUObject(this, &UMordecaiKillCounterWidget::OnKillCountChanged);
 	}
+	OnKillCountChanged(GameMode ? GameMode->GetEnemyKillCount() : 0);
 }
 
-void UMordecaiKillCounterWidget::ResetKillCount()
+void UMordecaiKillCounterWidget::OnKillCountChanged(int32 NewCount)
 {
-	KillCount = 0;
+	KillCount = NewCount;
 	UpdateDisplay();
 }
 

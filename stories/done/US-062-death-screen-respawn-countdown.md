@@ -18,6 +18,8 @@ Full-screen death overlay using CommonUI activatable widget stack. Pushed to UI.
 - [x] AC-062.3: Input mode set to `GameAndMenu` so respawn flow is not blocked.
 - [x] AC-062.4: Countdown ticks down via `NativeTick`. Designed for `UI.Layer.Modal` push/pop (wiring deferred to EDITOR story).
 
+> **Recovery note (US-086, 2026-11-04):** The death screen is pushed onto `UI.Layer.Game` (issue #7). AC-062.2's "session kill count" is the kills of the life that just ended (`AMordecaiGameMode::GetCompletedLifeKillCount()`, issue #6): the death resets the live count. See `Specs/design_decisions_log.md` 2026-11-04.
+
 ## Tests Required
 - [x] `Mordecai.UI.DeathScreen.FormatCountdownNormal` — 2.5s→"3", 1.1s→"2", 0.5s→"1"
 - [x] `Mordecai.UI.DeathScreen.FormatCountdownZero` — 0 or negative → empty

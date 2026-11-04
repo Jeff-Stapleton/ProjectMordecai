@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """US-054 Combat Playtest -- Tier 4: the arena combat loop on CombatTestMap, REAL input
 
-The combat half of the US-054 arena loop (AC-054.13: attack -> take damage -> die -> respawn ->
-enemies reset), with the death/respawn, status-effect, death screen and kill counter stories it
-is built from (US-053, US-057, US-062, US-063) and their recovery story US-086 (the death screen
-is shown, issue #7).  It plays CombatTestMap (issue #46, T1): a
+The combat half of the US-054 arena loop (AC-054.13: attack -> kill an enemy -> take damage ->
+die -> respawn -> enemies reset), with the death/respawn, status-effect, death screen and kill
+counter stories it is built from (US-053, US-057, US-062, US-063) and their recovery story US-086
+(the death screen is shown, issue #7; the kill counter counts, issue #6).  It plays CombatTestMap
+(issue #46, T1): a
 TestDummy at (600, 600) that never moves or aggroes, and a TestAttacker at (2100, 0) that holds
 its spot and swings BasicSlash (15 Slash, 150 cm reach, one swing per ~2.6 s) at a player within
 reach.  The attacker is 2100 cm from the PlayerStart, outside its 900 cm aggro range, so the
@@ -22,17 +23,20 @@ Steps (--plan prints them as the story's Steps table):
        name): alive, 200/200, at their spawns, Idle; the attacker out of aggro range.
   2-4  Walk to the melee spot (440, 600), 160 cm -X of the dummy: LMB (light attack, judged on
        the dummy) and LeftAlt (dodge).
-  5-6  Walk via (440, 0) to the fight spot (2000, 0), 100 cm -X of the attacker: it hits the
+  5-6  Back at the melee spot (the dodge moves the player out of reach), LMB every 0.3 s until
+       the dummy dies; the HUD then reads 'Kills: 1' and player.kills == 1.
+  7-8  Walk via (440, 0) to the fight spot (2000, 0), 100 cm -X of the attacker: it hits the
        player.
-  7-8  Tap One (Restoration: health rises, SP -3, the tag), then watch for Burning (WARN: the
+  9-10 Tap One (Restoration: health rises, SP -3, the tag), then watch for Burning (WARN: the
        attacker swings BasicSlash).  Burning ends at once when the player dies.
-  9-12 The death (seen by whichever step reads it first: no death goes unobserved), the death
-       screen, no movement while dead, the respawn at the PlayerStart with full health.
-  13   The death screen is gone after the respawn.
-  14-15 The arena reset, judged on the first read that shows the respawned player (both targets
-       at their spawns, full health, alive, Idle, and the reset observed: the dummy healed or the
-       attacker back to Idle), then movement after the respawn.
-  16   The kill counter's text equals player.kills (the authoritative GameMode count).
+  11-14 The death (seen by whichever step reads it first: no death goes unobserved), the death
+       screen with the life's kills, no movement while dead, the respawn at the PlayerStart with
+       full health.
+  15   The death screen is gone after the respawn.
+  16-17 The arena reset, judged on the first read that shows the respawned player (both targets
+       at their spawns, full health, alive, Idle, and the reset observed: the dummy revived or
+       the attacker back to Idle), then movement after the respawn.
+  18   The kill counter's text equals player.kills (the GameMode count), after the death: 0.
 A failed check SKIPs the checks that depend on it (needs=); independent checks still run.
 
 Usage:
@@ -116,6 +120,14 @@ RESPAWN_TIMEOUT_S = 6.0
 MOVE_HOLD_S = 0.4
 MOVE_MIN_CM = 80.0
 POLL_S = 0.1
+# The kill (issue #6): a Longsword light swing does 16 and lasts 0.6 s, so the 200-HP dummy dies in
+# about 10 s of clicking; a click during a swing is dropped.  The cadence is a pace, not a check:
+# a frame hitch can stretch any gap past it.
+KILL_TIMEOUT_S = 45.0
+KILL_CLICK_GAP_S = 0.3                 # the story's "<= 0.4 s apart", with margin
+KILL_SETTLE_TIMEOUT_S = 2.0            # the dodge's slide ends before the walk back
+KILL_COUNT_TIMEOUT_S = 2.0
+EXPECTED_KILLS = 1
 
 SCREENSHOTS = {
     "start": "CombatTestMap from the fixed overhead camera: the player at the PlayerStart on the "
@@ -125,14 +137,16 @@ SCREENSHOTS = {
     "near_dummy": "the player on the grid floor right next to the blue-grey TestDummy cylinder "
                   "(160 cm +X of the player, i.e. just up the screen) under its floating health "
                   "bar",
+    "killed": "the player at the melee spot; the TestDummy's cylinder gone (a dead enemy's body is "
+              "hidden), at most its empty floating health bar left; 'Kills: 1' top-right",
     "hit": "the player next to the orange TestAttacker cylinder (100 cm +X of the player, just "
            "up the screen) after its first hit: the player's health bar below full",
     "dead": "the death screen over the dimmed arena: 'You Died', a countdown digit and "
-            "'Kills: N' in the middle; behind it the player dead next to the orange TestAttacker "
-            "(health bar empty)",
+            "'Kills: 1' (the life's kills) in the middle; behind it the player dead next to the "
+            "orange TestAttacker (health bar empty), the HUD's counter back at 'Kills: 0'",
     "respawned": "the player back at the PlayerStart with a full health bar on the grid floor, "
-                 "no death screen and no dimming; the TestAttacker back at (2100, 0), likely out "
-                 "of view",
+                 "no death screen and no dimming, 'Kills: 0' top-right; the TestDummy cylinder "
+                 "back at (600, 600); the TestAttacker back at (2100, 0), likely out of view",
 }
 KNOWN_ISSUES = (
     "Block and parry on the mouse (AC-054.6: RMB hold, RMB+LMB) are not tested: they need the "
@@ -141,8 +155,6 @@ KNOWN_ISSUES = (
     "The gamepad path (LT hold, LT+RT) is played by Scripts/playtests/us083_combat_input.py.",
     "The TestAttacker swings BasicSlash only (no FireSlash), so Burning never procs on this map: "
     "burning_on_hit is expected to WARN and AC-057.11 / AC-057.8 stay NOT RUN here.",
-    "The run lands one light attack and kills no enemy, so kill_counter_text_matches can only "
-    "compare 'Kills: 0' with player.kills == 0 (the kill path is US-086's).",
 )
 
 PLAN = (
@@ -159,6 +171,14 @@ PLAN = (
          "click", proves=("AC-054.6", "AC-054.5")),
     Step("dodge_lalt", f"tap LeftAlt -> within {DODGE_TIMEOUT_S:g}s a Dodging tag in player.tags "
          "or a displacement > 150 cm", proves=("AC-054.6", "AC-054.5")),
+    Step("kill_enemy_melee", f"walk_to({DUMMY_MELEE_SPOT[0]:g}, {DUMMY_MELEE_SPOT[1]:g}) if the "
+         f"dodge moved the player > {SPOT_TOL:g} cm off the melee spot, then click Left at "
+         f"{ATTACK_POINT} every {KILL_CLICK_GAP_S:g}s -> the {DUMMY} (by label, else class name) "
+         f"is_dead==true within {KILL_TIMEOUT_S:g}s (FAIL with its last health and the damage per "
+         "hit)", proves=("US-086:AC-086.5", "AC-054.13")),
+    Step("kill_counter_increments", f"state widgets, player -> within {KILL_COUNT_TIMEOUT_S:g}s "
+         f"every 'Kills: N' text reads 'Kills: {EXPECTED_KILLS}' and player.kills=="
+         f"{EXPECTED_KILLS}", proves=("US-086:AC-086.5", "US-063:AC-063.1")),
     Step("walk_to_attacker", f"walk_to({ATTACKER_VIA[0]:g}, {ATTACKER_VIA[1]:g}), walk_to("
          f"{ATTACKER_FIGHT_SPOT[0]:g}, {ATTACKER_FIGHT_SPOT[1]:g}) -> within 60 cm, then within "
          f"{SPOT_TOL:g} cm (the fight spot, 100 cm -X of the {ATTACKER})"),
@@ -175,7 +195,8 @@ PLAN = (
          f"already seen dead by an earlier step), '{TAG_DEAD}' in player.tags",
          proves=("US-053:AC-053.1",)),
     Step("death_screen", f"state widgets -> within {DEATH_SCREEN_TIMEOUT_S:g}s one widget with "
-         f"'{YOU_DIED}', a countdown digit and 'Kills: N'",
+         f"'{YOU_DIED}', a countdown digit and 'Kills: N', N = the kills "
+         "kill_counter_increments read (any N when it did not run)",
          proves=("US-062:AC-062.1", "US-062:AC-062.2", "US-086:AC-086.1", "US-086:AC-086.4")),
     Step("dead_no_move", f"while dead: hold W {DEAD_HOLD_S:g}s -> moved < {DEAD_MAX_MOVE_CM:g} cm",
          proves=("US-053:AC-053.2",)),
@@ -194,7 +215,8 @@ PLAN = (
     Step("respawn_moves", f"hold W {MOVE_HOLD_S:g}s -> player x grows by >= {MOVE_MIN_CM:g} cm",
          proves=("US-053:AC-053.6",)),
     Step("kill_counter_text_matches", "state widgets, player -> the 'Kills: N' text equals "
-         "player.kills", proves=("US-063:AC-063.1",)),
+         "player.kills; 0 when a kill and the death were both seen (the death resets the count)",
+         proves=("US-063:AC-063.1", "US-086:AC-086.5")),
 )
 
 
@@ -234,6 +256,19 @@ def kill_counts(st):
         m = RE_KILLS.match(t)
         if m:
             out.append(int(m.group(1)))
+    return out
+
+
+def counter_kill_counts(st):
+    """Every N of a 'Kills: N' text outside the death screen: the HUD counter's.  The death screen
+    shows the life that ended, which differs from the HUD after the death; death_screen and
+    death_screen_removed judge that screen."""
+    out = []
+    for w in widgets(st):
+        texts = [str(t) for t in (w.get("texts") or []) if t is not None]
+        if not widget_visible(w) or any(YOU_DIED.lower() in t.lower() for t in texts):
+            continue
+        out += [int(m.group(1)) for m in map(RE_KILLS.match, texts) if m]
     return out
 
 
@@ -405,11 +440,14 @@ class Us054CombatRun(kit.PlaytestRun):
         self.death_screen_seen = False
         self.respawn_state = None
         self.dummy_hit = None        # (health before the click, lowest after it)
+        self.kill = None             # kill_enemy_melee: clicks, the dummy's healths, timing
+        self.kills_seen = None       # player.kills when kill_counter_increments passed
 
     # --- the run ------------------------------------------------------------------------------
     def steps(self):
         self.step_targets()
-        self.step_dummy()
+        melee_ok = self.step_dummy()
+        self.step_kill(melee_ok)
         damaged = self.step_attacker()
         died = self.step_death(damaged)
         self.step_respawn(died)
@@ -549,7 +587,7 @@ class Us054CombatRun(kit.PlaytestRun):
             return ("FAIL", f"{what}: no '{TAG_ATTACKING}' tag and no {DUMMY} damage within "
                     f"{ATTACK_TIMEOUT_S:g}s", None)
 
-        self.measure("melee_lmb", melee)
+        melee_ok, _ = self.measure("melee_lmb", melee)
 
         def dodge(b):
             p0 = player(b.state(["player"]))
@@ -577,8 +615,97 @@ class Us054CombatRun(kit.PlaytestRun):
                     f"{DODGE_TIMEOUT_S:g}s", None)
 
         self.measure("dodge_lalt", dodge)
+        return melee_ok
 
-    # --- 5-8: the attacker: walk, take damage, Restoration, Burning ---------------------------
+    # --- 5-6: kill the dummy, the counter counts it (issue #6) --------------------------------
+    def step_kill(self, melee_ok):
+        def settled(st):
+            # The dodge slides the player back about 1 m: walking during the slide reads as a
+            # movement mismatch, so wait for no Dodging/Attacking tag and two equal positions
+            p = player(st)
+            pos = xy((p or {}).get("location"))
+            busy = any(TAG_DODGE_SUBSTR in t.lower() or t == TAG_ATTACKING for t in tags(p))
+            still = pos is not None and settled.last is not None and dist(pos, settled.last) < 1.0
+            settled.last = pos
+            return p is not None and not busy and still
+        settled.last = None
+
+        def kill(b):
+            self._poll(["player"], settled, KILL_SETTLE_TIMEOUT_S)
+            st = b.state(["player", "actors"], radius=ENEMY_RADIUS)
+            self._note(st, "kill_enemy_melee")
+            p = player(st)
+            if p is None or is_dead(p):
+                return "FAIL", "no live player before the first click", None
+            d = find_target(st, DUMMY)
+            if d is None:
+                return "FAIL", f"no {DUMMY} in actors[]: {describe_targets(st)}", None
+            pos, back = xy(p.get("location")), ""
+            if pos is None or dist(pos, DUMMY_MELEE_SPOT) > SPOT_TOL:
+                try:
+                    r = b.walk_to(*DUMMY_MELEE_SPOT, tol=SPOT_TOL)
+                except ab.BridgeError as e:
+                    if e.kind != "gameplay":
+                        raise
+                    return ("FAIL", f"could not walk back to the melee spot from {fmt_xy(pos)}: "
+                            f"{e}", None)
+                back = (f"walked back from {fmt_xy(pos)} to ({r['final'][0]:.0f}, "
+                        f"{r['final'][1]:.0f}); ")
+            healths = [enemy_health(d)[0]]
+            clicks, gaps, last_click = 0, [], None
+            t0 = time.monotonic()
+            deadline = t0 + KILL_TIMEOUT_S
+            while True:
+                now = time.monotonic()
+                if last_click is None or now - last_click >= KILL_CLICK_GAP_S:
+                    if last_click is not None:
+                        gaps.append(now - last_click)
+                    last_click = now
+                    b.click(*ATTACK_POINT, button="Left")   # the 0.05 s default: a light Tap
+                    clicks += 1
+                st = b.state(["player", "actors"], radius=ENEMY_RADIUS)
+                self._note(st, "kill_enemy_melee")
+                d = find_target(st, DUMMY)
+                cur = enemy_health(d)[0] if d is not None else None
+                if cur is not None and cur != healths[-1]:
+                    healths.append(cur)
+                hits = [round(a - c, 1) for a, c in zip(healths, healths[1:])
+                        if a is not None and c is not None and c < a]
+                elapsed = time.monotonic() - t0
+                self.kill = {"clicks": clicks, "healths": healths, "damage_per_hit": hits,
+                             "elapsed_s": round(elapsed, 1),
+                             "max_click_gap_s": round(max(gaps), 3) if gaps else None,
+                             "walked_back": bool(back)}
+                what = (f"{back}{clicks} clicks (max gap {self.kill['max_click_gap_s']}s), "
+                        f"{DUMMY} health {healths}, damage per hit {hits}")
+                if d is not None and d.get("is_dead") is True:
+                    return "PASS", f"{what}; dead after {elapsed:.1f}s", None
+                if is_dead(player(st)):
+                    return "FAIL", f"{what}; the player died before the {DUMMY}", None
+                if time.monotonic() >= deadline:
+                    return ("FAIL", f"{what}; not dead within {KILL_TIMEOUT_S:g}s: "
+                            f"{describe_target(d, DUMMY)}", None)
+                time.sleep(max(0.0, min(POLL_S, last_click + KILL_CLICK_GAP_S
+                                        - time.monotonic())))
+
+        killed, _ = self.measure("kill_enemy_melee", kill, needs=melee_ok,
+                                 needs_why="not run: the light attack (melee_lmb) failed")
+
+        def counted(st):
+            return (set(counter_kill_counts(st)) == {EXPECTED_KILLS}
+                    and (player(st) or {}).get("kills") == EXPECTED_KILLS)
+
+        ok, st = self.observe(
+            "kill_counter_increments", ["widgets", "player"], counted,
+            lambda st: (f"'Kills: N' texts on screen {counter_kill_counts(st)}, player.kills="
+                        f"{(player(st) or {}).get('kills')}"),
+            timeout_s=KILL_COUNT_TIMEOUT_S, needs=killed,
+            needs_why="not run: the TestDummy was not killed")
+        if ok:
+            self.kills_seen = (player(st) or {}).get("kills")
+        self.shot("killed", needs=killed, needs_why="not taken: the TestDummy was not killed")
+
+    # --- 7-10: the attacker: walk, take damage, Restoration, Burning --------------------------
     def step_attacker(self):
         def walk(b):
             legs = ((ATTACKER_VIA, self.WALK_TOL), (ATTACKER_FIGHT_SPOT, SPOT_TOL))
@@ -712,7 +839,7 @@ class Us054CombatRun(kit.PlaytestRun):
         self.measure("burning_on_hit", burning, needs=ok, needs_why=why)
         return ok
 
-    # --- 9-11: death ---------------------------------------------------------------------
+    # --- 11-13: death --------------------------------------------------------------------
     def step_death(self, damaged):
         why = "not run: the TestAttacker never damaged the player"
 
@@ -737,22 +864,27 @@ class Us054CombatRun(kit.PlaytestRun):
         why = "not run: the player did not die"
 
         def screen(st):
-            # The death screen widget itself: 'You Died', a countdown and the session kill
-            # count (AC-062.2).  Digits elsewhere (the HUD's SP text) do not count.
+            # The death screen widget itself: 'You Died', a countdown and the kills of the life
+            # that ended (AC-062.2): the kills kill_counter_increments read, when it ran (the
+            # death has already reset the live count, so player.kills reads 0 here).  Digits
+            # elsewhere (the HUD's SP text) do not count.
             for w in widgets(st):
                 texts = [str(t) for t in (w.get("texts") or [])]
                 if not widget_visible(w) or not any(YOU_DIED.lower() in t.lower() for t in texts):
                     continue
                 countdown = any(RE_COUNTDOWN.search(t) and not RE_KILLS.match(t)
                                 for t in texts)
-                if countdown and any(RE_KILLS.match(t) for t in texts):
+                counts = [int(m.group(1)) for m in map(RE_KILLS.match, texts) if m]
+                if countdown and counts and (self.kills_seen is None
+                                             or counts == [self.kills_seen]):
                     return True
             return False
 
         self.death_screen_seen, _ = self.observe(
             "death_screen", ["widgets"], screen,
             lambda st: (f"texts on screen: {all_texts(st)} (widget classes "
-                        f"{[w.get('class') for w in widgets(st)]})"),
+                        f"{[w.get('class') for w in widgets(st)]}; the life's kills "
+                        f"{self.kills_seen if self.kills_seen is not None else 'not read'})"),
             timeout_s=DEATH_SCREEN_TIMEOUT_S, needs=died, needs_why=why)
         # After the death screen check, so the frame shows the screen the check saw
         self.shot("dead", needs=died, needs_why="not taken: the player did not die")
@@ -780,7 +912,7 @@ class Us054CombatRun(kit.PlaytestRun):
         self.measure("dead_no_move", no_move, needs=died, needs_why=why)
         return died
 
-    # --- 12-15: respawn, death screen removed, arena reset, movement --------------------------
+    # --- 14-17: respawn, death screen removed, arena reset, movement --------------------------
     def step_respawn(self, died):
         why = "not run: the player did not die"
 
@@ -817,7 +949,7 @@ class Us054CombatRun(kit.PlaytestRun):
 
         def reset(b):
             # Judged on the first read that shows the respawned player, and on no later read.
-            # ExecuteRespawn teleports the player and runs ResetArena in the same call, so that
+            # ExecuteRespawn teleports the player and resets the enemies in the same call, so that
             # read already shows the whole reset (location, health, is_dead and ai_state; the
             # targets never move or heal by themselves).  A later read could only hide a missing
             # reset: without one the TestAttacker keeps swinging at the dead player until the
@@ -858,24 +990,29 @@ class Us054CombatRun(kit.PlaytestRun):
 
         self.measure("respawn_moves", moves, needs=ok, needs_why=why)
 
-    # --- 16: kill counter -------------------------------------------------------------------
+    # --- 18: kill counter -------------------------------------------------------------------
     def step_kill_counter(self):
         def counter(b):
             st = b.state(["widgets", "player"])
             p = player(st)
             kills = (p or {}).get("kills")
-            shown = kill_counts(st)
-            note = ("; note: the run kills no enemy (one light attack), so this only compares the "
-                    "starting count")
+            shown = counter_kill_counts(st)   # a death screen still up is death_screen_removed's
             if p is None:
                 return "FAIL", f"no valid player section; 'Kills: N' texts {shown}", None
             # The HUD root may repeat its children's texts: one distinct value is expected.
             values = sorted(set(shown))
             if len(values) != 1:
                 return ("FAIL", f"'Kills: N' texts on screen {shown} (expected one value); "
-                        f"player.kills={kills}{note}", None)
-            return ("PASS" if values[0] == kills else "FAIL",
-                    f"the counter reads 'Kills: {values[0]}', player.kills={kills}{note}", None)
+                        f"player.kills={kills}", None)
+            what = f"the counter reads 'Kills: {values[0]}', player.kills={kills}"
+            if values[0] != kills:
+                return "FAIL", what, None
+            if self.kills_seen and self.death is not None and kills != 0:
+                return ("FAIL", f"{what}: the run counted {self.kills_seen} kill(s) and the player "
+                        "died since, which resets the count to 0 (AC-063.2)", None)
+            reset = (f" (the {self.kills_seen} kill(s) counted before the death were reset by it)"
+                     if self.kills_seen and self.death is not None else "")
+            return "PASS", what + reset, None
 
         self.measure("kill_counter_text_matches", counter)
 
@@ -885,7 +1022,8 @@ class Us054CombatRun(kit.PlaytestRun):
                                   for f, p in self.targets_start.items()},
                 "pre_death": self.pre_death, "death": self.death,
                 "enemies_at_death": self.enemies_at_death,
-                "dummy_hit": list(self.dummy_hit) if self.dummy_hit else None}
+                "dummy_hit": list(self.dummy_hit) if self.dummy_hit else None,
+                "kill": self.kill, "kills_seen": self.kills_seen}
 
     def md_sections(self):
         death = self.death
@@ -896,6 +1034,8 @@ class Us054CombatRun(kit.PlaytestRun):
                 f"- At the start: {start or 'not read'}",
                 f"- The {DUMMY}'s health before the light attack and after it: "
                 f"{self.dummy_hit or 'not read'}",
+                f"- The kill: {kit.dumps(self.kill) if self.kill else 'not run'}; player.kills "
+                f"after it: {self.kills_seen if self.kills_seen is not None else 'not read'}",
                 f"- Before the death: {self.describe_pre_death()}",
                 f"- The death: {seen}",
                 f"- At the death: {self.enemies_at_death or 'not read'}"]

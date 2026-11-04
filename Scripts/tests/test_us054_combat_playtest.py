@@ -10,7 +10,9 @@ cadence (15 damage 0.5 s into each swing, one swing per ~2.6 s); the dead player
 target (it keeps swinging, without damage), and beyond its 1800 cm LeashRange it goes Leash,
 then Idle; the death at health 0 and the respawn at (0, 0) 3 s later with ResetArena (both
 targets back at their spawns, full health, Idle); Restoration on One, Burning procs, the death
-screen, the attack and dodge tags.  These prove the playtest's logic and reporting only; they
+screen, the attack and dodge tags; the kill (issue #6): an enemy struck to 0 dies and the GameMode
+count, which the HUD counter shows, goes up; the death resets it and the death screen shows the
+life's count.  These prove the playtest's logic and reporting only; they
 say nothing about the real game.  Nothing here launches the real game.
 Run: py Scripts/run_python_tests.py -k us054_combat
 """
@@ -64,6 +66,7 @@ FAST = dict(hit_damage=25.0, windup_s=0.2, attack_s=0.4, cooldown_s=0.4)
 MID_SWING = dict(hit_damage=25.0, windup_s=0.2, attack_s=0.6, cooldown_s=0.6)
 AI_NOT_RESET = r"TestAttacker: AI not reset to Idle at the respawn \(ai_state (Attack|Recover)\)"
 PLAN_ORDER = ["combat_targets_present", "walk_to_dummy", "melee_lmb", "dodge_lalt",
+              "kill_enemy_melee", "kill_counter_increments",
               "walk_to_attacker", "attacker_damages_player", "restoration_heals", "burning_on_hit",
               "player_dies", "death_screen", "dead_no_move", "respawn", "death_screen_removed",
               "arena_reset", "respawn_moves", "kill_counter_text_matches"]
@@ -80,7 +83,7 @@ MOVED_PROVES = {
     "respawn": ("US-053:AC-053.4", "US-053:AC-053.5"),
     "arena_reset": ("US-053:AC-053.8", "US-053:AC-053.9"),
     "respawn_moves": ("US-053:AC-053.6",),
-    "kill_counter_text_matches": ("US-063:AC-063.1",),
+    "kill_counter_text_matches": ("US-063:AC-063.1", "US-086:AC-086.5"),
 }
 
 
@@ -109,6 +112,14 @@ class CombatWorld(fb.FakeWorld):
     HandlePlayerRespawn).  death_screen=False: no death screen (issue #7 before its fix);
     death_screen_stays=True: it is never removed after a respawn.  ai_log: (label, real time,
     ai_state) of every AI state change.
+    The kill (issue #6): an enemy struck to 0 health dies (is_dead, ai_state 'Dead', no more hits)
+    and the GameMode count (player.kills) goes up, unless the player is dead then;
+    enemies_die=False: it stays alive at 0.  The HUD counter shows the GameMode count;
+    counter_counts=False: it stays at 0 (N1, issue #6 before its fix); kills_text: a fixed HUD
+    text instead.  The player's death saves the count for the death screen and resets it
+    (kills_reset_on_death=False: it is never reset; death_screen_live_count=True: the screen
+    shows the live, reset count instead).  dodge_back_cm: LeftAlt with no movement input slides
+    the player back -X (the game measured ~98 cm).
     """
 
     def __init__(self, *, click_damage=12.0, click_damage_delay_s=0.2, melee_reach=200.0,
@@ -117,7 +128,9 @@ class CombatWorld(fb.FakeWorld):
                  restoration=True, heal_per_s=8.0, restoration_s=5.0, burn_chance=0.0,
                  burn_indicator=True, attacks=True, attack_tag=True, death_screen=True,
                  death_screen_stays=False, dead_moves=False, arena_reset=True, reset_ai=True,
-                 ai_reported=True, moves_after_respawn=True, kills_text=0, **kwargs):
+                 ai_reported=True, moves_after_respawn=True, kills_text=None, enemies_die=True,
+                 counter_counts=True, kills_reset_on_death=True, death_screen_live_count=False,
+                 dodge_back_cm=98.0, **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         kwargs.setdefault("respawn_s", us054c.RESPAWN_DELAY_S)  # the game's 3 s
@@ -138,6 +151,10 @@ class CombatWorld(fb.FakeWorld):
         self.arena_reset, self.reset_ai = arena_reset, reset_ai
         self.ai_reported, self.kills_text = ai_reported, kills_text
         self.moves_after_respawn = moves_after_respawn
+        self.enemies_die, self.counter_counts = enemies_die, counter_counts
+        self.kills_reset_on_death, self.dodge_back_cm = kills_reset_on_death, float(dodge_back_cm)
+        self.death_screen_live_count = death_screen_live_count
+        self.kills_at_death = 0    # the death screen's count: the life that ended
         self.timed_tags = {}
         self.burn_rolls = 0
         self.hits = []             # (real time, health after) of every attacker hit
@@ -234,6 +251,16 @@ class CombatWorld(fb.FakeWorld):
             self.deaths += 1
             self.kill_player()
 
+    def kill_player(self):
+        # HandlePlayerDeath -> AMordecaiGameMode::NotifyPlayerDeath: the life's count for the
+        # death screen, then the live count back to 0 (AC-063.2)
+        with self.lock:
+            if self.dead_since is None:
+                self.kills_at_death = self.kills
+                if self.kills_reset_on_death:
+                    self.kills = 0
+        super().kill_player()
+
     def _move(self, dt):
         if not self.moves_after_respawn and self.respawns and not self.is_dead:
             self.vel = [0.0, 0.0]
@@ -268,6 +295,7 @@ class CombatWorld(fb.FakeWorld):
             if key == "LeftAlt":
                 if self.attacks:
                     self.timed_tags[TAG_DODGING] = now + 0.4
+                    self.pos[0] -= self.dodge_back_cm
                 return
         super()._on_key_pressed(key)
 
@@ -283,6 +311,8 @@ class CombatWorld(fb.FakeWorld):
                     half = math.radians(self.melee_arc_deg / 2.0)
                     struck = []
                     for e in self.enemies:
+                        if e.get("is_dead"):
+                            continue          # a dead enemy has no collision
                         dx, dy = e["location"][0] - px, e["location"][1] - py
                         if math.hypot(dx, dy) <= self.melee_reach \
                                 and abs(math.atan2(dy, dx)) <= half:
@@ -293,7 +323,15 @@ class CombatWorld(fb.FakeWorld):
 
     def _strike(self, struck):
         for e in struck:
+            if e.get("is_dead"):
+                continue
             e["health"] = max(0.0, e["health"] - self.click_damage)
+            if e["health"] <= 0 and self.enemies_die:
+                # EnterDeathState -> AMordecaiGameMode::NotifyEnemyKilled: a living player's kill
+                e["is_dead"] = True
+                self._set_ai(e, "Dead")
+                if not self.is_dead:
+                    self.kills += 1
 
     # --- state --------------------------------------------------------------------------------
     def _s_player(self):
@@ -304,8 +342,16 @@ class CombatWorld(fb.FakeWorld):
 
     def _s_widgets(self):
         out = super()._s_widgets()
+        # The real HUD root has no 'Kills: N' text of its own: only the counter shows one
+        for w in out:
+            if w.get("class") == "WBP_CombatHUD_C":
+                w["texts"] = [t for t in w["texts"] if not us054c.RE_KILLS.match(t)]
+        if self.kills_text is not None:
+            shown = self.kills_text
+        else:
+            shown = self.kills if self.counter_counts else 0
         out.append({"class": "MordecaiKillCounterWidget", "name": "Kills",
-                    "rect": [1140, 20, 120, 30], "texts": [f"Kills: {self.kills_text}"],
+                    "rect": [1140, 20, 120, 30], "texts": [f"Kills: {shown}"],
                     "buttons": []})
         if self.burn_indicator and TAG_BURNING in self.timed_tags:
             out.append({"class": "MordecaiStatusEffectBarWidget", "name": "Status",
@@ -316,7 +362,8 @@ class CombatWorld(fb.FakeWorld):
                     if self.is_dead else 0)
             # UMordecaiDeathScreenWidget: the countdown is a bare ceiling digit, empty at 0 (the
             # bridge drops empty texts)
-            texts = ["You Died"] + ([str(left)] if left > 0 else []) + [f"Kills: {self.kills}"]
+            shown = self.kills if self.death_screen_live_count else self.kills_at_death
+            texts = ["You Died"] + ([str(left)] if left > 0 else []) + [f"Kills: {shown}"]
             out.append({"class": "MordecaiDeathScreenWidget", "name": "Death",
                         "rect": [0, 0, 1280, 720], "texts": texts, "buttons": []})
         return out
@@ -356,6 +403,8 @@ class Us054CombatCase(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
         self.run_dir = os.path.join(self.tmp, "run")
+        # The fake applies a click at once (no 0.6 s swing): the kill takes ~2 s instead of ~5 s
+        self.shorten(KILL_CLICK_GAP_S=0.1)
 
     def shorten(self, **values):
         """Patch module-level timeouts for the paths that are expected to time out."""
@@ -405,7 +454,11 @@ class TestUs054CombatPlan(unittest.TestCase):
                      "attacker_damages_player"):
             self.assertEqual(plan[name].proves, (), name)
         self.assertEqual(plan["death_screen_removed"].proves, ("US-086:AC-086.1",))
-        # N2 is fixed (issue #7): no check is expected to fail
+        # The kill (issue #6)
+        self.assertEqual(plan["kill_enemy_melee"].proves, ("US-086:AC-086.5", "AC-054.13"))
+        self.assertEqual(plan["kill_counter_increments"].proves,
+                         ("US-086:AC-086.5", "US-063:AC-063.1"))
+        # N1 (issue #6) and N2 (issue #7) are fixed: no check is expected to fail
         self.assertEqual({s.check for s in us054c.PLAN if s.known_issue}, set())
         self.assertEqual(set(us054c.Us054CombatRun.COVERS),
                          {"US-053", "US-057", "US-062", "US-063", "US-086"})
@@ -446,8 +499,10 @@ class TestUs054CombatPlan(unittest.TestCase):
             kit.set_log_stream(previous)
         text = out.getvalue()
         self.assertIn("| 1 | `combat_targets_present` |", text)
-        self.assertIn("| 13 | `death_screen_removed` |", text)
-        self.assertIn("| 16 | `kill_counter_text_matches` |", text)
+        self.assertIn("| 5 | `kill_enemy_melee` |", text)
+        self.assertIn("| 6 | `kill_counter_increments` |", text)
+        self.assertIn("| 15 | `death_screen_removed` |", text)
+        self.assertIn("| 18 | `kill_counter_text_matches` |", text)
         self.assertNotIn("Known issue N2", text)
 
 
@@ -466,6 +521,13 @@ class TestUs054CombatHelpers(unittest.TestCase):
         self.assertEqual(us054c.find_target(st, "TestAttacker")["label"], "Enemy_0")
         self.assertIsNone(us054c.find_target(st, "Frontliner"))
         self.assertIsNone(us054c.find_target({"actors": {"valid": False}}, "TestDummy"))
+
+    def test_counter_kill_counts_skip_the_death_screen(self):
+        st = {"widgets": [{"class": "MordecaiKillCounterWidget", "texts": ["Kills: 0"]},
+                          {"class": "MordecaiDeathScreenWidget", "texts": ["You Died", "3", "Kills: 1"]},
+                          {"class": "Hidden", "visible": False, "texts": ["Kills: 7"]}]}
+        self.assertEqual(us054c.kill_counts(st), [0, 1])
+        self.assertEqual(us054c.counter_kill_counts(st), [0])
 
     def test_reset_problems(self):
         ok = {"actors": [self.enemy("TestDummy", "D", 610, 590),
@@ -566,7 +628,7 @@ class TestCombatWorldAi(unittest.TestCase):
         run_for(1.0)
         world.kill_player()
         run_for(1.0)
-        world.respawn()                                      # ResetArena in the same call
+        world.respawn()                                      # the enemies reset in the same call
         self.assertEqual(attacker["ai_state"], "Idle")
         run_for(3.0)
         self.assertEqual(attacker["ai_state"], "Idle")       # 2100 cm: out of aggro range
@@ -584,21 +646,39 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
         self.assertEqual(rep["fixed_candidates"], [])
-        self.assertRegex(checks["death_screen"]["detail"], r"'You Died', '[123]', 'Kills: 0'")
+        # The death screen shows the life's 1 kill; the HUD's counter, reset by the death, 0
+        self.assertRegex(checks["death_screen"]["detail"], r"'You Died', '[123]', 'Kills: 1'")
+        self.assertIn("'Kills: 0'", checks["death_screen"]["detail"])
         self.assertEqual([s["label"] for s in rep["screenshots"]],
-                         ["start", "near_dummy", "hit", "dead", "respawned"])
+                         ["start", "near_dummy", "killed", "hit", "dead", "respawned"])
         # The light attack is judged on the dummy, which was really hit.
         self.assertIn("TestDummy health 200.0 before the click, (188.0, 200.0) after",
                       checks["melee_lmb"]["detail"])
-        self.assertIn("reset observed: the TestDummy was at 188/200 before the death",
+        # The dodge moved the player out of reach: the kill walked back first, then killed it
+        kill = checks["kill_enemy_melee"]["detail"]
+        self.assertRegex(kill, r"walked back from \(3\d\d, \d+\) to \(4\d\d, \d+\)")   # -98 cm
+        # Two strikes can land between reads, so a drop may be 24: the drops add up to 188 (from 188)
+        self.assertIn("damage per hit [", kill)
+        self.assertEqual(sum(rep["kill"]["damage_per_hit"]), 188.0, rep["kill"])
+        self.assertEqual(rep["kill"]["healths"][-1], 0.0)
+        self.assertRegex(kill, r"dead after \d+\.\ds")
+        self.assertTrue(rep["kill"]["walked_back"])
+        self.assertEqual(rep["kills_seen"], 1)
+        self.assertIn("player.kills=1", checks["kill_counter_increments"]["detail"])
+        self.assertIn("reset observed: the TestDummy was at 0/200 before the death",
                       checks["arena_reset"]["detail"])
         self.assertIn("the TestAttacker went Idle -> ", checks["arena_reset"]["detail"])
         self.assertIn("Attack", rep["pre_death"]["TestAttacker"]["states"])
-        # The world went through the loop: one cast, one death, a reset arena.
+        self.assertIn("'Kills: 0', player.kills=0 (the 1 kill(s) counted before the death were "
+                      "reset by it)", checks["kill_counter_text_matches"]["detail"])
+        # The world went through the loop: a kill, one cast, one death, a reset arena.
         self.assertEqual(world.spell_points, 7.0)
         self.assertEqual(world.deaths, 1)
+        self.assertEqual(world.kills_at_death, 1)
+        self.assertEqual(world.kills, 0)
         self.assertFalse(world.is_dead)
         self.assertEqual(world.enemy("TestDummy")["health"], 200.0)
+        self.assertFalse(world.enemy("TestDummy")["is_dead"])
         self.assertEqual(world.enemy("TestAttacker")["ai_state"], "Idle")
         # Attached run: diagnostic only, nothing accepted.
         self.assertIn("DIAGNOSTIC ONLY", rep["evidence"])
@@ -610,9 +690,13 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         keys = [r.get("key") or r.get("keys") for r in server.received if r.get("cmd") == "key"]
         for k in ("One", "LeftAlt", "W"):
             self.assertIn(k, keys)
-        clicks = [r for r in server.received if r.get("cmd") == "click"]
-        self.assertEqual([(c.get("x"), c.get("y"), c.get("button")) for c in clicks],
-                         [(640, 360, "Left")])
+        # Left clicks at the viewport centre only: melee_lmb's one, then the kill's (188 / 12)
+        clicks = [(c.get("x"), c.get("y"), c.get("button"))
+                  for c in server.received if c.get("cmd") == "click"]
+        self.assertEqual(set(clicks), {(640, 360, "Left")})
+        self.assertGreaterEqual(len(clicks), 17)
+        self.assertTrue(all("hold_s" not in c for c in server.received if c.get("cmd") == "click"),
+                        "light attacks: the bridge's default hold, no click held for a heavy one")
         # Far actors are read with radius 3000, never with wait_until's fixed 1500.
         radii = {r.get("radius") for r in server.received if r.get("cmd") == "state"
                  and "actors" in (r.get("sections") or [])}
@@ -642,18 +726,21 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertEqual(checks["dead_no_move"]["status"], "PASS", checks["dead_no_move"]["detail"])
         for name in ("restoration_heals", "death_screen", "respawn", "death_screen_removed",
                      "arena_reset", "respawn_moves", "kill_counter_text_matches", "melee_lmb",
-                     "dodge_lalt"):
+                     "dodge_lalt", "kill_enemy_melee", "kill_counter_increments"):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         acs = self.acs(rep)
         self.assertEqual(acs[("US-057", "AC-057.11")]["status"], "NOT RUN")
         for ac in (("US-053", "AC-053.1"), ("US-053", "AC-053.8"), ("US-053", "AC-053.9"),
-                   ("US-054", "AC-054.6"), ("US-057", "AC-057.4"), ("US-062", "AC-062.1"),
-                   ("US-063", "AC-063.1"), ("US-086", "AC-086.1"), ("US-086", "AC-086.4")):
+                   ("US-054", "AC-054.6"), ("US-054", "AC-054.13"), ("US-057", "AC-057.4"),
+                   ("US-062", "AC-062.1"), ("US-063", "AC-063.1"), ("US-086", "AC-086.1"),
+                   ("US-086", "AC-086.4"), ("US-086", "AC-086.5")):
             self.assertEqual(acs[ac]["status"], "PASS", ac)
         md = self.md()
         self.assertNotIn("FAIL (known)", md)
         self.assertNotIn("FAIL (NEW)", md)
         self.assertNotIn("Known issue N2", md)
+        self.assertNotIn("kills no enemy", md)
+        self.assertIn("- The kill: {", md)
         self.assertIn("Block and parry", md)
 
     def test_no_death_screen_fails_death_screen_as_new(self):
@@ -676,8 +763,9 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
             self.assertEqual(acs[ac]["status"], "FAIL", ac)
 
     def test_a_death_screen_left_after_the_respawn_fails(self):
-        # The screen shows the same 'Kills: N' as the HUD, so kill_counter_text_matches cannot
-        # tell it is still up: death_screen_removed does
+        # death_screen_removed catches it.  The screen's 'Kills: 1' (the life that ended) beside
+        # the reset HUD's 'Kills: 0' is not the kill counter's fault: kill_counter_text_matches
+        # reads the counter only, and passes
         _, server = self.serve(**game_today(death_screen_stays=True))
         code, rep = self.play(server)
         self.assertEqual(code, 1)
@@ -687,6 +775,7 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertIn("'You Died'", checks["death_screen_removed"]["detail"])
         self.assertEqual(checks["kill_counter_text_matches"]["status"], "PASS",
                          checks["kill_counter_text_matches"]["detail"])
+        self.assertIn("'Kills: 0', player.kills=0", checks["kill_counter_text_matches"]["detail"])
         self.assertEqual(rep["new_failures"], ["death_screen_removed"])
         acs = self.acs(rep)
         self.assertEqual(acs[("US-086", "AC-086.1")]["status"], "FAIL")
@@ -735,7 +824,9 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         check = self.by_name(rep)["arena_reset"]
         self.assertEqual(check["status"], "FAIL", check["detail"])
         self.assertIn("not reset", check["detail"])
-        self.assertIn("TestDummy health 188.0/200.0", check["detail"])
+        # The killed dummy stays dead
+        self.assertIn("TestDummy health 0.0/200.0", check["detail"])
+        self.assertIn("TestDummy is_dead=True", check["detail"])
         self.assertRegex(check["detail"], AI_NOT_RESET)
         self.assertIn("at the respawn: ", check["detail"])
         self.assertIn("arena_reset", rep["new_failures"])
@@ -746,6 +837,7 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         # The attacker swings on at the dead player, so it is mid-swing at the respawn, then
         # leashes back to Idle by itself (Recover -> Leash -> Idle): a later read would take that
         # for a reset of the AI.  Judged on the respawn read it FAILs, and AC-053.8/9 with it.
+        self.shorten(KILL_TIMEOUT_S=1.5)   # the missed dummy never dies
         world, server = self.serve(**game_today(**MID_SWING, arena_reset=False,
                                                 click_damage=0.0))
         code, rep = self.play(server)
@@ -774,8 +866,8 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         check = self.by_name(rep)["arena_reset"]
         self.assertEqual(check["status"], "FAIL", check["detail"])
         self.assertRegex(check["detail"], AI_NOT_RESET)
-        self.assertNotIn("TestDummy health", check["detail"])   # healed by the reset
-        self.assertIn("TestDummy lowest health 188.0/200.0", check["detail"])
+        self.assertNotIn("TestDummy health", check["detail"])   # revived by the reset
+        self.assertIn("TestDummy lowest health 0.0/200.0", check["detail"])
         self.assertEqual(rep["new_failures"], ["arena_reset"])
         acs = self.acs(rep)
         for ac in (("US-053", "AC-053.8"), ("US-053", "AC-053.9")):
@@ -797,13 +889,14 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
     def test_a_reset_with_no_observable_evidence_is_a_warn(self):
         # The dummy is never hurt and the attacker's ai_state always reads Idle: everything is
         # at its spawn after the respawn, but nothing shows a reset happened.
+        self.shorten(KILL_TIMEOUT_S=1.5)   # the unhurt dummy never dies
         _, server = self.serve(**game_today(click_damage=0.0, ai_reported=False))
         code, rep = self.play(server)
         check = self.by_name(rep)["arena_reset"]
         self.assertEqual(check["status"], "WARN", check["detail"])
         self.assertIn("no reset was observable", check["detail"])
         self.assertEqual(self.acs(rep)[("US-053", "AC-053.8")]["status"], "NOT RUN")
-        self.assertEqual(rep["new_failures"], [])
+        self.assertEqual(rep["new_failures"], ["kill_enemy_melee"])
 
     def test_no_attacker_damage_skips_the_death_chain(self):
         self.shorten(DAMAGE_TIMEOUT_S=1.5)
@@ -846,8 +939,68 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
             self.assertIn(name, rep["new_failures"])
         self.assertIn("no 'Mordecai.State.Attacking' tag and no TestDummy damage",
                       checks["melee_lmb"]["detail"])
+        # No light attack, no kill: the kill checks SKIP instead of clicking for 45 s
+        self.assertEqual(checks["kill_enemy_melee"]["status"], "SKIP")
+        self.assertIn("melee_lmb", checks["kill_enemy_melee"]["detail"])
+        self.assertEqual(checks["kill_counter_increments"]["status"], "SKIP")
         # Nothing hurt the dummy, but the attacker left Idle: the reset is still observed.
         self.assertEqual(checks["arena_reset"]["status"], "PASS", checks["arena_reset"]["detail"])
+
+    # --- the kill (issue #6) ----------------------------------------------------------------
+    def test_a_counter_that_never_counts_fails_as_new(self):
+        # N1, issue #6 before its fix: the dummy dies and player.kills is 1, the HUD reads 0
+        _, server = self.serve(**game_today(counter_counts=False))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        self.assertEqual(checks["kill_enemy_melee"]["status"], "PASS",
+                         checks["kill_enemy_melee"]["detail"])
+        check = checks["kill_counter_increments"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("'Kills: N' texts on screen [0], player.kills=1", check["detail"])
+        self.assertEqual(rep["new_failures"], ["kill_counter_increments"])
+        self.assertEqual(self.acs(rep)[("US-086", "AC-086.5")]["status"], "FAIL")
+        # The death screen accepts any N when the kill was never read as counted
+        self.assertEqual(checks["death_screen"]["status"], "PASS", checks["death_screen"]["detail"])
+
+    def test_a_dummy_that_cannot_die_fails_the_kill_with_its_health(self):
+        self.shorten(KILL_TIMEOUT_S=4.0)   # time to strike it to 0 (~2 s at the test cadence)
+        _, server = self.serve(**game_today(enemies_die=False))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        check = checks["kill_enemy_melee"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("not dead within 4s", check["detail"])
+        self.assertIn("damage per hit [", check["detail"])
+        self.assertIn("TestDummy 'TestDummy' at (600, 600) hp 0.0/200.0", check["detail"])
+        self.assertEqual(checks["kill_counter_increments"]["status"], "SKIP")
+        self.assertIn("not killed", checks["kill_counter_increments"]["detail"])
+        self.assertEqual(checks["screenshot_killed"]["status"], "SKIP")
+        self.assertEqual(rep["new_failures"], ["kill_enemy_melee"])
+        self.assertEqual(self.acs(rep)[("US-086", "AC-086.5")]["status"], "FAIL")
+        self.assertEqual(self.acs(rep)[("US-054", "AC-054.13")]["status"], "FAIL")
+
+    def test_a_count_the_death_never_resets_fails_at_the_end(self):
+        # AC-063.2 broken: player.kills and the HUD agree, but they still read 1 after the death
+        _, server = self.serve(**game_today(kills_reset_on_death=False))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["kill_counter_text_matches"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("'Kills: 1', player.kills=1", check["detail"])
+        self.assertIn("resets the count to 0 (AC-063.2)", check["detail"])
+        self.assertEqual(rep["new_failures"], ["kill_counter_text_matches"])
+
+    def test_a_death_screen_with_the_reset_count_fails(self):
+        # The death screen must show the life that ended (1), not the live count the death reset
+        _, server = self.serve(**game_today(death_screen_live_count=True))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["death_screen"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("the life's kills 1", check["detail"])
+        self.assertIn("death_screen", rep["new_failures"])
 
     def test_targets_are_found_by_class_name_when_labels_are_object_names(self):
         specs = (dict(fb.TEST_DUMMY_SPEC, label="BP_MordecaiEnemy_C_1"),

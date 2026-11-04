@@ -278,7 +278,14 @@ The contract is `Specs/story_playtests_v1.md`.
   - **Closed** at Jeff's call (2026-10-29): `Saved/Playtests/20261029-175841-us079` exited 0, 56/56, on a fresh package of `9904cde`. US-094, US-079 and US-071 are done.
 
 **Found by the Phase 3 source audit** (2026-10-22, read-only, while planning the per-story playtests; `Specs/story_playtests_v1.md`). The playtests cite these by id in `known_issue`. N7, N11 and N12 are suspected: the sweep confirms or clears them.
-- **N1 The kill counter can never go up.** `UMordecaiKillCounterWidget` waits for `Mordecai.Event.EnemyKill` tag-count changes on the player ASC (`MordecaiKillCounterWidget.cpp:68`), but nothing ever grants that tag. `AMordecaiGameMode` counts kills elsewhere (`MordecaiGameMode.cpp:115-118`). Melee is bound since US-083, but no playtest kills an enemy yet (the kill path is US-086's), and at most 3 Fireballs (75 damage) fit the SP budget.
+- **N1 The kill counter can never go up (FIXED, US-086, issue #6).** `UMordecaiKillCounterWidget` waited for `Mordecai.Event.EnemyKill` tag-count changes on the player ASC, but nothing ever granted that tag. `AMordecaiGameMode` counted kills elsewhere, and the reset listener on `Event.PlayerDeath` was dead too.
+  - Fix: the game mode's count is the one count. The HUD counter follows its `OnEnemyKillCountChanged`, and the bridge reports it as `player.kills`.
+  - Only a kill the player causes counts, credited from the killing blow's effect context, and none while the player is dead.
+  - The player's death saves the life's total for the death screen and resets the count. The respawn does not reset it again; a manual `ResetArena` does. Rules: `Specs/design_decisions_log.md` 2026-11-04.
+  - Tier 1: `Mordecai.Recovery.KillCounter.*` (4 tests, red before the fix). Tier 2: `verify_pie_hud.py` (the counter is bound to the game mode).
+  - Verified on `82ed747` (fresh package): us054_combat's new `kill_enemy_melee` and `kill_counter_increments` PASS, and `death_screen` now requires the life's "Kills: 1". us054_combat exits 0 (`Saved/Playtests/20261104-072504-us054combat`; `bridge_03.png` shows "Kills: 1" after the kill, and `bridge_05.png` "You Died | 3 | Kills: 1" over the HUD's reset "Kills: 0").
+  - The sweep `Saved/Playtests/20261104-072646-sweep` has no PASS → FAIL.
+  - Single-player only, like the death screen; per-player counts for remote clients are issue #77.
 - **N2 The death screen is never created (FIXED, US-086, issue #7).** Nothing referenced `UMordecaiDeathScreenWidget` outside its own files.
   - Fix: `UMordecaiDeathScreenComponent`, on `AMordecaiPlayerController` and bound in `OnPossess`, listens for `Mordecai.State.Dead` on the PlayerState ASC. It pushes the native class onto `UI.Layer.Game`, set up with the game mode's respawn delay and kill count, and removes it at the respawn. The widget builds its own tree.
   - The review of the fix also found two bugs, both fixed: the countdown ran on while the pause menu had paused the respawn timer, and the screen's capture mode stayed on the viewport after it went.
@@ -450,6 +457,13 @@ The contract is `Specs/story_playtests_v1.md`.
   - Before US-101 only tests called `ReceiveParriedHit`. Since US-101 a real parry adds one more count of each, and they stay on for the rest of the session.
   - Nothing in game reads either tag (the combat feedback widget listens for `Parried` on the player's own ASC, so its "Parried!" never shows), so the only effect is in `player.tags` / `actors[].tags`.
   - Not fixed by US-101: no spec gives the stagger or punish-window durations (AC-006.13). A playtest check must not assume either tag goes away. `us101_defenses.py` parries last for that reason.
+
+**Found while fixing issue #6** (2026-11-04, US-086).
+- **N34 A revived enemy's floating health bar keeps its old value.** `AMordecaiEnemyCharacter::ResetForArena` restores Health and Posture with `InitHealth` / `InitPosture`. Those write the attribute directly and fire no attribute-change delegate, and `UMordecaiEnemyHealthBarWidget` only updates on that delegate.
+  - After the respawn's arena reset, the state read shows the enemy at full health (`arena_reset` PASS) while its bar still shows the health it died or was hit at.
+  - Seen in issue #7's sweep: the bar stayed at 184/200 after a reset. Since us054_combat kills the TestDummy (issue #6), a revived dummy would stand under an empty bar.
+  - Fix idea: restore with `SetNumericAttributeBase`, as `HandlePlayerRespawn` does; the enemy's health handler already accepts a change with no effect data.
+  - Filed as GitHub issue #81 (2026-11-04).
 
 **Bridge gaps found while writing the Phase 3 playtests.** These are missing bridge state, not game bugs; each blocks an assertion.
 - **B1 The bridge did not report pickup name labels (FIXED, issue #30).** `actors[].widgets` lists only `UWidgetComponent`s, but the pickup label is a `UTextRenderComponent`, so check `pickup_labels` in `us079_inventory.py` (AC-079.10) failed (known issue B1).

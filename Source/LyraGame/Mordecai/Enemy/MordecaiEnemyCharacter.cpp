@@ -22,6 +22,8 @@
 #include "Components/WidgetComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerState.h"
+#include "GameplayEffectExtension.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyCharacter)
 
@@ -302,8 +304,35 @@ void AMordecaiEnemyCharacter::OnHealthChanged(const FOnAttributeChangeData& Data
 	// AC-050.6: When Health reaches <= 0, enter death state
 	if (Data.NewValue <= 0.f && !IsDead())
 	{
-		EnterDeathState();
+		EnterDeathState(FindPlayerKiller(Data));
 	}
+}
+
+APlayerState* AMordecaiEnemyCharacter::FindPlayerKiller(const FOnAttributeChangeData& Data)
+{
+	// Set on the server for changes a GameplayEffect makes, periodic ticks included; null for a direct set or a
+	// replicated value. Player damage (melee, projectiles, spells, DoTs) uses the context of the player's ASC, which
+	// lives on its PlayerState: instigator = the PlayerState, effect causer = the pawn. Enemies have no PlayerState.
+	if (!Data.GEModData)
+	{
+		return nullptr;
+	}
+	const FGameplayEffectContextHandle& Context = Data.GEModData->EffectSpec.GetEffectContext();
+	for (AActor* Actor : { Context.GetOriginalInstigator(), Context.GetEffectCauser() })
+	{
+		if (APlayerState* PlayerState = Cast<APlayerState>(Actor))
+		{
+			return PlayerState;
+		}
+		if (const APawn* Pawn = Cast<APawn>(Actor))
+		{
+			if (APlayerState* PlayerState = Pawn->GetPlayerState())
+			{
+				return PlayerState;
+			}
+		}
+	}
+	return nullptr;
 }
 
 void AMordecaiEnemyCharacter::OnPostureChanged(const FOnAttributeChangeData& Data)
@@ -330,9 +359,10 @@ void AMordecaiEnemyCharacter::OnPostureChanged(const FOnAttributeChangeData& Dat
 // State Transitions
 // ---------------------------------------------------------------------------
 
-void AMordecaiEnemyCharacter::EnterDeathState()
+void AMordecaiEnemyCharacter::EnterDeathState(APlayerState* Killer)
 {
-	if (!EnemyAbilitySystemComponent)
+	// One death per life: a dead enemy is not killed (or counted) again until ResetForArena
+	if (!EnemyAbilitySystemComponent || IsDead())
 	{
 		return;
 	}
@@ -370,12 +400,12 @@ void AMordecaiEnemyCharacter::EnterDeathState()
 	EventData.Target = this;
 	EnemyAbilitySystemComponent->HandleGameplayEvent(MordecaiGameplayTags::Event_Death, &EventData);
 
-	// US-053: Notify game mode for kill tracking
+	// US-053, issue #6: the game mode counts the kill when a player made it
 	if (UWorld* World = GetWorld())
 	{
 		if (AMordecaiGameMode* GM = Cast<AMordecaiGameMode>(World->GetAuthGameMode()))
 		{
-			GM->NotifyEnemyKilled(this);
+			GM->NotifyEnemyKilled(this, Killer);
 		}
 	}
 }

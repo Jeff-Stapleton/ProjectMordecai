@@ -18,7 +18,7 @@ class UPrimaryGameLayout;
  * Shows the death screen (US-062) while the player is dead. Attached to the player controller, it listens for
  * Mordecai.State.Dead on the PlayerState ASC: when the tag is added (AMordecaiCharacter::HandlePlayerDeath) it pushes
  * UMordecaiDeathScreenWidget onto the local player's UI.Layer.Game stack, set up with the game mode's respawn delay
- * and session kill count; when the tag is removed (HandlePlayerRespawn) it removes the screen.
+ * and the kills of the life that ended; when the tag is removed (HandlePlayerRespawn) it removes the screen.
  *
  * Bound by AMordecaiPlayerController::OnPossess for a local controller, where the combat HUD binds. Like the HUD it
  * serves the local player of a standalone or listen-server game: the Dead tag is a loose tag and does not replicate.

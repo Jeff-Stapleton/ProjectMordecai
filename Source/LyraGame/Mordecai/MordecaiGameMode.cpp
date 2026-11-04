@@ -2,10 +2,14 @@
 
 #include "MordecaiGameMode.h"
 
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "Development/LyraDeveloperSettings.h"
 #include "GameModes/LyraWorldSettings.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/PlayerState.h"
 #include "Mordecai/MordecaiCharacter.h"
+#include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiPlayerController.h"
 #include "Mordecai/MordecaiPlayerState.h"
 #include "Mordecai/MordecaiGameState.h"
@@ -64,6 +68,10 @@ void AMordecaiGameMode::NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer)
 		return;
 	}
 
+	// Issue #6: the death ends the life's kill count (AC-063.2). The death screen shows its total; the HUD starts over.
+	CompletedLifeKillCount = EnemyKillCount;
+	SetEnemyKillCount(0);
+
 	PendingRespawnPlayer = DeadPlayer;
 
 	// Start respawn timer (AC-053.4, AC-053.11: server-authoritative)
@@ -99,22 +107,45 @@ void AMordecaiGameMode::ExecuteRespawn()
 	// Restore player (AC-053.5, AC-053.6)
 	Player->HandlePlayerRespawn();
 
-	// Reset arena if configured (AC-053.8)
+	// Reset arena if configured (AC-053.8). The enemies only: the death already reset the kill count.
 	if (ArenaResetOnPlayerRespawn)
 	{
-		ResetArena();
+		ResetEnemies();
 	}
 
 	PendingRespawnPlayer.Reset();
 }
 
 // ---------------------------------------------------------------------------
-// Arena: Enemy Kill Tracking (US-053)
+// Arena: Enemy Kill Tracking (US-053, issue #6)
 // ---------------------------------------------------------------------------
 
-void AMordecaiGameMode::NotifyEnemyKilled(AMordecaiEnemyCharacter* KilledEnemy)
+void AMordecaiGameMode::NotifyEnemyKilled(AMordecaiEnemyCharacter* KilledEnemy, APlayerState* Killer)
 {
-	EnemyKillCount++;
+	if (!Killer)
+	{
+		return;
+	}
+
+	// The player's Dead tag is on its PlayerState's ASC (HandlePlayerDeath): a projectile or DoT from a life that has
+	// ended scores for no one (Jeff, 2026-11-04)
+	const UAbilitySystemComponent* KillerASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Killer);
+	if (KillerASC && KillerASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Dead))
+	{
+		return;
+	}
+
+	SetEnemyKillCount(EnemyKillCount + 1);
+}
+
+void AMordecaiGameMode::SetEnemyKillCount(int32 NewCount)
+{
+	if (EnemyKillCount == NewCount)
+	{
+		return;
+	}
+	EnemyKillCount = NewCount;
+	OnEnemyKillCountChanged.Broadcast(EnemyKillCount);
 }
 
 void AMordecaiGameMode::RegisterEnemy(AMordecaiEnemyCharacter* Enemy, const FTransform& SpawnTransform)
@@ -135,6 +166,12 @@ void AMordecaiGameMode::RegisterEnemy(AMordecaiEnemyCharacter* Enemy, const FTra
 // ---------------------------------------------------------------------------
 
 void AMordecaiGameMode::ResetArena()
+{
+	ResetEnemies();
+	SetEnemyKillCount(0);
+}
+
+void AMordecaiGameMode::ResetEnemies()
 {
 	for (FEnemySpawnEntry& Entry : EnemyRegistry)
 	{
