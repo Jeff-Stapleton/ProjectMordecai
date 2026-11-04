@@ -22,7 +22,7 @@ The death overlay: one World-voice plate in the family's `foe` inlay mat, holdin
 - **Countdown 3, 2, 1**: CountdownText shows the ceiling of the remaining time; the ring stands at remaining / `RespawnDelaySeconds` (the preview's "1" frame is at 0.25).
 - **Paused while dead**: the countdown and the ring hold; the pause menu (`UI.Layer.Menu`) draws its veil over the plate.
 - **Leave** (CountdownText empty, then `Mordecai.State.Dead` removed): the plate goes out with BannerFade (out) and the veil clears with it, then the widget is removed from the stack.
-- **Respawned**: the HUD is the top of `UI.Layer.Game` again. It re-reads its values in `NativeOnActivated`: full Health, Green stamina, Spell Points full, and "Kills: 0" (the counter resets on `Mordecai.Event.PlayerDeath`).
+- **Respawned**: the HUD is the top of `UI.Layer.Game` again. It re-reads its values in `NativeOnActivated`: full Health, Green stamina, Spell Points full, and "Kills: 0" (the death resets the game mode's count, `AMordecaiGameMode::NotifyPlayerDeath`; the screen itself shows the life's total, `GetCompletedLifeKillCount`).
 - The preview shows countdown 3 at full size, then Enter, Countdown 1 and Leave as 640 x 520 crops at 1:1 (no letter shrinks), then the respawned screen with the real HUD (HUDLayout's markup and classes).
 
 ## Data and implementation

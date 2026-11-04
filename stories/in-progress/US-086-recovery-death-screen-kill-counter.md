@@ -27,7 +27,7 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 ## Acceptance Criteria
 - [x] AC-086.1: When the player dies, a `UMordecaiDeathScreenWidget` is pushed to the Lyra UI layer stack showing "You Died", a respawn countdown (ceiling integer) and "Kills: N"; it is removed on respawn — verified by `Mordecai.Recovery.DeathScreen.ShownOnDeathRemovedOnRespawn`
 - [x] AC-086.2: The death screen builds a default widget tree when its Blueprint/class has none (no blank widget) — verified by `Mordecai.Recovery.DeathScreen.BuildsDefaultContent`
-- [ ] AC-086.3: When an enemy killed by the player dies, the kill counter widget increments from the game mode's kill event (one source of truth: the counter shows the same number as `AMordecaiGameMode`'s count / `player.kills`), and resets on `Mordecai.Event.PlayerDeath` per AC-063.2 — verified by `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath`
+- [ ] AC-086.3: When an enemy killed by the player dies, the kill counter widget increments from the game mode's kill event (one source of truth: the counter shows the same number as `AMordecaiGameMode`'s count / `player.kills`), and resets on `Mordecai.Event.PlayerDeath` per AC-063.2 — verified by `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` and `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath` (as built: the reset is `AMordecaiGameMode::NotifyPlayerDeath`, in the same `HandlePlayerDeath` call that sends the event; rules in `Specs/design_decisions_log.md` 2026-11-04)
 - [x] AC-086.4: In the packaged build, after the enemies have killed the player, the player sees the death screen within 1.5 s — verified by check `death_screen` of `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap: the TestAttacker kills the player)
 - [ ] AC-086.5: In the packaged build, the player kills the TestDummy (200 HP, never attacks) with light attacks (LMB) and the HUD reads "Kills: 1" — verified by NEW checks `kill_enemy_melee` and `kill_counter_increments` added to `Scripts/playtests/us054_combat.py` (Tier 4, CombatTestMap), and `kill_counter_text_matches` still PASSes
 
@@ -47,16 +47,38 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - **Delivered in two halves (2026-10-30).** The death screen (N2, issue #7: AC-086.1, AC-086.2, AC-086.4) is fixed first, on branch `fix/issue-7-death-screen`. The kill counter (N1, issue #6: AC-086.3, AC-086.5) follows. The story stays in progress until both are done.
 - **Death screen as built (issue #7):**
   - `UMordecaiDeathScreenComponent` on `AMordecaiPlayerController`, bound in `OnPossess` for a local controller, next to the combat HUD. It listens for `Mordecai.State.Dead` on the PlayerState ASC (`RegisterGameplayTagEvent`, NewOrRemoved). That tag is the one signal for both directions: there is no respawn event, and `Event.PlayerDeath` changes no tag count.
-  - On the tag it pushes `UMordecaiDeathScreenWidget::StaticClass()` (no content) onto `UI.Layer.Game` through `UPrimaryGameLayout::PushWidgetToLayerStack`, with `InitializeDeathScreen(RespawnDelaySeconds, GetEnemyKillCount())` in the init function, so a pooled instance is set up again on every death. When the tag is removed, it calls `FindAndRemoveWidgetFromLayer`.
+  - On the tag it pushes `UMordecaiDeathScreenWidget::StaticClass()` (no content) onto `UI.Layer.Game` through `UPrimaryGameLayout::PushWidgetToLayerStack`, with `InitializeDeathScreen(RespawnDelaySeconds, GetCompletedLifeKillCount())` in the init function (since issue #6; it was `GetEnemyKillCount()`), so a pooled instance is set up again on every death. When the tag is removed, it calls `FindAndRemoveWidgetFromLayer`.
   - Layer: `UI.Layer.Game`, which is empty in Mordecai and sits below the pause menu (`Menu`) and Lyra's dialogs (`Modal`). US-062's "UI.Layer.Modal" note is superseded.
   - The widget builds its own tree in `NativeOnInitialized` when it has none: a full-screen dim with "You Died", the countdown and "Kills: N" as `UTextBlock`s in its own tree (what the bridge reads). The root is HitTestInvisible.
   - Tier 1 pushes through a real `UCommonActivatableWidgetStack` in a test layout (`Tests/Recovery/MordecaiRecoveryTestLayout.h`). The component's `SetLayoutOverride` and `SetGameModeOverride` exist for that test, because the headless world has no UI policy and no auth game mode.
-  - The kill count on the death screen is `AMordecaiGameMode::GetEnemyKillCount()`, the number the bridge reports as `player.kills`. The HUD counter is N1's. Once the kill path lands, `death_screen` can also compare the screen's N with `player.kills`. Today both are 0.
+  - The kill count on the death screen was `AMordecaiGameMode::GetEnemyKillCount()`, the number the bridge reports as `player.kills`. Since issue #6 it is the life's total, saved when the death resets the live count (see "Kill counter as built").
   - Found by the review of the fix:
     - The pause menu can open while the player is dead, because Escape is bound on the controller and only the pawn's input is disabled. It pauses the world and the respawn timer. The countdown therefore holds while the world is paused (`TickCountdown`).
     - The screen's input config stays on the viewport after it goes, because CommonUI restores none. It therefore uses the project's capture mode, `CapturePermanently_IncludingInitialMouseDown`.
   - Like the combat HUD, the death screen serves the local player of a standalone or listen-server game. `OnPossess` runs only on the server, and `Mordecai.State.Dead` is a non-replicated loose tag (US-053). A remote client sees no death screen.
 - New Tier 4 check `death_screen_removed` (after `respawn`): no widget text "You Died" within 1.5 s of the respawn. `kill_counter_text_matches` cannot tell a left-over screen, because it shows the same N. The `dead` screenshot is now taken after `death_screen`.
+- **Kill counter as built (issue #6, 2026-11-04).** Jeff's rules are in `Specs/design_decisions_log.md` 2026-11-04. He confirmed "reset at death" and "only player-caused kills", which came from the closed PR #76 branch, and chose that a death-window kill scores nothing. None of PR #76's code is used; this was rebuilt from `main`.
+  - **One count:** `AMordecaiGameMode::GetEnemyKillCount()`.
+    - The HUD counter (`UMordecaiKillCounterWidget::BindToASC` → `BindToGameMode`) shows it and follows `OnEnemyKillCountChanged`.
+    - The bridge reports it as `player.kills`.
+    - The dead tag-count listeners and `ResetKillCount` are deleted. No Blueprint referenced them.
+  - **Credit:** `AMordecaiEnemyCharacter::OnHealthChanged` → `FindPlayerKiller(Data)`.
+    - It takes the PlayerState from the killing blow's effect context: the instigator, else the effect causer pawn's PlayerState.
+    - It passes that to `EnterDeathState(Killer)` → `NotifyEnemyKilled(Enemy, Killer)`.
+    - A null killer counts nothing, and neither does a killer whose PlayerState ASC has `Mordecai.State.Dead`.
+    - `EnterDeathState` returns at once for an enemy that is already dead, so a death counts once.
+  - **Reset:**
+    - `NotifyPlayerDeath` saves `CompletedLifeKillCount` (what the death screen shows) and sets the live count to 0. `HandlePlayerDeath` now calls it first, before the Dead tag that pushes the death screen.
+    - `ExecuteRespawn` resets only the enemies (`ResetEnemies`). A manual `ResetArena` also resets the count.
+  - **Same limits as the death screen:** single-player and listen host only, because the game mode is server-only. Remote clients are issue #77.
+  - **Tier 1:** the world has a real authority `AMordecaiGameMode` (`FRecoveryTestEnv::Setup(..., bWithGameMode)`: `SpawnActor` + `UWorld::CopyGameState`, no `InitGame`). The player kills with its real light attack through Lyra's input path, and the HUD is the real combat HUD.
+  - **Tier 2:** `verify_pie_hud.py` checks read-only that the HUD's counter is bound to the PIE game mode (`GetBoundGameMode`) and shows its count. The story's `[LOGIC]` kill was not added.
+    - Python can apply a GameplayEffect class from the player's ASC. But the player's damage effects are built at run time inside the abilities, so there is no class to apply. The native Burning effect deals 3 per tick against a 200-HP enemy, while DevTestMap's Frontliners kill the player.
+    - A test-only damage hook in game code would fake the player.
+    - Tier 1 and Tier 4 kill through the real damage path.
+  - **Tier 4:** `kill_enemy_melee` clicks LMB every 0.3 s, a pace and not a check. It FAILs only when the TestDummy is not dead within 45 s, and reports the click count, the health sequence, the damage per hit and the largest gap.
+    - `death_screen` now requires the screen's N to equal what `kill_counter_increments` read (1).
+    - `kill_counter_text_matches` requires 0 at the end when a kill and the death were both seen.
 
 ## Tests Required
 ### Tier 1 — Automation (headless)
@@ -66,9 +88,11 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - `Mordecai.Recovery.DeathScreen.KeepsTheViewportCaptureMode` — AC-062.3 (found by the issue #7 review)
 - `Mordecai.Recovery.KillCounter.IncrementsOnPlayerKill` — AC-086.3
 - `Mordecai.Recovery.KillCounter.ResetsOnPlayerDeath` — AC-086.3
+- `Mordecai.Recovery.KillCounter.DeathWindowKillsScoreNothing` — AC-086.3 (Jeff, 2026-11-04: death-window kills, respawn keeps the count, manual reset clears it)
+- `Mordecai.Recovery.KillCounter.OnlyPlayerKillsCount` — AC-086.3 ("killed by the player"; a dead enemy counts once)
 ### Tier 2 — PIE smoke (editor integration)
 - `Scripts/verify_pie_death_screen.py`: the controller's DeathScreenComponent exists and is bound to the PlayerState ASC; no death screen while alive, an activated and visible one while dead (read-only)
-- `Scripts/verify_pie_hud.py` extended: KillCounter bound; `[LOGIC]` check that kills an enemy by applying damage directly and sees "Kills: 1" (diagnostic only)
+- `Scripts/verify_pie_hud.py` extended: one HUD kill counter, bound to the game mode and showing its count (read-only). The planned `[LOGIC]` kill was not added (see "Kill counter as built")
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
@@ -80,7 +104,7 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 - **Visible on screen:** "Kills: 1" top-right after the kill; a death screen with "You Died", a countdown digit and "Kills: 1" in the `dead` screenshot; HUD back without the death screen in the `respawned` screenshot
 - **Proof:** Tier 4 checks `kill_enemy_melee`, `kill_counter_increments`, `death_screen`, `death_screen_removed`, `kill_counter_text_matches` of `Scripts/playtests/us054_combat.py`
 - **Tier 4 script:** `Scripts/playtests/us054_combat.py` — run: `py Scripts/playtest_story.py US-086` (or `US-054`)
-- **Steps:** (generated: `py Scripts/playtest_story.py US-086 --plan`; checked: `--lint`). US-086's checks are `death_screen` (AC-086.1, AC-086.4) and `death_screen_removed` (AC-086.1), added with the issue #7 fix, and `kill_counter_text_matches`. The kill checks `kill_enemy_melee` and `kill_counter_increments` (AC-086.5) come with the issue #6 (N1) half, between `dodge_lalt` and `walk_to_attacker`. Before the fix, the 8ea853b sweep (us054 on DevTestMap, before US-100 split it) had `death_screen` SKIP (never died) and `kill_counter_text_matches` PASS (only 'Kills: 0').
+- **Steps:** (generated: `py Scripts/playtest_story.py US-086 --plan`; checked: `--lint`). US-086's checks are `death_screen` (AC-086.1, AC-086.4) and `death_screen_removed` (AC-086.1), added with the issue #7 fix, and the kill checks `kill_enemy_melee` and `kill_counter_increments` plus `kill_counter_text_matches` (AC-086.5), added with the issue #6 (N1) fix between `dodge_lalt` and `walk_to_attacker`. Before the fix, the 8ea853b sweep (us054 on DevTestMap, before US-100 split it) had `death_screen` SKIP (never died) and `kill_counter_text_matches` PASS (only 'Kills: 0').
 
 <!-- Scripts/playtests/us054_combat.py -->
 
@@ -90,18 +114,20 @@ Native widgets and C++ event wiring; no asset is required (the HUD and death scr
 | 2 | `walk_to_dummy` | walk_to(440, 600) -> within 25 cm (the melee spot, 160 cm -X of the TestDummy) | - |
 | 3 | `melee_lmb` | click Left at (640, 360) -> within 1s 'Mordecai.State.Attacking' in player.tags or the TestDummy's health below its value before the click | AC-054.6, AC-054.5 |
 | 4 | `dodge_lalt` | tap LeftAlt -> within 0.5s a Dodging tag in player.tags or a displacement > 150 cm | AC-054.6, AC-054.5 |
-| 5 | `walk_to_attacker` | walk_to(440, 0), walk_to(2000, 0) -> within 60 cm, then within 25 cm (the fight spot, 100 cm -X of the TestAttacker) | - |
-| 6 | `attacker_damages_player` | stand at the fight spot -> player.attributes.health < player.attributes.max_health within 20s | - |
-| 7 | `restoration_heals` | tap One -> within 6s health rises, spell_points drops by 3 and 'Mordecai.Status.Restoration' is in player.tags | US-057:AC-057.4, US-057:AC-057.5, US-057:AC-057.12 |
-| 8 | `burning_on_hit` | keep standing -> within 25s 'Mordecai.Status.Burning' in player.tags and a widget text 'Burning' (WARN if Burning never procs: the TestAttacker swings BasicSlash; ends at once, WARN, when the player dies) | US-057:AC-057.11, US-057:AC-057.8 |
-| 9 | `player_dies` | keep standing -> player.is_dead==true within 60s (or already seen dead by an earlier step), 'Mordecai.State.Dead' in player.tags | US-053:AC-053.1 |
-| 10 | `death_screen` | state widgets -> within 1.5s one widget with 'You Died', a countdown digit and 'Kills: N' | US-062:AC-062.1, US-062:AC-062.2, US-086:AC-086.1, US-086:AC-086.4 |
-| 11 | `dead_no_move` | while dead: hold W 0.5s -> moved < 5 cm | US-053:AC-053.2 |
-| 12 | `respawn` | wait -> within 6s player.is_dead==false, health == max_health, within 150 cm of (0, 0), no 'Mordecai.State.Dead' tag | US-053:AC-053.4, US-053:AC-053.5 |
-| 13 | `death_screen_removed` | state widgets -> within 1.5s of the respawn no widget text 'You Died' (needs the death screen seen) | US-086:AC-086.1 |
-| 14 | `arena_reset` | the first read that shows the respawned player (state actors) -> the TestDummy and the TestAttacker alive, health == max, within 100 cm of their spawns, ai_state 'Idle' in that read; PASS only when that read shows the reset (the TestDummy below max before the death and full at the respawn, or the TestAttacker out of Idle before the death and Idle at the respawn), else WARN | US-053:AC-053.8, US-053:AC-053.9 |
-| 15 | `respawn_moves` | hold W 0.4s -> player x grows by >= 80 cm | US-053:AC-053.6 |
-| 16 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills | US-063:AC-063.1 |
+| 5 | `kill_enemy_melee` | walk_to(440, 600) if the dodge moved the player > 25 cm off the melee spot, then click Left at (640, 360) every 0.3s -> the TestDummy (by label, else class name) is_dead==true within 45s (FAIL with its last health and the damage per hit) | US-086:AC-086.5, AC-054.13 |
+| 6 | `kill_counter_increments` | state widgets, player -> within 2s every 'Kills: N' text reads 'Kills: 1' and player.kills==1 | US-086:AC-086.5, US-063:AC-063.1 |
+| 7 | `walk_to_attacker` | walk_to(440, 0), walk_to(2000, 0) -> within 60 cm, then within 25 cm (the fight spot, 100 cm -X of the TestAttacker) | - |
+| 8 | `attacker_damages_player` | stand at the fight spot -> player.attributes.health < player.attributes.max_health within 20s | - |
+| 9 | `restoration_heals` | tap One -> within 6s health rises, spell_points drops by 3 and 'Mordecai.Status.Restoration' is in player.tags | US-057:AC-057.4, US-057:AC-057.5, US-057:AC-057.12 |
+| 10 | `burning_on_hit` | keep standing -> within 25s 'Mordecai.Status.Burning' in player.tags and a widget text 'Burning' (WARN if Burning never procs: the TestAttacker swings BasicSlash; ends at once, WARN, when the player dies) | US-057:AC-057.11, US-057:AC-057.8 |
+| 11 | `player_dies` | keep standing -> player.is_dead==true within 60s (or already seen dead by an earlier step), 'Mordecai.State.Dead' in player.tags | US-053:AC-053.1 |
+| 12 | `death_screen` | state widgets -> within 1.5s one widget with 'You Died', a countdown digit and 'Kills: N', N = the kills kill_counter_increments read (any N when it did not run) | US-062:AC-062.1, US-062:AC-062.2, US-086:AC-086.1, US-086:AC-086.4 |
+| 13 | `dead_no_move` | while dead: hold W 0.5s -> moved < 5 cm | US-053:AC-053.2 |
+| 14 | `respawn` | wait -> within 6s player.is_dead==false, health == max_health, within 150 cm of (0, 0), no 'Mordecai.State.Dead' tag | US-053:AC-053.4, US-053:AC-053.5 |
+| 15 | `death_screen_removed` | state widgets -> within 1.5s of the respawn no widget text 'You Died' (needs the death screen seen) | US-086:AC-086.1 |
+| 16 | `arena_reset` | the first read that shows the respawned player (state actors) -> the TestDummy and the TestAttacker alive, health == max, within 100 cm of their spawns, ai_state 'Idle' in that read; PASS only when that read shows the reset (the TestDummy below max before the death and full at the respawn, or the TestAttacker out of Idle before the death and Idle at the respawn), else WARN | US-053:AC-053.8, US-053:AC-053.9 |
+| 17 | `respawn_moves` | hold W 0.4s -> player x grows by >= 80 cm | US-053:AC-053.6 |
+| 18 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills; 0 when a kill and the death were both seen (the death resets the count) | US-063:AC-063.1, US-086:AC-086.5 |
 
 - **Playable alone:** YES (after US-083, US-084, US-085)
 

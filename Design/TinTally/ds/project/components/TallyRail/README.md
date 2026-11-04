@@ -73,7 +73,7 @@ Motion (cited by name from the brand book's Motion table; no local timings):
 
 ## Data and implementation
 
-- **Keep:** `UMordecaiKillCounterWidget`, slot `KillCounter`, text `KillCountText`, format `"Kills: %d"`. It increments on `Mordecai.Event.EnemyKill` and resets on `Mordecai.Event.PlayerDeath`. Known gap N1 / issue #6: nothing grants `EnemyKill`, so it reads "Kills: 0" (fix in US-086).
+- **Keep:** `UMordecaiKillCounterWidget`, slot `KillCounter`, text `KillCountText`, format `"Kills: %d"`. It shows `AMordecaiGameMode::GetEnemyKillCount()` (the bridge's `player.kills`) and follows its `OnEnemyKillCountChanged` delegate: it goes up when the player kills an enemy and back to 0 when the player dies (issue #6, US-086; rules in `Specs/design_decisions_log.md` 2026-11-04).
 - **Move:** the KillCounter slot from TopRight (-170, 20) 150 x 24 into the new rail head at (-32, 32), 320 x 56, alignment (1, 0). Binding is by name, so it may sit inside the decor widget.
 - **Where it lives:** `TallyRailHead` and `TallyTicketStack` are children of the HUD root canvas (`UMordecaiCombatHUDWidget`, reparented to `ULyraActivatableWidget` and pushed ONCE on `UI.Layer.Game`). Never push them on their own: a second push on a layer stack hides the HUD. The pause veil and the death screen cover them with the rest of the HUD; the rail head is always visible during play.
 - **New optional widgets (BindWidgetOptional on the HUD, C++ fallbacks like the rest; names from Building it in Unreal):**

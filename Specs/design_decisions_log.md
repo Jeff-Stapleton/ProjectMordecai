@@ -137,3 +137,27 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Why the key-up: the menu consumes the whole press. Closing on the press would let the OS key repeats of a held I reach the game after the menu is gone, and the Inventory action would reopen the menu about 0.5 s later. Escape still closes on the press through CommonUI's back action, so a held Escape can still do that. That is pre-existing and left as is.
 - Still open: the 2026-07-10 TODO(DECISION) to add "I — Inventory" to `control_bindings_v1.1.md`. The bindings doc also does not list in-menu LB/RB yet.
 - Source: issue #32 / US-095 AC-095.1 (fixed with #23 in the same story, Claude Code session, 2026-10-30)
+
+---
+
+## 2026-11-04 — What the kill counter counts, and when it resets (issue #6, US-086)
+
+### What counts
+- Only an enemy death the player caused counts. The credit comes from the killing blow's GAS effect context: its instigator is the player's PlayerState (whose ASC made the effect), or its effect causer is the player's pawn. That covers the player's melee, projectiles, spells and DoT ticks.
+- An enemy that dies to itself, to another enemy, to a Health change with no effect context (the environment, a direct set) or to a direct `EnterDeathState` call counts 0. Nothing in the game kills enemies that way today.
+- A dead enemy counts once. It can count again only after `ResetForArena` revives it.
+- A kill that lands while its player is dead (a projectile or DoT from the life that just ended) scores for no one. Jeff: "Ideally the kill isn't awarded to anyone", and minor.
+- The 2026-11-02 note that a refreshed Burning keeps its original applier's credit (closed PR #76) is not built. The case needs an enemy's Burning and a player's on the same enemy, and that cannot happen today: enemies never hit each other (friendly fire is off between `Mordecai.Team.Enemy` holders). Today the credit follows the context of the active Burning spec.
+
+### When it resets
+- **At the player's death.** `AMordecaiGameMode::NotifyPlayerDeath` saves the life's total for the death screen and resets the live count to 0 (AC-063.2). `HandlePlayerDeath` calls it before `Mordecai.State.Dead` goes on, so the death screen reads the saved total and does not depend on the order of its tag listener.
+- **Not at the respawn.** The respawn's automatic arena reset revives the enemies and leaves the count alone.
+- **At a manual arena reset.** A manual `ResetArena` call resets the count too.
+- AC-062.2's "session kill count" on the death screen therefore means the kills of the life that just ended.
+- AC-063.1 and AC-063.2 named the mechanism, `Mordecai.Event.EnemyKill` / `Event.PlayerDeath` tag events, and it never worked. The behaviour stands: the count goes up on a kill and resets at the death. The reset runs in the same `HandlePlayerDeath` call that sends `Event.PlayerDeath`.
+
+### One count
+- `AMordecaiGameMode::GetEnemyKillCount()` is the one count. The HUD counter shows it through `OnEnemyKillCountChanged`, and the agent bridge reports it as `player.kills`. The dead `Mordecai.Event.EnemyKill` / `Event.PlayerDeath` tag-count listeners are gone; the `Event_EnemyKill` tag stays defined, unused.
+- Single-player: one count for the local player of a standalone or listen-server game. Per-player replicated counts, and a HUD and death screen for remote clients, are issue #77.
+
+- Source: Jeff via Claude Code session (2026-11-04). He confirmed "reset at death" and "only player-caused kills", first recorded on the unmerged branch of closed PR #76, and chose that a death-window kill scores nothing.
