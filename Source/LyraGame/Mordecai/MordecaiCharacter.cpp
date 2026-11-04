@@ -349,6 +349,14 @@ void AMordecaiCharacter::HandlePlayerDeath()
 	}
 	bDeathHandled = true;
 
+	// Notify game mode for respawn flow (AC-053.4). First: it also ends the life's kill count (issue #6), which the
+	// death screen shows when State_Dead goes on below.
+	AMordecaiGameMode* GM = GetWorld() ? Cast<AMordecaiGameMode>(GetWorld()->GetAuthGameMode()) : nullptr;
+	if (GM)
+	{
+		GM->NotifyPlayerDeath(this);
+	}
+
 	// AC-053.1: Apply State_Dead tag and broadcast Event_PlayerDeath
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
 	{
@@ -375,15 +383,6 @@ void AMordecaiCharacter::HandlePlayerDeath()
 		PC->SetIgnoreMoveInput(true);
 		PC->SetIgnoreLookInput(true);
 		DisableInput(PC);
-	}
-
-	// Notify game mode for respawn flow (AC-053.4)
-	if (UWorld* World = GetWorld())
-	{
-		if (AMordecaiGameMode* GM = Cast<AMordecaiGameMode>(World->GetAuthGameMode()))
-		{
-			GM->NotifyPlayerDeath(this);
-		}
 	}
 }
 

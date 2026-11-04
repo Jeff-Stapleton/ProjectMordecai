@@ -116,10 +116,11 @@ void UMordecaiDeathScreenComponent::ShowDeathScreen()
 		return;
 	}
 
-	// The game mode's respawn delay and session kill count (player.kills); its defaults where there is none
+	// The game mode's respawn delay and the kills of the life that just ended (issue #6: the death reset the live count,
+	// player.kills, before this tag went on); its defaults where there is none
 	const AMordecaiGameMode* GameMode = GetGameMode();
 	const float RespawnDelay = (GameMode ? GameMode : GetDefault<AMordecaiGameMode>())->RespawnDelaySeconds;
-	const int32 KillCount = GameMode ? GameMode->GetEnemyKillCount() : 0;
+	const int32 KillCount = GameMode ? GameMode->GetCompletedLifeKillCount() : 0;
 
 	// CommonUI pools the layer's widgets: a later death gets this instance back without NativeOnInitialized, so it
 	// is set up on every push

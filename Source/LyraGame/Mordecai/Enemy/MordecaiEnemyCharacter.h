@@ -18,6 +18,7 @@ class UMordecaiEnemyIndicatorComponent;
 class UStaticMeshComponent;
 class UWidgetComponent;
 class UGameplayAbility;
+class APlayerState;
 struct FOnAttributeChangeData;
 
 /**
@@ -88,9 +89,14 @@ public:
 
 	// --- State Transitions ---
 
-	/** Enter death state: apply State_Dead tag, disable movement/collision, broadcast Event_Death.
-	 *  Called automatically when Health <= 0. Safe to call externally (e.g., instakill). */
-	void EnterDeathState();
+	/** Enter death state: apply State_Dead tag, disable movement/collision, broadcast Event_Death, and tell the game
+	 *  mode who killed it (Killer: the player whose damage did, or null). Called automatically when Health <= 0. Safe to
+	 *  call externally (e.g., instakill). Does nothing for an enemy that is already dead. */
+	void EnterDeathState(APlayerState* Killer = nullptr);
+
+	/** Issue #6: the player whose effect made this Health change (the effect context's instigator or effect causer),
+	 *  or null: the enemy itself, another enemy, or a change with no effect (the environment, a direct set). */
+	static APlayerState* FindPlayerKiller(const FOnAttributeChangeData& Data);
 
 	/** Enter posture broken state: apply State_PostureBroken tag, start recovery timer.
 	 *  Called automatically when Posture <= 0. */

@@ -9,6 +9,7 @@
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerState.h"
 
 // ---------------------------------------------------------------------------
 // 1. Mordecai.Arena.PlayerDeathAtZeroHealth (AC-053.1)
@@ -232,7 +233,7 @@ bool FMordecai_Arena_RespawnReenablesMovement::RunTest(const FString& Parameters
 }
 
 // ---------------------------------------------------------------------------
-// 9. Mordecai.Arena.KillCountIncrementsOnEnemyDeath (AC-053.7)
+// 9. Mordecai.Arena.KillCountIncrementsOnEnemyDeath (AC-053.7; issue #6: only a player's kill counts)
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Arena_KillCountIncrementsOnEnemyDeath,
 	"Mordecai.Arena.KillCountIncrementsOnEnemyDeath",
@@ -243,12 +244,16 @@ bool FMordecai_Arena_KillCountIncrementsOnEnemyDeath::RunTest(const FString& Par
 	AMordecaiGameMode* GM = NewObject<AMordecaiGameMode>();
 	TestNotNull("GameMode created", GM);
 	TestEqual("Initial kill count is 0", GM->GetEnemyKillCount(), 0);
+	APlayerState* Killer = NewObject<APlayerState>();
 
-	GM->NotifyEnemyKilled(nullptr);
+	GM->NotifyEnemyKilled(nullptr, Killer);
 	TestEqual("Kill count is 1", GM->GetEnemyKillCount(), 1);
 
-	GM->NotifyEnemyKilled(nullptr);
+	GM->NotifyEnemyKilled(nullptr, Killer);
 	TestEqual("Kill count is 2", GM->GetEnemyKillCount(), 2);
+
+	GM->NotifyEnemyKilled(nullptr, nullptr);
+	TestEqual("A death no player caused does not count", GM->GetEnemyKillCount(), 2);
 
 	FGameplayTag EnemyKillTag = MordecaiGameplayTags::Event_EnemyKill;
 	TestTrue("Mordecai.Event.EnemyKill tag is valid", EnemyKillTag.IsValid());

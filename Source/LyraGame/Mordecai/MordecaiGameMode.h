@@ -8,6 +8,10 @@
 
 class AMordecaiCharacter;
 class AMordecaiEnemyCharacter;
+class APlayerState;
+
+/** The player's kill count changed (a kill, the player's death, a manual arena reset). */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMordecaiEnemyKillCountChanged, int32 /*KillCount*/);
 
 /**
  * AMordecaiGameMode
@@ -54,19 +58,36 @@ public:
 
 	// --- Arena API ---
 
-	/** Reset all registered enemies to full health/posture (AC-053.9). */
+	/** Reset all registered enemies to full health/posture (AC-053.9), and the kill count. The respawn resets the
+	 *  enemies only: the player's death has already reset the count. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Arena")
 	void ResetArena();
 
-	/** Current enemy kill count this session (AC-053.7). */
+	/**
+	 * The enemies the player has killed this life (AC-053.7, issue #6): the one count the HUD kill counter and the
+	 * agent bridge's player.kills show. It goes back to 0 when the player dies.
+	 * Single-player: one count for the local player (per-player counts are issue #77).
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Arena")
 	int32 GetEnemyKillCount() const { return EnemyKillCount; }
 
-	/** Called by player character on death. Starts the respawn timer. */
+	/** The kills of the life that ended at the player's last death: what the death screen shows (AC-062.2). */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Arena")
+	int32 GetCompletedLifeKillCount() const { return CompletedLifeKillCount; }
+
+	/** Broadcast with the new GetEnemyKillCount() whenever it changes. */
+	FOnMordecaiEnemyKillCountChanged OnEnemyKillCountChanged;
+
+	/** Called by the player character when it dies, before it shows as dead: ends the life's kill count (its total
+	 *  for the death screen, the live count back to 0) and starts the respawn timer. */
 	void NotifyPlayerDeath(AMordecaiCharacter* DeadPlayer);
 
-	/** Called when an enemy is killed. Increments kill count. */
-	void NotifyEnemyKilled(AMordecaiEnemyCharacter* KilledEnemy);
+	/**
+	 * Called when an enemy dies. Killer is the player whose damage killed it (the killing blow's effect context), or
+	 * null when no player did. Only a living player's kill counts: an enemy that dies to anything else, or to a
+	 * projectile or DoT that lands while its player is dead, scores nothing.
+	 */
+	void NotifyEnemyKilled(AMordecaiEnemyCharacter* KilledEnemy, APlayerState* Killer);
 
 	/** Register an enemy for arena tracking (called by enemy on spawn). */
 	void RegisterEnemy(AMordecaiEnemyCharacter* Enemy, const FTransform& SpawnTransform);
@@ -80,8 +101,11 @@ private:
 
 	TArray<FEnemySpawnEntry> EnemyRegistry;
 	int32 EnemyKillCount = 0;
+	int32 CompletedLifeKillCount = 0;
 	FTimerHandle RespawnTimerHandle;
 	TWeakObjectPtr<AMordecaiCharacter> PendingRespawnPlayer;
 
 	void ExecuteRespawn();
+	void ResetEnemies();
+	void SetEnemyKillCount(int32 NewCount);
 };

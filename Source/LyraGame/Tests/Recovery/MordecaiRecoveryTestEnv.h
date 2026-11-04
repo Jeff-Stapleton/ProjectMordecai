@@ -19,6 +19,7 @@
 #include "Mordecai/Enemy/MordecaiEnemyAIController.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/MordecaiCharacter.h"
+#include "Mordecai/MordecaiGameMode.h"
 #include "Mordecai/MordecaiPlayerState.h"
 
 namespace MordecaiRecoveryTest
@@ -45,6 +46,10 @@ namespace MordecaiRecoveryTest
 	 * ULyraHeroComponent does it from SetupPlayerInputComponent). No Lyra teams are created, as in the Mordecai
 	 * experiences, so every player and enemy has FGenericTeamId::NoTeam. The world never begins play and nothing
 	 * ticks unless a test does it.
+	 *
+	 * With bWithGameMode, the world has an authority AMordecaiGameMode, as a map load gives it: enemy deaths reach its
+	 * kill count, the player's death starts its respawn timer, and GetAuthGameMode finds it. It never runs InitGame, so
+	 * no experience loads.
 	 */
 	struct FRecoveryTestEnv
 	{
@@ -52,7 +57,7 @@ namespace MordecaiRecoveryTest
 		AMordecaiPlayerState* PlayerState = nullptr;
 		AMordecaiCharacter* Player = nullptr;
 
-		bool Setup(const FVector& PlayerLocation)
+		bool Setup(const FVector& PlayerLocation, bool bWithGameMode = false)
 		{
 			if (!GEngine)
 			{
@@ -67,11 +72,31 @@ namespace MordecaiRecoveryTest
 			WorldContext.SetCurrentWorld(World);
 			World->InitializeActorsForPlay(FURL());
 
-			if (!World->SpawnActor<ALyraGameState>(ALyraGameState::StaticClass()))
+			if (bWithGameMode)
+			{
+				// Spawned as UGameInstance::CreateGameModeForURL spawns it; its PreInitializeComponents spawns its game
+				// state. SetGameMode needs a game instance, which this world has none of: CopyGameState makes it the
+				// authority. Actors are already initialized, so InitGame never runs and no experience loads.
+				FActorSpawnParameters Params = AlwaysSpawn();
+				Params.ObjectFlags |= RF_Transient;
+				AMordecaiGameMode* GameMode = World->SpawnActor<AMordecaiGameMode>(AMordecaiGameMode::StaticClass(), Params);
+				if (!GameMode || !GameMode->GameState)
+				{
+					return false;
+				}
+				World->CopyGameState(GameMode, GameMode->GameState.Get());
+			}
+			else if (!World->SpawnActor<ALyraGameState>(ALyraGameState::StaticClass()))
 			{
 				return false;
 			}
 			return SpawnPlayer(PlayerLocation, PlayerState, Player);
+		}
+
+		/** The authority game mode (bWithGameMode), or null. */
+		AMordecaiGameMode* GetGameMode() const
+		{
+			return World ? World->GetAuthGameMode<AMordecaiGameMode>() : nullptr;
 		}
 
 		/** Another player with its own player state ASC, built the same way (for co-op checks). */
@@ -171,8 +196,17 @@ namespace MordecaiRecoveryTest
 		/** Change the player's Mordecai Health with an instant GE, the path melee and projectile damage take. */
 		void ApplyPlayerHealthDelta(float Delta) const
 		{
-			UAbilitySystemComponent* ASC = GetPlayerASC();
-			if (!ASC)
+			ApplyHealthDelta(GetPlayerASC(), Player, Delta);
+		}
+
+		/**
+		 * Change Target's Mordecai Health with an instant GE made by Source, the way melee, projectile and spell damage
+		 * apply it: the effect context is Source's (instigator = its owner actor, effect causer = its avatar).
+		 */
+		static void ApplyHealthDelta(UAbilitySystemComponent* Source, AActor* Target, float Delta)
+		{
+			UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target);
+			if (!Source || !TargetASC)
 			{
 				return;
 			}
@@ -182,7 +216,7 @@ namespace MordecaiRecoveryTest
 			Mod.Attribute = UMordecaiAttributeSet::GetHealthAttribute();
 			Mod.ModifierOp = EGameplayModOp::Additive;
 			Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Delta));
-			ASC->ApplyGameplayEffectSpecToSelf(FGameplayEffectSpec(GE, ASC->MakeEffectContext(), 1.f));
+			Source->ApplyGameplayEffectSpecToTarget(FGameplayEffectSpec(GE, Source->MakeEffectContext(), 1.f), TargetASC);
 		}
 
 		void Teardown()
@@ -216,9 +250,9 @@ namespace MordecaiRecoveryTest
 		APlayerController* PC = nullptr;
 		ULocalPlayer* LocalPlayer = nullptr;
 
-		bool SetupWithController()
+		bool SetupWithController(bool bWithGameMode = false)
 		{
-			if (!Setup(FVector::ZeroVector))
+			if (!Setup(FVector::ZeroVector, bWithGameMode))
 			{
 				return false;
 			}
@@ -226,6 +260,12 @@ namespace MordecaiRecoveryTest
 			if (!PC)
 			{
 				return false;
+			}
+			if (PC->PlayerState && PC->PlayerState != PlayerState)
+			{
+				// With an auth game mode the controller spawned its own player state (AController::InitPlayerState):
+				// the test player's replaces it below
+				PC->PlayerState->Destroy();
 			}
 			LocalPlayer = NewObject<ULocalPlayer>(GEngine, ULocalPlayer::StaticClass());
 			PC->Player = LocalPlayer;
