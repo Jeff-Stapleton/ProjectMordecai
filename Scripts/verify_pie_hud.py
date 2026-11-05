@@ -56,6 +56,9 @@ def _run():
           "Mordecai" in pc_class_name,
           f"Got {pc_class_name}")
 
+    indicator_manager = pc.get_component_by_class(unreal.LyraIndicatorManagerComponent)
+    check("Player controller owns an indicator manager", indicator_manager is not None)
+
     # Check CombatHUDWidget exists (BlueprintReadOnly property)
     hud_widget = None
     try:
@@ -75,10 +78,9 @@ def _run():
         # (child properties are protected, so we use GetBoundChildCount instead)
         try:
             child_count = hud_widget.get_bound_child_count()
-            check(f"All HUD child widgets present ({child_count}/12)",
-                  child_count == 12,
-                  f"{child_count}/12 -- the old ten-child root did not include PickupPrompt "
-                  "or the D20 loadout plate")
+            check(f"All HUD child widgets present ({child_count}/13)",
+                  child_count == 13,
+                  f"{child_count}/13 -- expected the twelve HUD controls plus IndicatorLayer")
         except Exception as e:
             check("GetBoundChildCount accessible", False, str(e))
 
@@ -116,6 +118,20 @@ def _run():
         count = game_mode.get_enemy_kill_count()
         check(f"Kill counter shows the game mode's count ({shown} == {count})", shown == count,
               "the HUD counter and player.kills disagree")
+
+    # US-092: DevTestMap starts with all three Frontliners inside aggro range. This script runs after
+    # PIE readiness, so registration must already have reached the manager-backed indicator path.
+    if "DevTestMap" in world.get_path_name():
+        enemies = unreal.GameplayStatics.get_all_actors_of_class(
+            world, unreal.MordecaiEnemyCharacter)
+        indicators = [enemy.get_component_by_class(unreal.MordecaiEnemyIndicatorComponent)
+                      for enemy in enemies]
+        check("DevTestMap has three enemy indicator components", len(indicators) == 3,
+              f"Found {len(indicators)} on {len(enemies)} enemies")
+        registered = sum(1 for indicator in indicators
+                         if indicator and indicator.is_indicator_registered())
+        check("All three aggroed enemies registered indicators", registered == 3,
+              f"{registered}/3 registered")
 
     print("")
     print(f"RESULT: {pass_count} passed, {fail_count} failed")

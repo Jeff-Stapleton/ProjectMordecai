@@ -28,6 +28,7 @@
 #include "GameFramework/PlayerState.h"
 #include "NativeGameplayTags.h"
 #include "PrimaryGameLayout.h"
+#include "UI/IndicatorSystem/LyraIndicatorManagerComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPlayerController)
 
@@ -41,6 +42,9 @@ AMordecaiPlayerController::AMordecaiPlayerController(const FObjectInitializer& O
 
 	// US-086 (issue #7): the death screen, shown while Mordecai.State.Dead is on the player
 	DeathScreenComponent = CreateDefaultSubobject<UMordecaiDeathScreenComponent>(TEXT("DeathScreenComponent"));
+
+	// US-092: Mordecai does not depend on ShooterCore's experience action to provide world-space indicators.
+	IndicatorManagerComponent = CreateDefaultSubobject<ULyraIndicatorManagerComponent>(TEXT("IndicatorManagerComponent"));
 
 	// AC-054.5 / US-083: the player's combat abilities, each with the input tag its bindings press
 	// (UMordecaiHeroComponent). Native class refs: no content, always cooked, never a CDO edit.

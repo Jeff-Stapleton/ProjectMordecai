@@ -6,6 +6,7 @@
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Magic/MordecaiIllusionActor.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/UI/MordecaiEnemyIndicatorComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayAbilitySpec.h"
 #include "Kismet/GameplayStatics.h"
@@ -255,6 +256,14 @@ void AMordecaiEnemyAIController::UpdateStateMachine(float DeltaTime, AActor* Tar
 		if (Target && IsInAggroRange(DistToTarget))
 		{
 			TransitionToState(EMordecaiEnemyAIState::Approach);
+			if (AMordecaiEnemyCharacter* Enemy = CachedEnemy.Get())
+			{
+				if (UMordecaiEnemyIndicatorComponent* Indicator =
+					Enemy->FindComponentByClass<UMordecaiEnemyIndicatorComponent>())
+				{
+					Indicator->NotifyAggroActivated();
+				}
+			}
 		}
 		break;
 

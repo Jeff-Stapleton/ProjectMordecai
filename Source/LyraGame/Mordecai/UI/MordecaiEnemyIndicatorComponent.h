@@ -94,5 +94,6 @@ private:
 	TObjectPtr<UIndicatorDescriptor> ActiveDescriptor;
 
 	FTimerHandle VisibilityTimerHandle;
+	bool bIndicatorRequested = false;
 	bool bIndicatorRegistered = false;
 };

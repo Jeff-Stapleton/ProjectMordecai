@@ -5,6 +5,61 @@
 #include "Mordecai/UI/MordecaiEnemyIndicatorWidget.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/MordecaiPlayerController.h"
+#include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
+#include "UI/IndicatorSystem/IndicatorDescriptor.h"
+#include "UI/IndicatorSystem/LyraIndicatorManagerComponent.h"
+
+using namespace MordecaiRecoveryTest;
+
+namespace MordecaiEnemyIndicatorTest
+{
+	struct FManagerBackedFixture
+	{
+		FRecoveryTestEnv Env;
+		AMordecaiPlayerController* PC = nullptr;
+		AMordecaiEnemyCharacter* Enemy = nullptr;
+		UMordecaiEnemyIndicatorComponent* Component = nullptr;
+		ULyraIndicatorManagerComponent* Manager = nullptr;
+
+		bool Setup()
+		{
+			if (!Env.Setup(FVector::ZeroVector))
+			{
+				return false;
+			}
+			PC = Env.World->SpawnActor<AMordecaiPlayerController>(AMordecaiPlayerController::StaticClass());
+			if (PC)
+			{
+				PC->SetPawn(Env.Player);
+			}
+			Enemy = Env.SpawnEnemy(FVector(500.f, 0.f, 0.f), {});
+			Component = Enemy ? Enemy->FindComponentByClass<UMordecaiEnemyIndicatorComponent>() : nullptr;
+			Manager = PC ? PC->FindComponentByClass<ULyraIndicatorManagerComponent>() : nullptr;
+			return PC && Enemy && Component && Manager;
+		}
+
+		UIndicatorDescriptor* FindEnemyDescriptor() const
+		{
+			if (Manager)
+			{
+				for (UIndicatorDescriptor* Descriptor : Manager->GetIndicators())
+				{
+					if (Descriptor && Descriptor->GetDataObject() == Enemy)
+					{
+						return Descriptor;
+					}
+				}
+			}
+			return nullptr;
+		}
+
+		void Teardown()
+		{
+			Env.Teardown();
+		}
+	};
+}
 
 // ---------------------------------------------------------------------------
 // 1. Mordecai.UI.EnemyIndicator.ComponentExists (AC-064.1)
@@ -40,7 +95,7 @@ bool FMordecai_UI_EnemyIndicator_DefaultProperties::RunTest(const FString& Param
 
 // ---------------------------------------------------------------------------
 // 3. Mordecai.UI.EnemyIndicator.RegistersOnDamage (AC-064.2)
-// Calling NotifyDamageReceived sets bIndicatorRegistered to true.
+// Calling NotifyDamageReceived adds a descriptor to the local controller's indicator manager.
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_EnemyIndicator_RegistersOnDamage,
 	"Mordecai.UI.EnemyIndicator.RegistersOnDamage",
@@ -48,10 +103,22 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_EnemyIndicator_RegistersOnDamage,
 
 bool FMordecai_UI_EnemyIndicator_RegistersOnDamage::RunTest(const FString& Parameters)
 {
-	UMordecaiEnemyIndicatorComponent* Comp = NewObject<UMordecaiEnemyIndicatorComponent>();
-	TestFalse("Indicator not registered initially", Comp->IsIndicatorRegistered());
-	Comp->NotifyDamageReceived();
-	TestTrue("Indicator registered after damage", Comp->IsIndicatorRegistered());
+	using namespace MordecaiEnemyIndicatorTest;
+	FManagerBackedFixture Fixture;
+	if (!TestTrue("manager-backed enemy fixture", Fixture.Setup()))
+	{
+		Fixture.Teardown();
+		return true;
+	}
+
+	TestFalse("Indicator not registered initially", Fixture.Component->IsIndicatorRegistered());
+	TestEqual("Manager starts empty", Fixture.Manager->GetIndicators().Num(), 0);
+	Fixture.Component->NotifyDamageReceived();
+	TestTrue("Indicator registered after damage", Fixture.Component->IsIndicatorRegistered());
+	TestNotNull("Manager contains the enemy descriptor", Fixture.FindEnemyDescriptor());
+	TestEqual("Manager contains exactly one indicator", Fixture.Manager->GetIndicators().Num(), 1);
+
+	Fixture.Teardown();
 	return true;
 }
 
@@ -65,11 +132,23 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_EnemyIndicator_UnregistersOnDeath,
 
 bool FMordecai_UI_EnemyIndicator_UnregistersOnDeath::RunTest(const FString& Parameters)
 {
-	UMordecaiEnemyIndicatorComponent* Comp = NewObject<UMordecaiEnemyIndicatorComponent>();
-	Comp->NotifyDamageReceived();
-	TestTrue("Indicator registered after damage", Comp->IsIndicatorRegistered());
-	Comp->NotifyDeath();
-	TestFalse("Indicator unregistered after death", Comp->IsIndicatorRegistered());
+	using namespace MordecaiEnemyIndicatorTest;
+	FManagerBackedFixture Fixture;
+	if (!TestTrue("manager-backed enemy fixture", Fixture.Setup()))
+	{
+		Fixture.Teardown();
+		return true;
+	}
+
+	Fixture.Component->NotifyDamageReceived();
+	TestTrue("Indicator registered after damage", Fixture.Component->IsIndicatorRegistered());
+	TestNotNull("Manager contains the enemy descriptor", Fixture.FindEnemyDescriptor());
+	Fixture.Component->NotifyDeath();
+	TestFalse("Indicator unregistered after death", Fixture.Component->IsIndicatorRegistered());
+	TestNull("Manager no longer contains the enemy descriptor", Fixture.FindEnemyDescriptor());
+	TestEqual("Manager is empty after death", Fixture.Manager->GetIndicators().Num(), 0);
+
+	Fixture.Teardown();
 	return true;
 }
 

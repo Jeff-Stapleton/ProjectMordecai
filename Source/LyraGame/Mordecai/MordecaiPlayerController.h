@@ -13,6 +13,7 @@ class UMordecaiDeathScreenComponent;
 class UGameplayAbility;
 class UMordecaiAttackProfileDataAsset;
 class UMordecaiSpellDataAsset;
+class ULyraIndicatorManagerComponent;
 
 /**
  * AMordecaiPlayerController
@@ -88,6 +89,10 @@ private:
 	/** Shows the death screen while the player is dead (US-086, issue #7). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|HUD", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMordecaiDeathScreenComponent> DeathScreenComponent;
+
+	/** Owns every local world-space indicator independently of ShooterCore experience actions (US-092). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|HUD", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<ULyraIndicatorManagerComponent> IndicatorManagerComponent;
 
 	bool bAbilitiesGranted = false;
 };
