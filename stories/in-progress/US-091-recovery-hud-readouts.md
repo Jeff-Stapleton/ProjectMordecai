@@ -67,7 +67,7 @@ Native widgets and test/playtest scripts only; no editor assets.
 - [ ] Fresh package of the exact clean commit passes Tier 3 and Tier 4 without `--allow-stale`.
 - [ ] Every `engine_NN.png` and `bridge_NN.png` opened and described.
 - [ ] Full sweep has no baseline PASS → FAIL.
-- [ ] N3 marked FIXED only after packaged evidence.
+- [x] N3 marked FIXED after packaged evidence from `3273068` (`Saved/Playtests/20261104-185928-us078` and `Saved/Playtests/20261104-185741-us054combat`).
 - [ ] Evidence recorded here and in the closing `[US-091]` commit; closing commit touches only `stories/`.
 
 ## Follow-ups
