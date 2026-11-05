@@ -137,3 +137,55 @@ reused Tier 4 script is not an acceptance candidate, AC-092.4 remains unchecked 
 Those packaged screenshots showed both systems rendering simultaneously with heavy overlap. Jeff superseded the
 interim hold on 2026-11-05: remove `WBP_EnemyHealthBar`, make the EnemyIndicator bar red, and retain the old 150 px
 width. New-package evidence for that decision is recorded below after the replacement run.
+
+### Final single-bar replacement evidence
+
+Implementation commit `45c834382852b80f865b64340c1b5704e19d1778` removes the legacy C++ widget,
+`WBP_EnemyHealthBar`, its enemy property/component creation path, and the three enemy Blueprint references.
+`UMordecaiEnemyIndicatorWidget` now wraps its health progress bar in a fixed 150 x 20 size box and uses the old
+bar's exact `FLinearColor::Red` at every health percentage. `enemy_health_bars` now requires exactly one visible
+EnemyIndicator per enemy and no actor-attached legacy widget.
+
+**Red → green.** Before implementation,
+`Mordecai.Recovery.EnemyIndicator.ReplacesLegacyHealthBar` failed because the legacy property and asset existed,
+the size box did not, and the indicator started green; the migrated tooling test also failed because it still
+accepted a legacy actor widget. After implementation: LyraEditor compiled; Tier 1 passed 776/776; Python tooling
+passed 589/589; Tier 2 passed 16/16; US-092 lint passed; and the content guard passed with the deleted asset and
+three resaved enemy Blueprints committed.
+
+**Fresh package.** `py Scripts/package_playtest.py` packaged clean commit `45c8343828` (dirty=false; source
+unchanged during build) with UAT log `Saved/Playtests/package-20261105-095609.log`. Standalone Tier 3
+`C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\Saved\Playtests\20261105-101208-boot` passed freshness,
+experience, cooked-content, loading-screen, crash and 3/3 engine-frame checks with zero log errors.
+
+**Tier 3 + Tier 4.** Story summary
+`C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\Saved\Playtests\20261105-101306-story-us054` used that same
+package. DevTestMap Tier 3 `20261105-101306-boot` and CombatTestMap Tier 3 `20261105-101329-boot` passed.
+Arena Tier 4 `20261105-101349-us054` reported `enemy_health_bars` **PASS** (3 visible EnemyIndicators for 3
+enemies; legacy actor widgets none) and `enemy_indicators` **PASS** (3/3). All previously passing arena checks
+still pass. The script exits 1 only on the unchanged US-085/#85 `enemies_present` live-spacing failure
+(229–264 cm after the swarm reaches the player), matching the prior 229–264 cm failure. Combat Tier 4
+`20261105-101400-us054combat` passed 32 checks, with the expected Burning WARN and no FAIL. Because the shared
+arena run does not exit 0, AC-092.4 remains unchecked and the story remains in progress as directed.
+
+**Screenshot review.**
+- Standalone `20261105-101208-boot`: `engine_loading.png` is the black PROJECT MORDECAI loading screen;
+  `engine_01.png` shows the arena/HUD and three Frontliners, each with one red named indicator bar and no second
+  bar; `engine_02.png` and `engine_03.png` show the dimmed death countdown. `shot_01..03.png` are the desktop
+  wallpaper because another window covered the game; the engine frames are valid.
+- DevTestMap `20261105-101306-boot`: `engine_loading.png` is the Mordecai loading screen; `engine_01.png` and
+  `engine_02.png` show one uniformly sized red bar per Frontliner, with no legacy bar; `engine_03.png` is the
+  dimmed death countdown. `shot_01..03.png` again show only the covering desktop wallpaper.
+- CombatTestMap `20261105-101329-boot`: `engine_loading.png` is the Mordecai loading screen;
+  `engine_01..03.png` show the fixed-camera measuring grid, player and idle TestDummy (no indicator before aggro),
+  plus the HUD/loadout. `shot_01..03.png` show the covering desktop wallpaper.
+- Arena `20261105-101349-us054`: `bridge_01.png` and `bridge_02.png` show the three red Frontliner cylinders
+  around the player with exactly one vivid-red indicator bar each. There is no lower legacy bar. Compared with
+  prior dual-bar `20261105-021229-us054/bridge_01.png`, each replacement bar matches the old red bar's horizontal
+  span; Tier 1 fixes that span at 150 px. The second frame shows reduced player health after a hit.
+- Combat `20261105-101400-us054combat`: `bridge_01.png` is the grid start; `bridge_02.png` is the player beside
+  the live TestDummy; `bridge_03.png` shows the dead dummy gone and no orphan legacy bar, with Kills: 1;
+  `bridge_04.png` shows the orange attacker with one red indicator bar; `bridge_05.png` is the dimmed You Died
+  screen; `bridge_06.png` shows the respawned player, restored targets, Kills: 0 and the loadout plate.
+
+No new failure was filed: the sole failing check is the existing US-085/#85 spacing issue.
