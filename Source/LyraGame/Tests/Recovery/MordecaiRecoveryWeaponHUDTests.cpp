@@ -197,3 +197,31 @@ bool FMordecai_Recovery_WeaponHUD_PassesGameplayInput::RunTest(const FString& Pa
 	}
 	return true;
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_WeaponHUD_HidesBehindModalLayer,
+	"Mordecai.Recovery.WeaponHUD.HidesBehindModalLayer",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_WeaponHUD_HidesBehindModalLayer::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryTest;
+
+	FRecoveryControlledTestEnv Env;
+	if (!TestTrue("controlled player world", Env.SetupWithController()))
+	{
+		Env.TeardownWithController();
+		return true;
+	}
+
+	UMordecaiCombatHUDWidget* HUD = Env.MakeWidget<UMordecaiCombatHUDWidget>();
+	HUD->ActivateWidget();
+	HUD->DeactivateWidget();
+	TestTrue("deactivated HUD is collapsed behind the death screen",
+		HUD->GetVisibility() == ESlateVisibility::Collapsed);
+	HUD->ActivateWidget();
+	TestTrue("reactivated HUD is visible after respawn",
+		HUD->GetVisibility() == ESlateVisibility::SelfHitTestInvisible);
+
+	Env.TeardownWithController();
+	return true;
+}

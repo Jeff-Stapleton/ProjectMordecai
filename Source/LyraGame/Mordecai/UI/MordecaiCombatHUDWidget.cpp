@@ -44,6 +44,7 @@ void UMordecaiCombatHUDWidget::NativeOnInitialized()
 void UMordecaiCombatHUDWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
+	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
 	// UI.Layer.Game deactivates this root while the death screen is on top. Re-read every source when the root
 	// returns so pooled/rebuilt child trees cannot show values from the life that ended.
@@ -59,6 +60,12 @@ void UMordecaiCombatHUDWidget::NativeOnActivated()
 	{
 		BindToInteraction(Interaction);
 	}
+}
+
+void UMordecaiCombatHUDWidget::NativeOnDeactivated()
+{
+	Super::NativeOnDeactivated();
+	SetVisibility(ESlateVisibility::Collapsed);
 }
 
 void UMordecaiCombatHUDWidget::BuildDefaultLayout()

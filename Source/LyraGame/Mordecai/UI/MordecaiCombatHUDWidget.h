@@ -65,6 +65,7 @@ public:
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeOnActivated() override;
+	virtual void NativeOnDeactivated() override;
 
 	// --- Core Resource Bars (US-052) ---
 
