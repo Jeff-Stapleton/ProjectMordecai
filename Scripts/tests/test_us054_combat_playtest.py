@@ -468,10 +468,8 @@ class TestUs054CombatPlan(unittest.TestCase):
                      "attacker_damages_player"):
             self.assertEqual(plan[name].proves, (), name)
         self.assertEqual(plan["death_screen_removed"].proves, ("US-086:AC-086.1",))
-        self.assertEqual(plan["weapon_hud_hidden_under_death"].proves,
-                         ("US-091:AC-091.C",))
-        self.assertEqual(plan["weapon_hud_restored_after_respawn"].proves,
-                         ("US-091:AC-091.C",))
+        self.assertEqual(plan["weapon_hud_hidden_under_death"].proves, ())
+        self.assertEqual(plan["weapon_hud_restored_after_respawn"].proves, ())
         # The kill (issue #6)
         self.assertEqual(plan["kill_enemy_melee"].proves, ("US-086:AC-086.5", "AC-054.13"))
         self.assertEqual(plan["kill_counter_increments"].proves,
@@ -479,7 +477,7 @@ class TestUs054CombatPlan(unittest.TestCase):
         # N1 (issue #6) and N2 (issue #7) are fixed: no check is expected to fail
         self.assertEqual({s.check for s in us054c.PLAN if s.known_issue}, set())
         self.assertEqual(set(us054c.Us054CombatRun.COVERS),
-                         {"US-053", "US-057", "US-062", "US-063", "US-086", "US-091"})
+                         {"US-053", "US-057", "US-062", "US-063", "US-086"})
 
     def test_declarations(self):
         run = us054c.Us054CombatRun
@@ -797,7 +795,7 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertIn(us054c.WEAPON_WIDGET_CLASS,
                       checks["weapon_hud_hidden_under_death"]["detail"])
         self.assertEqual(rep["new_failures"], ["weapon_hud_hidden_under_death"])
-        self.assertEqual(self.acs(rep)[("US-091", "AC-091.C")]["status"], "FAIL")
+        self.assertNotIn(("US-091", "AC-091.C"), self.acs(rep))
 
     def test_a_death_screen_left_after_the_respawn_fails(self):
         # death_screen_removed catches it. Since the stale screen remains the top of UI.Layer.Game,
@@ -818,7 +816,7 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         acs = self.acs(rep)
         self.assertEqual(acs[("US-086", "AC-086.1")]["status"], "FAIL")
         self.assertEqual(acs[("US-086", "AC-086.4")]["status"], "PASS")
-        self.assertEqual(acs[("US-091", "AC-091.C")]["status"], "FAIL")
+        self.assertNotIn(("US-091", "AC-091.C"), acs)
 
     def test_the_known_cadence_fits_the_default_timeouts(self):
         # 15 damage per ~2.6 s with Restoration's heal: the death comes well inside the default

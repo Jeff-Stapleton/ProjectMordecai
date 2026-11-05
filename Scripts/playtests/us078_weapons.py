@@ -111,8 +111,7 @@ PLAN = (
          proves=("AC-078.9", "AC-078.10", "US-077:AC-077.1", "US-077:AC-077.5",
                  "US-077:AC-077.6")),
     Step("weapon_hud_text", "state player, widgets -> visible MordecaiEquippedWeaponWidget text equals "
-         "player.weapon.display_name", proves=("AC-078.11", "AC-078.12", "US-077:AC-077.7",
-                                                "US-091:AC-091.D")),
+         "player.weapon.display_name", proves=("AC-078.11", "AC-078.12", "US-077:AC-077.7")),
     *[Step(f"cycle_next_{k}", f"tap {NEXT_KEY} -> wait_until player.weapon.index=="
            f"{k} (from {k - 1}), display_name '{WEAPONS[k]}'",
            proves=(("AC-078.6", "AC-078.8", "AC-078.14", "US-077:AC-077.3") if k == 1 else
@@ -130,7 +129,7 @@ PLAN = (
          f"(index+1)%{WEAPON_COUNT} with the matching display_name", proves=("AC-078.6",)),
     Step("weapon_hud_updates", f"tap {NEXT_KEY} -> the new weapon is equipped and visible "
          "MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text)",
-         proves=("AC-078.12", "AC-078.14", "US-077:AC-077.8", "US-091:AC-091.D")),
+         proves=("AC-078.12", "AC-078.14", "US-077:AC-077.8")),
     Step("light_attack_lmb", f"alive, no {ATTACKING_TAG} -> click Left at {ATTACK_POINT} -> "
          f"{ATTACKING_TAG} without {HEAVY_TAG} in player.tags within {LIGHT_TIMEOUT_S:g} s",
          proves=("AC-078.14",)),
@@ -202,7 +201,7 @@ def _dead(st):
 
 class Us078Run(kit.PlaytestRun):
     STORY = STORY
-    COVERS = ("US-077", "US-091")
+    COVERS = ("US-077",)
     FEATURES = ("weapons", "weapon_hud", "melee_attack")
     TITLE = TITLE
     SCREENSHOTS = SCREENSHOTS

@@ -202,7 +202,7 @@ PLAN = (
          "kill_counter_increments read (any N when it did not run)",
          proves=("US-062:AC-062.1", "US-062:AC-062.2", "US-086:AC-086.1", "US-086:AC-086.4")),
     Step("weapon_hud_hidden_under_death", f"state widgets -> no visible {WEAPON_WIDGET_CLASS} "
-         "while the death screen is visible", proves=("US-091:AC-091.C",)),
+         "while the death screen is visible"),
     Step("dead_no_move", f"while dead: hold W {DEAD_HOLD_S:g}s -> moved < {DEAD_MAX_MOVE_CM:g} cm",
          proves=("US-053:AC-053.2",)),
     Step("respawn", f"wait -> within {RESPAWN_TIMEOUT_S:g}s player.is_dead==false, health == "
@@ -213,7 +213,7 @@ PLAN = (
          proves=("US-086:AC-086.1",)),
     Step("weapon_hud_restored_after_respawn", f"state widgets -> within "
          f"{DEATH_SCREEN_TIMEOUT_S:g}s of the respawn visible {WEAPON_WIDGET_CLASS} shows "
-         f"'{STARTING_WEAPON}'", proves=("US-091:AC-091.C",)),
+         f"'{STARTING_WEAPON}'"),
     Step("arena_reset", "the first read that shows the respawned player (state actors) -> the "
          f"{DUMMY} and the {ATTACKER} alive, health == max, within {SPAWN_TOL_CM:g} cm of their "
          f"spawns, ai_state '{IDLE}' in that read; PASS only when that read shows the reset (the "
@@ -433,7 +433,7 @@ class Us054CombatRun(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
-    COVERS = ("US-053", "US-057", "US-062", "US-063", "US-086", "US-091")
+    COVERS = ("US-053", "US-057", "US-062", "US-063", "US-086")
     FEATURES = ("enemies", "enemy_ai", "melee_attack", "dodge", "death_respawn", "kill_counter",
                 "status_effects")
     TITLE = TITLE
