@@ -23,9 +23,9 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
   - `Source/LyraGame/Mordecai/UI/MordecaiCombatHUDWidget.cpp:34-127` (no indicator layer)
 
 ## Acceptance Criteria
-- [ ] AC-092.1: When an enemy's AI enters aggro on the player, its indicator component registers an indicator — verified by `Mordecai.Recovery.EnemyIndicator.RegistersOnAggro`
-- [ ] AC-092.2: A registration attempted while no indicator manager is available is retried (the flag is set only after `AddIndicator` succeeds) — verified by `Mordecai.Recovery.EnemyIndicator.RetriesWhenManagerMissing`
-- [ ] AC-092.3: `AMordecaiPlayerController` has a `ULyraIndicatorManagerComponent` and the default combat HUD contains an `UIndicatorLayer`, without depending on the ShooterCore experience — verified by `Mordecai.Recovery.EnemyIndicator.ArenaHasManagerAndLayer`
+- [x] AC-092.1: When an enemy's AI enters aggro on the player, its indicator component registers an indicator — verified by `Mordecai.Recovery.EnemyIndicator.RegistersOnAggro`
+- [x] AC-092.2: A registration attempted while no indicator manager is available is retried (the flag is set only after `AddIndicator` succeeds) — verified by `Mordecai.Recovery.EnemyIndicator.RetriesWhenManagerMissing`
+- [x] AC-092.3: `AMordecaiPlayerController` has a `ULyraIndicatorManagerComponent` and the default combat HUD contains an `UIndicatorLayer`, without depending on the ShooterCore experience — verified by `Mordecai.Recovery.EnemyIndicator.ArenaHasManagerAndLayer`
 - [ ] AC-092.4: In the packaged build, standing at the spawn with three Frontliners in aggro range, the player sees one indicator per enemy within 3 s — verified by check `enemy_indicators` of `Scripts/playtests/us054_arena.py` (Tier 4; state read while the player stands — no input needed beyond the launch)
 
 ## Technical Notes
@@ -71,16 +71,65 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 
 ## Definition of Done
 - [ ] All ACs checked off
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST, then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [x] Content: none; `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST, then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [x] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-054`: `enemy_indicators` goes from FAIL to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
-- [ ] Known issue N17 marked FIXED in `Specs/agent_playtest_plan_v1.md`
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-092]` closing commit
+- [x] Known issue N17 marked FIXED in `Specs/agent_playtest_plan_v1.md`
+- [x] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
+- [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-092]` closing commit
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
-<Filled in by the coding agent.>
+Implementation commit `318be74`; playtest bookkeeping commit `dbe771f`. The owner rule was preserved:
+`WBP_EnemyHealthBar` and `enemy_health_bars` are unchanged, and the new indicator remains alongside the old bar.
+
+**Red → green.** Before implementation, all three `Mordecai.Recovery.EnemyIndicator.*` tests failed on the
+intended gaps (manager, widget class, HUD layer, aggro registration, retry membership). After implementation:
+the project compiled; Tier 1 passed 775/775; Python tooling passed 588/588 plus the final 45-test US-054 subset;
+US-092 lint passed; and Tier 2 passed 16/16 scripts. `verify_pie_hud.py` specifically saw the controller manager,
+three enemy indicator components and all three registered indicators.
+
+**Fresh package.** `py Scripts/package_playtest.py` packaged clean commit
+`dbe771fb65074f75b3ad227e34a9bb5cab55631e` (dirty=false, no source changed during build; UAT log
+`Saved/Playtests/package-20261105-015903.log`). Standalone Tier 3
+`Saved/Playtests/20261105-021039-boot` passed every gameplay check: fresh build, Mordecai experience, no crash,
+content cooked, Mordecai loading screen and 3/3 engine frames. Its desktop `shot_01..03.png` are black because
+the workstation was covered/locked; the corresponding engine frames are valid.
+
+**Tier 3 + Tier 4.** `Saved/Playtests/20261105-021148-story-us054` used that same fresh package.
+Both Tier 3 boots passed: DevTestMap `Saved/Playtests/20261105-021148-boot` and CombatTestMap
+`Saved/Playtests/20261105-021209-boot`. Tier 4 arena
+`Saved/Playtests/20261105-021229-us054` changed `enemy_indicators` from 0/3 FAIL in
+`Saved/Playtests/20261104-233032-us054` to **3/3 PASS** within 3 s. `enemy_health_bars` also remained PASS.
+Every previously passing arena check remained passing. The run still exits 1 only on the pre-existing,
+unchanged `enemies_present` spacing clause (229–264 cm after the Frontliners have already swarmed the player,
+versus 230–265 cm in the prior run); this is tracked by in-progress US-085 and is outside US-092. Because the
+reused Tier 4 script is not an acceptance candidate, AC-092.4 remains unchecked and this story remains in
+`in-progress/` pending Jeff's close-at-call decision. Combat Tier 4
+`Saved/Playtests/20261105-021241-us054combat` passed (32 PASS, 1 expected Burning WARN, 0 FAIL).
+
+**Screenshot review.**
+- Standalone boot `engine_loading.png`: black Mordecai loading screen with `PROJECT MORDECAI`; `engine_01.png`:
+  arena/HUD and three Frontliners, each with a green named `EnemyIndicator` visibly above the retained red
+  `WBP_EnemyHealthBar`; `engine_02.png` and `engine_03.png`: dimmed death screen/countdown with the old red bars
+  still behind it.
+- DevTestMap story boot `engine_loading.png`: Mordecai loading screen; `engine_01.png` and `engine_02.png`: the
+  three red cylinder Frontliners with both bars—green named indicators over red legacy bars—with substantial
+  duplicate-label overlap; `engine_03.png`: `You Died` countdown over the dimmed arena and legacy red bars.
+- CombatTestMap story boot `engine_loading.png`: Mordecai loading screen; `engine_01.png`,
+  `engine_02.png`, `engine_03.png`: fixed-camera grey grid, player and idle TestDummy with its legacy red bar,
+  full combat HUD and loadout plate.
+- Arena Tier 4 `bridge_01.png`: fixed-camera arena, three Frontliners crowded around the player, and both bars
+  clearly visible on all three (green named `EnemyIndicator` plus red `WBP_EnemyHealthBar`); `bridge_02.png`:
+  the same dual-bar view after a hit, with player health reduced.
+- Combat Tier 4 `bridge_01.png`: grid start/HUD and distant dummy; `bridge_02.png`: player beside the live
+  TestDummy and its red bar; `bridge_03.png`: dead dummy body gone, empty bar and `Kills: 1`;
+  `bridge_04.png`: player beside the orange attacker after a hit, with the green named indicator over the
+  retained legacy bar; `bridge_05.png`: dimmed `You Died`, countdown and `Kills: 1`; `bridge_06.png`: respawned
+  player at full health, `Kills: 0`, loadout restored and dummy reset.
+
+The packaged screenshots answer the pending dual-bar question without changing the owner decision: both systems
+render simultaneously, and their labels/bars overlap heavily. No new PASS→FAIL regression was found.
