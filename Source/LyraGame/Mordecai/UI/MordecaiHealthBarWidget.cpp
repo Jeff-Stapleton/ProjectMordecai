@@ -67,6 +67,11 @@ void UMordecaiHealthBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 		return;
 	}
 
+	if (UAbilitySystemComponent* Previous = BoundASC.Get())
+	{
+		Previous->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute()).RemoveAll(this);
+		Previous->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxHealthAttribute()).RemoveAll(this);
+	}
 	BoundASC = ASC;
 
 	ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute())

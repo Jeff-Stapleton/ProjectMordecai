@@ -68,7 +68,8 @@ AI_NOT_RESET = r"TestAttacker: AI not reset to Idle at the respawn \(ai_state (A
 PLAN_ORDER = ["combat_targets_present", "walk_to_dummy", "melee_lmb", "dodge_lalt",
               "kill_enemy_melee", "kill_counter_increments",
               "walk_to_attacker", "attacker_damages_player", "restoration_heals", "burning_on_hit",
-              "player_dies", "death_screen", "dead_no_move", "respawn", "death_screen_removed",
+              "player_dies", "death_screen", "weapon_hud_hidden_under_death", "dead_no_move",
+              "respawn", "death_screen_removed", "weapon_hud_restored_after_respawn",
               "arena_reset", "respawn_moves", "kill_counter_text_matches"]
 # The checks that moved from us054_arena.py keep their proves (Specs: the us054 split); US-086
 # (issue #7) adds its death screen ACs to death_screen.
@@ -110,6 +111,7 @@ class CombatWorld(fb.FakeWorld):
     AI state.  ai_reported=False: every enemy's ai_state reads 'Idle' (a broken report).
     moves_after_respawn=False: movement input stays ignored after the respawn (a broken
     HandlePlayerRespawn).  death_screen=False: no death screen (issue #7 before its fix);
+    hud_under_death=True: the deactivated combat HUD still draws below the death screen;
     death_screen_stays=True: it is never removed after a respawn.  ai_log: (label, real time,
     ai_state) of every AI state change.
     The kill (issue #6): an enemy struck to 0 health dies (is_dead, ai_state 'Dead', no more hits)
@@ -127,10 +129,11 @@ class CombatWorld(fb.FakeWorld):
                  hit_damage=15.0, windup_s=0.5, attack_s=1.1, cooldown_s=1.5, attacker_hits=True,
                  restoration=True, heal_per_s=8.0, restoration_s=5.0, burn_chance=0.0,
                  burn_indicator=True, attacks=True, attack_tag=True, death_screen=True,
-                 death_screen_stays=False, dead_moves=False, arena_reset=True, reset_ai=True,
-                 ai_reported=True, moves_after_respawn=True, kills_text=None, enemies_die=True,
-                 counter_counts=True, kills_reset_on_death=True, death_screen_live_count=False,
-                 dodge_back_cm=98.0, **kwargs):
+                 hud_under_death=False, death_screen_stays=False, dead_moves=False,
+                 arena_reset=True, reset_ai=True, ai_reported=True, moves_after_respawn=True,
+                 kills_text=None, enemies_die=True, counter_counts=True,
+                 kills_reset_on_death=True, death_screen_live_count=False, dodge_back_cm=98.0,
+                 **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         kwargs.setdefault("respawn_s", us054c.RESPAWN_DELAY_S)  # the game's 3 s
@@ -147,6 +150,7 @@ class CombatWorld(fb.FakeWorld):
         self.burn_chance, self.burn_indicator = burn_chance, burn_indicator
         self.attacks, self.attack_tag = attacks, attack_tag
         self.death_screen, self.dead_moves = death_screen, dead_moves
+        self.hud_under_death = hud_under_death
         self.death_screen_stays = death_screen_stays
         self.arena_reset, self.reset_ai = arena_reset, reset_ai
         self.ai_reported, self.kills_text = ai_reported, kills_text
@@ -342,6 +346,13 @@ class CombatWorld(fb.FakeWorld):
 
     def _s_widgets(self):
         out = super()._s_widgets()
+        stays = self.death_screen_stays and self.respawns
+        screen_up = self.death_screen and (self.is_dead or stays)
+        if screen_up and not self.hud_under_death:
+            # UI.Layer.Game is a stack: the death screen is the top widget, so the HUD root and
+            # every child (counter, prompt, loadout plate) are not on screen.
+            out = [w for w in out if w.get("class") not in
+                   ("WBP_CombatHUD_C", "MordecaiPickupPromptWidget")]
         # The real HUD root has no 'Kills: N' text of its own: only the counter shows one
         for w in out:
             if w.get("class") == "WBP_CombatHUD_C":
@@ -350,14 +361,17 @@ class CombatWorld(fb.FakeWorld):
             shown = self.kills_text
         else:
             shown = self.kills if self.counter_counts else 0
-        out.append({"class": "MordecaiKillCounterWidget", "name": "Kills",
-                    "rect": [1140, 20, 120, 30], "texts": [f"Kills: {shown}"],
-                    "buttons": []})
-        if self.burn_indicator and TAG_BURNING in self.timed_tags:
+        if not screen_up or self.hud_under_death:
+            out.append({"class": "MordecaiKillCounterWidget", "name": "Kills",
+                        "rect": [1140, 20, 120, 30], "texts": [f"Kills: {shown}"],
+                        "buttons": []})
+            out.append({"class": us054c.WEAPON_WIDGET_CLASS, "name": "LoadoutPlate",
+                        "rect": [1008, 628, 240, 56],
+                        "texts": [us054c.STARTING_WEAPON, "Slash", "Tab"], "buttons": []})
+        if not screen_up and self.burn_indicator and TAG_BURNING in self.timed_tags:
             out.append({"class": "MordecaiStatusEffectBarWidget", "name": "Status",
                         "rect": [40, 104, 260, 20], "texts": ["Burning"], "buttons": []})
-        stays = self.death_screen_stays and self.respawns
-        if self.death_screen and (self.is_dead or stays):
+        if screen_up:
             left = (max(0, math.ceil(self.respawn_s - (self.real_time() - self.dead_since)))
                     if self.is_dead else 0)
             # UMordecaiDeathScreenWidget: the countdown is a bare ceiling digit, empty at 0 (the
@@ -454,6 +468,8 @@ class TestUs054CombatPlan(unittest.TestCase):
                      "attacker_damages_player"):
             self.assertEqual(plan[name].proves, (), name)
         self.assertEqual(plan["death_screen_removed"].proves, ("US-086:AC-086.1",))
+        self.assertEqual(plan["weapon_hud_hidden_under_death"].proves, ())
+        self.assertEqual(plan["weapon_hud_restored_after_respawn"].proves, ())
         # The kill (issue #6)
         self.assertEqual(plan["kill_enemy_melee"].proves, ("US-086:AC-086.5", "AC-054.13"))
         self.assertEqual(plan["kill_counter_increments"].proves,
@@ -501,8 +517,8 @@ class TestUs054CombatPlan(unittest.TestCase):
         self.assertIn("| 1 | `combat_targets_present` |", text)
         self.assertIn("| 5 | `kill_enemy_melee` |", text)
         self.assertIn("| 6 | `kill_counter_increments` |", text)
-        self.assertIn("| 15 | `death_screen_removed` |", text)
-        self.assertIn("| 18 | `kill_counter_text_matches` |", text)
+        self.assertIn("| 16 | `death_screen_removed` |", text)
+        self.assertIn("| 20 | `kill_counter_text_matches` |", text)
         self.assertNotIn("Known issue N2", text)
 
 
@@ -646,9 +662,13 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
         self.assertEqual(rep["fixed_candidates"], [])
-        # The death screen shows the life's 1 kill; the HUD's counter, reset by the death, 0
+        # The death screen shows the life's 1 kill; it is the top of UI.Layer.Game, so the HUD
+        # root (including the reset live counter and weapon plate) is absent from bridge state.
         self.assertRegex(checks["death_screen"]["detail"], r"'You Died', '[123]', 'Kills: 1'")
-        self.assertIn("'Kills: 0'", checks["death_screen"]["detail"])
+        self.assertNotIn("'Kills: 0'", checks["death_screen"]["detail"])
+        self.assertNotIn(us054c.WEAPON_WIDGET_CLASS, checks["death_screen"]["detail"])
+        self.assertIn(us054c.WEAPON_WIDGET_CLASS, checks["death_screen_removed"]["detail"])
+        self.assertIn("'Longsword'", checks["death_screen_removed"]["detail"])
         self.assertEqual([s["label"] for s in rep["screenshots"]],
                          ["start", "near_dummy", "killed", "hit", "dead", "respawned"])
         # The light attack is judged on the dummy, which was really hit.
@@ -762,10 +782,24 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         for ac in (("US-062", "AC-062.1"), ("US-086", "AC-086.1"), ("US-086", "AC-086.4")):
             self.assertEqual(acs[ac]["status"], "FAIL", ac)
 
+    def test_a_deactivated_hud_still_drawing_fails_only_the_us091_layering_step(self):
+        # PR #84 before 3273068: the death screen was valid, but the deactivated combat HUD and
+        # loadout plate remained visible beneath it.
+        _, server = self.serve(**game_today(hud_under_death=True))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.by_name(rep)
+        self.assertEqual(checks["death_screen"]["status"], "PASS",
+                         checks["death_screen"]["detail"])
+        self.assertEqual(checks["weapon_hud_hidden_under_death"]["status"], "FAIL")
+        self.assertIn(us054c.WEAPON_WIDGET_CLASS,
+                      checks["weapon_hud_hidden_under_death"]["detail"])
+        self.assertEqual(rep["new_failures"], ["weapon_hud_hidden_under_death"])
+        self.assertNotIn(("US-091", "AC-091.C"), self.acs(rep))
+
     def test_a_death_screen_left_after_the_respawn_fails(self):
-        # death_screen_removed catches it.  The screen's 'Kills: 1' (the life that ended) beside
-        # the reset HUD's 'Kills: 0' is not the kill counter's fault: kill_counter_text_matches
-        # reads the counter only, and passes
+        # death_screen_removed catches it. Since the stale screen remains the top of UI.Layer.Game,
+        # the HUD counter and weapon plate remain hidden too.
         _, server = self.serve(**game_today(death_screen_stays=True))
         code, rep = self.play(server)
         self.assertEqual(code, 1)
@@ -773,13 +807,16 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertEqual(checks["death_screen"]["status"], "PASS", checks["death_screen"]["detail"])
         self.assertEqual(checks["death_screen_removed"]["status"], "FAIL")
         self.assertIn("'You Died'", checks["death_screen_removed"]["detail"])
-        self.assertEqual(checks["kill_counter_text_matches"]["status"], "PASS",
+        self.assertEqual(checks["kill_counter_text_matches"]["status"], "FAIL",
                          checks["kill_counter_text_matches"]["detail"])
-        self.assertIn("'Kills: 0', player.kills=0", checks["kill_counter_text_matches"]["detail"])
-        self.assertEqual(rep["new_failures"], ["death_screen_removed"])
+        self.assertIn("expected one value", checks["kill_counter_text_matches"]["detail"])
+        self.assertEqual(rep["new_failures"],
+                         ["death_screen_removed", "weapon_hud_restored_after_respawn",
+                          "kill_counter_text_matches"])
         acs = self.acs(rep)
         self.assertEqual(acs[("US-086", "AC-086.1")]["status"], "FAIL")
         self.assertEqual(acs[("US-086", "AC-086.4")]["status"], "PASS")
+        self.assertNotIn(("US-091", "AC-091.C"), acs)
 
     def test_the_known_cadence_fits_the_default_timeouts(self):
         # 15 damage per ~2.6 s with Restoration's heal: the death comes well inside the default

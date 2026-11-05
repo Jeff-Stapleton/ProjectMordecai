@@ -562,6 +562,43 @@ When building widget trees programmatically:
 - Red runs: `Saved/TestLogs/tests-20261030-112154.log`.
 - Packaged: `Saved/Playtests/20261030-122609-us054combat` (`death_screen`, `death_screen_removed` PASS).
 
+### A reparented persistent CommonUI HUD can inherit Menu input mode from its old activatable parent (PR #84, US-091)
+
+**Problem:** After `WBP_CombatHUD` was reparented from `ULyraHUDLayout` to the persistent
+`UMordecaiCombatHUDWidget` root, the packaged game showed the HUD but every gameplay input was
+blocked. Weapon cycling and attacks failed even though their Enhanced Input mappings were present.
+
+**Root cause:** Reparenting a Widget Blueprint does not guarantee that serialized inherited
+properties reset to the new native parent's defaults. The reparented combat HUD retained a Menu
+input configuration from its prior activatable parent. As the active leaf on `UI.Layer.Game`,
+CommonUI applied that configuration and blocked gameplay input. Headless construction of the native
+class did not reproduce the serialized Blueprint value.
+
+**Fix:** A persistent gameplay HUD should state its input contract in native code instead of relying
+on inherited or serialized Blueprint defaults. `UMordecaiCombatHUDWidget::GetDesiredInputConfig`
+returns `ECommonInputMode::Game`; its Tier 1 test asserts that contract. Verify the real Blueprint
+instance in a packaged Tier 4 run, because that is where stale serialized parent properties appear.
+
+**Evidence:** PR #84 commit `d3410ea`; the subsequent fresh packaged US-078 run
+`Saved/Playtests/20261104-185928-us078` passed weapon cycling and attacks.
+
+### Deactivating a CommonUI stack root does not guarantee that its UMG tree stops drawing (PR #84, US-091)
+
+**Problem:** A death screen pushed on top of the combat HUD in `UI.Layer.Game` was visible, but the
+deactivated combat HUD and its weapon plate still drew underneath it in the packaged game.
+
+**Root cause:** Stack activation and Slate visibility are separate concerns. The CommonUI stack
+deactivated the previous root, but that root's UMG tree remained visible. Assuming
+`NativeOnDeactivated` means "not painted" leaves persistent roots drawing below the top widget.
+
+**Fix:** A persistent stack root that must disappear behind another widget explicitly sets itself
+`Collapsed` in `NativeOnDeactivated`, then restores `SelfHitTestInvisible` in
+`NativeOnActivated`. Rebind or refresh child state on activation so the restored HUD cannot show
+stale values. Prove both transitions with a Tier 1 lifecycle test and packaged screenshots/state.
+
+**Evidence:** PR #84 commit `3273068`; `Saved/Playtests/20261104-185741-us054combat`
+`bridge_05.png` hides the HUD under the death screen and `bridge_06.png` restores it after respawn.
+
 ### A native loading screen builds its tree in `Initialize`: the manager's `CreateWidgetInstance(GameInstance)` does not guarantee a player context (issue #39)
 
 **Problem:** From Phase 1 on, the packaged game showed Lyra's loading screen on every load: the LYRA logo, plus a debug line ("Keeping loading screen up for an additional 2.00 seconds..."). It went unfixed for 12 days because nothing looked at it:

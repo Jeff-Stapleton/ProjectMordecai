@@ -33,8 +33,8 @@ before the click"), never mistaken for idle, and nothing is clicked.
 Each cycle step reads player.weapon.index first and expects the next/previous one (mod 5) with
 the matching display name, so one failure does not cascade into wrong expectations.  Weapon
 order (the AvailableWeapons list): Longsword, Dagger, Greatsword, Spear, Mace; names compare
-case-insensitively.  Known issues (Specs/agent_playtest_plan_v1.md, Known issues backlog): N3
-(the weapon HUD draws nothing) and N9 (Shift+Tab is not mapped; Tab still fires Next).
+case-insensitively.  Known issue (Specs/agent_playtest_plan_v1.md, Known issues backlog): N9
+(Shift+Tab is not mapped; Tab still fires Next).
 
 Usage (the kit's common options):
   py Scripts/playtests/us078_weapons.py                    fresh package: launch, play, quit
@@ -92,8 +92,6 @@ LIGHT_TIMEOUT_S = 1.0
 HEAVY_TIMEOUT_S = 0.5
 ATTACK_CLEAR_S = 2.0
 
-N3 = ("N3 The weapon HUD draws nothing: UMordecaiEquippedWeaponWidget has no widget tree "
-      "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
 N9 = ("N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next "
       "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
 
@@ -101,21 +99,19 @@ SCREENSHOTS = {
     "start": "CombatTestMap from the fixed overhead camera: the player at the PlayerStart on the "
              "grid floor, the combat HUD top-left (the blue-grey TestDummy cylinder, 600 cm +X "
              "and +Y, may be in view up and to the right); the weapon HUD should read "
-             "'Longsword' (known N3: no weapon name anywhere on screen today)",
+             "'Longsword' in its bottom-right loadout plate",
     "cycled_mace": "the same view after four Tabs, the player still at the PlayerStart; the "
-                   "weapon HUD should read 'Mace' (known N3: no weapon name anywhere on screen "
-                   "today)",
+                   "bottom-right loadout plate should read 'Mace'",
 }
-KNOWN_ISSUES = (N3, N9)
+KNOWN_ISSUES = (N9,)
 
 PLAN = (
     Step("starting_weapon", f"state player -> player.weapon.index==0 && "
          f"player.weapon.count=={WEAPON_COUNT} && display_name 'Longsword' (case-insensitive)",
          proves=("AC-078.9", "AC-078.10", "US-077:AC-077.1", "US-077:AC-077.5",
                  "US-077:AC-077.6")),
-    Step("weapon_hud_text", "state player, widgets -> a visible Mordecai widget text equals "
-         "player.weapon.display_name", proves=("AC-078.11", "AC-078.12", "US-077:AC-077.7"),
-         known_issue=N3),
+    Step("weapon_hud_text", "state player, widgets -> visible MordecaiEquippedWeaponWidget text equals "
+         "player.weapon.display_name", proves=("AC-078.11", "AC-078.12", "US-077:AC-077.7")),
     *[Step(f"cycle_next_{k}", f"tap {NEXT_KEY} -> wait_until player.weapon.index=="
            f"{k} (from {k - 1}), display_name '{WEAPONS[k]}'",
            proves=(("AC-078.6", "AC-078.8", "AC-078.14", "US-077:AC-077.3") if k == 1 else
@@ -131,9 +127,9 @@ PLAN = (
          known_issue=N9),
     Step("cycle_gamepad_y", f"tap {GAMEPAD_NEXT_KEY} (Y) -> wait_until player.weapon.index=="
          f"(index+1)%{WEAPON_COUNT} with the matching display_name", proves=("AC-078.6",)),
-    Step("weapon_hud_updates", f"tap {NEXT_KEY} -> the new weapon is equipped and a visible "
-         "widget text equals its display_name within 3 s (needs weapon_hud_text)",
-         proves=("AC-078.12", "AC-078.14", "US-077:AC-077.8"), known_issue=N3),
+    Step("weapon_hud_updates", f"tap {NEXT_KEY} -> the new weapon is equipped and visible "
+         "MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text)",
+         proves=("AC-078.12", "AC-078.14", "US-077:AC-077.8")),
     Step("light_attack_lmb", f"alive, no {ATTACKING_TAG} -> click Left at {ATTACK_POINT} -> "
          f"{ATTACKING_TAG} without {HEAVY_TAG} in player.tags within {LIGHT_TIMEOUT_S:g} s",
          proves=("AC-078.14",)),
@@ -183,11 +179,11 @@ def _widget_texts(st):
 
 
 def _hud_shows(st, name):
-    """The widget class whose text equals `name` (case-insensitive), or None."""
+    """The equipped-weapon widget whose text equals `name` (case-insensitive), or None."""
     if not _norm(name):
         return None
     for cls, text in _widget_texts(st):
-        if _norm(text) == _norm(name):
+        if cls == "MordecaiEquippedWeaponWidget" and _norm(text) == _norm(name):
             return cls
     return None
 
@@ -246,7 +242,8 @@ class Us078Run(kit.PlaytestRun):
             if cls:
                 return f"'{name}' is on screen in {cls}"
             texts = [f"{c}: {t!r}" for c, t in _widget_texts(st)]
-            return (f"no visible widget text equals the weapon name {name!r}; visible texts: "
+            return (f"no visible MordecaiEquippedWeaponWidget text equals the weapon name "
+                    f"{name!r}; visible texts: "
                     f"{kit.dumps(texts, 800)}")
 
         self.hud_ok, _ = self.observe("weapon_hud_text", ["player", "widgets"], hud_shown,
@@ -302,8 +299,9 @@ class Us078Run(kit.PlaytestRun):
                     if e.code != "wait_for_timeout":
                         raise
                     texts = [f"{c}: {t!r}" for c, t in _widget_texts(e.response or {})]
-                    return ("FAIL", f"{detail}; but no visible widget text equals '{want}' "
-                            f"within {HUD_TIMEOUT_S:g}s; visible texts: {kit.dumps(texts, 800)}",
+                    return ("FAIL", f"{detail}; but no visible MordecaiEquippedWeaponWidget text "
+                            f"equals '{want}' within {HUD_TIMEOUT_S:g}s; visible texts: "
+                            f"{kit.dumps(texts, 800)}",
                             after)
                 detail += f"; the HUD shows '{want}' ({_hud_shows(st, want)})"
             rec["passed"] = True

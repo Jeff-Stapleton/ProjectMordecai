@@ -1,6 +1,7 @@
 // Project Mordecai — Combat HUD Root Widget (US-052, US-055, US-061)
 
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
+#include "AbilitySystemComponent.h"
 #include "Mordecai/UI/MordecaiHealthBarWidget.h"
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
 #include "Mordecai/UI/MordecaiPostureBarWidget.h"
@@ -11,15 +12,28 @@
 #include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
 #include "Mordecai/UI/MordecaiKillCounterWidget.h"
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
+#include "Mordecai/UI/MordecaiEquippedWeaponWidget.h"
+#include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
+#include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Input/UIActionBindingHandle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCombatHUDWidget)
 
 // ---------------------------------------------------------------------------
 // Programmatic Fallback (empty Blueprint support)
 // ---------------------------------------------------------------------------
+
+TOptional<FUIInputConfig> UMordecaiCombatHUDWidget::GetDesiredInputConfig() const
+{
+	// CommonUI leaves the active root's capture mode on the viewport. Keep the project default so
+	// the first click after refocusing the game is delivered to gameplay instead of only capturing.
+	return FUIInputConfig(
+		ECommonInputMode::Game,
+		EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+}
 
 void UMordecaiCombatHUDWidget::NativeOnInitialized()
 {
@@ -29,6 +43,33 @@ void UMordecaiCombatHUDWidget::NativeOnInitialized()
 	{
 		BuildDefaultLayout();
 	}
+}
+
+void UMordecaiCombatHUDWidget::NativeOnActivated()
+{
+	Super::NativeOnActivated();
+	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	// UI.Layer.Game deactivates this root while the death screen is on top. Re-read every source when the root
+	// returns so pooled/rebuilt child trees cannot show values from the life that ended.
+	if (UAbilitySystemComponent* ASC = BoundASC.Get())
+	{
+		BindToASC(ASC);
+	}
+	if (UMordecaiEquipmentComponent* Equipment = BoundEquipment.Get())
+	{
+		BindToEquipmentComponent(Equipment);
+	}
+	if (UMordecaiPickupInteractionComponent* Interaction = BoundInteraction.Get())
+	{
+		BindToInteraction(Interaction);
+	}
+}
+
+void UMordecaiCombatHUDWidget::NativeOnDeactivated()
+{
+	Super::NativeOnDeactivated();
+	SetVisibility(ESlateVisibility::Collapsed);
 }
 
 void UMordecaiCombatHUDWidget::BuildDefaultLayout()
@@ -52,6 +93,7 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 	const FAnchors TopRight(1.f, 0.f, 1.f, 0.f);
 	const FAnchors BottomCenter(0.5f, 1.f, 0.5f, 1.f);
 	const FAnchors BottomLeft(0.f, 1.f, 0.f, 1.f);
+	const FAnchors BottomRight(1.f, 1.f, 1.f, 1.f);
 
 	// --- Core Resource Bars (top-left cluster) ---
 	if (!HealthBar)
@@ -124,6 +166,13 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 		PickupPrompt = CreateWidget<UMordecaiPickupPromptWidget>(this);
 	}
 	AddChild(PickupPrompt, BottomCenter, FVector2D(0, -30), FVector2D(420, 56), FVector2D(0.5f, 1.f));
+
+	// --- Loadout Plate (Tin Tally D20, bottom-right map box) ---
+	if (!EquippedWeaponWidget)
+	{
+		EquippedWeaponWidget = CreateWidget<UMordecaiEquippedWeaponWidget>(this);
+	}
+	AddChild(EquippedWeaponWidget, BottomRight, FVector2D(-32, -32), FVector2D(340, 84), FVector2D(1.f, 1.f));
 }
 
 // ---------------------------------------------------------------------------
@@ -143,6 +192,8 @@ int32 UMordecaiCombatHUDWidget::GetBoundChildCount() const
 	if (ComboCounter) Count++;
 	if (CombatFeedback) Count++;
 	if (KillCounter) Count++;
+	if (PickupPrompt) Count++;
+	if (EquippedWeaponWidget) Count++;
 	return Count;
 }
 
@@ -156,6 +207,7 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 	{
 		return;
 	}
+	BoundASC = ASC;
 
 	// Core resource bars (US-052)
 	if (HealthBar)
@@ -198,5 +250,23 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 	if (KillCounter)
 	{
 		KillCounter->BindToASC(ASC);
+	}
+}
+
+void UMordecaiCombatHUDWidget::BindToEquipmentComponent(UMordecaiEquipmentComponent* Equipment)
+{
+	BoundEquipment = Equipment;
+	if (EquippedWeaponWidget)
+	{
+		EquippedWeaponWidget->BindToEquipmentComponent(Equipment);
+	}
+}
+
+void UMordecaiCombatHUDWidget::BindToInteraction(UMordecaiPickupInteractionComponent* Interaction)
+{
+	BoundInteraction = Interaction;
+	if (PickupPrompt)
+	{
+		PickupPrompt->BindToInteraction(Interaction);
 	}
 }

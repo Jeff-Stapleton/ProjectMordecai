@@ -67,13 +67,18 @@ void UMordecaiComboCounterWidget::BindToASC(UAbilitySystemComponent* ASC)
 		return;
 	}
 
+	if (UAbilitySystemComponent* Previous = BoundASC.Get())
+	{
+		Previous->RegisterGameplayTagEvent(MordecaiGameplayTags::State_ComboWindow,
+			EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
+	}
 	BoundASC = ASC;
 
 	ASC->RegisterGameplayTagEvent(MordecaiGameplayTags::State_ComboWindow, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &UMordecaiComboCounterWidget::OnComboWindowTagChanged);
 
-	// Start hidden
-	SetComboVisible(false);
+	// Re-read on activation: the combo window may have changed while another UI.Layer.Game widget was on top.
+	SetComboVisible(ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_ComboWindow));
 }
 
 void UMordecaiComboCounterWidget::SetComboIndex(int32 ComboIndex)

@@ -115,6 +115,20 @@ void UMordecaiCombatFeedbackWidget::BindToASC(UAbilitySystemComponent* ASC)
 		return;
 	}
 
+	if (UAbilitySystemComponent* Previous = BoundASC.Get())
+	{
+		const FGameplayTag PreviousTags[] = {
+			MordecaiGameplayTags::State_PerfectDodge,
+			MordecaiGameplayTags::State_PerfectBlock,
+			MordecaiGameplayTags::State_Parried,
+			MordecaiGameplayTags::State_ParryWhiff,
+			MordecaiGameplayTags::State_PostureBroken,
+		};
+		for (const FGameplayTag& Tag : PreviousTags)
+		{
+			Previous->RegisterGameplayTagEvent(Tag, EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
+		}
+	}
 	BoundASC = ASC;
 
 	// Register for all feedback-relevant tags

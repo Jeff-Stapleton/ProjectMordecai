@@ -84,10 +84,25 @@ void UMordecaiStatusEffectBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 		return;
 	}
 
+	const FGameplayTag StatusRootTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Mordecai.Status")));
+	if (UAbilitySystemComponent* Previous = BoundASC.Get())
+	{
+		Previous->RegisterGameplayTagEvent(StatusRootTag, EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
+		if (Previous != ASC)
+		{
+			for (const TPair<FGameplayTag, TObjectPtr<UMordecaiStatusEffectIndicatorWidget>>& Pair : ActiveIndicators)
+			{
+				if (Pair.Value)
+				{
+					Pair.Value->RemoveFromParent();
+				}
+			}
+			ActiveIndicators.Reset();
+		}
+	}
 	BoundASC = ASC;
 
 	// Register for any child tag change under Mordecai.Status
-	const FGameplayTag StatusRootTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Mordecai.Status")));
 	ASC->RegisterGameplayTagEvent(StatusRootTag, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &UMordecaiStatusEffectBarWidget::OnStatusTagChanged);
 
