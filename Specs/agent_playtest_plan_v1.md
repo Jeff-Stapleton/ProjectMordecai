@@ -354,7 +354,7 @@ The contract is `Specs/story_playtests_v1.md`.
   - The enemy straight ahead (+X, about 1 m) keeps 100 health (`us057_magic.py` checks `fireball_projectile` and `fireball_hits_enemy`; `bridge_01.png`).
   - It may be related to N11.
 - **N16 The status-effect indicator shows "Status", not the status name.** Stone Skin's indicator reads "Status 10.0" bottom-left (`stone_skin_indicator`, `bridge_03.png`).
-- **N17 There are no enemy indicators.** No `EnemyIndicator` widget is on screen with three enemies within aggro range (`us054_arena.py` `enemy_indicators`; US-064).
+- **N17 There are no enemy indicators (FIXED, US-092, issue #22).** The native Mordecai player controller now owns the indicator manager, the combat HUD owns its full-screen indicator layer, and Idle → Approach requests registration with timer-backed retry (`us054_arena.py` `enemy_indicators`; US-064).
 - **N18 LB/RB do not switch pause-menu tabs (FIXED, US-095, issue #23).** AC-069.4 specifies them (`us069_pause_menu.py` `shoulder_switches_tab`). Needs triage: possibly missing by design (no CommonUI tab-list action).
   - **Decided: keep** (Jeff asked to fix issue #23, 2026-10-30; `Specs/design_decisions_log.md`).
   - Fix (`9be2071`): UI actions `UI.Action.Mordecai.PauseMenu.PreviousTab` / `NextTab` on LB / RB select the previous / next tab, wrapping (`FMordecaiPauseMenuTabModel::CycleActiveTab`). It is the same mechanism as the I fix above.

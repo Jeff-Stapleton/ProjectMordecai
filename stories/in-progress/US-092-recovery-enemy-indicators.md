@@ -31,7 +31,7 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 ## Technical Notes
 - Call `NotifyAggroActivated()` from the enemy AI's transition out of Idle (the same place `ai_state` changes to Chase/Attack).
 - The indicator widget class (`IndicatorWidgetClass`, soft class) must resolve in the packaged build; if it defaults to the native `UMordecaiEnemyIndicatorWidget`, make sure that widget builds a default tree (`BuildDefaultContent` exists at `MordecaiEnemyIndicatorWidget.cpp:46`).
-- TODO(DECISION) (Jeff): with indicators working, each enemy shows two health readouts (the old `WBP_EnemyHealthBar` widget component and the new indicator). US-064 was a "migration"; should the widget-component bar be removed? If yes, `enemy_health_bars` (AC-054.9, AC-052.10) must be rewritten to check the indicator instead — out of scope until decided; do not remove it here.
+- **Owner decision (Jeff, 2026-11-05):** keep both health readouts until a packaged screenshot shows them together. This story does not remove `WBP_EnemyHealthBar` or rewrite `enemy_health_bars`.
 - Script bookkeeping: `enemy_indicators` was NEW (no `known_issue`).
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
@@ -55,9 +55,17 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 - **Tier 4 script:** `Scripts/playtests/us054_arena.py` — run: `py Scripts/playtest_story.py US-054`
 - **Steps:**
 
-| Script | Check | Player step (bridge calls) → expected | Sweep result (8ea853b) |
+| # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| us054 | `enemy_indicators` | state widgets -> one EnemyIndicator widget per enemy in aggro range within 3s | FAIL (NEW): 0 |
+| 1 | `hud_visible` | state widgets -> HealthBar, StaminaBar, PostureBar, SpellPointsBar and KillCounter widgets on screen, a text 'Kills: 0' | AC-054.7, AC-054.8, US-063:AC-063.3, US-063:AC-063.4 |
+| 2 | `hud_layout` | state widgets rects -> HealthBar top-left (x<300, y<60), StaminaBar below it, PostureBar below that | AC-054.7 |
+| 3 | `enemies_present` | state actors (radius 3000) -> 3 kind=='enemy', health {200, 200}, pairwise > 300 cm apart | AC-054.11, AC-054.2, US-050:AC-050.3 |
+| 4 | `enemies_visible` | state actors -> every enemy has_visible_mesh==true | AC-054.13 |
+| 5 | `enemy_health_bars` | state actors -> every enemy has a visible widget whose class contains EnemyHealthBar | AC-054.9, US-052:AC-052.10 |
+| 6 | `enemy_indicators` | state widgets -> one EnemyIndicator widget per enemy in aggro range within 3s | US-064:AC-064.2, US-064:AC-064.10, US-092:AC-092.4 |
+| 7 | `enemy_aggro` | stand at the spawn -> every enemy ai_state != 'Idle' within 3s | US-051:AC-051.3 |
+| 8 | `enemy_approaches` | stand -> some enemy > 100 cm from every spawn within 6s | US-051:AC-051.4 |
+| 9 | `enemy_damages_player` | stand at the spawn -> wait_until player.attributes.health < player.attributes.max_health within 20s | AC-054.13, US-051:AC-051.5 |
 
 - **Playable alone:** YES
 

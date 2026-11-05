@@ -52,7 +52,7 @@ PROVES = {
     "enemies_present": ("AC-054.11", "AC-054.2", "US-050:AC-050.3"),
     "enemies_visible": ("AC-054.13",),
     "enemy_health_bars": ("AC-054.9", "US-052:AC-052.10"),
-    "enemy_indicators": ("US-064:AC-064.2", "US-064:AC-064.10"),
+    "enemy_indicators": ("US-064:AC-064.2", "US-064:AC-064.10", "US-092:AC-092.4"),
     "enemy_aggro": ("US-051:AC-051.3",),
     "enemy_approaches": ("US-051:AC-051.4",),
     "enemy_damages_player": ("AC-054.13", "US-051:AC-051.5"),
@@ -225,7 +225,7 @@ class TestUs054Plan(Us054Case):
             # No DevTestMap check carries a known_issue (death_screen's N2 moved with it).
             self.assertIsNone(plan[name].known_issue, name)
         self.assertEqual(set(us054.Us054Run.COVERS),
-                         {"US-050", "US-051", "US-052", "US-063", "US-064"})
+                         {"US-050", "US-051", "US-052", "US-063", "US-064", "US-092"})
         self.assertEqual(us054.Us054Run.STORY, "US-054")
         self.assertEqual(us054.Us054Run.RUN_SUFFIX, "us054")
         self.assertEqual(us054.Us054Run.launch_map(), kit.DEFAULT_MAP)

@@ -81,7 +81,8 @@ DAMAGE_TIMEOUT_S = 20.0
 SCREENSHOTS = {
     "start": "the Mordecai diorama arena from the fixed overhead camera, the player at the centre, "
              "the combat HUD (health, stamina, posture and SP bars top-left, 'Kills: 0') and "
-             "the three Frontliners: a red cylinder body under each floating enemy health bar",
+             "the three Frontliners: a red cylinder body with both the legacy WBP_EnemyHealthBar "
+             "and the new EnemyIndicator health bar above each one",
     "hit": "the player at the arena centre after the first Frontliner hit: the health bar below "
            "full, Frontliners (red cylinders) next to the player",
 }
@@ -102,7 +103,7 @@ PLAN = (
          f"contains {ENEMY_BAR_CLASS}", proves=("AC-054.9", "US-052:AC-052.10")),
     Step("enemy_indicators", f"state widgets -> one {INDICATOR_CLASS} widget per enemy in aggro "
          f"range within {INDICATOR_TIMEOUT_S:g}s",
-         proves=("US-064:AC-064.2", "US-064:AC-064.10")),
+         proves=("US-064:AC-064.2", "US-064:AC-064.10", "US-092:AC-092.4")),
     Step("enemy_aggro", f"stand at the spawn -> every enemy ai_state != 'Idle' within "
          f"{AGGRO_TIMEOUT_S:g}s", proves=("US-051:AC-051.3",)),
     Step("enemy_approaches", f"stand -> some enemy > {DISPLACED_CM:g} cm from every spawn within "
@@ -211,7 +212,7 @@ class Us054Run(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
-    COVERS = ("US-050", "US-051", "US-052", "US-063", "US-064")
+    COVERS = ("US-050", "US-051", "US-052", "US-063", "US-064", "US-092")
     FEATURES = ("enemies", "enemy_ai", "combat_hud", "kill_counter", "enemy_indicators")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX
