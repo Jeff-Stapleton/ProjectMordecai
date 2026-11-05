@@ -433,7 +433,7 @@ class TestUs078Report(Us078Case):
                                attacks_bound=False)
         _, rep = self.play(server)
         self.assertEqual(rep["story"], "US-078")
-        self.assertEqual(rep["covers"], ["US-077"])
+        self.assertEqual(rep["covers"], ["US-077", "US-091"])
         self.assertEqual(rep["features"], ["weapons", "weapon_hud", "melee_attack"])
         self.assertEqual(rep["title"], us078.TITLE)
         self.assertEqual([p["check"] for p in rep["plan"]], [s.check for s in us078.PLAN])
@@ -452,7 +452,7 @@ class TestUs078Report(Us078Case):
                                "AC-078.11", "AC-078.12", "AC-078.13", "AC-078.14", "AC-078.15",
                                "US-077:AC-077.1", "US-077:AC-077.3", "US-077:AC-077.4",
                                "US-077:AC-077.5", "US-077:AC-077.6", "US-077:AC-077.7",
-                               "US-077:AC-077.8"})
+                               "US-077:AC-077.8", "US-091:AC-091.D"})
         md = self.report_md()
         self.assertIn("## Weapon cycling", md)
         self.assertIn("| cycle_prev_shift_tab | LeftShift+Tab | 4 | 0 | Longsword | no |", md)
@@ -476,6 +476,10 @@ class TestUs078Plan(unittest.TestCase):
         self.assertTrue(known["cycle_prev_shift_tab"].startswith("N9 "))
         for name in ATTACK_CHECKS + ["weapon_hud_text", "weapon_hud_updates"]:
             self.assertNotIn(name, known)
+        self.assertEqual(set(us078.Us078Run.COVERS), {"US-077", "US-091"})
+        plan = {step.check: step for step in us078.PLAN}
+        for name in ("weapon_hud_text", "weapon_hud_updates"):
+            self.assertIn("US-091:AC-091.D", plan[name].proves)
 
     def test_plan_prints_without_a_game(self):
         out = io.StringIO()

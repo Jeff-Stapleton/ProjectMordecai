@@ -29,14 +29,14 @@ Steps (--plan prints them as the story's Steps table):
        player.
   9-10 Tap One (Restoration: health rises, SP -3, the tag), then watch for Burning (WARN: the
        attacker swings BasicSlash).  Burning ends at once when the player dies.
-  11-14 The death (seen by whichever step reads it first: no death goes unobserved), the death
-       screen with the life's kills, no movement while dead, the respawn at the PlayerStart with
-       full health.
-  15   The death screen is gone after the respawn.
-  16-17 The arena reset, judged on the first read that shows the respawned player (both targets
+  11-15 The death (seen by whichever step reads it first: no death goes unobserved), the death
+       screen with the life's kills, the weapon HUD hidden under it, no movement while dead, and
+       the respawn at the PlayerStart with full health.
+  16-17 The death screen is gone after the respawn and the weapon HUD is restored.
+  18-19 The arena reset, judged on the first read that shows the respawned player (both targets
        at their spawns, full health, alive, Idle, and the reset observed: the dummy revived or
        the attacker back to Idle), then movement after the respawn.
-  18   The kill counter's text equals player.kills (the GameMode count), after the death: 0.
+  20   The kill counter's text equals player.kills (the GameMode count), after the death: 0.
 A failed check SKIPs the checks that depend on it (needs=); independent checks still run.
 
 Usage:
@@ -199,18 +199,21 @@ PLAN = (
          proves=("US-053:AC-053.1",)),
     Step("death_screen", f"state widgets -> within {DEATH_SCREEN_TIMEOUT_S:g}s one widget with "
          f"'{YOU_DIED}', a countdown digit and 'Kills: N', N = the kills "
-         f"kill_counter_increments read (any N when it did not run), and no visible "
-         f"{WEAPON_WIDGET_CLASS}",
+         "kill_counter_increments read (any N when it did not run)",
          proves=("US-062:AC-062.1", "US-062:AC-062.2", "US-086:AC-086.1", "US-086:AC-086.4")),
+    Step("weapon_hud_hidden_under_death", f"state widgets -> no visible {WEAPON_WIDGET_CLASS} "
+         "while the death screen is visible", proves=("US-091:AC-091.C",)),
     Step("dead_no_move", f"while dead: hold W {DEAD_HOLD_S:g}s -> moved < {DEAD_MAX_MOVE_CM:g} cm",
          proves=("US-053:AC-053.2",)),
     Step("respawn", f"wait -> within {RESPAWN_TIMEOUT_S:g}s player.is_dead==false, health == "
          f"max_health, within {RESPAWN_RADIUS:g} cm of ({SPAWN[0]:g}, {SPAWN[1]:g}), no "
          f"'{TAG_DEAD}' tag", proves=("US-053:AC-053.4", "US-053:AC-053.5")),
     Step("death_screen_removed", f"state widgets -> within {DEATH_SCREEN_TIMEOUT_S:g}s of the "
-         f"respawn no widget text '{YOU_DIED}' and {WEAPON_WIDGET_CLASS} shows "
-         f"'{STARTING_WEAPON}' (needs the death screen seen)",
+         f"respawn no widget text '{YOU_DIED}' (needs the death screen seen)",
          proves=("US-086:AC-086.1",)),
+    Step("weapon_hud_restored_after_respawn", f"state widgets -> within "
+         f"{DEATH_SCREEN_TIMEOUT_S:g}s of the respawn visible {WEAPON_WIDGET_CLASS} shows "
+         f"'{STARTING_WEAPON}'", proves=("US-091:AC-091.C",)),
     Step("arena_reset", "the first read that shows the respawned player (state actors) -> the "
          f"{DUMMY} and the {ATTACKER} alive, health == max, within {SPAWN_TOL_CM:g} cm of their "
          f"spawns, ai_state '{IDLE}' in that read; PASS only when that read shows the reset (the "
@@ -430,7 +433,7 @@ class Us054CombatRun(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
-    COVERS = ("US-053", "US-057", "US-062", "US-063", "US-086")
+    COVERS = ("US-053", "US-057", "US-062", "US-063", "US-086", "US-091")
     FEATURES = ("enemies", "enemy_ai", "melee_attack", "dodge", "death_respawn", "kill_counter",
                 "status_effects")
     TITLE = TITLE
@@ -890,8 +893,7 @@ class Us054CombatRun(kit.PlaytestRun):
                 counts = [int(m.group(1)) for m in map(RE_KILLS.match, texts) if m]
                 if countdown and counts and (self.kills_seen is None
                                              or counts == [self.kills_seen]):
-                    return not any(v.get("class") == WEAPON_WIDGET_CLASS and widget_visible(v)
-                                   for v in widgets(st))
+                    return True
             return False
 
         self.death_screen_seen, _ = self.observe(
@@ -900,6 +902,14 @@ class Us054CombatRun(kit.PlaytestRun):
                         f"{[w.get('class') for w in widgets(st)]}; the life's kills "
                         f"{self.kills_seen if self.kills_seen is not None else 'not read'})"),
             timeout_s=DEATH_SCREEN_TIMEOUT_S, needs=died, needs_why=why)
+        self.observe(
+            "weapon_hud_hidden_under_death", ["widgets"],
+            lambda st: not any(w.get("class") == WEAPON_WIDGET_CLASS and widget_visible(w)
+                               for w in widgets(st)),
+            lambda st: (f"widget classes on screen: "
+                        f"{[w.get('class') for w in widgets(st) if widget_visible(w)]}"),
+            timeout_s=DEATH_SCREEN_TIMEOUT_S, needs=self.death_screen_seen,
+            needs_why="not run: the death screen was never seen")
         # After the death screen check, so the frame shows the screen the check saw
         self.shot("dead", needs=died, needs_why="not taken: the player did not die")
 
@@ -953,14 +963,18 @@ class Us054CombatRun(kit.PlaytestRun):
         why = "not run: the player did not respawn"
 
         def gone(st):
-            return (not any(YOU_DIED.lower() in t.lower() for t in all_texts(st))
-                    and weapon_hud_shows(st))
+            return not any(YOU_DIED.lower() in t.lower() for t in all_texts(st))
 
         self.observe("death_screen_removed", ["widgets"], gone,
                      lambda st: (f"texts on screen: {all_texts(st)} (widget classes "
                                  f"{[w.get('class') for w in widgets(st)]})"),
                      timeout_s=DEATH_SCREEN_TIMEOUT_S, needs=ok and self.death_screen_seen,
                      needs_why=why if not ok else "not run: the death screen was never seen")
+        self.observe("weapon_hud_restored_after_respawn", ["widgets"],
+                     lambda st: weapon_hud_shows(st),
+                     lambda st: (f"texts on screen: {all_texts(st)} (widget classes "
+                                 f"{[w.get('class') for w in widgets(st)]})"),
+                     timeout_s=DEATH_SCREEN_TIMEOUT_S, needs=ok, needs_why=why)
 
         def reset(b):
             # Judged on the first read that shows the respawned player, and on no later read.
