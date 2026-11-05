@@ -28,7 +28,11 @@
 
 TOptional<FUIInputConfig> UMordecaiCombatHUDWidget::GetDesiredInputConfig() const
 {
-	return FUIInputConfig(ECommonInputMode::Game, GameMouseCaptureMode);
+	// CommonUI leaves the active root's capture mode on the viewport. Keep the project default so
+	// the first click after refocusing the game is delivered to gameplay instead of only capturing.
+	return FUIInputConfig(
+		ECommonInputMode::Game,
+		EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
 }
 
 void UMordecaiCombatHUDWidget::NativeOnInitialized()
