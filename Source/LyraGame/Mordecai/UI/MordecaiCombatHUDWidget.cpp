@@ -18,12 +18,18 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Input/UIActionBindingHandle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCombatHUDWidget)
 
 // ---------------------------------------------------------------------------
 // Programmatic Fallback (empty Blueprint support)
 // ---------------------------------------------------------------------------
+
+TOptional<FUIInputConfig> UMordecaiCombatHUDWidget::GetDesiredInputConfig() const
+{
+	return FUIInputConfig(ECommonInputMode::Game, GameMouseCaptureMode);
+}
 
 void UMordecaiCombatHUDWidget::NativeOnInitialized()
 {

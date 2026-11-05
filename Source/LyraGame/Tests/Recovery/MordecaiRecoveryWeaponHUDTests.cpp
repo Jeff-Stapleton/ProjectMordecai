@@ -3,6 +3,7 @@
 #include "Misc/AutomationTest.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "CommonInputModeTypes.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
@@ -179,5 +180,20 @@ bool FMordecai_Recovery_WeaponHUD_CharacterOwnsNoStandaloneWidget::RunTest(const
 		FindFProperty<FObjectPropertyBase>(AMordecaiCharacter::StaticClass(), TEXT("EquippedWeaponWidget")));
 	TestNull("the character no longer owns a separate weapon widget class",
 		FindFProperty<FObjectPropertyBase>(AMordecaiCharacter::StaticClass(), TEXT("EquippedWeaponWidgetClass")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_WeaponHUD_PassesGameplayInput,
+	"Mordecai.Recovery.WeaponHUD.PassesGameplayInput",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_WeaponHUD_PassesGameplayInput::RunTest(const FString& Parameters)
+{
+	const UMordecaiCombatHUDWidget* HUD = GetDefault<UMordecaiCombatHUDWidget>();
+	const TOptional<FUIInputConfig> Config = HUD->GetDesiredInputConfig();
+	if (TestTrue("the active combat HUD supplies an explicit input config", Config.IsSet()))
+	{
+		TestTrue("combat HUD leaves gameplay input enabled", Config->GetInputMode() == ECommonInputMode::Game);
+	}
 	return true;
 }
