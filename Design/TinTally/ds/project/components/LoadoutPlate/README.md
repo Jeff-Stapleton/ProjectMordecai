@@ -28,9 +28,9 @@ The equipped weapon at the bottom-right of the HUD: its glyph, its name, its dam
 
 ## Data and implementation
 
-- **Widget:** UMordecaiEquippedWeaponWidget. Today it has no tree, draws nothing (N3) and is added by `AMordecaiCharacter` with `AddToViewport(50)`.
-  - Build the fallback tree in C++.
-  - Move it into the root canvas of the HUD root (D20: `UMordecaiCombatHUDWidget` reparented to `ULyraActivatableWidget`, pushed once on `UI.Layer.Game`) at the box above. It is never pushed on its own and never added to the viewport.
+- **Widget:** `UMordecaiEquippedWeaponWidget` builds its functional fallback tree in C++ when its widget tree is empty.
+  - It is a child of the HUD root canvas (D20: `UMordecaiCombatHUDWidget`, pushed once on `UI.Layer.Game`) at the box above.
+  - It is never pushed on its own and never added directly to the viewport.
 - **Keep:** `DisplayedWeaponName` (the weapon's DisplayName, or "Unarmed") and `DisplayedWeaponType`.
 - **New optional widgets:** `WeaponNameText` (UTextBlock; the bridge can read it), `WeaponIcon` (UImage), `DamageSubtypeText`, `ElementIcon` (UImage, Collapsed unless the weapon carries an element), `SwapKey`.
 - **Data:**
