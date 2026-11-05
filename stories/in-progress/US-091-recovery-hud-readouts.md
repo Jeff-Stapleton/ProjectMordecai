@@ -1,81 +1,79 @@
-# US-091: Recovery — HUD Readouts: Status Effect Names, Weapon Name, No Debug Text
+# US-091: Recovery — Weapon HUD and D20 Combat HUD Root
 
-**Epic:** Epic R: Playability Recovery
-**Priority:** P1
-**Depends on:** none
+**Epic:** Epic R: Playability Recovery  
+**Issue:** #8  
+**Priority:** P1  
+**Depends on:** none  
 **Paired story:** none
 
 ## Overview
-Three HUD readouts are wrong in the packaged game. Every status-effect indicator reads "Status" instead of the status name (N16: Stone Skin shows "Status 10.0"). The weapon HUD draws nothing (N3), so the player never sees which of the five weapons is equipped. And developer debug text is printed on screen over the HUD ("MORDECAI: Programmatic IMC created and input bound successfully ...", "MORDECAI: Weapon loadout initialized — 5 weapons available", "MORDECAI: SetupPlayerInputComponent called…", plus the Steam socket deprecation warnings). Features: status_effects, combat_hud, weapon_hud.
+The equipped-weapon state and cycling work, but `UMordecaiEquippedWeaponWidget` has no widget tree and draws nothing (N3). Implement the Tin Tally loadout plate's functional content and move the whole combat HUD to the D20 CommonUI root architecture. Visual polish, motion, icons, and replication are out of scope.
+
+Owner decisions:
+- Functional Tin Tally content/layout only; no visual-polish work.
+- Complete the combat-HUD layer migration now.
+- Local player only; multiplayer replication is tracked by #83.
 
 ## Execution Mode
 **HEADLESS**
-Native widget code, log levels and an ini change (`Config/DefaultEngine.ini`); no editor assets.
+
+Native widgets and test/playtest scripts only; no editor assets.
 
 ## References
-- `Specs/agent_playtest_plan_v1.md` — N16, N3, "On-screen debug text is shown to players", "More on-screen debug text", "Steam socket config deprecation warnings print on screen"
-- Sweep `Saved/Playtests/20261022-184702-sweep/summary.md`:
-  - run `Saved/Playtests/20261022-184841-us057`: `stone_skin_indicator` FAIL NEW ("no widget renders 'StoneSkin'; ... MordecaiStatusEffectIndicatorWidget ... texts=['Status', '10.0']")
-  - run `Saved/Playtests/20261022-184940-us078`: `weapon_hud_text` FAIL known ("no visible widget text equals the weapon name 'Longsword'"); `weapon_hud_updates` SKIP (needs `weapon_hud_text`)
-- Done stories: US-055 AC-055.4-055.6 (indicator shows the status name + countdown, tint), US-057 AC-057.11 ("Burning"), US-077 AC-077.7/077.8, US-078 AC-078.11/078.12
-- Existing code:
-  - `Source/LyraGame/Mordecai/UI/MordecaiStatusEffectBarWidget.cpp:89-92,110-126` — registers `RegisterGameplayTagEvent(Mordecai.Status, NewOrRemoved)`; that delegate reports the registered parent tag, so `AddIndicator` gets `Mordecai.Status` and `MordecaiStatusEffectIndicatorWidget.cpp:73-83` takes its last segment: "Status". It also means only one indicator can ever exist and buff/debuff tint is wrong
-  - `Source/LyraGame/Mordecai/UI/MordecaiEquippedWeaponWidget.*` (no widget tree), created at `Source/LyraGame/Mordecai/MordecaiCharacter.cpp:63,197-201`
-  - Debug output: `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:402`, `Source/LyraGame/Mordecai/MordecaiCharacter.cpp:208,251` (`UE_LOG(LogTemp, Warning, ...)`), `Config/DefaultEngine.ini` `SocketSubsystemSteamIP` keys
+- `Specs/agent_playtest_plan_v1.md` — N3
+- `Design/TinTally/ds/project/components/LoadoutPlate/README.md`
+- `Design/TinTally/ds/project/components/HUDLayout/README.md` — D20
+- Baseline sweep: `Saved/Playtests/20261104-072646-sweep`
 
 ## Acceptance Criteria
-- [ ] AC-091.1: Gaining `Mordecai.Status.StoneSkin` creates an indicator reading "StoneSkin" (or its configured display name) with a green buff tint; two different statuses produce two indicators; each is removed when its own tag is removed — verified by `Mordecai.Recovery.StatusBar.IndicatorUsesChildTagName` and `Mordecai.Recovery.StatusBar.OneIndicatorPerStatus`
-- [ ] AC-091.2: In the packaged build, the player taps R (Stone Skin) and a status indicator renders "StoneSkin" with a numeric countdown — verified by check `stone_skin_indicator` of `Scripts/playtests/us057_magic.py` (Tier 4); `stone_skin_expires` still PASSes
-- [ ] AC-091.3: `UMordecaiEquippedWeaponWidget` builds a default widget tree (weapon display name text) and updates on `OnWeaponChanged` — verified by `Mordecai.Recovery.WeaponHUD.BuildsDefaultContent` and `Mordecai.Recovery.WeaponHUD.UpdatesOnWeaponChanged`
-- [ ] AC-091.4: In the packaged build, the HUD shows "Longsword" at start — verified by check `weapon_hud_text` of `Scripts/playtests/us078_weapons.py` (Tier 4, state read); after the player taps Tab the HUD shows the new weapon's name — verified by check `weapon_hud_updates` of `Scripts/playtests/us078_weapons.py` (Tier 4)
-- [ ] AC-091.5: No Mordecai developer message and no Steam socket deprecation warning is drawn on screen in the packaged Development build; the messages remain in `game.log` at `Log`/`Verbose` level under a `LogMordecai*` category — verified by Tier 3: every `engine_NN.png` of `py Scripts/playtest_boot.py` shows no yellow/red debug text over the arena (the agent reads each screenshot and states it), and `game.log` still contains the messages
-
-## Technical Notes
-- Status bar: register per known status tag, or use `ASC->RegisterGenericGameplayTagEvent()` / `OnGameplayEffectAppliedDelegateToSelf` and filter `Tag.MatchesTag(Mordecai.Status)` excluding `Mordecai.Status.Category.*`; key indicators by the child tag.
-- Weapon HUD: follow the `BuildDefaultContent` pattern of `UMordecaiStatusEffectIndicatorWidget` (build only when `WidgetTree->RootWidget` is null); ensure it is added to the viewport/HUD in a visible slot (AC-078.11: bottom-center or bottom-right) and does not overlap the pickup prompt.
-- Debug text: find out how these `LogTemp` Warnings reach the screen in a packaged Development build (e.g. an on-screen log/warning setting in config, or Lyra's on-screen message hook) and fix it at the source; demote the three messages to `LogMordecai*` `Log`. Fix or remove the deprecated `SocketSubsystemSteamIP` keys in `Config/DefaultEngine.ini`. Do not disable on-screen messages globally if that hides real engine errors — say what you changed.
-- Script bookkeeping (before packaging): remove the N3 `known_issue` from `weapon_hud_text` and `weapon_hud_updates` in `us078_weapons.py`; `stone_skin_indicator` was NEW.
-- No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
+- [ ] **AC-091.A — Loadout plate:** `UMordecaiEquippedWeaponWidget` builds a native fallback only for an empty tree. `WeaponNameText` shows the weapon display name or exactly `Unarmed`; `DamageSubtypeText` shows `Slash`, `Pierce`, or `Blunt` from the weapon's attack profile (`Unarmed` = `Blunt`); `SwapKey` shows `Tab`. It updates from `OnWeaponChanged` for MainHand/TwoHand with no polling and no stale text.
+- [ ] **AC-091.B — D20 root:** `UMordecaiCombatHUDWidget` derives from `ULyraActivatableWidget` (not `ULyraHUDLayout`) and is pushed once on `UI.Layer.Game`. The loadout plate is its child at bottom-right anchor `(1,1)`, offset `(-32,-32)`, alignment `(1,1)`, fixed size `340x84`. The character owns no standalone weapon widget.
+- [ ] **AC-091.C — Layering:** the death screen, as the top widget on `UI.Layer.Game`, hides the whole HUD including the weapon name; respawn removes it and reactivates/refreshed the HUD. `UI.Layer.Menu` remains above the HUD and Escape still opens/closes pause exactly as before.
+- [ ] **AC-091.D — Player-visible result:** the fresh packaged build starts with `Longsword` visible; after four real Tab presses `Mace` is visible. `weapon_hud_text` and `weapon_hud_updates` pass and only accept text from `MordecaiEquippedWeaponWidget`.
+- [ ] **AC-091.E — Regression:** no check that passed in baseline sweep `Saved/Playtests/20261104-072646-sweep` becomes a failure.
 
 ## Tests Required
-### Tier 1 — Automation (headless)
-- `Mordecai.Recovery.StatusBar.IndicatorUsesChildTagName`, `Mordecai.Recovery.StatusBar.OneIndicatorPerStatus` — AC-091.1
-- `Mordecai.Recovery.WeaponHUD.BuildsDefaultContent`, `Mordecai.Recovery.WeaponHUD.UpdatesOnWeaponChanged` — AC-091.3
-### Tier 2 — PIE smoke (editor integration)
-- `Scripts/verify_pie_hud.py`: the weapon widget is visible with text "Longsword"; `[LOGIC]` apply StoneSkin GE → indicator text "StoneSkin"
-### Tier 3 — Packaged playtest
-- See Playtest (AC-091.5 is a Tier 3 visual check)
-### Tier 4 — Real-input playtest
-- `Scripts/playtests/us057_magic.py` `stone_skin_indicator`; `Scripts/playtests/us078_weapons.py` `weapon_hud_text`, `weapon_hud_updates`
+### Tier 1 — Automation
+- `Mordecai.Recovery.WeaponHUD.BuildsDefaultContent`
+- `Mordecai.Recovery.WeaponHUD.UpdatesOnWeaponChanged`
+- `Mordecai.Recovery.WeaponHUD.IsCombatHUDChildAtMapBox`
+- `Mordecai.Recovery.WeaponHUD.CharacterOwnsNoStandaloneWidget`
+
+### Tier 2 — PIE
+- `Scripts/verify_pie_hud.py`: one visible equipped-weapon widget, owned by the activated combat HUD root, reading `Longsword`.
+
+### Tier 3 — Packaged
+- Boot `CombatTestMap`; the bottom-right loadout plate visibly reads `Longsword`.
+
+### Tier 4 — Real input
+- `Scripts/playtests/us078_weapons.py`: `weapon_hud_text` and `weapon_hud_updates`.
+- `Scripts/playtests/us054_combat.py`: weapon plate hidden under the death screen and visible as `Longsword` after respawn.
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience; us057's and us078's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-057` and `py Scripts/playtest_story.py US-078` on the same package
-- **Player steps:** tap R (Stone Skin); tap Tab (next weapon)
-- **Visible on screen:** Tier 3 `engine_NN.png`: the HUD with the weapon name "Longsword" and NO yellow "MORDECAI: ..." lines or Steam warnings. Tier 4: us057 `stone_skin` screenshot shows "StoneSkin" + countdown bottom-left; us078 `bridge_01.png` shows "Longsword", `bridge_02.png` "Mace"
-- **Proof:** Tier 3 screenshots (AC-091.5); Tier 4 checks `stone_skin_indicator` (us057), `weapon_hud_text`, `weapon_hud_updates` (us078)
-- **Tier 4 script:** `Scripts/playtests/us057_magic.py` (`py Scripts/playtest_story.py US-057`), `Scripts/playtests/us078_weapons.py` (`py Scripts/playtest_story.py US-078`)
-- **Steps:**
-
-| Script | Check | Player step (bridge calls) → expected | Sweep result (8ea853b) |
-|---|---|---|---|
-| us057 | `stone_skin_indicator` | state widgets -> a widget renders "StoneSkin" and a numeric remaining duration within 2s | FAIL (NEW): 'Status' |
-| us078 | `weapon_hud_text` | state player, widgets -> a visible Mordecai widget text equals player.weapon.display_name | FAIL (known N3) |
-| us078 | `weapon_hud_updates` | tap Tab -> a visible widget text equals the new display_name within 3 s | SKIP |
-
+- **Launch path:** CombatTestMap → `B_MordecaiArenaExperience`; `py Scripts/playtest_story.py US-078` and the full regression sweep on the same fresh package.
+- **Player steps:** observe `Longsword`; tap Tab four times (Dagger → Greatsword → Spear → Mace); complete the existing death/respawn path; open and close pause during the regression sweep.
+- **Visible on screen:** `bridge_01.png` shows `Longsword` in the bottom-right loadout plate; `bridge_02.png` shows `Mace`. The death frame has no loadout plate; the respawn frame shows it again.
+- **Proof:** Tier 3 boot, Tier 4 `weapon_hud_text`, `weapon_hud_updates`, extended death-screen checks, and full sweep comparison.
 - **Playable alone:** YES
 
 ## Definition of Done
-- [ ] All ACs checked off
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST (code, config, script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`; every `engine_NN.png` free of debug text
-- [ ] On that same fresh package: `stone_skin_indicator`, `weapon_hud_text`, `weapon_hud_updates` go from FAIL/SKIP to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 for US-057 and US-078 — never `--allow-stale`
-- [ ] Known issues N16, N3, the debug-text entries and the Steam warning marked FIXED in `Specs/agent_playtest_plan_v1.md`
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-091]` closing commit
-- [ ] Pushed; story moved to `stories/done/` only after all of the above pass
+- [ ] All ACs checked off.
+- [ ] Red tests recorded failing for the intended missing-tree/ownership/layout reasons.
+- [ ] Serial compile and all `Mordecai.*` Tier 1 tests pass.
+- [ ] Python tooling tests and story lint pass.
+- [ ] Tier 2 PIE smoke passes.
+- [ ] `py Scripts/check_content_committed.py` exits 0.
+- [ ] Code/scripts committed and pushed before packaging.
+- [ ] Fresh package of the exact clean commit passes Tier 3 and Tier 4 without `--allow-stale`.
+- [ ] Every `engine_NN.png` and `bridge_NN.png` opened and described.
+- [ ] Full sweep has no baseline PASS → FAIL.
+- [ ] N3 marked FIXED only after packaged evidence.
+- [ ] Evidence recorded here and in the closing `[US-091]` commit; closing commit touches only `stories/`.
+
+## Follow-ups
+- #83: replicate equipped-weapon state for remote clients.
+- Move the remaining existing HUD regions to their final Tin Tally map boxes; this issue moves only the new loadout plate.
+- Loadout plate icons, gamepad glyph switching, motion, and visual styling.
 
 ## Completion Notes
-<Filled in by the coding agent.>
+<Filled in after packaged evidence.>
