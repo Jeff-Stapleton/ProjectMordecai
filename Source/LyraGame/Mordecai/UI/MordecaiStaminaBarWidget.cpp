@@ -105,6 +105,11 @@ void UMordecaiStaminaBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 		return;
 	}
 
+	if (UAbilitySystemComponent* Previous = BoundASC.Get())
+	{
+		Previous->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetStaminaAttribute()).RemoveAll(this);
+		Previous->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxStaminaAttribute()).RemoveAll(this);
+	}
 	BoundASC = ASC;
 
 	ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetStaminaAttribute())

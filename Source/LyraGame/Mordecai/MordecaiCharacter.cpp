@@ -13,8 +13,6 @@
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/Items/MordecaiResourceLedger.h"
-#include "Mordecai/UI/MordecaiEquippedWeaponWidget.h"
-#include "Blueprint/UserWidget.h"
 #include "Camera/LyraCameraComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -59,9 +57,6 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 	StartingWeapons.Add(TSoftObjectPtr<UMordecaiWeaponDataAsset>(FSoftObjectPath(TEXT("/MordecaiCore/Weapons/DA_Weapon_Greatsword.DA_Weapon_Greatsword"))));
 	StartingWeapons.Add(TSoftObjectPtr<UMordecaiWeaponDataAsset>(FSoftObjectPath(TEXT("/MordecaiCore/Weapons/DA_Weapon_Spear.DA_Weapon_Spear"))));
 	StartingWeapons.Add(TSoftObjectPtr<UMordecaiWeaponDataAsset>(FSoftObjectPath(TEXT("/MordecaiCore/Weapons/DA_Weapon_Mace.DA_Weapon_Mace"))));
-
-	// Default equipped-weapon HUD widget class
-	EquippedWeaponWidgetClass = UMordecaiEquippedWeaponWidget::StaticClass();
 
 	// Arrow component for facing direction visualization (AC-2.1.5)
 	FacingArrowComponent = CreateDefaultSubobject<UArrowComponent>(TEXT("FacingArrow"));
@@ -188,21 +183,6 @@ void AMordecaiCharacter::InitializeWeaponLoadout()
 	if (EquipmentComponent->GetAvailableWeaponCount() > 0)
 	{
 		EquipmentComponent->CycleNextWeapon();
-	}
-
-	// Create and attach the equipped-weapon HUD widget for local player
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (PC && PC->IsLocalController() && EquippedWeaponWidgetClass)
-	{
-		EquippedWeaponWidget = CreateWidget<UMordecaiEquippedWeaponWidget>(PC, EquippedWeaponWidgetClass);
-		if (EquippedWeaponWidget)
-		{
-			EquippedWeaponWidget->BindToEquipmentComponent(EquipmentComponent);
-			EquippedWeaponWidget->AddToViewport(50);
-			// NOTE: Widget positioning (bottom-center per AC-078.11) is handled by the widget's
-			// own UMG layout (root CanvasPanel with anchor preset). The C++ widget is minimal;
-			// a companion WBP can override layout if desired.
-		}
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("MORDECAI: Weapon loadout initialized — %d weapons available"),

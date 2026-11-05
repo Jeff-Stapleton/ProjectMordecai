@@ -10,13 +10,15 @@
 
 class UMordecaiEquipmentComponent;
 class UMordecaiWeaponDataAsset;
+class UImage;
+class UTextBlock;
 
 /**
  * UMordecaiEquippedWeaponWidget
  *
- * Minimal HUD widget that displays the currently equipped weapon's name and
- * type. Binds to a UMordecaiEquipmentComponent via OnWeaponChanged delegate.
- * Shows "Unarmed" when no weapon is equipped.
+ * Tin Tally loadout plate: weapon name, physical damage subtype, and swap key.
+ * Binds to UMordecaiEquipmentComponent::OnWeaponChanged and shows "Unarmed" /
+ * "Blunt" when no weapon is equipped.
  */
 UCLASS()
 class LYRAGAME_API UMordecaiEquippedWeaponWidget : public UUserWidget
@@ -41,17 +43,37 @@ public:
 	EMordecaiWeaponType GetDisplayedWeaponType() const { return DisplayedWeaponType; }
 
 protected:
+	virtual void NativeOnInitialized() override;
 	virtual void NativeDestruct() override;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> WeaponNameText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> WeaponIcon;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> DamageSubtypeText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> ElementIcon;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> SwapKey;
 
 private:
 	UFUNCTION()
 	void HandleWeaponChanged(EMordecaiEquipSlot InSlot, const UMordecaiWeaponDataAsset* NewWeapon);
 
+	void BuildDefaultContent();
 	void RefreshFromComponent();
 	void SetDisplayFromWeapon(const UMordecaiWeaponDataAsset* Weapon);
+	void UpdateDisplay();
+	static FText ResolveDamageSubtype(const UMordecaiWeaponDataAsset* Weapon);
 
 	TWeakObjectPtr<UMordecaiEquipmentComponent> BoundComponent;
 
 	FText DisplayedWeaponName;
+	FText DisplayedDamageSubtype;
 	EMordecaiWeaponType DisplayedWeaponType = EMordecaiWeaponType::Unarmed;
 };

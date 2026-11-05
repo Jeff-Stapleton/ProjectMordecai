@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/LyraActivatableWidget.h"
 
 #include "MordecaiCombatHUDWidget.generated.h"
 
@@ -18,11 +18,14 @@ class UMordecaiComboCounterWidget;
 class UMordecaiCombatFeedbackWidget;
 class UMordecaiKillCounterWidget;
 class UMordecaiPickupPromptWidget;
+class UMordecaiEquippedWeaponWidget;
+class UMordecaiEquipmentComponent;
+class UMordecaiPickupInteractionComponent;
 
 /**
  * UMordecaiCombatHUDWidget
  *
- * Root HUD container that hosts all combat UI elements:
+ * Activatable CommonUI root that hosts all combat UI elements:
  * Health bar, Stamina bar, Posture bar, Spell Points bar,
  * Status Effect bar, and Spell Cooldown widgets.
  *
@@ -30,7 +33,7 @@ class UMordecaiPickupPromptWidget;
  * The UMG Blueprint will lay out the children in this container.
  */
 UCLASS()
-class LYRAGAME_API UMordecaiCombatHUDWidget : public UUserWidget
+class LYRAGAME_API UMordecaiCombatHUDWidget : public ULyraActivatableWidget
 {
 	GENERATED_BODY()
 
@@ -38,6 +41,12 @@ public:
 	/** Bind all child combat widgets to an AbilitySystemComponent. (AC-052.5, AC-055.10) */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void BindToASC(UAbilitySystemComponent* ASC);
+
+	/** Bind the loadout plate to the local pawn's equipment state. */
+	void BindToEquipmentComponent(UMordecaiEquipmentComponent* Equipment);
+
+	/** Bind pickup/inventory assist prompts to the local pawn. */
+	void BindToInteraction(UMordecaiPickupInteractionComponent* Interaction);
 
 	/** Returns the number of non-null child widget slots (for smoke test verification). */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
@@ -47,8 +56,12 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|HUD")
 	UMordecaiPickupPromptWidget* GetPickupPrompt() const { return PickupPrompt; }
 
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|HUD")
+	UMordecaiEquippedWeaponWidget* GetEquippedWeaponWidget() const { return EquippedWeaponWidget; }
+
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeOnActivated() override;
 
 	// --- Core Resource Bars (US-052) ---
 
@@ -93,6 +106,15 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UMordecaiPickupPromptWidget> PickupPrompt;
 
+	// --- Loadout Plate (US-091 / D20) ---
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UMordecaiEquippedWeaponWidget> EquippedWeaponWidget;
+
 private:
 	void BuildDefaultLayout();
+
+	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	TWeakObjectPtr<UMordecaiEquipmentComponent> BoundEquipment;
+	TWeakObjectPtr<UMordecaiPickupInteractionComponent> BoundInteraction;
 };

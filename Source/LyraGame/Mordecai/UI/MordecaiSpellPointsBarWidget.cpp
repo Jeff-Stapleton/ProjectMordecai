@@ -88,6 +88,11 @@ void UMordecaiSpellPointsBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 		return;
 	}
 
+	if (UAbilitySystemComponent* Previous = BoundASC.Get())
+	{
+		Previous->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetSpellPointsAttribute()).RemoveAll(this);
+		Previous->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxSpellPointsAttribute()).RemoveAll(this);
+	}
 	BoundASC = ASC;
 
 	ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetSpellPointsAttribute())

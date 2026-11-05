@@ -7,6 +7,7 @@
 #include "Mordecai/UI/MordecaiDeathScreenComponent.h"
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
+#include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
 #include "Mordecai/Combat/MordecaiGA_Block.h"
 #include "Mordecai/Combat/MordecaiGA_Dodge.h"
@@ -25,8 +26,12 @@
 #include "Abilities/GameplayAbility.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerState.h"
+#include "NativeGameplayTags.h"
+#include "PrimaryGameLayout.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPlayerController)
+
+UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Mordecai_CombatHUD_Layer_Game, "UI.Layer.Game");
 
 AMordecaiPlayerController::AMordecaiPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -101,34 +106,46 @@ void AMordecaiPlayerController::CreateCombatHUD()
 		}
 	}
 
-	CombatHUDWidget = CreateWidget<UMordecaiCombatHUDWidget>(this, CombatHUDWidgetClass);
-	if (CombatHUDWidget)
+	UPrimaryGameLayout* Layout = UPrimaryGameLayout::GetPrimaryGameLayout(this);
+	if (!Layout)
 	{
-		CombatHUDWidget->AddToViewport();
+		UE_LOG(LogTemp, Warning, TEXT("MordecaiPlayerController: No primary game layout; combat HUD was not pushed."));
+		return;
+	}
 
-		// Try to bind to the player's ASC (lives on PlayerState in Lyra)
-		if (APlayerState* PS = PlayerState)
+	UAbilitySystemComponent* ASC = nullptr;
+	if (APlayerState* PS = PlayerState)
+	{
+		if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(PS))
 		{
-			if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(PS))
-			{
-				if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
-				{
-					CombatHUDWidget->BindToASC(ASC);
-				}
-			}
+			ASC = ASI->GetAbilitySystemComponent();
 		}
+	}
 
-		// Wire the pickup/inventory assist prompts to the pawn's interaction component (US-079)
-		if (UMordecaiPickupPromptWidget* Prompt = CombatHUDWidget->GetPickupPrompt())
+	APawn* PossessedPawn = GetPawn();
+	UMordecaiEquipmentComponent* Equipment = PossessedPawn
+		? PossessedPawn->FindComponentByClass<UMordecaiEquipmentComponent>() : nullptr;
+	UMordecaiPickupInteractionComponent* Interaction = PossessedPawn
+		? PossessedPawn->FindComponentByClass<UMordecaiPickupInteractionComponent>() : nullptr;
+
+	// D20: this is the one HUD push. Every combat HUD region, including the loadout plate, is a child of this root.
+	// The death screen is the only later push on UI.Layer.Game, so it hides this root until respawn removes it.
+	CombatHUDWidget = Layout->PushWidgetToLayerStack<UMordecaiCombatHUDWidget>(
+		TAG_Mordecai_CombatHUD_Layer_Game,
+		CombatHUDWidgetClass,
+		[ASC, Equipment, Interaction](UMordecaiCombatHUDWidget& HUD)
 		{
-			if (APawn* PossessedPawn = GetPawn())
+			if (ASC)
 			{
-				if (UMordecaiPickupInteractionComponent* Interaction = PossessedPawn->FindComponentByClass<UMordecaiPickupInteractionComponent>())
-				{
-					Prompt->BindToInteraction(Interaction);
-				}
+				HUD.BindToASC(ASC);
 			}
-		}
+			HUD.BindToEquipmentComponent(Equipment);
+			HUD.BindToInteraction(Interaction);
+		});
+
+	if (!CombatHUDWidget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MordecaiPlayerController: Failed to push the combat HUD to UI.Layer.Game."));
 	}
 }
 

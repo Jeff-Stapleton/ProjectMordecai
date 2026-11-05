@@ -73,6 +73,13 @@ void UMordecaiPostureBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 		return;
 	}
 
+	if (UAbilitySystemComponent* Previous = BoundASC.Get())
+	{
+		Previous->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetPostureAttribute()).RemoveAll(this);
+		Previous->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxPostureAttribute()).RemoveAll(this);
+		Previous->RegisterGameplayTagEvent(MordecaiGameplayTags::State_PostureBroken,
+			EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
+	}
 	BoundASC = ASC;
 
 	ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetPostureAttribute())

@@ -11,7 +11,6 @@ class ULyraCameraMode;
 class UMordecaiHeroComponent;
 class UMordecaiEquipmentComponent;
 class UMordecaiWeaponDataAsset;
-class UMordecaiEquippedWeaponWidget;
 class UMordecaiInventoryComponent;
 class UMordecaiPickupInteractionComponent;
 class UMordecaiResourceLedger;
@@ -104,10 +103,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Equipment")
 	TArray<TSoftObjectPtr<UMordecaiWeaponDataAsset>> StartingWeapons;
 
-	/** Widget class for the equipped weapon HUD display. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Equipment")
-	TSubclassOf<UMordecaiEquippedWeaponWidget> EquippedWeaponWidgetClass;
-
 protected:
 	virtual void BeginPlay() override;
 	virtual void PossessedBy(AController* NewController) override;
@@ -139,10 +134,6 @@ private:
 	// Press-to-pickup focus tracking (US-079)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Inventory", Meta = (AllowPrivateAccess = true))
 	TObjectPtr<UMordecaiPickupInteractionComponent> PickupInteractionComponent;
-
-	// Runtime: equipped-weapon HUD widget (created on BeginPlay for local player)
-	UPROPERTY(Transient)
-	TObjectPtr<UMordecaiEquippedWeaponWidget> EquippedWeaponWidget;
 
 	void InitializeWeaponLoadout();
 
