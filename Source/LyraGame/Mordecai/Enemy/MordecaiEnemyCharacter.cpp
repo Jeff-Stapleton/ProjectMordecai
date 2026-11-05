@@ -384,7 +384,7 @@ void AMordecaiEnemyCharacter::EnterDeathState(APlayerState* Killer)
 	SetActorEnableCollision(false);
 
 	// Issue #19: the body goes with the collision, so no standing enemy is left to walk through.
-	// TODO(DECISION): corpse visuals (death animation, ragdoll, fade-out); until then a dead enemy shows only its empty bar
+	// TODO(DECISION): corpse visuals (death animation, ragdoll, fade-out); until then the dead enemy is hidden.
 	if (BodyMesh)
 	{
 		BodyMesh->SetVisibility(false);
@@ -470,6 +470,11 @@ void AMordecaiEnemyCharacter::ResetForArena()
 	const float MaxPosture = AttributeSet->GetMaxPosture();
 	AttributeSet->InitHealth(MaxHealth);
 	AttributeSet->InitPosture(MaxPosture);
+
+	if (EnemyIndicatorComponent)
+	{
+		EnemyIndicatorComponent->NotifyArenaReset();
+	}
 
 	// Reset posture system state
 	if (PostureSystem)

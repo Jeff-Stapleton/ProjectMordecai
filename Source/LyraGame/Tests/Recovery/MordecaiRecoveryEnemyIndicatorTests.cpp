@@ -1,4 +1,4 @@
-// Project Mordecai — Recovery: enemy indicators register on aggro and render through the arena HUD (US-092).
+// Project Mordecai — Recovery: enemy indicators register from spawn and render through the arena HUD (US-092).
 
 #include "Misc/AutomationTest.h"
 
@@ -58,11 +58,11 @@ namespace MordecaiRecoveryEnemyIndicatorTest
 	}
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_EnemyIndicator_RegistersOnAggro,
-	"Mordecai.Recovery.EnemyIndicator.RegistersOnAggro",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_EnemyIndicator_RegistersOnSpawn,
+	"Mordecai.Recovery.EnemyIndicator.RegistersOnSpawn",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
-bool FMordecai_Recovery_EnemyIndicator_RegistersOnAggro::RunTest(const FString& Parameters)
+bool FMordecai_Recovery_EnemyIndicator_RegistersOnSpawn::RunTest(const FString& Parameters)
 {
 	using namespace MordecaiRecoveryEnemyIndicatorTest;
 
@@ -74,24 +74,25 @@ bool FMordecai_Recovery_EnemyIndicator_RegistersOnAggro::RunTest(const FString& 
 	}
 
 	AMordecaiPlayerController* PC = SpawnController(Env);
-	AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(FVector(500.f, 0.f, 0.f), {});
-	AMordecaiEnemyAIController* AI = Enemy ? Cast<AMordecaiEnemyAIController>(Enemy->GetController()) : nullptr;
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(
+		FVector(500.f, 0.f, 0.f), { MakeStubProfile() });
 	UMordecaiEnemyIndicatorComponent* Component = Indicator(Enemy);
+	UStaticMeshComponent* Body = Enemy ? FindObject<UStaticMeshComponent>(Enemy, TEXT("BodyMesh")) : nullptr;
 	ULyraIndicatorManagerComponent* Manager = PC
 		? PC->FindComponentByClass<ULyraIndicatorManagerComponent>() : nullptr;
 	if (!TestNotNull("native Mordecai controller", PC)
-		|| !TestNotNull("enemy AI", AI)
 		|| !TestNotNull("enemy indicator component", Component)
+		|| !TestNotNull("enemy body component", Body)
 		|| !TestNotNull("controller indicator manager", Manager))
 	{
 		Env.Teardown();
 		return true;
 	}
+	Body->SetStaticMesh(NewObject<UStaticMesh>(GetTransientPackage()));
 
 	TestFalse("indicator starts unregistered", Component->IsIndicatorRegistered());
-	AI->UpdateStateMachine(0.016f, Env.Player);
-	TestEqual("real state machine enters Approach", AI->GetCurrentState(), EMordecaiEnemyAIState::Approach);
-	TestTrue("aggro registers the component", Component->IsIndicatorRegistered());
+	FRecoveryTestEnv::BeginEnemyPlay(Enemy);
+	TestTrue("BeginPlay registers the living enemy's indicator", Component->IsIndicatorRegistered());
 	TestNotNull("manager contains this enemy's descriptor", DescriptorFor(Manager, Enemy));
 	TestEqual("manager has exactly one indicator", Manager->GetIndicators().Num(), 1);
 
@@ -129,8 +130,8 @@ bool FMordecai_Recovery_EnemyIndicator_RetriesWhenManagerMissing::RunTest(const 
 
 	TestNull("base test controller starts without a manager",
 		Env.PC->FindComponentByClass<ULyraIndicatorManagerComponent>());
-	Component->NotifyDamageReceived();
-	TestFalse("failed AddIndicator attempt does not set the registered flag", Component->IsIndicatorRegistered());
+	TestFalse("spawn registration without a manager does not set the registered flag",
+		Component->IsIndicatorRegistered());
 
 	ULyraIndicatorManagerComponent* Manager = NewObject<ULyraIndicatorManagerComponent>(
 		Env.PC, ULyraIndicatorManagerComponent::StaticClass(), TEXT("LateIndicatorManager"));
@@ -148,6 +149,69 @@ bool FMordecai_Recovery_EnemyIndicator_RetriesWhenManagerMissing::RunTest(const 
 	TestEqual("late manager has exactly one indicator", Manager->GetIndicators().Num(), 1);
 
 	Env.TeardownWithController();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_EnemyIndicator_RefreshesOnArenaReset,
+	"Mordecai.Recovery.EnemyIndicator.RefreshesOnArenaReset",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_EnemyIndicator_RefreshesOnArenaReset::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryEnemyIndicatorTest;
+
+	FRecoveryTestEnv Env;
+	if (!TestTrue("test world with a player", Env.Setup(FVector::ZeroVector)))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	AMordecaiPlayerController* PC = SpawnController(Env);
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(
+		FVector(500.f, 0.f, 0.f), { MakeStubProfile() });
+	UMordecaiEnemyIndicatorComponent* Component = Indicator(Enemy);
+	ULyraIndicatorManagerComponent* Manager = PC
+		? PC->FindComponentByClass<ULyraIndicatorManagerComponent>() : nullptr;
+	if (!TestNotNull("native Mordecai controller", PC)
+		|| !TestNotNull("enemy", Enemy)
+		|| !TestNotNull("enemy indicator component", Component)
+		|| !TestNotNull("controller indicator manager", Manager))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	Component->NotifyDamageReceived();
+	UIndicatorDescriptor* BeforeReset = DescriptorFor(Manager, Enemy);
+	TestNotNull("damaged enemy has an indicator descriptor", BeforeReset);
+
+	FRecoveryTestEnv::ApplyHealthDelta(Env.GetPlayerASC(), Enemy, -25.f);
+	const float MaxHealth = Enemy->GetMordecaiAttributeSet()->GetMaxHealth();
+	TestTrue("enemy is damaged before reset",
+		Enemy->GetMordecaiAttributeSet()->GetHealth() < MaxHealth);
+
+	Enemy->ResetForArena();
+
+	UIndicatorDescriptor* AfterReset = DescriptorFor(Manager, Enemy);
+	TestEqual("arena reset restores full health",
+		Enemy->GetMordecaiAttributeSet()->GetHealth(), MaxHealth);
+	TestTrue("arena reset replaces the descriptor so the widget rebinds current health",
+		AfterReset && AfterReset != BeforeReset);
+	TestEqual("manager still has exactly one indicator after reset",
+		Manager->GetIndicators().Num(), 1);
+
+	Enemy->EnterDeathState();
+	TestFalse("death unregisters the always-on indicator", Component->IsIndicatorRegistered());
+	TestNull("manager removes the dead enemy's descriptor", DescriptorFor(Manager, Enemy));
+
+	Enemy->ResetForArena();
+	TestTrue("reset restores a killed enemy's indicator", Component->IsIndicatorRegistered());
+	TestNotNull("manager contains the revived enemy's descriptor", DescriptorFor(Manager, Enemy));
+	TestEqual("manager has exactly one indicator after revival",
+		Manager->GetIndicators().Num(), 1);
+
+	Env.Teardown();
 	return true;
 }
 

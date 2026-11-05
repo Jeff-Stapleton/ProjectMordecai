@@ -105,7 +105,7 @@ The first Phase 3 sweep (`py Scripts/playtest_story.py --all` on a fresh package
 - US-088: Spell cooldown tags + four bound HUD cooldown widgets (HEADLESS — cooldowns, N8) — pair of US-089
 - US-089: DA_Spell_* cooldown tags and durations (EDITOR) — pair of US-088
 - US-091: weapon loadout plate + D20 CommonUI combat-HUD root migration (HEADLESS — N3, issue #8)
-- US-092: Enemy indicators for enemies in aggro range (HEADLESS — N17)
+- US-092: Always-on enemy indicators from spawn (HEADLESS — N17)
 - US-093: Pause menu Character / Skills / Feats tab contents (HEADLESS — N4, N5)
 - US-095: Pause menu input: I closes, LB/RB switch tabs (HEADLESS — I-close, N18 ← TODO(DECISION) for LB/RB)
 - US-097: Gamepad move / look / sprint key names (HEADLESS — invalid FKeys)

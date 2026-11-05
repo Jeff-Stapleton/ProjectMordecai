@@ -18,9 +18,10 @@ class UMordecaiEnemyIndicatorWidget;
  * world-space indicator with Lyra's IndicatorSystem. The indicator shows
  * health, name, and status icons above the enemy's head.
  *
- * Registration triggers:
- *   - Enemy takes damage (NotifyDamageReceived)
- *   - Enemy enters aggro range (NotifyAggroActivated)
+ * Registration:
+ *   - Every living enemy requests its indicator from BeginPlay.
+ *   - Damage and aggro notifications remain idempotent retry triggers.
+ *   - Arena reset replaces the descriptor so its widget reads current health.
  *
  * Unregistration triggers:
  *   - Enemy dies (NotifyDeath)
@@ -54,15 +55,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Indicator")
 	TSoftClassPtr<UMordecaiEnemyIndicatorWidget> IndicatorWidgetClass;
 
-	// --- Registration Triggers ---
+	// --- Registration Retries / Lifecycle ---
 
-	/** Called when the enemy takes damage. Registers indicator if not already registered (AC-064.2). */
+	/** Called when the enemy takes damage. Idempotently retries registration (AC-064.2). */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Indicator")
 	void NotifyDamageReceived();
 
-	/** Called when the enemy enters aggro range. Registers indicator if not already registered (AC-064.2). */
+	/** Called when the enemy enters aggro range. Idempotently retries registration (AC-064.2). */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Indicator")
 	void NotifyAggroActivated();
+
+	/** Called after arena reset restores the enemy. Re-registers and refreshes its indicator. */
+	void NotifyArenaReset();
 
 	/** Called when the enemy dies. Unregisters indicator (AC-064.3). */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Indicator")

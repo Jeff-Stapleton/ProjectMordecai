@@ -771,7 +771,7 @@ bool FMordecai_Level_TestMaps_CombatNavMesh::RunTest(const FString& Parameters)
 // 10. Mordecai.Level.TestMaps.TestDummyNeverMovesOrAggroes
 // A punching bag: speed 0, 200 HP, an AI that never leaves Idle (AggroRange 0) so it never approaches or swings,
 // yet still a full enemy (melee ability and a profile, so ValidateContent logs nothing; a blue-grey body
-// (MI_Enemy_TestDummy) and a health bar).
+// (MI_Enemy_TestDummy) and an always-on EnemyIndicator health bar).
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Level_TestMaps_TestDummy,
 	"Mordecai.Level.TestMaps.TestDummyNeverMovesOrAggroes",

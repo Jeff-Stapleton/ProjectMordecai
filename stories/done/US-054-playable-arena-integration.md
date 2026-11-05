@@ -87,7 +87,7 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 3 | `enemies_present` | state actors (radius 3000) -> 3 kind=='enemy', health {200, 200}, pairwise > 300 cm apart | AC-054.11, AC-054.2, US-050:AC-050.3 |
 | 4 | `enemies_visible` | state actors -> every enemy has_visible_mesh==true | AC-054.13 |
 | 5 | `enemy_health_bars` | state actors + widgets -> exactly one visible EnemyIndicator per enemy and no actor-attached EnemyHealthBar | AC-054.9, US-052:AC-052.10 |
-| 6 | `enemy_indicators` | state widgets -> one EnemyIndicator widget per enemy in aggro range within 3s | US-064:AC-064.2, US-064:AC-064.10 |
+| 6 | `enemy_indicators` | state widgets -> one always-on EnemyIndicator widget per living enemy from spawn within 3s | US-064:AC-064.2, US-064:AC-064.10, US-092:AC-092.4 |
 | 7 | `enemy_aggro` | stand at the spawn -> every enemy ai_state != 'Idle' within 3s | US-051:AC-051.3 |
 | 8 | `enemy_approaches` | stand -> some enemy > 100 cm from every spawn within 6s | US-051:AC-051.4 |
 | 9 | `enemy_damages_player` | stand at the spawn -> wait_until player.attributes.health < player.attributes.max_health within 20s | AC-054.13, US-051:AC-051.5 |
@@ -108,9 +108,11 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 10 | `burning_on_hit` | keep standing -> within 25s 'Mordecai.Status.Burning' in player.tags and a widget text 'Burning' (WARN if Burning never procs: the TestAttacker swings BasicSlash; ends at once, WARN, when the player dies) | US-057:AC-057.11, US-057:AC-057.8 |
 | 11 | `player_dies` | keep standing -> player.is_dead==true within 60s (or already seen dead by an earlier step), 'Mordecai.State.Dead' in player.tags | US-053:AC-053.1 |
 | 12 | `death_screen` | state widgets -> within 1.5s one widget with 'You Died', a countdown digit and 'Kills: N', N = the kills kill_counter_increments read (any N when it did not run) | US-062:AC-062.1, US-062:AC-062.2, US-086:AC-086.1, US-086:AC-086.4 |
-| 13 | `dead_no_move` | while dead: hold W 0.5s -> moved < 5 cm | US-053:AC-053.2 |
-| 14 | `respawn` | wait -> within 6s player.is_dead==false, health == max_health, within 150 cm of (0, 0), no 'Mordecai.State.Dead' tag | US-053:AC-053.4, US-053:AC-053.5 |
-| 15 | `death_screen_removed` | state widgets -> within 1.5s of the respawn no widget text 'You Died' (needs the death screen seen) | US-086:AC-086.1 |
-| 16 | `arena_reset` | the first read that shows the respawned player (state actors) -> the TestDummy and the TestAttacker alive, health == max, within 100 cm of their spawns, ai_state 'Idle' in that read; PASS only when that read shows the reset (the TestDummy below max before the death and full at the respawn, or the TestAttacker out of Idle before the death and Idle at the respawn), else WARN | US-053:AC-053.8, US-053:AC-053.9 |
-| 17 | `respawn_moves` | hold W 0.4s -> player x grows by >= 80 cm | US-053:AC-053.6 |
-| 18 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills; 0 when a kill and the death were both seen (the death resets the count) | US-063:AC-063.1, US-086:AC-086.5 |
+| 13 | `weapon_hud_hidden_under_death` | state widgets -> no visible MordecaiEquippedWeaponWidget while the death screen is visible | - |
+| 14 | `dead_no_move` | while dead: hold W 0.5s -> moved < 5 cm | US-053:AC-053.2 |
+| 15 | `respawn` | wait -> within 6s player.is_dead==false, health == max_health, within 150 cm of (0, 0), no 'Mordecai.State.Dead' tag | US-053:AC-053.4, US-053:AC-053.5 |
+| 16 | `death_screen_removed` | state widgets -> within 1.5s of the respawn no widget text 'You Died' (needs the death screen seen) | US-086:AC-086.1 |
+| 17 | `weapon_hud_restored_after_respawn` | state widgets -> within 1.5s of the respawn visible MordecaiEquippedWeaponWidget shows 'Longsword' | - |
+| 18 | `arena_reset` | the first read that shows the respawned player (state actors) -> the TestDummy and the TestAttacker alive, health == max, within 100 cm of their spawns, ai_state 'Idle' in that read; PASS only when that read shows the reset (the TestDummy below max before the death and full at the respawn, or the TestAttacker out of Idle before the death and Idle at the respawn), else WARN | US-053:AC-053.8, US-053:AC-053.9 |
+| 19 | `respawn_moves` | hold W 0.4s -> player x grows by >= 80 cm | US-053:AC-053.6 |
+| 20 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills; 0 when a kill and the death were both seen (the death resets the count) | US-063:AC-063.1, US-086:AC-086.5 |

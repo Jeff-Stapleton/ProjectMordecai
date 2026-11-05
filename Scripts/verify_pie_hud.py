@@ -130,7 +130,7 @@ def _run():
               f"Found {len(indicators)} on {len(enemies)} enemies")
         registered = sum(1 for indicator in indicators
                          if indicator and indicator.is_indicator_registered())
-        check("All three aggroed enemies registered indicators", registered == 3,
+        check("All three living enemies registered always-on indicators from spawn", registered == 3,
               f"{registered}/3 registered")
 
     print("")

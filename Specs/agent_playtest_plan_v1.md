@@ -462,11 +462,11 @@ The contract is `Specs/story_playtests_v1.md`.
   - Not fixed by US-101: no spec gives the stagger or punish-window durations (AC-006.13). A playtest check must not assume either tag goes away. `us101_defenses.py` parries last for that reason.
 
 **Found while fixing issue #6** (2026-11-04, US-086).
-- **N34 A revived enemy's floating health bar keeps its old value.** `AMordecaiEnemyCharacter::ResetForArena` restores Health and Posture with `InitHealth` / `InitPosture`. Those write the attribute directly and fire no attribute-change delegate, and `UMordecaiEnemyHealthBarWidget` only updates on that delegate.
-  - After the respawn's arena reset, the state read shows the enemy at full health (`arena_reset` PASS) while its bar still shows the health it died or was hit at.
-  - Seen in issue #7's sweep: the bar stayed at 184/200 after a reset. Since us054_combat kills the TestDummy (issue #6), a revived dummy would stand under an empty bar.
-  - Fix idea: restore with `SetNumericAttributeBase`, as `HandlePlayerRespawn` does; the enemy's health handler already accepts a change with no effect data.
-  - Filed as GitHub issue #81 (2026-11-04).
+- **N34 A reset enemy's floating health bar kept its old value (FIXED in code by US-092, issue #81).** `AMordecaiEnemyCharacter::ResetForArena` restores Health and Posture with `InitHealth` / `InitPosture`. Those writes fire no attribute-change delegate, and `UMordecaiEnemyIndicatorWidget` updates an already-bound bar only from that delegate.
+  - A surviving damaged enemy therefore kept its stale fill until the next health event. A killed enemy followed a different path: death removed its indicator entirely, so reset had to restore it before any fill could be shown.
+  - Seen before the IndicatorSystem replacement in issue #7's sweep: the old bar stayed at 184/200 after a reset. Since us054_combat kills the TestDummy (issue #6), a reset must both restore that indicator and show its current full health.
+  - US-092's always-on lifecycle now replaces the indicator descriptor after `ResetForArena` restores the attributes. The replacement widget binds to the current values, fixing both the surviving-damaged and killed-then-revived paths without waiting for another attribute event.
+  - Filed as GitHub issue #81 (2026-11-04); the issue is not closed by this documentation edit.
 
 **Bridge gaps found while writing the Phase 3 playtests.** These are missing bridge state, not game bugs; each blocks an assertion.
 - **B1 The bridge did not report pickup name labels (FIXED, issue #30).** `actors[].widgets` lists only `UWidgetComponent`s, but the pickup label is a `UTextRenderComponent`, so check `pickup_labels` in `us079_inventory.py` (AC-079.10) failed (known issue B1).

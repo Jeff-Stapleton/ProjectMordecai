@@ -19,7 +19,7 @@ Migrate enemy world-space indicators to Lyra's built-in IndicatorSystem for prop
 
 ### Indicator Registration
 - [x] AC-064.1: `UMordecaiEnemyIndicatorComponent` (UActorComponent) exists in `Mordecai/UI/`. Attached to enemy characters. Handles registration/unregistration with the Lyra IndicatorSystem.
-- [x] AC-064.2: When an enemy takes damage or enters player aggro range, the component registers an indicator via `ULyraIndicatorManagerComponent::AddIndicator()`. The indicator is positioned above the enemy's head (component-relative Z offset, configurable `IndicatorHeightOffset` default 120.0cm).
+- [x] AC-064.2: The component registers via `ULyraIndicatorManagerComponent::AddIndicator()` and positions the indicator above the enemy's head (component-relative Z offset, configurable `IndicatorHeightOffset` default 120.0cm). US-092 later made registration always-on from spawn; damage and aggro notifications remain idempotent retries.
 - [x] AC-064.3: When the enemy dies, the indicator is unregistered via `RemoveIndicator()`. No dangling indicators after enemy destruction.
 - [x] AC-064.4: Indicators are only shown for enemies within a configurable `IndicatorVisibilityRange` (default 2000.0cm). Enemies beyond this range have their indicators hidden. When they re-enter range, indicators reappear.
 
@@ -39,7 +39,7 @@ Migrate enemy world-space indicators to Lyra's built-in IndicatorSystem for prop
 - **Distance-based visibility:** Check distance from player on tick (low frequency, e.g., every 0.25s) or use the IndicatorDescriptor's visibility flag. Set `bVisible = false` when beyond range.
 - **Legacy health bar:** US-092 removed `MordecaiEnemyHealthBarWidget` and its `WBP_EnemyHealthBar` asset; `MordecaiEnemyIndicatorWidget` is the single enemy health readout.
 - **Status icon textures:** Use `TSoftObjectPtr<UTexture2D>` so textures can be nullptr in headless tests. The C++ code handles the tag → icon mapping; actual texture assets are provided in EDITOR stories.
-- **Aggro-based registration:** `AMordecaiEnemyAIController` already has aggro detection (US-051). The indicator component can listen for a `Mordecai.Event.AggroActivated` event or be triggered when the enemy first takes damage.
+- **Always-on registration (US-092 owner decision, 2026-11-05):** every living enemy requests its indicator from `BeginPlay`; registration is not gated on aggro or damage. Death removes it and arena reset restores/rebinds it.
 - Place all new code in `Source/LyraGame/Mordecai/UI/`.
 
 ## Tests Required

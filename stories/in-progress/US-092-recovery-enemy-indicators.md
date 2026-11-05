@@ -6,7 +6,7 @@
 **Paired story:** none
 
 ## Overview
-US-064 migrated enemy indicators to Lyra's IndicatorSystem, but in the packaged arena no `EnemyIndicator` widget is ever on screen, even with three Frontliners in aggro range (N17). Source reading shows three gaps: nothing calls `NotifyAggroActivated`, a failed registration is never retried, and the Mordecai arena has neither the `ULyraIndicatorManagerComponent` on the player controller nor an `UIndicatorLayer` in the HUD that Lyra's ShooterCore experience normally adds. Feature: enemy_indicators.
+US-064 migrated enemy indicators to Lyra's IndicatorSystem, but in the packaged arena no `EnemyIndicator` widget was ever on screen (N17). The first recovery restored manager/layer wiring and aggro registration. Jeff's final product call now makes the replacement behave like the retired bar: one always-on indicator for every living enemy from spawn, including an Idle enemy whose AggroRange is zero. Feature: enemy_indicators.
 
 ## Execution Mode
 **HEADLESS**
@@ -15,21 +15,22 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 ## References
 - `Specs/agent_playtest_plan_v1.md` — N17
 - Sweep `Saved/Playtests/20261022-184702-sweep/summary.md`; run `Saved/Playtests/20261022-184803-us054`: `enemy_indicators` FAIL NEW ("not met within 3s: 0 EnemyIndicator widget(s) on screen (expected >= 3, one per enemy in aggro range)"); `enemy_aggro` PASS (all three not Idle)
-- Done stories: US-064 AC-064.2 (register on damage or aggro, 120 cm offset), AC-064.4 (visibility range), AC-064.10 (one per enemy); US-054 AC-054.9 / US-052 AC-052.10 are migrated by this story from the retired `WBP_EnemyHealthBar` to the indicator — check `enemy_health_bars`
-- Existing code:
+- Done stories: US-064 AC-064.2 (registration and 120 cm offset), AC-064.4 (visibility range), AC-064.10 (one per enemy); US-054 AC-054.9 / US-052 AC-052.10 are migrated by this story from the retired `WBP_EnemyHealthBar` to the indicator — check `enemy_health_bars`
+- Baseline code at the start of the recovery:
   - `Source/LyraGame/Mordecai/UI/MordecaiEnemyIndicatorComponent.cpp:65-71` (`NotifyAggroActivated`, no caller in `Source/LyraGame/Mordecai/`), `:95-108` (`bIndicatorRegistered = true` is set before the manager null-check, so a registration attempted before the PC has a manager is lost forever), `:193-208` (`FindIndicatorManager` → `ULyraIndicatorManagerComponent::GetComponent(PC)`)
   - `Source/LyraGame/Mordecai/Enemy/MordecaiEnemyCharacter.cpp:47,186-188,233-235` (damage/death notifications only)
   - `Source/LyraGame/UI/IndicatorSystem/LyraIndicatorManagerComponent.*`, `IndicatorLayer.*` (Lyra)
   - `Source/LyraGame/Mordecai/UI/MordecaiCombatHUDWidget.cpp:34-127` (no indicator layer)
 
 ## Acceptance Criteria
-- [x] AC-092.1: When an enemy's AI enters aggro on the player, its indicator component registers an indicator — verified by `Mordecai.Recovery.EnemyIndicator.RegistersOnAggro`
+- [ ] AC-092.1: Every living enemy requests and registers its indicator from `BeginPlay`, without waiting for aggro or damage — verified by `Mordecai.Recovery.EnemyIndicator.RegistersOnSpawn`
 - [x] AC-092.2: A registration attempted while no indicator manager is available is retried (the flag is set only after `AddIndicator` succeeds) — verified by `Mordecai.Recovery.EnemyIndicator.RetriesWhenManagerMissing`
 - [x] AC-092.3: `AMordecaiPlayerController` has a `ULyraIndicatorManagerComponent` and the default combat HUD contains an `UIndicatorLayer`, without depending on the ShooterCore experience — verified by `Mordecai.Recovery.EnemyIndicator.ArenaHasManagerAndLayer`
-- [ ] AC-092.4: In the packaged build, standing at the spawn with three Frontliners in aggro range, the player sees one indicator per enemy within 3 s — verified by check `enemy_indicators` of `Scripts/playtests/us054_arena.py` (Tier 4; state read while the player stands — no input needed beyond the launch)
+- [ ] AC-092.4: In the packaged build, the player sees one indicator per living enemy from spawn within 3 s, including the Idle CombatTestMap TestDummy — verified by Tier 3 screenshots and check `enemy_indicators` of `Scripts/playtests/us054_arena.py`
 
 ## Technical Notes
-- Call `NotifyAggroActivated()` from the enemy AI's transition out of Idle (the same place `ai_state` changes to Chase/Attack).
+- Jeff's 2026-11-05 decision supersedes aggro gating: `BeginPlay` latches the indicator request and tries registration immediately; the timer retries if the local manager is not ready. Damage and aggro notifications remain idempotent retries.
+- `ResetForArena` replaces the descriptor after restoring attributes, so a survivor's widget rebinds current health and a killed enemy's indicator returns. This fixes N34's stale-fill path in code.
 - The indicator widget class (`IndicatorWidgetClass`, soft class) must resolve in the packaged build; if it defaults to the native `UMordecaiEnemyIndicatorWidget`, make sure that widget builds a default tree (`BuildDefaultContent` exists at `MordecaiEnemyIndicatorWidget.cpp:46`).
 - Jeff's 2026-11-05 final decision: remove `WBP_EnemyHealthBar` entirely; use one always-red, 150 px-wide EnemyIndicator health bar and migrate `enemy_health_bars` to verify the replacement.
 - Script bookkeeping: `enemy_indicators` was NEW (no `known_issue`).
@@ -37,13 +38,14 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 
 ## Tests Required
 ### Tier 1 — Automation (headless)
-- `Mordecai.Recovery.EnemyIndicator.RegistersOnAggro` — AC-092.1
+- `Mordecai.Recovery.EnemyIndicator.RegistersOnSpawn` — AC-092.1
 - `Mordecai.Recovery.EnemyIndicator.RetriesWhenManagerMissing` — AC-092.2
+- `Mordecai.Recovery.EnemyIndicator.RefreshesOnArenaReset` — always-on reset lifecycle and N34
 - `Mordecai.Recovery.EnemyIndicator.ArenaHasManagerAndLayer` — AC-092.3
 - `Mordecai.Recovery.EnemyIndicator.ReplacesLegacyHealthBar` — retired asset/property absent; replacement bar is red and 150 x 20
 - `Mordecai.UI.EnemyIndicator.HealthBarIsAlwaysRed` — full, mid and empty health all use the red enemy color
 ### Tier 2 — PIE smoke (editor integration)
-- `Scripts/verify_pie_hud.py`: the PC has an indicator manager component; within 3 s of PIE start three enemy indicators are registered
+- `Scripts/verify_pie_hud.py`: the PC has an indicator manager component; the three living enemies register always-on indicators from spawn
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
@@ -53,7 +55,7 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 - **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-054` on the same package
 - **Player steps:** stand at the spawn
 - **Visible on screen:** one red, 150 px-wide indicator health bar (120 cm offset) over each of the three enemies, with no legacy `WBP_EnemyHealthBar`, in the us054 `start` screenshot and Tier 3 `engine_NN.png`
-- **Proof:** Tier 3 screenshots; Tier 4 checks `enemy_health_bars` and `enemy_indicators` of `Scripts/playtests/us054_arena.py`
+- **Proof:** Tier 4 checks `enemy_health_bars` and `enemy_indicators` prove one visible indicator per living enemy and no legacy actor widget. Red fill and the fixed 150×20 size are Tier 1 plus screenshot evidence; bridge state does not expose progress-bar colour.
 - **Tier 4 script:** `Scripts/playtests/us054_arena.py` — run: `py Scripts/playtest_story.py US-054`
 - **Steps:**
 
@@ -64,7 +66,7 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 | 3 | `enemies_present` | state actors (radius 3000) -> 3 kind=='enemy', health {200, 200}, pairwise > 300 cm apart | AC-054.11, AC-054.2, US-050:AC-050.3 |
 | 4 | `enemies_visible` | state actors -> every enemy has_visible_mesh==true | AC-054.13 |
 | 5 | `enemy_health_bars` | state actors + widgets -> exactly one visible EnemyIndicator per enemy and no actor-attached EnemyHealthBar | AC-054.9, US-052:AC-052.10 |
-| 6 | `enemy_indicators` | state widgets -> one EnemyIndicator widget per enemy in aggro range within 3s | US-064:AC-064.2, US-064:AC-064.10, US-092:AC-092.4 |
+| 6 | `enemy_indicators` | state widgets -> one always-on EnemyIndicator widget per living enemy from spawn within 3s | US-064:AC-064.2, US-064:AC-064.10, US-092:AC-092.4 |
 | 7 | `enemy_aggro` | stand at the spawn -> every enemy ai_state != 'Idle' within 3s | US-051:AC-051.3 |
 | 8 | `enemy_approaches` | stand -> some enemy > 100 cm from every spawn within 6s | US-051:AC-051.4 |
 | 9 | `enemy_damages_player` | stand at the spawn -> wait_until player.attributes.health < player.attributes.max_health within 20s | AC-054.13, US-051:AC-051.5 |
@@ -73,15 +75,15 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 
 ## Definition of Done
 - [ ] All ACs checked off
-- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [x] Content: none; `py Scripts/check_content_committed.py` exits 0
-- [x] Work committed FIRST, then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [x] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
+- [ ] Work committed FIRST, then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-054`: `enemy_indicators` goes from FAIL to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
 - [x] Known issue N17 marked FIXED in `Specs/agent_playtest_plan_v1.md`
-- [x] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
-- [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-092]` closing commit
+- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
+- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-092]` closing commit
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
@@ -138,7 +140,7 @@ Those packaged screenshots showed both systems rendering simultaneously with hea
 interim hold on 2026-11-05: remove `WBP_EnemyHealthBar`, make the EnemyIndicator bar red, and retain the old 150 px
 width. New-package evidence for that decision is recorded below after the replacement run.
 
-### Final single-bar replacement evidence
+### Single-bar replacement evidence (lifecycle superseded)
 
 Implementation commit `45c834382852b80f865b64340c1b5704e19d1778` removes the legacy C++ widget,
 `WBP_EnemyHealthBar`, its enemy property/component creation path, and the three enemy Blueprint references.
@@ -177,8 +179,9 @@ arena run does not exit 0, AC-092.4 remains unchecked and the story remains in p
   `engine_02.png` show one uniformly sized red bar per Frontliner, with no legacy bar; `engine_03.png` is the
   dimmed death countdown. `shot_01..03.png` again show only the covering desktop wallpaper.
 - CombatTestMap `20261105-101329-boot`: `engine_loading.png` is the Mordecai loading screen;
-  `engine_01..03.png` show the fixed-camera measuring grid, player and idle TestDummy (no indicator before aggro),
-  plus the HUD/loadout. `shot_01..03.png` show the covering desktop wallpaper.
+  `engine_01..03.png` show the fixed-camera measuring grid, player and Idle TestDummy without an indicator because
+  that package still used aggro/damage gating, plus the HUD/loadout. `shot_01..03.png` show the covering desktop
+  wallpaper. Jeff subsequently rejected that gating in favor of always-on from spawn.
 - Arena `20261105-101349-us054`: `bridge_01.png` and `bridge_02.png` show the three red Frontliner cylinders
   around the player with exactly one vivid-red indicator bar each. There is no lower legacy bar. Compared with
   prior dual-bar `20261105-021229-us054/bridge_01.png`, each replacement bar matches the old red bar's horizontal
@@ -189,3 +192,6 @@ arena run does not exit 0, AC-092.4 remains unchecked and the story remains in p
   screen; `bridge_06.png` shows the respawned player, restored targets, Kills: 0 and the loadout plate.
 
 No new failure was filed: the sole failing check is the existing US-085/#85 spacing issue.
+
+This package predates Jeff's always-on-from-spawn decision. Fresh evidence from the new committed lifecycle
+implementation is required below before AC-092.1 or AC-092.4 can be accepted.

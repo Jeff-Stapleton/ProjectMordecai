@@ -26,6 +26,11 @@ void UMordecaiEnemyIndicatorComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Jeff's 2026-11-05 decision: living enemies show their health indicator from spawn.
+	// Register immediately when the local manager is ready; UpdateVisibility retries otherwise.
+	bIndicatorRequested = true;
+	RegisterIndicator();
+
 	// Start visibility check timer (every 0.25s)
 	if (GetWorld())
 	{
@@ -65,6 +70,16 @@ void UMordecaiEnemyIndicatorComponent::NotifyDamageReceived()
 void UMordecaiEnemyIndicatorComponent::NotifyAggroActivated()
 {
 	bIndicatorRequested = true;
+	RegisterIndicator();
+}
+
+void UMordecaiEnemyIndicatorComponent::NotifyArenaReset()
+{
+	bIndicatorRequested = true;
+
+	// Replacing the descriptor makes the newly created widget bind to the enemy's current
+	// attributes. This refreshes survivors as well as restoring an indicator removed on death.
+	UnregisterIndicator();
 	RegisterIndicator();
 }
 

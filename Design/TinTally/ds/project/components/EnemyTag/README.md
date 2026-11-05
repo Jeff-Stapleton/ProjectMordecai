@@ -1,6 +1,6 @@
 # EnemyTag
 
-The world tag over an enemy: tier diamonds and name on a plate pill, foe health over posture in one dual-edged gauge, a state chip and up to three status tokens. Use it for every non-boss enemy once it has aggroed or been hit; it replaces the plain red `WBP_EnemyHealthBar`, and bosses use the BossBar instead.
+The world tag over an enemy: tier diamonds and name on a plate pill, foe health over posture in one dual-edged gauge, a state chip and up to three status tokens. Use it from spawn for every living non-boss enemy; it replaces the plain red `WBP_EnemyHealthBar`, and bosses use the BossBar instead.
 
 ## Anatomy
 
@@ -23,12 +23,11 @@ Pivot: bottom-centre, anchored at Z +120 above the enemy origin. The gauge is th
 
 | State | When | What shows |
 |---|---|---|
-| Hidden | Basic enemy, not aggroed and never hit | Nothing. |
-| Basic after aggro | First aggro (AI enters Approach) or first damage | Name pill + gauge. |
+| Living | From spawn, whether Idle, aggroed or damaged | Name pill + gauge. |
 | Hit | Health drops | The trail segment follows the DamageTrail motion (the same as the player's bar and the boss bar). |
 | Under 25% | Health below the notch | No hue change; the fill sits left of the notch. |
 | Statuses | Any of the 16 watched statuses | Up to 3 tokens, sorted Control > DoT > Debuff > Environmental > Buff, then "+N". |
-| Elite and up | Tier Elite, Champion or Miniboss | Visible whenever within range, aggroed or not, with its diamonds (and the ribbon for Miniboss). |
+| Elite and up | Tier Elite, Champion or Miniboss | Visible whenever living and within range, with its diamonds (and the ribbon for Miniboss). |
 | Summon | Tier Summon | The `summon` glyph before the name, the lighter pill. |
 | Posture Broken | `Mordecai.State.PostureBroken` (1000 ms) | The posture lane opens to 8 px and floods with `good` / `ink` stripes that drain over the 1 s. Chip "Broken ×1.5". |
 | Knocked Down | `Mordecai.State.KnockedDown` (50+ damage during the stagger; 2000 ms) | Same stripes, draining over 2 s. Chip "Down ×2.0". |
@@ -36,7 +35,7 @@ Pivot: bottom-centre, anchored at Z +120 above the enemy origin. The gauge is th
 | Far | Beyond 1400 cm from the player | Tier diamonds + the health lane only (112 px). No name, posture, chip or statuses. |
 | Dead | `Mordecai.State.Dead` | The tag is removed at once. An empty bar never stays on a corpse. |
 
-Motion: the trail is DamageTrail. The tag fades in on first aggro and out at the leash with WorldTagFade (whole-widget fades). Diamonds never animate. The stripes drain linearly over the stagger. The brackets snap in with BracketSnap. Reduce Motion: the system's 150 ms fades only.
+Motion: the trail is DamageTrail. The tag appears with the living enemy and uses WorldTagFade when distance visibility changes. Diamonds never animate. The stripes drain linearly over the stagger. The brackets snap in with BracketSnap. Reduce Motion: the system's 150 ms fades only.
 
 ## Data and implementation
 
@@ -45,7 +44,7 @@ Motion: the trail is DamageTrail. The tag fades in on first aggro and out at the
   - Add optional `TierMarks` (HBox of diamond images), `PostureProgressBar`, `StateChip` with `StateText`, `CriticalBrackets` and `RiposteTag`.
 - **Component:** `UMordecaiEnemyIndicatorComponent`.
   - `IndicatorHeightOffset` 120, `IndicatorVisibilityRange` 2000 (checked every 0.25 s), HAlign Center / VAlign Bottom. Add the far threshold at 1400 cm.
-  - It needs US-092 to appear at all (N17): a `ULyraIndicatorManagerComponent` on the player controller, a `UIndicatorLayer` on the HUD, `IndicatorWidgetClass` set, and a caller for `NotifyAggroActivated`.
+  - US-092 supplies the `ULyraIndicatorManagerComponent`, HUD `UIndicatorLayer`, native widget class and always-on `BeginPlay` registration. Damage and aggro notifications are only idempotent retries; they do not gate visibility.
 - **Retire** `WBP_EnemyHealthBar` (the 150 x 20 screen-space `UWidgetComponent` from `CreateHealthBarWidget()`), so each enemy has one health readout. Jeff approved removal for US-092 on 2026-11-05.
 - **Name:** `EnemyDisplayName` only, never `GetName()`.
   - No enemy sets a display name in content today, so the actor name ("BP_MordecaiEnemy_Frontliner_C_0") would show.

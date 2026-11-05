@@ -21,8 +21,8 @@ Steps (--plan prints them as the story's Steps table):
   1-2  The combat HUD: health, stamina, posture, SP bars and the kill counter on screen, reading
        "Kills: 0", laid out top-left (health, then stamina below it, then posture below that).
   3-8  The three Frontliners (actors[].kind == "enemy", read with radius 3000, never by label):
-       200/200 HP, spread out, visible meshes, one EnemyIndicator per enemy and no retired
-       WBP_EnemyHealthBar actor widget, aggro
+       200/200 HP, spread out, visible meshes, one always-on EnemyIndicator per enemy from spawn
+       and no retired WBP_EnemyHealthBar actor widget, aggro
        (ai_state leaves Idle within 3 s) and approach (one leaves its spawn within 6 s).
   9    Stand at the PlayerStart: the Frontliners damage the player (health below max).
 A failed check SKIPs the checks that depend on it (needs=); independent checks still run.
@@ -103,8 +103,8 @@ PLAN = (
     Step("enemy_health_bars", f"state actors + widgets -> exactly one visible {INDICATOR_CLASS} "
          f"per enemy and no actor-attached {LEGACY_ENEMY_BAR_CLASS}",
          proves=("AC-054.9", "US-052:AC-052.10")),
-    Step("enemy_indicators", f"state widgets -> one {INDICATOR_CLASS} widget per enemy in aggro "
-         f"range within {INDICATOR_TIMEOUT_S:g}s",
+    Step("enemy_indicators", f"state widgets -> one always-on {INDICATOR_CLASS} widget per living "
+         f"enemy from spawn within {INDICATOR_TIMEOUT_S:g}s",
          proves=("US-064:AC-064.2", "US-064:AC-064.10", "US-092:AC-092.4")),
     Step("enemy_aggro", f"stand at the spawn -> every enemy ai_state != 'Idle' within "
          f"{AGGRO_TIMEOUT_S:g}s", proves=("US-051:AC-051.3",)),

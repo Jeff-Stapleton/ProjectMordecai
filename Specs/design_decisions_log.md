@@ -177,3 +177,10 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - The EnemyIndicator health bar is always red and keeps the retired bar's 150 px width.
 - `enemy_health_bars` migrates to the single EnemyIndicator readout and verifies that no legacy actor-attached bar remains.
 - Source: Jeff via Cursor session (2026-11-05), after reviewing the packaged dual-bar screenshots.
+
+## 2026-11-05 — Enemy indicators are always on from spawn (issue #22, US-092)
+
+- **Final decision:** every living enemy shows its EnemyIndicator from spawn, like the retired legacy bar. Registration is not gated on aggro or damage.
+- Death still unregisters the indicator. Arena reset restores it and rebinds the widget to current health.
+- The Idle CombatTestMap TestDummy (`AggroRange = 0`) therefore shows its one red, 150 px EnemyIndicator throughout its living state.
+- Source: Jeff via Cursor session (2026-11-05), resolving the AC-100.3 product call.

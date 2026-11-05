@@ -70,7 +70,7 @@ class ArenaWorld(fb.FakeWorld):
     def __init__(self, *, visible_mesh=True, enemy_hp=200.0, aggro=True, aggro_s=0.3,
                  approach=True, approach_speed=400.0, stop_cm=150.0, damage=True,
                  hit_damage=5.0, hit_interval=0.3, hit_range=200.0, indicators=True,
-                 indicator_width=150.0, enemy_bars=False, hud_layout_ok=True, kills_text=0,
+                 enemy_bars=False, hud_layout_ok=True, kills_text=0,
                  **kwargs):
         kwargs.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES)
         super().__init__(enemies=False, **kwargs)
@@ -80,7 +80,7 @@ class ArenaWorld(fb.FakeWorld):
         self.approach, self.approach_speed, self.stop_cm = approach, approach_speed, stop_cm
         self.damage, self.hit_damage, self.hit_interval = damage, hit_damage, hit_interval
         self.hit_range = hit_range
-        self.indicators, self.indicator_width, self.enemy_bars = indicators, indicator_width, enemy_bars
+        self.indicators, self.enemy_bars = indicators, enemy_bars
         self.hud_layout_ok, self.kills_text = hud_layout_ok, kills_text
         self.aggroed = False
         self.hits = 0
@@ -129,10 +129,10 @@ class ArenaWorld(fb.FakeWorld):
         out.append({"class": "MordecaiKillCounterWidget", "name": "Kills",
                     "rect": [1140, 20, 120, 30], "texts": [f"Kills: {self.kills_text}"],
                     "buttons": []})
-        if self.indicators and self.aggroed:
+        if self.indicators:
             for i, _ in enumerate(self.arena):
                 out.append({"class": "MordecaiEnemyIndicatorWidget", "name": f"Ind_{i}",
-                            "rect": [100 * i, 300, self.indicator_width, 20],
+                            "rect": [100 * i, 300, 150, 20],
                             "texts": [], "buttons": []})
         return out
 
@@ -317,16 +317,17 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertEqual(checks["screenshot_hit"]["status"], "SKIP")
         self.assertIn("never hit", checks["screenshot_hit"]["detail"])
 
-    def test_idle_enemies_fail_aggro_approach_and_indicators(self):
-        _, server = self.serve(aggro=False, approach=False, indicators=False, damage=False)
+    def test_idle_enemies_keep_indicators_while_aggro_and_approach_fail(self):
+        _, server = self.serve(aggro=False, approach=False, damage=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         checks = self.by_name(rep)
         self.assertEqual(checks["enemy_aggro"]["status"], "FAIL")
         self.assertIn("ai=Idle", checks["enemy_aggro"]["detail"])
         self.assertEqual(checks["enemy_approaches"]["status"], "FAIL")
-        self.assertEqual(checks["enemy_indicators"]["status"], "FAIL")
-        self.assertIn("0 EnemyIndicator widget(s)", checks["enemy_indicators"]["detail"])
+        self.assertEqual(checks["enemy_health_bars"]["status"], "PASS")
+        self.assertEqual(checks["enemy_indicators"]["status"], "PASS")
+        self.assertIn("3 EnemyIndicator widget(s)", checks["enemy_indicators"]["detail"])
 
     def test_broken_hud_and_enemies_are_detected(self):
         _, server = self.serve(hud_layout_ok=False, enemy_hp=100.0, indicators=False)
