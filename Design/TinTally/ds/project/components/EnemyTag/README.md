@@ -46,12 +46,12 @@ Motion: the trail is DamageTrail. The tag fades in on first aggro and out at the
 - **Component:** `UMordecaiEnemyIndicatorComponent`.
   - `IndicatorHeightOffset` 120, `IndicatorVisibilityRange` 2000 (checked every 0.25 s), HAlign Center / VAlign Bottom. Add the far threshold at 1400 cm.
   - It needs US-092 to appear at all (N17): a `ULyraIndicatorManagerComponent` on the player controller, a `UIndicatorLayer` on the HUD, `IndicatorWidgetClass` set, and a caller for `NotifyAggroActivated`.
-- **Retire** `WBP_EnemyHealthBar` (the 150 x 20 screen-space `UWidgetComponent` from `CreateHealthBarWidget()`), so each enemy has one health readout. US-092 lists this as TODO(DECISION); this design assumes removal.
+- **Retire** `WBP_EnemyHealthBar` (the 150 x 20 screen-space `UWidgetComponent` from `CreateHealthBarWidget()`), so each enemy has one health readout. Jeff approved removal for US-092 on 2026-11-05.
 - **Name:** `EnemyDisplayName` only, never `GetName()`.
   - No enemy sets a display name in content today, so the actor name ("BP_MordecaiEnemy_Frontliner_C_0") would show.
   - Until the names are set, collapse the pill and show diamonds + gauge.
 - **Health:** Health / MaxHealth from the enemy ASC.
-  - Replace `HealthColorGreen`, `HealthColorYellow` and `HealthColorRed` with the single `foe` token. Low health reads from the notch and the trail.
+  - The implementation uses one `HealthColorRed` at every level; the theme pass replaces that literal with the single `foe` token. Low health reads from the notch and the trail.
 - **Posture:** Posture / MaxPosture (`UMordecaiAttributeSet`). The numbers come from `MordecaiPostureSystem`:
   - Break at 0: `PostureBrokenDurationMs` 1000, `StaggeredDamageMultiplier` 1.5.
   - Knock-down: 50 damage during the stagger, `KnockDownDurationMs` 2000, x2.0.

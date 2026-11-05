@@ -170,3 +170,10 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Packaged screenshots now show both readouts together and confirm that their bars and labels overlap heavily.
 - **Final decision remains open:** Jeff still needs to choose whether to remove `WBP_EnemyHealthBar` and migrate `enemy_health_bars` to the indicator, or keep both readouts.
 - Source: Jeff via Cursor session (2026-11-05): hold dual-bar removal until packaged screenshots show both; the screenshots now exist, so the hold becomes an explicit `TODO(DECISION)` rather than permission to remove either bar.
+
+## 2026-11-05 — Enemy indicator replaces legacy health bar (issue #22, US-092)
+
+- **Final decision (supersedes the interim hold above):** remove `WBP_EnemyHealthBar` entirely.
+- The EnemyIndicator health bar is always red and keeps the retired bar's 150 px width.
+- `enemy_health_bars` migrates to the single EnemyIndicator readout and verifies that no legacy actor-attached bar remains.
+- Source: Jeff via Cursor session (2026-11-05), after reviewing the packaged dual-bar screenshots.

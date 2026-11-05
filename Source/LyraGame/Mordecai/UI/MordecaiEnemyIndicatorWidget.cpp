@@ -14,6 +14,7 @@
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -25,9 +26,7 @@
 // Static Color Constants (AC-064.8)
 // ---------------------------------------------------------------------------
 
-const FLinearColor UMordecaiEnemyIndicatorWidget::HealthColorGreen = FLinearColor(0.0f, 0.8f, 0.0f, 1.0f);
-const FLinearColor UMordecaiEnemyIndicatorWidget::HealthColorYellow = FLinearColor(1.0f, 0.85f, 0.0f, 1.0f);
-const FLinearColor UMordecaiEnemyIndicatorWidget::HealthColorRed = FLinearColor(0.9f, 0.1f, 0.1f, 1.0f);
+const FLinearColor UMordecaiEnemyIndicatorWidget::HealthColorRed = FLinearColor::Red;
 
 // ---------------------------------------------------------------------------
 // Initialization
@@ -54,12 +53,18 @@ void UMordecaiEnemyIndicatorWidget::BuildDefaultContent()
 	NameSlot->SetHorizontalAlignment(HAlign_Center);
 	NameText->SetText(EnemyDisplayName);
 
-	// Health progress bar
-	HealthProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("HealthProgressBar"));
-	UVerticalBoxSlot* BarSlot = Root->AddChildToVerticalBox(HealthProgressBar);
-	BarSlot->SetHorizontalAlignment(HAlign_Fill);
+	// Keep the replacement health bar at the retired WBP_EnemyHealthBar's 150 x 20 dimensions.
+	USizeBox* HealthBarSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("HealthBarSize"));
+	HealthBarSize->SetWidthOverride(150.f);
+	HealthBarSize->SetHeightOverride(20.f);
+	UVerticalBoxSlot* BarSlot = Root->AddChildToVerticalBox(HealthBarSize);
+	BarSlot->SetHorizontalAlignment(HAlign_Center);
+
+	HealthProgressBar = WidgetTree->ConstructWidget<UProgressBar>(
+		UProgressBar::StaticClass(), TEXT("HealthProgressBar"));
 	HealthProgressBar->SetPercent(1.0f);
-	HealthProgressBar->SetFillColorAndOpacity(HealthColorGreen);
+	HealthProgressBar->SetFillColorAndOpacity(HealthColorRed);
+	HealthBarSize->AddChild(HealthProgressBar);
 
 	// Status icon container
 	StatusIconContainer = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("StatusIconContainer"));
@@ -244,20 +249,9 @@ void UMordecaiEnemyIndicatorWidget::UpdateHealthDisplay()
 	}
 }
 
-FLinearColor UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(float HealthPercent)
+FLinearColor UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(float /*HealthPercent*/)
 {
-	if (HealthPercent > 0.5f)
-	{
-		return HealthColorGreen;
-	}
-	else if (HealthPercent >= 0.25f)
-	{
-		return HealthColorYellow;
-	}
-	else
-	{
-		return HealthColorRed;
-	}
+	return HealthColorRed;
 }
 
 // ---------------------------------------------------------------------------

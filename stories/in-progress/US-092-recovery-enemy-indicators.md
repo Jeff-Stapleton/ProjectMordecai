@@ -15,7 +15,7 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 ## References
 - `Specs/agent_playtest_plan_v1.md` — N17
 - Sweep `Saved/Playtests/20261022-184702-sweep/summary.md`; run `Saved/Playtests/20261022-184803-us054`: `enemy_indicators` FAIL NEW ("not met within 3s: 0 EnemyIndicator widget(s) on screen (expected >= 3, one per enemy in aggro range)"); `enemy_aggro` PASS (all three not Idle)
-- Done stories: US-064 AC-064.2 (register on damage or aggro, 120 cm offset), AC-064.4 (visibility range), AC-064.10 (one per enemy); US-054 AC-054.9 / US-052 AC-052.10 (the old `WBP_EnemyHealthBar` widget components, still shown — check `enemy_health_bars` PASS)
+- Done stories: US-064 AC-064.2 (register on damage or aggro, 120 cm offset), AC-064.4 (visibility range), AC-064.10 (one per enemy); US-054 AC-054.9 / US-052 AC-052.10 are migrated by this story from the retired `WBP_EnemyHealthBar` to the indicator — check `enemy_health_bars`
 - Existing code:
   - `Source/LyraGame/Mordecai/UI/MordecaiEnemyIndicatorComponent.cpp:65-71` (`NotifyAggroActivated`, no caller in `Source/LyraGame/Mordecai/`), `:95-108` (`bIndicatorRegistered = true` is set before the manager null-check, so a registration attempted before the PC has a manager is lost forever), `:193-208` (`FindIndicatorManager` → `ULyraIndicatorManagerComponent::GetComponent(PC)`)
   - `Source/LyraGame/Mordecai/Enemy/MordecaiEnemyCharacter.cpp:47,186-188,233-235` (damage/death notifications only)
@@ -31,7 +31,7 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 ## Technical Notes
 - Call `NotifyAggroActivated()` from the enemy AI's transition out of Idle (the same place `ai_state` changes to Chase/Attack).
 - The indicator widget class (`IndicatorWidgetClass`, soft class) must resolve in the packaged build; if it defaults to the native `UMordecaiEnemyIndicatorWidget`, make sure that widget builds a default tree (`BuildDefaultContent` exists at `MordecaiEnemyIndicatorWidget.cpp:46`).
-- TODO(DECISION) (Jeff): Packaged screenshots now show both readouts overlapping heavily. Remove `WBP_EnemyHealthBar` and rewrite `enemy_health_bars` to check the indicator, or keep both? Do not change either until Jeff decides. This story keeps both.
+- Jeff's 2026-11-05 final decision: remove `WBP_EnemyHealthBar` entirely; use one always-red, 150 px-wide EnemyIndicator health bar and migrate `enemy_health_bars` to verify the replacement.
 - Script bookkeeping: `enemy_indicators` was NEW (no `known_issue`).
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
@@ -40,6 +40,8 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 - `Mordecai.Recovery.EnemyIndicator.RegistersOnAggro` — AC-092.1
 - `Mordecai.Recovery.EnemyIndicator.RetriesWhenManagerMissing` — AC-092.2
 - `Mordecai.Recovery.EnemyIndicator.ArenaHasManagerAndLayer` — AC-092.3
+- `Mordecai.Recovery.EnemyIndicator.ReplacesLegacyHealthBar` — retired asset/property absent; replacement bar is red and 150 x 20
+- `Mordecai.UI.EnemyIndicator.HealthBarIsAlwaysRed` — full, mid and empty health all use the red enemy color
 ### Tier 2 — PIE smoke (editor integration)
 - `Scripts/verify_pie_hud.py`: the PC has an indicator manager component; within 3 s of PIE start three enemy indicators are registered
 ### Tier 3 — Packaged playtest
@@ -50,8 +52,8 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-054` on the same package
 - **Player steps:** stand at the spawn
-- **Visible on screen:** an indicator (health bar above the head, 120 cm offset) over each of the three enemies in the us054 `start` screenshot and in Tier 3 `engine_NN.png`
-- **Proof:** Tier 3 screenshots; Tier 4 check `enemy_indicators` of `Scripts/playtests/us054_arena.py`
+- **Visible on screen:** one red, 150 px-wide indicator health bar (120 cm offset) over each of the three enemies, with no legacy `WBP_EnemyHealthBar`, in the us054 `start` screenshot and Tier 3 `engine_NN.png`
+- **Proof:** Tier 3 screenshots; Tier 4 checks `enemy_health_bars` and `enemy_indicators` of `Scripts/playtests/us054_arena.py`
 - **Tier 4 script:** `Scripts/playtests/us054_arena.py` — run: `py Scripts/playtest_story.py US-054`
 - **Steps:**
 
@@ -61,7 +63,7 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 | 2 | `hud_layout` | state widgets rects -> HealthBar top-left (x<300, y<60), StaminaBar below it, PostureBar below that | AC-054.7 |
 | 3 | `enemies_present` | state actors (radius 3000) -> 3 kind=='enemy', health {200, 200}, pairwise > 300 cm apart | AC-054.11, AC-054.2, US-050:AC-050.3 |
 | 4 | `enemies_visible` | state actors -> every enemy has_visible_mesh==true | AC-054.13 |
-| 5 | `enemy_health_bars` | state actors -> every enemy has a visible widget whose class contains EnemyHealthBar | AC-054.9, US-052:AC-052.10 |
+| 5 | `enemy_health_bars` | state actors + widgets -> exactly one visible EnemyIndicator per enemy and no actor-attached EnemyHealthBar | AC-054.9, US-052:AC-052.10 |
 | 6 | `enemy_indicators` | state widgets -> one EnemyIndicator widget per enemy in aggro range within 3s | US-064:AC-064.2, US-064:AC-064.10, US-092:AC-092.4 |
 | 7 | `enemy_aggro` | stand at the spawn -> every enemy ai_state != 'Idle' within 3s | US-051:AC-051.3 |
 | 8 | `enemy_approaches` | stand -> some enemy > 100 cm from every spawn within 6s | US-051:AC-051.4 |
@@ -83,8 +85,9 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
-Implementation commit `318be74`; playtest bookkeeping commit `dbe771f`. The owner rule was preserved:
-`WBP_EnemyHealthBar` and `enemy_health_bars` are unchanged, and the new indicator remains alongside the old bar.
+### Prior dual-bar evidence (superseded)
+Implementation commit `318be74`; playtest bookkeeping commit `dbe771f`. These runs preserved the then-current
+dual-bar hold and provided the screenshots Jeff used to make the final remove-and-restyle decision.
 
 **Red → green.** Before implementation, all three `Mordecai.Recovery.EnemyIndicator.*` tests failed on the
 intended gaps (manager, widget class, HUD layer, aggro registration, retry membership). After implementation:
@@ -131,5 +134,6 @@ reused Tier 4 script is not an acceptance candidate, AC-092.4 remains unchecked 
   retained legacy bar; `bridge_05.png`: dimmed `You Died`, countdown and `Kills: 1`; `bridge_06.png`: respawned
   player at full health, `Kills: 0`, loadout restored and dummy reset.
 
-The packaged screenshots answer the pending dual-bar question without changing the owner decision: both systems
-render simultaneously, and their labels/bars overlap heavily. No new PASS→FAIL regression was found.
+Those packaged screenshots showed both systems rendering simultaneously with heavy overlap. Jeff superseded the
+interim hold on 2026-11-05: remove `WBP_EnemyHealthBar`, make the EnemyIndicator bar red, and retain the old 150 px
+width. New-package evidence for that decision is recorded below after the replacement run.

@@ -25,7 +25,7 @@ Implement C++ widget classes for a minimal combat HUD that displays Health (%), 
 - [x] AC-052.7: `GetStaminaPercent()` returns `FMath::Clamp(Stamina / MaxStamina, 0.0f, 1.0f)` — returns 0 if MaxStamina is 0
 - [x] AC-052.8: `GetStaminaTier()` returns the correct `EMordecaiStaminaTier` based on current Stamina/MaxStamina ratio and the tier thresholds (Green ≥ 66%, Yellow ≥ 33%, Red > 0%, Exhausted ≤ 0)
 - [x] AC-052.9: `GetPosturePercent()` returns `FMath::Clamp(Posture / MaxPosture, 0.0f, 1.0f)` — returns 0 if MaxPosture is 0
-- [x] AC-052.10: An `UMordecaiEnemyHealthBarWidget` exists for displaying enemy health above their head (world-space widget component), bound to the enemy's ASC
+- [x] AC-052.10: One EnemyIndicator health bar displays enemy health above the head and binds to the enemy ASC; US-092 retired the duplicate `UMordecaiEnemyHealthBarWidget` path
 - [x] AC-052.11: All percentage/tier computation methods are static or const and independently testable without a live widget tree
 
 ## Technical Notes
@@ -39,7 +39,7 @@ Implement C++ widget classes for a minimal combat HUD that displays Health (%), 
 - The widgets should use `UPROPERTY(meta=(BindWidget))` for UMG integration but the C++ class can be compiled and tested without the UMG Blueprint.
 - `BindToASC()` should use `ASC->GetGameplayAttributeValueChangeDelegate()` to register callbacks for Health, MaxHealth, Stamina, MaxStamina, Posture, MaxPosture.
 - For stamina tier colors, expose `UPROPERTY(EditAnywhere)` `FLinearColor` fields for each tier. Defaults: Green=(0,1,0), Yellow=(1,1,0), Red=(1,0,0), Exhausted=(0.5,0,0).
-- The enemy health bar widget (AC-052.10) should be a simple world-space version that only shows health percent. It will be attached as a `UWidgetComponent` on the enemy BP in US-054.
+- US-092 migrated AC-052.10 to `UMordecaiEnemyIndicatorWidget` and removed the old actor-attached `UWidgetComponent`.
 - Do NOT create UMG Blueprint assets — this is C++ only. BP creation is US-054 (EDITOR).
 
 ## Tests Required

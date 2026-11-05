@@ -41,7 +41,7 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
   - "Sneak (Toggle)" (Ctrl / R3) is the design's crouch: out of scope, AC-100.6
 - Movement numbers (`Source/LyraGame/Mordecai/MordecaiCharacter.cpp`): WalkSpeed 600, sprint ×1.5. JumpZVelocity 600 with GravityScale 1.75 gives an apex of about 105 cm. The engine default MaxStepHeight is 45 cm.
 - Enemy code:
-  - `AMordecaiEnemyCharacter`: `DefaultMaxHealth`, `DefaultMoveSpeed`, `DefaultAbilities`, `EnemyAttackProfiles`, `EnemyHealthBarWidgetClass`, `BodyMesh`, all EditDefaultsOnly
+  - `AMordecaiEnemyCharacter`: `DefaultMaxHealth`, `DefaultMoveSpeed`, `DefaultAbilities`, `EnemyAttackProfiles`, `BodyMesh`, all EditDefaultsOnly; US-092 removed `EnemyHealthBarWidgetClass`
   - `AMordecaiEnemyAIController`: AggroRange 900, AttackRange 200, LeashRange 1800, AttackCooldownMs 1500
   - `/MordecaiCore/Combat/Enemies/DA_EnemyAttack_BasicSlash`: windup 500 / active 200 / recovery 400 ms, 150 cm / 90° arc, 15 Slash
 - Existing assets and scripts:
@@ -106,13 +106,13 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
   - `/MordecaiCore/Enemies/BP_MordecaiEnemy_TestDummy`: Blueprint, parent `/Script/LyraGame.MordecaiEnemyCharacter`, like the Frontliner, not a child of it. CDO:
     - `AIControllerClass` = `BP_MordecaiEnemyAI_TestDummy_C`, `DefaultMoveSpeed` 0, `DefaultMaxHealth` 200
     - `DefaultAbilities` [`MordecaiGA_MeleeAttack`], `EnemyAttackProfiles` [`DA_EnemyAttack_BasicSlash`]. These are kept so `ValidateContent` and `TryEnterAttackState` log nothing; the dummy never reaches Attack.
-    - `EnemyHealthBarWidgetClass` `WBP_EnemyHealthBar`
+    - Enemy health uses the native EnemyIndicator; US-092 removed the legacy widget-class property.
     - `BodyMesh` `/Engine/BasicShapes/Cylinder`, scale (0.8, 0.8, 1.8), with `MI_Enemy_TestDummy`
   - `/MordecaiCore/Enemies/BP_MordecaiEnemy_TestAttacker`: Blueprint, parent `MordecaiEnemyCharacter`. CDO:
     - `AIControllerClass`: the native `MordecaiEnemyAIController` (C++ default)
     - `DefaultMoveSpeed` 0, `DefaultMaxHealth` 200
     - `DefaultAbilities` [`MordecaiGA_MeleeAttack`], `EnemyAttackProfiles` [`DA_EnemyAttack_BasicSlash`] only. The AI swings only index 0 (N24), so FireSlash would never be swung.
-    - health bar as above; `BodyMesh` Cylinder (0.8, 0.8, 1.8) with `MI_Enemy_TestAttacker`
+    - EnemyIndicator health bar as above; `BodyMesh` Cylinder (0.8, 0.8, 1.8) with `MI_Enemy_TestAttacker`
   - `MI_Enemy_TestDummy` (blue-grey, about (0.25, 0.35, 0.75)) and `MI_Enemy_TestAttacker` (orange, about (1.0, 0.45, 0.05)): MaterialInstanceConstants made like `MI_Enemy_Frontliner`.
 - **Editor scripts.** Each is idempotent and prints PASS/FAIL lines and a RESULT line. Each uses `#` comments instead of a module docstring, does all its work in `main()`, and holds no module-level UObjects. Run them with `py Scripts/ue_remote_exec.py "exec(open(r'<absolute path>').read())"`.
   - `Scripts/us100_01_create_test_enemies.py`: the MIs, the AI BP and the two enemy BPs. It compiles twice, saves and reads back (the `us085_configure_frontliner.py` pattern). Base stats go on the BP CDOs only, never as instance overrides on placed actors: N13, and `ValidateContent` logs an error for an override.

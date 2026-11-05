@@ -4,16 +4,21 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/ProgressBar.h"
+#include "Components/SizeBox.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/MordecaiPlayerController.h"
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
 #include "Mordecai/UI/MordecaiEnemyIndicatorComponent.h"
+#include "Mordecai/UI/MordecaiEnemyIndicatorWidget.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
 #include "TimerManager.h"
 #include "UI/IndicatorSystem/IndicatorDescriptor.h"
 #include "UI/IndicatorSystem/IndicatorLayer.h"
 #include "UI/IndicatorSystem/LyraIndicatorManagerComponent.h"
+#include "UObject/SoftObjectPath.h"
 
 using namespace MordecaiRecoveryTest;
 
@@ -190,6 +195,49 @@ bool FMordecai_Recovery_EnemyIndicator_ArenaHasManagerAndLayer::RunTest(const FS
 			TestEqual("full-screen offsets", LayerSlot->GetOffsets(), FMargin(0.f));
 			TestEqual("indicator layer draws below ordinary HUD controls", LayerSlot->GetZOrder(), -1);
 		}
+	}
+
+	Env.TeardownWithController();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_EnemyIndicator_ReplacesLegacyHealthBar,
+	"Mordecai.Recovery.EnemyIndicator.ReplacesLegacyHealthBar",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_EnemyIndicator_ReplacesLegacyHealthBar::RunTest(const FString& Parameters)
+{
+	TestNull("enemy class no longer exposes the legacy widget class",
+		AMordecaiEnemyCharacter::StaticClass()->FindPropertyByName(TEXT("EnemyHealthBarWidgetClass")));
+	TestNull("legacy WBP_EnemyHealthBar asset is absent",
+		FSoftObjectPath(TEXT("/MordecaiCore/UI/WBP_EnemyHealthBar.WBP_EnemyHealthBar")).TryLoad());
+
+	FRecoveryControlledTestEnv Env;
+	if (!TestTrue("controlled player world", Env.SetupWithController()))
+	{
+		Env.TeardownWithController();
+		return true;
+	}
+
+	UMordecaiEnemyIndicatorWidget* IndicatorWidget = Env.MakeWidget<UMordecaiEnemyIndicatorWidget>();
+	USizeBox* HealthBarSize = IndicatorWidget && IndicatorWidget->WidgetTree
+		? IndicatorWidget->WidgetTree->FindWidget<USizeBox>(TEXT("HealthBarSize"))
+		: nullptr;
+	if (TestNotNull("indicator builds a dedicated health-bar size box", HealthBarSize))
+	{
+		TestTrue("health-bar width override is set", HealthBarSize->IsWidthOverride());
+		TestEqual("health-bar width matches the retired 150px bar", HealthBarSize->GetWidthOverride(), 150.f);
+		TestTrue("health-bar height override is set", HealthBarSize->IsHeightOverride());
+		TestEqual("health-bar height remains 20px", HealthBarSize->GetHeightOverride(), 20.f);
+	}
+
+	UProgressBar* HealthBar = IndicatorWidget && IndicatorWidget->WidgetTree
+		? IndicatorWidget->WidgetTree->FindWidget<UProgressBar>(TEXT("HealthProgressBar"))
+		: nullptr;
+	if (TestNotNull("indicator builds its health progress bar", HealthBar))
+	{
+		TestEqual("replacement uses the retired bar's exact red", HealthBar->GetFillColorAndOpacity(),
+			FLinearColor::Red);
 	}
 
 	Env.TeardownWithController();

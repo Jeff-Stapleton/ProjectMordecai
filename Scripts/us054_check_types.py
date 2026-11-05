@@ -8,7 +8,7 @@ names_to_try = [
     'MordecaiEnemyAIController', 'AMordecaiEnemyAIController',
     'MordecaiCombatHUDWidget', 'UMordecaiCombatHUDWidget',
     'MordecaiHealthBarWidget', 'MordecaiStaminaBarWidget',
-    'MordecaiPostureBarWidget', 'MordecaiEnemyHealthBarWidget',
+    'MordecaiPostureBarWidget',
     'MordecaiGA_MeleeAttack', 'MordecaiGA_Dodge',
     'MordecaiGA_Block', 'MordecaiGA_Parry',
     'DataAssetFactory', 'BlueprintFactory', 'WidgetBlueprintFactory',

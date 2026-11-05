@@ -188,33 +188,19 @@ bool FMordecai_UI_EnemyIndicator_ShownWhenReEntersRange::RunTest(const FString& 
 }
 
 // ---------------------------------------------------------------------------
-// 7. Mordecai.UI.EnemyIndicator.HealthBarColorThresholds (AC-064.8)
-// Health bar color: Green >50%, Yellow 25-50%, Red <25%.
+// 7. Mordecai.UI.EnemyIndicator.HealthBarIsAlwaysRed (US-092 owner decision)
+// Enemy health uses one stable red treatment at every percentage.
 // ---------------------------------------------------------------------------
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_EnemyIndicator_HealthBarColorThresholds,
-	"Mordecai.UI.EnemyIndicator.HealthBarColorThresholds",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_EnemyIndicator_HealthBarIsAlwaysRed,
+	"Mordecai.UI.EnemyIndicator.HealthBarIsAlwaysRed",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
-bool FMordecai_UI_EnemyIndicator_HealthBarColorThresholds::RunTest(const FString& Parameters)
+bool FMordecai_UI_EnemyIndicator_HealthBarIsAlwaysRed::RunTest(const FString& Parameters)
 {
-	// Green > 50%
 	FLinearColor Color75 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.75f);
-	TestEqual("75% = Green", Color75, UMordecaiEnemyIndicatorWidget::HealthColorGreen);
-
-	FLinearColor Color51 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.51f);
-	TestEqual("51% = Green", Color51, UMordecaiEnemyIndicatorWidget::HealthColorGreen);
-
-	// Yellow 25%-50%
+	TestEqual("75% = Red", Color75, UMordecaiEnemyIndicatorWidget::HealthColorRed);
 	FLinearColor Color50 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.50f);
-	TestEqual("50% = Yellow", Color50, UMordecaiEnemyIndicatorWidget::HealthColorYellow);
-
-	FLinearColor Color25 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.25f);
-	TestEqual("25% = Yellow", Color25, UMordecaiEnemyIndicatorWidget::HealthColorYellow);
-
-	// Red < 25%
-	FLinearColor Color24 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.24f);
-	TestEqual("24% = Red", Color24, UMordecaiEnemyIndicatorWidget::HealthColorRed);
-
+	TestEqual("50% = Red", Color50, UMordecaiEnemyIndicatorWidget::HealthColorRed);
 	FLinearColor Color0 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.0f);
 	TestEqual("0% = Red", Color0, UMordecaiEnemyIndicatorWidget::HealthColorRed);
 
@@ -255,7 +241,7 @@ bool FMordecai_UI_EnemyIndicator_StatusIconMapping::RunTest(const FString& Param
 
 	// CalcHealthBarColor boundary test at exactly 1.0
 	FLinearColor Color100 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(1.0f);
-	TestEqual("100% = Green", Color100, UMordecaiEnemyIndicatorWidget::HealthColorGreen);
+	TestEqual("100% = Red", Color100, UMordecaiEnemyIndicatorWidget::HealthColorRed);
 
 	return true;
 }

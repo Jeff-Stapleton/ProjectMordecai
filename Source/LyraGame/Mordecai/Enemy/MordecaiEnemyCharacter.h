@@ -13,10 +13,8 @@ class UMordecaiAbilitySystemComponent;
 class UMordecaiAttributeSet;
 class UMordecaiAttackProfileDataAsset;
 class UMordecaiPostureSystem;
-class UMordecaiEnemyHealthBarWidget;
 class UMordecaiEnemyIndicatorComponent;
 class UStaticMeshComponent;
-class UWidgetComponent;
 class UGameplayAbility;
 class APlayerState;
 struct FOnAttributeChangeData;
@@ -59,10 +57,6 @@ public:
 	/** Attack profiles for the enemy's melee attack (set on instanced ability after granting). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Enemy")
 	TArray<TObjectPtr<UMordecaiAttackProfileDataAsset>> EnemyAttackProfiles;
-
-	/** Widget class for the world-space health bar above the enemy's head. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Enemy|UI")
-	TSubclassOf<UMordecaiEnemyHealthBarWidget> EnemyHealthBarWidgetClass;
 
 	// --- State Queries ---
 
@@ -134,9 +128,6 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMordecaiPostureSystem> PostureSystem;
 
-	UPROPERTY()
-	TObjectPtr<UWidgetComponent> HealthBarWidgetComponent;
-
 	/** Enemy indicator component for world-space health/status display (US-064). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Enemy", Meta = (AllowPrivateAccess = true))
 	TObjectPtr<UMordecaiEnemyIndicatorComponent> EnemyIndicatorComponent;
@@ -152,5 +143,4 @@ private:
 	FTimerHandle PostureBrokenTimerHandle;
 
 	void GrantDefaultAbilities();
-	void CreateHealthBarWidget();
 };

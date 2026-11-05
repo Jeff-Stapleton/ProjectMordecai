@@ -1,7 +1,9 @@
 """US-054 Step 3: Create Widget Blueprints for HUD.
 
 AC-054.7: WBP_CombatHUD (Health, Stamina, Posture bars)
-AC-054.9: WBP_EnemyHealthBar (world-space enemy health)
+
+Enemy health is rendered by the native EnemyIndicator widget. WBP_EnemyHealthBar was retired
+by US-092 and must not be recreated.
 """
 import unreal
 
@@ -36,8 +38,5 @@ wbp_hud = create_widget_bp('WBP_CombatHUD', unreal.MordecaiCombatHUDWidget)
 create_widget_bp('WBP_HealthBar', unreal.MordecaiHealthBarWidget)
 create_widget_bp('WBP_StaminaBar', unreal.MordecaiStaminaBarWidget)
 create_widget_bp('WBP_PostureBar', unreal.MordecaiPostureBarWidget)
-
-# --- AC-054.9: Enemy Health Bar ---
-create_widget_bp('WBP_EnemyHealthBar', unreal.MordecaiEnemyHealthBarWidget)
 
 print('SUCCESS: All Widget Blueprints created.')

@@ -8,7 +8,6 @@
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
-#include "Mordecai/UI/MordecaiEnemyHealthBarWidget.h"
 #include "Mordecai/UI/MordecaiEnemyIndicatorComponent.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiGameMode.h"
@@ -19,7 +18,6 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Components/WidgetComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerState.h"
@@ -179,7 +177,6 @@ void AMordecaiEnemyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	InitializeAbilitySystem();
-	CreateHealthBarWidget();
 
 	// US-084: missing content is an error in every log, not a silent enemy (abilities are granted on authority only)
 	if (HasAuthority())
@@ -540,35 +537,6 @@ void AMordecaiEnemyCharacter::GrantDefaultAbilities()
 					}
 				}
 			}
-		}
-	}
-}
-
-// ---------------------------------------------------------------------------
-// US-054: Enemy Health Bar Widget
-// ---------------------------------------------------------------------------
-
-void AMordecaiEnemyCharacter::CreateHealthBarWidget()
-{
-	if (!EnemyHealthBarWidgetClass)
-	{
-		return;
-	}
-
-	HealthBarWidgetComponent = NewObject<UWidgetComponent>(this, TEXT("HealthBarWidget"));
-	if (HealthBarWidgetComponent)
-	{
-		HealthBarWidgetComponent->SetupAttachment(GetRootComponent());
-		HealthBarWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
-		HealthBarWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
-		HealthBarWidgetComponent->SetDrawSize(FVector2D(150.f, 20.f));
-		HealthBarWidgetComponent->SetWidgetClass(EnemyHealthBarWidgetClass);
-		HealthBarWidgetComponent->RegisterComponent();
-
-		// Bind to enemy ASC after the widget is created
-		if (UMordecaiEnemyHealthBarWidget* HealthBar = Cast<UMordecaiEnemyHealthBarWidget>(HealthBarWidgetComponent->GetWidget()))
-		{
-			HealthBar->BindToASC(EnemyAbilitySystemComponent);
 		}
 	}
 }

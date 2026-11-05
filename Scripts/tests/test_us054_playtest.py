@@ -70,7 +70,8 @@ class ArenaWorld(fb.FakeWorld):
     def __init__(self, *, visible_mesh=True, enemy_hp=200.0, aggro=True, aggro_s=0.3,
                  approach=True, approach_speed=400.0, stop_cm=150.0, damage=True,
                  hit_damage=5.0, hit_interval=0.3, hit_range=200.0, indicators=True,
-                 enemy_bars=True, hud_layout_ok=True, kills_text=0, **kwargs):
+                 indicator_width=150.0, enemy_bars=False, hud_layout_ok=True, kills_text=0,
+                 **kwargs):
         kwargs.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES)
         super().__init__(enemies=False, **kwargs)
         self.visible_mesh = visible_mesh
@@ -79,7 +80,7 @@ class ArenaWorld(fb.FakeWorld):
         self.approach, self.approach_speed, self.stop_cm = approach, approach_speed, stop_cm
         self.damage, self.hit_damage, self.hit_interval = damage, hit_damage, hit_interval
         self.hit_range = hit_range
-        self.indicators, self.enemy_bars = indicators, enemy_bars
+        self.indicators, self.indicator_width, self.enemy_bars = indicators, indicator_width, enemy_bars
         self.hud_layout_ok, self.kills_text = hud_layout_ok, kills_text
         self.aggroed = False
         self.hits = 0
@@ -131,7 +132,8 @@ class ArenaWorld(fb.FakeWorld):
         if self.indicators and self.aggroed:
             for i, _ in enumerate(self.arena):
                 out.append({"class": "MordecaiEnemyIndicatorWidget", "name": f"Ind_{i}",
-                            "rect": [100 * i, 300, 80, 20], "texts": [], "buttons": []})
+                            "rect": [100 * i, 300, self.indicator_width, 20],
+                            "texts": [], "buttons": []})
         return out
 
     def _actors(self, radius, include_all):
@@ -275,7 +277,8 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertEqual([s["label"] for s in rep["screenshots"]], ["start", "hit"])
         # The Frontliners really walked up and hit the player standing at the spawn.
         self.assertGreater(world.hits, 0)
-        self.assertGreater(rep["max_enemy_displacement"], us054.DISPLACED_CM)
+        # The report rounds to 0.1 cm after the live check has proved strictly > DISPLACED_CM.
+        self.assertGreaterEqual(rep["max_enemy_displacement"], us054.DISPLACED_CM)
         # Attached run: diagnostic only, nothing accepted.
         self.assertIn("DIAGNOSTIC ONLY", rep["evidence"])
         self.assertFalse(any(a["accepted"] for a in rep["acs"]))
@@ -326,7 +329,7 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertIn("0 EnemyIndicator widget(s)", checks["enemy_indicators"]["detail"])
 
     def test_broken_hud_and_enemies_are_detected(self):
-        _, server = self.serve(hud_layout_ok=False, enemy_hp=100.0, enemy_bars=False)
+        _, server = self.serve(hud_layout_ok=False, enemy_hp=100.0, indicators=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         checks = self.by_name(rep)
@@ -338,6 +341,14 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertEqual(checks["enemy_health_bars"]["status"], "FAIL")
         for name in ("hud_layout", "enemies_present", "enemy_health_bars"):
             self.assertIn(name, rep["new_failures"])
+
+    def test_legacy_actor_health_bar_fails_migrated_health_bar_check(self):
+        _, server = self.serve(enemy_bars=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["enemy_health_bars"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("WBP_EnemyHealthBar", check["detail"])
 
     def test_a_wrong_kill_count_fails_hud_visible(self):
         _, server = self.serve(kills_text=2)

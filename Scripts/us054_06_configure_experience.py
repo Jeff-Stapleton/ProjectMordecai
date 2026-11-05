@@ -16,7 +16,6 @@ assets_to_check = {
     'PlayerBP': '/MordecaiCore/Game/BP_MordecaiCharacter',
     'EnemyBP': '/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner',
     'CombatHUD': '/MordecaiCore/UI/WBP_CombatHUD',
-    'EnemyHealthBar': '/MordecaiCore/UI/WBP_EnemyHealthBar',
     'EnemyAttack': '/MordecaiCore/Combat/Enemies/DA_EnemyAttack_BasicSlash',
     'Combo1': '/MordecaiCore/Combat/Player/DA_PlayerAttack_LightSlash_1',
     'Combo2': '/MordecaiCore/Combat/Player/DA_PlayerAttack_LightSlash_2',

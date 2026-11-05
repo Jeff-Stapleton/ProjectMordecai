@@ -35,14 +35,6 @@ if EAL.does_asset_exist(enemy_bp_path):
             cdo.set_editor_property('default_abilities', [unreal.MordecaiGA_MeleeAttack])
             unreal.log('Set DefaultAbilities = [MeleeAttack]')
 
-            # Set health bar widget class
-            hb_path = '/MordecaiCore/UI/WBP_EnemyHealthBar'
-            if EAL.does_asset_exist(hb_path):
-                hb_class = unreal.load_class(None, hb_path + '.WBP_EnemyHealthBar_C')
-                if hb_class:
-                    cdo.set_editor_property('enemy_health_bar_widget_class', hb_class)
-                    unreal.log('Set EnemyHealthBarWidgetClass = WBP_EnemyHealthBar')
-
             # Set AI controller
             cdo.set_editor_property('ai_controller_class', unreal.MordecaiEnemyAIController)
             unreal.log('Set AIControllerClass = MordecaiEnemyAIController')
@@ -61,7 +53,6 @@ required_assets = {
     'PlayerBP': '/MordecaiCore/Game/BP_MordecaiCharacter',
     'EnemyBP': '/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner',
     'CombatHUD': '/MordecaiCore/UI/WBP_CombatHUD',
-    'EnemyHealthBar': '/MordecaiCore/UI/WBP_EnemyHealthBar',
     'EnemyAttack': '/MordecaiCore/Combat/Enemies/DA_EnemyAttack_BasicSlash',
     'Combo1': '/MordecaiCore/Combat/Player/DA_PlayerAttack_LightSlash_1',
     'Combo2': '/MordecaiCore/Combat/Player/DA_PlayerAttack_LightSlash_2',

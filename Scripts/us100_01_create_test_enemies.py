@@ -32,7 +32,6 @@ DUMMY_BP = f'{ENEMY_FOLDER}/BP_MordecaiEnemy_TestDummy'
 ATTACKER_BP = f'{ENEMY_FOLDER}/BP_MordecaiEnemy_TestAttacker'
 FRONTLINER_BP = f'{ENEMY_FOLDER}/BP_MordecaiEnemy_Frontliner'
 BASIC_SLASH = '/MordecaiCore/Combat/Enemies/DA_EnemyAttack_BasicSlash'
-HEALTH_BAR = '/MordecaiCore/UI/WBP_EnemyHealthBar'
 BODY_MESH = '/Engine/BasicShapes/Cylinder'
 BASE_MATERIAL = '/Engine/BasicShapes/BasicShapeMaterial'
 MORDECAI_CORE_CONTENT = 'Plugins/GameFeatures/MordecaiCore/Content'
@@ -301,9 +300,6 @@ def verify_enemy(checks, path, ai_class, aggro_range, material):
     checks.check(f'{name} EnemyAttackProfiles is [DA_EnemyAttack_BasicSlash]',
                  [p.get_path_name().split('.')[0] for p in profiles if p] == [BASIC_SLASH] and len(profiles) == 1,
                  f'{describe(profiles)}')
-    health_bar = defaults.get_editor_property('enemy_health_bar_widget_class')
-    checks.check(f'{name} EnemyHealthBarWidgetClass is WBP_EnemyHealthBar',
-                 health_bar is not None and health_bar.get_path_name().startswith(HEALTH_BAR + '.'), describe(health_bar))
     body = defaults.get_editor_property('body_mesh')
     mesh = body.get_editor_property('static_mesh') if body else None
     materials = list(body.get_editor_property('override_materials')) if body else []
@@ -329,7 +325,6 @@ def main():
 
     mesh = unreal.load_asset(BODY_MESH)
     slash = unreal.load_asset(BASIC_SLASH)
-    health_bar = load_class_or_fail(HEALTH_BAR, 'health bar widget')
     if mesh is None or slash is None:
         raise RuntimeError(f'{BODY_MESH} or {BASIC_SLASH} not found')
     melee = unreal.MordecaiGA_MeleeAttack.static_class()
@@ -358,7 +353,6 @@ def main():
             ('default_max_health', MAX_HEALTH),
             ('default_abilities', [melee]),
             ('enemy_attack_profiles', [slash]),
-            ('enemy_health_bar_widget_class', health_bar),
         ), body=(mesh, material, scale, location))
 
     # 3. Read back

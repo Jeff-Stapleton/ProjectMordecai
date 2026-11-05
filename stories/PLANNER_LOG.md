@@ -2971,7 +2971,6 @@ All lines from the sweep summary, condensed (failed checks, NEW first) @ `8ea853
 - TODO(DECISION) N18 — keep LB/RB pause-menu tab switching (AC-069.4) or drop it? (US-095 AC-095.3/095.4)
 - TODO(DECISION) gamepad spell buttons — AC-057.5 (Spell1 LB/Q, Spell2 RB/E, Spell3 LB+RB/R) vs control_bindings (Skill A RB/Q, Skill B LB/E); LB+RB is not mapped (US-097 note)
 - TODO(DECISION) Frontliner placement — enemies sit inside AggroRange (900 cm) of PlayerStart and swarm the spawn; move them out of aggro, or move us001's movement lanes? (US-085)
-- TODO(DECISION) enemy health readouts — once indicators work, remove the old `WBP_EnemyHealthBar` widget component (US-064 was a migration)? (US-092)
 - TODO(DECISION) heavy-attack hold threshold (control_bindings: "depends on weapon"); US-083 defaults to 0.4 s exposed as a UPROPERTY
 - TODO(DECISION) N22 (no story) — picked-up items have no Use or Equip action (Health Potion unusable, Rusty Sword cannot be equipped or added to the weapon cycle; explore run `Saved/Playtests/20261022-185207-explore/report.md`). Is item use/equip in scope before Epic 6 armor/equipment (US-072 equipment panel)?
 - TODO(DECISION) Settings tab — still "Coming Soon" (AC-069.3 accepts a placeholder); is a real Settings tab wanted now?

@@ -26,7 +26,7 @@ Wire all C++ systems from US-050–053 into a playable prototype using the Unrea
 - [x] AC-054.6: Input actions are bound to combat abilities: RT/LMB → Light Attack, LT/RMB hold → Block, LT+RT/RMB+LMB → Parry, B/LAlt → Dodge
 - [x] AC-054.7: A `WBP_CombatHUD` UMG Widget Blueprint exists, using the C++ HUD widget classes, showing: Health bar (top-left), Stamina bar with tier color (below health), Posture bar (below stamina)
 - [x] AC-054.8: The HUD is added to the player's viewport on game start via the experience or player controller
-- [x] AC-054.9: Enemy has a `WBP_EnemyHealthBar` world-space widget above their head showing their health percentage
+- [x] AC-054.9: Enemy has one visible red EnemyIndicator health bar above its head showing health percentage; `WBP_EnemyHealthBar` was retired by US-092
 - [x] AC-054.10: `DevTestMap` has a flat arena floor (~2000x2000 cm), basic walls/boundaries, adequate lighting for the diorama camera
 - [x] AC-054.11: 3 enemy Frontliners are placed in the arena at varied positions
 - [x] AC-054.12: `B_MordecaiDevExperience` is configured to use the arena game mode with respawn enabled
@@ -86,7 +86,7 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 2 | `hud_layout` | state widgets rects -> HealthBar top-left (x<300, y<60), StaminaBar below it, PostureBar below that | AC-054.7 |
 | 3 | `enemies_present` | state actors (radius 3000) -> 3 kind=='enemy', health {200, 200}, pairwise > 300 cm apart | AC-054.11, AC-054.2, US-050:AC-050.3 |
 | 4 | `enemies_visible` | state actors -> every enemy has_visible_mesh==true | AC-054.13 |
-| 5 | `enemy_health_bars` | state actors -> every enemy has a visible widget whose class contains EnemyHealthBar | AC-054.9, US-052:AC-052.10 |
+| 5 | `enemy_health_bars` | state actors + widgets -> exactly one visible EnemyIndicator per enemy and no actor-attached EnemyHealthBar | AC-054.9, US-052:AC-052.10 |
 | 6 | `enemy_indicators` | state widgets -> one EnemyIndicator widget per enemy in aggro range within 3s | US-064:AC-064.2, US-064:AC-064.10 |
 | 7 | `enemy_aggro` | stand at the spawn -> every enemy ai_state != 'Idle' within 3s | US-051:AC-051.3 |
 | 8 | `enemy_approaches` | stand -> some enemy > 100 cm from every spawn within 6s | US-051:AC-051.4 |
