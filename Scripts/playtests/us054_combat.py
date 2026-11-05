@@ -99,6 +99,8 @@ TAG_RESTORATION = "Mordecai.Status.Restoration"
 RE_KILLS = re.compile(r"^\s*Kills:\s*(\d+)\s*$")
 RE_COUNTDOWN = re.compile(r"\d")
 YOU_DIED = "You Died"
+WEAPON_WIDGET_CLASS = "MordecaiEquippedWeaponWidget"
+STARTING_WEAPON = "Longsword"
 BURNING_TEXT = "Burning"
 RESTORATION_KEY = "One"
 RESTORATION_SP = 3.0
@@ -143,10 +145,11 @@ SCREENSHOTS = {
            "up the screen) after its first hit: the player's health bar below full",
     "dead": "the death screen over the dimmed arena: 'You Died', a countdown digit and "
             "'Kills: 1' (the life's kills) in the middle; behind it the player dead next to the "
-            "orange TestAttacker (health bar empty), the HUD's counter back at 'Kills: 0'",
+            "orange TestAttacker; the combat HUD and its weapon plate are not visible",
     "respawned": "the player back at the PlayerStart with a full health bar on the grid floor, "
-                 "no death screen and no dimming, 'Kills: 0' top-right; the TestDummy cylinder "
-                 "back at (600, 600); the TestAttacker back at (2100, 0), likely out of view",
+                 "no death screen and no dimming, 'Kills: 0' top-right and 'Longsword' in the "
+                 "bottom-right loadout plate; the TestDummy cylinder back at (600, 600); the "
+                 "TestAttacker back at (2100, 0), likely out of view",
 }
 KNOWN_ISSUES = (
     "Block and parry on the mouse (AC-054.6: RMB hold, RMB+LMB) are not tested: they need the "
@@ -196,7 +199,8 @@ PLAN = (
          proves=("US-053:AC-053.1",)),
     Step("death_screen", f"state widgets -> within {DEATH_SCREEN_TIMEOUT_S:g}s one widget with "
          f"'{YOU_DIED}', a countdown digit and 'Kills: N', N = the kills "
-         "kill_counter_increments read (any N when it did not run)",
+         f"kill_counter_increments read (any N when it did not run), and no visible "
+         f"{WEAPON_WIDGET_CLASS}",
          proves=("US-062:AC-062.1", "US-062:AC-062.2", "US-086:AC-086.1", "US-086:AC-086.4")),
     Step("dead_no_move", f"while dead: hold W {DEAD_HOLD_S:g}s -> moved < {DEAD_MAX_MOVE_CM:g} cm",
          proves=("US-053:AC-053.2",)),
@@ -204,7 +208,8 @@ PLAN = (
          f"max_health, within {RESPAWN_RADIUS:g} cm of ({SPAWN[0]:g}, {SPAWN[1]:g}), no "
          f"'{TAG_DEAD}' tag", proves=("US-053:AC-053.4", "US-053:AC-053.5")),
     Step("death_screen_removed", f"state widgets -> within {DEATH_SCREEN_TIMEOUT_S:g}s of the "
-         f"respawn no widget text '{YOU_DIED}' (needs the death screen seen)",
+         f"respawn no widget text '{YOU_DIED}' and {WEAPON_WIDGET_CLASS} shows "
+         f"'{STARTING_WEAPON}' (needs the death screen seen)",
          proves=("US-086:AC-086.1",)),
     Step("arena_reset", "the first read that shows the respawned player (state actors) -> the "
          f"{DUMMY} and the {ATTACKER} alive, health == max, within {SPAWN_TOL_CM:g} cm of their "
@@ -247,6 +252,14 @@ def all_texts(st):
         if widget_visible(w):
             out += [str(t) for t in (w.get("texts") or []) if t is not None]
     return out
+
+
+def weapon_hud_shows(st, name=STARTING_WEAPON):
+    """True only when the visible loadout widget itself renders the exact weapon name."""
+    expected = str(name).strip().lower()
+    return any(w.get("class") == WEAPON_WIDGET_CLASS and widget_visible(w)
+               and any(str(t).strip().lower() == expected for t in (w.get("texts") or []))
+               for w in widgets(st))
 
 
 def kill_counts(st):
@@ -877,7 +890,8 @@ class Us054CombatRun(kit.PlaytestRun):
                 counts = [int(m.group(1)) for m in map(RE_KILLS.match, texts) if m]
                 if countdown and counts and (self.kills_seen is None
                                              or counts == [self.kills_seen]):
-                    return True
+                    return not any(v.get("class") == WEAPON_WIDGET_CLASS and widget_visible(v)
+                                   for v in widgets(st))
             return False
 
         self.death_screen_seen, _ = self.observe(
@@ -939,7 +953,8 @@ class Us054CombatRun(kit.PlaytestRun):
         why = "not run: the player did not respawn"
 
         def gone(st):
-            return not any(YOU_DIED.lower() in t.lower() for t in all_texts(st))
+            return (not any(YOU_DIED.lower() in t.lower() for t in all_texts(st))
+                    and weapon_hud_shows(st))
 
         self.observe("death_screen_removed", ["widgets"], gone,
                      lambda st: (f"texts on screen: {all_texts(st)} (widget classes "

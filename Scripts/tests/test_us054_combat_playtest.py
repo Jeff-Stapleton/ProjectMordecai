@@ -342,6 +342,13 @@ class CombatWorld(fb.FakeWorld):
 
     def _s_widgets(self):
         out = super()._s_widgets()
+        stays = self.death_screen_stays and self.respawns
+        screen_up = self.death_screen and (self.is_dead or stays)
+        if screen_up:
+            # UI.Layer.Game is a stack: the death screen is the top widget, so the HUD root and
+            # every child (counter, prompt, loadout plate) are not on screen.
+            out = [w for w in out if w.get("class") not in
+                   ("WBP_CombatHUD_C", "MordecaiPickupPromptWidget")]
         # The real HUD root has no 'Kills: N' text of its own: only the counter shows one
         for w in out:
             if w.get("class") == "WBP_CombatHUD_C":
@@ -350,14 +357,17 @@ class CombatWorld(fb.FakeWorld):
             shown = self.kills_text
         else:
             shown = self.kills if self.counter_counts else 0
-        out.append({"class": "MordecaiKillCounterWidget", "name": "Kills",
-                    "rect": [1140, 20, 120, 30], "texts": [f"Kills: {shown}"],
-                    "buttons": []})
-        if self.burn_indicator and TAG_BURNING in self.timed_tags:
+        if not screen_up:
+            out.append({"class": "MordecaiKillCounterWidget", "name": "Kills",
+                        "rect": [1140, 20, 120, 30], "texts": [f"Kills: {shown}"],
+                        "buttons": []})
+            out.append({"class": us054c.WEAPON_WIDGET_CLASS, "name": "LoadoutPlate",
+                        "rect": [1008, 628, 240, 56],
+                        "texts": [us054c.STARTING_WEAPON, "Slash", "Tab"], "buttons": []})
+        if not screen_up and self.burn_indicator and TAG_BURNING in self.timed_tags:
             out.append({"class": "MordecaiStatusEffectBarWidget", "name": "Status",
                         "rect": [40, 104, 260, 20], "texts": ["Burning"], "buttons": []})
-        stays = self.death_screen_stays and self.respawns
-        if self.death_screen and (self.is_dead or stays):
+        if screen_up:
             left = (max(0, math.ceil(self.respawn_s - (self.real_time() - self.dead_since)))
                     if self.is_dead else 0)
             # UMordecaiDeathScreenWidget: the countdown is a bare ceiling digit, empty at 0 (the
@@ -646,9 +656,13 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
         self.assertEqual(rep["fixed_candidates"], [])
-        # The death screen shows the life's 1 kill; the HUD's counter, reset by the death, 0
+        # The death screen shows the life's 1 kill; it is the top of UI.Layer.Game, so the HUD
+        # root (including the reset live counter and weapon plate) is absent from bridge state.
         self.assertRegex(checks["death_screen"]["detail"], r"'You Died', '[123]', 'Kills: 1'")
-        self.assertIn("'Kills: 0'", checks["death_screen"]["detail"])
+        self.assertNotIn("'Kills: 0'", checks["death_screen"]["detail"])
+        self.assertNotIn(us054c.WEAPON_WIDGET_CLASS, checks["death_screen"]["detail"])
+        self.assertIn(us054c.WEAPON_WIDGET_CLASS, checks["death_screen_removed"]["detail"])
+        self.assertIn("'Longsword'", checks["death_screen_removed"]["detail"])
         self.assertEqual([s["label"] for s in rep["screenshots"]],
                          ["start", "near_dummy", "killed", "hit", "dead", "respawned"])
         # The light attack is judged on the dummy, which was really hit.
@@ -763,9 +777,8 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
             self.assertEqual(acs[ac]["status"], "FAIL", ac)
 
     def test_a_death_screen_left_after_the_respawn_fails(self):
-        # death_screen_removed catches it.  The screen's 'Kills: 1' (the life that ended) beside
-        # the reset HUD's 'Kills: 0' is not the kill counter's fault: kill_counter_text_matches
-        # reads the counter only, and passes
+        # death_screen_removed catches it. Since the stale screen remains the top of UI.Layer.Game,
+        # the HUD counter and weapon plate remain hidden too.
         _, server = self.serve(**game_today(death_screen_stays=True))
         code, rep = self.play(server)
         self.assertEqual(code, 1)
@@ -773,10 +786,11 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertEqual(checks["death_screen"]["status"], "PASS", checks["death_screen"]["detail"])
         self.assertEqual(checks["death_screen_removed"]["status"], "FAIL")
         self.assertIn("'You Died'", checks["death_screen_removed"]["detail"])
-        self.assertEqual(checks["kill_counter_text_matches"]["status"], "PASS",
+        self.assertEqual(checks["kill_counter_text_matches"]["status"], "FAIL",
                          checks["kill_counter_text_matches"]["detail"])
-        self.assertIn("'Kills: 0', player.kills=0", checks["kill_counter_text_matches"]["detail"])
-        self.assertEqual(rep["new_failures"], ["death_screen_removed"])
+        self.assertIn("expected one value", checks["kill_counter_text_matches"]["detail"])
+        self.assertEqual(rep["new_failures"],
+                         ["death_screen_removed", "kill_counter_text_matches"])
         acs = self.acs(rep)
         self.assertEqual(acs[("US-086", "AC-086.1")]["status"], "FAIL")
         self.assertEqual(acs[("US-086", "AC-086.4")]["status"], "PASS")

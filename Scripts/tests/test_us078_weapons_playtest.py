@@ -47,7 +47,7 @@ GAME_WEAPONS = (("DA_Weapon_Longsword", "Longsword", "Longsword"),
                 ("DA_Weapon_Greatsword", "Greatsword", "Greatsword"),
                 ("DA_Weapon_Spear", "Spear", "Spear"),
                 ("DA_Weapon_Mace", "Mace", "Mace"))
-KNOWN_FAILS = ["weapon_hud_text", "cycle_prev_shift_tab"]
+KNOWN_FAILS = ["cycle_prev_shift_tab"]
 ATTACK_CHECKS = ["light_attack_lmb", "heavy_attack_hold"]
 HEAVY_HOLD_S = 0.4   # UMordecaiHeroComponent::HeavyAttackHoldSeconds
 
@@ -56,7 +56,7 @@ class WeaponWorld(fb.FakeWorld):
     """The fake CombatTestMap with the US-078 weapon list.
 
     shift_tab_prev: Shift+Tab cycles back (False = today's N9: Tab still fires Next).
-    hud_shows_weapon: a visible widget shows the weapon name (False = today's N3).
+    hud_shows_weapon: the equipped-weapon widget shows the weapon name (False = a regression).
     attacks_bound: a Left click starts an attack on its release, Mordecai.State.Attacking for
     attack_s; a press held HEAVY_HOLD_S or longer is a heavy attack, which also owns
     Mordecai.Attack.Heavy (False = the game before US-083: attacks are not bound).
@@ -214,6 +214,24 @@ class Us078Case(unittest.TestCase):
         return {kit.qualified_ac(a["story"], a["id"], "US-078"): a for a in rep["acs"]}
 
 
+class TestWeaponHudMatcher(unittest.TestCase):
+    def test_blank_text_does_not_match(self):
+        st = {"widgets": [{"class": "MordecaiEquippedWeaponWidget", "texts": [""]}]}
+        self.assertIsNone(us078._hud_shows(st, "Longsword"))
+
+    def test_placeholder_text_does_not_match(self):
+        st = {"widgets": [{"class": "MordecaiEquippedWeaponWidget", "texts": ["Weapon"]}]}
+        self.assertIsNone(us078._hud_shows(st, "Longsword"))
+
+    def test_right_text_in_the_wrong_widget_class_does_not_match(self):
+        st = {"widgets": [{"class": "WBP_CombatHUD_C", "texts": ["Longsword"]}]}
+        self.assertIsNone(us078._hud_shows(st, "Longsword"))
+
+    def test_exact_equipped_weapon_widget_text_matches_case_insensitively(self):
+        st = {"widgets": [{"class": "MordecaiEquippedWeaponWidget", "texts": [" longsword "]}]}
+        self.assertEqual(us078._hud_shows(st, "Longsword"), "MordecaiEquippedWeaponWidget")
+
+
 class TestUs078Pass(Us078Case):
     def test_passes_when_every_weapon_feature_works(self):
         world, server = self.serve()
@@ -248,9 +266,8 @@ class TestUs078Pass(Us078Case):
         self.assertIn("held 0.8s", checks["heavy_attack_hold"]["detail"])
         self.assertIn("Mordecai.Attack.Heavy after", checks["heavy_attack_hold"]["detail"])
         self.assertEqual([kind for kind, _ in world.attacks], ["light", "heavy"])
-        # Every known issue passed here: each is flagged as a fixed candidate.
-        self.assertEqual(sorted(rep["fixed_candidates"]),
-                         sorted(KNOWN_FAILS + ["weapon_hud_updates"]))
+        # N9 passed here, so it is the only fixed candidate; the HUD checks are no longer known.
+        self.assertEqual(rep["fixed_candidates"], KNOWN_FAILS)
         # Screenshots: start and cycled_mace.
         self.assertEqual([s["label"] for s in rep["screenshots"]], ["start", "cycled_mace"])
         # Every AC passed but nothing is accepted on an attached (diagnostic) run.
@@ -280,15 +297,17 @@ class TestUs078Pass(Us078Case):
 
 
 class TestUs078Failures(Us078Case):
-    def test_todays_known_issues_fail_as_known(self):
+    def test_missing_hud_is_new_and_shift_tab_is_known(self):
         _, server = self.serve(shift_tab_prev=False, hud_shows_weapon=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
-        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(KNOWN_FAILS))
-        self.assertEqual(sorted(rep["known_failures"]), sorted(KNOWN_FAILS))
-        self.assertEqual(rep["new_failures"], [])
+        self.assertEqual(sorted(self.statuses(rep, "FAIL")),
+                         sorted(["weapon_hud_text", "cycle_prev_shift_tab"]))
+        self.assertEqual(rep["known_failures"], KNOWN_FAILS)
+        self.assertEqual(rep["new_failures"], ["weapon_hud_text"])
         checks = self.by_name(rep)
-        self.assertIn("no visible widget text equals the weapon name 'Longsword'",
+        self.assertIn("no visible MordecaiEquippedWeaponWidget text equals the weapon name "
+                      "'Longsword'",
                       checks["weapon_hud_text"]["detail"])
         # N9: Shift+Tab fires Next, so the Mace wraps to the Longsword.
         self.assertIn("expected index 3 'Spear'", checks["cycle_prev_shift_tab"]["detail"])
@@ -313,11 +332,11 @@ class TestUs078Failures(Us078Case):
             self.assertEqual(acs[ac_id]["status"], "PASS", ac_id)
         md = self.report_md()
         self.assertIn("FAIL (known)", md)
-        self.assertNotIn("FAIL (NEW)", md)
+        self.assertIn("FAIL (NEW)", md)
 
     def test_unbound_attacks_fail_new(self):
         # The game before US-083
-        _, server = self.serve(shift_tab_prev=False, hud_shows_weapon=False, attacks_bound=False)
+        _, server = self.serve(shift_tab_prev=False, attacks_bound=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(sorted(rep["new_failures"]), sorted(ATTACK_CHECKS))
@@ -451,13 +470,12 @@ class TestUs078Plan(unittest.TestCase):
 
     def test_known_issues_cite_the_backlog(self):
         known = {s.check: s.known_issue for s in us078.PLAN if s.known_issue}
-        self.assertEqual(sorted(known), sorted(KNOWN_FAILS + ["weapon_hud_updates"]))
+        self.assertEqual(sorted(known), KNOWN_FAILS)
         for check, issue in known.items():
             self.assertIn("Specs/agent_playtest_plan_v1.md", issue, check)
-        self.assertTrue(known["weapon_hud_text"].startswith("N3 "))
         self.assertTrue(known["cycle_prev_shift_tab"].startswith("N9 "))
-        for name in ATTACK_CHECKS:
-            self.assertNotIn(name, known, "attacks are bound since US-083")
+        for name in ATTACK_CHECKS + ["weapon_hud_text", "weapon_hud_updates"]:
+            self.assertNotIn(name, known)
 
     def test_plan_prints_without_a_game(self):
         out = io.StringIO()

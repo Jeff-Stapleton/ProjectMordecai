@@ -75,18 +75,28 @@ def _run():
         # (child properties are protected, so we use GetBoundChildCount instead)
         try:
             child_count = hud_widget.get_bound_child_count()
-            check(f"Child widgets bound ({child_count}/10)",
-                  child_count >= 5,
-                  f"Only {child_count}/10 children bound -- BuildDefaultLayout may have failed")
-
-            # Detailed count check
-            if child_count == 10:
-                check("All 10 child widgets present", True)
-            elif child_count >= 5:
-                check("Core child widgets present (5+)", True,
-                      f"{child_count}/10 -- some optional widgets missing")
+            check(f"All HUD child widgets present ({child_count}/12)",
+                  child_count == 12,
+                  f"{child_count}/12 -- the old ten-child root did not include PickupPrompt "
+                  "or the D20 loadout plate")
         except Exception as e:
             check("GetBoundChildCount accessible", False, str(e))
+
+        weapon_widget = None
+        try:
+            weapon_widget = hud_widget.get_equipped_weapon_widget()
+        except Exception as e:
+            check("Equipped weapon child readable", False, str(e))
+        check("Combat HUD owns the equipped weapon widget", weapon_widget is not None)
+        weapon_widgets = unreal.WidgetLibrary.get_all_widgets_of_class(
+            world, unreal.MordecaiEquippedWeaponWidget, False)
+        check("Exactly one equipped weapon widget", len(weapon_widgets) == 1,
+              f"Found {len(weapon_widgets)} -- a standalone viewport duplicate may still exist")
+        if weapon_widget:
+            check("The one weapon widget is the combat HUD child",
+                  len(weapon_widgets) == 1 and weapon_widgets[0] == weapon_widget)
+            shown = str(weapon_widget.get_displayed_weapon_name())
+            check("Weapon HUD reads Longsword", shown == "Longsword", f"Got {shown!r}")
 
     # Kill counter (US-086, issue #6): bound to the game mode, whose count it shows (the number the
     # agent bridge reports as player.kills). Read-only: nothing here kills anything (Tier 1 and the
