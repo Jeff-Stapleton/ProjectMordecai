@@ -23,10 +23,10 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
   - `Source/LyraGame/Mordecai/UI/MordecaiCombatHUDWidget.cpp:34-127` (no indicator layer)
 
 ## Acceptance Criteria
-- [ ] AC-092.1: Every living enemy requests and registers its indicator from `BeginPlay`, without waiting for aggro or damage — verified by `Mordecai.Recovery.EnemyIndicator.RegistersOnSpawn`
+- [x] AC-092.1: Every living enemy requests and registers its indicator from `BeginPlay`, without waiting for aggro or damage — verified by `Mordecai.Recovery.EnemyIndicator.RegistersOnSpawn`
 - [x] AC-092.2: A registration attempted while no indicator manager is available is retried (the flag is set only after `AddIndicator` succeeds) — verified by `Mordecai.Recovery.EnemyIndicator.RetriesWhenManagerMissing`
 - [x] AC-092.3: `AMordecaiPlayerController` has a `ULyraIndicatorManagerComponent` and the default combat HUD contains an `UIndicatorLayer`, without depending on the ShooterCore experience — verified by `Mordecai.Recovery.EnemyIndicator.ArenaHasManagerAndLayer`
-- [ ] AC-092.4: In the packaged build, the player sees one indicator per living enemy from spawn within 3 s, including the Idle CombatTestMap TestDummy — verified by Tier 3 screenshots and check `enemy_indicators` of `Scripts/playtests/us054_arena.py`
+- [x] AC-092.4: In the packaged build, the player sees one indicator per living enemy from spawn within 3 s, including the Idle CombatTestMap TestDummy — verified by Tier 3 screenshots and check `enemy_indicators` of `Scripts/playtests/us054_arena.py`. Closed at Jeff's call (2026-11-05): the indicator checks pass; the shared US-054 arena script exits 1 only on the pre-existing US-085/#85 spacing check.
 
 ## Technical Notes
 - Jeff's 2026-11-05 decision supersedes aggro gating: `BeginPlay` latches the indicator request and tries registration immediately; the timer retries if the local manager is not ready. Damage and aggro notifications remain idempotent retries.
@@ -74,17 +74,17 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 - **Playable alone:** YES
 
 ## Definition of Done
-- [ ] All ACs checked off
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST, then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py US-054`: `enemy_indicators` goes from FAIL to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
+- [x] All ACs checked off
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [x] Content: none; `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST, then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [x] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [x] On that same fresh package `py Scripts/playtest_story.py US-054`: `enemy_indicators` goes from FAIL to PASS; `--lint` exits 0 — never `--allow-stale`. Closed at Jeff's call (2026-11-05): the shared arena run's only failure is the pre-existing US-085/#85 spacing check.
 - [x] Known issue N17 marked FIXED in `Specs/agent_playtest_plan_v1.md`
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-092]` closing commit
-- [ ] Pushed; story moved to `stories/done/` only after all of the above pass
+- [x] Screenshot review completed under Jeff's 2026-11-05 priority-only instruction: indicator-critical bridge frames were opened one at a time; wallpaper desktop shots and boot/loading spam were skipped.
+- [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-092]` closing commit
+- [x] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
 ### Prior dual-bar evidence (superseded)
@@ -195,3 +195,44 @@ No new failure was filed: the sole failing check is the existing US-085/#85 spac
 
 This package predates Jeff's always-on-from-spawn decision. Fresh evidence from the new committed lifecycle
 implementation is required below before AC-092.1 or AC-092.4 can be accepted.
+
+### Always-on lifecycle and final evidence
+
+Implementation commit `cc54e05c9bb06e9ead0888b70bf9338fb2aee58c` requests registration from
+`BeginPlay`, retries until the indicator manager accepts the descriptor, and replaces the descriptor after
+`ResetForArena`. The reset path is a code fix for N34/#81, not a documentation rename: the replacement widget
+binds to the restored current attributes, and a killed enemy's removed indicator is registered again.
+
+**Verification.** LyraEditor compiled successfully. Tier 1 passed 777/777
+(`Saved/TestLogs/tests-20261105-154114.log`); Python tooling passed 589/589. Tier 2 passed all 16 smoke scripts,
+with `verify_pie_hud.py` reporting all three DevTestMap living enemies registered from spawn. The targeted
+CombatTestMap PIE run passed 4/4 scripts and confirmed the TestDummy remained Idle with AggroRange 0.
+`py Scripts/check_content_committed.py` and `py Scripts/playtest_story.py US-092 --lint` both exited 0.
+
+**Fresh package.** `py Scripts/package_playtest.py` packaged clean commit `cc54e05c9b` (dirty=false, no source
+change during build; UAT log `Saved/Playtests/package-20261105-161349.log`). The same-package Tier 3 sweep boots
+all passed: DevTestMap `Saved/Playtests/20261105-162855-boot`, MovementTestMap
+`Saved/Playtests/20261105-162918-boot`, and CombatTestMap `Saved/Playtests/20261105-162939-boot`; each loaded
+`B_MordecaiArenaExperience`, cooked all referenced Mordecai content, captured 3/3 engine frames and logged zero
+errors. Desktop captures were covered by another window and are not cited.
+
+**Tier 4 and regression.** `Saved/Playtests/20261105-163034-us054` reports `enemy_health_bars` PASS (three
+visible EnemyIndicators for three enemies, no legacy actor widget) and `enemy_indicators` PASS (3/3 from spawn).
+Its 17 relevant checks pass; its sole failure is the unchanged US-085/#85 live-spacing check. Closed at Jeff's
+call (2026-11-05); no US-085 change was made. `Saved/Playtests/20261105-163044-us054combat` exits 0 with
+32 PASS, the expected Burning WARN and no FAIL. It confirms the Idle TestDummy starts at 200/200, its indicator
+is removed on death, and arena reset restores the dummy at 200/200 with a newly bound full indicator. The
+aggregate same-package sweep is `Saved/Playtests/20261105-162855-sweep`.
+
+**Priority screenshot review (opened one bridge frame at a time).**
+- Arena `20261105-163034-us054/bridge_01.png`: three living red-cylinder Frontliners surround the player; each
+  has exactly one vivid-red, equal-width indicator bar, with no lower legacy bar. Their long native labels overlap.
+- Combat `20261105-163044-us054combat/bridge_01.png`: the fixed-camera grid at spawn; the distant Idle
+  TestDummy already has one full red indicator before approach, damage or aggro.
+- Combat `bridge_02.png`: player beside the live blue-white TestDummy; one full red indicator is clearly visible
+  above it, with no legacy bar.
+- Combat `bridge_03.png`: after the kill the dummy body and indicator are gone and `Kills: 1` is visible.
+- Combat `bridge_06.png`: after death/arena reset the TestDummy and its full red indicator are restored at spawn;
+  the player HUD is restored and `Kills: 0` is visible.
+
+Issue #81 remains open for bookkeeping, but N34 is fixed by the lifecycle code and confirmed by the reset frame.
