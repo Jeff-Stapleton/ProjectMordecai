@@ -31,7 +31,7 @@ C++ only: component wiring, the PC's indicator manager component and an `UIndica
 ## Technical Notes
 - Call `NotifyAggroActivated()` from the enemy AI's transition out of Idle (the same place `ai_state` changes to Chase/Attack).
 - The indicator widget class (`IndicatorWidgetClass`, soft class) must resolve in the packaged build; if it defaults to the native `UMordecaiEnemyIndicatorWidget`, make sure that widget builds a default tree (`BuildDefaultContent` exists at `MordecaiEnemyIndicatorWidget.cpp:46`).
-- **Owner decision (Jeff, 2026-11-05):** keep both health readouts until a packaged screenshot shows them together. This story does not remove `WBP_EnemyHealthBar` or rewrite `enemy_health_bars`.
+- TODO(DECISION) (Jeff): Packaged screenshots now show both readouts overlapping heavily. Remove `WBP_EnemyHealthBar` and rewrite `enemy_health_bars` to check the indicator, or keep both? Do not change either until Jeff decides. This story keeps both.
 - Script bookkeeping: `enemy_indicators` was NEW (no `known_issue`).
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 

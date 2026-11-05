@@ -161,3 +161,12 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Single-player: one count for the local player of a standalone or listen-server game. Per-player replicated counts, and a HUD and death screen for remote clients, are issue #77.
 
 - Source: Jeff via Claude Code session (2026-11-04). He confirmed "reset at death" and "only player-caused kills", first recorded on the unmerged branch of closed PR #76, and chose that a death-window kill scores nothing.
+
+---
+
+## 2026-11-05 — Enemy indicator dual-bar interim hold (issue #22, US-092)
+
+- **Interim decision for US-092:** keep both the legacy `WBP_EnemyHealthBar` and the new IndicatorSystem enemy readout. Do not remove the old bar or rewrite `enemy_health_bars` in this story.
+- Packaged screenshots now show both readouts together and confirm that their bars and labels overlap heavily.
+- **Final decision remains open:** Jeff still needs to choose whether to remove `WBP_EnemyHealthBar` and migrate `enemy_health_bars` to the indicator, or keep both readouts.
+- Source: Jeff via Cursor session (2026-11-05): hold dual-bar removal until packaged screenshots show both; the screenshots now exist, so the hold becomes an explicit `TODO(DECISION)` rather than permission to remove either bar.
