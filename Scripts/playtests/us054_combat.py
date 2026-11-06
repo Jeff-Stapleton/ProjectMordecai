@@ -134,13 +134,14 @@ EXPECTED_KILLS = 1
 SCREENSHOTS = {
     "start": "CombatTestMap from the fixed overhead camera: the player at the PlayerStart on the "
              "grey measuring-grid floor, the combat HUD top-left; the blue-grey TestDummy "
-             "cylinder (600, 600) under its floating health bar may be in view up and to the "
-             "right; the orange TestAttacker (2100, 0) is far up the screen, likely out of view",
+             "cylinder (600, 600) under its always-on red 150px EnemyIndicator health bar may be "
+             "in view up and to the right; the orange TestAttacker (2100, 0) is far up the "
+             "screen, likely out of view",
     "near_dummy": "the player on the grid floor right next to the blue-grey TestDummy cylinder "
-                  "(160 cm +X of the player, i.e. just up the screen) under its floating health "
-                  "bar",
+                  "(160 cm +X of the player, i.e. just up the screen) under its one always-on "
+                  "red 150px EnemyIndicator health bar",
     "killed": "the player at the melee spot; the TestDummy's cylinder gone (a dead enemy's body is "
-              "hidden), at most its empty floating health bar left; 'Kills: 1' top-right",
+              "hidden) and its EnemyIndicator unregistered; 'Kills: 1' top-right",
     "hit": "the player next to the orange TestAttacker cylinder (100 cm +X of the player, just "
            "up the screen) after its first hit: the player's health bar below full",
     "dead": "the death screen over the dimmed arena: 'You Died', a countdown digit and "
@@ -148,8 +149,8 @@ SCREENSHOTS = {
             "orange TestAttacker; the combat HUD and its weapon plate are not visible",
     "respawned": "the player back at the PlayerStart with a full health bar on the grid floor, "
                  "no death screen and no dimming, 'Kills: 0' top-right and 'Longsword' in the "
-                 "bottom-right loadout plate; the TestDummy cylinder back at (600, 600); the "
-                 "TestAttacker back at (2100, 0), likely out of view",
+                 "bottom-right loadout plate; the TestDummy cylinder and its full red indicator "
+                 "back at (600, 600); the TestAttacker back at (2100, 0), likely out of view",
 }
 KNOWN_ISSUES = (
     "Block and parry on the mouse (AC-054.6: RMB hold, RMB+LMB) are not tested: they need the "

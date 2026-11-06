@@ -1,7 +1,7 @@
-"""US-054 Step 7: Configure enemy BP with abilities and health bar.
+"""US-054 Step 7: Configure enemy BP with abilities.
 
-Sets DefaultAbilities and EnemyHealthBarWidgetClass on BP_MordecaiEnemy_Frontliner.
-Also configures the AI controller's MeleeAttackAbilityClass.
+Sets DefaultAbilities on BP_MordecaiEnemy_Frontliner and configures the AI controller's
+MeleeAttackAbilityClass. Enemy health is rendered by the native EnemyIndicator.
 """
 import unreal
 
@@ -21,18 +21,6 @@ else:
             # Set DefaultAbilities to include MeleeAttack
             cdo.set_editor_property('default_abilities', [unreal.MordecaiGA_MeleeAttack])
             unreal.log('Set DefaultAbilities = [MordecaiGA_MeleeAttack]')
-
-            # Set enemy health bar widget class
-            health_bar_path = '/MordecaiCore/UI/WBP_EnemyHealthBar'
-            if EAL.does_asset_exist(health_bar_path):
-                wb_class = unreal.load_class(None, health_bar_path + '.WBP_EnemyHealthBar_C')
-                if wb_class:
-                    cdo.set_editor_property('enemy_health_bar_widget_class', wb_class)
-                    unreal.log('Set EnemyHealthBarWidgetClass = WBP_EnemyHealthBar')
-                else:
-                    unreal.log_warning('Could not load WBP_EnemyHealthBar class')
-            else:
-                unreal.log_warning('WBP_EnemyHealthBar not found')
 
             # Set AI controller class
             cdo.set_editor_property('ai_controller_class', unreal.MordecaiEnemyAIController)

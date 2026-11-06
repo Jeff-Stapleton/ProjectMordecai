@@ -19,7 +19,7 @@ Migrate enemy world-space indicators to Lyra's built-in IndicatorSystem for prop
 
 ### Indicator Registration
 - [x] AC-064.1: `UMordecaiEnemyIndicatorComponent` (UActorComponent) exists in `Mordecai/UI/`. Attached to enemy characters. Handles registration/unregistration with the Lyra IndicatorSystem.
-- [x] AC-064.2: When an enemy takes damage or enters player aggro range, the component registers an indicator via `ULyraIndicatorManagerComponent::AddIndicator()`. The indicator is positioned above the enemy's head (component-relative Z offset, configurable `IndicatorHeightOffset` default 120.0cm).
+- [x] AC-064.2: The component registers via `ULyraIndicatorManagerComponent::AddIndicator()` and positions the indicator above the enemy's head (component-relative Z offset, configurable `IndicatorHeightOffset` default 120.0cm). US-092 later made registration always-on from spawn; damage and aggro notifications remain idempotent retries.
 - [x] AC-064.3: When the enemy dies, the indicator is unregistered via `RemoveIndicator()`. No dangling indicators after enemy destruction.
 - [x] AC-064.4: Indicators are only shown for enemies within a configurable `IndicatorVisibilityRange` (default 2000.0cm). Enemies beyond this range have their indicators hidden. When they re-enter range, indicators reappear.
 
@@ -27,7 +27,7 @@ Migrate enemy world-space indicators to Lyra's built-in IndicatorSystem for prop
 - [x] AC-064.5: `UMordecaiEnemyIndicatorWidget` (UUserWidget) implements `IActorIndicatorWidget`. Displays: enemy display name (FText), health bar (float 0.0-1.0 progress), and a horizontal row of active status effect icons.
 - [x] AC-064.6: The widget binds to the enemy's ASC via `BindIndicator()`. Health bar reads `Mordecai.Attribute.Health` / `Mordecai.Attribute.MaxHealth` and updates in real-time when attributes change.
 - [x] AC-064.7: Status icons are driven by a configurable `TMap<FGameplayTag, TSoftObjectPtr<UTexture2D>>` that maps status tags (e.g., `Mordecai.Status.Burning`) to icon textures. When a status tag is added to the enemy ASC, the corresponding icon appears. When removed, the icon disappears. Missing textures gracefully show a fallback placeholder.
-- [x] AC-064.8: The health bar changes color based on health percentage: Green (>50%), Yellow (25%-50%), Red (<25%). Colors are configurable via UPROPERTY.
+- [x] AC-064.8: The health bar is red at every health percentage (superseded by Jeff's 2026-11-05 US-092 decision).
 
 ### Integration
 - [x] AC-064.9: Enemy indicators use Lyra's `IndicatorLayer` for world-to-screen projection. The indicator appears in screen-space above the enemy character, tracking their world position each frame.
@@ -37,9 +37,9 @@ Migrate enemy world-space indicators to Lyra's built-in IndicatorSystem for prop
 - **Lyra IndicatorSystem architecture:** `ULyraIndicatorManagerComponent` lives on the PlayerController. It dispatches `OnIndicatorAdded`/`OnIndicatorRemoved` events. `IndicatorLayer` (UWidget) listens for these and renders via `SActorCanvas` with world-to-screen projection.
 - **IActorIndicatorWidget interface:** Requires `BindIndicator(UIndicatorDescriptor&)` and `UnbindIndicator(UIndicatorDescriptor&)`. Use `BindIndicator` to connect ASC attribute listeners.
 - **Distance-based visibility:** Check distance from player on tick (low frequency, e.g., every 0.25s) or use the IndicatorDescriptor's visibility flag. Set `bVisible = false` when beyond range.
-- **Existing MordecaiEnemyHealthBarWidget:** This widget currently exists but is not wired into the IndicatorSystem. The new `MordecaiEnemyIndicatorWidget` replaces it for world-space rendering. The old widget can be deprecated or repurposed.
+- **Legacy health bar:** US-092 removed `MordecaiEnemyHealthBarWidget` and its `WBP_EnemyHealthBar` asset; `MordecaiEnemyIndicatorWidget` is the single enemy health readout.
 - **Status icon textures:** Use `TSoftObjectPtr<UTexture2D>` so textures can be nullptr in headless tests. The C++ code handles the tag → icon mapping; actual texture assets are provided in EDITOR stories.
-- **Aggro-based registration:** `AMordecaiEnemyAIController` already has aggro detection (US-051). The indicator component can listen for a `Mordecai.Event.AggroActivated` event or be triggered when the enemy first takes damage.
+- **Always-on registration (US-092 owner decision, 2026-11-05):** every living enemy requests its indicator from `BeginPlay`; registration is not gated on aggro or damage. Death removes it and arena reset restores/rebinds it.
 - Place all new code in `Source/LyraGame/Mordecai/UI/`.
 
 ## Tests Required
@@ -49,7 +49,7 @@ Migrate enemy world-space indicators to Lyra's built-in IndicatorSystem for prop
 - [x] `Mordecai.UI.EnemyIndicator.UnregistersOnDeath` — Enemy indicator is removed when enemy dies (AC-064.3)
 - [x] `Mordecai.UI.EnemyIndicator.HiddenBeyondRange` — Indicator not shown for enemies beyond IndicatorVisibilityRange (AC-064.4)
 - [x] `Mordecai.UI.EnemyIndicator.ShownWhenReEntersRange` — Indicator reappears when enemy moves back within range (AC-064.4)
-- [x] `Mordecai.UI.EnemyIndicator.HealthBarColorThresholds` — Health bar color is Green >50%, Yellow 25-50%, Red <25% (AC-064.8)
+- [x] `Mordecai.UI.EnemyIndicator.HealthBarIsAlwaysRed` — Health bar is red at full, mid and empty health (AC-064.8, as superseded by US-092)
 - [x] `Mordecai.UI.EnemyIndicator.WidgetExists` — Widget CDO exists and is a UUserWidget (AC-064.5)
 - [x] `Mordecai.UI.EnemyIndicator.StatusIconMapping` — Default status icon map and color boundary (AC-064.7)
 

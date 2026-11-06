@@ -22,7 +22,7 @@ struct FOnAttributeChangeData;
  * UMordecaiEnemyIndicatorWidget
  *
  * World-space enemy indicator that renders via Lyra's IndicatorSystem.
- * Shows: enemy name, health bar (color-coded), and active status effect icons.
+ * Shows: enemy name, red health bar, and active status effect icons.
  *
  * Implements IIndicatorWidgetInterface to receive BindIndicator/UnbindIndicator
  * calls from the SActorCanvas when this widget is created/destroyed.
@@ -42,14 +42,11 @@ public:
 
 	// --- Health Bar Color (AC-064.8) ---
 
-	/** Calculate health bar color from health percentage.
-	 *  Green >50%, Yellow 25%-50%, Red <25%. Static for testability. */
+	/** Return the stable red enemy-health color. The percentage is accepted for binding compatibility. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Indicator")
 	static FLinearColor CalcHealthBarColor(float HealthPercent);
 
-	/** Configurable color thresholds. */
-	static const FLinearColor HealthColorGreen;
-	static const FLinearColor HealthColorYellow;
+	/** The single enemy-health color, used at every health percentage. */
 	static const FLinearColor HealthColorRed;
 
 	// --- Status Icon Configuration (AC-064.7) ---

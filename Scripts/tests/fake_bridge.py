@@ -1329,8 +1329,7 @@ class FakeWorld:
                 "MordecaiEnemyCharacter", "enemy", e["location"], has_visible_mesh=True,
                 health={"current": float(e.get("health", max_health)), "max": max_health},
                 is_dead=bool(e.get("is_dead", False)), ai_state=e.get("ai_state", "Approach"),
-                widgets=[{"component": "HealthBarWidget", "class": "WBP_EnemyHealthBar_C",
-                          "space": "Screen", "visible": True}])
+                widgets=[])
         if include_all:
             for name, (x0, x1, y0, y1) in self.wall_boxes:
                 add(name, "StaticMeshActor", "StaticMeshActor", "other",

@@ -161,3 +161,26 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Single-player: one count for the local player of a standalone or listen-server game. Per-player replicated counts, and a HUD and death screen for remote clients, are issue #77.
 
 - Source: Jeff via Claude Code session (2026-11-04). He confirmed "reset at death" and "only player-caused kills", first recorded on the unmerged branch of closed PR #76, and chose that a death-window kill scores nothing.
+
+---
+
+## 2026-11-05 — Enemy indicator dual-bar interim hold (issue #22, US-092)
+
+- **Interim decision for US-092:** keep both the legacy `WBP_EnemyHealthBar` and the new IndicatorSystem enemy readout. Do not remove the old bar or rewrite `enemy_health_bars` in this story.
+- Packaged screenshots now show both readouts together and confirm that their bars and labels overlap heavily.
+- **Final decision remains open:** Jeff still needs to choose whether to remove `WBP_EnemyHealthBar` and migrate `enemy_health_bars` to the indicator, or keep both readouts.
+- Source: Jeff via Cursor session (2026-11-05): hold dual-bar removal until packaged screenshots show both; the screenshots now exist, so the hold becomes an explicit `TODO(DECISION)` rather than permission to remove either bar.
+
+## 2026-11-05 — Enemy indicator replaces legacy health bar (issue #22, US-092)
+
+- **Final decision (supersedes the interim hold above):** remove `WBP_EnemyHealthBar` entirely.
+- The EnemyIndicator health bar is always red and keeps the retired bar's 150 px width.
+- `enemy_health_bars` migrates to the single EnemyIndicator readout and verifies that no legacy actor-attached bar remains.
+- Source: Jeff via Cursor session (2026-11-05), after reviewing the packaged dual-bar screenshots.
+
+## 2026-11-05 — Enemy indicators are always on from spawn (issue #22, US-092)
+
+- **Final decision:** every living enemy shows its EnemyIndicator from spawn, like the retired legacy bar. Registration is not gated on aggro or damage.
+- Death still unregisters the indicator. Arena reset restores it and rebinds the widget to current health.
+- The Idle CombatTestMap TestDummy (`AggroRange = 0`) therefore shows its one red, 150 px EnemyIndicator throughout its living state.
+- Source: Jeff via Cursor session (2026-11-05), resolving the AC-100.3 product call.

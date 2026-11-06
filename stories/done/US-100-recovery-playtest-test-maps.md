@@ -41,7 +41,7 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
   - "Sneak (Toggle)" (Ctrl / R3) is the design's crouch: out of scope, AC-100.6
 - Movement numbers (`Source/LyraGame/Mordecai/MordecaiCharacter.cpp`): WalkSpeed 600, sprint ×1.5. JumpZVelocity 600 with GravityScale 1.75 gives an apex of about 105 cm. The engine default MaxStepHeight is 45 cm.
 - Enemy code:
-  - `AMordecaiEnemyCharacter`: `DefaultMaxHealth`, `DefaultMoveSpeed`, `DefaultAbilities`, `EnemyAttackProfiles`, `EnemyHealthBarWidgetClass`, `BodyMesh`, all EditDefaultsOnly
+  - `AMordecaiEnemyCharacter`: `DefaultMaxHealth`, `DefaultMoveSpeed`, `DefaultAbilities`, `EnemyAttackProfiles`, `BodyMesh`, all EditDefaultsOnly; US-092 removed `EnemyHealthBarWidgetClass`
   - `AMordecaiEnemyAIController`: AggroRange 900, AttackRange 200, LeashRange 1800, AttackCooldownMs 1500
   - `/MordecaiCore/Combat/Enemies/DA_EnemyAttack_BasicSlash`: windup 500 / active 200 / recovery 400 ms, 150 cm / 90° arc, 15 Slash
 - Existing assets and scripts:
@@ -80,7 +80,7 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
   - `B_MordecaiArenaExperience` identified
   - `content_cooked` PASS
   - no `LogMordecai*` error
-  - `engine_NN.png` show the grid floor, the player and the Mordecai combat HUD, plus the TestDummy body under its health bar on CombatTestMap
+  - `engine_NN.png` show the grid floor, the player and the Mordecai combat HUD, plus the Idle TestDummy body under its always-on red, 150 px EnemyIndicator health bar on CombatTestMap
   - `py Scripts/playtest_boot.py` (DevTestMap) still exits 0.
 - [x] AC-100.4: Every Tier 4 script declares its `MAP`. The kit's `map` check compares the loaded map (`ping.map`, any `.Object` suffix stripped, case-insensitive) with the script's `MAP`. A mismatch FAILs (gameplay) and blocks the plan, as a wrong experience does; a front-end run records INFO. Verified offline by `py Scripts/run_python_tests.py` (kit tests) and by `map` PASS in every Tier 4 report on the fresh package.
 - [x] AC-100.5: Each script runs on its map:
@@ -106,13 +106,13 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
   - `/MordecaiCore/Enemies/BP_MordecaiEnemy_TestDummy`: Blueprint, parent `/Script/LyraGame.MordecaiEnemyCharacter`, like the Frontliner, not a child of it. CDO:
     - `AIControllerClass` = `BP_MordecaiEnemyAI_TestDummy_C`, `DefaultMoveSpeed` 0, `DefaultMaxHealth` 200
     - `DefaultAbilities` [`MordecaiGA_MeleeAttack`], `EnemyAttackProfiles` [`DA_EnemyAttack_BasicSlash`]. These are kept so `ValidateContent` and `TryEnterAttackState` log nothing; the dummy never reaches Attack.
-    - `EnemyHealthBarWidgetClass` `WBP_EnemyHealthBar`
+    - Enemy health uses the native always-on EnemyIndicator; US-092 removed the legacy widget-class property. Its `AggroRange = 0` does not hide the indicator.
     - `BodyMesh` `/Engine/BasicShapes/Cylinder`, scale (0.8, 0.8, 1.8), with `MI_Enemy_TestDummy`
   - `/MordecaiCore/Enemies/BP_MordecaiEnemy_TestAttacker`: Blueprint, parent `MordecaiEnemyCharacter`. CDO:
     - `AIControllerClass`: the native `MordecaiEnemyAIController` (C++ default)
     - `DefaultMoveSpeed` 0, `DefaultMaxHealth` 200
     - `DefaultAbilities` [`MordecaiGA_MeleeAttack`], `EnemyAttackProfiles` [`DA_EnemyAttack_BasicSlash`] only. The AI swings only index 0 (N24), so FireSlash would never be swung.
-    - health bar as above; `BodyMesh` Cylinder (0.8, 0.8, 1.8) with `MI_Enemy_TestAttacker`
+    - EnemyIndicator health bar as above; `BodyMesh` Cylinder (0.8, 0.8, 1.8) with `MI_Enemy_TestAttacker`
   - `MI_Enemy_TestDummy` (blue-grey, about (0.25, 0.35, 0.75)) and `MI_Enemy_TestAttacker` (orange, about (1.0, 0.45, 0.05)): MaterialInstanceConstants made like `MI_Enemy_Frontliner`.
 - **Editor scripts.** Each is idempotent and prints PASS/FAIL lines and a RESULT line. Each uses `#` comments instead of a module docstring, does all its work in `main()`, and holds no module-level UObjects. Run them with `py Scripts/ue_remote_exec.py "exec(open(r'<absolute path>').read())"`.
   - `Scripts/us100_01_create_test_enemies.py`: the MIs, the AI BP and the two enemy BPs. It compiles twice, saves and reads back (the `us085_configure_frontliner.py` pattern). Base stats go on the BP CDOs only, never as instance overrides on placed actors: N13, and `ValidateContent` logs an error for an override.
@@ -246,7 +246,7 @@ The story creates and saves two `.umap` levels and five enemy assets (two enemy 
   - DevTestMap: unchanged (us054_arena stands at the spawn; us079 walks the six pickups).
 - **Visible on screen:**
   - Tier 3 `engine_NN.png`, MovementTestMap: the grey measuring-grid floor from the fixed overhead camera, the player cylinder at the centre, and the combat HUD (bars top-left, 'Kills: 0' top-right, '[I] Inventory' bottom-centre). No enemy health bar, no pickup. The steps, if in frame, are up and to the right of the player.
-  - CombatTestMap: the same floor, player and HUD, plus the blue-grey TestDummy cylinder under its red health bar, up and to the right of the player at (600, 600). The orange TestAttacker at (2100, 0) may be beyond the top of the frame at the spawn; the us054_combat screenshots at the fight spot show it.
+  - CombatTestMap: the same floor, player and HUD, plus the Idle blue-grey TestDummy cylinder under its always-on red, 150 px EnemyIndicator health bar, up and to the right of the player at (600, 600). The orange TestAttacker at (2100, 0) may be beyond the top of the frame at the spawn; the us054_combat screenshots at the fight spot show it.
   - DevTestMap: unchanged.
   - Tier 4: every `bridge_NN.png` of the scripts above, against what each report says it must show.
 - **Proof:**

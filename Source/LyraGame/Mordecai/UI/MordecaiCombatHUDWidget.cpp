@@ -19,6 +19,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Input/UIActionBindingHandle.h"
+#include "UI/IndicatorSystem/IndicatorLayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCombatHUDWidget)
 
@@ -76,6 +77,17 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
 	WidgetTree->RootWidget = Root;
+
+	// IndicatorSystem projects descriptors through one full-screen layer. Keep it below ordinary HUD controls.
+	if (!IndicatorLayer)
+	{
+		IndicatorLayer = WidgetTree->ConstructWidget<UIndicatorLayer>(
+			UIndicatorLayer::StaticClass(), TEXT("IndicatorLayer"));
+	}
+	UCanvasPanelSlot* IndicatorSlot = Root->AddChildToCanvas(IndicatorLayer);
+	IndicatorSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+	IndicatorSlot->SetOffsets(FMargin(0.f));
+	IndicatorSlot->SetZOrder(-1);
 
 	// Helper: add a child UUserWidget to the canvas at a specific position/size
 	auto AddChild = [Root](UWidget* Child, FAnchors Anchors, FVector2D Position, FVector2D Size, FVector2D Alignment = FVector2D::ZeroVector)
@@ -182,6 +194,7 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 int32 UMordecaiCombatHUDWidget::GetBoundChildCount() const
 {
 	int32 Count = 0;
+	if (IndicatorLayer) Count++;
 	if (HealthBar) Count++;
 	if (StaminaBar) Count++;
 	if (PostureBar) Count++;

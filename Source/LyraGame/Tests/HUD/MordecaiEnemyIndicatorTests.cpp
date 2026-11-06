@@ -5,6 +5,61 @@
 #include "Mordecai/UI/MordecaiEnemyIndicatorWidget.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/MordecaiPlayerController.h"
+#include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
+#include "UI/IndicatorSystem/IndicatorDescriptor.h"
+#include "UI/IndicatorSystem/LyraIndicatorManagerComponent.h"
+
+using namespace MordecaiRecoveryTest;
+
+namespace MordecaiEnemyIndicatorTest
+{
+	struct FManagerBackedFixture
+	{
+		FRecoveryTestEnv Env;
+		AMordecaiPlayerController* PC = nullptr;
+		AMordecaiEnemyCharacter* Enemy = nullptr;
+		UMordecaiEnemyIndicatorComponent* Component = nullptr;
+		ULyraIndicatorManagerComponent* Manager = nullptr;
+
+		bool Setup()
+		{
+			if (!Env.Setup(FVector::ZeroVector))
+			{
+				return false;
+			}
+			PC = Env.World->SpawnActor<AMordecaiPlayerController>(AMordecaiPlayerController::StaticClass());
+			if (PC)
+			{
+				PC->SetPawn(Env.Player);
+			}
+			Enemy = Env.SpawnEnemy(FVector(500.f, 0.f, 0.f), {});
+			Component = Enemy ? Enemy->FindComponentByClass<UMordecaiEnemyIndicatorComponent>() : nullptr;
+			Manager = PC ? PC->FindComponentByClass<ULyraIndicatorManagerComponent>() : nullptr;
+			return PC && Enemy && Component && Manager;
+		}
+
+		UIndicatorDescriptor* FindEnemyDescriptor() const
+		{
+			if (Manager)
+			{
+				for (UIndicatorDescriptor* Descriptor : Manager->GetIndicators())
+				{
+					if (Descriptor && Descriptor->GetDataObject() == Enemy)
+					{
+						return Descriptor;
+					}
+				}
+			}
+			return nullptr;
+		}
+
+		void Teardown()
+		{
+			Env.Teardown();
+		}
+	};
+}
 
 // ---------------------------------------------------------------------------
 // 1. Mordecai.UI.EnemyIndicator.ComponentExists (AC-064.1)
@@ -40,7 +95,7 @@ bool FMordecai_UI_EnemyIndicator_DefaultProperties::RunTest(const FString& Param
 
 // ---------------------------------------------------------------------------
 // 3. Mordecai.UI.EnemyIndicator.RegistersOnDamage (AC-064.2)
-// Calling NotifyDamageReceived sets bIndicatorRegistered to true.
+// Calling NotifyDamageReceived adds a descriptor to the local controller's indicator manager.
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_EnemyIndicator_RegistersOnDamage,
 	"Mordecai.UI.EnemyIndicator.RegistersOnDamage",
@@ -48,10 +103,22 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_EnemyIndicator_RegistersOnDamage,
 
 bool FMordecai_UI_EnemyIndicator_RegistersOnDamage::RunTest(const FString& Parameters)
 {
-	UMordecaiEnemyIndicatorComponent* Comp = NewObject<UMordecaiEnemyIndicatorComponent>();
-	TestFalse("Indicator not registered initially", Comp->IsIndicatorRegistered());
-	Comp->NotifyDamageReceived();
-	TestTrue("Indicator registered after damage", Comp->IsIndicatorRegistered());
+	using namespace MordecaiEnemyIndicatorTest;
+	FManagerBackedFixture Fixture;
+	if (!TestTrue("manager-backed enemy fixture", Fixture.Setup()))
+	{
+		Fixture.Teardown();
+		return true;
+	}
+
+	TestFalse("Indicator not registered initially", Fixture.Component->IsIndicatorRegistered());
+	TestEqual("Manager starts empty", Fixture.Manager->GetIndicators().Num(), 0);
+	Fixture.Component->NotifyDamageReceived();
+	TestTrue("Indicator registered after damage", Fixture.Component->IsIndicatorRegistered());
+	TestNotNull("Manager contains the enemy descriptor", Fixture.FindEnemyDescriptor());
+	TestEqual("Manager contains exactly one indicator", Fixture.Manager->GetIndicators().Num(), 1);
+
+	Fixture.Teardown();
 	return true;
 }
 
@@ -65,11 +132,23 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_EnemyIndicator_UnregistersOnDeath,
 
 bool FMordecai_UI_EnemyIndicator_UnregistersOnDeath::RunTest(const FString& Parameters)
 {
-	UMordecaiEnemyIndicatorComponent* Comp = NewObject<UMordecaiEnemyIndicatorComponent>();
-	Comp->NotifyDamageReceived();
-	TestTrue("Indicator registered after damage", Comp->IsIndicatorRegistered());
-	Comp->NotifyDeath();
-	TestFalse("Indicator unregistered after death", Comp->IsIndicatorRegistered());
+	using namespace MordecaiEnemyIndicatorTest;
+	FManagerBackedFixture Fixture;
+	if (!TestTrue("manager-backed enemy fixture", Fixture.Setup()))
+	{
+		Fixture.Teardown();
+		return true;
+	}
+
+	Fixture.Component->NotifyDamageReceived();
+	TestTrue("Indicator registered after damage", Fixture.Component->IsIndicatorRegistered());
+	TestNotNull("Manager contains the enemy descriptor", Fixture.FindEnemyDescriptor());
+	Fixture.Component->NotifyDeath();
+	TestFalse("Indicator unregistered after death", Fixture.Component->IsIndicatorRegistered());
+	TestNull("Manager no longer contains the enemy descriptor", Fixture.FindEnemyDescriptor());
+	TestEqual("Manager is empty after death", Fixture.Manager->GetIndicators().Num(), 0);
+
+	Fixture.Teardown();
 	return true;
 }
 
@@ -109,33 +188,19 @@ bool FMordecai_UI_EnemyIndicator_ShownWhenReEntersRange::RunTest(const FString& 
 }
 
 // ---------------------------------------------------------------------------
-// 7. Mordecai.UI.EnemyIndicator.HealthBarColorThresholds (AC-064.8)
-// Health bar color: Green >50%, Yellow 25-50%, Red <25%.
+// 7. Mordecai.UI.EnemyIndicator.HealthBarIsAlwaysRed (US-092 owner decision)
+// Enemy health uses one stable red treatment at every percentage.
 // ---------------------------------------------------------------------------
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_EnemyIndicator_HealthBarColorThresholds,
-	"Mordecai.UI.EnemyIndicator.HealthBarColorThresholds",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_EnemyIndicator_HealthBarIsAlwaysRed,
+	"Mordecai.UI.EnemyIndicator.HealthBarIsAlwaysRed",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
-bool FMordecai_UI_EnemyIndicator_HealthBarColorThresholds::RunTest(const FString& Parameters)
+bool FMordecai_UI_EnemyIndicator_HealthBarIsAlwaysRed::RunTest(const FString& Parameters)
 {
-	// Green > 50%
 	FLinearColor Color75 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.75f);
-	TestEqual("75% = Green", Color75, UMordecaiEnemyIndicatorWidget::HealthColorGreen);
-
-	FLinearColor Color51 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.51f);
-	TestEqual("51% = Green", Color51, UMordecaiEnemyIndicatorWidget::HealthColorGreen);
-
-	// Yellow 25%-50%
+	TestEqual("75% = Red", Color75, UMordecaiEnemyIndicatorWidget::HealthColorRed);
 	FLinearColor Color50 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.50f);
-	TestEqual("50% = Yellow", Color50, UMordecaiEnemyIndicatorWidget::HealthColorYellow);
-
-	FLinearColor Color25 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.25f);
-	TestEqual("25% = Yellow", Color25, UMordecaiEnemyIndicatorWidget::HealthColorYellow);
-
-	// Red < 25%
-	FLinearColor Color24 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.24f);
-	TestEqual("24% = Red", Color24, UMordecaiEnemyIndicatorWidget::HealthColorRed);
-
+	TestEqual("50% = Red", Color50, UMordecaiEnemyIndicatorWidget::HealthColorRed);
 	FLinearColor Color0 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(0.0f);
 	TestEqual("0% = Red", Color0, UMordecaiEnemyIndicatorWidget::HealthColorRed);
 
@@ -176,7 +241,7 @@ bool FMordecai_UI_EnemyIndicator_StatusIconMapping::RunTest(const FString& Param
 
 	// CalcHealthBarColor boundary test at exactly 1.0
 	FLinearColor Color100 = UMordecaiEnemyIndicatorWidget::CalcHealthBarColor(1.0f);
-	TestEqual("100% = Green", Color100, UMordecaiEnemyIndicatorWidget::HealthColorGreen);
+	TestEqual("100% = Red", Color100, UMordecaiEnemyIndicatorWidget::HealthColorRed);
 
 	return true;
 }

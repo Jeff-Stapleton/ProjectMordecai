@@ -26,7 +26,7 @@
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/Items/MordecaiItemPickup.h"
 #include "Mordecai/MordecaiGameMode.h"
-#include "Mordecai/UI/MordecaiEnemyHealthBarWidget.h"
+#include "Mordecai/UI/MordecaiEnemyIndicatorComponent.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/UnrealType.h"
 
@@ -771,7 +771,7 @@ bool FMordecai_Level_TestMaps_CombatNavMesh::RunTest(const FString& Parameters)
 // 10. Mordecai.Level.TestMaps.TestDummyNeverMovesOrAggroes
 // A punching bag: speed 0, 200 HP, an AI that never leaves Idle (AggroRange 0) so it never approaches or swings,
 // yet still a full enemy (melee ability and a profile, so ValidateContent logs nothing; a blue-grey body
-// (MI_Enemy_TestDummy) and a health bar).
+// (MI_Enemy_TestDummy) and an always-on EnemyIndicator health bar).
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Level_TestMaps_TestDummy,
 	"Mordecai.Level.TestMaps.TestDummyNeverMovesOrAggroes",
@@ -802,7 +802,8 @@ bool FMordecai_Level_TestMaps_TestDummy::RunTest(const FString& Parameters)
 	TestTrue("TestDummy keeps the melee ability in DefaultAbilities", GrantsMeleeAttack(Dummy));
 	TestTrue("TestDummy keeps an attack profile (ValidateContent logs none missing)",
 		Dummy->EnemyAttackProfiles.Num() >= 1 && Dummy->EnemyAttackProfiles[0] != nullptr);
-	TestNotNull("TestDummy has a health bar widget class", Dummy->EnemyHealthBarWidgetClass.Get());
+	TestNotNull("TestDummy has the replacement enemy indicator component",
+		Dummy->FindComponentByClass<UMordecaiEnemyIndicatorComponent>());
 
 	const UStaticMeshComponent* Body = BodyMeshOf(Dummy);
 	TestTrue("TestDummy's BodyMesh has a static mesh (players can see it)", Body && Body->GetStaticMesh());
@@ -851,7 +852,8 @@ bool FMordecai_Level_TestMaps_TestAttacker::RunTest(const FString& Parameters)
 		TestEqual("TestAttacker's attack profile is DA_EnemyAttack_BasicSlash",
 			*GetPathNameSafe(Attacker->EnemyAttackProfiles[0]), BasicSlashPath);
 	}
-	TestNotNull("TestAttacker has a health bar widget class", Attacker->EnemyHealthBarWidgetClass.Get());
+	TestNotNull("TestAttacker has the replacement enemy indicator component",
+		Attacker->FindComponentByClass<UMordecaiEnemyIndicatorComponent>());
 
 	const UStaticMeshComponent* Body = BodyMeshOf(Attacker);
 	TestTrue("TestAttacker's BodyMesh has a static mesh (players can see it)", Body && Body->GetStaticMesh());

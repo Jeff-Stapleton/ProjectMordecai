@@ -2,7 +2,7 @@
 """US-054 Arena Playtest -- Tier 4: the DevTestMap HUD and Frontliner AI, played with REAL input
 
 The DevTestMap half of the US-054 arena loop (AC-054.13): the combat HUD and the three
-Frontliners -- present, visible, with health bars and enemy indicators, aggroing, approaching
+Frontliners -- present, visible, with their replacement EnemyIndicator health bars, aggroing, approaching
 and damaging the player -- with the HUD, enemy, enemy AI, kill counter and enemy indicator
 stories it is built from (US-050, US-051, US-052, US-063, US-064).  It drives the PACKAGED game
 through the in-game agent bridge: every observation is a state read (state / wait_until) or a
@@ -21,7 +21,8 @@ Steps (--plan prints them as the story's Steps table):
   1-2  The combat HUD: health, stamina, posture, SP bars and the kill counter on screen, reading
        "Kills: 0", laid out top-left (health, then stamina below it, then posture below that).
   3-8  The three Frontliners (actors[].kind == "enemy", read with radius 3000, never by label):
-       200/200 HP, spread out, visible meshes, floating health bars, enemy indicators, aggro
+       200/200 HP, spread out, visible meshes, one always-on EnemyIndicator per enemy from spawn
+       and no retired WBP_EnemyHealthBar actor widget, aggro
        (ai_state leaves Idle within 3 s) and approach (one leaves its spawn within 6 s).
   9    Stand at the PlayerStart: the Frontliners damage the player (health below max).
 A failed check SKIPs the checks that depend on it (needs=); independent checks still run.
@@ -67,7 +68,7 @@ DISPLACED_CM = 100.0                   # an enemy this far from every spawn has 
 
 # --- widget classes, texts ----------------------------------------------------------------------
 HUD_BARS = ("HealthBar", "StaminaBar", "PostureBar", "SpellPointsBar", "KillCounter")
-ENEMY_BAR_CLASS = "EnemyHealthBar"
+LEGACY_ENEMY_BAR_CLASS = "EnemyHealthBar"
 INDICATOR_CLASS = "EnemyIndicator"
 RE_KILLS = re.compile(r"^\s*Kills:\s*(\d+)\s*$")
 
@@ -81,7 +82,8 @@ DAMAGE_TIMEOUT_S = 20.0
 SCREENSHOTS = {
     "start": "the Mordecai diorama arena from the fixed overhead camera, the player at the centre, "
              "the combat HUD (health, stamina, posture and SP bars top-left, 'Kills: 0') and "
-             "the three Frontliners: a red cylinder body under each floating enemy health bar",
+             "the three Frontliners: a red cylinder body with one 150px red EnemyIndicator "
+             "health bar above each one and no legacy WBP_EnemyHealthBar",
     "hit": "the player at the arena centre after the first Frontliner hit: the health bar below "
            "full, Frontliners (red cylinders) next to the player",
 }
@@ -98,11 +100,12 @@ PLAN = (
          proves=("AC-054.11", "AC-054.2", "US-050:AC-050.3")),
     Step("enemies_visible", "state actors -> every enemy has_visible_mesh==true",
          proves=("AC-054.13",)),
-    Step("enemy_health_bars", f"state actors -> every enemy has a visible widget whose class "
-         f"contains {ENEMY_BAR_CLASS}", proves=("AC-054.9", "US-052:AC-052.10")),
-    Step("enemy_indicators", f"state widgets -> one {INDICATOR_CLASS} widget per enemy in aggro "
-         f"range within {INDICATOR_TIMEOUT_S:g}s",
-         proves=("US-064:AC-064.2", "US-064:AC-064.10")),
+    Step("enemy_health_bars", f"state actors + widgets -> exactly one visible {INDICATOR_CLASS} "
+         f"per enemy and no actor-attached {LEGACY_ENEMY_BAR_CLASS}",
+         proves=("AC-054.9", "US-052:AC-052.10")),
+    Step("enemy_indicators", f"state widgets -> one always-on {INDICATOR_CLASS} widget per living "
+         f"enemy from spawn within {INDICATOR_TIMEOUT_S:g}s",
+         proves=("US-064:AC-064.2", "US-064:AC-064.10", "US-092:AC-092.4")),
     Step("enemy_aggro", f"stand at the spawn -> every enemy ai_state != 'Idle' within "
          f"{AGGRO_TIMEOUT_S:g}s", proves=("US-051:AC-051.3",)),
     Step("enemy_approaches", f"stand -> some enemy > {DISPLACED_CM:g} cm from every spawn within "
@@ -211,7 +214,7 @@ class Us054Run(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
-    COVERS = ("US-050", "US-051", "US-052", "US-063", "US-064")
+    COVERS = ("US-050", "US-051", "US-052", "US-063", "US-064", "US-092")
     FEATURES = ("enemies", "enemy_ai", "combat_hud", "kill_counter", "enemy_indicators")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX
@@ -311,23 +314,40 @@ class Us054Run(kit.PlaytestRun):
 
         self.measure("enemies_visible", visible, needs=have, needs_why=why)
 
-        def bars(b):
-            es = enemies(b.state(["actors"], radius=ENEMY_RADIUS))
-            bad = []
-            for a in es:
-                ws = [w for w in _list(a.get("widgets"))
-                      if ENEMY_BAR_CLASS.lower() in str(w.get("class") or "").lower()
-                      and w.get("visible") is True]
-                if not ws:
-                    bad.append(f"{fmt_xy(xy(a['location']))} widgets "
-                               f"{[(w.get('class'), w.get('visible')) for w in _list(a.get('widgets'))]}")
-            if bad or not es:
-                return "FAIL", f"no visible {ENEMY_BAR_CLASS} on: {bad or 'no enemies'}", None
-            return "PASS", f"all {len(es)} enemies have a visible {ENEMY_BAR_CLASS} widget", None
-
-        self.measure("enemy_health_bars", bars, needs=have, needs_why=why)
-
         want = max(1, len(self.enemies_start))
+
+        def replacement_bars(st):
+            es = enemies(st)
+            visible_indicators = [
+                w for w in widgets(st)
+                if INDICATOR_CLASS.lower() in str(w.get("class") or "").lower()
+                and widget_visible(w)
+            ]
+            legacy = [
+                (fmt_xy(xy(a.get("location"))), w.get("class"))
+                for a in es for w in _list(a.get("widgets"))
+                if LEGACY_ENEMY_BAR_CLASS.lower() in str(w.get("class") or "").lower()
+            ]
+            return bool(es) and len(visible_indicators) == len(es) and not legacy
+
+        def replacement_detail(st):
+            es = enemies(st)
+            visible_indicators = [
+                w.get("class") for w in widgets(st)
+                if INDICATOR_CLASS.lower() in str(w.get("class") or "").lower()
+                and widget_visible(w)
+            ]
+            legacy = [
+                (fmt_xy(xy(a.get("location"))), w.get("class"), w.get("visible"))
+                for a in es for w in _list(a.get("widgets"))
+                if LEGACY_ENEMY_BAR_CLASS.lower() in str(w.get("class") or "").lower()
+            ]
+            return (f"{len(visible_indicators)} visible {INDICATOR_CLASS} widget(s) for "
+                    f"{len(es)} enemies; legacy actor widgets: {legacy or 'none'}")
+
+        self.observe("enemy_health_bars", ["actors", "widgets"], replacement_bars,
+                     replacement_detail, timeout_s=INDICATOR_TIMEOUT_S, radius=ENEMY_RADIUS,
+                     needs=have, needs_why=why)
 
         def indicators(st):
             return len([w for w in widgets(st)

@@ -21,6 +21,7 @@ class UMordecaiPickupPromptWidget;
 class UMordecaiEquippedWeaponWidget;
 class UMordecaiEquipmentComponent;
 class UMordecaiPickupInteractionComponent;
+class UIndicatorLayer;
 
 /**
  * UMordecaiCombatHUDWidget
@@ -66,6 +67,10 @@ protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
+
+	/** Full-screen projection surface for Lyra IndicatorSystem descriptors (US-092). */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UIndicatorLayer> IndicatorLayer;
 
 	// --- Core Resource Bars (US-052) ---
 

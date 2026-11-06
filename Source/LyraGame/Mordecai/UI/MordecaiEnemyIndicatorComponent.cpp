@@ -15,6 +15,7 @@ UMordecaiEnemyIndicatorComponent::UMordecaiEnemyIndicatorComponent(const FObject
 	: Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	IndicatorWidgetClass = UMordecaiEnemyIndicatorWidget::StaticClass();
 }
 
 // ---------------------------------------------------------------------------
@@ -24,6 +25,11 @@ UMordecaiEnemyIndicatorComponent::UMordecaiEnemyIndicatorComponent(const FObject
 void UMordecaiEnemyIndicatorComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Jeff's 2026-11-05 decision: living enemies show their health indicator from spawn.
+	// Register immediately when the local manager is ready; UpdateVisibility retries otherwise.
+	bIndicatorRequested = true;
+	RegisterIndicator();
 
 	// Start visibility check timer (every 0.25s)
 	if (GetWorld())
@@ -40,6 +46,7 @@ void UMordecaiEnemyIndicatorComponent::BeginPlay()
 
 void UMordecaiEnemyIndicatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	bIndicatorRequested = false;
 	UnregisterIndicator();
 
 	if (GetWorld())
@@ -56,18 +63,24 @@ void UMordecaiEnemyIndicatorComponent::EndPlay(const EEndPlayReason::Type EndPla
 
 void UMordecaiEnemyIndicatorComponent::NotifyDamageReceived()
 {
-	if (!bIndicatorRegistered)
-	{
-		RegisterIndicator();
-	}
+	bIndicatorRequested = true;
+	RegisterIndicator();
 }
 
 void UMordecaiEnemyIndicatorComponent::NotifyAggroActivated()
 {
-	if (!bIndicatorRegistered)
-	{
-		RegisterIndicator();
-	}
+	bIndicatorRequested = true;
+	RegisterIndicator();
+}
+
+void UMordecaiEnemyIndicatorComponent::NotifyArenaReset()
+{
+	bIndicatorRequested = true;
+
+	// Replacing the descriptor makes the newly created widget bind to the enemy's current
+	// attributes. This refreshes survivors as well as restoring an indicator removed on death.
+	UnregisterIndicator();
+	RegisterIndicator();
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +89,7 @@ void UMordecaiEnemyIndicatorComponent::NotifyAggroActivated()
 
 void UMordecaiEnemyIndicatorComponent::NotifyDeath()
 {
+	bIndicatorRequested = false;
 	UnregisterIndicator();
 }
 
@@ -94,12 +108,10 @@ bool UMordecaiEnemyIndicatorComponent::IsWithinVisibilityRange(float Distance) c
 
 void UMordecaiEnemyIndicatorComponent::RegisterIndicator()
 {
-	if (bIndicatorRegistered)
+	if (!bIndicatorRequested || bIndicatorRegistered)
 	{
 		return;
 	}
-
-	bIndicatorRegistered = true;
 
 	ULyraIndicatorManagerComponent* Manager = FindIndicatorManager();
 	if (!Manager)
@@ -119,30 +131,26 @@ void UMordecaiEnemyIndicatorComponent::RegisterIndicator()
 		return;
 	}
 
-	// Create the descriptor
-	ActiveDescriptor = NewObject<UIndicatorDescriptor>(this);
-	ActiveDescriptor->SetSceneComponent(RootComp);
-	ActiveDescriptor->SetWorldPositionOffset(FVector(0.0, 0.0, IndicatorHeightOffset));
-	ActiveDescriptor->SetAutoRemoveWhenIndicatorComponentIsNull(true);
-	ActiveDescriptor->SetHAlign(HAlign_Center);
-	ActiveDescriptor->SetVAlign(VAlign_Bottom);
-	ActiveDescriptor->SetDataObject(Owner);
+	UIndicatorDescriptor* Descriptor = NewObject<UIndicatorDescriptor>(this);
+	Descriptor->SetSceneComponent(RootComp);
+	Descriptor->SetWorldPositionOffset(FVector(0.0, 0.0, IndicatorHeightOffset));
+	Descriptor->SetAutoRemoveWhenIndicatorComponentIsNull(true);
+	Descriptor->SetHAlign(HAlign_Center);
+	Descriptor->SetVAlign(VAlign_Bottom);
+	Descriptor->SetDataObject(Owner);
 
 	if (!IndicatorWidgetClass.IsNull())
 	{
-		ActiveDescriptor->SetIndicatorClass(IndicatorWidgetClass);
+		Descriptor->SetIndicatorClass(IndicatorWidgetClass);
 	}
 
-	Manager->AddIndicator(ActiveDescriptor);
+	Manager->AddIndicator(Descriptor);
+	ActiveDescriptor = Descriptor;
+	bIndicatorRegistered = true;
 }
 
 void UMordecaiEnemyIndicatorComponent::UnregisterIndicator()
 {
-	if (!bIndicatorRegistered)
-	{
-		return;
-	}
-
 	bIndicatorRegistered = false;
 
 	if (ActiveDescriptor)
@@ -158,6 +166,11 @@ void UMordecaiEnemyIndicatorComponent::UnregisterIndicator()
 
 void UMordecaiEnemyIndicatorComponent::UpdateVisibility()
 {
+	if (bIndicatorRequested && !bIndicatorRegistered)
+	{
+		RegisterIndicator();
+	}
+
 	if (!bIndicatorRegistered || !ActiveDescriptor)
 	{
 		return;
