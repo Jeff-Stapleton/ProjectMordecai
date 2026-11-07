@@ -10,6 +10,7 @@
 
 class UProjectileMovementComponent;
 class USphereComponent;
+class UStaticMeshComponent;
 class UMordecaiAttackProfileDataAsset;
 class UAbilitySystemComponent;
 
@@ -29,6 +30,7 @@ class LYRAGAME_API AMordecaiProjectile : public AActor
 
 public:
 	AMordecaiProjectile();
+	virtual void Tick(float DeltaSeconds) override;
 
 	// --- Initialization ---
 
@@ -104,6 +106,9 @@ protected:
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
 		const FHitResult& SweepResult);
 
+	UFUNCTION()
+	void OnProjectileStopped(const FHitResult& ImpactResult);
+
 	/** Handle a hit on a valid target. Applies damage, processes pierce/ricochet/AoE. */
 	void HandleHit(AActor* HitActor, const FVector& HitLocation);
 
@@ -125,6 +130,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Mordecai|Projectile")
 	TObjectPtr<UProjectileMovementComponent> ProjectileMovement;
+
+	UPROPERTY(VisibleAnywhere, Category = "Mordecai|Projectile")
+	TObjectPtr<UStaticMeshComponent> ProjectileMesh;
 
 	FMordecaiProjectileSpec Spec;
 	FMordecaiDamageProfile DamageProfile;

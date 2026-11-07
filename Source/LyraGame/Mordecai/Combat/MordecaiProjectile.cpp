@@ -10,10 +10,13 @@
 #include "Mordecai/UI/MordecaiDamagePopComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "UObject/ConstructorHelpers.h"
 #include "GameplayEffect.h"
 #include "Engine/OverlapResult.h"
+#include "TimerManager.h"
 
 // ---------------------------------------------------------------------------
 // Constructor
@@ -28,8 +31,9 @@ AMordecaiProjectile::AMordecaiProjectile()
 	CollisionComp->InitSphereRadius(10.f);
 	CollisionComp->SetCollisionObjectType(Mordecai_TraceChannel_ProjectileDetection);
 	CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	CollisionComp->SetGenerateOverlapEvents(true);
 	CollisionComp->SetCollisionResponseToAllChannels(ECR_Ignore);
-	CollisionComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	CollisionComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 	CollisionComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
 	CollisionComp->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 	SetRootComponent(CollisionComp);
@@ -40,6 +44,19 @@ AMordecaiProjectile::AMordecaiProjectile()
 	ProjectileMovement->bRotationFollowsVelocity = true;
 	ProjectileMovement->bShouldBounce = false;
 	ProjectileMovement->ProjectileGravityScale = 0.f;
+
+	// AC-087.3: visible native placeholder until each spell gets authored VFX. The engine sphere
+	// is cooked with the engine, needs no project content, and never participates in collision.
+	ProjectileMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMesh"));
+	ProjectileMesh->SetupAttachment(CollisionComp);
+	ProjectileMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ProjectileMesh->SetRelativeScale3D(FVector(0.3f));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
+		TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	if (SphereMesh.Succeeded())
+	{
+		ProjectileMesh->SetStaticMesh(SphereMesh.Object);
+	}
 
 	// Replication for Iris
 	bReplicates = true;
@@ -57,6 +74,8 @@ void AMordecaiProjectile::InitFromSpec(const FMordecaiProjectileSpec& InSpec, co
 	// AC-009.2: Configure speed
 	ProjectileMovement->InitialSpeed = Spec.Speed;
 	ProjectileMovement->MaxSpeed = Spec.Speed;
+	ProjectileMovement->Velocity = GetActorForwardVector() * Spec.Speed;
+	ProjectileMovement->Activate(true);
 
 	// AC-009.3: Configure gravity
 	ProjectileMovement->ProjectileGravityScale = Spec.GravityDrop;
@@ -64,12 +83,24 @@ void AMordecaiProjectile::InitFromSpec(const FMordecaiProjectileSpec& InSpec, co
 	// Pierce and ricochet counters
 	RemainingPierceCount = Spec.PierceCount;
 	RemainingRicochetCount = Spec.RicochetCount;
+
+	// Deferred spawns consume this in BeginPlay. Keep the documented post-spawn API compatible:
+	// if BeginPlay already happened, apply the supplied lifetime now rather than retaining the
+	// constructor's zero/default lifetime.
+	if (HasActorBegunPlay())
+	{
+		SetLifeSpan(Spec.Lifetime > 0.f ? Spec.Lifetime : 0.f);
+	}
 }
 
 void AMordecaiProjectile::SetProjectileInstigator(AActor* InInstigator)
 {
 	ProjectileInstigator = InInstigator;
 	SetInstigator(Cast<APawn>(InInstigator));
+	if (CollisionComp && InInstigator)
+	{
+		CollisionComp->IgnoreActorWhenMoving(InInstigator, true);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -90,11 +121,18 @@ void AMordecaiProjectile::BeginPlay()
 
 	// Bind overlap event for hit detection
 	CollisionComp->OnComponentBeginOverlap.AddDynamic(this, &AMordecaiProjectile::OnProjectileOverlap);
+	ProjectileMovement->OnProjectileStop.AddDynamic(this, &AMordecaiProjectile::OnProjectileStopped);
 }
 
 // ---------------------------------------------------------------------------
 // Tick — Range Check (AC-009.4)
 // ---------------------------------------------------------------------------
+
+void AMordecaiProjectile::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	CheckRangeAndLifetime();
+}
 
 void AMordecaiProjectile::CheckRangeAndLifetime()
 {
@@ -147,8 +185,52 @@ void AMordecaiProjectile::OnProjectileOverlap(
 		return;
 	}
 
+	// WorldDynamic utility actors, pickup triggers and other non-combat overlaps are transparent:
+	// only an actor with an ASC is a damageable projectile target. In particular they must not
+	// enter HandleHit, consume pierce or destroy a zero-pierce projectile.
+	if (!UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OtherActor))
+	{
+		return;
+	}
+
 	FVector HitLoc = SweepResult.ImpactPoint.IsNearlyZero() ? FVector(OtherActor->GetActorLocation()) : FVector(SweepResult.ImpactPoint);
 	HandleHit(OtherActor, HitLoc);
+}
+
+void AMordecaiProjectile::OnProjectileStopped(const FHitResult& ImpactResult)
+{
+	AActor* HitActor = ImpactResult.GetActor();
+	if (!HitActor || ShouldIgnoreActor(HitActor)
+		|| !UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(HitActor))
+	{
+		// WorldStatic and non-combat blocking actors stop the projectile without spending pierce.
+		return;
+	}
+
+	const bool bWillPierce = RemainingPierceCount > 0;
+	if (bWillPierce)
+	{
+		// A blocking target would immediately stop the resumed sweep again. Ignore only that
+		// already-hit actor; ProcessPierceHit still owns the gameplay hit list and counter.
+		CollisionComp->IgnoreActorWhenMoving(HitActor, true);
+	}
+
+	HandleHit(HitActor, ImpactResult.ImpactPoint);
+
+	if (bWillPierce && IsValid(this) && !IsActorBeingDestroyed())
+	{
+		// StopSimulating's caller is still unwinding its blocking-hit handling. Resume on the
+		// next frame so that outer call cannot deflect or stop the restored velocity again.
+		GetWorldTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			if (IsValid(this) && !IsActorBeingDestroyed())
+			{
+				ProjectileMovement->SetUpdatedComponent(CollisionComp);
+				ProjectileMovement->Velocity = GetActorForwardVector() * Spec.Speed;
+				ProjectileMovement->Activate(true);
+			}
+		}));
+	}
 }
 
 void AMordecaiProjectile::HandleHit(AActor* HitActor, const FVector& HitLocation)
