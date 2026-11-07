@@ -64,6 +64,27 @@ namespace
 		return Projectile;
 	}
 
+	AMordecaiProjectile* SpawnDeferredConfiguredProjectile(
+		FRecoveryTestEnv& Env,
+		const FVector& Location,
+		const FVector& Direction,
+		const FMordecaiProjectileSpec& Spec,
+		const FMordecaiDamageProfile& Damage)
+	{
+		const FTransform SpawnTransform(Direction.Rotation(), Location);
+		AMordecaiProjectile* Projectile = Env.World->SpawnActorDeferred<AMordecaiProjectile>(
+			AMordecaiProjectile::StaticClass(), SpawnTransform, Env.Player, Env.Player,
+			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (!Projectile)
+		{
+			return nullptr;
+		}
+		Projectile->InitFromSpec(Spec, Damage);
+		Projectile->SetProjectileInstigator(Env.Player);
+		Projectile->FinishSpawning(SpawnTransform);
+		return Projectile;
+	}
+
 	AActor* SpawnCollisionSphere(
 		UWorld* World,
 		const FVector& Location,
@@ -150,6 +171,16 @@ namespace
 		}
 	}
 
+	void TickTimersOnly(UWorld* World, float Seconds)
+	{
+		for (float Elapsed = 0.f; Elapsed < Seconds; Elapsed += TickStep)
+		{
+			++GFrameCounter;
+			World->TimeSeconds += TickStep;
+			World->GetTimerManager().Tick(TickStep);
+		}
+	}
+
 	AMordecaiProjectile* FindLiveProjectile(UWorld* World)
 	{
 		for (TActorIterator<AMordecaiProjectile> It(World); It; ++It)
@@ -204,6 +235,21 @@ bool FMordecaiRecovery_ProjectileLifecycle::RunTest(const FString& Parameters)
 		TickWorld(Env.World, 0.1f);
 		TestTrue("projectile displaces on its first world ticks",
 			FVector::Dist(Start, Moving->GetActorLocation()) > 80.f);
+	}
+
+	const FVector DeferredDirection = FVector::RightVector;
+	AMordecaiProjectile* Deferred = SpawnDeferredConfiguredProjectile(
+		Env, FVector(0.f, -600.f, 100.f), DeferredDirection,
+		MakeSpec(1234.f, 2.f, 1500.f), MakeDamage());
+	if (TestNotNull("deferred non-axis projectile", Deferred))
+	{
+		TestTrue("deferred FinishSpawning preserves the world-space aim velocity",
+			Deferred->GetProjectileMovement()->Velocity.Equals(DeferredDirection * 1234.f, 1.f));
+		const FVector Start = Deferred->GetActorLocation();
+		TickWorld(Env.World, 0.1f);
+		const FVector Displacement = Deferred->GetActorLocation() - Start;
+		TestTrue("deferred non-axis first movement follows the supplied world direction",
+			FVector::DotProduct(Displacement.GetSafeNormal(), DeferredDirection) > 0.99f);
 	}
 
 	AMordecaiProjectile* Lifetime = SpawnConfiguredProjectile(
@@ -263,7 +309,15 @@ bool FMordecaiRecovery_ProjectileOverlapFiltering::RunTest(const FString& Parame
 		Poison.StatusEffectGEClass = UMordecaiGE_Poisoned::StaticClass();
 		Projectile->SetStatusEffectsOnHit({ Poison });
 	}
-	TickWorld(Env.World, 0.6f);
+	bool bObservedNonASCContact = false;
+	for (int32 Step = 0; Step < 30; ++Step)
+	{
+		TickWorld(Env.World, TickStep);
+		if (IsValid(Projectile) && !Projectile->IsActorBeingDestroyed())
+		{
+			bObservedNonASCContact |= Projectile->GetCollisionComponent()->IsOverlappingActor(NonASC);
+		}
+	}
 	const USphereComponent* TargetSphere = Target->FindComponentByClass<USphereComponent>();
 	AddInfo(FString::Printf(TEXT("delivery diagnostic: target object=%d response=%d overlaps=%d; "
 		"test sphere registered=%d at x=%.1f; projectile bound=%d pawn-response=%d "
@@ -281,6 +335,8 @@ bool FMordecaiRecovery_ProjectileOverlapFiltering::RunTest(const FString& Parame
 		Projectile ? Projectile->GetProjectileMovement()->Velocity.Size() : -1.f,
 		IsValid(Projectile) && !Projectile->IsActorBeingDestroyed()));
 
+	TestTrue("natural swept movement entered the registered non-ASC WorldDynamic fixture",
+		bObservedNonASCContact);
 	TestTrue("non-ASC overlap did not consume the projectile before the target",
 		TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute()) < HealthBefore);
 	TestTrue("natural projectile delivery applies status-on-hit",
@@ -312,6 +368,25 @@ bool FMordecaiRecovery_ProjectileBlockingAndPierce::RunTest(const FString& Param
 	AddInfo(FString::Printf(TEXT("static diagnostic: wall x=%.1f, projectile x=%.1f, velocity=%.1f"),
 		Wall ? Wall->GetActorLocation().X : -1.f, Blocked ? Blocked->GetActorLocation().X : -1.f,
 		Blocked ? Blocked->GetProjectileMovement()->Velocity.Size() : -1.f));
+	FHitResult PawnSweepHit;
+	const bool bStoppedProjectileAlive = IsValid(Blocked) && !Blocked->IsActorBeingDestroyed();
+	const ECollisionResponse PawnToProjectileResponse =
+		Env.Player->GetCapsuleComponent()->GetCollisionResponseToChannel(
+			Mordecai_TraceChannel_ProjectileDetection);
+	if (bStoppedProjectileAlive)
+	{
+		Env.Player->SetActorLocation(FVector(0.f, -300.f, 100.f), false, nullptr,
+			ETeleportType::TeleportPhysics);
+		Env.Player->GetCapsuleComponent()->MoveComponent(
+			FVector(200.f, 0.f, 0.f), Env.Player->GetActorQuat(), true, &PawnSweepHit);
+	}
+	AddInfo(FString::Printf(TEXT("stopped-projectile obstacle audit: alive=%d, pawn response to "
+		"channel7=%d, pawn sweep blocking=%d, hit actor=%s"),
+		bStoppedProjectileAlive, static_cast<int32>(PawnToProjectileResponse),
+		PawnSweepHit.bBlockingHit, *GetNameSafe(PawnSweepHit.GetActor())));
+	TestFalse("WorldStatic-stopped projectile is destroyed", bStoppedProjectileAlive);
+	TestFalse("WorldStatic-stopped projectile does not remain as a pawn-blocking obstacle",
+		bStoppedProjectileAlive && PawnSweepHit.GetActor() == Blocked);
 	TestNotNull("WorldStatic fixture", Wall);
 	TestTrue("WorldStatic stops projectile movement before crossing the fixture",
 		Blocked && Blocked->GetActorLocation().X < 240.f
@@ -355,7 +430,9 @@ bool FMordecaiRecovery_FireballRealCast::RunTest(const FString& Parameters)
 		return true;
 	}
 
-	AMordecaiEnemyCharacter* Target = Env.SpawnEnemy(FVector(450.f, 0.f, 0.f), {});
+	const FVector CastDirection = FVector::RightVector;
+	Env.Player->SetActorRotation(CastDirection.Rotation());
+	AMordecaiEnemyCharacter* Target = Env.SpawnEnemy(CastDirection * 450.f, {});
 	AddProjectileOverlapSphere(Target);
 	UAbilitySystemComponent* PlayerASC = Env.GetPlayerASC();
 	UAbilitySystemComponent* TargetASC = Target ? Target->GetAbilitySystemComponent() : nullptr;
@@ -371,37 +448,45 @@ bool FMordecaiRecovery_FireballRealCast::RunTest(const FString& Parameters)
 		FGameplayAbilitySpec(UMordecaiGA_Fireball::StaticClass(), 1, INDEX_NONE, Data));
 	TestTrue("GAS activates Fireball", PlayerASC->TryActivateAbility(Handle));
 
+	// Advance only the ability's casting timers so the projectile can be inspected at its exact
+	// spawn transform before any projectile movement tick.
+	TickTimersOnly(Env.World, Data->WindupTime + Data->CastTime + TickStep);
 	AMordecaiProjectile* CastProjectile = nullptr;
-	float SpawnDistance = 0.f;
+	float SpawnProjection = 0.f;
 	bool bVisibleMesh = false;
+	CastProjectile = FindLiveProjectile(Env.World);
+	if (CastProjectile)
+	{
+		const FVector SpawnOffset = CastProjectile->GetActorLocation() - Env.Player->GetActorLocation();
+		SpawnProjection = FVector::DotProduct(SpawnOffset, CastDirection);
+		if (!CastProjectile->HasActorBegunPlay())
+		{
+			CastProjectile->DispatchBeginPlay();
+		}
+		if (UStaticMeshComponent* Mesh = CastProjectile->FindComponentByClass<UStaticMeshComponent>())
+		{
+			bVisibleMesh = Mesh->IsRegistered() && Mesh->GetStaticMesh() != nullptr
+				&& Mesh->IsVisible() && Mesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision;
+		}
+	}
+	TestNotNull("casting timers spawned a projectile before movement", CastProjectile);
+	if (CastProjectile)
+	{
+		TestTrue("non-axis GAS cast preserves its assisted world-space direction",
+			FVector::DotProduct(
+				CastProjectile->GetProjectileMovement()->Velocity.GetSafeNormal(), CastDirection) > 0.99f);
+	}
+
 	for (int32 Step = 0; Step < 100
 		&& TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute()) >= HealthBefore; ++Step)
 	{
 		TickWorld(Env.World, TickStep);
-		if (!CastProjectile)
-		{
-			CastProjectile = FindLiveProjectile(Env.World);
-			if (CastProjectile)
-			{
-				SpawnDistance = FVector::Dist2D(Env.Player->GetActorLocation(), CastProjectile->GetActorLocation());
-				if (!CastProjectile->HasActorBegunPlay())
-				{
-					CastProjectile->DispatchBeginPlay();
-				}
-				if (UStaticMeshComponent* Mesh = CastProjectile->FindComponentByClass<UStaticMeshComponent>())
-				{
-					bVisibleMesh = Mesh->IsRegistered() && Mesh->GetStaticMesh() != nullptr
-						&& Mesh->IsVisible() && Mesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision;
-				}
-			}
-		}
 	}
 
 	const float RequiredClearance = Env.Player->GetCapsuleComponent()->GetScaledCapsuleRadius()
-		+ Data->ProjectileCollisionRadius;
-	TestNotNull("casting timers spawned a projectile", CastProjectile);
-	TestTrue("projectile spawns beyond combined caster/projectile radii with a margin",
-		SpawnDistance > RequiredClearance);
+		+ Data->ProjectileCollisionRadius + 5.f;
+	TestTrue("pre-movement signed spawn projection includes combined radii and margin",
+		SpawnProjection >= RequiredClearance - KINDA_SMALL_NUMBER);
 	TestTrue("projectile owns a registered visible asset-backed NoCollision mesh", bVisibleMesh);
 	TestTrue("naturally swept cast projectile damages the target",
 		TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute()) < HealthBefore);

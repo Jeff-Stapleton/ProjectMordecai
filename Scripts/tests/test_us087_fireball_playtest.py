@@ -38,7 +38,7 @@ us087 = load_playtest()
 
 class FireballWorld(fb.FakeWorld):
     def __init__(self, *, projectile=True, visible=True, damage=True, reset=False,
-                 replacement=False, dead_player=False, full_target=True):
+                 replacement=False, movement=False, dead_player=False, full_target=True):
         kwargs = dict(fb.MAP_PRESETS[fb.COMBAT_TEST_MAP])
         super().__init__(**kwargs)
         self.projectile_enabled = projectile
@@ -46,6 +46,7 @@ class FireballWorld(fb.FakeWorld):
         self.damage_enabled = damage
         self.reset_enabled = reset
         self.replacement_enabled = replacement
+        self.movement_enabled = movement
         self.dead_player_enabled = dead_player
         self.projectiles = []
         self.replaced = False
@@ -76,6 +77,8 @@ class FireballWorld(fb.FakeWorld):
             self.after(0.06, lambda world: world._dummy().__setitem__("health", 200.0))
         if self.replacement_enabled:
             self.after(0.06, lambda world: setattr(world, "replaced", True))
+        if self.movement_enabled:
+            self.after(0.06, lambda world: world._dummy()["location"].__setitem__(0, 650.0))
 
     def tick(self, dt):
         super().tick(dt)
@@ -121,7 +124,7 @@ class PlaytestCase(unittest.TestCase):
         session.start()
         self.addCleanup(session.stop)
         patches = (
-            mock.patch.object(us087, "SHOT_DISTANCE", 300.0),
+            mock.patch.object(us087, "SHOT_DISTANCE", 400.0),
             mock.patch.object(us087, "BASELINE_WATCH_S", 0.03),
             mock.patch.object(us087, "PROJECTILE_WINDOW_S", 0.25),
             mock.patch.object(us087, "DAMAGE_WINDOW_S", 0.4),
@@ -200,6 +203,15 @@ class TestUs087IntegrityFailures(PlaytestCase):
         self.assertIn("player died", checks["target_integrity"]["detail"])
         self.assertEqual(checks["same_target_damaged"]["status"], "FAIL")
 
+    def test_target_movement_invalidates_damage_and_skips_visual_approach(self):
+        _, _, code, report = self.play(movement=True)
+        checks = self.checks(report)
+        self.assertEqual(code, 1)
+        self.assertEqual(checks["target_integrity"]["status"], "FAIL")
+        self.assertIn("target moved", checks["target_integrity"]["detail"])
+        self.assertEqual(checks["same_target_damaged"]["status"], "FAIL")
+        self.assertEqual(checks["reduced_health_visual"]["status"], "SKIP")
+
     def test_failed_preconditions_send_no_q_and_skip_acceptance_checks(self):
         world, server, code, report = self.play(full_target=False)
         checks = self.checks(report)
@@ -223,10 +235,12 @@ class TestUs087ReportAndAudit(PlaytestCase):
         self.assertIsNotNone(report["fireball"]["projectile_at_wall_s"])
         self.assertIsNotNone(report["fireball"]["damage_at_wall_s"])
         self.assertEqual({shot["label"] for shot in report["screenshots"]},
-                         {"projectile_visible", "same_target_damaged"})
+                         {"projectile_visible", "same_target_damaged", "reduced_health_visual"})
         self.assertIsNotNone(world.cast_position)
-        self.assertLess(abs(world.cast_position[0] - 300.0), us087.SHOT_TOL + 1)
+        self.assertLess(abs(world.cast_position[0] - 200.0), us087.SHOT_TOL + 1)
         self.assertLess(abs(world.cast_position[1] - 600.0), us087.SHOT_TOL + 1)
+        self.assertLess(abs(world.pos[0] - 300.0), us087.SHOT_TOL + 1)
+        self.assertLess(abs(world.pos[1] - 600.0), us087.SHOT_TOL + 1)
         sent = {request.get("cmd") for request in server.received}
         self.assertLessEqual(sent, {"ping", "state", "key", "screenshot", "wait", "quit"})
         self.assertFalse(any(request.get("route") == "viewport" or request.get("unsafe")
@@ -248,6 +262,7 @@ class TestUs087ReportAndAudit(PlaytestCase):
         self.assertEqual(kit.plan_problems(us087.Run), [])
         self.assertIn("`projectile_visible`", output.getvalue())
         self.assertIn("`same_target_damaged`", output.getvalue())
+        self.assertIn("`reduced_health_visual`", output.getvalue())
 
 
 if __name__ == "__main__":

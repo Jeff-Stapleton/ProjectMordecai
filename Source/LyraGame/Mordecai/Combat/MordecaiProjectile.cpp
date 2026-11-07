@@ -74,6 +74,14 @@ void AMordecaiProjectile::InitFromSpec(const FMordecaiProjectileSpec& InSpec, co
 	// AC-009.2: Configure speed
 	ProjectileMovement->InitialSpeed = Spec.Speed;
 	ProjectileMovement->MaxSpeed = Spec.Speed;
+	// Deferred FinishSpawning initializes this component after InitFromSpec. The supplied assisted
+	// aim is already in world space, so prevent InitializeComponent from rotating it again. Keep
+	// the component default for the documented normal-spawn/post-init API: that path has already
+	// consumed its local startup velocity and established the actor's requested spawn rotation.
+	if (!ProjectileMovement->HasBeenInitialized())
+	{
+		ProjectileMovement->bInitialVelocityInLocalSpace = false;
+	}
 	ProjectileMovement->Velocity = GetActorForwardVector() * Spec.Speed;
 	ProjectileMovement->Activate(true);
 
@@ -200,10 +208,20 @@ void AMordecaiProjectile::OnProjectileOverlap(
 void AMordecaiProjectile::OnProjectileStopped(const FHitResult& ImpactResult)
 {
 	AActor* HitActor = ImpactResult.GetActor();
-	if (!HitActor || ShouldIgnoreActor(HitActor)
-		|| !UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(HitActor))
+	if (!HitActor)
 	{
-		// WorldStatic and non-combat blocking actors stop the projectile without spending pierce.
+		Destroy();
+		return;
+	}
+	if (ShouldIgnoreActor(HitActor))
+	{
+		return;
+	}
+	if (!UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(HitActor))
+	{
+		// Blocking world/non-combat hits stop without spending pierce, then remove their collision
+		// sphere so the stopped projectile cannot become a persistent pawn obstacle.
+		Destroy();
 		return;
 	}
 

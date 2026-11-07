@@ -5,8 +5,9 @@ On CombatTestMap this script selects the passive TestDummy, retains its exact ac
 walks about 1400 cm west of it through real WASD input, and taps Q through Slate. It independently
 checks that the cast spends SP, a visible projectile is sampled within 1.5 seconds, and that same
 live stationary target loses health within 2.5 seconds. Screenshots are taken immediately when
-the visible projectile and damage are first observed. This owner intentionally covers only
-AC-087.4/.5; future Blink recovery needs a separate owner or an explicit owner consolidation.
+the visible projectile and damage are first observed. After the timed window, real WASD approaches
+the retained target for a supplemental reduced-health-bar screenshot. This owner intentionally
+covers only AC-087.4/.5; future Blink recovery needs a separate owner or explicit consolidation.
 """
 
 import math
@@ -30,6 +31,7 @@ TARGET_LABEL = "TestDummy"
 TARGET_SPAWN = (600.0, 600.0)
 ACTOR_RADIUS = 3000
 SHOT_DISTANCE = 1400.0
+VISUAL_DISTANCE = 300.0
 SHOT_TOL = 70.0
 LINE_TOL = 50.0
 TARGET_MOVE_TOL = 10.0
@@ -45,7 +47,10 @@ SCREENSHOTS = {
                           "the passive TestDummy, with the asset-backed Fireball sphere visibly "
                           "in flight on the +X shot line; SP is reduced by 3",
     "same_target_damaged": "CombatTestMap immediately when the retained TestDummy loses health: "
-                           "the same dummy and its reduced health bar/damage feedback are visible",
+                           "an immediate post-hit timing frame; the target may be off-camera, so "
+                           "the continuous exact-name/health audit is the acceptance evidence",
+    "reduced_health_visual": "CombatTestMap after the timed checks: the player has approached by "
+                             "real WASD and the retained TestDummy's reduced health bar is visible",
 }
 
 PLAN = (
@@ -62,8 +67,12 @@ PLAN = (
          "does not disappear or get replaced, move materially, reset/increase health, and the "
          "player stays alive", proves=("AC-087.5",)),
     Step("same_target_damaged", f"continuous polling -> the retained target's health decreases "
-         f"within {DAMAGE_WINDOW_S:g}s without a reset/replacement; independently screenshot it",
+         f"within {DAMAGE_WINDOW_S:g}s without a reset/replacement; capture an immediate timing frame",
          proves=("AC-087.5",)),
+    Step("reduced_health_visual", f"after the {DAMAGE_WINDOW_S:g}s timing window, walk_to with real "
+         f"WASD to {VISUAL_DISTANCE:g} cm west of the retained target; revalidate exact name, "
+         "reduced/current and max health, stationary position, no replacement, and live player; "
+         "capture the reduced health bar", proves=()),
 )
 
 
@@ -130,6 +139,7 @@ class Us087FireballRun(kit.PlaytestRun):
     def steps(self):
         self.prepare_target_and_shot()
         self.cast_and_observe()
+        self.capture_reduced_health_visual()
 
     def _select_target(self, state):
         enemies = [a for a in _actors(state) if a.get("kind") == "enemy"]
@@ -397,6 +407,49 @@ class Us087FireballRun(kit.PlaytestRun):
         self.attempt("projectile_visible", projectile_result)
         self.attempt("target_integrity", integrity_result)
         self.attempt("same_target_damaged", damage_result)
+
+    def capture_reduced_health_visual(self):
+        result = self.observation or {}
+        if result.get("damage_at_wall_s") is None or result.get("integrity_failures"):
+            self.attempt("reduced_health_visual", lambda: ("PASS", "", None), needs=False,
+                         needs_why="not run: timely valid same-target damage was not established")
+            return
+
+        def approach_and_capture():
+            reduced_health = min(result.get("health_values") or [self.target_health])
+            approach = (self.target_location[0] - VISUAL_DISTANCE, self.target_location[1])
+            walked = self.bridge.walk_to(approach[0], approach[1], tol=SHOT_TOL)
+            state = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
+            player = _player(state)
+            exact = self._exact_target(state)
+            replacement = self._replacement(state)
+            problems = []
+            if player is None or player.get("is_dead") is True:
+                problems.append("player died or disappeared during visual approach")
+            if exact is None:
+                problems.append(f"retained target {self.target_name!r} disappeared")
+            else:
+                position = _xy(exact)
+                health, max_health = _health(exact)
+                if position is None or _distance(position, self.target_location) > TARGET_MOVE_TOL:
+                    problems.append(f"target moved {self.target_location} -> {position}")
+                if health != reduced_health:
+                    problems.append(f"target health changed after timed hit: {reduced_health} -> {health}")
+                if max_health != self.target_max_health:
+                    problems.append(
+                        f"target max health changed {self.target_max_health} -> {max_health}")
+                if exact.get("is_dead") is True:
+                    problems.append("target died before supplemental visual")
+            if replacement is not None:
+                problems.append(f"target replaced by {replacement.get('name')!r}")
+            if problems:
+                return "FAIL", "; ".join(problems), walked
+            screenshot = self.shot("reduced_health_visual")
+            return ("PASS", f"retained {self.target_name} still {reduced_health:g}/"
+                    f"{self.target_max_health:g} at {self.target_location}; player approached "
+                    f"to ({approach[0]:.0f},{approach[1]:.0f}) by real input; {screenshot}", walked)
+
+        self.attempt("reduced_health_visual", approach_and_capture)
 
     def report_extra(self):
         return {"fireball": self.observation,
