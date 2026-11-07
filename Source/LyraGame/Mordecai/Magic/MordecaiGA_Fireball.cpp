@@ -7,6 +7,7 @@
 #include "Mordecai/Combat/MordecaiAimAssistSubsystem.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
 #include "Engine/World.h"
 
@@ -73,37 +74,37 @@ void UMordecaiGA_Fireball::OnSpellCast()
 	float Power = ComputeSpellPower(AttributeScaling, SkillRank, bIsUpcast);
 
 	// Get aim direction with aim assist
-	FVector Origin = AvatarActor->GetActorLocation();
+	const FVector CasterOrigin = AvatarActor->GetActorLocation();
 	FVector AimForward = AvatarActor->GetActorForwardVector();
 
 	if (UMordecaiAimAssistSubsystem* AimAssist = World->GetSubsystem<UMordecaiAimAssistSubsystem>())
 	{
-		AimForward = AimAssist->ComputeAssistedAimDirection(Origin, AimForward, SpellData->Range);
+		AimForward = AimAssist->ComputeAssistedAimDirection(CasterOrigin, AimForward, SpellData->Range);
 	}
 
-	// Spawn projectile
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = AvatarActor;
-	SpawnParams.Instigator = Cast<APawn>(AvatarActor);
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	FRotator SpawnRotation = AimForward.Rotation();
-	AMordecaiProjectile* Projectile = World->SpawnActor<AMordecaiProjectile>(
-		AMordecaiProjectile::StaticClass(), Origin, SpawnRotation, SpawnParams);
+	// Configure before FinishSpawning so BeginPlay sees the real speed/lifetime/range. Spawn beyond
+	// the caster and projectile collision radii so the first sweep cannot begin inside the caster.
+	const UCapsuleComponent* CasterCapsule = AvatarActor->FindComponentByClass<UCapsuleComponent>();
+	const float CasterRadius = CasterCapsule ? CasterCapsule->GetScaledCapsuleRadius() : 0.f;
+	constexpr float SpawnMargin = 5.f;
+	const FVector SpawnLocation = CasterOrigin
+		+ AimForward * (CasterRadius + SpellData->ProjectileCollisionRadius + SpawnMargin);
+	const FTransform SpawnTransform(AimForward.Rotation(), SpawnLocation);
+	AMordecaiProjectile* Projectile = World->SpawnActorDeferred<AMordecaiProjectile>(
+		AMordecaiProjectile::StaticClass(), SpawnTransform, AvatarActor, Cast<APawn>(AvatarActor),
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 
 	if (Projectile)
 	{
-		// Configure projectile
 		FMordecaiProjectileSpec Spec = BuildProjectileSpec();
 		FMordecaiDamageProfile DamageProfile = BuildDamageProfile(Power);
 
 		Projectile->InitFromSpec(Spec, DamageProfile);
 		Projectile->SetProjectileInstigator(AvatarActor);
-
-		// AC-020.2: Set collision radius from data asset
 		if (USphereComponent* CollisionComp = Projectile->GetCollisionComponent())
 		{
 			CollisionComp->SetSphereRadius(SpellData->ProjectileCollisionRadius);
 		}
+		Projectile->FinishSpawning(SpawnTransform);
 	}
 }

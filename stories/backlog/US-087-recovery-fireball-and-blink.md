@@ -25,11 +25,11 @@ All fixes are C++ (projectile spawn/initialisation and overlap filtering, Blink 
   - `Source/LyraGame/Mordecai/Magic/MordecaiGA_Blink.cpp:95-124` — "wall" trace on `ECC_WorldStatic`, which a Pawn capsule blocks by default, so an enemy ahead clamps the teleport to ~0 (N20 suspect); `:126-166` — invulnerability added as a loose tag, removed by a timer on the ability instance (`OnInvulnerabilityExpired` → `GetAbilitySystemComponentFromActorInfo()`), which fails if the ability ended / its actor info is cleared first (N19 suspect)
 
 ## Acceptance Criteria
-- [ ] AC-087.1: A Fireball projectile moves at `SpellData->ProjectileSpeed` along the (assisted) aim direction from its first tick, and its lifetime/range come from the spell data — verified by `Mordecai.Recovery.Projectile.FliesAtSpecSpeedFromSpawn` and `Mordecai.Recovery.Projectile.LifetimeFromSpec`
-- [ ] AC-087.2: A projectile that overlaps an actor without an ability system component (pickup trigger, prop) is not destroyed and deals no damage; it still stops on WorldStatic and on damageable targets — verified by `Mordecai.Recovery.Projectile.IgnoresNonDamageableOverlaps`
-- [ ] AC-087.3: The projectile spawns in front of the caster's capsule and has a visible mesh (placeholder sphere is fine) — verified by `Mordecai.Recovery.Projectile.SpawnsAheadWithVisibleMesh`
-- [ ] AC-087.4: In the packaged build, the player taps Q facing an enemy and a projectile appears — verified by check `fireball_projectile` of `Scripts/playtests/us057_magic.py` (Tier 4)
-- [ ] AC-087.5: In the packaged build, that Fireball damages the enemy ahead within 2.5 s — verified by check `fireball_hits_enemy` of `Scripts/playtests/us057_magic.py` (Tier 4)
+- [x] AC-087.1: A Fireball projectile moves at `SpellData->ProjectileSpeed` along the (assisted) aim direction from its first tick, and its lifetime/range come from the spell data — verified by `Mordecai.Recovery.Fireball.ProjectileMovesAndExpiresFromConfiguredContract`
+- [x] AC-087.2: A projectile that overlaps an actor without an ability system component (pickup trigger, prop) is not destroyed and deals no damage; it still stops on WorldStatic and on damageable targets — verified by `Mordecai.Recovery.Fireball.NonASCOverlapPassesThroughBeforeNaturalDamageAndStatus` and `Mordecai.Recovery.Fireball.WorldStaticBlocksAndNonzeroPierceStillHitsTwoTargets`
+- [x] AC-087.3: The projectile spawns in front of the caster's capsule and has a visible mesh (placeholder sphere is fine) — verified by `Mordecai.Recovery.Fireball.GASCastTimersSpawnClearVisibleProjectileAndNaturallyDamageTarget`
+- [x] AC-087.4: In the packaged build, the player taps Q facing an enemy and a projectile appears — accepted by owner checks `fireball_cast` / `projectile_visible` of `Scripts/playtests/us087_fireball.py`; shared `Scripts/playtests/us057_magic.py` check `fireball_projectile` is a regression cross-check, not owner acceptance (Tier 4)
+- [x] AC-087.5: In the packaged build, that Fireball damages the same retained enemy ahead within 2.5 s — accepted by owner checks `target_integrity` / `same_target_damaged` of `Scripts/playtests/us087_fireball.py`; shared `Scripts/playtests/us057_magic.py` check `fireball_hits_enemy` is a regression cross-check, not owner acceptance (Tier 4)
 - [ ] AC-087.6: Blink's destination trace ignores Pawns (it clamps on world geometry only; the destination is adjusted to a free spot if it lands in a pawn), so Blink with an enemy ahead still moves the player; if no movement is possible the spell does not commit its SP cost — verified by `Mordecai.Recovery.Blink.EnemyAheadDoesNotBlock` and `Mordecai.Recovery.Blink.NoMoveNoCost`
 - [x] AC-087.7: Blink's invulnerability is removed when its duration ends even if the ability has already ended, and never outlives it — verified by `Mordecai.Recovery.Blink.InvulnerabilityExpires` (Stone Skin's own Invulnerable grant is unaffected; prefer a duration GameplayEffect granting the tag over a loose tag + ability-owned timer)
   - **Delivered by US-101 (issue #53, `d490a2d`, 2026-10-30).** Once US-101 made damage honor `Mordecai.State.Invulnerable`, a stuck tag would have meant a permanently invulnerable player, so the fix could not wait for this story.
@@ -38,8 +38,8 @@ All fixes are C++ (projectile spawn/initialisation and overlap filtering, Blink 
     - Note: Stone Skin grants no Invulnerable; it grants `Status.StoneSkin` (`MordecaiGA_StoneSkin.cpp`).
     - `Mordecai.Recovery.Blink.InvulnerabilityExpires` passes; it failed before the fix.
     - AC-087.9's Tier 4 check `blink_invulnerability_ends` is still this story's.
-- [ ] AC-087.8: In the packaged build, the player taps E with an enemy about 1 m ahead and moves > 300 cm — verified by NEW check `blink_past_enemy` added to `Scripts/playtests/us057_magic.py` (Tier 4)
-- [ ] AC-087.9: In the packaged build, `Mordecai.State.Invulnerable` is gone from `player.tags` within 1.5 s after a Blink (no Stone Skin active) — verified by NEW check `blink_invulnerability_ends` added to `Scripts/playtests/us057_magic.py` (Tier 4)
+- [ ] AC-087.8: In the packaged build, the player taps E with an enemy about 1 m ahead and moves > 300 cm — verified by future check `blink_past_enemy` in a separate US-087 owner script or an explicit consolidation into the existing dedicated owner (Tier 4)
+- [ ] AC-087.9: In the packaged build, `Mordecai.State.Invulnerable` is gone from `player.tags` within 1.5 s after a Blink (no Stone Skin active) — verified by future check `blink_invulnerability_ends` in that same US-087 Blink owner/consolidation (Tier 4)
 
 ## Technical Notes
 - Fireball: use `SpawnActorDeferred<AMordecaiProjectile>` → `InitFromSpec` / `SetProjectileInstigator` / sphere radius → `FinishSpawning`, so `InitializeComponent` and `BeginPlay` see the spec; or set `ProjectileMovement->Velocity` explicitly. Apply the same to `MordecaiGA_MagicMissile.cpp:129-155`.
@@ -47,41 +47,59 @@ All fixes are C++ (projectile spawn/initialisation and overlap filtering, Blink 
 - Visible mesh: a `UStaticMeshComponent` with an engine basic shape referenced from C++ (hard ref, so it is cooked); no collision on the mesh.
 - N11: filter in `OnProjectileOverlap` — skip actors with no ASC (`UAbilitySystemGlobals::GetAbilitySystemComponentFromActor`) unless they are WorldStatic blockers.
 - Blink (N20): trace with a channel/object query that excludes Pawns, then if the destination overlaps a pawn, step back along the line to the first free capsule position; decide "no movement possible" before committing cost. (N19): grant invulnerability through a duration `UGameplayEffect` (granted tag, Duration = `GetInvulnerabilityDuration()`), so GAS removes it; Stone Skin's own grant stays separate.
-- New us057 checks (script edit committed with the code BEFORE packaging; added to `PLAN` with `proves` = `US-087:AC-087.8` / `US-087:AC-087.9`, US-087 added to `COVERS`; offline test against `Scripts/tests/fake_bridge.py`):
+- Future Blink owner checks (in a separate US-087 script or explicitly consolidated into `us087_fireball.py`; do not add US-087 to `us057_magic.py` `COVERS`, because the dedicated owner takes precedence):
   - `blink_past_enemy`: walk to ~100 cm -X of the TestDummy (`TARGET_ENEMY`, (600, 600)) on its line, about (500, 600) (found like `walk_shot_line` does), tap E → `player.location.x` rises > 300 within 2 s. Never use the TestAttacker (2100, 0): its 900 cm AggroRange and 150 cm BasicSlash would hit or kill the player, and us057's route stays out of its range (US-100). Mind the SP plan (10 → 7 → 5 → 1 today, N6): budget the extra Blink (it may need its own launch segment or a second run).
-- Since US-100 us057 plays CombatTestMap (`MAP = kit.COMBAT_TEST_MAP`): it shoots the TestDummy from the shot spot (300, 600) and Blinks along the lane from (0, -600). CombatTestMap has no pickups, so N11 (pickup trigger spheres) is covered by AC-087.2's Tier 1 test only.
   - `blink_invulnerability_ends`: after the existing `blink` step, wait_until `Mordecai.State.Invulnerable` not in `player.tags` within 1.5 s (before Stone Skin is cast).
-- Script bookkeeping: `fireball_projectile` and `fireball_hits_enemy` were NEW (no `known_issue`). `fireball_hits_enemy`'s `does` text says "pre-cast value (200)"; it compares with the pre-cast reading, keep it that way.
+- CombatTestMap has no pickups, so N11 (pickup trigger spheres) is covered by AC-087.2's Tier 1 test only.
+- Script bookkeeping: `fireball_projectile` and `fireball_hits_enemy` were NEW (no `known_issue`) and remain shared regression cross-checks only. `fireball_hits_enemy`'s `does` text says "pre-cast value (200)"; it compares with the pre-cast reading, keep it that way. Future Blink AC-087.8/.9 coverage must use a separate US-087 owner script or be explicitly consolidated into `us087_fireball.py`; adding US-087 to `us057_magic.py` `COVERS` would be shadowed by the dedicated owner and is not acceptance.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
 ## Tests Required
 ### Tier 1 — Automation (headless)
-- `Mordecai.Recovery.Projectile.FliesAtSpecSpeedFromSpawn`, `Mordecai.Recovery.Projectile.LifetimeFromSpec` — AC-087.1
-- `Mordecai.Recovery.Projectile.IgnoresNonDamageableOverlaps` — AC-087.2
-- `Mordecai.Recovery.Projectile.SpawnsAheadWithVisibleMesh` — AC-087.3
+- `Mordecai.Recovery.Fireball.ProjectileMovesAndExpiresFromConfiguredContract` — AC-087.1
+- `Mordecai.Recovery.Fireball.NonASCOverlapPassesThroughBeforeNaturalDamageAndStatus` — AC-087.2
+- `Mordecai.Recovery.Fireball.WorldStaticBlocksAndNonzeroPierceStillHitsTwoTargets` — AC-087.2
+- `Mordecai.Recovery.Fireball.GASCastTimersSpawnClearVisibleProjectileAndNaturallyDamageTarget` — AC-087.1, AC-087.3
 - `Mordecai.Recovery.Blink.EnemyAheadDoesNotBlock`, `Mordecai.Recovery.Blink.NoMoveNoCost` — AC-087.6
 - `Mordecai.Recovery.Blink.InvulnerabilityExpires` — AC-087.7
 ### Tier 2 — PIE smoke (editor integration)
-- `Scripts/verify_pie_magic.py`: `[LOGIC]` cast Fireball → a projectile actor exists and moves between two ticks; `[LOGIC]` Blink → Invulnerable removed after its duration
+- `Scripts/verify_pie_magic.py`: `[LOGIC]` directly activates Fireball, then a post-tick watcher verifies a projectile actor exists and moves between editor ticks. This is integration smoke only, not real-input acceptance. No Blink direct-call check belongs to this Fireball slice.
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- `Scripts/playtests/us057_magic.py`: existing `fireball_projectile`, `fireball_hits_enemy`; new `blink_past_enemy`, `blink_invulnerability_ends`
+- `Scripts/playtests/us087_fireball.py`: dedicated Fireball owner for AC-087.4/.5. Future Blink
+  acceptance must use a separate owner script or explicitly consolidate ownership here; it must
+  not weaken or replace the shared `Scripts/playtests/us057_magic.py` Fireball regression checks.
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience; us057's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-057` (or `US-087` once in `COVERS`) on the same package, which boots the script's map
-- **Player steps:** walk (WASD) to the shot spot (300, 600), 300 cm -X of the TestDummy (600, 600), tap Q (Fireball); walk to (0, -600) and tap E (the existing `blink`); for `blink_past_enemy` walk to about (500, 600), ~100 cm -X of the TestDummy on its line, tap E (Blink); wait 1.5 s
-- **Visible on screen:** `fireball_hit` screenshot: the projectile or its impact near the TestDummy (blue-grey cylinder) and the SP bar at "7 / 10"; after `blink_past_enemy` the player on the far (+X) side of the TestDummy
-- **Proof:** Tier 4 checks `fireball_projectile`, `fireball_hits_enemy`, `blink_past_enemy`, `blink_invulnerability_ends` of `Scripts/playtests/us057_magic.py`
-- **Tier 4 script:** `Scripts/playtests/us057_magic.py` — run: `py Scripts/playtest_story.py US-057`; `py Scripts/playtest_story.py US-087` after US-087 is added to `COVERS`
-- **Steps:** (from `py Scripts/playtest_story.py US-057 --plan`; paste the new rows after implementing)
+- **Launch path:** CombatTestMap → `B_MordecaiArenaExperience`; run
+  `py Scripts/playtest_story.py US-087` on the fresh package.
+- **Player steps:** resolve and retain the passive TestDummy's exact actor name; require it live,
+  full-health and stationary; walk (WASD) about 1400 cm -X of it, validate the +X shot line is
+  within Fireball's 1500 range, then tap Q through Slate and continuously observe for 2.5 s.
+- **Visible on screen:** `projectile_visible` captures the visible asset-backed projectile in
+  flight within 1.5 s. `same_target_damaged` is an immediate post-hit timing frame and may have
+  the target off-camera; timely AC-087.5 acceptance comes from the continuous exact-name/health
+  audit. After the 2.5 s timing window, `reduced_health_visual` approaches the retained target by
+  real WASD, revalidates its identity/health/max/position and player life, and captures its reduced
+  health bar as supplemental visual evidence (`proves=()`).
+- **Proof:** independent Tier 4 checks `fireball_cast`, `projectile_visible`,
+  `target_integrity`, and `same_target_damaged` in `Scripts/playtests/us087_fireball.py`, plus
+  the shared `us057_magic.py` `fireball_projectile` / `fireball_hits_enemy` regression checks
+  in the full sweep.
+- **Tier 4 script:** `Scripts/playtests/us087_fireball.py`. This is the US-087 owner for the
+  Fireball slice only; Blink AC-087.6/.8/.9 remains open and needs separate or explicitly
+  consolidated owner coverage.
+- **Steps:** generated by `py Scripts/playtest_story.py US-087 --plan`.
 
-| Script | Check | Player step (bridge calls) → expected | Sweep / explore result (8ea853b) |
+| # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| us057 | `fireball_projectile` | same poll -> an actors[] entry with kind=="projectile" within 1.5s of the tap | FAIL (NEW) |
-| us057 | `fireball_hits_enemy` | same poll -> the nearest enemy's health drops below its pre-cast value within 2.5s | FAIL (NEW) |
-| us057 | `blink_past_enemy` (new) | walk ~100 cm -X of the TestDummy on its line, tap E -> player.location.x rises > 300 within 2 s | explore: moved 0 cm (N20) |
-| us057 | `blink_invulnerability_ends` (new) | after `blink`: wait_until Mordecai.State.Invulnerable not in player.tags within 1.5 s | explore: tag stuck 6+ s (N19) |
+| 1 | `target_preconditions` | state player,actors -> resolve the live TestDummy by label/name or nearest (600,600), retain exact name; require full health, no death, and stationary over a baseline watch; then walk_to about 1400 cm -X and validate a +X shot line inside 1500 range | - |
+| 2 | `fireball_cast` | tap Q through Slate -> spell_points decreases by 3; clock starts before the tap and reports wall/game timing | AC-087.4, AC-087.5 |
+| 3 | `projectile_visible` | continuous state polling -> actors[] kind=='projectile' with has_visible_mesh==true within 1.5s; independently screenshot it | AC-087.4 |
+| 4 | `target_integrity` | through the full observation window the retained exact target name does not disappear or get replaced, move materially, reset/increase health, and the player stays alive | AC-087.5 |
+| 5 | `same_target_damaged` | continuous polling -> the retained target's health decreases within 2.5s without a reset/replacement; capture an immediate timing frame that may have the target off-camera | AC-087.5 |
+| 6 | `reduced_health_visual` | after the timing window, real-WASD `walk_to` 300 cm west of the retained target; revalidate exact name, reduced/current and max health, stationary position, no replacement and live player; capture its reduced health bar | - |
 
 - **Playable alone:** YES
 
@@ -90,13 +108,27 @@ All fixes are C++ (projectile spawn/initialisation and overlap filtering, Blink 
 - [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [ ] Content: none expected; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST (code + us057 script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [ ] Work committed FIRST (code + dedicated owner script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
-- [ ] `py Scripts/playtest_story.py US-087` (Tier 3 + Tier 4) on that same fresh package: `fireball_projectile`, `fireball_hits_enemy` go from FAIL (sweep `Saved/Playtests/20261022-184702-sweep`) to PASS, the new `blink_past_enemy` and `blink_invulnerability_ends` PASS, and the summary's Acceptance criteria table shows AC-087.4/.5/.8/.9 accepted; no check that PASSed in the sweep now FAILs; `--lint` exits 0 for US-087 and US-057 — never `--allow-stale`
+- [ ] `py Scripts/playtest_story.py US-087` (Tier 3 + all dedicated US-087 Tier 4 owners) on that same fresh package accepts AC-087.4/.5 and, once implemented, AC-087.8/.9; the full sweep keeps shared `us057_magic.py` `fireball_projectile` / `fireball_hits_enemy` as regression cross-checks; no prior PASS becomes FAIL; `--lint` exits 0 for US-087 and US-057 — never `--allow-stale`
 - [ ] Known issues N15, N11, N19, N20 marked FIXED (or N11 cleared) in `Specs/agent_playtest_plan_v1.md` with the run dir
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
 - [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-087]` closing commit
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
-<Filled in by the coding agent.>
+### Issue #20 / N15 Fireball slice (2026-11-06)
+
+Issue #20 / N15 Fireball slice complete at implementation commit `66bcbc82c54cf48984e879bb60cfc38722354e41`; US-087 remains open in backlog for Blink AC-087.6/.8/.9. AC-087.7 remains the prior US-101 completion. N19/N20 are untouched, and this slice does not claim that the wider spell feature is playable.
+
+- R1 follow-up strengthens the delivered Fireball slice at the final PR head: UE 5.7 source and a red deferred-spawn yaw-90 test confirmed that the engine's default local-space initialization rotated an already-world-space velocity twice. The compatibility fix disables that transform only before deferred component initialization, preserving normal-spawn/post-init callers. The tests now also capture signed spawn clearance before the first movement tick, observe the real non-ASC overlap event, and prove a WorldStatic-stopped projectile cannot remain as a channel-7 pawn obstacle. The added Tier 2 check is explicitly `[LOGIC]`; it temporarily isolates the pawn, directly activates Fireball, and observes a projectile moving across editor ticks.
+- Process note: historical closing commit `5acc5c01` touched this story and `Specs/agent_playtest_plan_v1.md`, rather than only `stories/` as Step 6 prescribes. It had no runtime/content effect. Final exact-head package and playtest evidence is therefore recorded in PR #87 and exported artifacts without another tracked evidence-only commit.
+- Red: `Saved/TestLogs/tests-20261106-211014.log` — all four compiling `Mordecai.Recovery.Fireball.*` regression tests failed for the pre-fix projectile behavior.
+- Tier 1 green: `Saved/TestLogs/tests-20261106-213309.log` — 4/4 focused tests PASS; `Saved/TestLogs/tests-20261106-220852.log` — all 781 Mordecai tests PASS. The non-ASC test naturally crosses a registered WorldDynamic sphere that overlaps the projectile channel before naturally delivering damage/status to an ASC target; the static/pierce test also preserves nonzero-pierce delivery.
+- Tier 2 green: `py Scripts/run_pie_verify.py` PASS. Python tooling: 597 tests PASS. US-087 plan/lint and US-057 lint PASS. `py Scripts/check_content_committed.py` PASS; no content changed.
+- Package: `Saved/Playtests/package-20261106-221358.log` PASS; `PackagedBuilds/Playtest/build_info.json` records clean commit `66bcbc82c5`, `dirty=false`, and `source_changed_during_build=false`.
+- Dedicated Tier 3 + Tier 4: `Saved/Playtests/20261106-222925-story-us087/summary.md` PASS. Tier 3 `Saved/Playtests/20261106-222925-boot` PASS. Tier 4 `Saved/Playtests/20261106-222949-us087-fireball` PASS: Q reduced SP 10→7; the visible projectile was sampled at 0.825 s; retained `BP_MordecaiEnemy_TestDummy_C_1` stayed live/stationary and changed 200→175 at 1.568 s.
+- Full fresh-package sweep: baseline `Saved/Playtests/20261106-205142-sweep` vs final `Saved/Playtests/20261106-223104-sweep`. Shared `us057_magic.py` checks `fireball_projectile` and `fireball_hits_enemy` changed FAIL→PASS; there were zero PASS→FAIL check transitions. The sweep remains exit 1 for pre-existing unrelated failures (arena spacing, Stone Skin indicator, gamepad jump, and filed known issues); no runtime timing was changed for them.
+- Final sweep's dedicated rerun `Saved/Playtests/20261106-223536-us087-fireball` also PASS: visible projectile at 0.567 s and the same exact dummy 200→175 at 1.160 s. Shared run `Saved/Playtests/20261106-223342-us057` observed the projectile at 0.44 s and TestDummy 200→175 at 0.48 s.
+- Screenshots opened: dedicated Tier 3 `engine_loading.png` shows the Project Mordecai loading screen; `engine_01.png`–`engine_03.png` show CombatTestMap, its HUD, player, and full-health TestDummy. Dedicated `bridge_01.png` shows SP at 7/10 and the small dark placeholder sphere in flight; `bridge_02.png` is the immediate post-hit frame, with the target off-camera, so exact identity and 200→175 health are established by the continuous state/bridge audit rather than pixels. Shared `Saved/Playtests/20261106-223342-us057/bridge_01.png` visibly shows that TestDummy with its reduced red health bar and SP 7/10.
+- Full-sweep Tier 3 frames opened: DevTestMap shows the arena, pickups, Frontliners, HUD, and later the expected unattended death screen; MovementTestMap shows the player/HUD on the empty grid; CombatTestMap shows the player/HUD and full-health TestDummy. All three loading frames show the Project Mordecai loading screen. Final dedicated sweep frames again show the projectile in flight followed by the immediate post-hit frame.

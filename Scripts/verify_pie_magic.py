@@ -55,6 +55,7 @@ def _run():
     check("Controller is Mordecai class", "Mordecai" in pc_class, f"Got {pc_class}")
 
     # --- Check spell abilities are configured ---
+    spell_abilities = None
     try:
         spell_abilities = pc.get_editor_property("default_spell_abilities")
         check("DefaultSpellAbilities populated",
@@ -68,6 +69,7 @@ def _run():
     check("Player pawn exists", pawn is not None)
 
     # --- Player State & ASC ---
+    asc = None
     if pc:
         try:
             ps = pc.player_state
@@ -75,7 +77,6 @@ def _run():
 
             if ps:
                 # Check ASC has SpellPoints attribute
-                asc = None
                 try:
                     asc = ps.get_ability_system_component()
                 except Exception:
@@ -154,11 +155,102 @@ def _run():
     fire_slash = unreal.load_asset('/MordecaiCore/Combat/Enemies/DA_EnemyAttack_FireSlash')
     check("DA_EnemyAttack_FireSlash loadable", fire_slash is not None)
 
+    # --- [LOGIC] Fireball cast integration ---
+    # Direct ability activation is a PIE integration diagnostic, not player-input evidence. A Slate
+    # post-tick callback watches the real world while it ticks, because one remote exec occupies one
+    # editor frame and Fireball's cast timers/movement cannot advance synchronously inside it.
+    logic_pass = "PIE_Magic_FireballMoved_PASS"
+    logic_fail = "PIE_Magic_FireballMoved_FAIL"
+    logic_pending = "PIE_Magic_FireballMoved_PENDING"
+    pawn_tags = list(pawn.get_editor_property("tags")) if pawn else []
+    pawn_tag_names = {str(tag) for tag in pawn_tags}
+    next_phase = False
+
+    if logic_pass in pawn_tag_names or logic_fail in pawn_tag_names:
+        passed = logic_pass in pawn_tag_names
+        check("[LOGIC] Fireball cast spawns and moves a projectile", passed,
+              "post-tick cast watcher did not observe projectile displacement")
+        pawn.set_editor_property(
+            "tags", [tag for tag in pawn_tags
+                     if str(tag) not in (logic_pass, logic_fail, logic_pending)])
+    elif logic_pending in pawn_tag_names:
+        print("  WAIT: [LOGIC] Fireball cast watcher is still running")
+        next_phase = True
+    elif pawn and asc and spell_abilities and len(spell_abilities) > 0:
+        state = {"elapsed": 0.0, "activated": False, "projectile_name": None,
+                 "start": None, "handle": None, "original_rotation": pawn.get_actor_rotation(),
+                 "original_location": pawn.get_actor_location()}
+
+        def finish_logic(tag):
+            pawn.set_actor_location(state["original_location"], False, True)
+            pawn.set_actor_rotation(state["original_rotation"], False)
+            tags = list(pawn.get_editor_property("tags"))
+            tags = [value for value in tags
+                    if str(value) not in (logic_pass, logic_fail, logic_pending)]
+            tags.append(unreal.Name(tag))
+            pawn.set_editor_property("tags", tags)
+            if state["handle"] is not None:
+                unreal.unregister_slate_post_tick_callback(state["handle"])
+
+        def watch_fireball(delta_seconds):
+            try:
+                state["elapsed"] += float(delta_seconds)
+                if not state["activated"]:
+                    state["activated"] = True
+                    # DevTestMap starts with Frontliners close to +X. Aim into the open -X side so
+                    # the diagnostic projectile survives long enough to sample on two ticks. Lift
+                    # the pawn clear of arena actors for this direct-call diagnostic; Tier 4 owns
+                    # player-path proof and this smoke only checks the PIE cast integration.
+                    pawn.set_actor_location(
+                        state["original_location"] + unreal.Vector(0.0, 0.0, 2000.0),
+                        False, True)
+                    pawn.set_actor_rotation(
+                        unreal.Rotator(pitch=0.0, yaw=180.0, roll=0.0), False)
+                    activated = asc.try_activate_ability_by_class(spell_abilities[0], True)
+                    if not activated:
+                        finish_logic(logic_fail)
+                        return
+
+                projectiles = [
+                    actor for actor in unreal.GameplayStatics.get_all_actors_of_class(
+                        world, unreal.Actor)
+                    if "MordecaiProjectile" in actor.get_class().get_name()
+                ]
+                projectile = next(
+                    (actor for actor in projectiles
+                     if state["projectile_name"] == actor.get_name()), None)
+                if projectile is None and projectiles:
+                    projectile = projectiles[0]
+                    state["projectile_name"] = projectile.get_name()
+                    state["start"] = projectile.get_actor_location()
+                elif projectile is not None and state["start"] is not None:
+                    displacement = (projectile.get_actor_location() - state["start"]).length()
+                    if displacement > 1.0:
+                        finish_logic(logic_pass)
+                        return
+                if state["elapsed"] > 1.5:
+                    finish_logic(logic_fail)
+            except Exception as exc:
+                unreal.log_error(f"PIE magic Fireball watcher exception: {exc!r}")
+                finish_logic(logic_fail)
+
+        pawn_tags.append(unreal.Name(logic_pending))
+        pawn.set_editor_property("tags", pawn_tags)
+        state["handle"] = unreal.register_slate_post_tick_callback(watch_fireball)
+        print("  [LOGIC] Fireball cast watcher scheduled")
+        next_phase = True
+    else:
+        check("[LOGIC] Fireball cast spawns and moves a projectile", False,
+              "pawn, ASC, or configured Fireball class unavailable")
+
     print("")
     print(f"RESULT: {pass_count} passed, {fail_count} failed")
 
     if fail_count > 0:
         raise RuntimeError(f"PIE magic smoke test failed: {fail_count} failure(s)")
+    elif next_phase:
+        print("PHASE PASSED (not finished: Fireball watcher needs later editor ticks)")
+        print("PIE_NEXT_PHASE: wait for [LOGIC] Fireball projectile movement")
     else:
         print("ALL CHECKS PASSED")
 
