@@ -12,8 +12,10 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/LightComponentBase.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/Brush.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerStart.h"
@@ -22,9 +24,11 @@
 #include "Materials/MaterialInstance.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/Enemy/MordecaiEnemyAIController.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/Items/MordecaiItemPickup.h"
+#include "Mordecai/Items/MordecaiItemDefinition.h"
 #include "Mordecai/MordecaiGameMode.h"
 #include "Mordecai/UI/MordecaiEnemyIndicatorComponent.h"
 #include "UObject/SoftObjectPath.h"
@@ -34,6 +38,8 @@ namespace MordecaiTestMapTests
 {
 	const TCHAR* const MovementTestMapPath = TEXT("/MordecaiCore/Game/Maps/MovementTestMap.MovementTestMap");
 	const TCHAR* const CombatTestMapPath = TEXT("/MordecaiCore/Game/Maps/CombatTestMap.CombatTestMap");
+	const TCHAR* const PickupProjectileTestMapPath =
+		TEXT("/MordecaiCore/Game/Maps/PickupProjectileTestMap.PickupProjectileTestMap");
 	const TCHAR* const TestDummyClassPath = TEXT("/MordecaiCore/Enemies/BP_MordecaiEnemy_TestDummy.BP_MordecaiEnemy_TestDummy_C");
 	const TCHAR* const TestAttackerClassPath = TEXT("/MordecaiCore/Enemies/BP_MordecaiEnemy_TestAttacker.BP_MordecaiEnemy_TestAttacker_C");
 	const TCHAR* const BasicSlashPath = TEXT("/MordecaiCore/Combat/Enemies/DA_EnemyAttack_BasicSlash.DA_EnemyAttack_BasicSlash");
@@ -976,5 +982,108 @@ bool FMordecai_Level_TestMaps_MovableLights::RunTest(const FString& Parameters)
 		TestEqual(FString::Printf(TEXT("every light in %s is Movable [%s]"), MapPath, *FString::Join(NotMovable, TEXT("; "))), NotMovable.Num(), 0);
 		TestEqual(FString::Printf(TEXT("%s has no reflection captures"), MapPath), LevelActorsOfClassNamed(World, TEXT("ReflectionCapture")).Num(), 0);
 	}
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 15. Mordecai.Level.TestMaps.PickupProjectileMapHasRealPickupAndClearLane
+// Issue #16's isolated package fixture: one native 120 cm pickup trigger on a clear enemy-free +X lane.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Level_TestMaps_PickupProjectileFixture,
+	"Mordecai.Level.TestMaps.PickupProjectileMapHasRealPickupAndClearLane",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Level_TestMaps_PickupProjectileFixture::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiTestMapTests;
+
+	const UWorld* World = LoadMap(*this, PickupProjectileTestMapPath);
+	if (!World)
+	{
+		return false;
+	}
+
+	const AWorldSettings* Settings = World->PersistentLevel->GetWorldSettings(false);
+	TestTrue("PickupProjectileTestMap uses AMordecaiGameMode",
+		Settings && Settings->DefaultGameMode
+		&& Settings->DefaultGameMode->IsChildOf(AMordecaiGameMode::StaticClass()));
+	const ALyraWorldSettings* LyraSettings = Cast<ALyraWorldSettings>(Settings);
+	if (TestNotNull("PickupProjectileTestMap uses ALyraWorldSettings", LyraSettings))
+	{
+		TestFalse("PickupProjectileTestMap names no explicit experience",
+			LyraSettings->GetDefaultGameplayExperience().IsValid());
+	}
+
+	const TArray<APlayerStart*> Starts = LevelActorsOf<APlayerStart>(World);
+	if (TestEqual("PickupProjectileTestMap has exactly one PlayerStart", Starts.Num(), 1))
+	{
+		const FVector Location = ActorLocationOf(Starts[0]);
+		TestNearlyEqual("PlayerStart is at (0, 0, 100)", Location, PlayerStartLocation,
+			static_cast<float>(SpotToleranceCm));
+		const FRotator Rotation = WorldTransformOf(Starts[0]->GetRootComponent()).Rotator();
+		TestTrue("PlayerStart yaw is 0",
+			FMath::IsNearlyZero(FRotator::NormalizeAxis(Rotation.Yaw), YawToleranceDeg));
+	}
+
+	TestEqual("PickupProjectileTestMap has no enemies",
+		LevelActorsOf<AMordecaiEnemyCharacter>(World).Num(), 0);
+	const TArray<AMordecaiItemPickup*> Pickups = LevelActorsOf<AMordecaiItemPickup>(World);
+	if (!TestEqual("PickupProjectileTestMap has exactly one pickup", Pickups.Num(), 1))
+	{
+		return false;
+	}
+
+	const AMordecaiItemPickup* Pickup = Pickups[0];
+	TestEqual("pickup is the native class, not a Blueprint subclass",
+		Pickup->GetClass(), AMordecaiItemPickup::StaticClass());
+	TestEqual("pickup label is TestPickup_MysteriousAmulet",
+		Pickup->GetActorNameOrLabel(), FString(TEXT("TestPickup_MysteriousAmulet")));
+	TestNearlyEqual("pickup is at (400, 0, 30)", ActorLocationOf(Pickup),
+		FVector(400.0, 0.0, 30.0), static_cast<float>(SpotToleranceCm));
+	TestEqual("pickup uses DA_TestItem_MysteriousAmulet",
+		*GetPathNameSafe(Pickup->ItemDefinition),
+		TEXT("/MordecaiCore/Items/TestPickups/DA_TestItem_MysteriousAmulet.DA_TestItem_MysteriousAmulet"));
+
+	const USphereComponent* Trigger = Pickup->GetPickupTrigger();
+	if (TestNotNull("pickup has PickupTrigger", Trigger))
+	{
+		TestNearlyEqual("PickupTrigger radius is 120 cm", Trigger->GetUnscaledSphereRadius(), 120.0f);
+		TestEqual("PickupTrigger is QueryOnly", Trigger->GetCollisionEnabled(), ECollisionEnabled::QueryOnly);
+		TestEqual("PickupTrigger overlaps Pawn", Trigger->GetCollisionResponseToChannel(ECC_Pawn), ECR_Overlap);
+		TestEqual("PickupTrigger ignores the projectile object channel",
+			Trigger->GetCollisionResponseToChannel(Mordecai_TraceChannel_ProjectileDetection), ECR_Ignore);
+	}
+
+	const UStaticMeshComponent* Mesh = Pickup->GetDisplayMesh();
+	if (TestNotNull("pickup has DisplayMesh", Mesh))
+	{
+		TestEqual("pickup DisplayMesh has no collision", Mesh->GetCollisionEnabled(), ECollisionEnabled::NoCollision);
+		TestEqual("pickup uses the sphere visual", *GetPathNameSafe(Mesh->GetStaticMesh()),
+			TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+		TestEqual("pickup uses its committed purple material", *GetPathNameSafe(Mesh->GetMaterial(0)),
+			TEXT("/MordecaiCore/Items/TestPickups/Materials/MI_TestPickup_MysteriousAmulet.MI_TestPickup_MysteriousAmulet"));
+	}
+
+	const FBox Lane(FVector(-110.0, -160.0, 30.0), FVector(585.0, 160.0, 155.0));
+	TArray<FString> Blockers;
+	for (const AActor* Actor : LevelActors(World))
+	{
+		if (Actor == World->GetDefaultBrush())
+		{
+			continue;
+		}
+		TInlineComponentArray<UPrimitiveComponent*> Primitives(Actor);
+		for (const UPrimitiveComponent* Primitive : Primitives)
+		{
+			if (Primitive && !Primitive->IsEditorOnly() && Primitive->IsCollisionEnabled()
+				&& Primitive->GetCollisionResponseToChannel(Mordecai_TraceChannel_ProjectileDetection) == ECR_Block
+				&& WorldBoxOf(Primitive).Intersect(Lane))
+			{
+				Blockers.Add(FString::Printf(TEXT("%s.%s"), *Actor->GetActorNameOrLabel(), *Primitive->GetName()));
+			}
+		}
+	}
+	TestEqual(FString::Printf(TEXT("pickup flight lane has no projectile-channel blocker [%s]"),
+		*FString::Join(Blockers, TEXT("; "))), Blockers.Num(), 0);
 	return true;
 }

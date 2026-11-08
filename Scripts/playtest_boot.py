@@ -27,6 +27,7 @@ Usage:
   py Scripts/playtest_boot.py --frontend          # no map arg: boot to L_LyraFrontEnd like a player
   py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap   # a test map (arena experience)
   py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap
+  py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/PickupProjectileTestMap
   py Scripts/playtest_boot.py --map /Game/Foo --expect-experience B_FooExperience
   py Scripts/playtest_boot.py --allow-stale       # run an out-of-date package (warning in report)
   py Scripts/playtest_boot.py --keep-running      # leave the game open afterwards
@@ -89,7 +90,8 @@ DEFAULT_MAP = "/MordecaiCore/Game/Maps/DevTestMap"
 # (World Settings GameMode = MordecaiGameMode, no World Settings experience).
 MOVEMENT_TEST_MAP = "/MordecaiCore/Game/Maps/MovementTestMap"   # open floor, steps, no enemies
 COMBAT_TEST_MAP = "/MordecaiCore/Game/Maps/CombatTestMap"       # TestDummy + TestAttacker
-TEST_MAPS = (MOVEMENT_TEST_MAP, COMBAT_TEST_MAP)
+PICKUP_PROJECTILE_TEST_MAP = "/MordecaiCore/Game/Maps/PickupProjectileTestMap"  # one real pickup
+TEST_MAPS = (MOVEMENT_TEST_MAP, COMBAT_TEST_MAP, PICKUP_PROJECTILE_TEST_MAP)
 DEFAULT_EXPERIENCE = "B_MordecaiArenaExperience"
 FRONTEND_EXPERIENCE = "B_LyraFrontEnd_Experience"
 RES_X, RES_Y = 1280, 720

@@ -321,11 +321,23 @@ class TestKitMapCheck(KitCase):
         self.assertEqual(kit.DEFAULT_MAP, "/MordecaiCore/Game/Maps/DevTestMap")
         self.assertEqual(kit.MOVEMENT_TEST_MAP, "/MordecaiCore/Game/Maps/MovementTestMap")
         self.assertEqual(kit.COMBAT_TEST_MAP, "/MordecaiCore/Game/Maps/CombatTestMap")
-        self.assertEqual(kit.TEST_MAPS, (kit.MOVEMENT_TEST_MAP, kit.COMBAT_TEST_MAP))
-        for name in ("MOVEMENT_TEST_MAP", "COMBAT_TEST_MAP", "TEST_MAPS"):
+        self.assertEqual(
+            kit.PICKUP_PROJECTILE_TEST_MAP,
+            "/MordecaiCore/Game/Maps/PickupProjectileTestMap",
+        )
+        self.assertEqual(
+            kit.TEST_MAPS,
+            (kit.MOVEMENT_TEST_MAP, kit.COMBAT_TEST_MAP, kit.PICKUP_PROJECTILE_TEST_MAP),
+        )
+        for name in (
+            "MOVEMENT_TEST_MAP",
+            "COMBAT_TEST_MAP",
+            "PICKUP_PROJECTILE_TEST_MAP",
+            "TEST_MAPS",
+        ):
             self.assertEqual(getattr(kit, name), getattr(pb, name), name)  # one source: pb
-        # the offline fake models the same maps
-        self.assertEqual((fb.MOVEMENT_TEST_MAP, fb.COMBAT_TEST_MAP), kit.TEST_MAPS)
+        # The general fake models the two shared recovery maps; US-087 owns the focused pickup fake.
+        self.assertEqual((fb.MOVEMENT_TEST_MAP, fb.COMBAT_TEST_MAP), kit.TEST_MAPS[:2])
         self.assertIn("map", kit.KIT_CHECKS)
 
     def test_map_key_normalizes_suffix_and_case(self):
@@ -340,7 +352,11 @@ class TestKitMapCheck(KitCase):
         for map_ in kit.TEST_MAPS:
             with self.subTest(map=map_):
                 self.run_dir = os.path.join(self.tmp, "run-" + map_.rsplit("/", 1)[-1])
-                _, server = self.serve(**fb.MAP_PRESETS[map_])
+                options = fb.MAP_PRESETS.get(
+                    map_,
+                    {"map": map_, "arena_walls": False, "pickups": [], "enemies": False},
+                )
+                _, server = self.serve(**options)
                 code, rep = self.play(make_run(cycle_steps(), MAP=map_), server)
                 self.assertEqual(code, 0, self.log.getvalue()[-3000:])
                 checks = self.by_name(rep)

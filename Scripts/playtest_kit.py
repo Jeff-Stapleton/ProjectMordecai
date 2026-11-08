@@ -5,7 +5,7 @@ The contract is Specs/story_playtests_v1.md section 2; the bridge protocol and t
 are Specs/agent_bridge_v1.md.  A story script (Scripts/playtests/usXXX_<name>.py) subclasses
 PlaytestRun, declares its PLAN of Steps and plays them in steps() with the step helpers.  The
 kit does the rest: the STALE gate, launch or attach, build freshness, bridge readiness, the
-expected experience and map (MAP: DEFAULT_MAP = DevTestMap, MOVEMENT_TEST_MAP, COMBAT_TEST_MAP),
+expected experience and map (MAP: DEFAULT_MAP = DevTestMap or one of TEST_MAPS),
 screenshots, crash and log checks, plan enforcement, per-AC acceptance, report.md / report.json
 and the exit code.
 
@@ -73,6 +73,7 @@ import playtest_boot as pb  # noqa: E402
 DEFAULT_MAP = pb.DEFAULT_MAP
 MOVEMENT_TEST_MAP = pb.MOVEMENT_TEST_MAP
 COMBAT_TEST_MAP = pb.COMBAT_TEST_MAP
+PICKUP_PROJECTILE_TEST_MAP = pb.PICKUP_PROJECTILE_TEST_MAP
 TEST_MAPS = pb.TEST_MAPS
 DEFAULT_EXPERIENCE = pb.DEFAULT_EXPERIENCE
 FRONTEND_EXPERIENCE = pb.FRONTEND_EXPERIENCE

@@ -1,7 +1,7 @@
 """Tests for Scripts/package_playtest.py's cook list (offline: nothing is packaged, UAT never runs).
 
 The package must cook every map a playtest launches: the front end, DevTestMap and the playtest
-test maps (issue #46: MovementTestMap, CombatTestMap).  DEFAULT_MAPS is that list.  It must match
+test maps (MovementTestMap, CombatTestMap, PickupProjectileTestMap). DEFAULT_MAPS is that list. It must match
 the +MapsToCook lines in Config/DefaultGame.ini (the editor's Package Project and UAT's fallback),
 reach UAT's -map= argument with and without --all-maps, and contain the map of every
 Scripts/playtests/*.py script.  /MordecaiCore is also always-cooked, so an iterative local package
@@ -48,7 +48,7 @@ def map_arg(cmd):
 class TestDefaultMaps(unittest.TestCase):
     def test_the_default_cook_list(self):
         self.assertEqual(pp.DEFAULT_MAPS, [FRONT_END, pb.DEFAULT_MAP, pb.MOVEMENT_TEST_MAP,
-                                           pb.COMBAT_TEST_MAP])
+                                           pb.COMBAT_TEST_MAP, pb.PICKUP_PROJECTILE_TEST_MAP])
         for m in pb.TEST_MAPS:
             self.assertIn(m, pp.DEFAULT_MAPS)
         self.assertEqual(len(pp.DEFAULT_MAPS), len(set(pp.DEFAULT_MAPS)))
@@ -79,7 +79,7 @@ class TestDefaultMaps(unittest.TestCase):
         self.assertEqual(map_arg(cmd), pp.DEFAULT_MAPS)
         for a in pp.ALL_MAPS_UAT_ARGS:
             self.assertIn(a, cmd)
-        for m in (pb.MOVEMENT_TEST_MAP, pb.COMBAT_TEST_MAP):
+        for m in pb.TEST_MAPS:
             self.assertIn(m, map_arg(cmd))
 
     def test_every_playtest_script_map_is_cooked(self):
@@ -96,7 +96,7 @@ class TestDefaultMaps(unittest.TestCase):
                                   "(add it to package_playtest.DEFAULT_MAPS and +MapsToCook)")
 
     def test_the_text_names_the_test_maps(self):
-        for name in ("MovementTestMap", "CombatTestMap"):
+        for name in ("MovementTestMap", "CombatTestMap", "PickupProjectileTestMap"):
             self.assertIn(name, pp.__doc__)
         out = io.StringIO()
         with mock.patch.object(sys, "argv", ["package_playtest.py", "--help"]), \
@@ -104,7 +104,10 @@ class TestDefaultMaps(unittest.TestCase):
             pp.main()
         self.assertEqual(cm.exception.code, 0)
         help_text = " ".join(out.getvalue().split())
-        self.assertIn("front end, DevTestMap, MovementTestMap, CombatTestMap", help_text)
+        self.assertIn(
+            "front end, DevTestMap, MovementTestMap, CombatTestMap, PickupProjectileTestMap",
+            help_text,
+        )
 
     def test_dry_run_prints_the_maps_and_the_command(self):
         for extra, all_maps in (([], False), (["--all-maps"], True)):
