@@ -138,6 +138,50 @@ spell assets and maps remain unchanged.
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
+### Issue #16 / N11 native pickup characterization (2026-11-08)
+
+- No runtime behavior changed. Implementation commit `a3635aaf7d` adds only the isolated
+  `PickupProjectileTestMap`, its editor-authoring/cook/PIE/Tier 1 coverage, and the stricter Tier 4 owner.
+  `DevTestMap`, `MovementTestMap`, `CombatTestMap`, production projectile/pickup code and bridge behavior are
+  unchanged.
+- Offline RED was meaningful tooling RED: the previous owner incorrectly passed when the retained pickup moved
+  80 cm during flight and returned before the final read, and it still launched DevTestMap. GREEN adds
+  throughout-flight pickup identity/location checks, a genuinely occupied-lane negative, empty `COVERS` /
+  `proves=()` ownership assertions, and same-root discovery of both unique US-087 owners. Full Python tooling:
+  601/601 PASS.
+- Tier 1: LyraEditor compiled; the new
+  `Mordecai.Level.TestMaps.PickupProjectileMapHasRealPickupAndClearLane` PASS and all four
+  `Mordecai.Recovery.Fireball.*` tests PASS; all 782 Mordecai tests PASS. The map test pins the native class,
+  item/mesh/material provenance, 120 cm QueryOnly trigger, Pawn overlap, projectile-channel ignore, no enemies
+  and no cooked lane blocker.
+- Tier 2: the full default PIE suite PASS. Explicit PickupProjectileTestMap PIE PASS (34/34 across HUD, spawn and
+  test-map checks): the packaged route uses MordecaiGameMode, the player spawns at (0, 0), and exactly one native
+  `TestPickup_MysteriousAmulet` exists at (400, 0, 30) with the expected item. The authoring readback passed
+  15/15; only the new `.umap` changed, and DevTestMap's timestamp stayed untouched.
+- Package: clean non-iterative Development package of `a3635aaf7d`,
+  `Saved/Playtests/package-20261108-074752.log`; `dirty=false`,
+  `source_changed_during_build=false`, and all five launch maps are named in `build_info.json`.
+- Issue #16 owner: `Saved/Playtests/20261108-075735-us087-pickup-lane` PASS (13 PASS, 0 FAIL).
+  Ordinary Slate WASD/Q moved the player to (-69, 0), spent SP 10→7, retained exact projectile
+  `MordecaiProjectile_2147482167` for 10 contiguous samples, intersected the real 120+30 cm pickup envelope and
+  cleared x>575. The exact pickup stayed at (400, 0, 30) throughout; player health stayed 100/100 and the lane
+  stayed enemy-free. Request audit contains only ping/state/key/screenshot/quit plus WASD/Q input; no F, unsafe
+  command or viewport route. This clears the actual-pickup suspicion. Generic non-ASC hardening remains PR #87;
+  callback proof remains PR #89. No N11 `known_issue` existed to remove.
+- The combined fresh `Saved/Playtests/20261108-075642-story-us087` retained a separate failure: unchanged
+  `us087_fireball.py` stopped before Q because real `walk_to` ended 51 cm off the TestDummy's +X shot line against
+  its 50 cm bound. The prior exact-clean `7dc9a1e` run
+  `Saved/Playtests/20261108-005729-us087-fireball` passed that same precondition at 35 cm and accepted AC-087.4/.5.
+  This is concrete unrelated baseline variance, not issue #16 evidence; the failed run remains a failure and is
+  not rerolled away.
+- Frames opened: both Tier 3 loading frames show the Project Mordecai loading screen. CombatTestMap
+  `engine_01`–`03` show the live player/HUD and full-health TestDummy. PickupProjectileTestMap
+  `engine_01`–`03` show the enemy-free walled grid, player/HUD and purple “Unidentified Purple Amulet” pickup;
+  yellow online-subsystem deprecation text is visibly overlaid. Its `bridge_01.png` shows SP 7/10, the live player
+  and the unchanged purple pickup; no projectile is discernible in the still, so trajectory comes from the
+  contiguous exact-identity state audit, not that image. All six desktop shots show the Windows desktop/Outlook
+  notification because another window covered the game; the game-owned engine/bridge frames are readable.
+
 ### Issue #20 / N15 Fireball slice (2026-11-06)
 
 Issue #20 / N15 Fireball slice complete at implementation commit `66bcbc82c54cf48984e879bb60cfc38722354e41`; US-087 remains open in backlog for Blink AC-087.6/.8/.9. AC-087.7 remains the prior US-101 completion. N19/N20 are untouched, and this slice does not claim that the wider spell feature is playable.
