@@ -37,6 +37,7 @@ LINE_TOL = 30.0
 HEIGHT_TOL = 20.0
 TARGET_MOVE_TOL = 10.0
 BASELINE_WATCH_S = 0.2
+POST_WALK_SETTLE_S = 0.1
 MOVE_WINDOW_S = 2.0
 INVULN_END_WINDOW_S = 1.5
 POLL_S = 0.03
@@ -243,6 +244,7 @@ class Us087BlinkRun(kit.PlaytestRun):
 
             approach = (location1[0] - APPROACH_DISTANCE, location1[1])
             walked = self.bridge.walk_to(approach[0], approach[1], tol=APPROACH_TOL)
+            self.bridge.wait(POST_WALK_SETTLE_S)
             state2 = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
             player2 = _player(state2)
             target2 = self._exact_target(state2)
