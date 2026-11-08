@@ -8,12 +8,14 @@
 #include "Components/StaticMeshComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "GameFramework/WorldSettings.h"
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/Combat/MordecaiProjectile.h"
 #include "Mordecai/Magic/MordecaiGA_Fireball.h"
 #include "Mordecai/Magic/MordecaiSpellDataAsset.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Poisoned.h"
+#include "MordecaiRecoveryProjectileTestHelpers.h"
 #include "MordecaiRecoveryTestEnv.h"
 #include "TimerManager.h"
 
@@ -22,6 +24,79 @@ namespace
 	using namespace MordecaiRecoveryTest;
 
 	constexpr float TickStep = 0.02f;
+
+	/**
+	 * A deliberately isolated world whose world-level BeginPlay state is real. The shared recovery fixture remains
+	 * unbegun because many recovery tests manually control actor lifecycle and ticking.
+	 */
+	struct FBegunProjectileTestEnv
+	{
+		UWorld* World = nullptr;
+		uint64 SavedFrameCounter = 0;
+
+		bool Setup()
+		{
+			if (!GEngine)
+			{
+				return false;
+			}
+			SavedFrameCounter = GFrameCounter;
+			World = UWorld::CreateWorld(EWorldType::Game, false);
+			if (!World)
+			{
+				return false;
+			}
+			FWorldContext& WorldContext = GEngine->CreateNewWorldContext(EWorldType::Game);
+			WorldContext.SetCurrentWorld(World);
+			World->InitializeActorsForPlay(FURL());
+
+			// AWorldSettings::NotifyBeginPlay is the engine path that dispatches actor BeginPlay and then marks
+			// the world begun. UWorld::BeginPlay alone only reaches it through a GameMode/GameState, which this
+			// minimal no-GameInstance fixture intentionally does not create.
+			AWorldSettings* WorldSettings = World->GetWorldSettings();
+			if (!WorldSettings)
+			{
+				Teardown();
+				return false;
+			}
+			WorldSettings->NotifyBeginPlay();
+			return World->HasBegunPlay();
+		}
+
+		void Tick(float Seconds) const
+		{
+			for (float Elapsed = 0.f; Elapsed < Seconds; Elapsed += TickStep)
+			{
+				World->Tick(LEVELTICK_All, TickStep);
+				// This asset-free world has no level collision scene to refresh query-only overlap pairs for us.
+				// Ask the real primitive collision system to refresh them after movement. In a begun world this reaches
+				// BeginComponentOverlap's delegate broadcast; the old unbegun fixture stopped at its overlap list.
+				for (TActorIterator<AMordecaiProjectile> It(World); It; ++It)
+				{
+					if (!It->IsActorBeingDestroyed())
+					{
+						It->GetCollisionComponent()->UpdateOverlaps();
+					}
+				}
+				++GFrameCounter;
+			}
+		}
+
+		void Teardown()
+		{
+			if (World && GEngine)
+			{
+				if (World->HasBegunPlay())
+				{
+					World->EndPlay(EEndPlayReason::Quit);
+				}
+				GEngine->DestroyWorldContext(World);
+				World->DestroyWorld(false);
+			}
+			World = nullptr;
+			GFrameCounter = SavedFrameCounter;
+		}
+	};
 
 	FMordecaiProjectileSpec MakeSpec(
 		float Speed = 1234.f, float Lifetime = 2.f, float MaxRange = 1500.f, int32 Pierce = 0)
@@ -112,6 +187,33 @@ namespace
 		return Actor;
 	}
 
+	AActor* SpawnBegunOverlapSphere(UWorld* World, const FVector& Location)
+	{
+		const FTransform Transform(FRotator::ZeroRotator, Location);
+		AActor* Actor = World->SpawnActorDeferred<AActor>(
+			AActor::StaticClass(), Transform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (!Actor)
+		{
+			return nullptr;
+		}
+		USphereComponent* Sphere = NewObject<USphereComponent>(Actor, TEXT("NonASCOverlapSphere"));
+		Actor->SetRootComponent(Sphere);
+		Actor->AddInstanceComponent(Sphere);
+		Sphere->InitSphereRadius(35.f);
+		Sphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		Sphere->SetGenerateOverlapEvents(true);
+		Sphere->SetCollisionObjectType(ECC_WorldDynamic);
+		Sphere->SetCollisionResponseToAllChannels(ECR_Ignore);
+		Sphere->SetCollisionResponseToChannel(Mordecai_TraceChannel_ProjectileDetection, ECR_Overlap);
+		Actor->FinishSpawning(Transform);
+		if (!Sphere->IsRegistered())
+		{
+			Sphere->RegisterComponent();
+		}
+		Sphere->SetWorldLocation(Location);
+		return Actor;
+	}
+
 	void AddProjectileOverlapSphere(AActor* Actor, float Radius = 45.f)
 	{
 		if (!Actor)
@@ -120,8 +222,8 @@ namespace
 		}
 		Actor->SetActorEnableCollision(true);
 		// The lightweight world does not build a map collision profile for character capsules.
-		// Register an explicit WorldDynamic query shape on the real ASC actor so swept movement
-		// still delivers the natural overlap to that actor (packaged Tier 4 covers its map capsule).
+		// Register an explicit Pawn blocking shape on the real ASC actor so swept movement reaches
+		// OnProjectileStop, the collision path used by Pawn targets in the package.
 		USphereComponent* Sphere = NewObject<USphereComponent>(Actor);
 		Actor->AddInstanceComponent(Sphere);
 		Sphere->SetupAttachment(Actor->GetRootComponent());
@@ -280,68 +382,98 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiRecovery_ProjectileOverlapFiltering,
 
 bool FMordecaiRecovery_ProjectileOverlapFiltering::RunTest(const FString& Parameters)
 {
-	FRecoveryTestEnv Env;
-	if (!TestTrue("test world", Env.Setup(FVector::ZeroVector)))
+	FBegunProjectileTestEnv Env;
+	if (!TestTrue("isolated test world reached world-level BeginPlay", Env.Setup()))
 	{
 		return true;
 	}
 
-	AActor* NonASC = SpawnCollisionSphere(
-		Env.World, FVector(180.f, 0.f, 100.f), ECC_WorldDynamic, ECR_Overlap);
-	AMordecaiEnemyCharacter* Target = Env.SpawnEnemy(FVector(420.f, 0.f, 100.f), {});
-	AddProjectileOverlapSphere(Target);
+	AActor* NonASC = SpawnBegunOverlapSphere(Env.World, FVector(180.f, 0.f, 100.f));
+	AMordecaiRecoveryProjectileASCTestPawn* Target =
+		Env.World->SpawnActor<AMordecaiRecoveryProjectileASCTestPawn>(
+			AMordecaiRecoveryProjectileASCTestPawn::StaticClass(), FVector(420.f, 0.f, 100.f),
+			FRotator::ZeroRotator, FRecoveryTestEnv::AlwaysSpawn());
 	UAbilitySystemComponent* TargetASC = Target ? Target->GetAbilitySystemComponent() : nullptr;
 	if (!TestNotNull("registered non-ASC overlap fixture", NonASC)
-		|| !TestNotNull("ASC target", TargetASC))
+		|| !TestNotNull("ASC Pawn target", TargetASC))
 	{
 		Env.Teardown();
 		return true;
 	}
 
+	TestTrue("ASC target began play because it spawned into a begun world", Target->HasActorBegunPlay());
+	TestEqual("ASC target is a real Pawn collision object",
+		Target->GetCollision()->GetCollisionObjectType(), ECC_Pawn);
+	TestEqual("ASC target blocks the projectile channel",
+		Target->GetCollision()->GetCollisionResponseToChannel(Mordecai_TraceChannel_ProjectileDetection), ECR_Block);
+
 	const float HealthBefore = TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute());
-	AMordecaiProjectile* Projectile = SpawnConfiguredProjectile(
-		Env, FVector(0.f, 0.f, 100.f), FVector::ForwardVector, MakeSpec(1000.f), MakeDamage(20.f));
+	UMordecaiRecoveryProjectileOverlapSpy* OverlapSpy =
+		NewObject<UMordecaiRecoveryProjectileOverlapSpy>(GetTransientPackage());
+	OverlapSpy->ExpectedActor = NonASC;
+	const FTransform ProjectileTransform(FVector::ForwardVector.Rotation(), FVector(0.f, 0.f, 100.f));
+	AMordecaiProjectile* Projectile = Env.World->SpawnActorDeferred<AMordecaiProjectile>(
+		AMordecaiProjectile::StaticClass(), ProjectileTransform, nullptr, nullptr,
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	if (Projectile)
 	{
+		Projectile->InitFromSpec(MakeSpec(1000.f), MakeDamage(20.f));
+		// Bind before FinishSpawning: the spy observes the same engine broadcast before the projectile's BeginPlay
+		// adds its production handler. It never invokes that handler itself.
+		Projectile->GetCollisionComponent()->OnComponentBeginOverlap.AddDynamic(
+			OverlapSpy, &UMordecaiRecoveryProjectileOverlapSpy::HandleComponentBeginOverlap);
 		FMordecaiStatusOnHitEntry Poison;
 		Poison.StatusEffectTag = MordecaiGameplayTags::Status_Poisoned;
 		Poison.ApplicationChance = 1.f;
 		Poison.StatusEffectGEClass = UMordecaiGE_Poisoned::StaticClass();
 		Projectile->SetStatusEffectsOnHit({ Poison });
+		Projectile->FinishSpawning(ProjectileTransform);
 	}
-	bool bObservedNonASCContact = false;
-	for (int32 Step = 0; Step < 30; ++Step)
+	if (!TestNotNull("configured observed projectile", Projectile))
 	{
-		TickWorld(Env.World, TickStep);
-		if (IsValid(Projectile) && !Projectile->IsActorBeingDestroyed())
-		{
-			bObservedNonASCContact |= Projectile->GetCollisionComponent()->IsOverlappingActor(NonASC);
-		}
+		Env.Teardown();
+		return true;
 	}
-	const USphereComponent* TargetSphere = Target->FindComponentByClass<USphereComponent>();
-	AddInfo(FString::Printf(TEXT("delivery diagnostic: target object=%d response=%d overlaps=%d; "
-		"test sphere registered=%d at x=%.1f; projectile bound=%d pawn-response=%d "
-		"dynamic-response=%d overlaps=%d x=%.1f velocity=%.1f valid=%d"),
-		static_cast<int32>(Target->GetCapsuleComponent()->GetCollisionObjectType()),
-		static_cast<int32>(Target->GetCapsuleComponent()->GetCollisionResponseToChannel(
-			Mordecai_TraceChannel_ProjectileDetection)),
-		Target->GetCapsuleComponent()->GetGenerateOverlapEvents(),
-		TargetSphere && TargetSphere->IsRegistered(), TargetSphere ? TargetSphere->GetComponentLocation().X : -1.f,
+	TestTrue("projectile began play because it finished spawning into a begun world", Projectile->HasActorBegunPlay());
+	TestEqual("projectile uses real Pawn blocking",
+		Projectile->GetCollisionComponent()->GetCollisionResponseToChannel(ECC_Pawn), ECR_Block);
+
+	// Move the real root primitive through the non-ASC query shape. MoveComponent owns overlap discovery and
+	// UPrimitiveComponent owns delegate delivery; the test never invokes the projectile callback.
+	FHitResult NonASCSweep;
+	Projectile->GetCollisionComponent()->MoveComponent(
+		FVector(180.f, 0.f, 0.f), Projectile->GetActorQuat(), true, &NonASCSweep);
+	Projectile->GetCollisionComponent()->UpdateOverlaps();
+	const bool bAliveAfterNonASC = IsValid(Projectile) && !Projectile->IsActorBeingDestroyed();
+	const bool bNonASCEnteredHitList = Projectile->HasAlreadyHit(NonASC);
+	AddInfo(FString::Printf(TEXT("begun-world callback diagnostic: world-begun=%d callback-count=%d "
+		"non-asc-hit-list=%d projectile-alive=%d projectile-bound=%d pawn-response=%d "
+		"dynamic-response=%d x=%.1f target-health=%.1f"),
+		Env.World->HasBegunPlay(), OverlapSpy->ExpectedActorCallbacks, bNonASCEnteredHitList, bAliveAfterNonASC,
 		Projectile->GetCollisionComponent()->OnComponentBeginOverlap.IsBound(),
 		static_cast<int32>(Projectile->GetCollisionComponent()->GetCollisionResponseToChannel(ECC_Pawn)),
 		static_cast<int32>(Projectile->GetCollisionComponent()->GetCollisionResponseToChannel(ECC_WorldDynamic)),
-		Projectile->GetCollisionComponent()->GetGenerateOverlapEvents(),
 		Projectile ? Projectile->GetActorLocation().X : -1.f,
-		Projectile ? Projectile->GetProjectileMovement()->Velocity.Size() : -1.f,
-		IsValid(Projectile) && !Projectile->IsActorBeingDestroyed()));
+		TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute())));
 
-	TestTrue("natural swept movement entered the registered non-ASC WorldDynamic fixture",
-		bObservedNonASCContact);
-	TestTrue("non-ASC overlap did not consume the projectile before the target",
+	TestEqual("the real non-ASC component overlap callback fired once",
+		OverlapSpy->ExpectedActorCallbacks, 1);
+	TestFalse("production filter keeps the non-ASC actor out of the gameplay hit list",
+		bNonASCEnteredHitList);
+	TestTrue("zero-pierce projectile survives the real non-ASC callback", bAliveAfterNonASC);
+	TestEqual("ASC Pawn is still untouched immediately after the earlier non-ASC callback",
+		TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute()), HealthBefore);
+
+	for (int32 Step = 0; Step < 30
+		&& TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute()) >= HealthBefore; ++Step)
+	{
+		Env.Tick(TickStep);
+	}
+	TestTrue("surviving projectile subsequently damages the blocking ASC Pawn",
 		TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute()) < HealthBefore);
 	TestTrue("natural projectile delivery applies status-on-hit",
 		TargetASC->HasMatchingGameplayTag(MordecaiGameplayTags::Status_Poisoned));
-	TestFalse("default non-piercing projectile stops on the damageable target",
+	TestFalse("default non-piercing projectile stops on the blocking ASC Pawn",
 		IsValid(Projectile) && !Projectile->IsActorBeingDestroyed());
 
 	Env.Teardown();
