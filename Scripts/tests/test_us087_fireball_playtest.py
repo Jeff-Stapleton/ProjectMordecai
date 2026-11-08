@@ -23,6 +23,7 @@ import playtest_kit as kit  # noqa: E402
 from tests import fake_bridge as fb  # noqa: E402
 
 PLAYTEST = os.path.join(SCRIPTS, "playtests", "us087_fireball.py")
+PICKUP_PLAYTEST = os.path.join(SCRIPTS, "playtests", "us087_pickup_lane.py")
 TOKEN = "us087-fireball-token"
 
 
@@ -34,6 +35,13 @@ def load_playtest():
 
 
 us087 = load_playtest()
+
+
+def load_pickup_playtest():
+    spec = importlib.util.spec_from_file_location("us087_pickup_lane", PICKUP_PLAYTEST)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class FireballWorld(fb.FakeWorld):
@@ -263,6 +271,94 @@ class TestUs087ReportAndAudit(PlaytestCase):
         self.assertIn("`projectile_visible`", output.getvalue())
         self.assertIn("`same_target_damaged`", output.getvalue())
         self.assertIn("`reduced_health_visual`", output.getvalue())
+
+
+class PickupLaneWorld(FireballWorld):
+    def __init__(self, faults=()):
+        self.faults = set(faults)
+        super().__init__(projectile=False, damage=False)
+        self.map = fb.DEFAULT_MAP
+        self.pos = [-800.0, 0.0]
+        self.obstacles = [fb._box(b) for b in fb.DEVTESTMAP_OBSTACLES]
+        self.world_pickups = ([] if "missing" in self.faults else
+                              [dict(p, location=list(p["location"])) for p in fb.PICKUP_SPECS])
+        self.enemies = [dict(e, location=list(e["location"])) for e in fb.ENEMY_SPECS]
+        if "blocked" in self.faults:
+            self.mapping = {k: (-v[0], -v[1]) for k, v in fb.DEFAULT_MAPPING.items()}
+        self.projectiles = []
+
+    def _on_key_pressed(self, key):
+        casts = len(self.casts)
+        fb.FakeWorld._on_key_pressed(self, key)
+        if key != "Q" or len(self.casts) == casts:
+            return
+        spawn = lambda w: w.projectiles.append({  # noqa: E731
+            "name": "Fireball_1",
+            "location": [w.pos[0] + 70, 220 if "miss" in w.faults else w.pos[1], 92]})
+        self.after(0.12, spawn)
+        if "disappear" in self.faults:
+            self.after(0.05, lambda w: setattr(w, "world_pickups", []))
+        if "die" in self.faults:
+            self.after(0.05, lambda w: w.kill_player())
+
+    def tick(self, dt):
+        fb.FakeWorld.tick(self, dt)
+        with self.lock:
+            for p in list(self.projectiles):
+                p["location"][0] += 2000.0 * dt
+                if "destroy" in self.faults and p["location"][0] >= -400.0:
+                    self.projectiles.remove(p)
+                elif "swap" in self.faults and p["location"][0] > -500.0:
+                    p["name"] = "Fireball_Replacement"
+
+
+class TestUs087PickupLane(PlaytestCase):
+    def setUp(self):
+        super().setUp()
+        self.pickup = load_pickup_playtest()
+        for name, value in (("POLL_S", 0.005), ("CROSSING_WINDOW_S", 0.45)):
+            patch = mock.patch.object(self.pickup, name, value)
+            patch.start(); self.addCleanup(patch.stop)
+
+    def play_pickup(self, *faults):
+        server = fb.FakeBridgeServer(PickupLaneWorld(faults), token=TOKEN,
+                                     shot_dir=self.tmp).start()
+        self.addCleanup(server.stop)
+        code = self.pickup.main(["--attach-port", str(server.port), "--token", TOKEN,
+                                 "--run-dir", self.run_dir])
+        with open(os.path.join(self.run_dir, "report.json"), encoding="utf-8") as handle:
+            return server, code, json.load(handle)
+
+    def test_passes_with_only_safe_real_input_commands(self):
+        server, code, report = self.play_pickup()
+        checks = self.checks(report)
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        self.assertTrue(all(checks[n]["status"] == "PASS" for n in (
+            "pickup_lane_preconditions", "fireball_cast", "pickup_trigger_pass_through",
+            "pickup_unchanged", "lane_integrity")))
+        self.assertLessEqual({r.get("cmd") for r in server.received},
+                             {"ping", "state", "key", "screenshot", "wait", "quit"})
+        keys = {key for r in server.received if r.get("cmd") == "key"
+                for key in (r.get("keys") or [r.get("key")]) if key}
+        self.assertIn("Q", keys); self.assertTrue(keys & {"W", "A", "S", "D"})
+        self.assertNotIn("F", keys)
+        self.assertFalse(any(r.get("unsafe") or r.get("route") == "viewport"
+                             for r in server.received))
+
+    def test_faults_fail_the_named_binary_check(self):
+        cases = (("destroy", "pickup_trigger_pass_through"),
+                 ("swap", "pickup_trigger_pass_through"),
+                 ("missing", "pickup_lane_preconditions"),
+                 ("disappear", "pickup_unchanged"),
+                 ("miss", "pickup_trigger_pass_through"),
+                 ("die", "lane_integrity"),
+                 ("blocked", "pickup_lane_preconditions"))
+        for index, (fault, check) in enumerate(cases):
+            with self.subTest(fault=fault):
+                self.run_dir = os.path.join(self.tmp, f"fault-{index}")
+                _, code, report = self.play_pickup(fault)
+                self.assertEqual(code, 1)
+                self.assertEqual(self.checks(report)[check]["status"], "FAIL")
 
 
 if __name__ == "__main__":
