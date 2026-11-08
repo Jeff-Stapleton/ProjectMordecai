@@ -6,6 +6,7 @@
 #include "Mordecai/Combat/MordecaiAimAssistSubsystem.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
@@ -113,24 +114,24 @@ void UMordecaiGA_MagicMissile::FireSingleMissile(float DamageMagnitude)
 		return;
 	}
 
-	FVector Origin = AvatarActor->GetActorLocation();
+	const FVector CasterOrigin = AvatarActor->GetActorLocation();
 	FVector AimForward = AvatarActor->GetActorForwardVector();
 
 	// AC-020.8: Use aim assist to acquire nearest valid target
 	if (UMordecaiAimAssistSubsystem* AimAssist = World->GetSubsystem<UMordecaiAimAssistSubsystem>())
 	{
-		AimForward = AimAssist->ComputeAssistedAimDirection(Origin, AimForward, SpellData->Range);
+		AimForward = AimAssist->ComputeAssistedAimDirection(CasterOrigin, AimForward, SpellData->Range);
 	}
 
-	// Spawn projectile
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = AvatarActor;
-	SpawnParams.Instigator = Cast<APawn>(AvatarActor);
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	FRotator SpawnRotation = AimForward.Rotation();
-	AMordecaiProjectile* Projectile = World->SpawnActor<AMordecaiProjectile>(
-		AMordecaiProjectile::StaticClass(), Origin, SpawnRotation, SpawnParams);
+	const UCapsuleComponent* CasterCapsule = AvatarActor->FindComponentByClass<UCapsuleComponent>();
+	const float CasterRadius = CasterCapsule ? CasterCapsule->GetScaledCapsuleRadius() : 0.f;
+	constexpr float SpawnMargin = 5.f;
+	const FVector SpawnLocation = CasterOrigin
+		+ AimForward * (CasterRadius + SpellData->ProjectileCollisionRadius + SpawnMargin);
+	const FTransform SpawnTransform(AimForward.Rotation(), SpawnLocation);
+	AMordecaiProjectile* Projectile = World->SpawnActorDeferred<AMordecaiProjectile>(
+		AMordecaiProjectile::StaticClass(), SpawnTransform, AvatarActor, Cast<APawn>(AvatarActor),
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 
 	if (Projectile)
 	{
@@ -154,5 +155,6 @@ void UMordecaiGA_MagicMissile::FireSingleMissile(float DamageMagnitude)
 		{
 			CollisionComp->SetSphereRadius(SpellData->ProjectileCollisionRadius);
 		}
+		Projectile->FinishSpawning(SpawnTransform);
 	}
 }
