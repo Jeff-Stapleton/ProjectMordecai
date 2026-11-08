@@ -40,8 +40,8 @@ AC ownership or make the remaining story EDITOR-mode. Existing gameplay, spell a
     - Note: Stone Skin grants no Invulnerable; it grants `Status.StoneSkin` (`MordecaiGA_StoneSkin.cpp`).
     - `Mordecai.Recovery.Blink.InvulnerabilityExpires` passes; it failed before the fix.
     - AC-087.9's Tier 4 check `blink_invulnerability_ends` is still this story's.
-- [ ] AC-087.8: In the packaged build, the player taps E with an enemy about 1 m ahead and moves > 300 cm — verified by future check `blink_past_enemy` in a separate US-087 owner script or an explicit consolidation into the existing dedicated owner (Tier 4)
-- [ ] AC-087.9: In the packaged build, `Mordecai.State.Invulnerable` is gone from `player.tags` within 1.5 s after a Blink (no Stone Skin active) — verified by future check `blink_invulnerability_ends` in that same US-087 Blink owner/consolidation (Tier 4)
+- [ ] AC-087.8: In the packaged build, the player taps E with an enemy about 1 m ahead and moves > 300 cm — verified by `blink_past_enemy` / `blink_integrity` in `Scripts/playtests/us087_blink.py` (Tier 4)
+- [ ] AC-087.9: In the packaged build, `Mordecai.State.Invulnerable` is first observed granted and then gone from `player.tags` within 1.5 s after a Blink (no Stone Skin active) — verified by `blink_invulnerability_ends` in `Scripts/playtests/us087_blink.py` (Tier 4)
 
 ## Technical Notes
 - Fireball: use `SpawnActorDeferred<AMordecaiProjectile>` → `InitFromSpec` / `SetProjectileInstigator` / sphere radius → `FinishSpawning`, so `InitializeComponent` and `BeginPlay` see the spec; or set `ProjectileMovement->Velocity` explicitly. Apply the same to `MordecaiGA_MagicMissile.cpp:129-155`.
@@ -49,7 +49,7 @@ AC ownership or make the remaining story EDITOR-mode. Existing gameplay, spell a
 - Visible mesh: a `UStaticMeshComponent` with an engine basic shape referenced from C++ (hard ref, so it is cooked); no collision on the mesh.
 - N11: filter in `OnProjectileOverlap` — skip actors with no ASC (`UAbilitySystemGlobals::GetAbilitySystemComponentFromActor`) unless they are WorldStatic blockers.
 - Blink (N20): trace with a channel/object query that excludes Pawns, then if the destination overlaps a pawn, step back along the line to the first free capsule position; decide "no movement possible" before committing cost. (N19): grant invulnerability through a duration `UGameplayEffect` (granted tag, Duration = `GetInvulnerabilityDuration()`), so GAS removes it; Stone Skin's own grant stays separate.
-- Future Blink owner checks (in a separate US-087 script or explicitly consolidated into `us087_fireball.py`; do not add US-087 to `us057_magic.py` `COVERS`, because the dedicated owner takes precedence):
+- Blink owner checks are in the separate `Scripts/playtests/us087_blink.py`; do not add US-087 to `us057_magic.py` `COVERS`, because the dedicated owner takes precedence:
   - `blink_past_enemy`: walk to ~100 cm -X of the TestDummy (`TARGET_ENEMY`, (600, 600)) on its line, about (500, 600) (found like `walk_shot_line` does), tap E → `player.location.x` rises > 300 within 2 s. Never use the TestAttacker (2100, 0): its 900 cm AggroRange and 150 cm BasicSlash would hit or kill the player, and us057's route stays out of its range (US-100). Mind the SP plan (10 → 7 → 5 → 1 today, N6): budget the extra Blink (it may need its own launch segment or a second run).
   - `blink_invulnerability_ends`: after the existing `blink` step, wait_until `Mordecai.State.Invulnerable` not in `player.tags` within 1.5 s (before Stone Skin is cast).
 - CombatTestMap keeps its zero-pickup invariant. `us087_pickup_lane.py` separately characterizes one real 120 cm
@@ -77,29 +77,36 @@ AC ownership or make the remaining story EDITOR-mode. Existing gameplay, spell a
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- `Scripts/playtests/us087_fireball.py`: dedicated Fireball owner for AC-087.4/.5. Future Blink
-  acceptance must use a separate owner script or explicitly consolidate ownership here; it must
-  not weaken or replace the shared `Scripts/playtests/us057_magic.py` Fireball regression checks.
+- `Scripts/playtests/us087_fireball.py`: dedicated Fireball owner for AC-087.4/.5.
+- `Scripts/playtests/us087_blink.py`: dedicated Blink owner for AC-087.8/.9; it does not weaken
+  or replace the shared `Scripts/playtests/us057_magic.py` regression checks.
 - `Scripts/playtests/us087_pickup_lane.py`: issue #16 actual-pickup characterization; owns no AC.
 
 ## Playtest
 - **Launch path:** CombatTestMap and PickupProjectileTestMap → `B_MordecaiArenaExperience`; run
   `py Scripts/playtest_story.py US-087` on the fresh package.
-- **Player steps:** resolve and retain the passive TestDummy's exact actor name; require it live,
+- **Player steps (Fireball):** resolve and retain the passive TestDummy's exact actor name; require it live,
   full-health and stationary; walk (WASD) about 1400 cm -X of it, validate the +X shot line is
   within Fireball's 1500 range, then tap Q through Slate and continuously observe for 2.5 s.
+- **Player steps (Blink):** in a separate launch, retain that exact passive TestDummy, real-WASD
+  walk to 80–130 cm directly west of it, require a live/full/stationary player at exactly 10 SP
+  with E/Blink in slot 1 and no Stone Skin/Invulnerable, then press/release E through Slate.
 - **Visible on screen:** `projectile_visible` captures the visible asset-backed projectile in
   flight within 1.5 s. `same_target_damaged` is an immediate post-hit timing frame and may have
   the target off-camera; timely AC-087.5 acceptance comes from the continuous exact-name/health
   audit. After the 2.5 s timing window, `reduced_health_visual` approaches the retained target by
   real WASD, revalidates its identity/health/max/position and player life, and captures its reduced
-  health bar as supplemental visual evidence (`proves=()`).
+  health bar as supplemental visual evidence (`proves=()`). Blink's `pre_blink` / `post_blink`
+  game frames are supplemental; continuous retained player/target state proves motion and integrity.
 - **Proof:** independent Tier 4 checks `fireball_cast`, `projectile_visible`,
-  `target_integrity`, and `same_target_damaged` in `Scripts/playtests/us087_fireball.py`, plus
+  `target_integrity`, and `same_target_damaged` in `Scripts/playtests/us087_fireball.py`;
+  `blink_past_enemy`, `blink_integrity`, and `blink_invulnerability_ends` in
+  `Scripts/playtests/us087_blink.py`; plus
   the shared `us057_magic.py` `fireball_projectile` / `fireball_hits_enemy` regression checks
   in the full sweep.
 - **Tier 4 scripts:** `Scripts/playtests/us087_fireball.py` owns AC-087.4/.5;
-  `Scripts/playtests/us087_pickup_lane.py` characterizes issue #16 only. Blink remains open.
+  `Scripts/playtests/us087_blink.py` owns AC-087.8/.9; `Scripts/playtests/us087_pickup_lane.py`
+  characterizes issue #16 only.
 - **Steps:** generated by `py Scripts/playtest_story.py US-087 --plan`.
 
 <!-- Scripts/playtests/us087_fireball.py -->
@@ -122,6 +129,15 @@ AC ownership or make the remaining story EDITOR-mode. Existing gameplay, spell a
 | 3 | `pickup_trigger_pass_through` | retain one exact visible projectile without a gap from x < pickup.x-150 through x > pickup.x+175; a sampled 3D segment intersects the pickup envelope; capture a game-owned frame | - |
 | 4 | `pickup_unchanged` | retained exact pickup remains present at its original location throughout flight; no F input | - |
 | 5 | `lane_integrity` | player remains alive/unchanged; no enemy enters the guarded segment | - |
+
+<!-- Scripts/playtests/us087_blink.py -->
+
+| # | Check | Player step (bridge calls) → expected | Proves |
+|---|---|---|---|
+| 1 | `blink_preconditions` | state player,actors -> retain exact live/full-health stationary TestDummy; real-WASD walk_to about 100 cm -X; require a 80-130 cm +X gap, low Y/Z offset, yaw 0, live full-health stationary player, exact SP 10, granted slot-1 E/Blink cost 2, and neither Stone Skin nor Invulnerable; capture a supplemental pre-cast frame | - |
+| 2 | `blink_past_enemy` | press E through Slate and release it in finally; continuously sample the retained player/target -> SP 10->8 and player +X movement > 300 cm within 2s with low Y/Z drift _(known issue: N20 / issue #25: Blink spends SP but does not move when a Pawn is about 1 m ahead)_ | AC-087.8 |
+| 3 | `blink_integrity` | through the full timed audit the exact player stays live, the exact passive target is not replaced/moved/damaged/killed, and Stone Skin never appears | AC-087.8 |
+| 4 | `blink_invulnerability_ends` | continuous player.tags sampling must first observe Mordecai.State.Invulnerable granted, then observe it absent within 1.5s of E; never granted does not pass; capture a supplemental post-cast frame | AC-087.9 |
 
 - **Playable alone:** YES
 
