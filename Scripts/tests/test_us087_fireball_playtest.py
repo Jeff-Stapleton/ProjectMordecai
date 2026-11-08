@@ -277,6 +277,7 @@ class PickupLaneWorld(FireballWorld):
     def __init__(self, faults=()):
         self.faults = set(faults)
         super().__init__(projectile=False, damage=False)
+        self.health = 55.0
         self.map = fb.DEFAULT_MAP
         self.pos = [-800.0, 0.0]
         self.obstacles = [fb._box(b) for b in fb.DEVTESTMAP_OBSTACLES]

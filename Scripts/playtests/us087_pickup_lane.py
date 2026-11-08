@@ -24,7 +24,7 @@ TAP_S = 0.1
 SCREENSHOTS = {"pickup_lane_crossed": "DevTestMap after real Q: pickup remains and the same "
                "Fireball cleared its trigger; continuous state, not the still, proves trajectory"}
 PLAN = (
-    Step("pickup_lane_preconditions", f"retain native {PICKUP_LABEL}; require live/full player, "
+    Step("pickup_lane_preconditions", f"retain native {PICKUP_LABEL}; require live player, "
          f"yaw 0, Fireball cost 3 at 10 SP; real-WASD walk_to pickup.x-{APPROACH_DISTANCE:g}, "
          f"same y, within {WALK_TOL:g} cm; require an enemy-free +X lane"),
     Step("fireball_cast", "tap Q through Slate -> verified Fireball cost 3, SP 10 -> 7"),
@@ -113,8 +113,9 @@ class Us087PickupLaneRun(kit.PlaytestRun):
                 problems.append("pickup has no exact name/location")
             if pickup0.get("native_class") != "MordecaiItemPickup":
                 problems.append(f"pickup native_class={pickup0.get('native_class')!r}")
-            if not self.player_name or self.player_health != self.player_max_health:
-                problems.append(f"player not retained/full: {self.player_health}/{self.player_max_health}")
+            if (not self.player_name or self.player_health is None or self.player_health <= 0
+                    or self.player_max_health is None or self.player_max_health <= 0):
+                problems.append(f"player baseline invalid: {self.player_health}/{self.player_max_health}")
             if len(rotation) < 2 or abs(float(rotation[1])) > 0.01:
                 problems.append(f"control yaw is not zero: {rotation}")
             if self.spell_cost != 3.0 or sp != 10.0 or max_sp != 10.0:

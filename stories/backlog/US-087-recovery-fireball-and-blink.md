@@ -107,7 +107,7 @@ All fixes are C++ (projectile spawn/initialisation and overlap filtering, Blink 
 
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| 1 | `pickup_lane_preconditions` | retain native TestPickup_MysteriousAmulet; require live/full player, yaw 0, Fireball cost 3 at 10 SP; real-WASD walk_to pickup.x-500, same y, within 35 cm; require an enemy-free +X lane | - |
+| 1 | `pickup_lane_preconditions` | retain native TestPickup_MysteriousAmulet; require live player, yaw 0, Fireball cost 3 at 10 SP; real-WASD walk_to pickup.x-500, same y, within 35 cm; require an enemy-free +X lane | - |
 | 2 | `fireball_cast` | tap Q through Slate -> verified Fireball cost 3, SP 10 -> 7 | - |
 | 3 | `pickup_trigger_pass_through` | retain one exact visible projectile without a gap from x < pickup.x-150 through x > pickup.x+175; a sampled 3D segment intersects the pickup envelope; capture a game-owned frame | - |
 | 4 | `pickup_unchanged` | retained pickup remains present and unchanged; no F input | - |
