@@ -20,10 +20,12 @@ if SCRIPTS not in sys.path:
 import agent_bridge as ab  # noqa: E402
 import playtest_boot as pb  # noqa: E402
 import playtest_kit as kit  # noqa: E402
+import playtest_story as ps  # noqa: E402
 from tests import fake_bridge as fb  # noqa: E402
 
 PLAYTEST = os.path.join(SCRIPTS, "playtests", "us087_fireball.py")
 PICKUP_PLAYTEST = os.path.join(SCRIPTS, "playtests", "us087_pickup_lane.py")
+PICKUP_TEST_MAP = "/MordecaiCore/Game/Maps/PickupProjectileTestMap"
 TOKEN = "us087-fireball-token"
 
 
@@ -278,12 +280,15 @@ class PickupLaneWorld(FireballWorld):
         self.faults = set(faults)
         super().__init__(projectile=False, damage=False)
         self.health = 55.0
-        self.map = fb.DEFAULT_MAP
+        self.map = PICKUP_TEST_MAP
         self.pos = [-800.0, 0.0]
         self.obstacles = [fb._box(b) for b in fb.DEVTESTMAP_OBSTACLES]
         self.world_pickups = ([] if "missing" in self.faults else
                               [dict(p, location=list(p["location"])) for p in fb.PICKUP_SPECS])
         self.enemies = [dict(e, location=list(e["location"])) for e in fb.ENEMY_SPECS]
+        if "occupied" in self.faults:
+            self.enemies.append({"label": "LaneOccupant", "location": [-350.0, 0.0, 100.0],
+                                 "class": "BP_MordecaiEnemy_Frontliner_C"})
         if "blocked" in self.faults:
             self.mapping = {k: (-v[0], -v[1]) for k, v in fb.DEFAULT_MAPPING.items()}
         self.projectiles = []
@@ -299,6 +304,12 @@ class PickupLaneWorld(FireballWorld):
         self.after(0.12, spawn)
         if "disappear" in self.faults:
             self.after(0.05, lambda w: setattr(w, "world_pickups", []))
+        if "move_restore" in self.faults:
+            pickup = next(p for p in self.world_pickups
+                          if p["label"] == "TestPickup_MysteriousAmulet")
+            origin = list(pickup["location"])
+            self.after(0.16, lambda w: pickup["location"].__setitem__(1, origin[1] + 80.0))
+            self.after(0.23, lambda w: pickup.__setitem__("location", origin))
         if "die" in self.faults:
             self.after(0.05, lambda w: w.kill_player())
 
@@ -351,15 +362,30 @@ class TestUs087PickupLane(PlaytestCase):
                  ("swap", "pickup_trigger_pass_through"),
                  ("missing", "pickup_lane_preconditions"),
                  ("disappear", "pickup_unchanged"),
+                 ("move_restore", "pickup_unchanged"),
                  ("miss", "pickup_trigger_pass_through"),
                  ("die", "lane_integrity"),
-                 ("blocked", "pickup_lane_preconditions"))
+                 ("blocked", "pickup_lane_preconditions"),
+                 ("occupied", "pickup_lane_preconditions"))
         for index, (fault, check) in enumerate(cases):
             with self.subTest(fault=fault):
                 self.run_dir = os.path.join(self.tmp, f"fault-{index}")
                 _, code, report = self.play_pickup(fault)
                 self.assertEqual(code, 1)
                 self.assertEqual(self.checks(report)[check]["status"], "FAIL")
+
+    def test_is_a_second_non_ac_owner_on_the_isolated_map(self):
+        self.assertEqual(self.pickup.Run.MAP, PICKUP_TEST_MAP)
+        self.assertEqual(self.pickup.Run.COVERS, ())
+        self.assertTrue(self.pickup.Run.RUN_SUFFIX)
+        self.assertTrue(all(step.proves == () for step in self.pickup.Run.PLAN))
+
+        scripts, errors = ps.discover()
+        self.assertEqual(errors, [])
+        owners = ps.scripts_for("US-087", scripts)
+        self.assertEqual({owner.name for owner in owners},
+                         {"us087_fireball.py", "us087_pickup_lane.py"})
+        self.assertEqual(len({owner.suffix for owner in owners}), 2)
 
 
 if __name__ == "__main__":

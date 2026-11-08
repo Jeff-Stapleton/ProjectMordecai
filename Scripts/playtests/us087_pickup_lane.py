@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""US-087 issue #16: real-input Fireball crossing a real DevTestMap pickup."""
+"""US-087 issue #16: real-input Fireball crossing an isolated real pickup."""
 import math
 import os
 import sys
@@ -21,7 +21,7 @@ ENVELOPE_RADIUS = PICKUP_RADIUS + PROJECTILE_RADIUS
 POLL_S = 0.02
 CROSSING_WINDOW_S = 1.5
 TAP_S = 0.1
-SCREENSHOTS = {"pickup_lane_crossed": "DevTestMap after real Q: pickup remains and the same "
+SCREENSHOTS = {"pickup_lane_crossed": "Isolated test map after real Q: pickup remains and the same "
                "Fireball cleared its trigger; continuous state, not the still, proves trajectory"}
 PLAN = (
     Step("pickup_lane_preconditions", f"retain native {PICKUP_LABEL}; require live player, "
@@ -32,7 +32,8 @@ PLAN = (
          f"x < pickup.x-{ENVELOPE_RADIUS:g} through "
          f"x > pickup.x+{ENVELOPE_RADIUS + TEST_MARGIN:g}; a sampled 3D segment intersects the "
          "pickup envelope; capture a game-owned frame"),
-    Step("pickup_unchanged", "retained pickup remains present and unchanged; no F input"),
+    Step("pickup_unchanged", "retained exact pickup remains present at its original location "
+         "throughout flight; no F input"),
     Step("lane_integrity", "player remains alive/unchanged; no enemy enters the guarded segment"),
 )
 def _num(value):
@@ -62,14 +63,14 @@ class Us087PickupLaneRun(kit.PlaytestRun):
     RUN_SUFFIX = RUN_SUFFIX
     SCREENSHOTS = SCREENSHOTS
     PLAN = PLAN
-    MAP = kit.DEFAULT_MAP
+    MAP = kit.PICKUP_PROJECTILE_TEST_MAP
     SCRIPT = os.path.abspath(__file__)
     WALK_TOL = WALK_TOL
     TAP_S = TAP_S
 
     def __init__(self, args):
         super().__init__(args)
-        self.pickup_name = self.pickup_location = self.player_name = None
+        self.pickup_name = self.pickup_location = self.pickup_signature = self.player_name = None
         self.player_health = self.player_max_health = self.spell_cost = None
         self.preconditions_ok = False
     def steps(self):
@@ -81,6 +82,9 @@ class Us087PickupLaneRun(kit.PlaytestRun):
         return next((a for a in _actors(state)
                      if a.get("kind") == "pickup"
                      and (a.get("label") == PICKUP_LABEL or a.get("name") == PICKUP_LABEL)), None)
+    def _pickup_signature(self, actor):
+        return (actor.get("name"), actor.get("label"), actor.get("class"),
+                actor.get("native_class"), _loc(actor)) if actor else None
     def _lane_enemies(self, state, start, end):
         return [a.get("name") or a.get("label") for a in _actors(state)
                 if a.get("kind") == "enemy" and _loc(a) is not None
@@ -98,6 +102,7 @@ class Us087PickupLaneRun(kit.PlaytestRun):
                 return "FAIL", "; ".join(problems), None
             self.pickup_name = str(pickup0.get("name") or "")
             self.pickup_location = _loc(pickup0)
+            self.pickup_signature = self._pickup_signature(pickup0)
             self.player_name = str(player0.get("name") or "")
             attrs = player0.get("attributes") or {}
             self.player_health = _num(attrs.get("health"))
@@ -167,7 +172,7 @@ class Us087PickupLaneRun(kit.PlaytestRun):
         far_x = self.pickup_location[0] + ENVELOPE_RADIUS + TEST_MARGIN
         projectile_name, previous = None, None
         samples, failures = [], []
-        pickup_present, far_clear, intersects = True, False, False
+        pickup_failures, far_clear, intersects = [], False, False
         sp_after = sp0
         while time.monotonic() - start <= CROSSING_WINDOW_S and not far_clear:
             state = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
@@ -175,8 +180,12 @@ class Us087PickupLaneRun(kit.PlaytestRun):
             attrs = (player or {}).get("attributes") or {}
             if _num(attrs.get("spell_points")) is not None:
                 sp_after = _num(attrs.get("spell_points"))
-            if self._exact(state, self.pickup_name) is None:
-                pickup_present = False
+            retained_pickup = self._exact(state, self.pickup_name)
+            if retained_pickup is None:
+                pickup_failures.append(f"retained pickup {self.pickup_name!r} disappeared")
+            elif self._pickup_signature(retained_pickup) != self.pickup_signature:
+                pickup_failures.append(
+                    f"retained pickup changed: {self._pickup_signature(retained_pickup)!r}")
             health, max_health = _num(attrs.get("health")), _num(attrs.get("max_health"))
             if (player is None or player.get("name") != self.player_name or player.get("is_dead")
                     or health != self.player_health or max_health != self.player_max_health):
@@ -214,7 +223,12 @@ class Us087PickupLaneRun(kit.PlaytestRun):
         if far_clear:
             self.shot("pickup_lane_crossed")
         final = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
-        pickup_present &= self._exact(final, self.pickup_name) is not None
+        final_pickup = self._exact(final, self.pickup_name)
+        if final_pickup is None:
+            pickup_failures.append(f"retained pickup {self.pickup_name!r} absent at final state")
+        elif self._pickup_signature(final_pickup) != self.pickup_signature:
+            pickup_failures.append(
+                f"retained pickup final state changed: {self._pickup_signature(final_pickup)!r}")
         self.attempt("fireball_cast", lambda: (
             "PASS" if sp0 == 10.0 and sp_after == sp0 - self.spell_cost else "FAIL",
             f"real Slate Q; verified cost {self.spell_cost:g}; SP {sp0} -> {sp_after}", None))
@@ -224,9 +238,10 @@ class Us087PickupLaneRun(kit.PlaytestRun):
             f"near<{near_x:g}, far>{far_x:g}, cleared={far_clear}, 3D intersection={intersects}; "
             f"failures={list(dict.fromkeys(failures)) or 'none'}", samples))
         self.attempt("pickup_unchanged", lambda: (
-            "PASS" if pickup_present else "FAIL",
-            f"retained pickup {self.pickup_name!r} "
-            f"{'remained present' if pickup_present else 'disappeared'}; no F sent", None))
+            "PASS" if not pickup_failures else "FAIL",
+            f"retained pickup {self.pickup_name!r} stayed at {self.pickup_location} throughout; "
+            f"no F sent" if not pickup_failures
+            else "; ".join(dict.fromkeys(pickup_failures)), pickup_failures))
         self.attempt("lane_integrity", lambda: (
             "PASS" if not failures else "FAIL",
             "retained player stayed alive at unchanged health and lane stayed enemy-free"

@@ -4,6 +4,7 @@
 #   CombatTestMap: the same, plus TestDummy (BP_MordecaiEnemy_TestDummy_C, AI BP_MordecaiEnemyAI_TestDummy_C) and
 #   TestAttacker (BP_MordecaiEnemy_TestAttacker_C, the native MordecaiEnemyAIController), both alive at 200/200,
 #   Idle, with MaxWalkSpeed 0; the attacker farther than its AggroRange from the pawn; navigation data present.
+#   PickupProjectileTestMap: the same spawn, no enemy, and one native pickup at (400, 0, 30).
 #   Any other map (DevTestMap, the default suite): SKIP lines only, and the test passes.
 # PIE applies the PIE-only ExperienceOverride to every map, so this cannot prove the packaged route to the
 # experience (World Settings GameMode Override): Mordecai.Level.TestMaps.* and the Tier 3 boot do.
@@ -21,6 +22,7 @@ import unreal
 
 MOVEMENT_TEST_MAP = "MovementTestMap"
 COMBAT_TEST_MAP = "CombatTestMap"
+PICKUP_PROJECTILE_TEST_MAP = "PickupProjectileTestMap"
 SPAWN = (0.0, 0.0)
 SPAWN_TOLERANCE_CM = 100.0
 EXPECTED_MAX_HEALTH = 200.0
@@ -62,7 +64,7 @@ def _run():
         return attribute_set.get_editor_property(name).get_editor_property("current_value")
 
     print("=" * 60)
-    print("PIE SMOKE TEST: TEST MAPS (MovementTestMap, CombatTestMap)")
+    print("PIE SMOKE TEST: TEST MAPS")
     print("=" * 60)
 
     world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_game_world()
@@ -72,7 +74,7 @@ def _run():
         return
 
     map_name = unreal.GameplayStatics.get_current_level_name(world, True)
-    if map_name not in (MOVEMENT_TEST_MAP, COMBAT_TEST_MAP):
+    if map_name not in (MOVEMENT_TEST_MAP, COMBAT_TEST_MAP, PICKUP_PROJECTILE_TEST_MAP):
         print(f"  SKIP: PIE is on {map_name}, not a test map (run_pie_verify.py --map <test map> to check one)")
         finish()
         return
@@ -93,6 +95,27 @@ def _run():
 
     enemies = list(unreal.GameplayStatics.get_all_actors_of_class(world, unreal.MordecaiEnemyCharacter))
     pickups = list(unreal.GameplayStatics.get_all_actors_of_class(world, unreal.MordecaiItemPickup))
+
+    if map_name == PICKUP_PROJECTILE_TEST_MAP:
+        check("PickupProjectileTestMap has no enemies", not enemies,
+              f"{[e.get_actor_label() for e in enemies]}")
+        check("PickupProjectileTestMap has exactly one native pickup", len(pickups) == 1
+              and pickups[0].get_class() == unreal.MordecaiItemPickup.static_class(),
+              f"{[(p.get_actor_label(), p.get_class().get_name()) for p in pickups]}")
+        if len(pickups) == 1:
+            pickup = pickups[0]
+            loc = pickup.get_actor_location()
+            item = pickup.get_editor_property("item_definition")
+            check("pickup label, location and item are the issue-16 fixture",
+                  pickup.get_actor_label() == "TestPickup_MysteriousAmulet"
+                  and math.dist((loc.x, loc.y, loc.z), (400.0, 0.0, 30.0)) <= 5.0
+                  and item.get_path_name().split(".")[0]
+                  == "/MordecaiCore/Items/TestPickups/DA_TestItem_MysteriousAmulet",
+                  f"{pickup.get_actor_label()} at ({loc.x:.0f}, {loc.y:.0f}, {loc.z:.0f}); "
+                  f"{item.get_path_name() if item else None}")
+        finish()
+        return
+
     check(f"{map_name} has no item pickups", not pickups, f"{[p.get_actor_label() for p in pickups]}")
 
     if map_name == MOVEMENT_TEST_MAP:
