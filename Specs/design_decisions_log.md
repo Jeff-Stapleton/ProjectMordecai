@@ -184,3 +184,17 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Death still unregisters the indicator. Arena reset restores it and rebinds the widget to current health.
 - The Idle CombatTestMap TestDummy (`AggroRange = 0`) therefore shows its one red, 150 px EnemyIndicator throughout its living state.
 - Source: Jeff via Cursor session (2026-11-05), resolving the AC-100.3 product call.
+
+---
+
+## 2026-11-08 — Isolated pickup-projectile test fixture (issue #16, US-087)
+
+- Jeff's approval, verbatim: **“Yes, add the isolated test map and expand the change budget as needed for that coverage and validation.”**
+- Authorized fence: add one enemy-free isolated test map for real-pickup projectile coverage and validation.
+  All existing maps and gameplay remain unchanged.
+- The characterization does not assume or establish a native-pickup bug. An inconclusive shared-arena failure
+  with enemy interference is not collision proof.
+- The saved fixture was a one-time EDITOR authoring step. Remaining US-087 Blink work stays HEADLESS, and the
+  fixture does not change acceptance ownership: `us087_fireball.py` solely owns AC-087.4/.5;
+  `us087_pickup_lane.py` owns no AC (`COVERS=()`, every `proves=()`).
+- Source: Jeff via Cursor session (2026-11-08).

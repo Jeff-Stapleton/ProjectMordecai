@@ -9,9 +9,10 @@
 In the packaged arena Fireball spends 3 SP and does nothing visible: no projectile actor appears and the enemy ahead keeps its health (N15, possibly N11). The exploratory agent also found that Blink can spend SP and move the player 0 cm when an enemy is ahead (N20) and that Blink's i-frame tag `Mordecai.State.Invulnerable` is never removed (N19) — a permanently invulnerable player. This story makes the two movement/damage spells of the magic slice behave. Features: spells, projectiles_aim, status_effects.
 
 ## Execution Mode
-**EDITOR**
-The issue #16 characterization adds a saved isolated test map through an editor-authoring script. Existing gameplay,
-spell assets and maps remain unchanged.
+**HEADLESS**
+The remaining work is Blink C++ plus headless tests and packaged validation. Issue #16 used a one-time
+EDITOR authoring step to add the saved isolated test fixture; that completed fixture work does not change
+AC ownership or make the remaining story EDITOR-mode. Existing gameplay, spell assets and maps remain unchanged.
 
 ## References
 - `Specs/agent_playtest_plan_v1.md` — N15, N11 (suspected), N19, N20 ("Found by the first exploratory-agent run")
@@ -53,10 +54,11 @@ spell assets and maps remain unchanged.
   - `blink_invulnerability_ends`: after the existing `blink` step, wait_until `Mordecai.State.Invulnerable` not in `player.tags` within 1.5 s (before Stone Skin is cast).
 - CombatTestMap keeps its zero-pickup invariant. `us087_pickup_lane.py` separately characterizes one real 120 cm
   native pickup on the enemy-free `PickupProjectileTestMap`. The earlier exact-clean DevTestMap run
-  `Saved/Playtests/20261108-005745-us087-pickup-lane` at `7dc9a1e` was inconclusive: Frontliners entered the
-  guarded lane, the retained Fireball disappeared, and player health changed 200→175, but no collision event
-  trace attributes the disappearance. Diagnostic `20261108-010100-us087-pickup-lane-diagnostic-300` crossed the
-  pickup but still failed the enemy-free guard. Neither is acceptance evidence. N11 has no `known_issue` to remove.
+  `Saved/Playtests/20261108-005745-us087-pickup-lane` at `7dc9a1e` was inconclusive: all retained player states
+  stayed at 55 HP, while `BP_MordecaiEnemy_Frontliner_C_0` changed 200→175 as the retained Fireball disappeared.
+  That supports enemy interference, but no collision-event trace attributes the disappearance and it does not
+  prove native-pickup collision. Diagnostic `20261108-010100-us087-pickup-lane-diagnostic-300` crossed the pickup
+  but still failed the enemy-free guard. Neither is acceptance evidence. N11 has no `known_issue` to remove.
 - Script bookkeeping: `fireball_projectile` and `fireball_hits_enemy` were NEW (no `known_issue`) and remain shared regression cross-checks only. `fireball_hits_enemy`'s `does` text says "pre-cast value (200)"; it compares with the pre-cast reading, keep it that way. Future Blink AC-087.8/.9 coverage must use a separate US-087 owner script or be explicitly consolidated into `us087_fireball.py`; adding US-087 to `us057_magic.py` `COVERS` would be shadowed by the dedicated owner and is not acceptance.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
@@ -69,7 +71,7 @@ spell assets and maps remain unchanged.
 - `Mordecai.Recovery.Blink.EnemyAheadDoesNotBlock`, `Mordecai.Recovery.Blink.NoMoveNoCost` — AC-087.6
 - `Mordecai.Recovery.Blink.InvulnerabilityExpires` — AC-087.7
 - `Mordecai.Level.TestMaps.PickupProjectileMapHasRealPickupAndClearLane` — issue #16 fixture provenance,
-  collision responses and enemy-/blocker-free lane
+  saved-map pickup/collision-response contract and enemy-/blocker-free lane. Cooked behavior belongs to Tier 3/4.
 ### Tier 2 — PIE smoke (editor integration)
 - `Scripts/verify_pie_magic.py`: `[LOGIC]` directly activates Fireball, then a post-tick watcher verifies a projectile actor exists and moves between editor ticks. This is integration smoke only, not real-input acceptance. No Blink direct-call check belongs to this Fireball slice.
 ### Tier 3 — Packaged playtest
@@ -131,6 +133,7 @@ spell assets and maps remain unchanged.
   `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + dedicated owner script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
+- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/PickupProjectileTestMap` exits 0 — never `--allow-stale`
 - [ ] `py Scripts/playtest_story.py US-087` (Tier 3 + all dedicated US-087 Tier 4 owners) on that same fresh package accepts AC-087.4/.5 and, once implemented, AC-087.8/.9; the full sweep keeps shared `us057_magic.py` `fireball_projectile` / `fireball_hits_enemy` as regression cross-checks; no prior PASS becomes FAIL; `--lint` exits 0 for US-087 and US-057 — never `--allow-stale`
 - [ ] Known issues N15, N11, N19, N20 marked FIXED (or N11 cleared) in `Specs/agent_playtest_plan_v1.md` with the run dir
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
@@ -140,47 +143,51 @@ spell assets and maps remain unchanged.
 ## Completion Notes
 ### Issue #16 / N11 native pickup characterization (2026-11-08)
 
-- No runtime behavior changed. Implementation commit `a3635aaf7d` adds only the isolated
-  `PickupProjectileTestMap`, its editor-authoring/cook/PIE/Tier 1 coverage, and the stricter Tier 4 owner.
-  `DevTestMap`, `MovementTestMap`, `CombatTestMap`, production projectile/pickup code and bridge behavior are
-  unchanged.
-- Offline RED was meaningful tooling RED: the previous owner incorrectly passed when the retained pickup moved
-  80 cm during flight and returned before the final read, and it still launched DevTestMap. GREEN adds
-  throughout-flight pickup identity/location checks, a genuinely occupied-lane negative, empty `COVERS` /
-  `proves=()` ownership assertions, and same-root discovery of both unique US-087 owners. Full Python tooling:
-  601/601 PASS.
-- Tier 1: LyraEditor compiled; the new
-  `Mordecai.Level.TestMaps.PickupProjectileMapHasRealPickupAndClearLane` PASS and all four
-  `Mordecai.Recovery.Fireball.*` tests PASS; all 782 Mordecai tests PASS. The map test pins the native class,
-  item/mesh/material provenance, 120 cm QueryOnly trigger, Pawn overlap, projectile-channel ignore, no enemies
-  and no cooked lane blocker.
-- Tier 2: the full default PIE suite PASS. Explicit PickupProjectileTestMap PIE PASS (34/34 across HUD, spawn and
-  test-map checks): the packaged route uses MordecaiGameMode, the player spawns at (0, 0), and exactly one native
-  `TestPickup_MysteriousAmulet` exists at (400, 0, 30) with the expected item. The authoring readback passed
-  15/15; only the new `.umap` changed, and DevTestMap's timestamp stayed untouched.
-- Package: clean non-iterative Development package of `a3635aaf7d`,
-  `Saved/Playtests/package-20261108-074752.log`; `dirty=false`,
-  `source_changed_during_build=false`, and all five launch maps are named in `build_info.json`.
-- Issue #16 owner: `Saved/Playtests/20261108-075735-us087-pickup-lane` PASS (13 PASS, 0 FAIL).
-  Ordinary Slate WASD/Q moved the player to (-69, 0), spent SP 10→7, retained exact projectile
-  `MordecaiProjectile_2147482167` for 10 contiguous samples, intersected the real 120+30 cm pickup envelope and
-  cleared x>575. The exact pickup stayed at (400, 0, 30) throughout; player health stayed 100/100 and the lane
-  stayed enemy-free. Request audit contains only ping/state/key/screenshot/quit plus WASD/Q input; no F, unsafe
-  command or viewport route. This clears the actual-pickup suspicion. Generic non-ASC hardening remains PR #87;
-  callback proof remains PR #89. No N11 `known_issue` existed to remove.
-- The combined fresh `Saved/Playtests/20261108-075642-story-us087` retained a separate failure: unchanged
-  `us087_fireball.py` stopped before Q because real `walk_to` ended 51 cm off the TestDummy's +X shot line against
-  its 50 cm bound. The prior exact-clean `7dc9a1e` run
-  `Saved/Playtests/20261108-005729-us087-fireball` passed that same precondition at 35 cm and accepted AC-087.4/.5.
-  This is concrete unrelated baseline variance, not issue #16 evidence; the failed run remains a failure and is
-  not rerolled away.
-- Frames opened: both Tier 3 loading frames show the Project Mordecai loading screen. CombatTestMap
-  `engine_01`–`03` show the live player/HUD and full-health TestDummy. PickupProjectileTestMap
-  `engine_01`–`03` show the enemy-free walled grid, player/HUD and purple “Unidentified Purple Amulet” pickup;
-  yellow online-subsystem deprecation text is visibly overlaid. Its `bridge_01.png` shows SP 7/10, the live player
-  and the unchanged purple pickup; no projectile is discernible in the still, so trajectory comes from the
-  contiguous exact-identity state audit, not that image. All six desktop shots show the Windows desktop/Outlook
-  notification because another window covered the game; the game-owned engine/bridge frames are readable.
+- Jeff authorized this fixture on 2026-11-08: “Yes, add the isolated test map and expand the change budget as
+  needed for that coverage and validation.” The fence is an enemy-free isolated new map; all existing maps and
+  gameplay remain unchanged, and the result does not establish a native-pickup bug. The decision is recorded in
+  `Specs/design_decisions_log.md`.
+- No runtime behavior changed. The branch adds only `PickupProjectileTestMap`, its editor-authoring/cook/PIE/
+  Tier 1 coverage, and the non-AC Tier 4 characterization owner. Blob identity evidence records unchanged
+  `DevTestMap`, `MovementTestMap`, and `CombatTestMap`; production projectile/pickup C++ and existing binary
+  content are unchanged.
+- Pre-final-documentation checks passed: 601 Python tests, 782 Mordecai automation tests, the 16-check default
+  PIE suite, and the 3-check explicit PickupProjectileTestMap PIE run. These checks preceded final documentation
+  commit `c9e51f2`; they are not represented as exact-final-HEAD reruns. The Tier 1 map test establishes the
+  saved-map contract (native class, item/mesh/material provenance, 120 cm QueryOnly trigger, Pawn overlap,
+  projectile-channel ignore, and enemy-/blocker-free lane); cooking and packaged behavior are Tier 3/4 proof.
+- Final historical package evidence is the clean Development package of
+  `c9e51f2bf1861a01c39d1ad3e736e1b060bcc8ff`, built 2026-11-08 08:10:33 MST with `dirty=false` and
+  `source_changed_during_build=false`. Dedicated run `Saved/Playtests/20261108-081122-us087-fireball` PASS:
+  Slate Q spent SP 10→7, a visible projectile was retained, and the exact stationary TestDummy changed
+  200→175. Dedicated non-AC run `Saved/Playtests/20261108-081140-us087-pickup-lane` PASS: Slate Q spent
+  SP 10→7; one exact projectile was retained for 10 contiguous samples, intersected the 3D 120+30 cm pickup
+  envelope, and cleared the far plane; the pickup stayed stationary and the lane stayed enemy-free.
+- The fresh `20261108-081210-sweep` is not all green: 7 owners PASS and 6 owners FAIL, with 14 failed checks.
+  Thirteen checks align with supplied live-open issue mappings: movement `facing_mouse` (#34),
+  `facing_stick` (#34/#33), `gamepad_move`/`sprint_l3` (#33); magic `cooldown_widgets` (#13),
+  `fireball_cooldown_state`/`cooldown_hud` (#35), `stone_skin_indicator` (#21); pause
+  `character_tab_content` (#9), `skills_tab_content`/`feats_tab_content` (#10); weapons
+  `cycle_prev_shift_tab` (#14); combat input `jump_gamepad_a` (#85). Arena `enemies_present` is an untracked
+  arena-spacing assertion failure: observed post-launch distances were about 263/263/228 cm while all three
+  Frontliners were alive at 200/200 in Attack. Those positions do not prove authored spawn spacing, closed
+  issue #18 is only the HP fix, and US-085 is not an open issue.
+- Historical comparator `d22e11b243e5c318902ddc67f0c6afc144424e91` is not current base
+  `15f59cde887eb10d0d3ce3c19423942908b05a4e`. Between them only the Recovery test helper header (+97),
+  Recovery tests (+166/−34), and this story (+4/−4) changed; gameplay, scripts, content, and config did not.
+  Development binaries are not claimed byte-identical because reflected test types affect them. Raw comparison
+  across the 12 existing owners found identical failure sets, no PASS→non-PASS/missing transition, and no added
+  check names; the pickup owner is new and has no baseline.
+- Earlier FAILs remain visible. `Saved/Playtests/20261108-075724-us087-fireball` stopped before Q when
+  `walk_to` ended 51 cm off-line against the existing 50 cm aim tolerance (the walk tolerance is 70 cm);
+  no policy or owner change follows. In `Saved/Playtests/20261108-005745-us087-pickup-lane`, every retained
+  player state stayed at 55 HP while a Frontliner changed 200→175 as the Fireball disappeared. With no direct
+  collision-event trace, that run is enemy interference and inconclusive—not player damage and not proof of
+  native-pickup collision.
+- Historical frame inspection was already recorded for the c9 evidence. The still does not prove the full
+  trajectory; the exact-identity sampled state audit does. US-087 remains in backlog: Blink AC-087.6/.8/.9
+  are open, and `us087_fireball.py` remains the sole owner of AC-087.4/.5 while the pickup script has empty
+  `COVERS` and `proves=()`.
 
 ### Issue #20 / N15 Fireball slice (2026-11-06)
 

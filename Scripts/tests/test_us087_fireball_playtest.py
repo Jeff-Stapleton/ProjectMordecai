@@ -8,6 +8,7 @@ import io
 import json
 import math
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -300,7 +301,10 @@ class PickupLaneWorld(FireballWorld):
             return
         spawn = lambda w: w.projectiles.append({  # noqa: E731
             "name": "Fireball_1",
-            "location": [w.pos[0] + 70, 220 if "miss" in w.faults else w.pos[1], 92]})
+            "location": [w.pos[0] + 70,
+                         140 if "envelope_miss" in w.faults
+                         else 220 if "miss" in w.faults else w.pos[1],
+                         92]})
         self.after(0.12, spawn)
         if "disappear" in self.faults:
             self.after(0.05, lambda w: setattr(w, "world_pickups", []))
@@ -318,6 +322,10 @@ class PickupLaneWorld(FireballWorld):
         with self.lock:
             for p in list(self.projectiles):
                 p["location"][0] += 2000.0 * dt
+                if "never_clear" in self.faults:
+                    pickup = next(item for item in self.world_pickups
+                                  if item["label"] == "TestPickup_MysteriousAmulet")
+                    p["location"][0] = min(p["location"][0], pickup["location"][0] + 100.0)
                 if "destroy" in self.faults and p["location"][0] >= -400.0:
                     self.projectiles.remove(p)
                 elif "swap" in self.faults and p["location"][0] > -500.0:
@@ -373,6 +381,36 @@ class TestUs087PickupLane(PlaytestCase):
                 _, code, report = self.play_pickup(fault)
                 self.assertEqual(code, 1)
                 self.assertEqual(self.checks(report)[check]["status"], "FAIL")
+
+    def test_3d_envelope_guard_rejects_acquired_projectile_that_clears_far(self):
+        _, code, report = self.play_pickup("envelope_miss")
+        check = self.checks(report)["pickup_trigger_pass_through"]
+        self.assertEqual(code, 1)
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("same projectile 'Fireball_1'", check["detail"])
+        self.assertIn("contiguous samples", check["detail"])
+        self.assertIn("cleared=True", check["detail"])
+        self.assertIn("3D intersection=False", check["detail"])
+        self.assertIn("failures=none", check["detail"])
+        sample_count = int(re.search(r"; (\d+) contiguous samples;", check["detail"]).group(1))
+        self.assertGreater(sample_count, 1)
+        self.assertLessEqual(140.0, self.pickup.ENVELOPE_RADIUS,
+                             "the Y-only acquisition filter must accept this projectile")
+        self.assertGreater(math.hypot(140.0, 92.0 - 30.0), self.pickup.ENVELOPE_RADIUS,
+                           "the acquired projectile must miss the full 3D envelope")
+
+    def test_far_clear_guard_rejects_retained_intersecting_projectile(self):
+        _, code, report = self.play_pickup("never_clear")
+        check = self.checks(report)["pickup_trigger_pass_through"]
+        self.assertEqual(code, 1)
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("same projectile 'Fireball_1'", check["detail"])
+        self.assertIn("contiguous samples", check["detail"])
+        self.assertIn("cleared=False", check["detail"])
+        self.assertIn("3D intersection=True", check["detail"])
+        self.assertIn("failures=none", check["detail"])
+        sample_count = int(re.search(r"; (\d+) contiguous samples;", check["detail"]).group(1))
+        self.assertGreater(sample_count, 1)
 
     def test_is_a_second_non_ac_owner_on_the_isolated_map(self):
         self.assertEqual(self.pickup.Run.MAP, PICKUP_TEST_MAP)
