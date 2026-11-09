@@ -95,6 +95,17 @@ bool FMordecaiChar_PlaceholderVisuals::RunTest(const FString& Parameters)
 
 	UArrowComponent* Arrow = CDO->GetFacingArrow();
 	TestNotNull("FacingArrow component exists", Arrow);
+	if (Arrow)
+	{
+		TestFalse("FacingArrow is not hidden in game", Arrow->bHiddenInGame);
+		TestTrue("FacingArrow component visibility is enabled", Arrow->IsVisible());
+		TestTrue("FacingArrow is attached to the character root", Arrow->GetAttachParent() == CDO->GetRootComponent());
+		TestFalse("FacingArrow inherits the character rotation", Arrow->IsUsingAbsoluteRotation());
+		TestTrue("FacingArrow local rotation points along the character forward axis",
+			Arrow->GetRelativeRotation().IsNearlyZero());
+		TestFalse("FacingArrow is not restricted to its owner", Arrow->bOnlyOwnerSee);
+		TestFalse("FacingArrow is not hidden from its owner", Arrow->bOwnerNoSee);
+	}
 
 	// Placeholder body mesh must exist and have a mesh assigned
 	UStaticMeshComponent* BodyMesh = CDO->GetPlaceholderBody();

@@ -14,6 +14,7 @@ class UMordecaiAttributeSet;
 class UMordecaiAttackProfileDataAsset;
 class UMordecaiPostureSystem;
 class UMordecaiEnemyIndicatorComponent;
+class UArrowComponent;
 class UStaticMeshComponent;
 class UGameplayAbility;
 class APlayerState;
@@ -81,6 +82,9 @@ public:
 
 	UMordecaiPostureSystem* GetPostureSystem() const { return PostureSystem; }
 
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Enemy")
+	UArrowComponent* GetFacingArrow() const { return FacingArrowComponent; }
+
 	// --- State Transitions ---
 
 	/** Enter death state: apply State_Dead tag, disable movement/collision, broadcast Event_Death, and tell the game
@@ -131,6 +135,10 @@ private:
 	/** Enemy indicator component for world-space health/status display (US-064). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Enemy", Meta = (AllowPrivateAccess = true))
 	TObjectPtr<UMordecaiEnemyIndicatorComponent> EnemyIndicatorComponent;
+
+	/** Owner-agnostic facing indicator (issue #17). It has no collision, tick, navigation or replication cost. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mordecai|Enemy", Meta = (AllowPrivateAccess = true))
+	TObjectPtr<UArrowComponent> FacingArrowComponent;
 
 	/**
 	 * The body players see (US-085, issue #19). Empty on the native class: each enemy Blueprint sets its mesh. It never

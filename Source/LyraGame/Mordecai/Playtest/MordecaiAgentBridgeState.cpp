@@ -10,6 +10,7 @@
 #include "CommonActivatableWidget.h"
 #include "CommonInputSubsystem.h"
 #include "CommonInputTypeEnum.h"
+#include "Components/ArrowComponent.h"
 #include "Components/Button.h"
 #include "Components/PanelWidget.h"
 #include "Components/ScrollBox.h"
@@ -418,6 +419,9 @@ namespace MordecaiAgentBridge::State
 			const UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
 			Player->SetField(TEXT("movement_mode"), Movement ? StringValue(Movement->GetMovementName()) : NullValue());
 			Player->SetField(TEXT("is_dead"), Hero ? BoolValue(Hero->IsDead()) : NullValue());
+			const UArrowComponent* FacingArrow = Hero ? Hero->GetFacingArrow() : nullptr;
+			Player->SetField(TEXT("facing_arrow"), FacingArrow
+				? ObjectValue(MakeFacingArrowEntry(FacingArrow, Pawn)) : NullValue());
 			Player->SetObjectField(TEXT("attributes"), MakeAttributes(Attributes));
 			Player->SetArrayField(TEXT("tags"), ASC ? TagsToJson(ASC->GetOwnedGameplayTags()) : TArray<TSharedPtr<FJsonValue>>());
 			Player->SetField(TEXT("weapon"), GatherWeapon(Hero));
@@ -844,6 +848,34 @@ namespace MordecaiAgentBridge::State
 		return Entry;
 	}
 
+	TSharedRef<FJsonObject> MakeFacingArrowEntry(const UArrowComponent* Arrow, const AActor* Owner)
+	{
+		using namespace StatePrivate;
+		const TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+		if (!Arrow)
+		{
+			return Entry;
+		}
+
+		const FVector ArrowForward = Arrow->GetForwardVector();
+		const FVector OwnerForward = Owner ? Owner->GetActorForwardVector() : FVector::ZeroVector;
+		Entry->SetBoolField(TEXT("hidden_in_game"), Arrow->bHiddenInGame);
+		Entry->SetBoolField(TEXT("owner_hidden"), Owner ? Owner->IsHidden() : false);
+		Entry->SetBoolField(TEXT("visible"), Arrow->IsVisible());
+		Entry->SetBoolField(TEXT("registered"), Arrow->IsRegistered());
+		Entry->SetBoolField(TEXT("scene_proxy_present"), Arrow->GetSceneProxy() != nullptr);
+		Entry->SetBoolField(TEXT("was_recently_rendered"), Arrow->WasRecentlyRendered(0.5f));
+		Entry->SetBoolField(TEXT("only_owner_see"), Arrow->bOnlyOwnerSee);
+		Entry->SetBoolField(TEXT("owner_no_see"), Arrow->bOwnerNoSee);
+		Entry->SetField(TEXT("arrow_length"), MakeNumber(Arrow->ArrowLength));
+		Entry->SetField(TEXT("arrow_size"), MakeNumber(Arrow->ArrowSize));
+		Entry->SetField(TEXT("forward"), MakeVector(ArrowForward));
+		Entry->SetField(TEXT("pawn_forward"), Owner ? MakeVector(OwnerForward) : NullValue());
+		Entry->SetField(TEXT("forward_alignment"), Owner
+			? MakeNumber(FVector::DotProduct(ArrowForward, OwnerForward)) : NullValue());
+		return Entry;
+	}
+
 	TSharedRef<FJsonObject> MakeActorEntry(const AActor* Actor, const FVector* Origin, const FRotator* ViewRotation)
 	{
 		using namespace StatePrivate;
@@ -896,6 +928,9 @@ namespace MordecaiAgentBridge::State
 
 		const AMordecaiEnemyCharacter* Enemy = Cast<AMordecaiEnemyCharacter>(Actor);
 		const AMordecaiCharacter* Hero = Cast<AMordecaiCharacter>(Actor);
+		const UArrowComponent* FacingArrow = Enemy ? Enemy->GetFacingArrow() : (Hero ? Hero->GetFacingArrow() : nullptr);
+		Entry->SetField(TEXT("facing_arrow"), FacingArrow
+			? ObjectValue(MakeFacingArrowEntry(FacingArrow, Actor)) : NullValue());
 		if (Enemy)
 		{
 			Entry->SetBoolField(TEXT("is_dead"), Enemy->IsDead());

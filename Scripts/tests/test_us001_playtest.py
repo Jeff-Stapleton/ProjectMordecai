@@ -62,6 +62,19 @@ class UnboundWorld(fb.FakeWorld):
                         "texts": [], "buttons": []})
         return out
 
+    def _s_player(self):
+        out = super()._s_player()
+        if out.get("valid"):
+            out["facing_arrow"] = {
+                "hidden_in_game": False, "visible": True, "registered": True,
+                "owner_hidden": False, "scene_proxy_present": True,
+                "was_recently_rendered": True, "arrow_length": 80.0, "arrow_size": 1.5,
+                "only_owner_see": False, "owner_no_see": False,
+                "forward": [1.0, 0.0, 0.0], "pawn_forward": [1.0, 0.0, 0.0],
+                "forward_alignment": 1.0,
+            }
+        return out
+
 
 class HudWorld(UnboundWorld):
     """Today's game (US-083): LeftShift toggles sprint (x1.5) and SpaceBar jumps
@@ -143,6 +156,12 @@ class FixedWorld(HudWorld):
         out = super()._s_player()
         if out.get("valid"):
             out["rotation"] = [0.0, round(self.yaw, 2), 0.0]
+            radians = math.radians(self.yaw)
+            forward = [round(math.cos(radians), 4), round(math.sin(radians), 4), 0.0]
+            out["facing_arrow"].update({
+                "hidden_in_game": False, "visible": True,
+                "forward": forward, "pawn_forward": forward, "forward_alignment": 1.0,
+            })
         return out
 
 
@@ -153,6 +172,35 @@ class MouseTurnsCameraWorld(HudWorld):
         with self.lock:
             super().move_cursor(x, y)
             self.control_yaw = (x - fb.VIEWPORT_W / 2.0) / 10.0
+
+
+class MissingArrowStateWorld(HudWorld):
+    """An old package whose bridge predates player.facing_arrow state."""
+
+    def _s_player(self):
+        out = super()._s_player()
+        out.pop("facing_arrow", None)
+        return out
+
+
+class HiddenArrowWorld(HudWorld):
+    """The N12 regression: the component exists but does not draw in game."""
+
+    def _s_player(self):
+        out = super()._s_player()
+        out["facing_arrow"].update({
+            "hidden_in_game": True, "visible": False, "was_recently_rendered": False,
+        })
+        return out
+
+
+class NotRenderedArrowWorld(HudWorld):
+    """The flags look right but the component did not draw a frame."""
+
+    def _s_player(self):
+        out = super()._s_player()
+        out["facing_arrow"]["was_recently_rendered"] = False
+        return out
 
 
 class NoBrakeWorld(HudWorld):
@@ -251,7 +299,8 @@ class TestUs001TodaysGame(PlaytestCase):
                      "move_a", "move_w", "move_d", "move_s", "camera_fixed",
                      "no_camera_rotation_input", "walk_lane_wp1", "walk_lane_wp2",
                      "walk_lane_start", "walk_speed_baseline", "walk_lane_reset",
-                     "sprint_shift", "walk_lane_reset2", "jump_space", "no_crash"):
+                     "sprint_shift", "walk_lane_reset2", "jump_space", "facing_arrow",
+                     "no_crash"):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(self.statuses(rep, "FAIL"), KNOWN_FAILS)
         self.assertEqual(self.statuses(rep, "SKIP"), [])
@@ -300,7 +349,7 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertEqual(acs["AC-2.1.4"]["status"], "PASS")
         self.assertEqual(acs["AC-1.2.1"]["status"], "PENDING")
         self.assertIn("no camera transform", acs["AC-1.2.1"]["pending"])
-        self.assertEqual(acs["AC-2.1.5"]["status"], "PENDING")
+        self.assertEqual(acs["AC-2.1.5"]["status"], "PASS")
         self.assertFalse([a for a in rep["acs"] if a["accepted"]],
                          "an attached run never accepts an AC")
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
@@ -404,6 +453,33 @@ class TestUs001FixedGame(PlaytestCase):
 
 
 class TestUs001Failures(PlaytestCase):
+    def test_missing_runtime_arrow_state_fails_n12_check(self):
+        _, server = self.serve(MissingArrowStateWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["facing_arrow"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("runtime arrow state is missing", check["detail"])
+        self.assertIn("facing_arrow", rep["new_failures"])
+
+    def test_hidden_runtime_arrow_fails_n12_check(self):
+        _, server = self.serve(HiddenArrowWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["facing_arrow"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("hidden_in_game=True", check["detail"])
+        self.assertIn("facing_arrow", rep["new_failures"])
+
+    def test_an_arrow_that_never_rendered_fails_n12_check(self):
+        _, server = self.serve(NotRenderedArrowWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["facing_arrow"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("was_recently_rendered=False", check["detail"])
+        self.assertIn("facing_arrow", rep["new_failures"])
+
     def test_the_shared_fake_has_no_bars_so_the_hud_check_fails_new(self):
         _, server = self.serve(fb.FakeWorld)
         code, rep = self.play(server)
@@ -499,10 +575,11 @@ class TestUs001Failures(PlaytestCase):
     def test_a_lost_connection_is_infra_and_skips_the_rest(self):
         _, server = self.serve(faults=fb.Faults(drop_on_cmd="mouse"))
         code, rep = self.play(server)
-        self.assertEqual(code, 2)
+        self.assertEqual(code, 2, self.log.getvalue()[-5000:])
         checks = self.by_name(rep)
         self.assertEqual(checks["no_camera_rotation_input"]["status"], "FAIL")
         self.assertEqual(checks["no_camera_rotation_input"]["kind"], "infra")
+        self.assertEqual(checks["no_crash"]["kind"], "infra")
         for name in ("walk_lane_start", "walk_speed_baseline", "jump_space", "gamepad_move"):
             self.assertEqual(checks[name]["status"], "SKIP", name)
             self.assertIn("connection was lost", checks[name]["detail"])
@@ -544,7 +621,7 @@ class TestUs001Plan(unittest.TestCase):
         self.assertEqual(us001.main(["--plan"]), 0)
         rows = [line for line in out.getvalue().splitlines() if line.startswith("| ")]
         self.assertEqual(len(rows), 1 + len(us001.PLAN))
-        self.assertTrue(any(r.startswith("| 18 | `jump_space` |") for r in rows))
+        self.assertTrue(any(r.startswith("| 19 | `jump_space` |") for r in rows))
 
     def test_the_script_launches_the_movement_test_map(self):
         self.assertEqual(us001.Us001Run.launch_map(), kit.MOVEMENT_TEST_MAP)

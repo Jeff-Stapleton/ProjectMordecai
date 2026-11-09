@@ -1329,7 +1329,14 @@ class FakeWorld:
                 "MordecaiEnemyCharacter", "enemy", e["location"], has_visible_mesh=True,
                 health={"current": float(e.get("health", max_health)), "max": max_health},
                 is_dead=bool(e.get("is_dead", False)), ai_state=e.get("ai_state", "Approach"),
-                widgets=[])
+                facing_arrow={
+                    "hidden_in_game": False, "owner_hidden": False, "visible": True,
+                    "registered": True, "scene_proxy_present": True,
+                    "was_recently_rendered": True, "only_owner_see": False,
+                    "owner_no_see": False, "arrow_length": 80.0, "arrow_size": 1.5,
+                    "forward": [1.0, 0.0, 0.0], "pawn_forward": [1.0, 0.0, 0.0],
+                    "forward_alignment": 1.0,
+                }, widgets=[])
         if include_all:
             for name, (x0, x1, y0, y1) in self.wall_boxes:
                 add(name, "StaticMeshActor", "StaticMeshActor", "other",

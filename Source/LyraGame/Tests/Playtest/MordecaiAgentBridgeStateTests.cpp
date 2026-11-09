@@ -6,6 +6,7 @@
 #include "AbilitySystemGlobals.h"
 #include "Blueprint/WidgetTree.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Components/ArrowComponent.h"
 #include "Components/TextBlock.h"
 #include "Components/TextRenderComponent.h"
 #include "Dom/JsonObject.h"
@@ -30,6 +31,7 @@
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/Items/MordecaiResourceLedger.h"
 #include "Mordecai/Magic/MordecaiIllusionActor.h"
+#include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiPlayerState.h"
 #include "Mordecai/Playtest/MordecaiAgentBridgeProtocol.h"
 #include "Mordecai/Playtest/MordecaiAgentBridgeState.h"
@@ -505,6 +507,81 @@ bool FMordecai_Playtest_AgentBridge_State_EnemyActorEntry::RunTest(const FString
 	TestEqual("projectile kind", MordecaiAgentBridge::State::ClassifyActorKind(NewObject<AMordecaiProjectile>()), FString(TEXT("projectile")));
 	TestEqual("native class of a native class", MordecaiAgentBridge::State::GetNativeClassName(AMordecaiEnemyCharacter::StaticClass()), FString(TEXT("MordecaiEnemyCharacter")));
 	TestFalse("null actor has no health", MordecaiAgentBridge::State::GetActorHealth(nullptr, Current, Max));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_AgentBridge_State_PlayerAndEnemyFacingArrows,
+	"Mordecai.Playtest.AgentBridge.State.PlayerAndEnemyFacingArrows",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_AgentBridge_State_PlayerAndEnemyFacingArrows::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiAgentBridgeStateTestHelpers;
+	FBridgeGameTestEnv Env;
+	if (!TestTrue("test world", Env.Setup(/*bWithGameState*/ false)))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	AMordecaiCharacter* Player = Env.World->SpawnActor<AMordecaiCharacter>(
+		AMordecaiCharacter::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+	AMordecaiEnemyCharacter* Enemy = Env.World->SpawnActor<AMordecaiEnemyCharacter>(
+		AMordecaiEnemyCharacter::StaticClass(), FVector(300.0, 0.0, 0.0), FRotator::ZeroRotator);
+	if (!TestNotNull("player spawned", Player) || !TestNotNull("enemy spawned", Enemy))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	auto CheckArrowJson = [this](const TCHAR* Label, const TSharedPtr<FJsonObject>& Arrow)
+	{
+		if (!TestNotNull(FString::Printf(TEXT("%s arrow state"), Label), Arrow.Get()))
+		{
+			return;
+		}
+		TestFalse(FString::Printf(TEXT("%s arrow is not hidden in game"), Label),
+			Arrow->GetBoolField(TEXT("hidden_in_game")));
+		TestFalse(FString::Printf(TEXT("%s owner is not hidden"), Label),
+			Arrow->GetBoolField(TEXT("owner_hidden")));
+		TestTrue(FString::Printf(TEXT("%s scene-proxy field is present"), Label),
+			Arrow->HasTypedField<EJson::Boolean>(TEXT("scene_proxy_present")));
+		TestTrue(FString::Printf(TEXT("%s recently-rendered field is present"), Label),
+			Arrow->HasTypedField<EJson::Boolean>(TEXT("was_recently_rendered")));
+		TestEqual(FString::Printf(TEXT("%s arrow length"), Label), Number(Arrow, TEXT("arrow_length")), 80.0);
+		TestEqual(FString::Printf(TEXT("%s arrow size"), Label), Number(Arrow, TEXT("arrow_size")), 1.5);
+		TestFalse(FString::Printf(TEXT("%s arrow is not owner-only"), Label),
+			Arrow->GetBoolField(TEXT("only_owner_see")));
+		TestFalse(FString::Printf(TEXT("%s arrow is not hidden from its owner"), Label),
+			Arrow->GetBoolField(TEXT("owner_no_see")));
+	};
+
+	FMordecaiAgentBridgeStateContext Context;
+	Context.World = Env.World;
+	Context.PlayerController = Env.PC;
+	Context.Pawn = Player;
+	const TSharedPtr<FJsonObject> PlayerState =
+		MordecaiAgentBridge::State::GatherSection(Context, TEXT("player"), 1500.0, false)->AsObject();
+	CheckArrowJson(TEXT("player"), ObjectAt(PlayerState, TEXT("facing_arrow")));
+
+	const FVector PlayerLocation = Player->GetActorLocation();
+	const TSharedRef<FJsonObject> EnemyState =
+		MordecaiAgentBridge::State::MakeActorEntry(Enemy, &PlayerLocation);
+	CheckArrowJson(TEXT("enemy"), ObjectAt(EnemyState, TEXT("facing_arrow")));
+
+	UArrowComponent* PlayerArrow = Player->GetFacingArrow();
+	UArrowComponent* EnemyArrow = Enemy->GetFacingArrow();
+	TestTrue("Spawned player arrow is registered", PlayerArrow && PlayerArrow->IsRegistered());
+	TestTrue("Spawned enemy arrow is registered", EnemyArrow && EnemyArrow->IsRegistered());
+	if (EnemyArrow)
+	{
+		Enemy->EnterDeathState();
+		const TSharedPtr<FJsonObject> DeadArrow =
+			ObjectAt(MordecaiAgentBridge::State::MakeActorEntry(Enemy, nullptr), TEXT("facing_arrow"));
+		TestFalse("A dead enemy does not hide its arrow", DeadArrow->GetBoolField(TEXT("hidden_in_game")));
+	}
+
+	Env.Teardown();
 	return true;
 }
 
