@@ -51,16 +51,19 @@ namespace
 	{
 		for (const FMordecaiHitResult& Result : Results)
 		{
+			const AActor* HitActor = Result.HitActor.Get();
+			if (!UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(HitActor))
+			{
+				continue;
+			}
+
 			FVector BoundsOrigin = Result.HitLocation;
 			FVector BoundsExtent = FVector::ZeroVector;
-			if (const AActor* HitActor = Result.HitActor.Get())
-			{
-				HitActor->GetActorBounds(
-					/*bOnlyCollidingComponents=*/true,
-					BoundsOrigin,
-					BoundsExtent,
-					/*bIncludeFromChildActors=*/false);
-			}
+			HitActor->GetActorBounds(
+				/*bOnlyCollidingComponents=*/true,
+				BoundsOrigin,
+				BoundsExtent,
+				/*bIncludeFromChildActors=*/false);
 			const FVector MarkerLocation =
 				UMordecaiHitDetectionSubsystem::BuildDebugHitMarkerLocation(
 					Result.HitLocation, BoundsOrigin, BoundsExtent, HitMarkerMargin);
@@ -82,6 +85,14 @@ namespace
 				SDPG_Foreground,
 				ShapeThickness);
 		}
+	}
+
+	bool HasValidDebugHitTarget(const TArray<FMordecaiHitResult>& Results)
+	{
+		return Results.ContainsByPredicate([](const FMordecaiHitResult& Result)
+		{
+			return UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(Result.HitActor.Get());
+		});
 	}
 #endif
 }
@@ -246,6 +257,13 @@ FVector UMordecaiHitDetectionSubsystem::BuildDebugHitMarkerLocation(
 		BoundsOrigin.Y,
 		FMath::Max(HitLocation.Z, BoundsOrigin.Z + FMath::Max(0.f, BoundsExtent.Z)) + Margin);
 }
+
+#if UE_ENABLE_DEBUG_DRAWING
+bool UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(const AActor* Target)
+{
+	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target) != nullptr;
+}
+#endif
 
 bool UMordecaiHitDetectionSubsystem::ShouldDrawMeleeHitShapes()
 {
@@ -585,7 +603,7 @@ TArray<FMordecaiHitResult> UMordecaiHitDetectionSubsystem::PerformMeleeHitDetect
 		{
 			const FMordecaiDebugArcGeometry Geometry = BuildDebugArcGeometry(
 				Origin, Forward, Shape.Radius, Shape.Angle, Shape.StartAngleOffset);
-			const FColor Color = Results.IsEmpty() ? FColor::Red : FColor::Green;
+			const FColor Color = HasValidDebugHitTarget(Results) ? FColor::Green : FColor::Red;
 			DrawDebugLine(
 				GetWorld(), Geometry.Origin, Geometry.StartEdge, Color, false,
 				DrawMeleeHitShapesDuration, 0, ShapeThickness);
@@ -617,7 +635,7 @@ TArray<FMordecaiHitResult> UMordecaiHitDetectionSubsystem::PerformMeleeHitDetect
 		{
 			const FMordecaiDebugCapsuleGeometry Geometry = BuildDebugCapsuleGeometry(
 				Origin, Forward, Shape.Length, Shape.Width);
-			const FColor Color = Results.IsEmpty() ? FColor::Red : FColor::Green;
+			const FColor Color = HasValidDebugHitTarget(Results) ? FColor::Green : FColor::Red;
 			const FVector Segment = Geometry.SegmentEnd - Geometry.SegmentStart;
 			const FVector Direction = Segment.GetSafeNormal(SMALL_NUMBER, FVector::UpVector);
 			const FVector Center = (Geometry.SegmentStart + Geometry.SegmentEnd) * 0.5f;
@@ -658,7 +676,7 @@ TArray<FMordecaiHitResult> UMordecaiHitDetectionSubsystem::PerformMeleeHitDetect
 		{
 			const FMordecaiDebugCircleGeometry Geometry = BuildDebugCircleGeometry(
 				Origin, Forward, Shape.Length, Shape.Radius);
-			const FColor Color = Results.IsEmpty() ? FColor::Red : FColor::Green;
+			const FColor Color = HasValidDebugHitTarget(Results) ? FColor::Green : FColor::Red;
 			DrawDebugCircle(
 				GetWorld(),
 				Geometry.Center,

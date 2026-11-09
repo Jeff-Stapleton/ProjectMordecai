@@ -164,6 +164,11 @@ public:
 		const FVector& BoundsExtent,
 		float Margin);
 
+#if UE_ENABLE_DEBUG_DRAWING
+	/** Mirrors melee damage's first gate: only actors with an ASC are valid debug-draw hits. */
+	static bool IsValidDebugHitTarget(const AActor* Target);
+#endif
+
 	/** Runtime CVar state; false in builds where debug drawing is compiled out. */
 	static bool ShouldDrawMeleeHitShapes();
 

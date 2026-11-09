@@ -4,9 +4,11 @@
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
+#include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
 #include "Mordecai/Weapons/MordecaiWeaponProfileFactory.h"
+#include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 
 // ---------------------------------------------------------------------------
@@ -511,6 +513,26 @@ bool FMordecaiHitDetection_DebugHitMarkerPosition::RunTest(const FString& Parame
 		FMath::IsNearlyEqual(Marker.Z, BoundsOrigin.Z + BoundsExtent.Z + Margin));
 	return true;
 }
+
+#if UE_ENABLE_DEBUG_DRAWING
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiHitDetection_DebugValidTargetRequiresASC,
+	"Mordecai.HitDetection.DebugDraw.ValidTargetRequiresAbilitySystemComponent",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiHitDetection_DebugValidTargetRequiresASC::RunTest(const FString& Parameters)
+{
+	const AActor* NonDamageableActor = GetDefault<AActor>();
+	const AMordecaiEnemyCharacter* DamageableActor = GetDefault<AMordecaiEnemyCharacter>();
+
+	TestFalse("A WorldDynamic actor without an ASC is not a valid green hit",
+		UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(NonDamageableActor));
+	TestTrue("An actor with an ASC is a valid green hit and marker target",
+		UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(DamageableActor));
+	TestFalse("A null result actor is not a valid green hit",
+		UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(nullptr));
+	return true;
+}
+#endif
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiHitDetection_DebugDrawCVarDefaults,
 	"Mordecai.HitDetection.DebugDraw.CVarsDefaultOnAndOneSecond",
