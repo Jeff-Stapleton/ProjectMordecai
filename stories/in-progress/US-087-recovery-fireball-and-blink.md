@@ -59,7 +59,7 @@ AC ownership or make the remaining story EDITOR-mode. Existing gameplay, spell a
   That supports enemy interference, but no collision-event trace attributes the disappearance and it does not
   prove native-pickup collision. Diagnostic `20261108-010100-us087-pickup-lane-diagnostic-300` crossed the pickup
   but still failed the enemy-free guard. Neither is acceptance evidence. N11 has no `known_issue` to remove.
-- Script bookkeeping: `fireball_projectile` and `fireball_hits_enemy` were NEW (no `known_issue`) and remain shared regression cross-checks only. `fireball_hits_enemy`'s `does` text says "pre-cast value (200)"; it compares with the pre-cast reading, keep it that way. Future Blink AC-087.8/.9 coverage must use a separate US-087 owner script or be explicitly consolidated into `us087_fireball.py`; adding US-087 to `us057_magic.py` `COVERS` would be shadowed by the dedicated owner and is not acceptance.
+- Script bookkeeping: `fireball_projectile` and `fireball_hits_enemy` were NEW (no `known_issue`) and remain shared regression cross-checks only. `fireball_hits_enemy`'s `does` text says "pre-cast value (200)"; it compares with the pre-cast reading, keep it that way. `Scripts/playtests/us087_blink.py` is the present dedicated owner of AC-087.8/.9; adding US-087 to `us057_magic.py` `COVERS` would be shadowed by that dedicated owner and is not acceptance.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
 ## Tests Required
@@ -178,9 +178,11 @@ AC ownership or make the remaining story EDITOR-mode. Existing gameplay, spell a
   788/788 PASS; Python 612/612 PASS; US-087 and US-057 lints PASS; content guard PASS; default PIE 16/16
   PASS; PickupProjectileTestMap PIE 3/3 PASS. Package, Tier 3, Tier 4, comparison sweep and screenshots were
   not run in this bounded R1 phase. AC-087.6/.8/.9 remain unchecked pending the fresh package and real-input run.
-- The implementation commit is intentionally made before that future package. Unless story closure strictly
-  requires a stories-only closing commit (and therefore a new package under the repository rule), the eventual
-  package/input evidence belongs in the PR body without another post-package commit.
+- The implementation commit is intentionally made before the first fresh package. After that package and its
+  input runs pass, the tracked AC ticks, N20 FIXED status, completion notes, and required story closing commit
+  are added; the coordinator's freshness policy then requires a final exact-HEAD repackage. `CLAUDE.md` Step 6
+  by itself exempts a stories-only closing commit from repackage, but that exemption does not override this
+  recovery's coordinator-directed final-package policy.
 
 ### Issue #25 / N20 Blink local GREEN (2026-11-08; package evidence pending)
 
