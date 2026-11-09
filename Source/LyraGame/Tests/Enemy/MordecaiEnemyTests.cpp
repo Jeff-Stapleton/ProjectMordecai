@@ -7,6 +7,7 @@
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
+#include "Components/ArrowComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // ---------------------------------------------------------------------------
@@ -377,6 +378,68 @@ bool FMordecai_Enemy_DeadEnemyRejectsDamage::RunTest(const FString& Parameters)
 
 	// Health attribute clamping ensures further damage to a dead enemy (Health=0)
 	// stays at 0. The OnHealthChanged handler checks !IsDead() before re-triggering.
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// Issue #17: every enemy has the same owner-agnostic, zero-gameplay-cost facing arrow as the player.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Enemy_FacingArrow,
+	"Mordecai.Enemy.FacingArrowVisibleToAllPlayers",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Enemy_FacingArrow::RunTest(const FString& Parameters)
+{
+	auto FindFacingArrow = [](const AActor* Actor) -> UArrowComponent*
+	{
+		TInlineComponentArray<UArrowComponent*> Arrows(Actor);
+		for (UArrowComponent* Arrow : Arrows)
+		{
+			if (Arrow && Arrow->GetFName() == TEXT("FacingArrow"))
+			{
+				return Arrow;
+			}
+		}
+		return nullptr;
+	};
+
+	const AMordecaiEnemyCharacter* CDO = GetDefault<AMordecaiEnemyCharacter>();
+	TestNotNull("Enemy CDO exists", CDO);
+
+	UArrowComponent* Arrow = CDO ? FindFacingArrow(CDO) : nullptr;
+	TestNotNull("Enemy has a facing arrow", Arrow);
+	if (!Arrow)
+	{
+		return true;
+	}
+
+	TestTrue("FacingArrow is attached to the enemy root", Arrow->GetAttachParent() == CDO->GetRootComponent());
+	TestTrue("FacingArrow stays at root-relative Z +50",
+		Arrow->GetRelativeLocation().Equals(FVector(0.0f, 0.0f, 50.0f)));
+	TestTrue("FacingArrow points along the enemy forward axis", Arrow->GetRelativeRotation().IsNearlyZero());
+	TestEqual("FacingArrow is green", Arrow->ArrowColor, FColor::Green);
+	TestEqual("FacingArrow size matches the player", Arrow->ArrowSize, 1.5f);
+	TestEqual("FacingArrow keeps the engine's 80 cm length", Arrow->ArrowLength, 80.0f);
+	TestFalse("FacingArrow is not hidden in game", Arrow->bHiddenInGame);
+	TestTrue("FacingArrow component visibility is enabled", Arrow->IsVisible());
+	TestFalse("FacingArrow is not owner-only", Arrow->bOnlyOwnerSee);
+	TestFalse("FacingArrow is not hidden from its owner", Arrow->bOwnerNoSee);
+	TestEqual("FacingArrow has no collision", Arrow->GetCollisionEnabled(), ECollisionEnabled::NoCollision);
+	TestFalse("FacingArrow generates no overlaps", Arrow->GetGenerateOverlapEvents());
+	TestFalse("FacingArrow cannot affect navigation", Arrow->CanEverAffectNavigation());
+	TestFalse("FacingArrow never ticks", Arrow->PrimaryComponentTick.bCanEverTick);
+	TestFalse("FacingArrow does not replicate", Arrow->GetIsReplicated());
+
+	AMordecaiEnemyCharacter* Instance = NewObject<AMordecaiEnemyCharacter>();
+	UArrowComponent* InstanceArrow = Instance ? FindFacingArrow(Instance) : nullptr;
+	TestNotNull("An enemy instance has the facing arrow", InstanceArrow);
+	if (Instance && InstanceArrow)
+	{
+		Instance->EnterDeathState();
+		TestTrue("The arrow stays visible on a dead enemy", InstanceArrow->IsVisible());
+		TestFalse("The arrow stays unhidden on a dead enemy", InstanceArrow->bHiddenInGame);
+	}
 
 	return true;
 }

@@ -135,6 +135,8 @@ GAMEPAD_MOVE = {"Gamepad_LeftY": 1.0}       # stick up = screen up = +X
 GAMEPAD_HOLD_S = 0.5
 GAMEPAD_MIN = 100.0
 GAMEPAD_TIMEOUT_S = 1.0
+ARROW_LENGTH = 80.0
+ARROW_SIZE = 1.5
 
 KI_FACING = ("Known issue: facing and aim are pinned to +X by the diorama camera "
              "(Specs/agent_playtest_plan_v1.md)")
@@ -179,8 +181,9 @@ PLAN = (
          f"{PAWN_NATIVE_CLASS}", proves=("AC-2.3.3",)),
     Step("imc_active", f"state input -> {lit(RUNTIME_IMC)} in input.mapping_contexts",
          proves=("AC-1.3.2",)),
-    Step("facing_arrow", "state player.facing_arrow -> hidden_in_game=false, visible=true, "
-         "registered=true, owner visibility unrestricted, and world forward aligned with the "
+    Step("facing_arrow", "state player.facing_arrow -> hidden_in_game=false, owner hidden=false, "
+         "registered with a scene proxy, recently rendered, owner visibility unrestricted, "
+         f"length={ARROW_LENGTH:g}, size={ARROW_SIZE:g}, and world forward aligned with the "
          "pawn forward vector", proves=("AC-2.1.5",)),
     *[Step(check, f"hold {key} {MOVE_HOLD_S:g}s -> player.location moves > {MOVE_MIN:g} cm "
            f"along {d}, < {CROSS_MAX:g} cm across", proves=("AC-2.1.1", "AC-1.3.2"))
@@ -358,10 +361,16 @@ class Us001Run(kit.PlaytestRun):
             arrow = _section(st, "player").get("facing_arrow")
             return (isinstance(arrow, dict)
                     and arrow.get("hidden_in_game") is False
-                    and arrow.get("visible") is True
+                    and arrow.get("owner_hidden") is False
                     and arrow.get("registered") is True
+                    and arrow.get("scene_proxy_present") is True
+                    and arrow.get("was_recently_rendered") is True
                     and arrow.get("only_owner_see") is False
                     and arrow.get("owner_no_see") is False
+                    and isinstance(arrow.get("arrow_length"), (int, float))
+                    and isinstance(arrow.get("arrow_size"), (int, float))
+                    and math.isclose(arrow.get("arrow_length", -1), ARROW_LENGTH, abs_tol=0.01)
+                    and math.isclose(arrow.get("arrow_size", -1), ARROW_SIZE, abs_tol=0.01)
                     and isinstance(arrow.get("forward_alignment"), (int, float))
                     and arrow["forward_alignment"] > 0.999)
 
@@ -370,11 +379,15 @@ class Us001Run(kit.PlaytestRun):
             if not isinstance(arrow, dict):
                 return f"player.facing_arrow is {arrow!r} (runtime arrow state is missing)"
             return ("player.facing_arrow hidden_in_game="
-                    f"{arrow.get('hidden_in_game')} visible={arrow.get('visible')} "
-                    f"registered={arrow.get('registered')} only_owner_see="
+                    f"{arrow.get('hidden_in_game')} owner_hidden={arrow.get('owner_hidden')} "
+                    f"registered={arrow.get('registered')} scene_proxy_present="
+                    f"{arrow.get('scene_proxy_present')} was_recently_rendered="
+                    f"{arrow.get('was_recently_rendered')} only_owner_see="
                     f"{arrow.get('only_owner_see')} owner_no_see={arrow.get('owner_no_see')} "
+                    f"arrow_length={arrow.get('arrow_length')} arrow_size={arrow.get('arrow_size')} "
                     f"forward={arrow.get('forward')} pawn_forward={arrow.get('pawn_forward')} "
-                    f"alignment={arrow.get('forward_alignment')} (need > 0.999)")
+                    f"alignment={arrow.get('forward_alignment')} (need rendered=true, "
+                    f"length={ARROW_LENGTH:g}, size={ARROW_SIZE:g}, alignment > 0.999)")
 
         self.observe("facing_arrow", ["player"], arrow_ok, arrow_text, timeout_s=3)
         self.shot("start")

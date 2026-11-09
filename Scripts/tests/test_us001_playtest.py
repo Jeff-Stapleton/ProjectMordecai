@@ -67,6 +67,8 @@ class UnboundWorld(fb.FakeWorld):
         if out.get("valid"):
             out["facing_arrow"] = {
                 "hidden_in_game": False, "visible": True, "registered": True,
+                "owner_hidden": False, "scene_proxy_present": True,
+                "was_recently_rendered": True, "arrow_length": 80.0, "arrow_size": 1.5,
                 "only_owner_see": False, "owner_no_see": False,
                 "forward": [1.0, 0.0, 0.0], "pawn_forward": [1.0, 0.0, 0.0],
                 "forward_alignment": 1.0,
@@ -186,7 +188,18 @@ class HiddenArrowWorld(HudWorld):
 
     def _s_player(self):
         out = super()._s_player()
-        out["facing_arrow"].update({"hidden_in_game": True, "visible": False})
+        out["facing_arrow"].update({
+            "hidden_in_game": True, "visible": False, "was_recently_rendered": False,
+        })
+        return out
+
+
+class NotRenderedArrowWorld(HudWorld):
+    """The flags look right but the component did not draw a frame."""
+
+    def _s_player(self):
+        out = super()._s_player()
+        out["facing_arrow"]["was_recently_rendered"] = False
         return out
 
 
@@ -456,6 +469,15 @@ class TestUs001Failures(PlaytestCase):
         check = self.by_name(rep)["facing_arrow"]
         self.assertEqual(check["status"], "FAIL")
         self.assertIn("hidden_in_game=True", check["detail"])
+        self.assertIn("facing_arrow", rep["new_failures"])
+
+    def test_an_arrow_that_never_rendered_fails_n12_check(self):
+        _, server = self.serve(NotRenderedArrowWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["facing_arrow"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("was_recently_rendered=False", check["detail"])
         self.assertIn("facing_arrow", rep["new_failures"])
 
     def test_the_shared_fake_has_no_bars_so_the_hud_check_fails_new(self):

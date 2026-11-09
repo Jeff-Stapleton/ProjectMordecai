@@ -24,6 +24,17 @@ issue092 = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(issue092)
 
 
+class MissingEnemyArrowWorld(CombatWorld):
+    """Pre-issue-17 enemies: actors state has no facing-arrow component."""
+
+    def _actors(self, radius, include_all):
+        actors = super()._actors(radius, include_all)
+        for actor in actors:
+            if actor.get("kind") == "enemy":
+                actor.pop("facing_arrow", None)
+        return actors
+
+
 class TestIssue092Declarations(unittest.TestCase):
     def test_uses_issue_identifier_and_both_launch_modes(self):
         self.assertEqual(issue092.Issue092Run.STORY, "ISSUE-92")
@@ -48,6 +59,10 @@ class TestIssue092Declarations(unittest.TestCase):
         off_acs = {ac for step in off_plan for ac in step.proves}
         self.assertEqual(default_acs, {"AC-1", "AC-4", "AC-5", "AC-8"})
         self.assertEqual(off_acs, {"AC-2", "AC-8"})
+        self.assertTrue(any(step.check == "enemy_facing_arrows" for step in default_plan))
+        self.assertIn("green player and TestDummy facing arrows",
+                      issue092.SCREENSHOTS["hit"])
+        self.assertIn("no melee debug overlay", issue092.SCREENSHOTS["enemy"])
 
     def test_plan_prints_without_claiming_us092(self):
         with mock.patch("sys.stdout") as out:
@@ -59,10 +74,10 @@ class TestIssue092Declarations(unittest.TestCase):
 
 
 class TestIssue092AgainstFake(unittest.TestCase):
-    def play_attached(self, *, draw_off=False, **world_kwargs):
+    def play_attached(self, *, draw_off=False, world_class=CombatWorld, **world_kwargs):
         temp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.addCleanup(temp.cleanup)
-        world = CombatWorld(windup_s=0.05, attack_s=0.15, cooldown_s=0.15,
+        world = world_class(windup_s=0.05, attack_s=0.15, cooldown_s=0.15,
                             **world_kwargs)
         server = fb.FakeBridgeServer(world, token="issue092-token", shot_dir=temp.name).start()
         self.addCleanup(server.stop)
@@ -144,7 +159,8 @@ class TestIssue092AgainstFake(unittest.TestCase):
         self.assertEqual(checks["draw_configuration"]["status"], "SKIP")
         self.assertIn("this harness did not launch the game",
                       checks["draw_configuration"]["detail"])
-        for name in ("empty_space_swing", "player_hits_dummy", "enemy_hits_player"):
+        for name in ("empty_space_swing", "player_hits_dummy", "enemy_facing_arrows",
+                     "enemy_hits_player"):
             self.assertEqual(checks[name]["status"], "PASS", checks[name]["detail"])
         self.assertTrue(any("--draw-off has no effect" in str(call.args[0])
                             for call in log.call_args_list))
@@ -160,6 +176,14 @@ class TestIssue092AgainstFake(unittest.TestCase):
         check = self.checks(report)["empty_space_swing"]
         self.assertEqual(check["status"], "FAIL")
         self.assertIn("Mordecai.State.Attacking", check["detail"])
+
+    def test_pre_issue17_enemies_fail_the_packaged_arrow_check(self):
+        code, report, _ = self.play_attached(world_class=MissingEnemyArrowWorld)
+        self.assertEqual(code, 1)
+        check = self.checks(report)["enemy_facing_arrows"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("TestDummy: facing_arrow=None", check["detail"])
+        self.assertIn("TestAttacker: facing_arrow=None", check["detail"])
 
 
 if __name__ == "__main__":

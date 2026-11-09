@@ -48,12 +48,17 @@ APPLIED_CVAR_RE = re.compile(
 
 SCREENSHOTS = {
     "miss": "at the CombatTestMap PlayerStart immediately after an empty-space light swing; "
-            "default-on run: a red 200 cm / 120 degree Longsword fan; CVar=0 run: no overlay",
+            "the player's green facing arrow remains visible; default-on run: a red 200 cm / "
+            "120 degree Longsword fan; CVar=0 run: no melee debug overlay",
     "hit": "beside TestDummy immediately after a damaging light swing; default-on run: a green "
-           "Longsword fan and a small green dummy marker; CVar=0 run: no overlay",
+           "Longsword fan and a small green dummy marker; CVar=0 run: no melee debug overlay; "
+           "the green player and TestDummy facing arrows remain visible in both modes",
     "enemy": "beside TestAttacker immediately after its melee hit; default-on run: its melee "
-             "shape and player hit marker; CVar=0 run: no overlay",
+             "shape and player hit marker; CVar=0 run: no melee debug overlay; the green player "
+             "and TestAttacker facing arrows remain visible in both modes",
 }
+ARROW_LENGTH = 80.0
+ARROW_SIZE = 1.5
 
 def plan_for_mode(draw_off):
     """Only declare ACs this launch mode can exercise; visuals stay WARN pending human review."""
@@ -86,6 +91,10 @@ def plan_for_mode(draw_off):
              f"{visual_expectation}", proves=visual_proves["visual_player_hit_overlay"]),
         Step("walk_to_attacker", f"walk_to{ATTACKER_SPOT} -> within {SPOT_TOL:g} cm of "
              "TestAttacker"),
+        Step("enemy_facing_arrows", "state actors -> TestDummy and TestAttacker each have a "
+             "registered, owner-unrestricted green facing arrow with a scene proxy that was "
+             f"recently rendered, length={ARROW_LENGTH:g}, size={ARROW_SIZE:g}, and forward "
+             "aligned with its pawn"),
         Step("enemy_hits_player", f"stand through an enemy swing -> player health decreases "
              f"within {ENEMY_TIMEOUT_S:g}s"),
         Step("visual_enemy_overlay", f"review screenshot_enemy for {visual_expectation}",
@@ -127,6 +136,29 @@ def _health(actor):
     return _num(health.get("current")) if isinstance(health, dict) else None
 
 
+def _arrow_ok(arrow):
+    return (isinstance(arrow, dict)
+            and arrow.get("hidden_in_game") is False
+            and arrow.get("owner_hidden") is False
+            and arrow.get("registered") is True
+            and arrow.get("scene_proxy_present") is True
+            and arrow.get("was_recently_rendered") is True
+            and arrow.get("only_owner_see") is False
+            and arrow.get("owner_no_see") is False
+            and _num(arrow.get("arrow_length")) == ARROW_LENGTH
+            and _num(arrow.get("arrow_size")) == ARROW_SIZE
+            and (_num(arrow.get("forward_alignment")) or -1.0) > 0.999)
+
+
+def _arrow_summary(label, arrow):
+    if not isinstance(arrow, dict):
+        return f"{label}: facing_arrow={arrow!r}"
+    keys = ("hidden_in_game", "owner_hidden", "registered", "scene_proxy_present",
+            "was_recently_rendered", "only_owner_see", "owner_no_see", "arrow_length",
+            "arrow_size", "forward_alignment")
+    return f"{label}: " + " ".join(f"{key}={arrow.get(key)!r}" for key in keys)
+
+
 def build_exec_arg(draw_off):
     """A single UE token: quote only ExecCmds' value so FParse still sees -ExecCmds=."""
     commands = f"{CVAR} 0,{CVAR}" if draw_off else CVAR
@@ -151,6 +183,10 @@ class Issue092Run(kit.PlaytestRun):
     SCREENSHOTS = SCREENSHOTS
     PLAN = PLAN
     SCRIPT = os.path.abspath(__file__)
+
+    def __init__(self, args):
+        super().__init__(args)
+        self.enemy_arrow_samples = {}
 
     def steps(self):
         configured = self.step_configuration()
@@ -188,10 +224,17 @@ class Issue092Run(kit.PlaytestRun):
         if not needs:
             return self.skip(check, needs_why or "not run: screenshot was not captured",
                              "gameplay")
-        mode = "absence of every melee debug shape" if self.args.draw_off else \
-            "the expected colored melee shape and visible hit marker"
+        mode = ("absence of every melee debug shape while green player/enemy facing arrows "
+                "remain visible") if self.args.draw_off else \
+            "the expected colored melee shape/hit marker and green player/enemy facing arrows"
         self.check(check, "WARN", f"requires screenshot review: open screenshot_{label} and "
                    f"confirm {mode}; not auto-accepted from gameplay state", "gameplay")
+
+    def sample_enemy_arrow(self, label):
+        actor = _target(self.bridge.state(["actors"], radius=ACTOR_RADIUS), label)
+        arrow = actor.get("facing_arrow") if isinstance(actor, dict) else None
+        self.enemy_arrow_samples[label] = arrow
+        return arrow
 
     def step_miss(self):
         def swing(bridge):
@@ -229,6 +272,8 @@ class Issue092Run(kit.PlaytestRun):
 
     def step_hit(self):
         walked, _ = self.walk("walk_to_dummy", *DUMMY_SPOT, tol=SPOT_TOL)
+        if walked:
+            self.sample_enemy_arrow(DUMMY)
 
         def hit(bridge):
             before = bridge.state(["actors"], radius=ACTOR_RADIUS)
@@ -257,6 +302,18 @@ class Issue092Run(kit.PlaytestRun):
 
     def step_enemy(self):
         walked, _ = self.walk("walk_to_attacker", *ATTACKER_SPOT, tol=SPOT_TOL)
+        if walked:
+            self.sample_enemy_arrow(ATTACKER)
+
+        def arrows():
+            details = [_arrow_summary(label, self.enemy_arrow_samples.get(label))
+                       for label in (DUMMY, ATTACKER)]
+            ok = all(_arrow_ok(self.enemy_arrow_samples.get(label))
+                     for label in (DUMMY, ATTACKER))
+            return ("PASS" if ok else "FAIL"), "; ".join(details), self.enemy_arrow_samples
+
+        self.attempt("enemy_facing_arrows", arrows, needs=walked,
+                     needs_why="not run: TestAttacker was not reached")
 
         def hit(bridge):
             before = _player(bridge.state(["player"]))
