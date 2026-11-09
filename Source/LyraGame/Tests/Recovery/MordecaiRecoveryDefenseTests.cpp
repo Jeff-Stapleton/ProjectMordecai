@@ -54,12 +54,12 @@ namespace MordecaiRecoveryDefenseTest
 		return Profile;
 	}
 
-	/** Blink as DA_Spell_Blink times it (invulnerability 0.3 s outlasts the 0.2 s recovery), free, and without the teleport. */
+	/** Blink as DA_Spell_Blink times it (invulnerability 0.3 s outlasts the 0.2 s recovery), with no SP cost. */
 	inline UMordecaiSpellDataAsset* MakeBlinkData()
 	{
 		UMordecaiSpellDataAsset* Data = NewObject<UMordecaiSpellDataAsset>();
 		Data->SpellId = FName(TEXT("Blink"));
-		Data->Range = 0.f;
+		Data->Range = 500.f;
 		Data->BuffDuration = 0.3f;
 		Data->DeliveryType = EMordecaiSpellDeliveryType::DashMovement;
 		Data->TargetingType = EMordecaiSpellTargetingType::Dash;
@@ -669,6 +669,9 @@ bool FMordecai_Recovery_Defense_BlinkInvulnerabilityNegatesEnemyHit::RunTest(con
 	{
 		return true;
 	}
+	Enemy->SetActorLocation(
+		Env.Player->GetActorLocation() - FVector(100.f, 0.f, 0.f),
+		false, nullptr, ETeleportType::TeleportPhysics);
 	if (!TestTrue("the swing lands during the invulnerability", Env.LandSwing(Enemy)))
 	{
 		return true;

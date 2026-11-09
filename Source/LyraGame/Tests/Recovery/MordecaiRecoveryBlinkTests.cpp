@@ -13,6 +13,7 @@
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/Magic/MordecaiGA_Blink.h"
 #include "Mordecai/Magic/MordecaiSpellDataAsset.h"
+#include "Mordecai/MordecaiGameplayTags.h"
 
 namespace MordecaiRecoveryBlinkTest
 {
@@ -57,6 +58,40 @@ namespace MordecaiRecoveryBlinkTest
 		return Enemy;
 	}
 
+	AMordecaiEnemyCharacter* SpawnEndpointPawn(FRecoveryTestEnv& Env, const FVector& Location)
+	{
+		AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(Location, {});
+		if (Enemy && Enemy->GetCapsuleComponent())
+		{
+			// Isolate endpoint resolution: this Pawn cannot stop the path trace, but its real capsule still blocks Pawn.
+			Enemy->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Ignore);
+		}
+		return Enemy;
+	}
+
+	struct FSpellCastEventCounter
+	{
+		int32 Count = 0;
+		FDelegateHandle Handle;
+		UAbilitySystemComponent* ASC = nullptr;
+
+		void Start(UAbilitySystemComponent* InASC)
+		{
+			ASC = InASC;
+			Handle = ASC->GenericGameplayEventCallbacks.FindOrAdd(MordecaiGameplayTags::Event_SpellCast)
+				.AddLambda([this](const FGameplayEventData*) { ++Count; });
+		}
+
+		void Stop()
+		{
+			if (ASC)
+			{
+				ASC->GenericGameplayEventCallbacks.FindOrAdd(MordecaiGameplayTags::Event_SpellCast).Remove(Handle);
+			}
+			ASC = nullptr;
+		}
+	};
+
 	bool SetupBlink(FRecoveryTestEnv& Env)
 	{
 		if (!Env.Setup(FVector(0.f, 0.f, PlayerZ)))
@@ -82,6 +117,8 @@ namespace MordecaiRecoveryBlinkTest
 		Data->WindupTime = 0.f;
 		Data->CastTime = 0.f;
 		Data->RecoveryTime = 0.2f;
+		Data->CooldownDuration = 1.f;
+		Data->CooldownTag = MordecaiGameplayTags::Ability_Spell_Blink;
 		return ASC->GiveAbility(
 			FGameplayAbilitySpec(UMordecaiGA_Blink::StaticClass(), 1, INDEX_NONE, Data));
 	}
@@ -142,11 +179,20 @@ bool FMordecai_Recovery_Blink_NoMoveNoCost::RunTest(const FString& Parameters)
 
 	const FVector Origin = Env.Player->GetActorLocation();
 	const FGameplayAbilitySpecHandle Blink = GrantBlink(Env);
+	FSpellCastEventCounter CastEvents;
+	CastEvents.Start(Env.GetPlayerASC());
+	ON_SCOPE_EXIT { CastEvents.Stop(); };
 	TestTrue("real Blink activation is attempted", Env.GetPlayerASC()->TryActivateAbility(Blink));
 	const FVector Delta = Env.Player->GetActorLocation() - Origin;
 
 	TestTrue("wall buffer leaves numerically zero movement", Delta.IsNearlyZero(UE_KINDA_SMALL_NUMBER));
+	TestEqual("zero-movement Blink leaves the character in place", Env.Player->GetActorLocation(), Origin);
 	TestEqual("zero-movement Blink does not spend SP", SpellPoints(Env), InitialSP);
+	TestEqual("zero-movement Blink does not broadcast its cast event", CastEvents.Count, 0);
+	TestFalse("zero-movement Blink does not start cooldown",
+		Env.GetPlayerASC()->HasMatchingGameplayTag(MordecaiGameplayTags::Ability_Spell_Blink));
+	TestFalse("zero-movement Blink does not grant invulnerability",
+		Env.GetPlayerASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Invulnerable));
 	return true;
 }
 
@@ -160,8 +206,8 @@ bool FMordecai_Recovery_Blink_DestinationPawnAdjustedToFreeSpot::RunTest(const F
 	FRecoveryTestEnv Env;
 	ON_SCOPE_EXIT { Env.Teardown(); };
 	if (!TestTrue("real player, ASC and touching floor set up", SetupBlink(Env))
-		|| !TestNotNull("path Pawn spawned", SpawnTraceBlockingPawn(Env, FVector(90.f, 0.f, EnemyZ)))
-		|| !TestNotNull("destination Pawn spawned", SpawnTraceBlockingPawn(Env, FVector(BlinkRange, 0.f, EnemyZ))))
+		|| !TestNotNull("path-nonblocking destination Pawn spawned",
+			SpawnEndpointPawn(Env, FVector(BlinkRange, 0.f, EnemyZ))))
 	{
 		return true;
 	}
@@ -172,7 +218,7 @@ bool FMordecai_Recovery_Blink_DestinationPawnAdjustedToFreeSpot::RunTest(const F
 	const FVector Destination = Env.Player->GetActorLocation();
 	const float Moved = Destination.X - Origin.X;
 
-	TestTrue("path Pawn is ignored and Blink still moves >300 cm", Moved > 300.f);
+	TestTrue("endpoint-only fixture still moves >300 cm", Moved > 300.f);
 	TestTrue("occupied exact endpoint is adjusted back", Moved < BlinkRange - UE_KINDA_SMALL_NUMBER);
 	TestFalse("actual character capsule is free at the adjusted destination",
 		Env.World->EncroachingBlockingGeometry(Env.Player, Destination, Env.Player->GetActorRotation()));

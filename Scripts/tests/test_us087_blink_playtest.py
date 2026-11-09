@@ -156,7 +156,7 @@ class TestUs087BlinkOutcomes(PlaytestCase):
                 checks = self.checks(report)
                 self.assertEqual(code, 1)
                 self.assertEqual(checks["blink_past_enemy"]["status"], "FAIL")
-                self.assertIn("blink_past_enemy", report["known_failures"])
+                self.assertIn("blink_past_enemy", report["new_failures"])
                 self.assertEqual(checks["blink_integrity"]["status"], "PASS")
                 self.assertEqual(checks["blink_invulnerability_ends"]["status"], "PASS")
 
@@ -214,10 +214,10 @@ class TestUs087BlinkIntegrity(PlaytestCase):
                 self.assertIn(text, checks["blink_integrity"]["detail"])
                 self.assertEqual(checks["blink_past_enemy"]["status"], "FAIL")
 
-    def test_plan_has_only_named_n20_marker(self):
+    def test_plan_has_no_issue25_marker_after_local_green(self):
         self.assertEqual(kit.plan_problems(us087.Run), [])
         marked = [step.check for step in us087.PLAN if step.known_issue]
-        self.assertEqual(marked, ["blink_past_enemy"])
+        self.assertEqual(marked, [])
         output = io.StringIO()
         previous = kit.set_log_stream(output)
         try:

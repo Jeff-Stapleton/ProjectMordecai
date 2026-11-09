@@ -48,7 +48,6 @@ MAX_Y_MOVEMENT = 35.0
 MAX_Z_MOVEMENT = 10.0
 INVULN_TAG = "Mordecai.State.Invulnerable"
 STONE_SKIN_TAG = "Mordecai.Status.StoneSkin"
-KNOWN_N20 = "N20 / issue #25: Blink spends SP but does not move when a Pawn is about 1 m ahead"
 
 SCREENSHOTS = {
     "pre_blink": "CombatTestMap immediately before E: the live full-health passive TestDummy is "
@@ -66,7 +65,7 @@ PLAN = (
     Step("blink_past_enemy", f"press E through Slate and release it in finally; continuously sample "
          f"the retained player/target -> SP {SP_BEFORE:g}->{SP_BEFORE - SP_COST:g} and player +X "
          f"movement > {MIN_X_MOVEMENT:g} cm within {MOVE_WINDOW_S:g}s with low Y/Z drift",
-         proves=("AC-087.8",), known_issue=KNOWN_N20),
+         proves=("AC-087.8",)),
     Step("blink_integrity", "through the full timed audit the exact player stays live, the exact "
          "passive target is not replaced/moved/damaged/killed, and Stone Skin never appears",
          proves=("AC-087.8",)),
