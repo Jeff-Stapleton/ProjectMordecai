@@ -32,7 +32,7 @@ STORY_FILE = os.path.join(os.path.dirname(SCRIPTS), "stories", "done",
 TOKEN = "us001-token"
 INPUT_AND_READ_CMDS = {"ping", "state", "key", "axis", "mouse", "click", "screenshot",
                        "wait_until", "wait", "quit"}
-KNOWN_FAILS = ["sprint_l3", "facing_mouse", "facing_stick", "gamepad_move"]
+KNOWN_FAILS = ["facing_arrow", "sprint_l3", "facing_mouse", "facing_stick", "gamepad_move"]
 FIXED_BY_US083 = ["sprint_shift", "jump_space"]
 
 
@@ -60,6 +60,17 @@ class UnboundWorld(fb.FakeWorld):
                     "MordecaiPostureBarWidget", "MordecaiSpellPointsBarWidget"):
             out.append({"class": cls, "name": cls + "_0", "rect": [20, 20, 300, 24],
                         "texts": [], "buttons": []})
+        return out
+
+    def _s_player(self):
+        out = super()._s_player()
+        if out.get("valid"):
+            out["facing_arrow"] = {
+                "hidden_in_game": True, "visible": False, "registered": True,
+                "only_owner_see": False, "owner_no_see": False,
+                "forward": [1.0, 0.0, 0.0], "pawn_forward": [1.0, 0.0, 0.0],
+                "forward_alignment": 1.0,
+            }
         return out
 
 
@@ -143,6 +154,12 @@ class FixedWorld(HudWorld):
         out = super()._s_player()
         if out.get("valid"):
             out["rotation"] = [0.0, round(self.yaw, 2), 0.0]
+            radians = math.radians(self.yaw)
+            forward = [round(math.cos(radians), 4), round(math.sin(radians), 4), 0.0]
+            out["facing_arrow"].update({
+                "hidden_in_game": False, "visible": True,
+                "forward": forward, "pawn_forward": forward, "forward_alignment": 1.0,
+            })
         return out
 
 
@@ -153,6 +170,15 @@ class MouseTurnsCameraWorld(HudWorld):
         with self.lock:
             super().move_cursor(x, y)
             self.control_yaw = (x - fb.VIEWPORT_W / 2.0) / 10.0
+
+
+class MissingArrowStateWorld(HudWorld):
+    """An old package whose bridge predates player.facing_arrow state."""
+
+    def _s_player(self):
+        out = super()._s_player()
+        out.pop("facing_arrow", None)
+        return out
 
 
 class NoBrakeWorld(HudWorld):
@@ -266,6 +292,7 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertFalse(world.sprinting, "the sprint was toggled back")
         # What the details say about each known failure.
         self.assertIn("need > 700", checks["sprint_l3"]["detail"])
+        self.assertIn("hidden_in_game=True", checks["facing_arrow"]["detail"])
         self.assertIn("yaw stayed 0", checks["facing_mouse"]["detail"])
         self.assertIn("yaw stayed 0", checks["facing_stick"]["detail"])
         self.assertIn("dx 0 cm", checks["gamepad_move"]["detail"])
@@ -300,7 +327,8 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertEqual(acs["AC-2.1.4"]["status"], "PASS")
         self.assertEqual(acs["AC-1.2.1"]["status"], "PENDING")
         self.assertIn("no camera transform", acs["AC-1.2.1"]["pending"])
-        self.assertEqual(acs["AC-2.1.5"]["status"], "PENDING")
+        self.assertEqual(acs["AC-2.1.5"]["status"], "FAIL")
+        self.assertEqual(acs["AC-2.1.5"]["known_issue"], us001.KI_ARROW)
         self.assertFalse([a for a in rep["acs"] if a["accepted"]],
                          "an attached run never accepts an AC")
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
@@ -404,6 +432,15 @@ class TestUs001FixedGame(PlaytestCase):
 
 
 class TestUs001Failures(PlaytestCase):
+    def test_missing_runtime_arrow_state_fails_n12_check(self):
+        _, server = self.serve(MissingArrowStateWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["facing_arrow"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("runtime arrow state is missing", check["detail"])
+        self.assertIn("facing_arrow", rep["known_failures"])
+
     def test_the_shared_fake_has_no_bars_so_the_hud_check_fails_new(self):
         _, server = self.serve(fb.FakeWorld)
         code, rep = self.play(server)
@@ -499,10 +536,12 @@ class TestUs001Failures(PlaytestCase):
     def test_a_lost_connection_is_infra_and_skips_the_rest(self):
         _, server = self.serve(faults=fb.Faults(drop_on_cmd="mouse"))
         code, rep = self.play(server)
-        self.assertEqual(code, 2)
+        # The earlier expected N12 gameplay failure takes exit-code precedence over infra.
+        self.assertEqual(code, 1, self.log.getvalue()[-5000:])
         checks = self.by_name(rep)
         self.assertEqual(checks["no_camera_rotation_input"]["status"], "FAIL")
         self.assertEqual(checks["no_camera_rotation_input"]["kind"], "infra")
+        self.assertEqual(checks["no_crash"]["kind"], "infra")
         for name in ("walk_lane_start", "walk_speed_baseline", "jump_space", "gamepad_move"):
             self.assertEqual(checks[name]["status"], "SKIP", name)
             self.assertIn("connection was lost", checks[name]["detail"])
@@ -544,7 +583,7 @@ class TestUs001Plan(unittest.TestCase):
         self.assertEqual(us001.main(["--plan"]), 0)
         rows = [line for line in out.getvalue().splitlines() if line.startswith("| ")]
         self.assertEqual(len(rows), 1 + len(us001.PLAN))
-        self.assertTrue(any(r.startswith("| 18 | `jump_space` |") for r in rows))
+        self.assertTrue(any(r.startswith("| 19 | `jump_space` |") for r in rows))
 
     def test_the_script_launches_the_movement_test_map(self):
         self.assertEqual(us001.Us001Run.launch_map(), kit.MOVEMENT_TEST_MAP)

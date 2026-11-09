@@ -10,6 +10,7 @@
 #include "CommonActivatableWidget.h"
 #include "CommonInputSubsystem.h"
 #include "CommonInputTypeEnum.h"
+#include "Components/ArrowComponent.h"
 #include "Components/Button.h"
 #include "Components/PanelWidget.h"
 #include "Components/ScrollBox.h"
@@ -418,6 +419,26 @@ namespace MordecaiAgentBridge::State
 			const UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
 			Player->SetField(TEXT("movement_mode"), Movement ? StringValue(Movement->GetMovementName()) : NullValue());
 			Player->SetField(TEXT("is_dead"), Hero ? BoolValue(Hero->IsDead()) : NullValue());
+			const UArrowComponent* FacingArrow = Hero ? Hero->GetFacingArrow() : nullptr;
+			if (FacingArrow)
+			{
+				const FVector ArrowForward = FacingArrow->GetForwardVector();
+				const FVector PawnForward = Pawn->GetActorForwardVector();
+				const TSharedRef<FJsonObject> Arrow = MakeShared<FJsonObject>();
+				Arrow->SetBoolField(TEXT("hidden_in_game"), FacingArrow->bHiddenInGame);
+				Arrow->SetBoolField(TEXT("visible"), FacingArrow->IsVisible());
+				Arrow->SetBoolField(TEXT("registered"), FacingArrow->IsRegistered());
+				Arrow->SetBoolField(TEXT("only_owner_see"), FacingArrow->bOnlyOwnerSee);
+				Arrow->SetBoolField(TEXT("owner_no_see"), FacingArrow->bOwnerNoSee);
+				Arrow->SetField(TEXT("forward"), MakeVector(ArrowForward));
+				Arrow->SetField(TEXT("pawn_forward"), MakeVector(PawnForward));
+				Arrow->SetField(TEXT("forward_alignment"), MakeNumber(FVector::DotProduct(ArrowForward, PawnForward)));
+				Player->SetObjectField(TEXT("facing_arrow"), Arrow);
+			}
+			else
+			{
+				Player->SetField(TEXT("facing_arrow"), NullValue());
+			}
 			Player->SetObjectField(TEXT("attributes"), MakeAttributes(Attributes));
 			Player->SetArrayField(TEXT("tags"), ASC ? TagsToJson(ASC->GetOwnedGameplayTags()) : TArray<TSharedPtr<FJsonValue>>());
 			Player->SetField(TEXT("weapon"), GatherWeapon(Hero));

@@ -18,7 +18,8 @@ shoves, blocks or kills the player mid-measurement.
 Steps (every step is a check: PASS, FAIL, SKIP or WARN; --plan prints them as a table):
   1. Boot MovementTestMap: the combat HUD with its Health / Stamina bars and the SP text
      '10 / 10' is on screen; the player is a live MordecaiCharacter at the spawn (0, 0); the
-     runtime input mapping context is active.  Screenshot.
+     runtime input mapping context is active; the green FacingArrow is registered, visible to
+     every player and points along the pawn's world forward vector.  Screenshot.
   2. WASD from the spawn, A -> W -> D -> S (a square on the open floor that ends back at the
      spawn): each key held 0.4 s moves the player > 100 cm the right way along its world axis
      (W=+X, S=-X, D=+Y, A=-Y) and < 30 cm along the other.
@@ -139,7 +140,9 @@ KI_FACING = ("Known issue: facing and aim are pinned to +X by the diorama camera
              "(Specs/agent_playtest_plan_v1.md)")
 KI_STICKS = ("Known issue: gamepad stick and L3 mappings use invalid FKey names "
              "(Specs/agent_playtest_plan_v1.md)")
-KNOWN_ISSUES = (KI_FACING, KI_STICKS)
+KI_ARROW = ("N12: the facing arrow is hidden in game "
+            "(Specs/agent_playtest_plan_v1.md)")
+KNOWN_ISSUES = (KI_FACING, KI_STICKS, KI_ARROW)
 
 SCREENSHOTS = {
     "start": "MovementTestMap from the fixed overhead camera (pitch -50, looking +X): the open "
@@ -149,9 +152,9 @@ SCREENSHOTS = {
     "after_moves": "the same camera angle (no rotation) with the player at the lane start "
                    "(-700, -800): the camera followed, so the player is still near the screen "
                    "centre and the floor grid has shifted under it",
-    "facing_arrow": "the player after the mouse and right-stick facing attempts: is a facing "
-                    "arrow visible on the player, and which way does the player face? (the "
-                    "UArrowComponent is probably hidden in game; facing is pinned to +X today)",
+    "facing_arrow": "the player after the mouse and right-stick facing attempts: the existing "
+                    "green facing arrow is visibly present on the player and points along the "
+                    "pawn's +X facing direction",
 }
 
 EXIT_PASS, EXIT_FAIL, EXIT_INFRA = kit.EXIT_PASS, kit.EXIT_FAIL, kit.EXIT_INFRA
@@ -178,6 +181,9 @@ PLAN = (
          f"{PAWN_NATIVE_CLASS}", proves=("AC-2.3.3",)),
     Step("imc_active", f"state input -> {lit(RUNTIME_IMC)} in input.mapping_contexts",
          proves=("AC-1.3.2",)),
+    Step("facing_arrow", "state player.facing_arrow -> hidden_in_game=false, visible=true, "
+         "registered=true, owner visibility unrestricted, and world forward aligned with the "
+         "pawn forward vector", proves=("AC-2.1.5",), known_issue=KI_ARROW),
     *[Step(check, f"hold {key} {MOVE_HOLD_S:g}s -> player.location moves > {MOVE_MIN:g} cm "
            f"along {d}, < {CROSS_MAX:g} cm across", proves=("AC-2.1.1", "AC-1.3.2"))
       for check, key, _, _, d in MOVES],
@@ -220,8 +226,6 @@ PLAN = (
 PENDING = {
     "AC-1.2.1": "bridge cannot drive: state has no camera transform (screenshot after_moves "
                 "shows whether the camera followed)",
-    "AC-2.1.5": "bridge cannot drive: state does not report the pawn's capsule or arrow "
-                "component visibility (screenshot facing_arrow)",
 }
 
 
@@ -351,6 +355,30 @@ class Us001Run(kit.PlaytestRun):
         self.observe("imc_active", ["input"], imc_ok,
                      lambda st: f"input.mapping_contexts="
                                 f"{_section(st, 'input').get('mapping_contexts')}", timeout_s=3)
+
+        def arrow_ok(st):
+            arrow = _section(st, "player").get("facing_arrow")
+            return (isinstance(arrow, dict)
+                    and arrow.get("hidden_in_game") is False
+                    and arrow.get("visible") is True
+                    and arrow.get("registered") is True
+                    and arrow.get("only_owner_see") is False
+                    and arrow.get("owner_no_see") is False
+                    and isinstance(arrow.get("forward_alignment"), (int, float))
+                    and arrow["forward_alignment"] > 0.999)
+
+        def arrow_text(st):
+            arrow = _section(st, "player").get("facing_arrow")
+            if not isinstance(arrow, dict):
+                return f"player.facing_arrow is {arrow!r} (runtime arrow state is missing)"
+            return ("player.facing_arrow hidden_in_game="
+                    f"{arrow.get('hidden_in_game')} visible={arrow.get('visible')} "
+                    f"registered={arrow.get('registered')} only_owner_see="
+                    f"{arrow.get('only_owner_see')} owner_no_see={arrow.get('owner_no_see')} "
+                    f"forward={arrow.get('forward')} pawn_forward={arrow.get('pawn_forward')} "
+                    f"alignment={arrow.get('forward_alignment')} (need > 0.999)")
+
+        self.observe("facing_arrow", ["player"], arrow_ok, arrow_text, timeout_s=3)
         self.shot("start")
 
     # --- step 2: WASD ----------------------------------------------------------------------
