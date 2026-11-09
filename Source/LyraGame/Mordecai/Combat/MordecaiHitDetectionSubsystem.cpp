@@ -94,6 +94,39 @@ bool UMordecaiHitDetectionSubsystem::IsPointInCircle(
 	return Delta.SizeSquared() <= Radius * Radius;
 }
 
+FMordecaiDebugArcGeometry UMordecaiHitDetectionSubsystem::BuildDebugArcGeometry(
+	const FVector& Origin,
+	const FVector& Forward,
+	float Radius,
+	float AngleDegrees,
+	float StartAngleOffsetDeg)
+{
+	return FMordecaiDebugArcGeometry();
+}
+
+FMordecaiDebugCapsuleGeometry UMordecaiHitDetectionSubsystem::BuildDebugCapsuleGeometry(
+	const FVector& Origin,
+	const FVector& Forward,
+	float Length,
+	float Width)
+{
+	return FMordecaiDebugCapsuleGeometry();
+}
+
+FMordecaiDebugCircleGeometry UMordecaiHitDetectionSubsystem::BuildDebugCircleGeometry(
+	const FVector& Origin,
+	const FVector& Forward,
+	float Length,
+	float Radius)
+{
+	return FMordecaiDebugCircleGeometry();
+}
+
+bool UMordecaiHitDetectionSubsystem::ShouldDrawMeleeHitShapes()
+{
+	return false;
+}
+
 // ---------------------------------------------------------------------------
 // Static Filtering Helpers
 // ---------------------------------------------------------------------------

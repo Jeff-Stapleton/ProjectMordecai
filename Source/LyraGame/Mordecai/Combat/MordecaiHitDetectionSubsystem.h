@@ -12,6 +12,34 @@ class ACharacter;
 class UAbilitySystemComponent;
 class UMordecaiAttackProfileDataAsset;
 
+/** Pure, world-independent arc geometry used by melee debug drawing and Tier 1 tests. */
+struct LYRAGAME_API FMordecaiDebugArcGeometry
+{
+	FVector Origin = FVector::ZeroVector;
+	TArray<FVector> ArcPoints;
+	FVector StartEdge = FVector::ZeroVector;
+	FVector EndEdge = FVector::ZeroVector;
+};
+
+/** Pure, world-independent capsule footprint used by melee debug drawing and Tier 1 tests. */
+struct LYRAGAME_API FMordecaiDebugCapsuleGeometry
+{
+	FVector SegmentStart = FVector::ZeroVector;
+	FVector SegmentEnd = FVector::ZeroVector;
+	FVector StartLeft = FVector::ZeroVector;
+	FVector StartRight = FVector::ZeroVector;
+	FVector EndLeft = FVector::ZeroVector;
+	FVector EndRight = FVector::ZeroVector;
+	float CapRadius = 0.f;
+};
+
+/** Pure, world-independent circle geometry used by melee debug drawing and Tier 1 tests. */
+struct LYRAGAME_API FMordecaiDebugCircleGeometry
+{
+	FVector Center = FVector::ZeroVector;
+	float Radius = 0.f;
+};
+
 /**
  * UMordecaiHitDetectionSubsystem
  *
@@ -106,6 +134,31 @@ public:
 		const FVector& Center,
 		const FVector& Point,
 		float Radius);
+
+	/** Builds the exact fan boundary used to visualize an arc-sector melee query. */
+	static FMordecaiDebugArcGeometry BuildDebugArcGeometry(
+		const FVector& Origin,
+		const FVector& Forward,
+		float Radius,
+		float AngleDegrees,
+		float StartAngleOffsetDeg);
+
+	/** Builds the exact swept-sphere footprint used by a capsule/box melee query. */
+	static FMordecaiDebugCapsuleGeometry BuildDebugCapsuleGeometry(
+		const FVector& Origin,
+		const FVector& Forward,
+		float Length,
+		float Width);
+
+	/** Builds the exact impact ring used by a circle melee query. */
+	static FMordecaiDebugCircleGeometry BuildDebugCircleGeometry(
+		const FVector& Origin,
+		const FVector& Forward,
+		float Length,
+		float Radius);
+
+	/** Runtime CVar state; false in builds where debug drawing is compiled out. */
+	static bool ShouldDrawMeleeHitShapes();
 
 	// --- Static Filtering Helpers (testable without world) ---
 
