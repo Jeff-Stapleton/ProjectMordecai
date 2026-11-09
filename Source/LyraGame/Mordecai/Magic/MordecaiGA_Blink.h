@@ -60,9 +60,17 @@ public:
 		const FVector& WallHitPoint);
 
 protected:
+	virtual void ActivateAbility(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		const FGameplayEventData* TriggerEventData) override;
 	virtual void OnSpellCast() override;
 
 private:
+	/** Resolve the current instant-cast destination without caching it across a windup. */
+	bool TryResolveTeleportDestination(AActor* AvatarActor, FVector& OutOrigin, FVector& OutDestination) const;
+
 	/** Grant Mordecai.State.Invulnerable for GetInvulnerabilityDuration() with a duration GameplayEffect (AC-021.3). */
 	void ApplyInvulnerability();
 };

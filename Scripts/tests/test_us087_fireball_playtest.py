@@ -422,8 +422,8 @@ class TestUs087PickupLane(PlaytestCase):
         self.assertEqual(errors, [])
         owners = ps.scripts_for("US-087", scripts)
         self.assertEqual({owner.name for owner in owners},
-                         {"us087_fireball.py", "us087_pickup_lane.py"})
-        self.assertEqual(len({owner.suffix for owner in owners}), 2)
+                         {"us087_blink.py", "us087_fireball.py", "us087_pickup_lane.py"})
+        self.assertEqual(len({owner.suffix for owner in owners}), 3)
 
 
 if __name__ == "__main__":

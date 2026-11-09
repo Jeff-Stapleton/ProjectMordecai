@@ -6,6 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/Pawn.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
 
@@ -74,58 +75,118 @@ FVector UMordecaiGA_Blink::ComputeTeleportDestination(
 }
 
 // ---------------------------------------------------------------------------
-// OnSpellCast (AC-021.1, AC-021.2, AC-021.3)
+// Activation and destination resolution (AC-021.1, AC-021.2, AC-021.3)
 // ---------------------------------------------------------------------------
 
-void UMordecaiGA_Blink::OnSpellCast()
+void UMordecaiGA_Blink::ActivateAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	const FGameplayEventData* TriggerEventData)
 {
-	if (!SpellData)
+	AActor* AvatarActor = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
+	FVector Origin;
+	FVector Destination;
+
+	// Blink is configured as an instant cast. Move before the spell base commits SP, cooldown, cast event or
+	// invulnerability so a zero/failed teleport has no cast side effects, and never cache a destination across a windup.
+	const bool bInstantCast = FMath::IsNearlyZero(GetWindupDuration(), UE_KINDA_SMALL_NUMBER)
+		&& FMath::IsNearlyZero(GetCastDuration(), UE_KINDA_SMALL_NUMBER);
+	if (!bInstantCast || !TryResolveTeleportDestination(AvatarActor, Origin, Destination))
 	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!AvatarActor)
+	const bool bMoveSucceeded = AvatarActor->SetActorLocation(
+		Destination, false, nullptr, ETeleportType::TeleportPhysics);
+	const FVector ActualDelta = AvatarActor->GetActorLocation() - Origin;
+	if (!bMoveSucceeded || ActualDelta.IsNearlyZero(UE_KINDA_SMALL_NUMBER))
 	{
+		if (!ActualDelta.IsNearlyZero(UE_KINDA_SMALL_NUMBER))
+		{
+			AvatarActor->SetActorLocation(Origin, false, nullptr, ETeleportType::TeleportPhysics);
+		}
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	FVector Origin = AvatarActor->GetActorLocation();
-	FVector AimDir = AvatarActor->GetActorForwardVector();
-	float Range = GetTeleportRange();
+	// Local prediction and the authoritative server each resolve and apply the same collision-constrained move.
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+}
+
+bool UMordecaiGA_Blink::TryResolveTeleportDestination(
+	AActor* AvatarActor,
+	FVector& OutOrigin,
+	FVector& OutDestination) const
+{
+	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
+	const float Range = GetTeleportRange();
+	if (!SpellData || !World || Range <= UE_KINDA_SMALL_NUMBER)
+	{
+		return false;
+	}
+
+	OutOrigin = AvatarActor->GetActorLocation();
+	const FVector AimDir = AvatarActor->GetActorForwardVector().GetSafeNormal();
+	if (AimDir.IsNearlyZero())
+	{
+		return false;
+	}
 
 	// AC-021.2: Line trace to prevent teleporting through walls
 	bool bWallHit = false;
 	FVector WallHitPoint = FVector::ZeroVector;
+	const FVector TraceEnd = OutOrigin + AimDir * Range;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MordecaiBlinkPath), false, AvatarActor);
 
-	if (UWorld* World = GetWorld())
+	// Keep the existing ECC_WorldStatic response semantics for every non-Pawn component. If a Pawn blocks that
+	// channel, ignore that actor locally and continue the same trace so geometry behind it still clamps the Blink.
+	for (;;)
 	{
 		FHitResult HitResult;
-		FVector TraceEnd = Origin + AimDir * Range;
-
-		FCollisionQueryParams QueryParams;
-		QueryParams.AddIgnoredActor(AvatarActor);
-
-		bWallHit = World->LineTraceSingleByChannel(
-			HitResult,
-			Origin,
-			TraceEnd,
-			ECC_WorldStatic,
-			QueryParams);
-
-		if (bWallHit)
+		if (!World->LineTraceSingleByChannel(HitResult, OutOrigin, TraceEnd, ECC_WorldStatic, QueryParams))
 		{
-			WallHitPoint = HitResult.ImpactPoint;
+			break;
 		}
+		if (APawn* HitPawn = Cast<APawn>(HitResult.GetActor()))
+		{
+			QueryParams.AddIgnoredActor(HitPawn);
+			continue;
+		}
+		bWallHit = true;
+		WallHitPoint = HitResult.ImpactPoint;
+		break;
 	}
 
-	// AC-021.1: Compute destination, AC-021.2: wall clamping
-	FVector Destination = ComputeTeleportDestination(Origin, AimDir, Range, bWallHit, WallHitPoint);
+	const FVector DesiredDestination =
+		ComputeTeleportDestination(OutOrigin, AimDir, Range, bWallHit, WallHitPoint);
+	float Distance = FVector::DotProduct(DesiredDestination - OutOrigin, AimDir);
+	if (Distance <= UE_KINDA_SMALL_NUMBER)
+	{
+		return false;
+	}
 
-	// AC-021.1: Teleport via SetActorLocation (no sweep — trace already done)
-	AvatarActor->SetActorLocation(Destination, false, nullptr, ETeleportType::TeleportPhysics);
+	// Test the real actor/capsule and search only backward on the cast line. This avoids FindTeleportSpot's
+	// sideways/upward MTD adjustments while retaining positive partial movement when the exact endpoint is occupied.
+	constexpr float Backstep = 1.f;
+	while (Distance > UE_KINDA_SMALL_NUMBER)
+	{
+		OutDestination = OutOrigin + AimDir * Distance;
+		if (!World->EncroachingBlockingGeometry(
+			AvatarActor, OutDestination, AvatarActor->GetActorRotation()))
+		{
+			return true;
+		}
+		Distance = FMath::Max(0.f, Distance - Backstep);
+	}
 
-	// AC-021.3: Grant brief invulnerability
+	return false;
+}
+
+void UMordecaiGA_Blink::OnSpellCast()
+{
+	// Movement succeeded before the spell base committed this instant cast.
 	ApplyInvulnerability();
 }
 
