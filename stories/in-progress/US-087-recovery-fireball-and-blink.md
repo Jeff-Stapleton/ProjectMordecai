@@ -32,7 +32,7 @@ AC ownership or make the remaining story EDITOR-mode. Existing gameplay, spell a
 - [x] AC-087.3: The projectile spawns in front of the caster's capsule and has a visible mesh (placeholder sphere is fine) — verified by `Mordecai.Recovery.Fireball.GASCastTimersSpawnClearVisibleProjectileAndNaturallyDamageTarget`
 - [x] AC-087.4: In the packaged build, the player taps Q facing an enemy and a projectile appears — accepted by owner checks `fireball_cast` / `projectile_visible` of `Scripts/playtests/us087_fireball.py`; shared `Scripts/playtests/us057_magic.py` check `fireball_projectile` is a regression cross-check, not owner acceptance (Tier 4)
 - [x] AC-087.5: In the packaged build, that Fireball damages the same retained enemy ahead within 2.5 s — accepted by owner checks `target_integrity` / `same_target_damaged` of `Scripts/playtests/us087_fireball.py`; shared `Scripts/playtests/us057_magic.py` check `fireball_hits_enemy` is a regression cross-check, not owner acceptance (Tier 4)
-- [ ] AC-087.6: Blink's destination trace ignores Pawns (it clamps on world geometry only; the destination is adjusted to a free spot if it lands in a pawn), so Blink with an enemy ahead still moves the player; if no movement is possible the spell does not commit its SP cost — verified by `Mordecai.Recovery.Blink.EnemyAheadDoesNotBlock` and `Mordecai.Recovery.Blink.NoMoveNoCost`
+- [x] AC-087.6: Blink's destination trace ignores Pawns (it clamps on world geometry only; the destination is adjusted to a free spot if it lands in a pawn), so Blink with an enemy ahead still moves the player; if no movement is possible the spell does not commit its SP cost — verified by `Mordecai.Recovery.Blink.EnemyAheadDoesNotBlock` and `Mordecai.Recovery.Blink.NoMoveNoCost`
 - [x] AC-087.7: Blink's invulnerability is removed when its duration ends even if the ability has already ended, and never outlives it — verified by `Mordecai.Recovery.Blink.InvulnerabilityExpires` (Stone Skin's own Invulnerable grant is unaffected; prefer a duration GameplayEffect granting the tag over a loose tag + ability-owned timer)
   - **Delivered by US-101 (issue #53, `d490a2d`, 2026-10-30).** Once US-101 made damage honor `Mordecai.State.Invulnerable`, a stuck tag would have meant a permanently invulnerable player, so the fix could not wait for this story.
     - The fix is the one this AC prescribes: a duration GE grants the tag.
@@ -135,7 +135,7 @@ AC ownership or make the remaining story EDITOR-mode. Existing gameplay, spell a
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
 | 1 | `blink_preconditions` | state player,actors -> retain exact live/full-health stationary TestDummy; real-WASD walk_to about 100 cm -X; require a 80-130 cm +X gap, low Y/Z offset, yaw 0, live full-health stationary player, exact SP 10, granted slot-1 E/Blink cost 2, and neither Stone Skin nor Invulnerable; capture a supplemental pre-cast frame | - |
-| 2 | `blink_past_enemy` | press E through Slate and release it in finally; continuously sample the retained player/target -> SP 10->8 and player +X movement > 300 cm within 2s with low Y/Z drift _(known issue: N20 / issue #25: Blink spends SP but does not move when a Pawn is about 1 m ahead)_ | AC-087.8 |
+| 2 | `blink_past_enemy` | press E through Slate and release it in finally; continuously sample the retained player/target -> SP 10->8 and player +X movement > 300 cm within 2s with low Y/Z drift | AC-087.8 |
 | 3 | `blink_integrity` | through the full timed audit the exact player stays live, the exact passive target is not replaced/moved/damaged/killed, and Stone Skin never appears | AC-087.8 |
 | 4 | `blink_invulnerability_ends` | continuous player.tags sampling must first observe Mordecai.State.Invulnerable granted, then observe it absent within 1.5s of E; never granted does not pass; capture a supplemental post-cast frame | AC-087.9 |
 
@@ -143,9 +143,9 @@ AC ownership or make the remaining story EDITOR-mode. Existing gameplay, spell a
 
 ## Definition of Done
 - [ ] All ACs checked off
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: isolated `PickupProjectileTestMap.umap` saved, committed and cooked; all existing maps unchanged;
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [x] Content: isolated `PickupProjectileTestMap.umap` saved, committed and cooked; all existing maps unchanged;
   `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + dedicated owner script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
@@ -157,6 +157,36 @@ AC ownership or make the remaining story EDITOR-mode. Existing gameplay, spell a
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
+### Issue #25 / N20 Blink local GREEN (2026-11-08; package evidence pending)
+
+- The runtime change is Blink-only. Its existing `ECC_WorldStatic` path trace now locally ignores Pawn actors
+  and continues to the first non-Pawn blocker, preserving the existing WorldStatic, blocking WorldDynamic,
+  overlap-trigger, floor-contact and 50 cm wall-buffer behavior. The exact desired endpoint is checked with the
+  real actor capsule and searched backward on the cast line only; it does not use `FindTeleportSpot`'s lateral/Z
+  MTD. Any positive partial move remains valid.
+- Blink's configured contract is instant (`WindupTime=0`, `CastTime=0`). It resolves and successfully applies
+  the move before the spell base commits SP, cooldown, `Event.SpellCast` or the duration-GE i-frame. A numerical
+  zero, unavailable destination or failed `SetActorLocation` ends without those side effects. All destination
+  state is activation-local, so no cached result crosses a windup/re-entry boundary; local prediction and the
+  authoritative server each resolve the same collision query.
+- Strengthened RED: `Saved/TestLogs/issue25-strengthened-red.log` — 2 PASS / 3 FAIL. The isolated endpoint
+  fixture made its Pawn ignore the path-trace channel while retaining real Pawn capsule blocking, and failed
+  only the endpoint-adjusted/free assertions. `NoMoveNoCost` additionally proved the old zero move spent
+  2 SP, broadcast one cast event, started cooldown and granted Invulnerable. The preceding relative-log attempt
+  is preserved as infrastructure exit 2 because the editor produced no relative-path log.
+- Mutation proof: with only endpoint resolution bypassed,
+  `Saved/TestLogs/issue25-endpoint-mutation-red.log` was 4 PASS / 1 FAIL:
+  `DestinationPawnAdjustedToFreeSpot` failed both endpoint-adjusted and free-capsule assertions. Restoring the
+  resolver produced 5/5 PASS in `Saved/TestLogs/issue25-post-mutation-green.log`.
+- Local GREEN: final compile exit 0; focused Blink 5/5 PASS; retained
+  `Mordecai.Recovery.Blink.InvulnerabilityExpires` 1/1 PASS
+  (`Saved/TestLogs/issue25-expiry-green.log`); all Mordecai automation 786/786 PASS
+  (`Saved/TestLogs/issue25-full-green.log`); Python tooling 611/611 PASS; US-087 and US-057 lints PASS; content
+  guard PASS; default PIE 16/16 PASS; explicit PickupProjectileTestMap PIE 3/3 PASS.
+- Per the coordinator's bounded Phase B, no package, game, story Tier 3/4 or full sweep was run. AC-087.8 and
+  AC-087.9 remain unchecked, N20 is not yet marked packaged-FIXED, and this story remains in progress pending
+  fresh-commit package/input evidence and the separate visual audit.
+
 ### Issue #16 / N11 native pickup characterization (2026-11-08)
 
 - Jeff authorized this fixture on 2026-11-08: “Yes, add the isolated test map and expand the change budget as

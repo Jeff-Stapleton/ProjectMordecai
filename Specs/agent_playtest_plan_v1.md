@@ -377,8 +377,13 @@ The contract is `Specs/story_playtests_v1.md`.
   - **FIXED in code by US-101** (`d490a2d`, 2026-10-30). It had to be: once damage honored Invulnerable, the stuck tag would have meant a permanently invulnerable player.
   - Root cause: `UGameplayAbility::EndAbility` calls `ClearAllTimersForObject(this)`. Blink's 0.2 s recovery ended the ability before its 0.3 s removal timer fired.
   - Fix: a duration GameplayEffect grants the tag. Tier 1: `Mordecai.Recovery.Blink.InvulnerabilityExpires` (red before the fix).
-  - The Tier 4 check `blink_invulnerability_ends` (US-087 AC-087.9) is not written yet.
-- **N20 Blink can spend SP and not move the player.** A Blink with an invisible enemy about 90 cm ahead spent 2 SP and moved 0 cm, with no feedback (`bridge_04.png`).
+  - The Tier 4 check `blink_invulnerability_ends` (US-087 AC-087.9) is now implemented in
+    `us087_blink.py`; a fresh-package PASS is still required for acceptance.
+- **N20 Blink can spend SP and not move the player (LOCAL GREEN, US-087 / issue #25; packaged verification pending).** A Blink with an invisible enemy about 90 cm ahead spent 2 SP and moved 0 cm, with no feedback (`bridge_04.png`).
+  - Cause: Blink used an `ECC_WorldStatic` line trace that Pawn capsules could block, then committed the spell even when the resulting destination was numerically unchanged.
+  - Local fix: the same trace now ignores Pawn actors while retaining non-Pawn collision responses, checks the real capsule at the endpoint, searches only backward on the cast line when occupied, and completes a positive move before SP/cooldown/cast-event/invulnerability commit. Zero or failed movement has no cast side effects.
+  - Tier 1: the strengthened three-cause RED was 2 PASS / 3 FAIL; an endpoint-resolution-disabled mutation was 4 PASS / 1 FAIL; restored focused Blink is 5/5 PASS, retained expiry is 1/1 PASS, and all 786 Mordecai tests pass. Python 611/611, both relevant lints, content guard, default PIE 16/16 and pickup-map PIE 3/3 also pass.
+  - Do not mark FIXED until a fresh package of the implementation commit passes the dedicated `us087_blink.py` owner and the required comparison sweep. AC-087.8/.9 remain open.
 - **N21 Walls hide the player.** At the south-west corner the near arena wall hides everything but the top of the player's head, and the diorama camera has no cutaway or fade (`bridge_11.png`).
 - **N22 (design question) Items have no actions.** Picked-up items have no Use or Equip action: the Health Potion cannot be used, and the Rusty Sword cannot be equipped or added to the weapon cycle.
 - **The Settings tab also shows "Coming Soon"** (an extension of N5).
