@@ -198,3 +198,12 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
   fixture does not change acceptance ownership: `us087_fireball.py` solely owns AC-087.4/.5;
   `us087_pickup_lane.py` owns no AC (`COVERS=()`, every `proves=()`).
 - Source: Jeff via Cursor session (2026-11-08).
+
+---
+
+## 2026-11-09 — Facing arrows on dead enemies (issue #17)
+
+- **Final decision:** a dead enemy keeps its green facing arrow visible until the arena reset.
+- This is deliberate even though `AMordecaiEnemyCharacter::EnterDeathState` hides `BodyMesh`. The body is the issue #19 placeholder visual; hiding it does not hide or remove the facing arrow.
+- `ResetForArena` revives the enemy and restores the body while the same facing-arrow component remains registered throughout.
+- Source: Jeff via Cursor session (2026-11-09, 15:30 MST): “KEEP the arrow visible on dead enemies, as the current code and tests already do.”
