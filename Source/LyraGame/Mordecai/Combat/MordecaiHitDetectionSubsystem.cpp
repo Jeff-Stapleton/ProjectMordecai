@@ -11,6 +11,91 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "CollisionQueryParams.h"
 #include "Engine/OverlapResult.h"
+#include "HAL/IConsoleManager.h"
+
+#if UE_ENABLE_DEBUG_DRAWING
+#include "DrawDebugHelpers.h"
+#endif
+
+namespace
+{
+	constexpr int32 ArcDegreesPerSegment = 10;
+
+#if UE_ENABLE_DEBUG_DRAWING
+	// Issue #92: this is intentionally the single obvious default to flip when the overlay
+	// should become opt-in.
+	static int32 DrawMeleeHitShapes = 1;
+	static FAutoConsoleVariableRef CVarDrawMeleeHitShapes(
+		TEXT("Mordecai.Debug.DrawMeleeHitShapes"),
+		DrawMeleeHitShapes,
+		TEXT("Draw melee hit-query shapes (0 = off, 1 = on)."),
+		ECVF_Default);
+
+	static float DrawMeleeHitShapesDuration = 1.0f;
+	static FAutoConsoleVariableRef CVarDrawMeleeHitShapesDuration(
+		TEXT("Mordecai.Debug.DrawMeleeHitShapesDuration"),
+		DrawMeleeHitShapesDuration,
+		TEXT("Lifetime in seconds for melee hit-query debug shapes."),
+		ECVF_Default);
+
+	constexpr int32 CircleSegments = 48;
+	constexpr float ShapeThickness = 2.f;
+	constexpr float HitPointSize = 28.f;
+	constexpr float HitBoxHalfExtent = 18.f;
+	constexpr float HitMarkerMargin = 15.f;
+
+	void DrawHitMarkers(
+		const UWorld* World,
+		const TArray<FMordecaiHitResult>& Results,
+		const FColor& Color)
+	{
+		for (const FMordecaiHitResult& Result : Results)
+		{
+			const AActor* HitActor = Result.HitActor.Get();
+			if (!UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(HitActor))
+			{
+				continue;
+			}
+
+			FVector BoundsOrigin = Result.HitLocation;
+			FVector BoundsExtent = FVector::ZeroVector;
+			HitActor->GetActorBounds(
+				/*bOnlyCollidingComponents=*/true,
+				BoundsOrigin,
+				BoundsExtent,
+				/*bIncludeFromChildActors=*/false);
+			const FVector MarkerLocation =
+				UMordecaiHitDetectionSubsystem::BuildDebugHitMarkerLocation(
+					Result.HitLocation, BoundsOrigin, BoundsExtent, HitMarkerMargin);
+			DrawDebugPoint(
+				World,
+				MarkerLocation,
+				HitPointSize,
+				Color,
+				false,
+				DrawMeleeHitShapesDuration,
+				SDPG_Foreground);
+			DrawDebugBox(
+				World,
+				MarkerLocation,
+				FVector(HitBoxHalfExtent),
+				Color,
+				false,
+				DrawMeleeHitShapesDuration,
+				SDPG_Foreground,
+				ShapeThickness);
+		}
+	}
+
+	bool HasValidDebugHitTarget(const TArray<FMordecaiHitResult>& Results)
+	{
+		return Results.ContainsByPredicate([](const FMordecaiHitResult& Result)
+		{
+			return UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(Result.HitActor.Get());
+		});
+	}
+#endif
+}
 
 // ---------------------------------------------------------------------------
 // Static Geometry Helpers
@@ -92,6 +177,101 @@ bool UMordecaiHitDetectionSubsystem::IsPointInCircle(
 	FVector Delta = Point - Center;
 	Delta.Z = 0.f;
 	return Delta.SizeSquared() <= Radius * Radius;
+}
+
+FMordecaiDebugArcGeometry UMordecaiHitDetectionSubsystem::BuildDebugArcGeometry(
+	const FVector& Origin,
+	const FVector& Forward,
+	float Radius,
+	float AngleDegrees,
+	float StartAngleOffsetDeg)
+{
+	FMordecaiDebugArcGeometry Geometry;
+	Geometry.Origin = Origin;
+
+	FVector CenterDirection = Forward;
+	CenterDirection.Z = 0.f;
+	CenterDirection = CenterDirection.GetSafeNormal();
+	CenterDirection = CenterDirection.RotateAngleAxis(StartAngleOffsetDeg, FVector::UpVector);
+
+	const int32 SegmentCount = FMath::Max(
+		1,
+		FMath::CeilToInt(FMath::Abs(AngleDegrees) / static_cast<float>(ArcDegreesPerSegment)));
+	Geometry.ArcPoints.Reserve(SegmentCount + 1);
+	for (int32 Index = 0; Index <= SegmentCount; ++Index)
+	{
+		const float Alpha = static_cast<float>(Index) / static_cast<float>(SegmentCount);
+		const float Angle = FMath::Lerp(-AngleDegrees * 0.5f, AngleDegrees * 0.5f, Alpha);
+		Geometry.ArcPoints.Add(
+			Origin + CenterDirection.RotateAngleAxis(Angle, FVector::UpVector) * Radius);
+	}
+	Geometry.StartEdge = Geometry.ArcPoints[0];
+	Geometry.EndEdge = Geometry.ArcPoints.Last();
+	return Geometry;
+}
+
+FMordecaiDebugCapsuleGeometry UMordecaiHitDetectionSubsystem::BuildDebugCapsuleGeometry(
+	const FVector& Origin,
+	const FVector& Forward,
+	float Length,
+	float Width)
+{
+	FMordecaiDebugCapsuleGeometry Geometry;
+	const FVector Direction = Forward.GetSafeNormal();
+	FVector Right = FVector::CrossProduct(FVector::UpVector, Direction).GetSafeNormal();
+	if (Right.IsNearlyZero())
+	{
+		Right = FVector::RightVector;
+	}
+
+	Geometry.SegmentStart = Origin;
+	Geometry.SegmentEnd = Origin + Direction * Length;
+	Geometry.CapRadius = Width * 0.5f;
+	Geometry.StartLeft = Geometry.SegmentStart - Right * Geometry.CapRadius;
+	Geometry.StartRight = Geometry.SegmentStart + Right * Geometry.CapRadius;
+	Geometry.EndLeft = Geometry.SegmentEnd - Right * Geometry.CapRadius;
+	Geometry.EndRight = Geometry.SegmentEnd + Right * Geometry.CapRadius;
+	return Geometry;
+}
+
+FMordecaiDebugCircleGeometry UMordecaiHitDetectionSubsystem::BuildDebugCircleGeometry(
+	const FVector& Origin,
+	const FVector& Forward,
+	float Length,
+	float Radius)
+{
+	FMordecaiDebugCircleGeometry Geometry;
+	Geometry.Center = Origin + Forward.GetSafeNormal() * Length;
+	Geometry.Radius = Radius;
+	return Geometry;
+}
+
+FVector UMordecaiHitDetectionSubsystem::BuildDebugHitMarkerLocation(
+	const FVector& HitLocation,
+	const FVector& BoundsOrigin,
+	const FVector& BoundsExtent,
+	float Margin)
+{
+	return FVector(
+		BoundsOrigin.X,
+		BoundsOrigin.Y,
+		FMath::Max(HitLocation.Z, BoundsOrigin.Z + FMath::Max(0.f, BoundsExtent.Z)) + Margin);
+}
+
+#if UE_ENABLE_DEBUG_DRAWING
+bool UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(const AActor* Target)
+{
+	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target) != nullptr;
+}
+#endif
+
+bool UMordecaiHitDetectionSubsystem::ShouldDrawMeleeHitShapes()
+{
+#if UE_ENABLE_DEBUG_DRAWING
+	return DrawMeleeHitShapes != 0;
+#else
+	return false;
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -412,26 +592,109 @@ TArray<FMordecaiHitResult> UMordecaiHitDetectionSubsystem::PerformMeleeHitDetect
 	switch (AttackProfile->HitShapeType)
 	{
 	case EMordecaiHitShapeType::ArcSector:
-		return ArcSectorOverlapQuery(
+	{
+		TArray<FMordecaiHitResult> Results = ArcSectorOverlapQuery(
 			Origin, Forward,
 			Shape.Radius, Shape.Angle, Shape.StartAngleOffset,
 			Attacker, Filter, bAllowFriendlyFire,
 			bJumpAvoidable, bHitsAirborne);
+#if UE_ENABLE_DEBUG_DRAWING
+		if (ShouldDrawMeleeHitShapes())
+		{
+			const FMordecaiDebugArcGeometry Geometry = BuildDebugArcGeometry(
+				Origin, Forward, Shape.Radius, Shape.Angle, Shape.StartAngleOffset);
+			const FColor Color = HasValidDebugHitTarget(Results) ? FColor::Green : FColor::Red;
+			DrawDebugLine(
+				GetWorld(), Geometry.Origin, Geometry.StartEdge, Color, false,
+				DrawMeleeHitShapesDuration, 0, ShapeThickness);
+			DrawDebugLine(
+				GetWorld(), Geometry.Origin, Geometry.EndEdge, Color, false,
+				DrawMeleeHitShapesDuration, 0, ShapeThickness);
+			for (int32 Index = 1; Index < Geometry.ArcPoints.Num(); ++Index)
+			{
+				DrawDebugLine(
+					GetWorld(), Geometry.ArcPoints[Index - 1], Geometry.ArcPoints[Index],
+					Color, false, DrawMeleeHitShapesDuration, 0, ShapeThickness);
+			}
+			DrawHitMarkers(GetWorld(), Results, Color);
+		}
+#endif
+		return Results;
+	}
 
 	case EMordecaiHitShapeType::Capsule:
 	case EMordecaiHitShapeType::Box:
-		return CapsuleOverlapQuery(
+	{
+		TArray<FMordecaiHitResult> Results = CapsuleOverlapQuery(
 			Origin, Forward,
 			Shape.Length, Shape.Width,
 			Attacker, Filter, bAllowFriendlyFire,
 			bJumpAvoidable, bHitsAirborne);
+#if UE_ENABLE_DEBUG_DRAWING
+		if (ShouldDrawMeleeHitShapes())
+		{
+			const FMordecaiDebugCapsuleGeometry Geometry = BuildDebugCapsuleGeometry(
+				Origin, Forward, Shape.Length, Shape.Width);
+			const FColor Color = HasValidDebugHitTarget(Results) ? FColor::Green : FColor::Red;
+			const FVector Segment = Geometry.SegmentEnd - Geometry.SegmentStart;
+			const FVector Direction = Segment.GetSafeNormal(SMALL_NUMBER, FVector::UpVector);
+			const FVector Center = (Geometry.SegmentStart + Geometry.SegmentEnd) * 0.5f;
+			const FQuat Rotation = FQuat::FindBetweenNormals(FVector::UpVector, Direction);
+			DrawDebugCapsule(
+				GetWorld(),
+				Center,
+				Segment.Size() * 0.5f + Geometry.CapRadius,
+				Geometry.CapRadius,
+				Rotation,
+				Color,
+				false,
+				DrawMeleeHitShapesDuration,
+				0,
+				ShapeThickness);
+			DrawDebugLine(
+				GetWorld(), Geometry.StartLeft, Geometry.EndLeft, Color, false,
+				DrawMeleeHitShapesDuration, 0, ShapeThickness);
+			DrawDebugLine(
+				GetWorld(), Geometry.StartRight, Geometry.EndRight, Color, false,
+				DrawMeleeHitShapesDuration, 0, ShapeThickness);
+			DrawHitMarkers(GetWorld(), Results, Color);
+		}
+#endif
+		return Results;
+	}
 
 	case EMordecaiHitShapeType::Circle:
-		return CircleOverlapQuery(
-			Origin + Forward.GetSafeNormal() * Shape.Length,
+	{
+		const FVector ImpactPoint = Origin + Forward.GetSafeNormal() * Shape.Length;
+		TArray<FMordecaiHitResult> Results = CircleOverlapQuery(
+			ImpactPoint,
 			Shape.Radius,
 			Attacker, Filter, bAllowFriendlyFire,
 			bJumpAvoidable, bHitsAirborne);
+#if UE_ENABLE_DEBUG_DRAWING
+		if (ShouldDrawMeleeHitShapes())
+		{
+			const FMordecaiDebugCircleGeometry Geometry = BuildDebugCircleGeometry(
+				Origin, Forward, Shape.Length, Shape.Radius);
+			const FColor Color = HasValidDebugHitTarget(Results) ? FColor::Green : FColor::Red;
+			DrawDebugCircle(
+				GetWorld(),
+				Geometry.Center,
+				Geometry.Radius,
+				CircleSegments,
+				Color,
+				false,
+				DrawMeleeHitShapesDuration,
+				0,
+				ShapeThickness,
+				FVector::ForwardVector,
+				FVector::RightVector,
+				false);
+			DrawHitMarkers(GetWorld(), Results, Color);
+		}
+#endif
+		return Results;
+	}
 
 	default:
 		return TArray<FMordecaiHitResult>();

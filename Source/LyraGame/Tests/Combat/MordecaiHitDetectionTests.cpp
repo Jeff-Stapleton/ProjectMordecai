@@ -4,7 +4,12 @@
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
 #include "Mordecai/Combat/MordecaiAttackProfileDataAsset.h"
+#include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
+#include "Mordecai/Weapons/MordecaiWeaponProfileFactory.h"
+#include "GameFramework/Actor.h"
+#include "HAL/IConsoleManager.h"
 
 // ---------------------------------------------------------------------------
 // Mordecai.HitDetection.ArcSectorHitsActorInArc  (AC-003.3)
@@ -376,5 +381,202 @@ bool FMordecaiHitDetection_UnifiedDispatch::RunTest(const FString& Parameters)
 	FGameplayTag AirborneTag = FGameplayTag::RequestGameplayTag(FName("Mordecai.State.Airborne"), false);
 	TestTrue("Mordecai.State.Airborne tag is registered", AirborneTag.IsValid());
 
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// Issue #92: debug geometry comes from the same attack-profile values as the query.
+// These helpers are intentionally world-independent so NullRHI tests can check exact geometry.
+// ---------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiHitDetection_DebugArcGeometry,
+	"Mordecai.HitDetection.DebugDraw.ArcGeometryMatchesLongswordProfile",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiHitDetection_DebugArcGeometry::RunTest(const FString& Parameters)
+{
+	const UMordecaiWeaponDataAsset* Weapon =
+		UMordecaiWeaponProfileFactory::CreateLongsword(GetTransientPackage());
+	const UMordecaiAttackProfileDataAsset* Profile = Weapon->LightAttackProfiles[0];
+	TestEqual("Longsword L1 is the real ArcSector profile", Profile->HitShapeType,
+		EMordecaiHitShapeType::ArcSector);
+
+	const FVector Origin(10.f, 20.f, 30.f);
+	const FVector Forward(0.f, 2.f, 0.f);
+	const FMordecaiHitShapeParams& Shape = Profile->HitShapeParams;
+	const FMordecaiDebugArcGeometry Geometry =
+		UMordecaiHitDetectionSubsystem::BuildDebugArcGeometry(
+			Origin, Forward, Shape.Radius, Shape.Angle, Shape.StartAngleOffset);
+
+	const FVector CenterDirection = Forward.GetSafeNormal2D().RotateAngleAxis(
+		Shape.StartAngleOffset, FVector::UpVector);
+	const FVector ExpectedStart =
+		Origin + CenterDirection.RotateAngleAxis(-Shape.Angle * 0.5f, FVector::UpVector) * Shape.Radius;
+	const FVector ExpectedEnd =
+		Origin + CenterDirection.RotateAngleAxis(Shape.Angle * 0.5f, FVector::UpVector) * Shape.Radius;
+
+	TestTrue("Arc keeps the query origin", Geometry.Origin.Equals(Origin));
+	TestTrue("Arc has enough fan points to draw its boundary", Geometry.ArcPoints.Num() >= 2);
+	TestTrue("Arc start edge uses radius, angle and start offset", Geometry.StartEdge.Equals(ExpectedStart, 0.01f));
+	TestTrue("Arc end edge uses radius, angle and start offset", Geometry.EndEdge.Equals(ExpectedEnd, 0.01f));
+	if (Geometry.ArcPoints.Num() >= 2)
+	{
+		TestTrue("First arc point is the start edge", Geometry.ArcPoints[0].Equals(ExpectedStart, 0.01f));
+		TestTrue("Last arc point is the end edge", Geometry.ArcPoints.Last().Equals(ExpectedEnd, 0.01f));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiHitDetection_DebugCapsuleGeometry,
+	"Mordecai.HitDetection.DebugDraw.CapsuleGeometryMatchesShortswordProfile",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiHitDetection_DebugCapsuleGeometry::RunTest(const FString& Parameters)
+{
+	const UMordecaiWeaponDataAsset* Weapon =
+		UMordecaiWeaponProfileFactory::CreateShortsword(GetTransientPackage());
+	const UMordecaiAttackProfileDataAsset* Profile = Weapon->LightAttackProfiles[3];
+	TestEqual("Shortsword L4 is the real Capsule profile", Profile->HitShapeType,
+		EMordecaiHitShapeType::Capsule);
+
+	const FVector Origin(10.f, 20.f, 30.f);
+	const FVector Forward(0.f, 3.f, 0.f);
+	const FMordecaiHitShapeParams& Shape = Profile->HitShapeParams;
+	const FMordecaiDebugCapsuleGeometry Geometry =
+		UMordecaiHitDetectionSubsystem::BuildDebugCapsuleGeometry(
+			Origin, Forward, Shape.Length, Shape.Width);
+	const FVector Forward2D = Forward.GetSafeNormal2D();
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward2D);
+	const float Radius = Shape.Width * 0.5f;
+	const FVector End = Origin + Forward2D * Shape.Length;
+
+	TestTrue("Capsule segment starts at the query origin", Geometry.SegmentStart.Equals(Origin));
+	TestTrue("Capsule segment ends at origin plus normalized forward times length",
+		Geometry.SegmentEnd.Equals(End, 0.01f));
+	TestTrue("Capsule cap radius is half the query width", FMath::IsNearlyEqual(Geometry.CapRadius, Radius));
+	TestTrue("Capsule start-left lane corner is exact", Geometry.StartLeft.Equals(Origin - Right * Radius, 0.01f));
+	TestTrue("Capsule start-right lane corner is exact", Geometry.StartRight.Equals(Origin + Right * Radius, 0.01f));
+	TestTrue("Capsule end-left lane corner is exact", Geometry.EndLeft.Equals(End - Right * Radius, 0.01f));
+	TestTrue("Capsule end-right lane corner is exact", Geometry.EndRight.Equals(End + Right * Radius, 0.01f));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiHitDetection_DebugCircleGeometry,
+	"Mordecai.HitDetection.DebugDraw.CircleGeometryMatchesGreatswordProfile",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiHitDetection_DebugCircleGeometry::RunTest(const FString& Parameters)
+{
+	const UMordecaiWeaponDataAsset* Weapon =
+		UMordecaiWeaponProfileFactory::CreateGreatsword(GetTransientPackage());
+	const UMordecaiAttackProfileDataAsset* Profile = Weapon->HeavyAttackProfile;
+	TestEqual("Greatsword heavy is the real Circle profile", Profile->HitShapeType,
+		EMordecaiHitShapeType::Circle);
+
+	const FVector Origin(10.f, 20.f, 30.f);
+	const FVector Forward(4.f, 0.f, 0.f);
+	const FMordecaiHitShapeParams& Shape = Profile->HitShapeParams;
+	const FMordecaiDebugCircleGeometry ProfileGeometry =
+		UMordecaiHitDetectionSubsystem::BuildDebugCircleGeometry(
+			Origin, Forward, Shape.Length, Shape.Radius);
+
+	TestTrue("Circle profile radius is unchanged",
+		FMath::IsNearlyEqual(ProfileGeometry.Radius, Shape.Radius));
+	TestTrue("Greatsword circle center uses its real zero length", ProfileGeometry.Center.Equals(Origin));
+
+	const float ImpactOffset = 75.f;
+	const FMordecaiDebugCircleGeometry OffsetGeometry =
+		UMordecaiHitDetectionSubsystem::BuildDebugCircleGeometry(
+			Origin, Forward, ImpactOffset, Shape.Radius);
+	TestTrue("Circle center is origin plus normalized forward times length",
+		OffsetGeometry.Center.Equals(Origin + Forward.GetSafeNormal() * ImpactOffset, 0.01f));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiHitDetection_DebugHitMarkerPosition,
+	"Mordecai.HitDetection.DebugDraw.HitMarkerSitsAboveCollisionBounds",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiHitDetection_DebugHitMarkerPosition::RunTest(const FString& Parameters)
+{
+	const FVector HitLocation(105.f, 205.f, 80.f);
+	const FVector BoundsOrigin(100.f, 200.f, 90.f);
+	const FVector BoundsExtent(40.f, 40.f, 80.f);
+	const float Margin = 15.f;
+	const FVector Marker = UMordecaiHitDetectionSubsystem::BuildDebugHitMarkerLocation(
+		HitLocation, BoundsOrigin, BoundsExtent, Margin);
+
+	TestTrue("Marker is centered over the actor bounds in XY",
+		FMath::IsNearlyEqual(Marker.X, BoundsOrigin.X)
+		&& FMath::IsNearlyEqual(Marker.Y, BoundsOrigin.Y));
+	TestTrue("Marker sits above the collision top by the requested margin",
+		FMath::IsNearlyEqual(Marker.Z, BoundsOrigin.Z + BoundsExtent.Z + Margin));
+	return true;
+}
+
+#if UE_ENABLE_DEBUG_DRAWING
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiHitDetection_DebugValidTargetRequiresASC,
+	"Mordecai.HitDetection.DebugDraw.ValidTargetRequiresAbilitySystemComponent",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiHitDetection_DebugValidTargetRequiresASC::RunTest(const FString& Parameters)
+{
+	const AActor* NonDamageableActor = GetDefault<AActor>();
+	const AMordecaiEnemyCharacter* DamageableActor = GetDefault<AMordecaiEnemyCharacter>();
+
+	TestFalse("A WorldDynamic actor without an ASC is not a valid green hit",
+		UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(NonDamageableActor));
+	TestTrue("An actor with an ASC is a valid green hit and marker target",
+		UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(DamageableActor));
+	TestFalse("A null result actor is not a valid green hit",
+		UMordecaiHitDetectionSubsystem::IsValidDebugHitTarget(nullptr));
+	return true;
+}
+#endif
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiHitDetection_DebugDrawCVarDefaults,
+	"Mordecai.HitDetection.DebugDraw.CVarsDefaultOnAndOneSecond",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiHitDetection_DebugDrawCVarDefaults::RunTest(const FString& Parameters)
+{
+	IConsoleVariable* DrawCVar = IConsoleManager::Get().FindConsoleVariable(
+		TEXT("Mordecai.Debug.DrawMeleeHitShapes"));
+	IConsoleVariable* DurationCVar = IConsoleManager::Get().FindConsoleVariable(
+		TEXT("Mordecai.Debug.DrawMeleeHitShapesDuration"));
+	TestNotNull("DrawMeleeHitShapes CVar is registered", DrawCVar);
+	TestNotNull("DrawMeleeHitShapesDuration CVar is registered", DurationCVar);
+	if (!DrawCVar || !DurationCVar)
+	{
+		return false;
+	}
+	TestEqual("Registered drawing default is on even when the live value is overridden",
+		FCString::Atoi(*DrawCVar->GetDefaultValue()), 1);
+	TestTrue("Registered duration default is one second even when the live value is overridden",
+		FMath::IsNearlyEqual(FCString::Atof(*DurationCVar->GetDefaultValue()), 1.f));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiHitDetection_DebugDrawCVarToggle,
+	"Mordecai.HitDetection.DebugDraw.CVarTogglesWithoutRestart",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiHitDetection_DebugDrawCVarToggle::RunTest(const FString& Parameters)
+{
+	IConsoleVariable* DrawCVar = IConsoleManager::Get().FindConsoleVariable(
+		TEXT("Mordecai.Debug.DrawMeleeHitShapes"));
+	TestNotNull("DrawMeleeHitShapes CVar is registered", DrawCVar);
+	if (!DrawCVar)
+	{
+		return false;
+	}
+
+	const int32 OriginalValue = DrawCVar->GetInt();
+	DrawCVar->Set(0, ECVF_SetByConsole);
+	TestFalse("0 disables the next draw path", UMordecaiHitDetectionSubsystem::ShouldDrawMeleeHitShapes());
+	DrawCVar->Set(1, ECVF_SetByConsole);
+	TestTrue("1 re-enables the next draw path without restart",
+		UMordecaiHitDetectionSubsystem::ShouldDrawMeleeHitShapes());
+	DrawCVar->Set(OriginalValue, ECVF_SetByConsole);
 	return true;
 }
