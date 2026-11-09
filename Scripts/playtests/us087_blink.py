@@ -49,6 +49,12 @@ MAX_Z_MOVEMENT = 10.0
 INVULN_TAG = "Mordecai.State.Invulnerable"
 STONE_SKIN_TAG = "Mordecai.Status.StoneSkin"
 
+
+def _now():
+    """Monotonic owner clock; isolated for deterministic deadline-boundary tests."""
+    return time.monotonic()
+
+
 SCREENSHOTS = {
     "pre_blink": "CombatTestMap immediately before E: the live full-health passive TestDummy is "
                  "about 1 m directly ahead on +X; player SP is 10/10",
@@ -319,7 +325,7 @@ class Us087BlinkRun(kit.PlaytestRun):
         before = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
         player_before = _player(before)
         sp0 = _spell_points(player_before)
-        wall0 = time.monotonic()
+        wall0 = _now()
         input_response = None
         release_response = None
         try:
@@ -349,9 +355,9 @@ class Us087BlinkRun(kit.PlaytestRun):
         end_s = max(MOVE_WINDOW_S, INVULN_END_WINDOW_S)
         final_player = player_before
 
-        while time.monotonic() - wall0 <= end_s:
+        while _now() - wall0 <= end_s:
             state = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
-            elapsed = time.monotonic() - wall0
+            elapsed = _now() - wall0
             result["polls"] += 1
             player = _player(state)
             exact = self._exact_target(state)
@@ -384,7 +390,8 @@ class Us087BlinkRun(kit.PlaytestRun):
                     dx = position[0] - self.cast_origin[0]
                     dy = position[1] - self.cast_origin[1]
                     dz = position[2] - self.cast_origin[2]
-                    if result["movement_at_wall_s"] is None and dx > MIN_X_MOVEMENT \
+                    if result["movement_at_wall_s"] is None and elapsed <= MOVE_WINDOW_S \
+                            and dx > MIN_X_MOVEMENT \
                             and abs(dy) <= MAX_Y_MOVEMENT and abs(dz) <= MAX_Z_MOVEMENT:
                         result["movement_at_wall_s"] = elapsed
                     result["samples"].append({
@@ -412,7 +419,7 @@ class Us087BlinkRun(kit.PlaytestRun):
                     result["integrity_failures"].append("target died")
             time.sleep(POLL_S)
 
-        result["wall_elapsed_s"] = time.monotonic() - wall0
+        result["wall_elapsed_s"] = _now() - wall0
         final_position = _xyz(final_player)
         result["final_location"] = list(final_position) if final_position else None
         result["sp_after"] = _spell_points(final_player)
@@ -433,7 +440,8 @@ class Us087BlinkRun(kit.PlaytestRun):
                     or abs(sp_after - (SP_BEFORE - SP_COST)) > 0.01:
                 failures.append(f"spell_points {sp0} -> {sp_after}, expected "
                                 f"{SP_BEFORE:g}->{SP_BEFORE - SP_COST:g}")
-            if result["movement_at_wall_s"] is None:
+            movement_at = result["movement_at_wall_s"]
+            if movement_at is None or movement_at > MOVE_WINDOW_S:
                 failures.append(f"no sampled +X movement > {MIN_X_MOVEMENT:g} cm with low Y/Z "
                                 f"within {MOVE_WINDOW_S:g}s")
             if dx is None or dx <= MIN_X_MOVEMENT:

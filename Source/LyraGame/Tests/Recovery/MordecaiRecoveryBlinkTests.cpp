@@ -161,6 +161,42 @@ bool FMordecai_Recovery_Blink_EnemyAheadDoesNotBlock::RunTest(const FString& Par
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Blink_PawnAheadStillClampsAtWall,
+	"Mordecai.Recovery.Blink.PawnAheadStillClampsAtWall",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Blink_PawnAheadStillClampsAtWall::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryBlinkTest;
+	FRecoveryTestEnv Env;
+	ON_SCOPE_EXIT { Env.Teardown(); };
+	if (!TestTrue("real player, ASC and touching floor set up", SetupBlink(Env)))
+	{
+		return true;
+	}
+	AMordecaiEnemyCharacter* Enemy = SpawnTraceBlockingPawn(Env, FVector(90.f, 0.f, EnemyZ));
+	if (!TestNotNull("real trace-blocking Pawn about 90 cm ahead", Enemy)
+		|| !TestNotNull("WorldStatic wall face is 300 cm ahead",
+			SpawnCollisionBox(
+				Env.World, FVector(305.f, 0.f, PlayerZ), FVector(5.f, 100.f, 100.f), TEXT("BlockAll"))))
+	{
+		return true;
+	}
+
+	const FVector EnemyBefore = Enemy->GetActorLocation();
+	const FGameplayAbilitySpecHandle Blink = GrantBlink(Env);
+	TestTrue("real Blink activates through the PlayerState ASC", Env.GetPlayerASC()->TryActivateAbility(Blink));
+
+	TestTrue("ignored Pawn does not hide the wall behind it",
+		FMath::IsNearlyEqual(Env.Player->GetActorLocation().X, 250.f, 2.f));
+	TestTrue("wall-clamped Blink stays on the +X line",
+		FMath::IsNearlyEqual(Env.Player->GetActorLocation().Y, 0.f, 1.f)
+		&& FMath::IsNearlyEqual(Env.Player->GetActorLocation().Z, PlayerZ, 1.f));
+	TestEqual("wall-clamped Blink spends exactly 2 SP", SpellPoints(Env), InitialSP - BlinkCost);
+	TestEqual("the ignored enemy was not moved", Enemy->GetActorLocation(), EnemyBefore);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Blink_NoMoveNoCost,
 	"Mordecai.Recovery.Blink.NoMoveNoCost",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -193,6 +229,11 @@ bool FMordecai_Recovery_Blink_NoMoveNoCost::RunTest(const FString& Parameters)
 		Env.GetPlayerASC()->HasMatchingGameplayTag(MordecaiGameplayTags::Ability_Spell_Blink));
 	TestFalse("zero-movement Blink does not grant invulnerability",
 		Env.GetPlayerASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Invulnerable));
+	const FGameplayAbilitySpec* BlinkSpec = Env.GetPlayerASC()->FindAbilitySpecFromHandle(Blink);
+	TestNotNull("zero-movement Blink spec still exists", BlinkSpec);
+	TestFalse("zero-movement Blink spec is inactive", BlinkSpec && BlinkSpec->IsActive());
+	TestFalse("zero-movement Blink clears State.Casting",
+		Env.GetPlayerASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Casting));
 	return true;
 }
 
@@ -222,6 +263,45 @@ bool FMordecai_Recovery_Blink_DestinationPawnAdjustedToFreeSpot::RunTest(const F
 	TestTrue("occupied exact endpoint is adjusted back", Moved < BlinkRange - UE_KINDA_SMALL_NUMBER);
 	TestFalse("actual character capsule is free at the adjusted destination",
 		Env.World->EncroachingBlockingGeometry(Env.Player, Destination, Env.Player->GetActorRotation()));
+	TestEqual("endpoint-adjusted positive Blink spends exactly 2 SP",
+		SpellPoints(Env), InitialSP - BlinkCost);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Blink_ShortPositiveMoveCommitsCast,
+	"Mordecai.Recovery.Blink.ShortPositiveMoveCommitsCast",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Blink_ShortPositiveMoveCommitsCast::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryBlinkTest;
+	FRecoveryTestEnv Env;
+	ON_SCOPE_EXIT { Env.Teardown(); };
+	if (!TestTrue("real player, ASC and touching floor set up", SetupBlink(Env))
+		|| !TestNotNull("wall face 60 cm ahead leaves a 10 cm Blink after the buffer",
+			SpawnCollisionBox(
+				Env.World, FVector(65.f, 0.f, PlayerZ), FVector(5.f, 100.f, 100.f), TEXT("BlockAll"))))
+	{
+		return true;
+	}
+
+	FSpellCastEventCounter CastEvents;
+	CastEvents.Start(Env.GetPlayerASC());
+	ON_SCOPE_EXIT { CastEvents.Stop(); };
+	const FGameplayAbilitySpecHandle Blink = GrantBlink(Env);
+	TestTrue("real Blink activates", Env.GetPlayerASC()->TryActivateAbility(Blink));
+
+	TestTrue("any numerical positive movement is retained",
+		FMath::IsNearlyEqual(Env.Player->GetActorLocation().X, 10.f, 2.f));
+	TestTrue("short positive Blink stays on the +X floor line",
+		FMath::IsNearlyEqual(Env.Player->GetActorLocation().Y, 0.f, 1.f)
+		&& FMath::IsNearlyEqual(Env.Player->GetActorLocation().Z, PlayerZ, 1.f));
+	TestEqual("short positive Blink spends exactly 2 SP", SpellPoints(Env), InitialSP - BlinkCost);
+	TestEqual("short positive Blink broadcasts one cast event", CastEvents.Count, 1);
+	TestTrue("short positive Blink starts cooldown",
+		Env.GetPlayerASC()->HasMatchingGameplayTag(MordecaiGameplayTags::Ability_Spell_Blink));
+	TestTrue("short positive Blink grants invulnerability",
+		Env.GetPlayerASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Invulnerable));
 	return true;
 }
 
@@ -253,6 +333,8 @@ bool FMordecai_Recovery_Blink_PreservesGeometryAndFloorSemantics::RunTest(const 
 			FMath::IsNearlyEqual(Env.Player->GetActorLocation().X, ExpectedX, 2.f));
 		TestTrue(*FString::Printf(TEXT("%s: remains on floor"), Label),
 			FMath::IsNearlyEqual(Env.Player->GetActorLocation().Z, PlayerZ, 1.f));
+		TestEqual(*FString::Printf(TEXT("%s: positive Blink spends exactly 2 SP"), Label),
+			SpellPoints(Env), InitialSP - BlinkCost);
 		Env.Teardown();
 	};
 

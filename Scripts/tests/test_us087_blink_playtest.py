@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -30,6 +31,20 @@ def load_playtest():
 
 
 us087 = load_playtest()
+
+
+class ControlledClock:
+    """Real-progressing monotonic clock with deterministic forward jumps."""
+
+    def __init__(self):
+        self.origin = time.monotonic()
+        self.offset = 0.0
+
+    def __call__(self):
+        return time.monotonic() - self.origin + self.offset
+
+    def advance(self, seconds):
+        self.offset += float(seconds)
 
 
 class BlinkWorld(fb.FakeWorld):
@@ -70,7 +85,7 @@ class BlinkWorld(fb.FakeWorld):
             if "stuck_invulnerable" not in self.faults:
                 self.after(0.05, lambda world: world.status_tags.discard(us087.INVULN_TAG))
 
-        distance = 0.0 if "no_movement" in self.faults else (
+        distance = 0.0 if {"no_movement", "postdeadline_state_return"} & self.faults else (
             250.0 if "insufficient_movement" in self.faults else 500.0)
         delay = us087.MOVE_WINDOW_S + 0.05 if "late_movement" in self.faults else 0.02
         if distance:
@@ -114,6 +129,22 @@ class PlaytestCase(unittest.TestCase):
         world = BlinkWorld(faults)
         server = fb.FakeBridgeServer(world, token=TOKEN, shot_dir=self.tmp).start()
         self.addCleanup(server.stop)
+        if "postdeadline_state_return" in faults:
+            clock = ControlledClock()
+            clock_patch = mock.patch.object(us087, "_now", clock)
+            clock_patch.start()
+            self.addCleanup(clock_patch.stop)
+            original_state = server._handlers["state"]
+            boundary_crossed = {"value": False}
+
+            def return_movement_after_deadline(connection, request):
+                if world.casts and not boundary_crossed["value"]:
+                    boundary_crossed["value"] = True
+                    world.pos[0] += 500.0
+                    clock.advance(us087.MOVE_WINDOW_S + 0.01)
+                return original_state(connection, request)
+
+            server._handlers["state"] = return_movement_after_deadline
         run_dir = os.path.join(self.tmp, "run-" + "-".join(faults or ("pass",)))
         code = us087.main(["--attach-port", str(server.port), "--token", TOKEN,
                            "--run-dir", run_dir])
@@ -198,6 +229,21 @@ class TestUs087BlinkOutcomes(PlaytestCase):
         check = self.checks(report)["blink_past_enemy"]
         self.assertEqual(check["status"], "FAIL")
         self.assertIn("within", check["detail"])
+
+    def test_state_call_returning_movement_after_deadline_cannot_false_pass(self):
+        with mock.patch.object(us087, "INVULN_END_WINDOW_S", 0.5):
+            _, _, code, report = self.play(("postdeadline_state_return",))
+        check = self.checks(report)["blink_past_enemy"]
+        self.assertEqual(code, 1)
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("within", check["detail"])
+        self.assertIsNone(report["blink"]["movement_at_wall_s"])
+        late_samples = [
+            sample for sample in report["blink"]["samples"]
+            if sample["delta"][0] > us087.MIN_X_MOVEMENT
+        ]
+        self.assertTrue(late_samples, "fixture must return qualifying movement state")
+        self.assertGreater(late_samples[0]["wall_s"], us087.MOVE_WINDOW_S)
 
 
 class TestUs087BlinkIntegrity(PlaytestCase):
