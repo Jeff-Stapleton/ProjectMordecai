@@ -32,7 +32,7 @@ STORY_FILE = os.path.join(os.path.dirname(SCRIPTS), "stories", "done",
 TOKEN = "us001-token"
 INPUT_AND_READ_CMDS = {"ping", "state", "key", "axis", "mouse", "click", "screenshot",
                        "wait_until", "wait", "quit"}
-KNOWN_FAILS = ["facing_arrow", "sprint_l3", "facing_mouse", "facing_stick", "gamepad_move"]
+KNOWN_FAILS = ["sprint_l3", "facing_mouse", "facing_stick", "gamepad_move"]
 FIXED_BY_US083 = ["sprint_shift", "jump_space"]
 
 
@@ -66,7 +66,7 @@ class UnboundWorld(fb.FakeWorld):
         out = super()._s_player()
         if out.get("valid"):
             out["facing_arrow"] = {
-                "hidden_in_game": True, "visible": False, "registered": True,
+                "hidden_in_game": False, "visible": True, "registered": True,
                 "only_owner_see": False, "owner_no_see": False,
                 "forward": [1.0, 0.0, 0.0], "pawn_forward": [1.0, 0.0, 0.0],
                 "forward_alignment": 1.0,
@@ -181,6 +181,15 @@ class MissingArrowStateWorld(HudWorld):
         return out
 
 
+class HiddenArrowWorld(HudWorld):
+    """The N12 regression: the component exists but does not draw in game."""
+
+    def _s_player(self):
+        out = super()._s_player()
+        out["facing_arrow"].update({"hidden_in_game": True, "visible": False})
+        return out
+
+
 class NoBrakeWorld(HudWorld):
     """Movement with poor braking: after the keys are let go the pawn keeps creeping at 5 % of
     its walk speed for 1.5 s (player.speed stays above 1)."""
@@ -277,7 +286,8 @@ class TestUs001TodaysGame(PlaytestCase):
                      "move_a", "move_w", "move_d", "move_s", "camera_fixed",
                      "no_camera_rotation_input", "walk_lane_wp1", "walk_lane_wp2",
                      "walk_lane_start", "walk_speed_baseline", "walk_lane_reset",
-                     "sprint_shift", "walk_lane_reset2", "jump_space", "no_crash"):
+                     "sprint_shift", "walk_lane_reset2", "jump_space", "facing_arrow",
+                     "no_crash"):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(self.statuses(rep, "FAIL"), KNOWN_FAILS)
         self.assertEqual(self.statuses(rep, "SKIP"), [])
@@ -292,7 +302,6 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertFalse(world.sprinting, "the sprint was toggled back")
         # What the details say about each known failure.
         self.assertIn("need > 700", checks["sprint_l3"]["detail"])
-        self.assertIn("hidden_in_game=True", checks["facing_arrow"]["detail"])
         self.assertIn("yaw stayed 0", checks["facing_mouse"]["detail"])
         self.assertIn("yaw stayed 0", checks["facing_stick"]["detail"])
         self.assertIn("dx 0 cm", checks["gamepad_move"]["detail"])
@@ -327,8 +336,7 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertEqual(acs["AC-2.1.4"]["status"], "PASS")
         self.assertEqual(acs["AC-1.2.1"]["status"], "PENDING")
         self.assertIn("no camera transform", acs["AC-1.2.1"]["pending"])
-        self.assertEqual(acs["AC-2.1.5"]["status"], "FAIL")
-        self.assertEqual(acs["AC-2.1.5"]["known_issue"], us001.KI_ARROW)
+        self.assertEqual(acs["AC-2.1.5"]["status"], "PASS")
         self.assertFalse([a for a in rep["acs"] if a["accepted"]],
                          "an attached run never accepts an AC")
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
@@ -439,7 +447,16 @@ class TestUs001Failures(PlaytestCase):
         check = self.by_name(rep)["facing_arrow"]
         self.assertEqual(check["status"], "FAIL")
         self.assertIn("runtime arrow state is missing", check["detail"])
-        self.assertIn("facing_arrow", rep["known_failures"])
+        self.assertIn("facing_arrow", rep["new_failures"])
+
+    def test_hidden_runtime_arrow_fails_n12_check(self):
+        _, server = self.serve(HiddenArrowWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["facing_arrow"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("hidden_in_game=True", check["detail"])
+        self.assertIn("facing_arrow", rep["new_failures"])
 
     def test_the_shared_fake_has_no_bars_so_the_hud_check_fails_new(self):
         _, server = self.serve(fb.FakeWorld)
@@ -536,8 +553,7 @@ class TestUs001Failures(PlaytestCase):
     def test_a_lost_connection_is_infra_and_skips_the_rest(self):
         _, server = self.serve(faults=fb.Faults(drop_on_cmd="mouse"))
         code, rep = self.play(server)
-        # The earlier expected N12 gameplay failure takes exit-code precedence over infra.
-        self.assertEqual(code, 1, self.log.getvalue()[-5000:])
+        self.assertEqual(code, 2, self.log.getvalue()[-5000:])
         checks = self.by_name(rep)
         self.assertEqual(checks["no_camera_rotation_input"]["status"], "FAIL")
         self.assertEqual(checks["no_camera_rotation_input"]["kind"], "infra")

@@ -140,9 +140,7 @@ KI_FACING = ("Known issue: facing and aim are pinned to +X by the diorama camera
              "(Specs/agent_playtest_plan_v1.md)")
 KI_STICKS = ("Known issue: gamepad stick and L3 mappings use invalid FKey names "
              "(Specs/agent_playtest_plan_v1.md)")
-KI_ARROW = ("N12: the facing arrow is hidden in game "
-            "(Specs/agent_playtest_plan_v1.md)")
-KNOWN_ISSUES = (KI_FACING, KI_STICKS, KI_ARROW)
+KNOWN_ISSUES = (KI_FACING, KI_STICKS)
 
 SCREENSHOTS = {
     "start": "MovementTestMap from the fixed overhead camera (pitch -50, looking +X): the open "
@@ -183,7 +181,7 @@ PLAN = (
          proves=("AC-1.3.2",)),
     Step("facing_arrow", "state player.facing_arrow -> hidden_in_game=false, visible=true, "
          "registered=true, owner visibility unrestricted, and world forward aligned with the "
-         "pawn forward vector", proves=("AC-2.1.5",), known_issue=KI_ARROW),
+         "pawn forward vector", proves=("AC-2.1.5",)),
     *[Step(check, f"hold {key} {MOVE_HOLD_S:g}s -> player.location moves > {MOVE_MIN:g} cm "
            f"along {d}, < {CROSS_MAX:g} cm across", proves=("AC-2.1.1", "AC-1.3.2"))
       for check, key, _, _, d in MOVES],
