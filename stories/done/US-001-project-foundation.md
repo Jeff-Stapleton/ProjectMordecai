@@ -64,7 +64,7 @@ Get a running UE 5.7 project with a controllable player character in a test leve
 - [x] AC-2.1.2: Character rotation driven by right stick / mouse aim direction (independent of movement)
 - [x] AC-2.1.3: Sprint toggle increases move speed
 - [x] AC-2.1.4: Jump works with gravity and landing
-- [x] AC-2.1.5: Placeholder visuals: capsule + arrow component showing facing direction
+- [x] AC-2.1.5: Placeholder visuals: capsule + arrow component showing facing direction _(original story checkbox; issue #17 evidence awaits Jeff's PR #94 review)_
 - [x] AC-2.1.6: Movement feels responsive (tunable accel/decel)
 
 ### Tests Required
@@ -151,7 +151,7 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 22 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm _(known issue: gamepad stick and L3 mappings use invalid FKey names (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.1, AC-1.3.2 |
 
 ### Issue #17 / N12 evidence (2026-11-09)
-- AC-2.1.5 is accepted by the exact-`4b3dd65` package's Tier 3 MovementTestMap boot `Saved/Playtests/20261109-144453-boot` (part of sweep `Saved/Playtests/20261109-144434-sweep`): exit 0, with the placeholder player and green facing arrow visible in the engine captures. The complete `us001_movement.py` run still exits 1 only on older gamepad/facing known issues; its arrow check passes.
+- The exact-`4b3dd65` package's Tier 3 MovementTestMap boot `Saved/Playtests/20261109-144453-boot` (part of sweep `Saved/Playtests/20261109-144434-sweep`) supports AC-2.1.5: exit 0, with the placeholder player and green facing arrow visible in the engine captures. The complete `us001_movement.py` run still exits 1 only on older gamepad/facing known issues; its arrow check passes. Acceptance is pending Jeff's review of PR #94.
 - Jeff's final decision (2026-11-09, `Specs/design_decisions_log.md`) is to keep the arrow visible on dead enemies until arena reset. `EnterDeathState` hides the issue #19 placeholder body but deliberately leaves the green arrow registered and visible.
 - RED is recorded honestly in `Specs/agent_playtest_plan_v1.md`: Tier 1 found the missing enemy component, and the historical clean `9ead7f5` package's diagnostic player run failed on `hidden_in_game=true` rather than missing arrow state. That executable predates the strengthened bridge, so it could not expose the new render fields. The historical enemy run had no player/enemy arrow state and Tier 1 independently supplies its RED.
 - Final Tier 4 `Saved/Playtests/20261109-143120-us001`: `facing_arrow` PASS with `hidden_in_game=false`, `owner_hidden=false`, `registered=true`, scene proxy present, recently rendered, owner flags false, arrow length 80, size 1.5 and world-forward alignment `1.0`. Its three screenshots visibly show the green arrow above the placeholder player. The alignment result is vacuous for the player while the known facing bug pins both pawn and arrow yaw to 0.
