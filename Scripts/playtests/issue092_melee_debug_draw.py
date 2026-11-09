@@ -206,8 +206,17 @@ Run = Issue092Run
 
 def main(argv=None):
     """Issue runs use ISSUE-N, so bypass only playtest_kit's US-NNN declaration-name lint."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
     args = kit.parse_args(Issue092Run, argv)
     if args.plan:
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
         print(kit.plan_table(Issue092Run), flush=True)
         return kit.EXIT_PASS
     return Issue092Run(args).execute()
