@@ -491,6 +491,27 @@ bool FMordecaiHitDetection_DebugCircleGeometry::RunTest(const FString& Parameter
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiHitDetection_DebugHitMarkerPosition,
+	"Mordecai.HitDetection.DebugDraw.HitMarkerSitsAboveCollisionBounds",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiHitDetection_DebugHitMarkerPosition::RunTest(const FString& Parameters)
+{
+	const FVector HitLocation(105.f, 205.f, 80.f);
+	const FVector BoundsOrigin(100.f, 200.f, 90.f);
+	const FVector BoundsExtent(40.f, 40.f, 80.f);
+	const float Margin = 15.f;
+	const FVector Marker = UMordecaiHitDetectionSubsystem::BuildDebugHitMarkerLocation(
+		HitLocation, BoundsOrigin, BoundsExtent, Margin);
+
+	TestTrue("Marker is centered over the actor bounds in XY",
+		FMath::IsNearlyEqual(Marker.X, BoundsOrigin.X)
+		&& FMath::IsNearlyEqual(Marker.Y, BoundsOrigin.Y));
+	TestTrue("Marker sits above the collision top by the requested margin",
+		FMath::IsNearlyEqual(Marker.Z, BoundsOrigin.Z + BoundsExtent.Z + Margin));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiHitDetection_DebugDrawCVarDefaults,
 	"Mordecai.HitDetection.DebugDraw.CVarsDefaultOnAndOneSecond",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -507,9 +528,10 @@ bool FMordecaiHitDetection_DebugDrawCVarDefaults::RunTest(const FString& Paramet
 	{
 		return false;
 	}
-	TestEqual("Drawing defaults on in one obvious CVar definition", DrawCVar->GetInt(), 1);
-	TestTrue("Drawing helper observes the default", UMordecaiHitDetectionSubsystem::ShouldDrawMeleeHitShapes());
-	TestTrue("Duration defaults to one second", FMath::IsNearlyEqual(DurationCVar->GetFloat(), 1.f));
+	TestEqual("Registered drawing default is on even when the live value is overridden",
+		FCString::Atoi(*DrawCVar->GetDefaultValue()), 1);
+	TestTrue("Registered duration default is one second even when the live value is overridden",
+		FMath::IsNearlyEqual(FCString::Atof(*DurationCVar->GetDefaultValue()), 1.f));
 	return true;
 }
 

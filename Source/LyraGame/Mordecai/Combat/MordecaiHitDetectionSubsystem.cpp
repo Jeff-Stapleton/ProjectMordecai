@@ -40,7 +40,9 @@ namespace
 
 	constexpr int32 CircleSegments = 48;
 	constexpr float ShapeThickness = 2.f;
-	constexpr float HitPointSize = 12.f;
+	constexpr float HitPointSize = 28.f;
+	constexpr float HitBoxHalfExtent = 18.f;
+	constexpr float HitMarkerMargin = 15.f;
 
 	void DrawHitMarkers(
 		const UWorld* World,
@@ -49,25 +51,36 @@ namespace
 	{
 		for (const FMordecaiHitResult& Result : Results)
 		{
+			FVector BoundsOrigin = Result.HitLocation;
+			FVector BoundsExtent = FVector::ZeroVector;
+			if (const AActor* HitActor = Result.HitActor.Get())
+			{
+				HitActor->GetActorBounds(
+					/*bOnlyCollidingComponents=*/true,
+					BoundsOrigin,
+					BoundsExtent,
+					/*bIncludeFromChildActors=*/false);
+			}
+			const FVector MarkerLocation =
+				UMordecaiHitDetectionSubsystem::BuildDebugHitMarkerLocation(
+					Result.HitLocation, BoundsOrigin, BoundsExtent, HitMarkerMargin);
 			DrawDebugPoint(
 				World,
-				Result.HitLocation,
+				MarkerLocation,
 				HitPointSize,
 				Color,
 				false,
-				DrawMeleeHitShapesDuration);
-			if (const AActor* HitActor = Result.HitActor.Get())
-			{
-				DrawDebugBox(
-					World,
-					HitActor->GetActorLocation(),
-					FVector(HitPointSize * 0.5f),
-					Color,
-					false,
-					DrawMeleeHitShapesDuration,
-					0,
-					ShapeThickness);
-			}
+				DrawMeleeHitShapesDuration,
+				SDPG_Foreground);
+			DrawDebugBox(
+				World,
+				MarkerLocation,
+				FVector(HitBoxHalfExtent),
+				Color,
+				false,
+				DrawMeleeHitShapesDuration,
+				SDPG_Foreground,
+				ShapeThickness);
 		}
 	}
 #endif
@@ -220,6 +233,18 @@ FMordecaiDebugCircleGeometry UMordecaiHitDetectionSubsystem::BuildDebugCircleGeo
 	Geometry.Center = Origin + Forward.GetSafeNormal() * Length;
 	Geometry.Radius = Radius;
 	return Geometry;
+}
+
+FVector UMordecaiHitDetectionSubsystem::BuildDebugHitMarkerLocation(
+	const FVector& HitLocation,
+	const FVector& BoundsOrigin,
+	const FVector& BoundsExtent,
+	float Margin)
+{
+	return FVector(
+		BoundsOrigin.X,
+		BoundsOrigin.Y,
+		FMath::Max(HitLocation.Z, BoundsOrigin.Z + FMath::Max(0.f, BoundsExtent.Z)) + Margin);
 }
 
 bool UMordecaiHitDetectionSubsystem::ShouldDrawMeleeHitShapes()

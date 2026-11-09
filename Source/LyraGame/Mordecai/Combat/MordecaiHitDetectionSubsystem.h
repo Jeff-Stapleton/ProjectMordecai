@@ -157,6 +157,13 @@ public:
 		float Length,
 		float Radius);
 
+	/** Places a hit marker above the target's collision bounds so the diorama camera can see it. */
+	static FVector BuildDebugHitMarkerLocation(
+		const FVector& HitLocation,
+		const FVector& BoundsOrigin,
+		const FVector& BoundsExtent,
+		float Margin);
+
 	/** Runtime CVar state; false in builds where debug drawing is compiled out. */
 	static bool ShouldDrawMeleeHitShapes();
 
