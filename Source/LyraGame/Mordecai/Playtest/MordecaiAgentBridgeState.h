@@ -14,6 +14,7 @@ class AActor;
 class AMordecaiItemPickup;
 class APawn;
 class APlayerController;
+class UArrowComponent;
 class UButton;
 class UGameInstance;
 class UGameViewportClient;
@@ -111,6 +112,9 @@ namespace MordecaiAgentBridge::State
 
 	/** One actors[] entry. Distance is null without an origin; text_labels[].facing/upright are null without a view rotation. */
 	TSharedRef<FJsonObject> MakeActorEntry(const AActor* Actor, const FVector* Origin, const FRotator* ViewRotation = nullptr);
+
+	/** One player/enemy facing arrow, including actual render-state evidence. */
+	TSharedRef<FJsonObject> MakeFacingArrowEntry(const UArrowComponent* Arrow, const AActor* Owner);
 
 	/** One actors[].text_labels[] entry: {component, text, visible, facing, upright}; facing/upright are null without a view rotation. */
 	TSharedRef<FJsonObject> MakeTextLabelEntry(const UTextRenderComponent* Label, const AActor* Owner, const FRotator* ViewRotation);

@@ -2,6 +2,7 @@
 # Run during PIE via ue_remote_exec.py to verify the arena's three Frontliners start with the
 # Blueprint's AC-054.2 health (200), that no placed instance overrides its class's stats, and that
 # each has a visible body that does not collide (AC-085.1).
+# Issue #17 also verifies the live player and every enemy have the same rendered green facing arrow.
 # Reads state only: no gameplay function is called, so no check here is [LOGIC].
 # US-085 extends this file with the attack-profile checks.
 #
@@ -59,6 +60,41 @@ def _run():
         mesh = body.get_editor_property("static_mesh") if body else None
         return "; ".join(problems) if problems else f"{mesh.get_name()}, no collision"
 
+    def arrow_problems(owner):
+        """Why the issue #17 FacingArrow would not be the rendered, owner-agnostic indicator."""
+        arrow = owner.get_facing_arrow() if owner else None
+        if arrow is None:
+            return None, ["no FacingArrow component"]
+        problems = []
+        loc = arrow.get_editor_property("relative_location")
+        color = arrow.get_editor_property("arrow_color")
+        if arrow.get_attach_parent() != owner.get_editor_property("root_component"):
+            problems.append("not attached to root")
+        if abs(loc.x) > 0.01 or abs(loc.y) > 0.01 or abs(loc.z - 50.0) > 0.01:
+            problems.append(f"relative location ({loc.x}, {loc.y}, {loc.z}), expected Z +50")
+        if (color.r, color.g, color.b) != (0, 255, 0):
+            problems.append(f"color ({color.r}, {color.g}, {color.b}), expected green")
+        if abs(arrow.get_editor_property("arrow_size") - 1.5) > 0.001:
+            problems.append(f"size {arrow.get_editor_property('arrow_size')}, expected 1.5")
+        if abs(arrow.get_editor_property("arrow_length") - 80.0) > 0.001:
+            problems.append(f"length {arrow.get_editor_property('arrow_length')}, expected 80")
+        if arrow.get_editor_property("hidden_in_game") or not arrow.is_visible():
+            problems.append("hidden")
+        if (arrow.get_editor_property("only_owner_see")
+                or arrow.get_editor_property("owner_no_see")):
+            problems.append("owner visibility restricted")
+        if not arrow.was_recently_rendered(1.0):
+            problems.append("not rendered in the last second")
+        if arrow.get_collision_enabled() != unreal.CollisionEnabled.NO_COLLISION:
+            problems.append(f"collision {arrow.get_collision_enabled()}")
+        return arrow, problems
+
+    def arrow_detail(arrow, problems):
+        if problems:
+            return "; ".join(problems)
+        return (f"green, Z +50, size {arrow.get_editor_property('arrow_size')}, "
+                f"length {arrow.get_editor_property('arrow_length')}, rendered")
+
     def attribute(enemy, name):
         """Current value of a UMordecaiAttributeSet attribute (None when unreadable)."""
         attribute_set = enemy.get_mordecai_attribute_set()
@@ -89,6 +125,14 @@ def _run():
         finish()
         return
 
+    players = list(unreal.GameplayStatics.get_all_actors_of_class(world, unreal.MordecaiCharacter))
+    check("one Mordecai player in the arena", len(players) == 1,
+          f"Found {len(players)}: {[p.get_name() for p in players]}")
+    if players:
+        arrow, problems = arrow_problems(players[0])
+        check("Player FacingArrow is rendered and visible to every player", not problems,
+              arrow_detail(arrow, problems))
+
     enemies = list(unreal.GameplayStatics.get_all_actors_of_class(world, unreal.MordecaiEnemyCharacter))
     check(f"{EXPECTED_ENEMIES} enemies in the arena", len(enemies) == EXPECTED_ENEMIES,
           f"Found {len(enemies)}: {[e.get_name() for e in enemies]}")
@@ -113,6 +157,10 @@ def _run():
         problems = body_problems(body)
         check(f"{where} has a visible body that does not collide", not problems,
               body_detail(body, problems))
+
+        arrow, problems = arrow_problems(enemy)
+        check(f"{where} FacingArrow is rendered and visible to every player", not problems,
+              arrow_detail(arrow, problems))
 
         try:
             health, max_health = attribute(enemy, "health"), attribute(enemy, "max_health")

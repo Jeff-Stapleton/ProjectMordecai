@@ -15,6 +15,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "Components/ArrowComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -52,6 +53,20 @@ AMordecaiEnemyCharacter::AMordecaiEnemyCharacter(const FObjectInitializer& Objec
 
 	// Enemy indicator component for world-space health/status display (US-064)
 	EnemyIndicatorComponent = CreateDefaultSubobject<UMordecaiEnemyIndicatorComponent>(TEXT("EnemyIndicator"));
+
+	// Issue #17: the same temporary green facing indicator as the player. It is purely visual:
+	// no collision/overlaps, navigation, ticking or component replication.
+	FacingArrowComponent = CreateDefaultSubobject<UArrowComponent>(TEXT("FacingArrow"));
+	FacingArrowComponent->SetupAttachment(RootComponent);
+	FacingArrowComponent->ArrowColor = FColor::Green;
+	FacingArrowComponent->ArrowSize = 1.5f;
+	FacingArrowComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 50.0f));
+	FacingArrowComponent->SetHiddenInGame(false);
+	FacingArrowComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FacingArrowComponent->SetGenerateOverlapEvents(false);
+	FacingArrowComponent->SetCanEverAffectNavigation(false);
+	FacingArrowComponent->PrimaryComponentTick.bCanEverTick = false;
+	FacingArrowComponent->SetIsReplicated(false);
 
 	// US-085 (issue #19): the body players see. Left empty, so an enemy Blueprint without a body still logs
 	// "no visible mesh"; it never collides, so blocking and hits stay the capsule's

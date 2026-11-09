@@ -524,8 +524,6 @@ bool FMordecai_Playtest_AgentBridge_State_PlayerAndEnemyFacingArrows::RunTest(co
 		return true;
 	}
 
-	AddExpectedError(TEXT("has no attack profiles"), EAutomationExpectedErrorFlags::Contains, 1);
-	AddExpectedError(TEXT("has no visible mesh"), EAutomationExpectedErrorFlags::Contains, 1);
 	AMordecaiCharacter* Player = Env.World->SpawnActor<AMordecaiCharacter>(
 		AMordecaiCharacter::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
 	AMordecaiEnemyCharacter* Enemy = Env.World->SpawnActor<AMordecaiEnemyCharacter>(
@@ -572,16 +570,7 @@ bool FMordecai_Playtest_AgentBridge_State_PlayerAndEnemyFacingArrows::RunTest(co
 	CheckArrowJson(TEXT("enemy"), ObjectAt(EnemyState, TEXT("facing_arrow")));
 
 	UArrowComponent* PlayerArrow = Player->GetFacingArrow();
-	UArrowComponent* EnemyArrow = nullptr;
-	TInlineComponentArray<UArrowComponent*> EnemyArrows(Enemy);
-	for (UArrowComponent* Candidate : EnemyArrows)
-	{
-		if (Candidate && Candidate->GetFName() == TEXT("FacingArrow"))
-		{
-			EnemyArrow = Candidate;
-			break;
-		}
-	}
+	UArrowComponent* EnemyArrow = Enemy->GetFacingArrow();
 	TestTrue("Spawned player arrow is registered", PlayerArrow && PlayerArrow->IsRegistered());
 	TestTrue("Spawned enemy arrow is registered", EnemyArrow && EnemyArrow->IsRegistered());
 	if (EnemyArrow)

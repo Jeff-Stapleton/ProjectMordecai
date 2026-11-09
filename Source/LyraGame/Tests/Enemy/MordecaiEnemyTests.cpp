@@ -391,23 +391,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Enemy_FacingArrow,
 
 bool FMordecai_Enemy_FacingArrow::RunTest(const FString& Parameters)
 {
-	auto FindFacingArrow = [](const AActor* Actor) -> UArrowComponent*
-	{
-		TInlineComponentArray<UArrowComponent*> Arrows(Actor);
-		for (UArrowComponent* Arrow : Arrows)
-		{
-			if (Arrow && Arrow->GetFName() == TEXT("FacingArrow"))
-			{
-				return Arrow;
-			}
-		}
-		return nullptr;
-	};
-
 	const AMordecaiEnemyCharacter* CDO = GetDefault<AMordecaiEnemyCharacter>();
 	TestNotNull("Enemy CDO exists", CDO);
 
-	UArrowComponent* Arrow = CDO ? FindFacingArrow(CDO) : nullptr;
+	UArrowComponent* Arrow = CDO ? CDO->GetFacingArrow() : nullptr;
 	TestNotNull("Enemy has a facing arrow", Arrow);
 	if (!Arrow)
 	{
@@ -432,7 +419,7 @@ bool FMordecai_Enemy_FacingArrow::RunTest(const FString& Parameters)
 	TestFalse("FacingArrow does not replicate", Arrow->GetIsReplicated());
 
 	AMordecaiEnemyCharacter* Instance = NewObject<AMordecaiEnemyCharacter>();
-	UArrowComponent* InstanceArrow = Instance ? FindFacingArrow(Instance) : nullptr;
+	UArrowComponent* InstanceArrow = Instance ? Instance->GetFacingArrow() : nullptr;
 	TestNotNull("An enemy instance has the facing arrow", InstanceArrow);
 	if (Instance && InstanceArrow)
 	{
