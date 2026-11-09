@@ -157,11 +157,17 @@ class Issue092Run(kit.PlaytestRun):
         self.step_miss()
         self.step_hit()
         self.step_enemy()
-        if not configured:
+        if configured is False:
             self.log("the applied CVar check failed; screenshots cannot establish the requested "
                      "on/off mode")
 
     def step_configuration(self):
+        if self.mode == "attach":
+            self.skip("draw_configuration",
+                      "attached: this harness did not launch the game, so the applied CVar is "
+                      "unchecked", "infra")
+            return None
+
         def check(_bridge):
             expected = 0 if self.args.draw_off else 1
             log_path = self.game_log or os.path.join(self.run_dir, "game.log")
@@ -275,9 +281,15 @@ class Issue092Run(kit.PlaytestRun):
                            needs_why="not run: enemy hit screenshot was not captured")
 
     def md_sections(self):
+        configuration_note = (
+            f"- `{CVAR}` was checked from the running game's console-response log."
+            if self.mode == "launch" else
+            f"- Attached run: `{CVAR}` was not checked because this harness did not launch "
+            "the game."
+        )
         return ["", "## Issue #92 review notes", "",
                 f"- Launch mode: {'off (--draw-off)' if self.args.draw_off else 'default on'}.",
-                f"- `{CVAR}` is checked from the running game's console-response log.",
+                configuration_note,
                 "- Runtime 0 -> 1 toggle acceptance is Tier 1/PIE evidence, not claimed by this "
                 "packaged launch.",
                 "- Overlay presence/absence remains NOT RUN until every listed screenshot is "
@@ -298,7 +310,11 @@ def parse_args(argv=None):
             filtered.append(value)
     args = kit.parse_args(Issue092Run, filtered)
     args.draw_off = draw_off
-    args.extra_arg = list(args.extra_arg or []) + [build_exec_arg(draw_off)]
+    if args.attach_port is not None and draw_off:
+        kit.log("NOTE: --draw-off has no effect with --attach-port because this harness did not "
+                "launch the attached game", STORY)
+    if args.attach_port is None:
+        args.extra_arg = list(args.extra_arg or []) + [build_exec_arg(draw_off)]
     return args
 
 
