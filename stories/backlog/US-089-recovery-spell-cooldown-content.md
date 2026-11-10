@@ -53,8 +53,8 @@ Edits and saves `/MordecaiCore/Spells/DA_Spell_*` DataAssets via the Python edit
 
 | Script | Check | Player step (bridge calls) → expected | Sweep result (8ea853b) |
 |---|---|---|---|
-| us057 | `fireball_cooldown_state` | same poll -> player.spells[0].cooldown_remaining_s>0 within 1s of the tap | FAIL (known) |
-| us057 | `cooldown_hud` | same poll -> a SpellCooldown widget renders a numeric remaining time | FAIL (known) |
+| us057 | `fireball_cooldown_state` | same poll -> player.spells[0].cooldown_remaining_s>0 within 1s of the tap | FAIL (known) historically; PASS at `bc6d0ce` |
+| us057 | `cooldown_hud` | same poll -> a SpellCooldown widget renders a numeric remaining time | FAIL (known) historically; PASS at `bc6d0ce` |
 
 - **Playable alone:** YES (with US-088 landed first)
 
@@ -73,7 +73,7 @@ Edits and saves `/MordecaiCore/Spells/DA_Spell_*` DataAssets via the Python edit
 
 ## Completion Notes
 - All four serialized assets carry their native cooldown tag and Jeff's durations: Fireball 2 s, Blink 4 s, Stone Skin 15 s, Restoration 10 s. The stale Fireball 5 s specification was corrected.
-- Tier 1: 805/805 Mordecai tests PASS. Python tooling: 625/625 PASS. Fresh-editor PIE PASS. The content guard and US-057 lint PASS. Mutation of each serialized duration/tag fails the exact-value test and was restored.
+- Tier 1: 808/808 Mordecai tests PASS at `bc6d0ce`. Python tooling: 625/625 PASS. Fresh-editor PIE PASS. The content guard and US-057 lint PASS at `bc6d0ce`. The evidenced asset mutation changed Fireball's serialized cooldown duration from 2 s to 3 s; `verify_pie_magic.py` failed its exact-value check, and the mutation was restored.
 - Clean package: `81f8cadd79f930077e8cbce43262f42a598be616`, built 2026-11-10T01:25:54-07:00 in 565.07 s (`Saved/Playtests/package-20261110-011601.log`), clean tree, no source changes during build.
 - Tier 3: `Saved/Playtests/20261110-012620-boot`, CombatTestMap PASS: correct experience, no crash, all content cooked, Mordecai loading screen, and three valid engine frames. Desktop captures are covered by another window and are not evidence.
 - Tier 4: `Saved/Playtests/20261110-012719-us057`, fresh package. `spell_loadout` PASS reports all four native tags; `fireball_cooldown_state` PASS reports 2.0 s at 0.31 s after Q; `cooldown_hud` PASS renders `2.0`. Final-head log: `Saved/Playtests/issue35-r2-us057/game.log`; `rg -F "but no CooldownTag" Saved/Playtests/issue35-r2-us057/game.log` returns zero matches. The Q cast spends SP 10→7 and cannot bypass GAS cooldown handling.

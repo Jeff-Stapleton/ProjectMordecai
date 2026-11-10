@@ -57,8 +57,8 @@ Native gameplay tags and widget binding for the existing A/B cooldown widgets; t
 | Script | Check | Player step (bridge calls) → expected | Sweep result (8ea853b) |
 |---|---|---|---|
 | us057 | `cooldown_widgets` | state widgets -> 4 SpellCooldown widgets on the HUD (one per spell) | FAIL (known issue #13): 2 |
-| us057 | `fireball_cooldown_state` | tap Q -> Fireball remaining cooldown is positive within 1 s | PASS at `81f8cad` |
-| us057 | `cooldown_hud` | the bound Fireball widget renders a numeric countdown | PASS at `81f8cad` |
+| us057 | `fireball_cooldown_state` | tap Q -> Fireball remaining cooldown is positive within 1 s | PASS at `bc6d0ce` |
+| us057 | `cooldown_hud` | the bound Fireball widget renders a numeric countdown | PASS at `bc6d0ce` |
 
 - **Playable alone:** NO — paired content is US-089; together they fix issue #35 for A/B while issue #13 remains
 
@@ -76,7 +76,7 @@ Native gameplay tags and widget binding for the existing A/B cooldown widgets; t
 
 ## Completion Notes
 - Issue #35 scope follows Jeff's decision: native tags and cooldown application for all four spells, with the existing A/B HUD widgets bound to Fireball/Blink. No C/D widgets or labels were added; AC-088.3 stays open under issue #13.
-- Tier 1: 805/805 Mordecai tests PASS. Python tooling: 625/625 PASS. Fresh-editor PIE PASS. Development Editor/Game and Shipping builds PASS. Mutation proofs independently failed for native tags, cooldown application, A/B binding, delegate unbind, missing-tag warning, and serialized asset values, then were restored.
+- Tier 1: 808/808 Mordecai tests PASS at `bc6d0ce`. Python tooling: 625/625 PASS. Fresh-editor PIE PASS. Development Editor/Game and Shipping builds PASS. Mutation proofs independently failed for native tags, cooldown application, A/B binding, delegate unbind, missing-tag warning, and the evidenced Fireball duration asset mutation, then were restored.
 - Clean package: `81f8cadd79f930077e8cbce43262f42a598be616`, built 2026-11-10T01:25:54-07:00 in 565.07 s (`Saved/Playtests/package-20261110-011601.log`), clean tree, no source changes during build.
 - Tier 3: `Saved/Playtests/20261110-012620-boot`, CombatTestMap PASS. `engine_loading.png` shows the Project Mordecai loading screen. `engine_01.png`–`engine_03.png` show the fixed-camera CombatTestMap grid, player, TestDummy, Mordecai HUD and the two existing cooldown slots. `shot_01.png`–`shot_03.png` are covered by an unrelated fortress window and are not visual evidence.
 - Tier 4: `Saved/Playtests/20261110-012719-us057`, fresh package. `fireball_cooldown_state` PASS (2.0 s at 0.31 s after Q) and `cooldown_hud` PASS (bound widget text `2.0`). `cooldown_widgets` FAIL is expected issue #13 (2 rather than 4). `stone_skin_indicator` FAIL renders generic `Status 10.0`; it is N16 and predates this branch in baseline `Saved/Playtests/20261109-214811-sweep` at `22e809a`.
