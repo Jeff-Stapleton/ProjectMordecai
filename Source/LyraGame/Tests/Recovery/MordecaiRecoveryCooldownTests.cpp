@@ -187,6 +187,101 @@ bool FMordecai_Recovery_Cooldown_SpellBlockedDuringCooldown::RunTest(const FStri
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Cooldown_OverlappingSpellCooldownsAreIndependent,
+	"Mordecai.Recovery.Cooldown.OverlappingSpellCooldownsAreIndependent",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Cooldown_OverlappingSpellCooldownsAreIndependent::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiRecoveryCooldownTest;
+	FRecoveryTestEnv Env;
+	ON_SCOPE_EXIT { Env.Teardown(); };
+	if (!TestTrue("real player and PlayerState ASC", Env.Setup(FVector::ZeroVector)))
+	{
+		return true;
+	}
+
+	UAbilitySystemComponent* ASC = Env.GetPlayerASC();
+	if (!ASC)
+	{
+		AddError(TEXT("Player ASC is null"));
+		return true;
+	}
+
+	const FGameplayTag FireballCooldown = Tag(TEXT("Mordecai.Cooldown.Spell.Fireball"));
+	const FGameplayTag BlinkCooldown = Tag(TEXT("Mordecai.Cooldown.Spell.Blink"));
+	TestTrue("Fireball cooldown tag is registered", FireballCooldown.IsValid());
+	TestTrue("Blink cooldown tag is registered", BlinkCooldown.IsValid());
+
+	constexpr float StartingSP = 20.f;
+	ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetSpellPointsAttribute(), StartingSP);
+	UMordecaiSpellDataAsset* FireballData =
+		MakeSpellData(ASC, TEXT("FireballOverlap"), FireballCooldown, 0.2f);
+	UMordecaiSpellDataAsset* BlinkData =
+		MakeSpellData(ASC, TEXT("BlinkOverlap"), BlinkCooldown, 0.4f);
+	const FGameplayAbilitySpecHandle FireballHandle = ASC->GiveAbility(
+		FGameplayAbilitySpec(UMordecaiGA_SpellBase::StaticClass(), 1, INDEX_NONE, FireballData));
+	const FGameplayAbilitySpecHandle BlinkHandle = ASC->GiveAbility(
+		FGameplayAbilitySpec(UMordecaiGA_SpellBase::StaticClass(), 1, INDEX_NONE, BlinkData));
+
+	TestTrue("Fireball activates", ASC->TryActivateAbility(FireballHandle));
+	TestTrue("Blink activates in the same frame", ASC->TryActivateAbility(BlinkHandle));
+	TestTrue("Fireball retains a positive remaining cooldown after Blink starts",
+		MaxRemaining(ASC, FireballCooldown) > 0.f);
+
+	Tick(Env, 6);
+	TestFalse("Fireball tag expires after 0.3 seconds",
+		ASC->HasMatchingGameplayTag(FireballCooldown));
+	TestTrue("Blink tag remains after 0.3 seconds",
+		ASC->HasMatchingGameplayTag(BlinkCooldown));
+	TestTrue("Blink still reports positive remaining time after 0.3 seconds",
+		MaxRemaining(ASC, BlinkCooldown) > 0.f);
+
+	Tick(Env, 4);
+	TestFalse("Fireball tag is absent after 0.5 seconds",
+		ASC->HasMatchingGameplayTag(FireballCooldown));
+	TestFalse("Blink tag expires after 0.5 seconds",
+		ASC->HasMatchingGameplayTag(BlinkCooldown));
+	const float SPBeforeFireballReactivation =
+		ASC->GetNumericAttribute(UMordecaiAttributeSet::GetSpellPointsAttribute());
+	TestTrue("Fireball reactivates after its independent cooldown expires",
+		ASC->TryActivateAbility(FireballHandle));
+	TestEqual("Fireball reactivation spends exactly 3 SP",
+		ASC->GetNumericAttribute(UMordecaiAttributeSet::GetSpellPointsAttribute()),
+		SPBeforeFireballReactivation - SpellCost);
+
+	FRecoveryTestEnv ControlEnv;
+	ON_SCOPE_EXIT { ControlEnv.Teardown(); };
+	if (!TestTrue("zero-duration control has a separate real player and ASC",
+		ControlEnv.Setup(FVector::ZeroVector)))
+	{
+		return true;
+	}
+	UAbilitySystemComponent* ControlASC = ControlEnv.GetPlayerASC();
+	if (!ControlASC)
+	{
+		AddError(TEXT("Zero-duration control ASC is null"));
+		return true;
+	}
+	ControlASC->SetNumericAttributeBase(
+		UMordecaiAttributeSet::GetSpellPointsAttribute(),
+		InitialSP);
+	UMordecaiSpellDataAsset* NoCooldownData =
+		MakeSpellData(
+			ControlASC,
+			TEXT("NoCooldownControl"),
+			Tag(TEXT("Mordecai.Cooldown.Spell.Restoration")),
+			0.f);
+	const FGameplayAbilitySpecHandle NoCooldownHandle = ControlASC->GiveAbility(
+		FGameplayAbilitySpec(UMordecaiGA_SpellBase::StaticClass(), 1, INDEX_NONE, NoCooldownData));
+	TestTrue("zero-duration control activates once",
+		ControlASC->TryActivateAbility(NoCooldownHandle));
+	TestTrue("zero-duration control activates again immediately",
+		ControlASC->TryActivateAbility(NoCooldownHandle));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Cooldown_WidgetsBoundToSlotTags,
 	"Mordecai.Recovery.Cooldown.WidgetsBoundToSlotTags",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
