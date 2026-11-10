@@ -533,7 +533,7 @@ def lint(story, scripts, stories_dir=None, all_scripts=None):
         pt = st["playtest"]
         if not pt["present"]:
             out.append(("FAIL", f"{tag}: playtest_section",
-                        f"{story} has no Playtest section (stories/PLANNER.md section 7)"))
+                        f"{story} has no Playtest section (stories/STORY_FORMAT.md section 5)"))
         elif s.name not in pt["scripts"]:
             out.append(("FAIL", f"{tag}: playtest_section",
                         f"the Playtest section does not name Scripts/playtests/{s.name}"
@@ -1223,7 +1223,8 @@ def run_story(args, story, scripts):
         lines += ["", "### Other stories' ACs this run proves", ""] + md_ac_rows(others)
     lines += ["", "## Failures (known vs NEW)", ""] + md_failures(t4s)
     lines += ["", "## Playable Status", "",
-              "Paste into the planner log (stories/PLANNER.md section 6):", ""]
+              "Paste into the story's Completion Notes or the PR body "
+              "(stories/STORY_FORMAT.md section 4):", ""]
     lines += [f["line"] for f in features] or ["- (no features)"]
     lines += ["", "## Screenshots", ""] + md_screens(shots)
     lines += ["", "## Console logs", ""]
@@ -1339,7 +1340,8 @@ def run_sweep(args, scripts, import_errors):
     lines += ["", "## Failures (known vs NEW)", "",
               "Every NEW failure is a game bug: a recovery story or a Known issues entry "
               "(Specs/story_playtests_v1.md section 6.3).", ""] + md_failures(t4s)
-    lines += ["", "## Playable Status", "", "Paste into stories/PLANNER_LOG.md:", ""]
+    lines += ["", "## Playable Status", "",
+              "Paste into the relevant story's Completion Notes or the PR body:", ""]
     lines += [f["line"] for f in features] or ["- (no features)"]
     lines += ["", "## Screenshots", ""] + md_screens(shots)
     lines += ["", "## Console logs", ""]

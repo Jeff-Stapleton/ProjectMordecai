@@ -21,7 +21,7 @@ Everything agents and humans need lives in this repo (moved from `~/.openclaw` o
 
 - `CLAUDE.md`: the agent rulebook (TDD pipeline, verification ladder, packaged playtest). Claude Code loads it automatically.
 - `Specs/`: game design docs, `agent_rules_v2.md` (authoritative constraints, read first), `design_decisions_log.md`, `agent_playtest_plan_v1.md` (agent-playtesting phases and backlog).
-- `stories/`: kanban story pipeline (`backlog/`, `in-progress/`, `done/`), `PLAN.md` (epics), `PLANNER.md` (planner instructions and the story template), `PLANNER_LOG.md`, `agent-prompts/` (nightly planner and worker prompts, currently not scheduled).
+- `stories/`: kanban story pipeline (`backlog/`, `in-progress/`, `done/`), `PLAN.md` (epic catalog and history), `STORY_FORMAT.md` (authoritative story template and format rules), archived `PLANNER_LOG.md`, and `agent-prompts/` (legacy worker and explorer prompts, currently not scheduled). Planning, sequencing, and scheduling live in coordinator-owned GitHub issues and epics.
 - `.claude/skills/`: Unreal skills Claude Code discovers automatically (`unreal-cpp`, `unreal-gas`, `unreal-python-editor`, `unreal-testing`, `unreal-tribal-knowledge`).
 - `.cursor/`: the Cursor counterpart (rules, generated skill copies, the `mordecai-play` MCP config, a hook that enforces the git deny list). Cursor also reads `CLAUDE.md`. `docs/agent-config.md` maps both setups and explains how to keep them in sync.
 - `Scripts/check_editor.py`, `Scripts/ue_remote_exec.py`: editor readiness check and Python remote execution against a running editor.

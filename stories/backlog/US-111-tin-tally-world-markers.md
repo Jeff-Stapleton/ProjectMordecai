@@ -31,7 +31,7 @@ The eventual surface requires `M_UI_GroundDecal` and related saved material asse
 - Never infer a telegraph separately from the attack query.
 - Pool decals/pips; do not spawn every frame.
 - BLOCKED: do not ship a fixed +X chevron as if aiming works.
-- After decisions, reassess PLANNER split requirements and create a paired story if asset and native halves are independently deliverable.
+- After decisions, reassess the HEADLESS/EDITOR split rule in `stories/STORY_FORMAT.md` and create a paired story if asset and native halves are independently deliverable.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
 ## Tests Required

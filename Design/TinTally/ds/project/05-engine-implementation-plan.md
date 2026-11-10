@@ -81,7 +81,7 @@ The foundation pair builds a deterministic harness, used by every later story:
 
 The list has 20 implementation stories: 17 new repo stories and three existing recovery stories referenced rather than duplicated. US-097 is an additional referenced prerequisite for US-104, not a Tin Tally surface story.
 
-Here, **Ready** means the story is scoped and its listed prerequisites are sufficient; it does not override repository scheduling. `stories/PLANNER.md` still makes Epic R the current selectable priority. Because the single Windows worker can run only one build/playtest at a time, execute at most one story from this sequence at once and use the graph for true prerequisites rather than interpreting the sequence as extra technical dependencies.
+Here, **Ready** means the story is scoped and its listed prerequisites are sufficient; it does not override repository scheduling. Sequencing of this epic relative to Epic R is set by Jeff's coordinator through GitHub issues. Because the single Windows worker can run only one build/playtest at a time, execute at most one story from this sequence at once and use the graph for true prerequisites rather than interpreting the sequence as extra technical dependencies.
 
 | Seq | Story | Track | Status | Depends on | Size |
 |---:|---|---:|---|---|---|
