@@ -23,7 +23,7 @@ Issue #36 used a one-time EDITOR authoring step (Scripts/us078_01_create_weapon_
 ## Acceptance Criteria
 - [ ] AC-096.1 (per TODO(DECISION) N9): the previous-weapon input is what Jeff decides — Option A: Shift+Tab chord cycles to the previous weapon, Tab alone still cycles next, and the chord does NOT toggle sprint; Option B: BackSlash stays and AC-078.7 is amended (recorded in `Specs/design_decisions_log.md`) — verified by `Mordecai.Recovery.Weapons.PreviousWeaponInput`
 - [ ] AC-096.2 (Option A): In the packaged build, on the Mace the player presses Shift+Tab and the Spear is equipped, and sprint is not toggled — verified by check `cycle_prev_shift_tab` of `Scripts/playtests/us078_weapons.py` (Tier 4). (Option B: the check is removed from the us078 plan with a note citing the decision; `cycle_prev_backslash` remains the proof)
-- [ ] AC-096.3: Equipping a weapon applies its `GrantedTags` and `StatModifiers` to the ASC found via the owning PlayerState (Lyra pattern), and unequipping removes them — verified by `Mordecai.Recovery.Weapons.EffectsAppliedToPlayerStateASC`
+- [x] AC-096.3: Equipping a weapon applies its `GrantedTags` and `StatModifiers` to the ASC found via the owning PlayerState (Lyra pattern), and unequipping removes them — verified by `Mordecai.Recovery.Weapons.EffectsAppliedToPlayerStateASC`. **Closed at Jeff's call (2026-11-09):** "Only AC-096.3 in this PR; leave previous-weapon N9 open."
 - [ ] AC-096.4: AC-078.15 (two-hand clears both slots) stays PENDING TIER 4 (bridge cannot drive: B2 — no equip slot on `player.weapon`); Tier 1 only, not claimed
 
 Issue #36 is scoped to AC-096.3 only. N9 / AC-096.1-.2 remain open. Multiplayer equipment
@@ -84,9 +84,9 @@ replication remains out of scope and is tracked by issue #95.
 
 ## Definition of Done
 - [ ] All ACs checked off (AC-096.4 stays unchecked: PENDING TIER 4, not claimed)
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: `DA_Weapon_Longsword`, `DA_Weapon_Dagger`, `DA_Weapon_Greatsword`, `DA_Weapon_Spear`, and `DA_Weapon_Mace` type-tag repairs are committed; `py Scripts/check_content_committed.py` exits 0
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [x] Content: `DA_Weapon_Longsword`, `DA_Weapon_Dagger`, `DA_Weapon_Greatsword`, `DA_Weapon_Spear`, and `DA_Weapon_Mace` type-tag repairs are committed; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-078`: `cycle_prev_shift_tab` goes from FAIL to PASS (Option A) or is removed per the recorded decision (Option B); no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
@@ -96,4 +96,14 @@ replication remains out of scope and is tracked by issue #95.
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
-<Filled in by the coding agent.>
+### Issue #36 / AC-096.3 slice (2026-11-09)
+
+Closed at Jeff's call for the scoped slice: "Only AC-096.3 in this PR; leave previous-weapon N9 open." AC-096.1, AC-096.2, and AC-096.4 remain unchecked; this story remains in backlog. Multiplayer equipment replication remains issue #95, and the synthetic +5 Strength modifier exists only in tests (no balance change).
+
+- Commits: RED coverage `9be1aec`; PlayerState resolution, five weapon tag repairs, and packaged check `a226a30`; teardown and R1 regression hardening `9fc8aeb`.
+- Tier 1: `Saved/TestLogs/issue36-r1-tier1-full.log` — 803/803 PASS. Focused `Mordecai.Recovery.Weapons.*` — 6/6 PASS, including real-order PlayerState fallback/idempotence and unpossess + pawn-destroy cleanup. Removing the same-ASC guard failed with duplicate Strength and tag count 4 (`issue36-r1-mutation-same-asc.log`); resolving a different ASC during removal left the original modified (`issue36-r1-mutation-recorded-asc.log`). Python tooling: 625/625 PASS (`issue36-r1-python-full.log`). PIE: 17/17 PASS (`issue36-r1-pie-full.log`). Shipping compile: PASS (`issue36-r1-shipping-build.log`).
+- RED: `Saved/Playtests/20261109-175702-us078` on clean `9be1aec`, exit 1 — `weapon_effects_on_asc` failed all six observations (Longsword, Dagger, Greatsword, Spear, Mace, Longsword); N9 also failed as known. `bridge_01.png` shows CombatTestMap, player/HUD, and the Longsword loadout plate; `bridge_02.png` shows the same arena with the Mace plate after four Tabs.
+- GREEN before R1: `Saved/Playtests/20261109-194903-us078` on clean `a226a30`, exit 1 only for N9 — `weapon_effects_on_asc` PASS with every current type tag present and every previous type tag absent. `bridge_01.png` shows the CombatTestMap start with Longsword; `bridge_02.png` shows the stationary player and Mace loadout plate.
+- Tier 3 before R1: `Saved/Playtests/20261109-195020-boot` on clean `a226a30`, exit 0. `engine_loading.png` shows the Project Mordecai loading screen; `engine_01.png`–`engine_03.png` show CombatTestMap's grid, player, combat/weapon HUD, and TestDummy. The desktop `shot_01.png`–`shot_03.png` show the same game window.
+- Sweep before R1: baseline `Saved/Playtests/20261109-144434-sweep` (`4b3dd65`) vs `Saved/Playtests/20261109-194942-sweep` (`a226a30`): 0 PASS→FAIL and 0 missing shared checks. The sweep remained exit 1 for unrelated filed/known failures plus pre-existing arena-spacing, Stone Skin indicator, and gamepad-jump findings; US-078 had 22 PASS and only N9 FAIL.
+- Following the #17 evidence approach, the stories-only closing commit intentionally precedes the exact-final-HEAD package. The clean package, final US-078 run, final CombatTestMap boot, two-baseline sweep comparison, and all final frame descriptions are recorded in PR #96 rather than retroactively changing this commit.
