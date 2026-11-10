@@ -497,7 +497,7 @@ Source/LyraGame/Tests/
 
 ## Story Pipeline
 Stories live in `stories/` and use a kanban flow:
-- `stories/backlog/` — scoped and ready to pick up
+- `stories/backlog/` — scoped and ready for coordinator assignment
 - `stories/in-progress/` — currently being worked on
 - `stories/done/` — completed: all ACs passing AND the Tier 3 packaged playtest of the delivered commit passed AND, for ACs that need player input, the story's Tier 4 real-input playtest passed on that same package (Step 6)
 - `stories/PLAN.md` — epic catalog and historical record; sequencing and scheduling live in coordinator-owned GitHub issues and epics
