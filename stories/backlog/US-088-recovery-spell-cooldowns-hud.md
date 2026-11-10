@@ -1,4 +1,4 @@
-# US-088: Recovery — Spell Cooldown Tags + Four Bound Cooldown Widgets on the HUD (code)
+# US-088: Recovery — Spell Cooldown Tags + Bound HUD Cooldowns (code)
 
 **Epic:** Epic R: Playability Recovery
 **Priority:** P1
@@ -6,11 +6,11 @@
 **Paired story:** US-089 (EDITOR) — DA_Spell_* cooldown tags and durations
 
 ## Overview
-Spells have no cooldowns in the packaged game: no `DA_Spell_*` sets a `CooldownTag`, so `ApplySpellCooldown` returns early, and the HUD's cooldown widgets are never bound (`BindToCooldownTag` has no callers), so they always read "ready". The HUD also shows only 2 cooldown widgets for a 4-spell loadout (N8). This story provides the native cooldown tags, four HUD cooldown widgets (one per spell slot) and their binding; US-089 puts the tags and durations into the spell DataAssets. Features: spells, spell_hud.
+Spells have no cooldowns in the packaged game: no `DA_Spell_*` sets a `CooldownTag`, so `ApplySpellCooldown` returns early, and the HUD's cooldown widgets are never bound (`BindToCooldownTag` has no callers), so they always read "ready". This story provides the native cooldown tags and binds the existing Fireball/Blink HUD widgets; US-089 puts the tags and durations into the spell DataAssets. The separate four-widget HUD expansion remains issue #13 / AC-088.3. Features: spells, spell_hud.
 
 ## Execution Mode
 **HEADLESS**
-Native gameplay tags, the C++ default HUD layout (`WBP_CombatHUD` has no widget tree, so `UMordecaiCombatHUDWidget::BuildDefaultLayout` is what the player sees) and widget binding; the DataAsset values are US-089.
+Native gameplay tags and widget binding for the existing A/B cooldown widgets; the DataAsset values are US-089. Adding C/D widgets or labels is outside issue #35 and remains issue #13.
 
 ## References
 - `Specs/agent_playtest_plan_v1.md` — "Spells have no cooldowns" (`MordecaiGA_SpellBase.cpp:445`; `UMordecaiSpellCooldownWidget::BindToCooldownTag` has no callers), N8 (`MordecaiCombatHUDWidget.cpp:81-92`)
@@ -19,46 +19,48 @@ Native gameplay tags, the C++ default HUD layout (`WBP_CombatHUD` has no widget 
 - Existing code: `Source/LyraGame/Mordecai/UI/MordecaiCombatHUDWidget.cpp:81-92` (SpellCooldownA/B only), `Source/LyraGame/Mordecai/UI/MordecaiSpellCooldownWidget.*`, `Source/LyraGame/Mordecai/Magic/MordecaiGA_SpellBase.cpp:445` (`ApplySpellCooldown`), `Source/LyraGame/Mordecai/MordecaiGameplayTags.*`, `Source/LyraGame/Mordecai/MordecaiPlayerController.cpp:174-` (spell granting with SpellData)
 
 ## Acceptance Criteria
-- [ ] AC-088.1: Native tags `Mordecai.Cooldown.Spell.Fireball`, `.Blink`, `.StoneSkin`, `.Restoration` exist (and a parent `Mordecai.Cooldown.Spell`) — verified by `Mordecai.Recovery.Cooldown.NativeSpellCooldownTags`
-- [ ] AC-088.2: With a spell whose data has a `CooldownTag` and `CooldownDuration`, activating it applies a cooldown that blocks re-activation for the duration and reports the remaining time — verified by `Mordecai.Recovery.Cooldown.SpellBlockedDuringCooldown`
-- [ ] AC-088.3: The default combat HUD has 4 `UMordecaiSpellCooldownWidget`s (one per loadout slot, labelled with the slot key Q / E / R / 1) — verified by `Mordecai.Recovery.Cooldown.HUDHasFourCooldownWidgets`; in the packaged build, check `cooldown_widgets` of `Scripts/playtests/us057_magic.py` (Tier 4, no input: state read) PASSes
-- [ ] AC-088.4: After the spells are granted, each cooldown widget is bound (`BindToCooldownTag`) to its slot's spell `CooldownTag`; a slot whose spell has no tag logs `LogMordecai` Warning — verified by `Mordecai.Recovery.Cooldown.WidgetsBoundToSlotTags`
-- [ ] AC-088.5: A spell with an empty `CooldownTag` logs `LogMordecai` Warning once at grant time (so missing content shows in `game.log`) — verified by `Mordecai.Recovery.Cooldown.WarnsOnMissingCooldownTag`
+- [x] AC-088.1: Native tags `Mordecai.Cooldown.Spell.Fireball`, `.Blink`, `.StoneSkin`, `.Restoration` exist (and a parent `Mordecai.Cooldown.Spell`) — verified by `Mordecai.Recovery.Cooldown.NativeSpellCooldownTags`
+- [x] AC-088.2: With a spell whose data has a `CooldownTag` and `CooldownDuration`, activating it applies a cooldown that blocks re-activation for the duration and reports the remaining time — verified by `Mordecai.Recovery.Cooldown.SpellBlockedDuringCooldown`
+- [ ] AC-088.3: The default combat HUD has 4 `UMordecaiSpellCooldownWidget`s (one per loadout slot, labelled with the slot key Q / E / R / 1) — remains issue #13; packaged check `cooldown_widgets` truthfully FAILs with 2 widgets
+- [x] AC-088.4: After the spells are granted, the existing A/B cooldown widgets are bound (`BindToCooldownTag`) to Fireball/Blink; a slot whose spell has no tag logs a warning. C/D binding remains issue #13 with AC-088.3 — verified by `Mordecai.Recovery.Cooldown.WidgetsBoundToSlotTags`
+- [x] AC-088.5: A spell with an empty `CooldownTag` logs `LogAbilitySystem` Warning once at grant time (so missing content shows in `game.log`) — verified by `Mordecai.Recovery.Cooldown.WarnsOnMissingCooldownTag`
 
 ## Technical Notes
-- Add `SpellCooldownC` / `SpellCooldownD` to `UMordecaiCombatHUDWidget` (UPROPERTY, BindWidgetOptional) and the default layout; keep them in a row under the SP bar.
+- Do not add `SpellCooldownC` / `SpellCooldownD` or their labels in issue #35; that work remains issue #13.
 - Binding: after `GrantCombatAbilities` grants spells (or when the HUD binds to the ASC), resolve each slot's `UMordecaiSpellDataAsset::CooldownTag` and call `BindToCooldownTag`.
 - The bridge's `player.spells[i].cooldown_tag` / `cooldown_remaining_s` read the same data; no bridge change expected.
-- Script bookkeeping: remove the N8 `known_issue` from `cooldown_widgets` in `us057_magic.py` (commit before packaging). `fireball_cooldown_state` and `cooldown_hud` keep theirs until US-089 lands.
+- Script bookkeeping: keep N8 / issue #13 on `cooldown_widgets`; issue #35 removes the stale known-issue classification from `fireball_cooldown_state` and `cooldown_hud`.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
 ## Tests Required
 ### Tier 1 — Automation (headless)
 - `Mordecai.Recovery.Cooldown.NativeSpellCooldownTags` — AC-088.1
 - `Mordecai.Recovery.Cooldown.SpellBlockedDuringCooldown` — AC-088.2
-- `Mordecai.Recovery.Cooldown.HUDHasFourCooldownWidgets` — AC-088.3
+- `Mordecai.Recovery.Cooldown.HUDHasFourCooldownWidgets` — AC-088.3 remains open under issue #13
 - `Mordecai.Recovery.Cooldown.WidgetsBoundToSlotTags` — AC-088.4
 - `Mordecai.Recovery.Cooldown.WarnsOnMissingCooldownTag` — AC-088.5
 ### Tier 2 — PIE smoke (editor integration)
-- `Scripts/verify_pie_hud.py`: 4 SpellCooldown widgets in the PIE HUD
+- `Scripts/verify_pie_magic.py`: A/B are bound to Fireball/Blink after grants
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- `Scripts/playtests/us057_magic.py` check `cooldown_widgets` (state read, no input)
+- `Scripts/playtests/us057_magic.py` checks `fireball_cooldown_state` and `cooldown_hud`; `cooldown_widgets` remains a known issue #13 FAIL
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience; us057's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-057` on the same package
-- **Player steps:** none for this half (casting with cooldowns is US-089)
-- **Visible on screen:** Tier 3 `engine_NN.png`: four cooldown indicators under the SP bar (top-left)
-- **Proof:** Tier 3 screenshots; Tier 4 check `cooldown_widgets` of `Scripts/playtests/us057_magic.py`
+- **Player steps:** walk with WASD to the Fireball line and tap Q
+- **Visible on screen:** the existing Fireball/Blink cooldown indicators under the SP bar; Fireball counts down after Q
+- **Proof:** Tier 4 checks `fireball_cooldown_state` and `cooldown_hud`; `cooldown_widgets` remains the expected issue #13 FAIL
 - **Tier 4 script:** `Scripts/playtests/us057_magic.py` — run: `py Scripts/playtest_story.py US-057`
 - **Steps:**
 
 | Script | Check | Player step (bridge calls) → expected | Sweep result (8ea853b) |
 |---|---|---|---|
-| us057 | `cooldown_widgets` | state widgets -> 4 SpellCooldown widgets on the HUD (one per spell) | FAIL (known N8): 2 |
+| us057 | `cooldown_widgets` | state widgets -> 4 SpellCooldown widgets on the HUD (one per spell) | FAIL (known issue #13): 2 |
+| us057 | `fireball_cooldown_state` | tap Q -> Fireball remaining cooldown is positive within 1 s | PASS at `81f8cad` |
+| us057 | `cooldown_hud` | the bound Fireball widget renders a numeric countdown | PASS at `81f8cad` |
 
-- **Playable alone:** NO — cooldowns are playable after US-089 (EDITOR) lands
+- **Playable alone:** NO — paired content is US-089; together they fix issue #35 for A/B while issue #13 remains
 
 ## Definition of Done
 - [ ] All ACs checked off
@@ -67,10 +69,17 @@ Native gameplay tags, the C++ default HUD layout (`WBP_CombatHUD` has no widget 
 - [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + script edit), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py US-057`: `cooldown_widgets` goes from FAIL to PASS; no check that PASSed in the sweep now FAILs; `fireball_cooldown_state`/`cooldown_hud` still FAIL (known, pending US-089); `--lint` exits 0 — never `--allow-stale`
+- [ ] On that same fresh package `py Scripts/playtest_story.py US-057`: `fireball_cooldown_state` and `cooldown_hud` PASS; `cooldown_widgets` remains the known issue #13 FAIL; no baseline PASS becomes FAIL; `--lint` exits 0 — never `--allow-stale`
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-088]` closing commit; planner log tracks cooldowns as `PENDING PAIR (waiting on US-089)`
+- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the closing commit; planner log records issue #35 fixed while issue #13 remains
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
-<Filled in by the coding agent.>
+- Issue #35 scope follows Jeff's decision: native tags and cooldown application for all four spells, with the existing A/B HUD widgets bound to Fireball/Blink. No C/D widgets or labels were added; AC-088.3 stays open under issue #13.
+- Tier 1: 805/805 Mordecai tests PASS. Python tooling: 625/625 PASS. Fresh-editor PIE PASS. Development Editor/Game and Shipping builds PASS. Mutation proofs independently failed for native tags, cooldown application, A/B binding, delegate unbind, missing-tag warning, and serialized asset values, then were restored.
+- Clean package: `81f8cadd79f930077e8cbce43262f42a598be616`, built 2026-11-10T01:25:54-07:00 in 565.07 s (`Saved/Playtests/package-20261110-011601.log`), clean tree, no source changes during build.
+- Tier 3: `Saved/Playtests/20261110-012620-boot`, CombatTestMap PASS. `engine_loading.png` shows the Project Mordecai loading screen. `engine_01.png`–`engine_03.png` show the fixed-camera CombatTestMap grid, player, TestDummy, Mordecai HUD and the two existing cooldown slots. `shot_01.png`–`shot_03.png` are covered by an unrelated fortress window and are not visual evidence.
+- Tier 4: `Saved/Playtests/20261110-012719-us057`, fresh package. `fireball_cooldown_state` PASS (2.0 s at 0.31 s after Q) and `cooldown_hud` PASS (bound widget text `2.0`). `cooldown_widgets` FAIL is expected issue #13 (2 rather than 4). `stone_skin_indicator` FAIL renders generic `Status 10.0`; it is N16 and predates this branch in baseline `Saved/Playtests/20261109-214811-sweep` at `22e809a`.
+- Tier 4 screenshots: `bridge_01.png` shows the player and damaged TestDummy with SP 7/10 and a small cooldown number under the SP bar; `bridge_02.png` shows the post-Blink lane position with SP 5/10; `bridge_03.png` shows SP 1/10 and generic `Status 10.0` (not `StoneSkin`); `bridge_04.png` shows SP 1/10, the two cooldown slots, and the long Stone Skin cooldown still counting.
+- Full sweep: `Saved/Playtests/20261110-012826-sweep` at `81f8cad`, compared with `Saved/Playtests/20261109-214811-sweep` at `22e809a`: only `fireball_cooldown_state` and `cooldown_hud` changed FAIL→PASS; zero PASS→FAIL.
+- Final docs-head validation uses `Saved/Playtests/issue35-r1-final-boot` and `Saved/Playtests/issue35-r1-final-us057` on the repackaged documentation commit.
