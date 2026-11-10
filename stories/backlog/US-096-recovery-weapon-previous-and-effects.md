@@ -84,9 +84,9 @@ replication remains out of scope and is tracked by issue #95.
 
 ## Definition of Done
 - [ ] All ACs checked off (AC-096.4 stays unchecked: PENDING TIER 4, not claimed)
-- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [x] Content: `DA_Weapon_Longsword`, `DA_Weapon_Dagger`, `DA_Weapon_Greatsword`, `DA_Weapon_Spear`, and `DA_Weapon_Mace` type-tag repairs are committed; `py Scripts/check_content_committed.py` exits 0
+- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0) (AC-096.3 slice passed at this PR: 803/803 in `Saved/TestLogs/issue36-r1-tier1-full.log`; re-run for AC-096.1/.2)
+- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC (AC-096.3 slice passed at this PR: 17/17 in `Saved/TestLogs/issue36-r1-pie-full.log`; re-run for AC-096.1/.2)
+- [ ] Content: `DA_Weapon_Longsword`, `DA_Weapon_Dagger`, `DA_Weapon_Greatsword`, `DA_Weapon_Spear`, and `DA_Weapon_Mace` type-tag repairs are committed; `py Scripts/check_content_committed.py` exits 0 (AC-096.3 slice passed at this PR: PASS in `Saved/TestLogs/issue36-r2-content-check.log`; re-run for AC-096.1/.2)
 - [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-078`: `cycle_prev_shift_tab` goes from FAIL to PASS (Option A) or is removed per the recorded decision (Option B); no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
