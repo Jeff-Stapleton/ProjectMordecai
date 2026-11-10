@@ -178,8 +178,8 @@ class MagicWorld(fb.FakeWorld):
             out.append({"class": f"WBP_SpellCooldown{COOLDOWN_NAMES[i]}_C",
                         "name": f"SpellCooldown{COOLDOWN_NAMES[i]}",
                         "rect": [20 + 130 * i, 124, 120, 16],
-                        # The live widget's ready state is empty, not the word "Ready".
-                        "texts": [f"{left:.1f}" if left > 0 else ""], "buttons": []})
+                        # The bridge omits the live widget's empty ready-state text.
+                        "texts": [f"{left:.1f}"] if left > 0 else [], "buttons": []})
         out.append({"class": "MordecaiStatusEffectBarWidget", "name": "StatusEffectBar",
                     "rect": [20, 620, 400, 40], "texts": [], "buttons": []})
         if self.indicators:
@@ -366,7 +366,8 @@ class TestUs057PassPath(PlaytestCase):
 
 class TestUs057TodaysGame(PlaytestCase):
     def test_todays_game_reports_cooldowns_as_new_and_widgets_as_known(self):
-        _, server = self.serve()  # no cooldowns, 2 cooldown widgets: the packaged game today
+        # Model the pre-#35 package: no cooldowns and only the two issue-#13 HUD widgets.
+        _, server = self.serve()
         code, rep = self.play(server)
         self.assertEqual(code, 1, self.log.getvalue()[-4000:])
         self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(TODAY_FAILURES))
@@ -378,7 +379,7 @@ class TestUs057TodaysGame(PlaytestCase):
                       checks["cooldown_widgets"]["detail"])
         self.assertIn("cooldown_remaining_s stayed 0.00", checks["fireball_cooldown_state"]["detail"])
         self.assertIn("cooldown_tag ''", checks["fireball_cooldown_state"]["detail"])
-        self.assertIn("texts seen: ['']", checks["cooldown_hud"]["detail"])
+        self.assertIn("texts seen: none", checks["cooldown_hud"]["detail"])
         self.assertNotIn("Ready", checks["cooldown_hud"]["detail"])
         md = self.md()
         self.assertIn("FAIL (known)", md)

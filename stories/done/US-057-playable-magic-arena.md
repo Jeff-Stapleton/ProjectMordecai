@@ -81,8 +81,8 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 6 | `fireball_projectile` | same poll -> an actors[] entry with kind=="projectile" within 1.5s of the tap | AC-057.1 |
 | 7 | `fireball_hits_enemy` | same poll -> the nearest enemy's health drops below its pre-cast value (200) within 2.5s; detail reports the damage | AC-057.1, AC-057.12 |
 | 8 | `sp_hud_updates` | state widgets -> the SpellPointsBar widget renders "7 / 10" | AC-057.10, US-055:AC-055.2, US-055:AC-055.3 |
-| 9 | `fireball_cooldown_state` | same poll -> player.spells[0].cooldown_remaining_s>0 within 1s of the tap _(known issue: Known issues backlog (Specs/agent_playtest_plan_v1.md) 'Spells have no cooldowns': no DA_Spell_* sets a CooldownTag (ApplySpellCooldown returns early) and the HUD cooldown widgets are never bound)_ | AC-057.1 |
-| 10 | `cooldown_hud` | same poll -> a SpellCooldown widget renders a numeric remaining time _(known issue: Known issues backlog (Specs/agent_playtest_plan_v1.md) 'Spells have no cooldowns': no DA_Spell_* sets a CooldownTag (ApplySpellCooldown returns early) and the HUD cooldown widgets are never bound)_ | US-055:AC-055.8, US-055:AC-055.9 |
+| 9 | `fireball_cooldown_state` | same poll -> player.spells[0].cooldown_remaining_s>0 within 1s of the tap | AC-057.1 |
+| 10 | `cooldown_hud` | same poll -> a SpellCooldown widget renders a numeric remaining time | US-055:AC-055.8, US-055:AC-055.9 |
 | 11 | `walk_blink_lane` | walk_to(0, -600) -> within 60 cm (the start of the Blink lane, clear +X) | - |
 | 12 | `blink` | tap E -> player.location.x rises > 400 and spell_points 7 -> 5 within 2s, \|dy\| < 50 | AC-057.2, AC-057.5 |
 | 13 | `stone_skin` | tap R -> Mordecai.Status.StoneSkin in player.tags and spell_points 5 -> 1 within 2s | AC-057.3 |

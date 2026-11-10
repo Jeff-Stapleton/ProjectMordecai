@@ -23,7 +23,7 @@ Native gameplay tags and widget binding for the existing A/B cooldown widgets; t
 - [x] AC-088.2: With a spell whose data has a `CooldownTag` and `CooldownDuration`, activating it applies a cooldown that blocks re-activation for the duration and reports the remaining time — verified by `Mordecai.Recovery.Cooldown.SpellBlockedDuringCooldown`
 - [ ] AC-088.3: The default combat HUD has 4 `UMordecaiSpellCooldownWidget`s (one per loadout slot, labelled with the slot key Q / E / R / 1) — remains issue #13; packaged check `cooldown_widgets` truthfully FAILs with 2 widgets
 - [x] AC-088.4: After the spells are granted, the existing A/B cooldown widgets are bound (`BindToCooldownTag`) to Fireball/Blink; a slot whose spell has no tag logs a warning. C/D binding remains issue #13 with AC-088.3 — verified by `Mordecai.Recovery.Cooldown.WidgetsBoundToSlotTags`
-- [x] AC-088.5: A spell with an empty `CooldownTag` logs `LogAbilitySystem` Warning once at grant time (so missing content shows in `game.log`) — verified by `Mordecai.Recovery.Cooldown.WarnsOnMissingCooldownTag`
+- [x] AC-088.5: A spell with `CooldownDuration > 0` and an empty `CooldownTag` logs `LogAbilitySystem` Warning once at grant time (so missing content shows in `game.log`) — verified by `Mordecai.Recovery.Cooldown.WarnsOnMissingCooldownTag`
 
 ## Technical Notes
 - Do not add `SpellCooldownC` / `SpellCooldownD` or their labels in issue #35; that work remains issue #13.

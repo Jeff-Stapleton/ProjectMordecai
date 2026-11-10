@@ -351,6 +351,13 @@ bool FMordecai_Recovery_Cooldown_WidgetsBoundToSlotTags::RunTest(const FString& 
 	TestTrue("new Blink delegate is registered",
 		ASC->RegisterGameplayTagEvent(BlinkCooldown, EGameplayTagEventType::NewOrRemoved)
 			.IsBoundToObject(WidgetA));
+
+	const int32 SpecCountAfterInitialGrant = ASC->GetActivatableAbilities().Num();
+	GrantController->GrantCombatAbilities();
+	TestEqual("repeat grant rebinds slot A to Fireball", BoundTag(WidgetA), FireballCooldown);
+	TestEqual("repeat grant keeps slot B bound to Blink", BoundTag(WidgetB), BlinkCooldown);
+	TestEqual("repeat grant does not add duplicate ability specs",
+		ASC->GetActivatableAbilities().Num(), SpecCountAfterInitialGrant);
 	return true;
 }
 
