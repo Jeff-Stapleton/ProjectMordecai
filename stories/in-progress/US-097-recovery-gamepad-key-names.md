@@ -43,17 +43,37 @@ FKey names in `MordecaiHeroComponent.cpp` plus a validation test; no assets.
 - `Scripts/playtests/us001_movement.py` checks `gamepad_move`, `sprint_l3`
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → B_MordecaiArenaExperience; us001's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-001` on the same package
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → B_MordecaiArenaExperience; us001's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-097` on the same package
 - **Player steps:** push the left stick forward 0.5 s; on lane L1 click L3 and push forward 1 s, click L3 again
 - **Visible on screen:** the player moves in the diorama arena (state-checked); us001 screenshots unchanged
 - **Proof:** Tier 4 checks `gamepad_move`, `sprint_l3` of `Scripts/playtests/us001_movement.py`
-- **Tier 4 script:** `Scripts/playtests/us001_movement.py` — run: `py Scripts/playtest_story.py US-001`
+- **Tier 4 script:** `Scripts/playtests/us001_movement.py` — run: `py Scripts/playtest_story.py US-097`
 - **Steps:**
 
-| Script | Check | Player step (bridge calls) → expected | Sweep result (8ea853b) |
+| # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| us001 | `sprint_l3` | tap Gamepad_LeftThumbstick (L3), hold W 1s -> dx > 700 cm (then tap L3 again) | FAIL (known): 282 cm |
-| us001 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm | FAIL (known): 0 cm |
+| 1 | `hud_visible` | state widgets -> a CombatHUD, a HealthBar and a StaminaBar widget on screen and the text "10 / 10" (SP bar) | AC-2.2.5 |
+| 2 | `spawn_state` | state player, actors -> player.valid && !player.is_dead, within 100 cm of (0, 0), pawn native class MordecaiCharacter | AC-2.3.3 |
+| 3 | `imc_active` | state input -> "MordecaiIMC_Runtime" in input.mapping_contexts | AC-1.3.2 |
+| 4 | `facing_arrow` | state player.facing_arrow -> hidden_in_game=false, owner hidden=false, registered with a scene proxy, recently rendered, owner visibility unrestricted, length=80, size=1.5, and world forward aligned with the pawn forward vector | AC-2.1.5 |
+| 5 | `move_a` | hold A 0.4s -> player.location moves > 100 cm along -Y, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 6 | `move_w` | hold W 0.4s -> player.location moves > 100 cm along +X, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 7 | `move_d` | hold D 0.4s -> player.location moves > 100 cm along +Y, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 8 | `move_s` | hold S 0.4s -> player.location moves > 100 cm along -X, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 9 | `camera_fixed` | wait_until player.control_rotation == [-50, 0, 0] (+-0.5) after the moves | AC-1.2.2 |
+| 10 | `no_camera_rotation_input` | axis Gamepad_RightX=1, Gamepad_RightY=1 held; mouse to (200,100), (1100,620), (640,360) -> player.control_rotation stays [-50, 0, 0] at every sample | AC-1.2.4, AC-1.2.2 |
+| 11 | `walk_lane_wp1` | walk_to(0, -650) -> within 60 cm (waypoint to lane L1) | - |
+| 12 | `walk_lane_wp2` | walk_to(-700, -650) -> within 60 cm (waypoint to lane L1) | - |
+| 13 | `walk_lane_start` | walk_to(-700, -800) -> within 60 cm (lane L1 start) | - |
+| 14 | `walk_speed_baseline` | hold W 1s -> dx in [400, 700] cm and wait_until player.speed<1 within 0.75s of the release | AC-2.1.6 |
+| 15 | `walk_lane_reset` | walk_to(-700, -800) -> within 60 cm | - |
+| 16 | `sprint_shift` | tap LeftShift, hold W 1s -> dx > 700 cm; tap LeftShift again, hold S 1s -> back to a walk (peak player.speed 500..750 cm/s) | AC-1.3.3, AC-2.1.3 |
+| 17 | `walk_lane_reset2` | walk_to(-700, -800) -> within 60 cm | - |
+| 18 | `sprint_l3` | tap Gamepad_LeftThumbstick (L3), hold W 1s -> dx > 700 cm (then tap L3 again) | AC-1.3.3, AC-2.1.3 |
+| 19 | `jump_space` | tap SpaceBar -> wait_until player.movement_mode=="Falling" within 1s | AC-2.1.4 |
+| 20 | `facing_mouse` | mouse 1100 360 (right of the player, +Y) -> wait_until player.rotation yaw 90 (+-30) within 1s _(known issue: facing and aim are pinned to +X by the diorama camera (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.2 |
+| 21 | `facing_stick` | axis Gamepad_RightX=-1 held (left, -Y) -> wait_until player.rotation yaw -90 (+-30) within 1s, then release _(known issue: facing and aim are pinned to +X by the diorama camera (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.2 |
+| 22 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm | AC-2.1.1, AC-1.3.2 |
 
 - **Playable alone:** YES (with US-083)
 
@@ -64,7 +84,7 @@ FKey names in `MordecaiHeroComponent.cpp` plus a validation test; no assets.
 - [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py US-001`: `gamepad_move` and `sprint_l3` go from FAIL to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
+- [ ] On that same fresh package `py Scripts/playtest_story.py US-097`: `gamepad_move` and `sprint_l3` go from FAIL to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
 - [ ] Known issue "Gamepad stick and L3 mappings use invalid FKey names" marked FIXED in `Specs/agent_playtest_plan_v1.md`
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen
 - [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-097]` closing commit

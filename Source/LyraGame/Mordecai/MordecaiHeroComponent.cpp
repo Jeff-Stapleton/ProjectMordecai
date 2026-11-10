@@ -164,7 +164,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 			A.Modifiers.Add(NegA);
 
 			// Gamepad Left Stick
-			FEnhancedActionKeyMapping& Stick = MordecaiIMC->MapKey(MoveAction, FKey(TEXT("Gamepad_LeftStick2D")));
+			FEnhancedActionKeyMapping& Stick = MordecaiIMC->MapKey(MoveAction, EKeys::Gamepad_Left2D);
 			UInputModifierDeadZone* DZ = NewObject<UInputModifierDeadZone>(MordecaiIMC);
 			DZ->LowerThreshold = 0.2f;
 			Stick.Modifiers.Add(DZ);
@@ -177,7 +177,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 		}
 		if (LookStickAction)
 		{
-			FEnhancedActionKeyMapping& RS = MordecaiIMC->MapKey(LookStickAction, FKey(TEXT("Gamepad_RightStick2D")));
+			FEnhancedActionKeyMapping& RS = MordecaiIMC->MapKey(LookStickAction, EKeys::Gamepad_Right2D);
 			UInputModifierDeadZone* DZ2 = NewObject<UInputModifierDeadZone>(MordecaiIMC);
 			DZ2->LowerThreshold = 0.2f;
 			RS.Modifiers.Add(DZ2);
@@ -194,7 +194,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 		if (SprintAction)
 		{
 			MordecaiIMC->MapKey(SprintAction, FKey(TEXT("LeftShift")));
-			MordecaiIMC->MapKey(SprintAction, FKey(TEXT("Gamepad_LeftThumbstickButton")));
+			MordecaiIMC->MapKey(SprintAction, EKeys::Gamepad_LeftThumbstick);
 		}
 
 		if (Spell1Action)
