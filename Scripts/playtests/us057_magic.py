@@ -102,9 +102,6 @@ SP_BAR = "SpellPointsBar"         # WBP_SpellPointsBar / MordecaiSpellPointsBarW
 COOLDOWN_WIDGET = "SpellCooldown"  # WBP_SpellCooldownA/B / MordecaiSpellCooldownWidget
 COOLDOWN_WIDGETS_EXPECTED = 4
 
-KI_NO_COOLDOWNS = ("Known issues backlog (Specs/agent_playtest_plan_v1.md) 'Spells have no "
-                   "cooldowns': no DA_Spell_* sets a CooldownTag (ApplySpellCooldown returns "
-                   "early) and the HUD cooldown widgets are never bound")
 KI_N8 = ("N8 (suspected NEW, Known issues backlog of Specs/agent_playtest_plan_v1.md): the HUD "
          "default layout (UMordecaiCombatHUDWidget) has 2 SpellCooldown widgets "
          "(SpellCooldownA/B), not 4")
@@ -122,8 +119,6 @@ SCREENSHOTS = {
                  "cooldown widgets (top-left, under the SP bar)",
 }
 KNOWN_ISSUES = (
-    "Spells have no cooldowns (Known issues backlog): fireball_cooldown_state and cooldown_hud "
-    "are expected to FAIL.",
     "N8 (suspected NEW, to be filed in the Known issues backlog): the HUD default layout has 2 "
     "SpellCooldown widgets, not the 4 AC-057.9 asks for; cooldown_widgets is expected to FAIL.",
     "N6 (design question): max SP is 10 and SP does not regenerate, but one cast of each "
@@ -184,9 +179,9 @@ PLAN = (
     Step("sp_hud_updates", f"state widgets -> the {SP_BAR} widget renders {lit(_sp_text(7, 10))}",
          proves=("AC-057.10", "US-055:AC-055.2", "US-055:AC-055.3")),
     Step("fireball_cooldown_state", f"same poll -> player.spells[0].cooldown_remaining_s>0 within "
-         f"{COOLDOWN_WINDOW_S:g}s of the tap", proves=("AC-057.1",), known_issue=KI_NO_COOLDOWNS),
+         f"{COOLDOWN_WINDOW_S:g}s of the tap", proves=("AC-057.1",)),
     Step("cooldown_hud", f"same poll -> a {COOLDOWN_WIDGET} widget renders a numeric remaining "
-         "time", proves=("US-055:AC-055.8", "US-055:AC-055.9"), known_issue=KI_NO_COOLDOWNS),
+         "time", proves=("US-055:AC-055.8", "US-055:AC-055.9")),
     Step("walk_blink_lane", f"walk_to({LANE_POINT[0]:g}, {LANE_POINT[1]:g}) -> within "
          f"{WALK_TOL:g} cm (the start of the Blink lane, clear +X)"),
     Step("blink", f"tap E -> player.location.x rises > {BLINK_MIN_DX:g} and spell_points 7 -> 5 "

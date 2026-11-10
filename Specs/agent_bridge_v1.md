@@ -466,5 +466,5 @@ These were found while mapping Phase 2. They are game bugs to file, and the brid
 - **Facing and aim are pinned to +X.** The diorama camera writes control rotation every frame.
 - **Not bound (FIXED by US-083):** sprint, jump, attacks, block and dodge are bound since US-083 (§5). Left Shift no longer crouches (N23).
 - **Pickup name labels were turned 90° and unreported (FIXED, issues #30 and #38).** The bridge did not report `UTextRenderComponent`s (B1), and the label's fixed rotation (45, 90, 0) made its text run up the screen under the diorama camera (yaw 0, looking along +X). The label is now a billboard that turns to the local camera every frame, and `actors[].text_labels[].facing` / `upright` expose any label that is not square and level to the camera; us079 `pickup_labels` asserts both.
-- **Spells have no cooldown tag.**
+- **Spells had no cooldown tag (FIXED by #35).**
 - **The three red bars** are the health bars of three invisible `BP_MordecaiEnemy_Frontliner` enemies. They have no mesh.

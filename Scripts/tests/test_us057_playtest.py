@@ -178,7 +178,8 @@ class MagicWorld(fb.FakeWorld):
             out.append({"class": f"WBP_SpellCooldown{COOLDOWN_NAMES[i]}_C",
                         "name": f"SpellCooldown{COOLDOWN_NAMES[i]}",
                         "rect": [20 + 130 * i, 124, 120, 16],
-                        "texts": [f"{left:.1f}" if left > 0 else "Ready"], "buttons": []})
+                        # The bridge omits the live widget's empty ready-state text.
+                        "texts": [f"{left:.1f}"] if left > 0 else [], "buttons": []})
         out.append({"class": "MordecaiStatusEffectBarWidget", "name": "StatusEffectBar",
                     "rect": [20, 620, 400, 40], "texts": [], "buttons": []})
         if self.indicators:
@@ -282,7 +283,9 @@ class PlaytestCase(unittest.TestCase):
             return f.read()
 
 
-TODAY_KNOWN = ["cooldown_widgets", "fireball_cooldown_state", "cooldown_hud"]
+TODAY_KNOWN = ["cooldown_widgets"]
+TODAY_NEW = ["fireball_cooldown_state", "cooldown_hud"]
+TODAY_FAILURES = TODAY_KNOWN + TODAY_NEW
 PLAN_CHECKS = [s.check for s in us057.PLAN]
 
 
@@ -307,7 +310,7 @@ class TestUs057PassPath(PlaytestCase):
         self.assertIn("TestDummy health 200 -> 175", checks["fireball_hits_enemy"]["detail"])
         self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
         self.assertIn(fb.COMBAT_TEST_MAP, checks["map"]["detail"])
-        # The known issues all passed: each is flagged FIXED? (re-check the backlog).
+        # Only issue #13 remains known; passing it is a fixed-candidate.
         self.assertEqual(sorted(rep["fixed_candidates"]), sorted(TODAY_KNOWN))
         self.assertIn("PASS (FIXED?)", self.md())
         self.assertNotIn(RESTORATION_TAG, world.status)
@@ -362,23 +365,25 @@ class TestUs057PassPath(PlaytestCase):
 
 
 class TestUs057TodaysGame(PlaytestCase):
-    def test_todays_game_fails_only_the_known_issues(self):
-        _, server = self.serve()  # no cooldowns, 2 cooldown widgets: the packaged game today
+    def test_todays_game_reports_cooldowns_as_new_and_widgets_as_known(self):
+        # Model the pre-#35 package: no cooldowns and only the two issue-#13 HUD widgets.
+        _, server = self.serve()
         code, rep = self.play(server)
         self.assertEqual(code, 1, self.log.getvalue()[-4000:])
-        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(TODAY_KNOWN))
+        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(TODAY_FAILURES))
         self.assertEqual(sorted(rep["known_failures"]), sorted(TODAY_KNOWN))
-        self.assertEqual(rep["new_failures"], [])
+        self.assertEqual(sorted(rep["new_failures"]), sorted(TODAY_NEW))
         self.assertEqual(self.statuses(rep, "SKIP"), [])
         checks = self.by_name(rep)
         self.assertIn("2 SpellCooldown widget(s) on screen (expected 4)",
                       checks["cooldown_widgets"]["detail"])
         self.assertIn("cooldown_remaining_s stayed 0.00", checks["fireball_cooldown_state"]["detail"])
         self.assertIn("cooldown_tag ''", checks["fireball_cooldown_state"]["detail"])
-        self.assertIn("Ready", checks["cooldown_hud"]["detail"])
+        self.assertIn("texts seen: none", checks["cooldown_hud"]["detail"])
+        self.assertNotIn("Ready", checks["cooldown_hud"]["detail"])
         md = self.md()
         self.assertIn("FAIL (known)", md)
-        self.assertNotIn("FAIL (NEW)", md)
+        self.assertIn("FAIL (NEW)", md)
         acs = {(a["story"], a["id"]): a for a in rep["acs"]}
         self.assertEqual(acs[("US-057", "AC-057.1")]["status"], "FAIL")
         self.assertEqual(acs[("US-057", "AC-057.9")]["status"], "FAIL")
@@ -393,7 +398,7 @@ class TestUs057TodaysGame(PlaytestCase):
 
 class TestUs057Failures(PlaytestCase):
     def fail_set(self, rep):
-        return sorted(set(self.statuses(rep, "FAIL")) - set(TODAY_KNOWN))
+        return sorted(set(self.statuses(rep, "FAIL")) - set(TODAY_FAILURES))
 
     def test_no_projectile_and_no_damage_are_new_failures(self):
         _, server = self.serve(projectiles=False)

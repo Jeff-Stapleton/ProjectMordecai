@@ -624,8 +624,8 @@ PAUSE_TABS = (("character", "Character"), ("skills", "Skills"), ("feats", "Feats
 INVENTORY_FILTERS = ("All", "Weapons", "Armor", "Trinkets", "Consumables", "Materials", "Quest",
                      "Magical")
 # The packaged game's loadout (AMordecaiPlayerController::DefaultSpellAbilities + DA_Spell_*,
-# AC-057.1-4): (key, spell_id, display_name); the ability class is MordecaiGA_<spell_id>.  No
-# DA_Spell_* sets a CooldownTag (Known issues: spells have no cooldowns), so cooldown_tag is "".
+# AC-057.1-4): (key, spell_id, display_name); the ability class is MordecaiGA_<spell_id>.
+# FakeWorld's base state omits cooldown tags so story tests can model the pre-#35 package.
 SPELL_SLOTS = (("Q", "Fireball", "Fireball"), ("E", "Blink", "Blink"),
                ("R", "StoneSkin", "Stone Skin"), ("One", "Restoration", "Restoration"))
 SPELL_COSTS = {"Fireball": 3.0, "Blink": 2.0, "StoneSkin": 4.0, "Restoration": 3.0}

@@ -254,9 +254,10 @@ The contract is `Specs/story_playtests_v1.md`.
   - No check that PASSed in the `8ea853b` sweep FAILs.
   - Tier 1: 692 passed / 0 failed (`Saved/TestLogs/tests-20261023-183506.log`). PIE: 11/11.
   - On the fresh package of `ef69eb0`, the script with its keyboard/mouse half (`Saved/Playtests/20261024-110250-us083`) passed every input check: all 10 gamepad checks, plus LMB tap and hold, Left Alt and Space, including the first Left click after gamepad input. Its lane walk was body-blocked (N14), so it exited 1.
-- **Spells have no cooldowns.**
-  - No `DA_Spell_*` asset sets a `CooldownTag`, so `ApplySpellCooldown` returns early (`MordecaiGA_SpellBase.cpp:445`).
-  - The HUD cooldown widgets are never bound (`UMordecaiSpellCooldownWidget::BindToCooldownTag` has no callers), so they always show "ready".
+- **Spells have no cooldowns (FIXED, issue #35, US-088/US-089).**
+  - Native `Mordecai.Cooldown.Spell.*` tags now exist and all four `DA_Spell_*` assets carry their tag plus durations 2/4/15/10 s. GAS rejects a recast while the tag is active without spending SP.
+  - The existing A/B HUD widgets bind to Fireball/Blink. Fresh-package US-057 checks `fireball_cooldown_state` and `cooldown_hud` PASS (`Saved/Playtests/20261110-012719-us057`); the full sweep changes only those checks from FAIL to PASS with zero PASS→FAIL (`Saved/Playtests/20261110-012826-sweep`, baseline `20261109-214811-sweep` at `22e809a`).
+  - Four HUD widgets remain N8 / issue #13 and are deliberately not part of issue #35.
 - **Weapon effects never reach the ASC (FIXED, issue #36, US-096 AC-096.3).**
   `UMordecaiEquipmentComponent` now resolves the owner pawn through `UAbilitySystemGlobals`,
   falls back to its PlayerState, refreshes idempotently when the pawn ASC initializes, and
@@ -316,7 +317,7 @@ The contract is `Specs/story_playtests_v1.md`.
 - **N5 The Skills and Feats tabs show "Coming Soon".** `MordecaiPauseMenuWidget.cpp:60-69` registers only Character and Inventory.
 - **N6 The spell budget runs out (design question).** `MaxSpellPoints` is 10 (`MordecaiAttributeSet.cpp:14-15`), the loadout costs 12 (Fireball 3, Blink 2, Stone Skin 4, Restoration 3), nothing regenerates SP, and respawn does not restore it (`MordecaiCharacter.cpp:357-359`).
 - **N7 (suspected) Enemies never hurt the player.** In run `20261020-205856-us079` the player spent about 60 s within aggro range at full health. Suspected causes: empty enemy attack profiles (`MordecaiGA_MeleeAttack.cpp:292-296`) or no navmesh movement. `us054_arena.py` checks `enemy_approaches` and `enemy_damages_player` decide.
-- **N8 The HUD has 2 spell cooldown widgets, not 4.** See the default layout, `MordecaiCombatHUDWidget.cpp:81-92`.
+- **N8 The HUD has 2 spell cooldown widgets, not 4 (issue #13).** See the default layout in `MordecaiCombatHUDWidget.cpp`; issue #35 binds A/B but deliberately does not add C/D or labels.
 - **N9 Previous weapon is BackSlash only.** Shift+Tab is not mapped, and Tab still fires Next (`MordecaiHeroComponent.cpp:227-232`). AC-078.7 specifies Shift+Tab.
 - **N10 The player's combat abilities exist only on an unsaved CDO edit (FIXED, US-083, issue #15).** `Scripts/us054_10_configure_all.py:15-42` set `DefaultCombatAbilities` on the C++ CDO and never saved it (`MordecaiPlayerController.cpp:136-147`; both citations before US-083). Even in the editor session that ran it, the edit never reached a spawned controller: an instance of a native class copies only `Config` properties from its CDO (unreal-tribal-knowledge, issue #40). This is the root of "attacks are not bound".
   - Fixed: the `AMordecaiPlayerController` constructor sets `DefaultCombatAbilities` (native `StaticClass()` refs: `UMordecaiGA_MeleeAttack`, the new `UMordecaiGA_HeavyAttack`, Dodge, Block, Parry) and `CombatAbilityInputTags`; `GrantCombatAbilities` adds each spec's input tag. The heavy attack is the melee ability with `AttackSlot` Heavy: it swings the equipped weapon's `GetActiveHeavyAttackProfile()` (no unarmed heavy, `TODO(DECISION)`) and owns `Mordecai.Attack.Heavy`. The script no longer writes the controller CDO. Test `Mordecai.Recovery.Combat.AbilitiesGrantedFromNativeDefaults`.

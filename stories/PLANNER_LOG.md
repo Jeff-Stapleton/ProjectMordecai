@@ -2921,8 +2921,8 @@ Inputs: `py Scripts/playtest_story.py --all` on a fresh, clean package of `8ea85
 - US-094 Inventory tab current on every menu open (CommonUI pool) — HEADLESS, P0 (us079 `menu_rows` … `amulet_identified`)
 - US-086 Death screen on death + kill counter counts kills — HEADLESS, P1 (`death_screen`, new `kill_enemy_melee`, `kill_counter_increments`)
 - US-087 Fireball flies and hits; Blink moves and ends its invulnerability — HEADLESS, P1 (`fireball_projectile`, `fireball_hits_enemy`, new `blink_past_enemy`, `blink_invulnerability_ends`; N15, N11, N19, N20)
-- US-088 Spell cooldown tags + four bound HUD cooldown widgets — HEADLESS, P1, paired with US-089 (`cooldown_widgets`)
-- US-089 DA_Spell_* cooldown tags and durations — EDITOR, P1, paired with US-088 (`fireball_cooldown_state`, `cooldown_hud`)
+- US-088 Spell cooldown tags + bound existing A/B HUD widgets — HEADLESS, P1, paired with US-089; issue #35 delivered, while four widgets / `cooldown_widgets` remain issue #13
+- US-089 DA_Spell_* cooldown tags and durations — EDITOR, P1, paired with US-088; issue #35 checks `fireball_cooldown_state` and `cooldown_hud` PASS
 - US-091 HUD readouts: status names, weapon name, no debug text — HEADLESS, P1 (`stone_skin_indicator`, `weapon_hud_text`, `weapon_hud_updates`; Tier 3 screenshots free of debug text)
 - US-092 Enemy indicators — HEADLESS, P1 (`enemy_indicators`)
 - US-093 Pause menu Character / Skills / Feats contents — HEADLESS, P1 (`character_tab_content`, `skills_tab_content`, `feats_tab_content`)
@@ -2961,7 +2961,7 @@ All lines from the sweep summary, condensed (failed checks, NEW first) @ `8ea853
 - Playable status: inventory — NOT PLAYABLE (playtest FAIL: menu_rows (NEW), unidentified_badge (NEW), menu_ledger_rows (NEW), identify_button (NEW), filter_weapons (NEW), filter_armor_empty (NEW), filter_all (NEW), pickup_labels; Tier 4 Saved/Playtests/20261022-184957-us079 @ 8ea853b) → US-094, then US-071/US-079
 - Playable status: pickups — NOT PLAYABLE (same us079 run; all six walk/focus/prompt/pickup checks PASS, pickup_labels known B1 bridge gap; the script fails on the menu) → US-094
 - Playable status: identification — NOT PLAYABLE (identify_button (NEW), identify_click/amulet_identified SKIP; Saved/Playtests/20261022-184957-us079 @ 8ea853b) → US-094
-- PENDING PAIR tracking: enemies (US-084 → US-085), spell cooldowns (US-088 → US-089)
+- PENDING PAIR tracking: enemies (US-084 → US-085). Spell cooldown behavior (US-088 → US-089) is delivered for issue #35; only the separate four-widget HUD expansion remains issue #13 / AC-088.3.
 
 ### Blockers / Decisions Needed (Jeff)
 - TODO(DECISION) N6 — spell point budget: MaxSP 10 vs loadout cost 12, no regen, no restore on respawn. Raise max / derive from INT-WIS, add regen, restore on respawn, or lower costs? (blocks US-090)

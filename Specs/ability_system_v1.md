@@ -28,7 +28,7 @@ Each ability defines:
 
 Example:
 
-Fireball Cooldown: 5s Cost: 3 SP Radius: 4m Damage: FireDamage ×
+Fireball Cooldown: 2s Cost: 3 SP Radius: 4m Damage: FireDamage ×
 SpellPower
 
 ------------------------------------------------------------------------

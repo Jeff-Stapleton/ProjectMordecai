@@ -13,6 +13,7 @@
 #include "Mordecai/UI/MordecaiKillCounterWidget.h"
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Mordecai/UI/MordecaiEquippedWeaponWidget.h"
+#include "Mordecai/Magic/MordecaiSpellDataAsset.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Blueprint/WidgetTree.h"
@@ -264,6 +265,31 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 	{
 		KillCounter->BindToASC(ASC);
 	}
+}
+
+void UMordecaiCombatHUDWidget::BindSpellCooldownSlots(
+	UAbilitySystemComponent* ASC,
+	const TArray<TObjectPtr<UMordecaiSpellDataAsset>>& SpellDataAssets)
+{
+	auto BindSlot = [ASC, &SpellDataAssets](
+		UMordecaiSpellCooldownWidget* Widget,
+		const int32 SlotIndex)
+	{
+		if (!Widget)
+		{
+			return;
+		}
+		const UMordecaiSpellDataAsset* Data =
+			SpellDataAssets.IsValidIndex(SlotIndex) ? SpellDataAssets[SlotIndex].Get() : nullptr;
+		Widget->BindToCooldownTag(
+			ASC,
+			Data ? Data->CooldownTag : FGameplayTag(),
+			Data ? Data->CooldownDuration : 0.f);
+	};
+
+	// Issue #35 binds the two existing controls. Slots C/D and their Q/E/R/1 labels remain issue #13.
+	BindSlot(SpellCooldownA, 0);
+	BindSlot(SpellCooldownB, 1);
 }
 
 void UMordecaiCombatHUDWidget::BindToEquipmentComponent(UMordecaiEquipmentComponent* Equipment)
