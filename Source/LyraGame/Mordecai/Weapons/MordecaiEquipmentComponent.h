@@ -38,6 +38,9 @@ class LYRAGAME_API UMordecaiEquipmentComponent : public UActorComponent
 public:
 	UMordecaiEquipmentComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	/** Remove effects from the persistent PlayerState ASC when this pawn component tears down. */
+	virtual void UninitializeComponent() override;
+
 	// --- Equip / Unequip ---
 
 	/**

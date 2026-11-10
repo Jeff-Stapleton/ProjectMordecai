@@ -437,9 +437,9 @@ class TestUs078Failures(Us078Case):
 
     def test_a_dead_player_before_the_click_is_an_explicit_fail(self):
         # The f21525f DevTestMap run: the swarm killed the player and light_attack_lmb clicked a
-        # dead player (no Attacking tag read as idle).  The 14th key press (the last Tab) kills
-        # the player here, who never respawns.
-        world, server = self.serve(die_after_keys=14, respawn_s=None)
+        # dead player (no Attacking tag read as idle).  The 15th key press (the last Tab;
+        # Shift+Tab counts as two) kills the player here, who never respawns.
+        world, server = self.serve(die_after_keys=15, respawn_s=None)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertTrue(world.is_dead)
@@ -449,8 +449,7 @@ class TestUs078Failures(Us078Case):
             self.assertIn("player dead before the click", checks[name]["detail"])
             self.assertIn("player.is_dead=True", checks[name]["detail"])
             self.assertIn("nothing was clicked", checks[name]["detail"])
-        self.assertEqual(sorted(rep["new_failures"]),
-                         sorted(ATTACK_CHECKS + ["weapon_hud_updates"]))
+        self.assertEqual(sorted(rep["new_failures"]), sorted(ATTACK_CHECKS))
         self.assertFalse([m for m in self.sent() if m["cmd"] == "click"])
         self.assertEqual(world.attacks, [])
 

@@ -23,6 +23,13 @@ UMordecaiEquipmentComponent::UMordecaiEquipmentComponent(const FObjectInitialize
 	: Super(ObjectInitializer)
 {
 	SetIsReplicatedByDefault(true);
+	bWantsInitializeComponent = true;
+}
+
+void UMordecaiEquipmentComponent::UninitializeComponent()
+{
+	ClearWeaponEffects();
+	Super::UninitializeComponent();
 }
 
 // ---------------------------------------------------------------------------
