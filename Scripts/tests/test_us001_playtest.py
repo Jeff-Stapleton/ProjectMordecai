@@ -611,7 +611,7 @@ class TestUs001Plan(unittest.TestCase):
         self.assertEqual(kit.plan_problems(us001.Us001Run), [])
         self.assertIs(us001.Run, us001.Us001Run)
         self.assertEqual(us001.Us001Run.STORY, "US-001")
-        self.assertEqual(us001.Us001Run.COVERS, ("US-097",))
+        self.assertEqual(us001.Us001Run.COVERS, ())
         self.assertEqual(us001.Us001Run.FEATURES, ("movement", "camera", "sprint"))
         ids = self.story_ac_ids()
         for step in us001.PLAN:

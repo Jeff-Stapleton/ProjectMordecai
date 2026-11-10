@@ -229,7 +229,6 @@ class Us001Run(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
-    COVERS = ("US-097",)
     FEATURES = ("movement", "camera", "sprint")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX

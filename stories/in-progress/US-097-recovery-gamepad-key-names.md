@@ -21,8 +21,8 @@ FKey names in `MordecaiHeroComponent.cpp` plus a validation test; no assets.
 
 ## Acceptance Criteria
 - [ ] AC-097.1: Every key in `MordecaiIMC_Runtime` is a valid engine `FKey` (`FKey::IsValid()`); the stick and L3 mappings use `Gamepad_Left2D`, `Gamepad_Right2D`, `Gamepad_LeftThumbstick` — verified by `Mordecai.Recovery.Input.AllRuntimeKeysValid`
-- [ ] AC-097.2: In the packaged build, the player pushes the left stick forward and moves +X (> 100 cm in 0.5 s) — verified by check `gamepad_move` of `Scripts/playtests/us001_movement.py` (Tier 4)
-- [ ] AC-097.3: In the packaged build, the player clicks L3 and sprints (> 700 cm in 1 s of forward), clicks again to stop — verified by check `sprint_l3` of `Scripts/playtests/us001_movement.py` (Tier 4)
+- [ ] AC-097.2: In the packaged build, the player pushes the left stick forward and moves +X (> 100 cm in 0.5 s) — verified by check `gamepad_move` of `Scripts/playtests/us097_gamepad.py` (Tier 4)
+- [ ] AC-097.3: In the packaged build, the player clicks L3 and sprints (> 700 cm in 1 s of forward), clicks again to stop — verified by check `sprint_l3` of `Scripts/playtests/us097_gamepad.py` (Tier 4)
 - [ ] AC-097.4: The right stick drives the Look/Aim action (its input reaches the aim handler) — verified by `Mordecai.Recovery.Input.RightStickReachesLookHandler`; the visible facing result is US-098 (`facing_stick` is NOT claimed here)
 
 ## Technical Notes
@@ -40,40 +40,22 @@ FKey names in `MordecaiHeroComponent.cpp` plus a validation test; no assets.
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- `Scripts/playtests/us001_movement.py` checks `gamepad_move`, `sprint_l3`
+- `Scripts/playtests/us097_gamepad.py` checks `gamepad_move`, `sprint_l3`
 
 ## Playtest
-- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → B_MordecaiArenaExperience; us001's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-097` on the same package
-- **Player steps:** push the left stick forward 0.5 s; on lane L1 click L3 and push forward 1 s, click L3 again
-- **Visible on screen:** the player moves in the diorama arena (state-checked); us001 screenshots unchanged
-- **Proof:** Tier 4 checks `gamepad_move`, `sprint_l3` of `Scripts/playtests/us001_movement.py`
-- **Tier 4 script:** `Scripts/playtests/us001_movement.py` — run: `py Scripts/playtest_story.py US-097`
+- **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-097` on the same package
+- **Player steps:** push the left stick forward 0.5 s; click L3 and push the stick forward 1 s; click L3 again and push backward 1 s to confirm walking speed
+- **Visible on screen:** the player moves across MovementTestMap's enemy-free grid while the fixed camera follows
+- **Proof:** Tier 4 checks `gamepad_move`, `sprint_l3` of `Scripts/playtests/us097_gamepad.py`
+- **Tier 4 script:** `Scripts/playtests/us097_gamepad.py` — run: `py Scripts/playtest_story.py US-097`
 - **Steps:**
 
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| 1 | `hud_visible` | state widgets -> a CombatHUD, a HealthBar and a StaminaBar widget on screen and the text "10 / 10" (SP bar) | AC-2.2.5 |
-| 2 | `spawn_state` | state player, actors -> player.valid && !player.is_dead, within 100 cm of (0, 0), pawn native class MordecaiCharacter | AC-2.3.3 |
-| 3 | `imc_active` | state input -> "MordecaiIMC_Runtime" in input.mapping_contexts | AC-1.3.2 |
-| 4 | `facing_arrow` | state player.facing_arrow -> hidden_in_game=false, owner hidden=false, registered with a scene proxy, recently rendered, owner visibility unrestricted, length=80, size=1.5, and world forward aligned with the pawn forward vector | AC-2.1.5 |
-| 5 | `move_a` | hold A 0.4s -> player.location moves > 100 cm along -Y, < 30 cm across | AC-2.1.1, AC-1.3.2 |
-| 6 | `move_w` | hold W 0.4s -> player.location moves > 100 cm along +X, < 30 cm across | AC-2.1.1, AC-1.3.2 |
-| 7 | `move_d` | hold D 0.4s -> player.location moves > 100 cm along +Y, < 30 cm across | AC-2.1.1, AC-1.3.2 |
-| 8 | `move_s` | hold S 0.4s -> player.location moves > 100 cm along -X, < 30 cm across | AC-2.1.1, AC-1.3.2 |
-| 9 | `camera_fixed` | wait_until player.control_rotation == [-50, 0, 0] (+-0.5) after the moves | AC-1.2.2 |
-| 10 | `no_camera_rotation_input` | axis Gamepad_RightX=1, Gamepad_RightY=1 held; mouse to (200,100), (1100,620), (640,360) -> player.control_rotation stays [-50, 0, 0] at every sample | AC-1.2.4, AC-1.2.2 |
-| 11 | `walk_lane_wp1` | walk_to(0, -650) -> within 60 cm (waypoint to lane L1) | - |
-| 12 | `walk_lane_wp2` | walk_to(-700, -650) -> within 60 cm (waypoint to lane L1) | - |
-| 13 | `walk_lane_start` | walk_to(-700, -800) -> within 60 cm (lane L1 start) | - |
-| 14 | `walk_speed_baseline` | hold W 1s -> dx in [400, 700] cm and wait_until player.speed<1 within 0.75s of the release | AC-2.1.6 |
-| 15 | `walk_lane_reset` | walk_to(-700, -800) -> within 60 cm | - |
-| 16 | `sprint_shift` | tap LeftShift, hold W 1s -> dx > 700 cm; tap LeftShift again, hold S 1s -> back to a walk (peak player.speed 500..750 cm/s) | AC-1.3.3, AC-2.1.3 |
-| 17 | `walk_lane_reset2` | walk_to(-700, -800) -> within 60 cm | - |
-| 18 | `sprint_l3` | tap Gamepad_LeftThumbstick (L3), hold W 1s -> dx > 700 cm (then tap L3 again) | AC-1.3.3, AC-2.1.3 |
-| 19 | `jump_space` | tap SpaceBar -> wait_until player.movement_mode=="Falling" within 1s | AC-2.1.4 |
-| 20 | `facing_mouse` | mouse 1100 360 (right of the player, +Y) -> wait_until player.rotation yaw 90 (+-30) within 1s _(known issue: facing and aim are pinned to +X by the diorama camera (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.2 |
-| 21 | `facing_stick` | axis Gamepad_RightX=-1 held (left, -Y) -> wait_until player.rotation yaw -90 (+-30) within 1s, then release _(known issue: facing and aim are pinned to +X by the diorama camera (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.2 |
-| 22 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm | AC-2.1.1, AC-1.3.2 |
+| 1 | `spawn_ready` | state player -> a live Mordecai player at MovementTestMap's spawn | - |
+| 2 | `imc_active` | state input -> 'MordecaiIMC_Runtime' is active | - |
+| 3 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm | AC-097.2 |
+| 4 | `sprint_l3` | tap Gamepad_LeftThumbstick, axis Gamepad_LeftY=1 for 1s -> dx > 700 cm; tap L3 again, axis Gamepad_LeftY=-1 for 1s -> walk back 400..700 cm | AC-097.3 |
 
 - **Playable alone:** YES (with US-083)
 

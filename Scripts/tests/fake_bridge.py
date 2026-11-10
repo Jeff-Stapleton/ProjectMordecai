@@ -666,8 +666,8 @@ class FakeWorld:
       not_ready_s          commands that need the viewport answer not_ready this long (0)
       respawn_s            seconds from death to respawn at the start (3; None = never)
       app_active           reported focus.app_active (True)
-      stick_moves          Gamepad_LeftX/LeftY move the pawn (False: the real stick names are
-                           invalid, see Known issues)
+      stick_moves          Gamepad_LeftX/LeftY move the pawn (False simulates the pre-US-097
+                           invalid runtime stick mappings)
       map, experience      reported names
       pickups              None = all six, or a list of labels to place
       enemies              place the three Frontliners (True; they never move), or a sequence of
