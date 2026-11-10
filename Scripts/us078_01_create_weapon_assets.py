@@ -70,6 +70,8 @@ def create_weapon(name, config, light_profiles, heavy_profile):
         return None
 
     for key, value in config.items():
+        if key == 'granted_tag':
+            continue
         try:
             asset.set_editor_property(key, value)
         except Exception as e:
@@ -80,15 +82,21 @@ def create_weapon(name, config, light_profiles, heavy_profile):
 
     # Add GrantedTags
     if 'granted_tag' in config:
-        try:
-            tag_container = unreal.GameplayTagContainer()
-            tag = unreal.GameplayTag(config['granted_tag'])
-            tag_container = unreal.GameplayTagLibrary.add_gameplay_tag_to_container(tag_container, tag)
-            asset.set_editor_property('granted_tags', tag_container)
-        except Exception as e:
-            unreal.log_warning(f'  Could not set granted_tag: {e}')
+        tag_name = config['granted_tag']
+        tag = unreal.GameplayTag()
+        if not tag.import_text(f'(TagName="{tag_name}")'):
+            raise RuntimeError(f'Could not import gameplay tag {tag_name}')
+        tag_container = unreal.GameplayTagContainer()
+        result = unreal.GameplayTagLibrary.add_gameplay_tag(tag_container, tag)
+        if result is not None:
+            tag_container = result
+        asset.set_editor_property('granted_tags', tag_container)
+        serialized = asset.get_editor_property('granted_tags').export_text()
+        if tag_name not in serialized:
+            raise RuntimeError(f'GrantedTags read-back missing {tag_name}: {serialized}')
 
-    EAL.save_asset(path, only_if_is_dirty=False)
+    if not EAL.save_asset(path, only_if_is_dirty=False):
+        raise RuntimeError(f'Failed to save {path}')
     unreal.log(f'Created Weapon: {path}')
     return asset
 

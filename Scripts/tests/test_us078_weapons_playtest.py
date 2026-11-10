@@ -61,14 +61,16 @@ class WeaponWorld(fb.FakeWorld):
     attack_s; a press held HEAVY_HOLD_S or longer is a heavy attack, which also owns
     Mordecai.Attack.Heavy (False = the game before US-083: attacks are not bound).
     heavy_as_light: a held press starts a light attack (a heavy input routed to the light one).
-    next_works: Tab / Y cycle at all.  weapons: [(id, display_name, type)];
+    next_works: Tab / Y cycle at all.  weapon_effects: current weapon type tag is in player.tags;
+    retain_previous_tag: swapping leaves the old type tag behind.  weapons: [(id, display_name, type)];
     stuck_attacking: the tag never clears.  die_after_keys: the player dies on that key press
     (counted from the first; with respawn_s=None it stays dead), as the DevTestMap swarm did.
     """
 
     def __init__(self, *, shift_tab_prev=True, hud_shows_weapon=True, attacks_bound=True,
                  next_works=True, weapons=GAME_WEAPONS, attack_s=0.6, stuck_attacking=False,
-                 heavy_as_light=False, die_after_keys=None, **kwargs):
+                 heavy_as_light=False, die_after_keys=None, weapon_effects=True,
+                 retain_previous_tag=False, **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         super().__init__(**kwargs)
@@ -79,6 +81,9 @@ class WeaponWorld(fb.FakeWorld):
         self.attacks_bound = attacks_bound
         self.next_works = next_works
         self.weapons = tuple(weapons)
+        self.weapon_effects = weapon_effects
+        self.retain_previous_tag = retain_previous_tag
+        self.previous_weapon_tag = None
         self.attack_s = attack_s
         self.stuck_attacking = stuck_attacking
         self.heavy_as_light = heavy_as_light
@@ -88,6 +93,7 @@ class WeaponWorld(fb.FakeWorld):
         self.attacks = []
 
     def _cycle(self, delta):
+        self.previous_weapon_tag = us078.WEAPON_TYPE_TAGS[self.weapon_index]
         self.weapon_index = (self.weapon_index + delta) % len(self.weapons)
 
     def _on_key_pressed(self, key):
@@ -147,6 +153,13 @@ class WeaponWorld(fb.FakeWorld):
             wid, name, wtype = self.weapons[self.weapon_index]
             out["weapon"] = {"id": wid, "display_name": name, "type": wtype,
                              "index": self.weapon_index, "count": len(self.weapons)}
+            if self.weapon_effects:
+                out["tags"] = list(out["tags"]) + [
+                    us078.WEAPON_TYPE_TAGS[self.weapon_index]
+                ]
+                if (self.retain_previous_tag and self.previous_weapon_tag
+                        and self.previous_weapon_tag not in out["tags"]):
+                    out["tags"].append(self.previous_weapon_tag)
             if self.attacking():
                 out["tags"] = list(out["tags"]) + ["Mordecai.State.Attacking"]
                 if self.attack_heavy and not self.stuck_attacking:
@@ -249,6 +262,8 @@ class TestUs078Pass(Us078Case):
         self.assertIn("index 0/5 'Longsword'", checks["starting_weapon"]["detail"])
         self.assertIn("'Longsword' is on screen in MordecaiEquippedWeaponWidget",
                       checks["weapon_hud_text"]["detail"])
+        self.assertIn("Mordecai.Weapon.Type.Sword present",
+                      checks["weapon_effects_on_asc"]["detail"])
         for k, name in enumerate(us078.WEAPONS[1:], 1):
             self.assertIn(f"-> {k} '{name}'", checks[f"cycle_next_{k}"]["detail"])
         self.assertIn("tapped Tab on 4 'Mace' -> 0 'Longsword'", checks["cycle_wrap"]["detail"])
@@ -266,8 +281,8 @@ class TestUs078Pass(Us078Case):
         self.assertIn("held 0.8s", checks["heavy_attack_hold"]["detail"])
         self.assertIn("Mordecai.Attack.Heavy after", checks["heavy_attack_hold"]["detail"])
         self.assertEqual([kind for kind, _ in world.attacks], ["light", "heavy"])
-        # N9 passed here, so it is the only fixed candidate; the HUD checks are no longer known.
-        self.assertEqual(rep["fixed_candidates"], KNOWN_FAILS)
+        # N9 passed in this fully working fake.
+        self.assertEqual(sorted(rep["fixed_candidates"]), sorted(KNOWN_FAILS))
         # Screenshots: start and cycled_mace.
         self.assertEqual([s["label"] for s in rep["screenshots"]], ["start", "cycled_mace"])
         # Every AC passed but nothing is accepted on an attached (diagnostic) run.
@@ -289,7 +304,8 @@ class TestUs078Pass(Us078Case):
         self.assertFalse([m for m in sent if m.get("route") == "viewport" or m.get("unsafe")
                           or str(m.get("cmd", "")).startswith("debug")])
         keys = [m.get("keys") or m.get("key") for m in sent if m["cmd"] == "key"]
-        self.assertEqual(keys, ["Tab", "Tab", "Tab", "Tab", "Tab", "BackSlash",
+        self.assertEqual(keys, ["Tab", "Tab", "Tab", "Tab", "Tab",
+                                "Tab", "Tab", "Tab", "Tab", "Tab", "BackSlash",
                                 ["LeftShift", "Tab"], "Gamepad_FaceButton_Top", "Tab"])
         clicks = [m for m in sent if m["cmd"] == "click"]
         self.assertEqual([(c["x"], c["y"], c["button"], c.get("hold_s")) for c in clicks],
@@ -297,13 +313,34 @@ class TestUs078Pass(Us078Case):
 
 
 class TestUs078Failures(Us078Case):
+    def test_missing_weapon_effect_tags_is_a_new_failure(self):
+        _, server = self.serve(weapon_effects=False)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["weapon_effects_on_asc"])
+        self.assertEqual(rep["known_failures"], [])
+        self.assertEqual(rep["new_failures"], ["weapon_effects_on_asc"])
+        detail = self.by_name(rep)["weapon_effects_on_asc"]["detail"]
+        for tag in set(us078.WEAPON_TYPE_TAGS):
+            self.assertIn(f"missing {tag}", detail)
+        self.assertEqual(self.acs(rep)["US-096:AC-096.3"]["status"], "FAIL")
+
+    def test_previous_weapon_effect_tag_must_not_survive_a_swap(self):
+        _, server = self.serve(retain_previous_tag=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["weapon_effects_on_asc"])
+        detail = self.by_name(rep)["weapon_effects_on_asc"]["detail"]
+        self.assertIn("Dagger still has previous tag Mordecai.Weapon.Type.Sword", detail)
+        self.assertIn("Spear still has previous tag Mordecai.Weapon.Type.Sword", detail)
+
     def test_missing_hud_is_new_and_shift_tab_is_known(self):
         _, server = self.serve(shift_tab_prev=False, hud_shows_weapon=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(sorted(self.statuses(rep, "FAIL")),
                          sorted(["weapon_hud_text", "cycle_prev_shift_tab"]))
-        self.assertEqual(rep["known_failures"], KNOWN_FAILS)
+        self.assertEqual(rep["known_failures"], ["cycle_prev_shift_tab"])
         self.assertEqual(rep["new_failures"], ["weapon_hud_text"])
         checks = self.by_name(rep)
         self.assertIn("no visible MordecaiEquippedWeaponWidget text equals the weapon name "
@@ -366,7 +403,8 @@ class TestUs078Failures(Us078Case):
         _, server = self.serve(weapons=weapons)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
-        self.assertEqual(rep["new_failures"], ["cycle_next_1"])
+        self.assertEqual(sorted(rep["new_failures"]),
+                         ["cycle_next_1", "weapon_effects_on_asc"])
         detail = self.by_name(rep)["cycle_next_1"]["detail"]
         self.assertIn("display_name is 'Rusty Knife', expected 'Dagger'", detail)
         self.assertEqual(self.by_name(rep)["cycle_next_2"]["status"], "PASS")
@@ -399,9 +437,9 @@ class TestUs078Failures(Us078Case):
 
     def test_a_dead_player_before_the_click_is_an_explicit_fail(self):
         # The f21525f DevTestMap run: the swarm killed the player and light_attack_lmb clicked a
-        # dead player (no Attacking tag read as idle).  The 10th key press (the last Tab) kills
-        # the player here, who never respawns.
-        world, server = self.serve(die_after_keys=10, respawn_s=None)
+        # dead player (no Attacking tag read as idle).  The 15th key press (the last Tab;
+        # Shift+Tab counts as two) kills the player here, who never respawns.
+        world, server = self.serve(die_after_keys=15, respawn_s=None)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertTrue(world.is_dead)
@@ -433,11 +471,11 @@ class TestUs078Report(Us078Case):
                                attacks_bound=False)
         _, rep = self.play(server)
         self.assertEqual(rep["story"], "US-078")
-        self.assertEqual(rep["covers"], ["US-077"])
+        self.assertEqual(rep["covers"], ["US-077", "US-096"])
         self.assertEqual(rep["features"], ["weapons", "weapon_hud", "melee_attack"])
         self.assertEqual(rep["title"], us078.TITLE)
         self.assertEqual([p["check"] for p in rep["plan"]], [s.check for s in us078.PLAN])
-        self.assertEqual(len(rep["plan"]), 13)
+        self.assertEqual(len(rep["plan"]), 14)
         self.assertEqual(rep["pending"], us078.PENDING)
         self.assertEqual(rep["known_issues"], list(us078.KNOWN_ISSUES))
         self.assertEqual(rep["script"].replace("\\", "/"), "Scripts/playtests/us078_weapons.py")
@@ -452,7 +490,7 @@ class TestUs078Report(Us078Case):
                                "AC-078.11", "AC-078.12", "AC-078.13", "AC-078.14", "AC-078.15",
                                "US-077:AC-077.1", "US-077:AC-077.3", "US-077:AC-077.4",
                                "US-077:AC-077.5", "US-077:AC-077.6", "US-077:AC-077.7",
-                               "US-077:AC-077.8"})
+                               "US-077:AC-077.8", "US-096:AC-096.3"})
         md = self.report_md()
         self.assertIn("## Weapon cycling", md)
         self.assertIn("| cycle_prev_shift_tab | LeftShift+Tab | 4 | 0 | Longsword | no |", md)
@@ -476,7 +514,7 @@ class TestUs078Plan(unittest.TestCase):
         self.assertTrue(known["cycle_prev_shift_tab"].startswith("N9 "))
         for name in ATTACK_CHECKS + ["weapon_hud_text", "weapon_hud_updates"]:
             self.assertNotIn(name, known)
-        self.assertEqual(set(us078.Us078Run.COVERS), {"US-077"})
+        self.assertEqual(set(us078.Us078Run.COVERS), {"US-077", "US-096"})
         plan = {step.check: step for step in us078.PLAN}
         for name in ("weapon_hud_text", "weapon_hud_updates"):
             self.assertNotIn("US-091:AC-091.D", plan[name].proves)
@@ -494,10 +532,10 @@ class TestUs078Plan(unittest.TestCase):
         attach.assert_not_called()
         gate.assert_not_called()
         lines = out.getvalue().strip().splitlines()
-        self.assertEqual(len(lines), 2 + 13)
+        self.assertEqual(len(lines), 2 + 14)
         self.assertTrue(lines[2].startswith("| 1 | `starting_weapon` |"))
         self.assertIn("US-077:AC-077.5", lines[2])
-        self.assertTrue(lines[-1].startswith("| 13 | `heavy_attack_hold` |"))
+        self.assertTrue(lines[-1].startswith("| 14 | `heavy_attack_hold` |"))
 
 
 if __name__ == "__main__":

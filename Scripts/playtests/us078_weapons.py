@@ -17,16 +17,18 @@ Steps (every step is a check; --plan prints them as the story's Steps table):
      count 5).
   2. The weapon HUD shows the equipped weapon's name (a visible widget text equals
      player.weapon.display_name).  Screenshot 'start'.
-  3-6. Tap Tab four times: Dagger, Greatsword, Spear, Mace (index and display_name).  Screenshot
+  3. Read player.tags on the Longsword, then tap Tab through all five weapons: each current
+     weapon type tag is present and the previous type tag is absent; finish on the Longsword.
+  4-7. Tap Tab four times: Dagger, Greatsword, Spear, Mace (index and display_name).  Screenshot
      'cycled_mace'.
-  7. Tap Tab: wraps to the Longsword.
-  8. Tap BackSlash: wraps back to the Mace.
-  9. Tap Shift+Tab (the story's binding): previous weapon, the Spear.
-  10. Tap Gamepad_FaceButton_Top (Y): next weapon.
-  11. Tap Tab: the weapon HUD text follows the new weapon.
-  12. Left click on the game view: a light attack starts (Mordecai.State.Attacking in
+  8. Tap Tab: wraps to the Longsword.
+  9. Tap BackSlash: wraps back to the Mace.
+  10. Tap Shift+Tab (the story's binding): previous weapon, the Spear.
+  11. Tap Gamepad_FaceButton_Top (Y): next weapon.
+  12. Tap Tab: the weapon HUD text follows the new weapon.
+  13. Left click on the game view: a light attack starts (Mordecai.State.Attacking in
      player.tags, no Mordecai.Attack.Heavy).
-  13. Left click held 0.8 s: a heavy attack starts on the release (Mordecai.Attack.Heavy, which
+  14. Left click held 0.8 s: a heavy attack starts on the release (Mordecai.Attack.Heavy, which
      only the heavy attack owns, in player.tags).
 Each attack is judged from idle: a dead player before the click is an explicit FAIL ("player dead
 before the click"), never mistaken for idle, and nothing is clicked.
@@ -74,6 +76,13 @@ TAP_S = 0.1
 WEAPONS = ("Longsword", "Dagger", "Greatsword", "Spear", "Mace")
 WEAPON_COUNT = len(WEAPONS)
 MACE_INDEX = WEAPONS.index("Mace")
+WEAPON_TYPE_TAGS = (
+    "Mordecai.Weapon.Type.Sword",
+    "Mordecai.Weapon.Type.Dagger",
+    "Mordecai.Weapon.Type.Sword",
+    "Mordecai.Weapon.Type.Spear",
+    "Mordecai.Weapon.Type.Mace",
+)
 
 NEXT_KEY = "Tab"
 PREV_KEY = "BackSlash"
@@ -112,6 +121,9 @@ PLAN = (
                  "US-077:AC-077.6")),
     Step("weapon_hud_text", "state player, widgets -> visible MordecaiEquippedWeaponWidget text equals "
          "player.weapon.display_name", proves=("AC-078.11", "AC-078.12", "US-077:AC-077.7")),
+    Step("weapon_effects_on_asc", f"state player on Longsword, then tap {NEXT_KEY} through all "
+         "five weapons -> each current Mordecai.Weapon.Type.* tag is present and the previous "
+         "type tag is absent in player.tags", proves=("US-096:AC-096.3",)),
     *[Step(f"cycle_next_{k}", f"tap {NEXT_KEY} -> wait_until player.weapon.index=="
            f"{k} (from {k - 1}), display_name '{WEAPONS[k]}'",
            proves=(("AC-078.6", "AC-078.8", "AC-078.14", "US-077:AC-077.3") if k == 1 else
@@ -201,7 +213,7 @@ def _dead(st):
 
 class Us078Run(kit.PlaytestRun):
     STORY = STORY
-    COVERS = ("US-077",)
+    COVERS = ("US-077", "US-096")
     FEATURES = ("weapons", "weapon_hud", "melee_attack")
     TITLE = TITLE
     SCREENSHOTS = SCREENSHOTS
@@ -215,10 +227,12 @@ class Us078Run(kit.PlaytestRun):
     def __init__(self, args):
         super().__init__(args)
         self.cycles = []       # one record per cycle step: check, keys, from, to, name
+        self.weapon_effect_observations = []
         self.hud_ok = False
 
     def steps(self):
         self.step_start()
+        self.step_weapon_effects()
         self.step_cycling()
         self.step_attacks()
 
@@ -250,7 +264,78 @@ class Us078Run(kit.PlaytestRun):
                                       hud_text, timeout_s=HUD_TIMEOUT_S)
         self.shot("start")
 
-    # --- 3-11: cycling ---------------------------------------------------------------------
+    # --- 3: weapon effects on the real player-state ASC ------------------------------------
+    def step_weapon_effects(self):
+        def fn():
+            b = self.bridge
+            problems = []
+            observations = []
+
+            def inspect(expected_index, previous_tag=None):
+                st = b.state(["player"])
+                weapon = _weapon(st)
+                tags = _tags(st)
+                current_tag = WEAPON_TYPE_TAGS[expected_index]
+                current_ok = current_tag in tags
+                previous_ok = previous_tag is None or previous_tag == current_tag or previous_tag not in tags
+                identity_ok = (_index(weapon) == expected_index
+                               and _norm(weapon.get("display_name")) == _norm(WEAPONS[expected_index]))
+                observations.append({
+                    "index": _index(weapon),
+                    "weapon": weapon.get("display_name"),
+                    "expected_tag": current_tag,
+                    "previous_tag": previous_tag,
+                    "tags": tags,
+                    "passed": current_ok and previous_ok and identity_ok,
+                })
+                if not identity_ok:
+                    problems.append(f"expected {expected_index} '{WEAPONS[expected_index]}', got "
+                                    f"{_weapon_text(weapon)}")
+                if not current_ok:
+                    problems.append(f"{WEAPONS[expected_index]} is missing {current_tag}")
+                if not previous_ok:
+                    problems.append(f"{WEAPONS[expected_index]} still has previous tag {previous_tag}")
+
+            inspect(0)
+            previous_tag = WEAPON_TYPE_TAGS[0]
+            for expected_index in range(1, WEAPON_COUNT):
+                b.tap(NEXT_KEY, hold_s=self.TAP_S)
+                try:
+                    b.wait_until(f"player.weapon.index=={expected_index}",
+                                 timeout_s=CYCLE_TIMEOUT_S)
+                except ab.BridgeError as e:
+                    if e.code != "timeout":
+                        raise
+                    problems.append(f"tap {NEXT_KEY} did not reach index {expected_index} "
+                                    f"within {CYCLE_TIMEOUT_S:g}s")
+                inspect(expected_index, previous_tag)
+                previous_tag = WEAPON_TYPE_TAGS[expected_index]
+
+            b.tap(NEXT_KEY, hold_s=self.TAP_S)
+            try:
+                b.wait_until("player.weapon.index==0", timeout_s=CYCLE_TIMEOUT_S)
+            except ab.BridgeError as e:
+                if e.code != "timeout":
+                    raise
+                problems.append(f"final tap {NEXT_KEY} did not wrap to index 0 within "
+                                f"{CYCLE_TIMEOUT_S:g}s")
+            inspect(0, previous_tag)
+            self.weapon_effect_observations = observations
+
+            detail = "; ".join(
+                f"{o['weapon']}: {o['expected_tag']} "
+                f"{'present' if o['expected_tag'] in o['tags'] else 'MISSING'}"
+                + (f", previous {o['previous_tag']} "
+                   f"{'absent' if o['previous_tag'] not in o['tags'] else 'STILL PRESENT'}"
+                   if o["previous_tag"] and o["previous_tag"] != o["expected_tag"] else "")
+                for o in observations)
+            if problems:
+                return "FAIL", "; ".join(problems) + f"; observations: {detail}", observations
+            return "PASS", detail, observations
+
+        return self.attempt("weapon_effects_on_asc", fn)
+
+    # --- 4-12: cycling ---------------------------------------------------------------------
     def cycle(self, check, keys, delta, require_from=None, hud=False, needs=True,
               needs_why=None):
         """Tap `keys`, expect player.weapon.index to move by `delta` (mod WEAPON_COUNT) with the
@@ -326,7 +411,7 @@ class Us078Run(kit.PlaytestRun):
                    needs_why="not run: weapon_hud_text failed (no weapon name on screen to "
                              "follow)")
 
-    # --- 12-13: attacks ---------------------------------------------------------------------
+    # --- 13-14: attacks ---------------------------------------------------------------------
     def attack(self, check, hold_s, timeout_s, heavy):
         """Click (held hold_s) from idle; PASS when the attack's tag shows: the heavy attack's
         Mordecai.Attack.Heavy, or for a light attack Mordecai.State.Attacking without it."""
@@ -383,7 +468,7 @@ class Us078Run(kit.PlaytestRun):
 
     # --- report hooks ---------------------------------------------------------------------
     def report_extra(self):
-        return {"cycles": self.cycles}
+        return {"cycles": self.cycles, "weapon_effects": self.weapon_effect_observations}
 
     def md_sections(self):
         md = kit.pb.md_cell
