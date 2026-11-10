@@ -1,5 +1,7 @@
 # Planner Log
 
+> **Archived 2026-11-10.** This file is no longer updated. Planning now lives in GitHub issues and epics owned by Jeff's coordinator.
+
 ## 2026-03-18 Nightly Planning Run
 
 ### Completed Since Last Run

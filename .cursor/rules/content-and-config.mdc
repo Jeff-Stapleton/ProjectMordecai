@@ -8,6 +8,6 @@ alwaysApply: false
 
 - Content is real only when it is saved to disk and committed (Git LFS) in the same branch as the code and scripts that need it; `py Scripts/check_content_committed.py` exits 0 before you push (`Specs/agent_rules_v2.md` §3 "CONTENT IS COMMITTED" and §7).
 - Do not commit or discard an asset you did not mean to change; investigate it and report it.
-- `Config/DefaultGame.ini` keeps `/MordecaiCore` in `DirectoriesToAlwaysCook`. A new map joins `MapsToCook` and `package_playtest.py`'s `DEFAULT_MAPS`, or the story packages with `--all-maps` (`stories/PLANNER.md` §5.2).
+- `Config/DefaultGame.ini` keeps `/MordecaiCore` in `DirectoriesToAlwaysCook`. A new map joins `MapsToCook` and `package_playtest.py`'s `DEFAULT_MAPS`, or the story packages with `--all-maps` (`stories/STORY_FORMAT.md` §3).
 - Every Mordecai map lives under `/MordecaiCore/Game/Maps` and resolves the Mordecai experience in a packaged build (`AMordecaiGameMode` or its World Settings).
 - Any change under `Source/`, `Plugins/`, `Content/`, `Config/` or to the `.uproject` makes the last package stale: commit, re-package, and re-run Tier 3 and Tier 4.

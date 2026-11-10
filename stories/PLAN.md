@@ -1,11 +1,11 @@
 # Implementation Plan — Project Mordecai
 
+> **Planning ownership (2026-11-10):** Sequencing and scheduling are owned by Jeff's coordinator and tracked in GitHub issues and epics. Agents work the story or issue they are assigned; this file is an epic catalog and historical record, not a work queue.
+
 ## How This Works
-1. Arc (coordinator) scopes features from design docs into user stories
-2. Stories go in `backlog/` with acceptance criteria
-3. When work starts, story moves to `in-progress/`
-4. Claude Code picks up the story, writes tests, implements, verifies, commits
-5. Completed stories move to `done/`
+1. Jeff's coordinator owns planning, sequencing, and scheduling in GitHub issues and epics
+2. Assigned stories use `backlog/`, `in-progress/`, and `done/` for their repository state
+3. Agents implement and verify only the story or issue they are assigned
 
 ## Epics (High Level)
 
@@ -89,8 +89,8 @@ Wire inventory, auto-store, and identification into the playable arena per Playa
 - US-071: Inventory UI — Flat List, Filter & Ledger Widget (HEADLESS — UMordecaiInventoryWidget, category filter, rarity colors, identify action, ledger panel) ✅
 - US-079: Playable Inventory Arena Integration (EDITOR — pickup actor, 6 test DataAssets, arena placement, pause-menu tab wiring, PIE smoke test) ✅ (closed at Jeff's call on us079 exit 0, `Saved/Playtests/20261029-175841-us079`)
 
-### Epic R: Playability Recovery ⚡ CURRENT PRIORITY (scoped 2026-10-22)
-The first Phase 3 sweep (`py Scripts/playtest_story.py --all` on a fresh package of `8ea853b`, `Saved/Playtests/20261022-184702-sweep/summary.md`) and the first exploratory-agent run (`Saved/Playtests/20261022-185207-explore/report.md`) show that every player-facing feature marked done is NOT PLAYABLE in the packaged build (6/6 Tier 4 scripts FAIL; Tier 3 boot PASS). Per `stories/PLANNER.md` §5.1 this epic outranks every system epic. One recovery story per broken feature; each AC names the failing Tier 4 check of the owning story's existing script, and is done only when that check goes FAIL → PASS on a fresh package. Dependency order (combat abilities and enemies first: they unblock the death/respawn/kill checks):
+### Epic R: Playability Recovery (scoped 2026-10-22)
+The first Phase 3 sweep (`py Scripts/playtest_story.py --all` on a fresh package of `8ea853b`, `Saved/Playtests/20261022-184702-sweep/summary.md`) and the first exploratory-agent run (`Saved/Playtests/20261022-185207-explore/report.md`) show that every player-facing feature marked done is NOT PLAYABLE in the packaged build (6/6 Tier 4 scripts FAIL; Tier 3 boot PASS). One recovery story was recorded per broken feature; each AC names the failing Tier 4 check of the owning story's existing script, and is done only when that check goes FAIL → PASS on a fresh package. Dependency order (combat abilities and enemies first: they unblock the death/respawn/kill checks):
 - US-083: Player combat abilities granted at runtime + attack/dodge/block/sprint/jump bound (HEADLESS — N10, unbound input) — P0
 - US-084: Enemy attacks reach the player (code) + enemy content guards (HEADLESS — N7) — P0, pair of US-085
 - US-085: Frontliner content: visible mesh, 200 HP, attack profiles, placement (EDITOR — invisible enemies, N13, N7, N14) — P0, pair of US-084. In progress:
@@ -169,7 +169,7 @@ Delegated town systems.
 
 ---
 
-## Priority Order
+## Epic history (historical order, not a schedule)
 1. **Epic 1** — Foundation ✅
 2. **Epic 2** — Core Combat ✅
 3. **Epic 3** — Attributes & Progression ✅
@@ -181,7 +181,7 @@ Delegated town systems.
 9. **Epic 10 Phase 2-3** — Enemy indicators, damage numbers, pause menu, progression UI ✅
 10. **Epic 6 (melee weapons) + Epic 6.5 (playable weapon slice)** ✅
 11. **Epic 7 — Inventory** ✅
-12. **Epic R — Playability Recovery** ⚡ **CURRENT PRIORITY** (ahead of everything below, incl. Epic 7.5; `stories/PLANNER.md` §5.1)
+12. **Epic R — Playability Recovery**
     - Batch 1 (combat + enemies, unblock death/respawn/kill): US-083 (HEADLESS) → US-084 (HEADLESS) → US-085 (EDITOR, pair of US-084)
     - Batch 1b (T1 test maps, DONE 2026-10-29): US-100 (EDITOR, no pair). It moves every script except the enemy-AI checks and us079 off the DevTestMap swarm, so the following batches' Tier 4 runs fail only on their own bugs.
     - Batch 2: US-094 (HEADLESS, DONE 2026-10-29 at Jeff's call, with US-079/US-071) → US-086 (HEADLESS, needs US-083/084/085; its death-screen, kill and kill-counter checks go in `us054_combat.py` on CombatTestMap, with the TestDummy as the kill target; `us054_arena.py` has no death chain since US-100 split it)

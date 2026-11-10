@@ -6,9 +6,9 @@ alwaysApply: false
 
 # Stories and specs
 
-- Story template: §7 of `stories/PLANNER.md` (`stories/TEMPLATE.md` no longer exists; do not recreate it). Every story has an Execution Mode (HEADLESS or EDITOR, §4), a **Playtest** section (§5.2, keys from `Specs/control_bindings_v1.1.md`) and a Definition of Done with the Tier 3 boot and, for input-driven ACs, the Tier 4 script.
+- The story template is in `stories/STORY_FORMAT.md` §5. Every story has an Execution Mode (HEADLESS or EDITOR, §1), a **Playtest** section (§3, keys from `Specs/control_bindings_v1.1.md`) and a Definition of Done with the Tier 3 boot and, for input-driven ACs, the Tier 4 script.
 - Kanban: `stories/backlog/` to `stories/in-progress/` to `stories/done/`. A story reaches `done/` only on the evidence `CLAUDE.md` Step 6 lists, and its closing commit touches only `stories/`.
 - A HEADLESS story whose feature needs content names its paired EDITOR story and records `NOT YET PLAYABLE — pending US-XXX`.
-- Priority: the Priority Order in `stories/PLAN.md`, with Epic R (Playability Recovery) first.
+- Agents take the story or issue Jeff's coordinator assigns and do not pick or reorder work from the backlog themselves.
 - Design rules are Jeff's. Leave open ones as `TODO(DECISION)`; log the decisions he takes, or asks you to take for him, in `Specs/design_decisions_log.md`.
 - Known bugs and bridge gaps go into the Known issues backlog of `Specs/agent_playtest_plan_v1.md`.

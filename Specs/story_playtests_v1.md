@@ -1,6 +1,6 @@
 # Story Playtests and Exploratory Play v1
 
-**Status:** Phase 3 of `Specs/agent_playtest_plan_v1.md`. This is the contract between the playtest kit (`Scripts/playtest_kit.py`), the per-story Tier 4 scripts (`Scripts/playtests/usXXX_<name>.py`), the story runner (`Scripts/playtest_story.py`), the story template's Playtest section (`stories/PLANNER.md` §7) and the exploratory agent (`Scripts/explore_playtest.py`, `Scripts/explorer/charter.md`, the `mordecai-play` MCP server).
+**Status:** Phase 3 of `Specs/agent_playtest_plan_v1.md`. This is the contract between the playtest kit (`Scripts/playtest_kit.py`), the per-story Tier 4 scripts (`Scripts/playtests/usXXX_<name>.py`), the story runner (`Scripts/playtest_story.py`), the story template's Playtest section (`stories/STORY_FORMAT.md` §5) and the exploratory agent (`Scripts/explore_playtest.py`, `Scripts/explorer/charter.md`, the `mordecai-play` MCP server).
 **Builds on:** `Specs/agent_bridge_v1.md` (bridge protocol, Python client, MCP server).
 **Last updated:** 2026-10-29 (test maps per script, the kit's `map` check, stories with several scripts: US-100, issue #46).
 
@@ -11,10 +11,10 @@
 | Playtest kit | `Scripts/playtest_kit.py` | The run framework every Tier 4 script shares: launch/attach, STALE gate, checks, step helpers that map 1:1 to bridge calls, screenshots, crash and log checks, reports, AC acceptance, exit codes |
 | Story scripts | `Scripts/playtests/usXXX_<name>.py` | One per player-facing feature: a `PLAN` of steps and the code that plays them |
 | Story runner | `Scripts/playtest_story.py` | `US-XXX` → its Tier 3 boot run + its Tier 4 script on the same package, one summary with per-AC acceptance; `--all` is the Playability Recovery sweep |
-| Executable Playtest section | `stories/PLANNER.md` §7 | The story's Steps table is generated from the script's `PLAN` (`--plan`) and checked against it (`--lint`) |
+| Executable Playtest section | `stories/STORY_FORMAT.md` §5 | The story's Steps table is generated from the script's `PLAN` (`--plan`) and checked against it (`--lint`) |
 | Exploratory agent | `Scripts/explore_playtest.py`, `Scripts/explorer/charter.md` | A headless Claude Code session plays the packaged game through the `mordecai-play` MCP tools for N minutes and files findings; the harness adds automatic detectors and writes a report |
 | MCP additions | `Scripts/mordecai_play_mcp.py` | `report_finding`, `session_info`, `--run-dir`, `--budget-s` |
-| Pipeline prompts | `stories/agent-prompts/` | Worker runs Tier 1→4 per story; the explorer runs nightly after the planner; the planner keeps per-feature Playable Status from the sweep |
+| Legacy pipeline prompts | `stories/agent-prompts/` | The unscheduled worker runs Tier 1→4 per story; the unscheduled explorer records per-feature Playable Status from the sweep |
 
 **The rules do not change:** real input only (`key`, `axis`, `mouse`, `click`); acceptance only from a script run that launched a FRESH package built from a clean, committed tree; a FAIL is a game bug to fix or file, never something to work around in a script. Phase 3 makes those rules cheap to follow for every story.
 
@@ -180,7 +180,7 @@ Options: --allow-stale (diagnostic only; passed to every child and recorded)
 4. `Saved/Playtests/<YYYYmmdd-HHMMSS>-story-usXXX/summary.md` and `summary.json`: the build (commit, fresh), every run dir with its exit code and evidence line, per-AC acceptance of the story (from the Tier 4 `acs`; with several scripts a FAIL anywhere wins), every screenshot path to open (`engine_loading.png`, `engine_NN.png`, `bridge_NN.png`), known vs NEW failures, and the suggested Playable Status line per feature (6.3).
 5. Exit: 0 both passed, 1 a gameplay FAIL in either, 2 infra in either (infra wins).
 
-**The sweep** (`--all`): one STALE gate; one Tier 3 boot per distinct launch path (DevTestMap unless `--only`, plus each map or front end that a script launches: today MovementTestMap and CombatTestMap); every Tier 4 script in story order, sequentially (one game at a time); `Saved/Playtests/<ts>-sweep/summary.md|json` with a row per script (story, features, PASS/FAIL counts, NEW failures, known failures, run dir), the per-feature Playable Status lines ready to paste into `stories/PLANNER_LOG.md`, and every screenshot to open. A script that crashes or exits 2 does not stop the sweep. Exit: 2 if any child had an infra failure, else 1 if any FAIL, else 0.
+**The sweep** (`--all`): one STALE gate; one Tier 3 boot per distinct launch path (DevTestMap unless `--only`, plus each map or front end that a script launches: today MovementTestMap and CombatTestMap); every Tier 4 script in story order, sequentially (one game at a time); `Saved/Playtests/<ts>-sweep/summary.md|json` with a row per script (story, features, PASS/FAIL counts, NEW failures, known failures, run dir), the per-feature Playable Status lines ready to paste into a story's Completion Notes or the PR body, and every screenshot to open. A script that crashes or exits 2 does not stop the sweep. Exit: 2 if any child had an infra failure, else 1 if any FAIL, else 0.
 
 **`--plan`** prints the script's PLAN as the Steps table (§4), one table per script, each after its `<!-- Scripts/playtests/<script>.py -->` marker. **`--lint`** (offline) exits 0 only when:
 - the story file exists, and its Playtest section names every script path;
@@ -192,7 +192,7 @@ It also prints, as information, the story's ACs that no step proves (logic ACs a
 
 ## 4. The executable Playtest section
 
-The story template's Playtest section (`stories/PLANNER.md` §7) gains two fields:
+The story template's Playtest section (`stories/STORY_FORMAT.md` §5) gains two fields:
 
 ```markdown
 - **Tier 4 script:** `Scripts/playtests/usXXX_<name>.py` — run: `py Scripts/playtest_story.py US-XXX`
@@ -247,13 +247,13 @@ Options: --model M, --max-budget-usd D (default 10), --charter FILE, --agent-cmd
 
 ### 5.4 Nightly
 
-`stories/agent-prompts/explorer-prompt.txt` holds the scheduler-agnostic nightly step: after the planner, `py Scripts/explore_playtest.py --minutes 20`; read `report.md`, open the screenshots behind every new finding, and file each confirmed new bug in the Known issues backlog of `Specs/agent_playtest_plan_v1.md` (or as a recovery story when it breaks a done feature). Nothing is scheduled yet: choosing a scheduler is Jeff's open decision (`Specs/agent_playtest_plan_v1.md`, Open decisions).
+`stories/agent-prompts/explorer-prompt.txt` holds a scheduler-agnostic exploratory step: run `py Scripts/explore_playtest.py --minutes 20`; read `report.md`, open the screenshots behind every new finding, and file each confirmed new bug in the Known issues backlog of `Specs/agent_playtest_plan_v1.md` (or as a recovery story when it breaks a done feature). Nothing is scheduled yet: choosing a scheduler is Jeff's open decision (`Specs/agent_playtest_plan_v1.md`, Open decisions).
 
 ## 6. Playable Status
 
 ### 6.1 Per feature, from runs
 
-A feature is PLAYABLE only from a fresh-package run. The runner and the sweep write the line `stories/PLANNER.md` §6 defines, per feature in the script's `FEATURES`:
+A feature is PLAYABLE only from a fresh-package run. The runner and the sweep write the line `stories/STORY_FORMAT.md` §4 defines, per feature in the script's `FEATURES`:
 - `PLAYABLE (input) (Tier 4 Saved/Playtests/<run>-usXXX/report.md + Tier 3 Saved/Playtests/<run>-boot/report.md @ <commit>)` when both runs are acceptance candidates with exit 0.
 - `NOT PLAYABLE (playtest FAIL: <failed checks, NEW first>; Tier 4 <run dir> @ <commit>)` when the Tier 4 run failed.
 - `PLAYABLE (boot) — input not yet accepted (<reason>)` when only Tier 3 passed (Tier 4 not run, diagnostic, or PENDING ACs).
@@ -265,7 +265,7 @@ movement, camera, melee_attack, combo, dodge, block_parry, posture_stagger, stam
 
 ### 6.3 The recovery sweep
 
-`py Scripts/playtest_story.py --all` on a fresh package is the Playability Recovery epic's measurement (`Specs/agent_playtest_plan_v1.md` Phase 3 item 2). Every NEW failure is a game bug: it becomes a recovery story (one per broken feature, normal template) or a Known issues entry; every FAIL with a `known_issue` already has one. The sweep's Playable Status lines go into `stories/PLANNER_LOG.md`.
+`py Scripts/playtest_story.py --all` on a fresh package is the Playability Recovery epic's measurement (`Specs/agent_playtest_plan_v1.md` Phase 3 item 2). Every NEW failure is a game bug: it becomes a recovery story (one per broken feature, normal template) or a Known issues entry; every FAIL with a `known_issue` already has one. The sweep's Playable Status lines go into the relevant story's Completion Notes or the PR body.
 
 ## 7. Testing the tooling offline
 
