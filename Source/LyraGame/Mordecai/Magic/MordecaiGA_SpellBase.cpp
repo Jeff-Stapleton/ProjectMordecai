@@ -448,7 +448,7 @@ void UMordecaiGA_SpellBase::ApplySpellCooldown()
 	if (!ASC) return;
 
 	// AC-019.5: Duration GE that grants the cooldown tag
-	UGameplayEffect* CooldownGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiSpellCooldown"));
+	UGameplayEffect* CooldownGE = NewObject<UGameplayEffect>(GetTransientPackage());
 	CooldownGE->DurationPolicy = EGameplayEffectDurationType::HasDuration;
 	CooldownGE->DurationMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Duration));
 
