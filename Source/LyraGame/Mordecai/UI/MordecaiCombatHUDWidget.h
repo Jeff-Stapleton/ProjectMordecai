@@ -21,6 +21,7 @@ class UMordecaiPickupPromptWidget;
 class UMordecaiEquippedWeaponWidget;
 class UMordecaiEquipmentComponent;
 class UMordecaiPickupInteractionComponent;
+class UMordecaiSpellDataAsset;
 class UIndicatorLayer;
 
 /**
@@ -45,6 +46,11 @@ public:
 	/** Bind all child combat widgets to an AbilitySystemComponent. (AC-052.5, AC-055.10) */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void BindToASC(UAbilitySystemComponent* ASC);
+
+	/** Bind existing slots A/B to spell loadout slots 0/1 after the abilities are granted (issue #13 owns C/D). */
+	void BindSpellCooldownSlots(
+		UAbilitySystemComponent* ASC,
+		const TArray<TObjectPtr<UMordecaiSpellDataAsset>>& SpellDataAssets);
 
 	/** Bind the loadout plate to the local pawn's equipment state. */
 	void BindToEquipmentComponent(UMordecaiEquipmentComponent* Equipment);

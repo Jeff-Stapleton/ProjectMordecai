@@ -25,6 +25,12 @@ void UMordecaiSpellCooldownWidget::NativeOnInitialized()
 	}
 }
 
+void UMordecaiSpellCooldownWidget::NativeDestruct()
+{
+	UnbindFromCooldownTag();
+	Super::NativeDestruct();
+}
+
 void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
@@ -80,30 +86,39 @@ FString UMordecaiSpellCooldownWidget::FormatRemainingTime(float RemainingSeconds
 
 void UMordecaiSpellCooldownWidget::BindToCooldownTag(UAbilitySystemComponent* ASC, FGameplayTag CooldownTag, float TotalCooldown)
 {
+	UnbindFromCooldownTag();
+
+	BoundCooldownTag = CooldownTag;
+	TotalCooldownDuration = TotalCooldown;
 	if (!ASC || !CooldownTag.IsValid())
 	{
+		UpdateDisplay();
 		return;
 	}
 
 	BoundASC = ASC;
-	BoundCooldownTag = CooldownTag;
-	TotalCooldownDuration = TotalCooldown;
-
-	ASC->RegisterGameplayTagEvent(BoundCooldownTag, EGameplayTagEventType::NewOrRemoved)
+	CooldownTagChangedHandle =
+		ASC->RegisterGameplayTagEvent(BoundCooldownTag, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &UMordecaiSpellCooldownWidget::OnCooldownTagChanged);
 
-	// Check if already on cooldown
-	if (ASC->HasMatchingGameplayTag(BoundCooldownTag))
-	{
-		bIsOnCooldown = true;
-		CooldownStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-	}
-	else
-	{
-		bIsOnCooldown = false;
-	}
+	OnCooldownTagChanged(BoundCooldownTag, ASC->GetTagCount(BoundCooldownTag));
+}
 
-	UpdateDisplay();
+void UMordecaiSpellCooldownWidget::UnbindFromCooldownTag()
+{
+	if (CooldownTagChangedHandle.IsValid())
+	{
+		if (UAbilitySystemComponent* ASC = BoundASC.Get())
+		{
+			ASC->UnregisterGameplayTagEvent(
+				CooldownTagChangedHandle,
+				BoundCooldownTag,
+				EGameplayTagEventType::NewOrRemoved);
+		}
+		CooldownTagChangedHandle.Reset();
+	}
+	BoundASC.Reset();
+	bIsOnCooldown = false;
 }
 
 // ---------------------------------------------------------------------------

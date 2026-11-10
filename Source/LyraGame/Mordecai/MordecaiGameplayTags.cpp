@@ -101,6 +101,13 @@ namespace MordecaiGameplayTags
 	// Ability tags (US-019)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell, "Mordecai.Ability.Spell", "Identifies an ability as a spell");
 
+	// Spell cooldown tags (US-088 / issue #35)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Spell,             "Mordecai.Cooldown.Spell",             "Parent tag for spell cooldowns");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Spell_Fireball,    "Mordecai.Cooldown.Spell.Fireball",    "Fireball is on cooldown");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Spell_Blink,       "Mordecai.Cooldown.Spell.Blink",       "Blink is on cooldown");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Spell_StoneSkin,   "Mordecai.Cooldown.Spell.StoneSkin",   "Stone Skin is on cooldown");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Spell_Restoration, "Mordecai.Cooldown.Spell.Restoration", "Restoration is on cooldown");
+
 	// Ability tags (US-020)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_Fireball,     "Mordecai.Ability.Spell.Fireball",     "Fireball spell ability");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_ConeOfCold,   "Mordecai.Ability.Spell.ConeOfCold",   "Cone of Cold spell ability");

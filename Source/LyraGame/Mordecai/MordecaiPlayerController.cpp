@@ -23,6 +23,7 @@
 #include "Mordecai/Magic/MordecaiGA_Restoration.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
+#include "AbilitySystemLog.h"
 #include "Abilities/GameplayAbility.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerState.h"
@@ -159,7 +160,7 @@ void AMordecaiPlayerController::CreateCombatHUD()
 
 void AMordecaiPlayerController::GrantCombatAbilities()
 {
-	if (bAbilitiesGranted || !HasAuthority())
+	if (!HasAuthority())
 	{
 		return;
 	}
@@ -176,6 +177,21 @@ void AMordecaiPlayerController::GrantCombatAbilities()
 
 	if (!ASC)
 	{
+		return;
+	}
+
+	auto BindSpellCooldownHUD = [this, ASC]()
+	{
+		if (CombatHUDWidget)
+		{
+			CombatHUDWidget->BindSpellCooldownSlots(ASC, SpellDataAssets);
+		}
+	};
+
+	// On a respawn or recreated HUD the abilities already exist, but the new/reused widgets still need slot bindings.
+	if (bAbilitiesGranted)
+	{
+		BindSpellCooldownHUD();
 		return;
 	}
 
@@ -199,6 +215,7 @@ void AMordecaiPlayerController::GrantCombatAbilities()
 	}
 
 	// --- AC-057.6: Grant spell abilities with SpellData assignment ---
+	SpellDataAssets.SetNum(FMath::Max(SpellDataAssets.Num(), DefaultSpellAbilities.Num()));
 	for (int32 i = 0; i < DefaultSpellAbilities.Num(); ++i)
 	{
 		TSubclassOf<UGameplayAbility> SpellClass = DefaultSpellAbilities[i];
@@ -219,9 +236,26 @@ void AMordecaiPlayerController::GrantCombatAbilities()
 			};
 
 			const UMordecaiGA_SpellBase* SpellCDO = SpellClass->GetDefaultObject<UMordecaiGA_SpellBase>();
-			if (i < UE_ARRAY_COUNT(SpellDataPaths) && SpellCDO && !SpellCDO->SpellData)
+			if (SpellCDO && SpellCDO->SpellData)
+			{
+				GrantedData = SpellCDO->SpellData;
+			}
+			else if (i < UE_ARRAY_COUNT(SpellDataPaths) && SpellCDO)
 			{
 				GrantedData = Cast<UMordecaiSpellDataAsset>(FSoftObjectPath(SpellDataPaths[i]).TryLoad());
+			}
+		}
+
+		if (GrantedData)
+		{
+			SpellDataAssets[i] = GrantedData;
+			if (GrantedData->CooldownDuration > 0.f && !GrantedData->CooldownTag.IsValid())
+			{
+				UE_LOG(LogAbilitySystem, Warning,
+					TEXT("MordecaiPlayerController: spell slot %d '%s' has CooldownDuration %.2f but no CooldownTag"),
+					i,
+					*GrantedData->SpellId.ToString(),
+					GrantedData->CooldownDuration);
 			}
 		}
 
@@ -232,6 +266,7 @@ void AMordecaiPlayerController::GrantCombatAbilities()
 	}
 
 	bAbilitiesGranted = true;
+	BindSpellCooldownHUD();
 }
 
 TSubclassOf<UGameplayAbility> AMordecaiPlayerController::GetSpellAbilityClass(int32 SlotIndex) const
