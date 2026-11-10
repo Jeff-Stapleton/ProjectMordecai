@@ -20,10 +20,10 @@ FKey names in `MordecaiHeroComponent.cpp` plus a validation test; no assets.
 - Existing code: `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:166-198,200-218`
 
 ## Acceptance Criteria
-- [ ] AC-097.1: Every key in `MordecaiIMC_Runtime` is a valid engine `FKey` (`FKey::IsValid()`); the stick and L3 mappings use `Gamepad_Left2D`, `Gamepad_Right2D`, `Gamepad_LeftThumbstick` — verified by `Mordecai.Recovery.Input.AllRuntimeKeysValid`
-- [ ] AC-097.2: In the packaged build, the player pushes the left stick forward and moves +X (> 100 cm in 0.5 s) — verified by check `gamepad_move` of `Scripts/playtests/us097_gamepad.py` (Tier 4)
-- [ ] AC-097.3: In the packaged build, the player clicks L3 and sprints (> 700 cm in 1 s of forward), clicks again to stop — verified by check `sprint_l3` of `Scripts/playtests/us097_gamepad.py` (Tier 4)
-- [ ] AC-097.4: The right stick drives the Look/Aim action (its input reaches the aim handler) — verified by `Mordecai.Recovery.Input.RightStickReachesLookHandler`; the visible facing result is US-098 (`facing_stick` is NOT claimed here)
+- [x] AC-097.1: Every key in `MordecaiIMC_Runtime` is a valid engine `FKey` (`FKey::IsValid()`); the stick and L3 mappings use `Gamepad_Left2D`, `Gamepad_Right2D`, `Gamepad_LeftThumbstick` — verified by `Mordecai.Recovery.Input.AllRuntimeKeysValid`
+- [x] AC-097.2: In the packaged build, the player pushes the left stick forward and moves +X (> 100 cm in 0.5 s) — verified by check `gamepad_move` of `Scripts/playtests/us097_gamepad.py` (Tier 4)
+- [x] AC-097.3: In the packaged build, the player clicks L3 and sprints (> 700 cm in 1 s of forward), clicks again to stop — verified by check `sprint_l3` of `Scripts/playtests/us097_gamepad.py` (Tier 4)
+- [x] AC-097.4: The right stick drives the Look/Aim action (its input reaches the aim handler) — verified by `Mordecai.Recovery.Input.RightStickReachesLookHandler`; the visible facing result is US-098 (`facing_stick` is NOT claimed here)
 
 ## Technical Notes
 - AC-097.1's test iterates the IMC mappings and fails on any invalid key, so this class of bug cannot return silently.
@@ -60,17 +60,24 @@ FKey names in `MordecaiHeroComponent.cpp` plus a validation test; no assets.
 - **Playable alone:** YES (with US-083)
 
 ## Definition of Done
-- [ ] All ACs checked off
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] All ACs checked off
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py US-097`: `gamepad_move` and `sprint_l3` go from FAIL to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
-- [ ] Known issue "Gamepad stick and L3 mappings use invalid FKey names" marked FIXED in `Specs/agent_playtest_plan_v1.md`
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-097]` closing commit
+- [x] Content: none; `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` exits 0 — never `--allow-stale`
+- [x] On that same fresh package `py Scripts/playtest_story.py US-097`: `gamepad_move` and `sprint_l3` go from FAIL to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
+- [x] Known issue "Gamepad stick and L3 mappings use invalid FKey names" marked FIXED in `Specs/agent_playtest_plan_v1.md`
+- [x] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen
+- [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-097]` closing commit
 - [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
-<Filled in by the coding agent.>
+- Scout on current `main` (`a6aa8094c51953a2bafcf5f282488d02eebea095`) confirmed all three dead runtime mappings and the UE 5.7 replacements: `Gamepad_LeftStick2D` -> `Gamepad_Left2D`, `Gamepad_RightStick2D` -> `Gamepad_Right2D`, and `Gamepad_LeftThumbstickButton` -> `Gamepad_LeftThumbstick`. These match `Specs/control_bindings_v1.1.md`; no product decision was needed for movement/look/sprint. The separate spell shoulder-button `TODO(DECISION)` remains untouched.
+- RED commit `a907f6d2ffdf7f150aa887135ae67d998a74cad6`: focused run `Saved/TestLogs/tests-20261110-141040.log` ran 5 tests, 3 PASS / 2 FAIL. `AllRuntimeKeysValid` reported the three invalid names and `RightStickReachesLookHandler` failed because the right-stick action path was dead.
+- GREEN code commit `b4f7530bb3312a1fdce5cb5e5e4b42f1ba105a51`; package/playtest commit `8f5f1c9beafc6db1512759c9bc2f265a865ac087`. Focused Tier 1 run `Saved/TestLogs/tests-20261110-142611.log`: 5/5 PASS. Full Tier 1 run `Saved/TestLogs/tests-20261110-150208.log`: 810/810 PASS after a successful LyraEditor build. Python tooling: 628/628 PASS. Story lint: PASS, 0 problems.
+- Tier 2 limitation: the default DevTestMap run and its same-map retry each passed 16/17; unrelated `verify_pie_defenses.py` found the pawn already dead/`MOVE_None` after the map's enemies attacked it. The one permitted enemy-free reroute, `py Scripts/run_pie_verify.py --map /MordecaiCore/Game/Maps/MovementTestMap --tests spawn`, passed 1/1. The US-097 spawn/input integration is therefore green, but the literal all-default-smokes checkbox remains open; this story stays in `in-progress` pending Jeff's close-at-call decision.
+- Fresh package: `py Scripts/package_playtest.py` exited 0 for `8f5f1c9beafc6db1512759c9bc2f265a865ac087`; UAT log `Saved/Playtests/package-20261110-155755.log`; `dirty=false`, `source_changed_during_build=false`.
+- Tier 3 + Tier 4 story run: `Saved/Playtests/20261110-160314-story-us097`, PASS. Tier 3 `Saved/Playtests/20261110-160314-boot`: all checks PASS, correct `B_MordecaiArenaExperience`, 3/3 engine frames and no errors. Tier 4 `Saved/Playtests/20261110-160337-us097`: 13 PASS / 0 WARN / 0 FAIL / 0 SKIP. Real gamepad input moved 254 cm in 0.516 s; L3 sprint moved 771 cm in 1.023 s; the second L3 tap restored walking speed (546 cm backward in 1.02 s).
+- Screenshot review: `engine_loading.png` shows the dark Project Mordecai loading screen. `engine_01.png`, `engine_02.png`, and `engine_03.png` show the live player centered on MovementTestMap's enemy-free grid under the fixed overhead camera, with the Mordecai resource, inventory, kill-counter, and Longsword HUD visible; existing yellow online-subsystem warnings are overlaid. `bridge_01.png` shows the same start position and HUD; `bridge_02.png` shows the camera following the player to the far grid lane after left-stick movement and L3 sprint. Desktop `shot_01.png` through `shot_03.png` were fully covered by another window and show only the desktop wallpaper, matching the report warning; the engine-owned frames provide the visual evidence.
+- Full sweep: current `Saved/Playtests/20261110-160359-sweep` versus newest main baseline `Saved/Playtests/20261110-041419-sweep`. Tier 3 remained 4/4 PASS. Across the 14 common Tier 4 scripts, PASS checks improved 349 -> 351: `us001/gamepad_move` and `us001/sprint_l3` changed FAIL -> PASS. PASS -> FAIL: **0**. The new focused US-097 script added 13/13 PASS. All remaining failures are the same neighboring issues as baseline and were not changed.
