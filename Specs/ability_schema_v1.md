@@ -102,8 +102,8 @@ Costs:
   Health: 0
 
 Cooldown:
-  Duration: 5.0
-  CooldownTag: Cooldown.Fireball
+  Duration: 2.0
+  CooldownTag: Mordecai.Cooldown.Spell.Fireball
   Charges: 1
 ```
 
