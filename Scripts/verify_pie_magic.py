@@ -128,17 +128,53 @@ def _run():
         except Exception as e:
             check("HUD child count query", False, str(e))
 
-    # --- SpellDataAssets exist ---
-    spell_da_paths = [
-        '/MordecaiCore/Spells/DA_Spell_Fireball',
-        '/MordecaiCore/Spells/DA_Spell_Blink',
-        '/MordecaiCore/Spells/DA_Spell_StoneSkin',
-        '/MordecaiCore/Spells/DA_Spell_Restoration',
-    ]
-    for path in spell_da_paths:
+    # --- SpellDataAssets carry the shipped cooldown contract (US-089 / issue #35) ---
+    spell_assets = (
+        ('/MordecaiCore/Spells/DA_Spell_Fireball',
+         'Mordecai.Cooldown.Spell.Fireball', 2.0),
+        ('/MordecaiCore/Spells/DA_Spell_Blink',
+         'Mordecai.Cooldown.Spell.Blink', 4.0),
+        ('/MordecaiCore/Spells/DA_Spell_StoneSkin',
+         'Mordecai.Cooldown.Spell.StoneSkin', 15.0),
+        ('/MordecaiCore/Spells/DA_Spell_Restoration',
+         'Mordecai.Cooldown.Spell.Restoration', 10.0),
+    )
+    for path, expected_tag, expected_duration in spell_assets:
         asset = unreal.load_asset(path)
         name = path.split('/')[-1]
         check(f"{name} loadable", asset is not None)
+        if asset:
+            cooldown_tag = asset.get_editor_property('cooldown_tag')
+            serialized_tag = cooldown_tag.export_text()
+            duration = float(asset.get_editor_property('cooldown_duration'))
+            check(f"{name} CooldownTag is {expected_tag}",
+                  serialized_tag == f'(TagName="{expected_tag}")',
+                  f"Got {serialized_tag!r}")
+            check(f"{name} CooldownDuration is {expected_duration:g}s",
+                  abs(duration - expected_duration) < 0.001,
+                  f"Got {duration:g}")
+
+    # The issue #35 slice owns the two existing slots only. Issue #13 owns widgets C/D.
+    cooldown_widgets = unreal.WidgetLibrary.get_all_widgets_of_class(
+        world, unreal.MordecaiSpellCooldownWidget, False)
+    check("Two existing spell cooldown widgets remain in scope",
+          len(cooldown_widgets) == 2,
+          f"Found {len(cooldown_widgets)}; widgets C/D remain issue #13")
+    expected_bound = {
+        'Mordecai.Cooldown.Spell.Fireball',
+        'Mordecai.Cooldown.Spell.Blink',
+    }
+    actual_bound = set()
+    for widget in cooldown_widgets:
+        try:
+            actual_bound.add(
+                widget.get_editor_property('bound_cooldown_tag').export_text()
+                .replace('(TagName="', '').replace('")', ''))
+        except Exception as exc:
+            check("Cooldown widget BoundCooldownTag readable", False, str(exc))
+    check("Slots A/B are bound after spell grants",
+          actual_bound == expected_bound,
+          f"Got {sorted(actual_bound)}")
 
     # --- Enemy with fire attack ---
     all_actors = unreal.GameplayStatics.get_all_actors_of_class(world, unreal.Actor)

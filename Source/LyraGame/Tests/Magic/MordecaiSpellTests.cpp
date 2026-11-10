@@ -172,53 +172,9 @@ bool FMordecaiSpell_DeductsSP::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
-// 4. Mordecai.Spell.SpellBaseAppliesCooldown (AC-019.5)
-// ---------------------------------------------------------------------------
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiSpell_AppliesCooldown,
-	"Mordecai.Spell.SpellBaseAppliesCooldown",
-	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
-
-bool FMordecaiSpell_AppliesCooldown::RunTest(const FString& Parameters)
-{
-	UMordecaiSpellDataAsset* Data = CreateTestSpellData();
-	Data->CooldownDuration = 5.0f;
-	Data->CooldownTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Mordecai.Ability.Spell")), false);
-	UMordecaiGA_SpellBase* Ability = CreateTestSpellAbility(Data);
-
-	TestEqual("Cooldown duration from data asset", Ability->GetCooldownDuration(), 5.0f);
-
-	FGameplayTag CooldownTag = Ability->GetCooldownTag();
-	TestTrue("Cooldown tag is valid", CooldownTag.IsValid());
-
-	return true;
-}
-
-// ---------------------------------------------------------------------------
-// 5. Mordecai.Spell.CooldownPreventsReactivation (AC-019.5)
-// ---------------------------------------------------------------------------
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiSpell_CooldownPreventsReactivation,
-	"Mordecai.Spell.CooldownPreventsReactivation",
-	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
-
-bool FMordecaiSpell_CooldownPreventsReactivation::RunTest(const FString& Parameters)
-{
-	UMordecaiSpellDataAsset* Data = CreateTestSpellData();
-	Data->CooldownTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Mordecai.Ability.Spell")), false);
-	UMordecaiGA_SpellBase* Ability = CreateTestSpellAbility(Data);
-
-	// Verify the cooldown tag is valid — the standard GAS cooldown check
-	// in CanActivateAbility will block reactivation while this tag is present
-	FGameplayTag CooldownTag = Ability->GetCooldownTag();
-	TestTrue("Cooldown tag valid for reactivation check", CooldownTag.IsValid());
-
-	// Verify cooldown mechanism: GetCooldownDuration returns non-zero
-	TestTrue("Cooldown duration > 0", Ability->GetCooldownDuration() > 0.f);
-
-	return true;
-}
-
-// ---------------------------------------------------------------------------
-// 6. Mordecai.Spell.CastingPhasesProgress (AC-019.6)
+// 4. Mordecai.Spell.CastingPhasesProgress (AC-019.6)
+// Cooldown activation/blocking coverage lives in
+// Mordecai.Recovery.Cooldown.SpellBlockedDuringCooldown, which activates a real ASC ability.
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiSpell_CastingPhases,
 	"Mordecai.Spell.CastingPhasesProgress",
@@ -252,7 +208,7 @@ bool FMordecaiSpell_CastingPhases::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
-// 7. Mordecai.Spell.SlowWhileCastingAppliesTag (AC-019.7)
+// 5. Mordecai.Spell.SlowWhileCastingAppliesTag (AC-019.7)
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiSpell_SlowWhileCasting,
 	"Mordecai.Spell.SlowWhileCastingAppliesTag",
@@ -272,7 +228,7 @@ bool FMordecaiSpell_SlowWhileCasting::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
-// 8. Mordecai.Spell.RootWhileCastingAppliesTag (AC-019.7)
+// 6. Mordecai.Spell.RootWhileCastingAppliesTag (AC-019.7)
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiSpell_RootWhileCasting,
 	"Mordecai.Spell.RootWhileCastingAppliesTag",
@@ -297,7 +253,7 @@ bool FMordecaiSpell_RootWhileCasting::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
-// 9. Mordecai.Spell.InterruptibleSpellCancelledOnDamage (AC-019.8)
+// 7. Mordecai.Spell.InterruptibleSpellCancelledOnDamage (AC-019.8)
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiSpell_InterruptibleCancelled,
 	"Mordecai.Spell.InterruptibleSpellCancelledOnDamage",
@@ -338,7 +294,7 @@ bool FMordecaiSpell_InterruptibleCancelled::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
-// 10. Mordecai.Spell.SpellPowerScalesWithAttributes (AC-019.9)
+// 8. Mordecai.Spell.SpellPowerScalesWithAttributes (AC-019.9)
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiSpell_PowerScalesAttributes,
 	"Mordecai.Spell.SpellPowerScalesWithAttributes",
@@ -375,7 +331,7 @@ bool FMordecaiSpell_PowerScalesAttributes::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
-// 11. Mordecai.Spell.SpellPowerScalesWithSkillRank (AC-019.10)
+// 9. Mordecai.Spell.SpellPowerScalesWithSkillRank (AC-019.10)
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiSpell_PowerScalesRank,
 	"Mordecai.Spell.SpellPowerScalesWithSkillRank",
@@ -410,7 +366,7 @@ bool FMordecaiSpell_PowerScalesRank::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
-// 12. Mordecai.Spell.UpcastIncreasedCostAndPower (AC-019.11)
+// 10. Mordecai.Spell.UpcastIncreasedCostAndPower (AC-019.11)
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiSpell_Upcast,
 	"Mordecai.Spell.UpcastIncreasedCostAndPower",
@@ -444,7 +400,7 @@ bool FMordecaiSpell_Upcast::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
-// 13. Mordecai.Spell.SilencedBlocksSpellActivation (AC-019.13)
+// 11. Mordecai.Spell.SilencedBlocksSpellActivation (AC-019.13)
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiSpell_SilencedBlocks,
 	"Mordecai.Spell.SilencedBlocksSpellActivation",
