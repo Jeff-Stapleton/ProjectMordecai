@@ -96,15 +96,16 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
 | 1 | `starting_weapon` | state player -> player.weapon.index==0 && player.weapon.count==5 && display_name 'Longsword' (case-insensitive) | AC-078.9, AC-078.10, US-077:AC-077.1, US-077:AC-077.5, US-077:AC-077.6 |
-| 2 | `weapon_hud_text` | state player, widgets -> a visible Mordecai widget text equals player.weapon.display_name _(known issue: N3 The weapon HUD draws nothing: UMordecaiEquippedWeaponWidget has no widget tree (Specs/agent_playtest_plan_v1.md, Known issues backlog))_ | AC-078.11, AC-078.12, US-077:AC-077.7 |
-| 3 | `cycle_next_1` | tap Tab -> wait_until player.weapon.index==1 (from 0), display_name 'Dagger' | AC-078.6, AC-078.8, AC-078.14, US-077:AC-077.3 |
-| 4 | `cycle_next_2` | tap Tab -> wait_until player.weapon.index==2 (from 1), display_name 'Greatsword' | AC-078.6, AC-078.14, US-077:AC-077.3 |
-| 5 | `cycle_next_3` | tap Tab -> wait_until player.weapon.index==3 (from 2), display_name 'Spear' | AC-078.6, AC-078.14, US-077:AC-077.3 |
-| 6 | `cycle_next_4` | tap Tab -> wait_until player.weapon.index==4 (from 3), display_name 'Mace' | AC-078.6, AC-078.14, US-077:AC-077.3 |
-| 7 | `cycle_wrap` | tap Tab on the last weapon -> wait_until player.weapon.index==0, display_name 'Longsword' | AC-078.6, US-077:AC-077.3 |
-| 8 | `cycle_prev_backslash` | tap BackSlash on the first weapon -> wait_until player.weapon.index==4, display_name 'Mace' | AC-078.8, US-077:AC-077.4 |
-| 9 | `cycle_prev_shift_tab` | tap LeftShift+Tab on the Mace -> wait_until player.weapon.index==3, display_name 'Spear' _(known issue: N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next (Specs/agent_playtest_plan_v1.md, Known issues backlog))_ | AC-078.7 |
-| 10 | `cycle_gamepad_y` | tap Gamepad_FaceButton_Top (Y) -> wait_until player.weapon.index==(index+1)%5 with the matching display_name | AC-078.6 |
-| 11 | `weapon_hud_updates` | tap Tab -> the new weapon is equipped and a visible widget text equals its display_name within 3 s (needs weapon_hud_text) _(known issue: N3 The weapon HUD draws nothing: UMordecaiEquippedWeaponWidget has no widget tree (Specs/agent_playtest_plan_v1.md, Known issues backlog))_ | AC-078.12, AC-078.14, US-077:AC-077.8 |
-| 12 | `light_attack_lmb` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) -> Mordecai.State.Attacking without Mordecai.Attack.Heavy in player.tags within 1 s | AC-078.14 |
-| 13 | `heavy_attack_hold` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) held 0.8 s -> Mordecai.Attack.Heavy in player.tags within 0.5 s | AC-078.13 |
+| 2 | `weapon_hud_text` | state player, widgets -> visible MordecaiEquippedWeaponWidget text equals player.weapon.display_name | AC-078.11, AC-078.12, US-077:AC-077.7 |
+| 3 | `weapon_effects_on_asc` | state player on Longsword, then tap Tab through all five weapons -> each current Mordecai.Weapon.Type.* tag is present and the previous type tag is absent in player.tags | US-096:AC-096.3 |
+| 4 | `cycle_next_1` | tap Tab -> wait_until player.weapon.index==1 (from 0), display_name 'Dagger' | AC-078.6, AC-078.8, AC-078.14, US-077:AC-077.3 |
+| 5 | `cycle_next_2` | tap Tab -> wait_until player.weapon.index==2 (from 1), display_name 'Greatsword' | AC-078.6, AC-078.14, US-077:AC-077.3 |
+| 6 | `cycle_next_3` | tap Tab -> wait_until player.weapon.index==3 (from 2), display_name 'Spear' | AC-078.6, AC-078.14, US-077:AC-077.3 |
+| 7 | `cycle_next_4` | tap Tab -> wait_until player.weapon.index==4 (from 3), display_name 'Mace' | AC-078.6, AC-078.14, US-077:AC-077.3 |
+| 8 | `cycle_wrap` | tap Tab on the last weapon -> wait_until player.weapon.index==0, display_name 'Longsword' | AC-078.6, US-077:AC-077.3 |
+| 9 | `cycle_prev_backslash` | tap BackSlash on the first weapon -> wait_until player.weapon.index==4, display_name 'Mace' | AC-078.8, US-077:AC-077.4 |
+| 10 | `cycle_prev_shift_tab` | tap LeftShift+Tab on the Mace -> wait_until player.weapon.index==3, display_name 'Spear' _(known issue: N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next (Specs/agent_playtest_plan_v1.md, Known issues backlog))_ | AC-078.7 |
+| 11 | `cycle_gamepad_y` | tap Gamepad_FaceButton_Top (Y) -> wait_until player.weapon.index==(index+1)%5 with the matching display_name | AC-078.6 |
+| 12 | `weapon_hud_updates` | tap Tab -> the new weapon is equipped and visible MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text) | AC-078.12, AC-078.14, US-077:AC-077.8 |
+| 13 | `light_attack_lmb` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) -> Mordecai.State.Attacking without Mordecai.Attack.Heavy in player.tags within 1 s | AC-078.14 |
+| 14 | `heavy_attack_hold` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) held 0.8 s -> Mordecai.Attack.Heavy in player.tags within 0.5 s | AC-078.13 |

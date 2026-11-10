@@ -12,6 +12,7 @@
 #include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
 #include "Mordecai/Weapons/MordecaiWeaponTypes.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
+#include "UObject/UObjectGlobals.h"
 
 namespace MordecaiRecoveryWeaponEffectsTest
 {
@@ -212,5 +213,46 @@ bool FMordecai_Recovery_Weapons_SwapDoesNotStackPreviousEffects::RunTest(const F
 		FMath::IsNearlyEqual(Strength(PlayerStateASC), OriginalStrength, 0.01f));
 
 	Env.Teardown();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMordecai_Recovery_Weapons_SerializedAssetsHaveGrantedTags,
+	"Mordecai.Recovery.Weapons.SerializedAssetsHaveGrantedTags",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Weapons_SerializedAssetsHaveGrantedTags::RunTest(const FString& Parameters)
+{
+	struct FExpectedWeaponTag
+	{
+		const TCHAR* AssetPath;
+		FGameplayTag Tag;
+	};
+	const FExpectedWeaponTag Expectations[] = {
+		{TEXT("/MordecaiCore/Weapons/DA_Weapon_Longsword.DA_Weapon_Longsword"),
+			MordecaiGameplayTags::Weapon_Type_Sword},
+		{TEXT("/MordecaiCore/Weapons/DA_Weapon_Dagger.DA_Weapon_Dagger"),
+			MordecaiGameplayTags::Weapon_Type_Dagger},
+		{TEXT("/MordecaiCore/Weapons/DA_Weapon_Greatsword.DA_Weapon_Greatsword"),
+			MordecaiGameplayTags::Weapon_Type_Sword},
+		{TEXT("/MordecaiCore/Weapons/DA_Weapon_Spear.DA_Weapon_Spear"),
+			MordecaiGameplayTags::Weapon_Type_Spear},
+		{TEXT("/MordecaiCore/Weapons/DA_Weapon_Mace.DA_Weapon_Mace"),
+			MordecaiGameplayTags::Weapon_Type_Mace},
+	};
+
+	for (const FExpectedWeaponTag& Expected : Expectations)
+	{
+		UMordecaiWeaponDataAsset* Weapon =
+			LoadObject<UMordecaiWeaponDataAsset>(nullptr, Expected.AssetPath);
+		TestNotNull(FString::Printf(TEXT("%s loads"), Expected.AssetPath), Weapon);
+		if (Weapon)
+		{
+			TestTrue(
+				FString::Printf(TEXT("%s serializes %s"),
+					Expected.AssetPath, *Expected.Tag.ToString()),
+				Weapon->GrantedTags.HasTagExact(Expected.Tag));
+		}
+	}
 	return true;
 }

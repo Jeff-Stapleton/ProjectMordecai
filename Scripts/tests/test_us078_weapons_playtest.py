@@ -47,7 +47,7 @@ GAME_WEAPONS = (("DA_Weapon_Longsword", "Longsword", "Longsword"),
                 ("DA_Weapon_Greatsword", "Greatsword", "Greatsword"),
                 ("DA_Weapon_Spear", "Spear", "Spear"),
                 ("DA_Weapon_Mace", "Mace", "Mace"))
-KNOWN_FAILS = ["cycle_prev_shift_tab", "weapon_effects_on_asc"]
+KNOWN_FAILS = ["cycle_prev_shift_tab"]
 ATTACK_CHECKS = ["light_attack_lmb", "heavy_attack_hold"]
 HEAVY_HOLD_S = 0.4   # UMordecaiHeroComponent::HeavyAttackHoldSeconds
 
@@ -281,7 +281,7 @@ class TestUs078Pass(Us078Case):
         self.assertIn("held 0.8s", checks["heavy_attack_hold"]["detail"])
         self.assertIn("Mordecai.Attack.Heavy after", checks["heavy_attack_hold"]["detail"])
         self.assertEqual([kind for kind, _ in world.attacks], ["light", "heavy"])
-        # Both known issue checks passed in this fully working fake.
+        # N9 passed in this fully working fake.
         self.assertEqual(sorted(rep["fixed_candidates"]), sorted(KNOWN_FAILS))
         # Screenshots: start and cycled_mace.
         self.assertEqual([s["label"] for s in rep["screenshots"]], ["start", "cycled_mace"])
@@ -313,13 +313,13 @@ class TestUs078Pass(Us078Case):
 
 
 class TestUs078Failures(Us078Case):
-    def test_missing_weapon_effect_tags_is_the_known_issue_36_failure(self):
+    def test_missing_weapon_effect_tags_is_a_new_failure(self):
         _, server = self.serve(weapon_effects=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(self.statuses(rep, "FAIL"), ["weapon_effects_on_asc"])
-        self.assertEqual(rep["known_failures"], ["weapon_effects_on_asc"])
-        self.assertEqual(rep["new_failures"], [])
+        self.assertEqual(rep["known_failures"], [])
+        self.assertEqual(rep["new_failures"], ["weapon_effects_on_asc"])
         detail = self.by_name(rep)["weapon_effects_on_asc"]["detail"]
         for tag in set(us078.WEAPON_TYPE_TAGS):
             self.assertIn(f"missing {tag}", detail)
@@ -341,7 +341,6 @@ class TestUs078Failures(Us078Case):
         self.assertEqual(sorted(self.statuses(rep, "FAIL")),
                          sorted(["weapon_hud_text", "cycle_prev_shift_tab"]))
         self.assertEqual(rep["known_failures"], ["cycle_prev_shift_tab"])
-        self.assertIn("weapon_effects_on_asc", rep["fixed_candidates"])
         self.assertEqual(rep["new_failures"], ["weapon_hud_text"])
         checks = self.by_name(rep)
         self.assertIn("no visible MordecaiEquippedWeaponWidget text equals the weapon name "
@@ -404,7 +403,8 @@ class TestUs078Failures(Us078Case):
         _, server = self.serve(weapons=weapons)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
-        self.assertEqual(rep["new_failures"], ["cycle_next_1"])
+        self.assertEqual(sorted(rep["new_failures"]),
+                         ["cycle_next_1", "weapon_effects_on_asc"])
         detail = self.by_name(rep)["cycle_next_1"]["detail"]
         self.assertIn("display_name is 'Rusty Knife', expected 'Dagger'", detail)
         self.assertEqual(self.by_name(rep)["cycle_next_2"]["status"], "PASS")

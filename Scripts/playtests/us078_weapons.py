@@ -103,8 +103,6 @@ ATTACK_CLEAR_S = 2.0
 
 N9 = ("N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next "
       "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
-ISSUE36 = ("issue #36 Weapon effects never reach the ASC "
-           "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
 
 SCREENSHOTS = {
     "start": "CombatTestMap from the fixed overhead camera: the player at the PlayerStart on the "
@@ -114,7 +112,7 @@ SCREENSHOTS = {
     "cycled_mace": "the same view after four Tabs, the player still at the PlayerStart; the "
                    "bottom-right loadout plate should read 'Mace'",
 }
-KNOWN_ISSUES = (N9, ISSUE36)
+KNOWN_ISSUES = (N9,)
 
 PLAN = (
     Step("starting_weapon", f"state player -> player.weapon.index==0 && "
@@ -125,8 +123,7 @@ PLAN = (
          "player.weapon.display_name", proves=("AC-078.11", "AC-078.12", "US-077:AC-077.7")),
     Step("weapon_effects_on_asc", f"state player on Longsword, then tap {NEXT_KEY} through all "
          "five weapons -> each current Mordecai.Weapon.Type.* tag is present and the previous "
-         "type tag is absent in player.tags", proves=("US-096:AC-096.3",),
-         known_issue=ISSUE36),
+         "type tag is absent in player.tags", proves=("US-096:AC-096.3",)),
     *[Step(f"cycle_next_{k}", f"tap {NEXT_KEY} -> wait_until player.weapon.index=="
            f"{k} (from {k - 1}), display_name '{WEAPONS[k]}'",
            proves=(("AC-078.6", "AC-078.8", "AC-078.14", "US-077:AC-077.3") if k == 1 else

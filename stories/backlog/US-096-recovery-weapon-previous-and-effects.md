@@ -25,6 +25,9 @@ Programmatic IMC mapping (chord trigger) and the equipment component's ASC looku
 - [ ] AC-096.3: Equipping a weapon applies its `GrantedTags` and `StatModifiers` to the ASC found via the owning PlayerState (Lyra pattern), and unequipping removes them — verified by `Mordecai.Recovery.Weapons.EffectsAppliedToPlayerStateASC`
 - [ ] AC-096.4: AC-078.15 (two-hand clears both slots) stays PENDING TIER 4 (bridge cannot drive: B2 — no equip slot on `player.weapon`); Tier 1 only, not claimed
 
+Issue #36 is scoped to AC-096.3 only. N9 / AC-096.1-.2 remain open. Multiplayer equipment
+replication remains out of scope and is tracked by issue #95.
+
 ## Technical Notes
 - TODO(DECISION) N9 (Jeff): Shift+Tab (AC-078.7) vs BackSlash (current code; the code comment calls it "a pragmatic alternative"). Note the conflict with Sprint (Left Shift toggle): Option A needs the sprint toggle to fire on Shift release-without-chord, or on a different trigger, so that Shift+Tab does not also toggle sprint. Also: control_bindings lists Tab as "Weapon Set Swap (Set 1 ↔ Set 2)", not "next weapon" — the 5-weapon cycle itself is a US-078 test-arena convenience; flag if Jeff wants that revisited.
 - Option A implementation: Enhanced Input `UInputTriggerChordAction` on Tab with a "Shift held" chord action; give the plain-Tab mapping a blocker (`UInputTriggerChordBlocker`) so it does not fire with Shift held.
@@ -36,25 +39,43 @@ Programmatic IMC mapping (chord trigger) and the equipment component's ASC looku
 ### Tier 1 — Automation (headless)
 - `Mordecai.Recovery.Weapons.PreviousWeaponInput` — AC-096.1
 - `Mordecai.Recovery.Weapons.EffectsAppliedToPlayerStateASC` — AC-096.3
+- `Mordecai.Recovery.Weapons.EffectsAppliedAfterLateASCInitialization` — AC-096.3
+- `Mordecai.Recovery.Weapons.SwapDoesNotStackPreviousEffects` — AC-096.3
+- `Mordecai.Recovery.Weapons.SerializedAssetsHaveGrantedTags` — guards the five cooked weapon tags
 ### Tier 2 — PIE smoke (editor integration)
 - `Scripts/verify_pie_weapons.py` (new or extended): `[LOGIC]` equip each weapon → its granted tags on the PlayerState ASC
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
 - `Scripts/playtests/us078_weapons.py` check `cycle_prev_shift_tab` (Option A)
+- `Scripts/playtests/us078_weapons.py` check `weapon_effects_on_asc` — AC-096.3
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience; us078's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-078` on the same package
-- **Player steps:** tap Tab four times (Mace), press Shift+Tab (Option A) or BackSlash (Option B)
+- **Player steps:** read the Longsword tag, tap Tab through all five weapons and verify each
+  current type tag is present while the previous type tag is absent; then tap Tab four times
+  (Mace), press Shift+Tab (Option A) or BackSlash (Option B)
 - **Visible on screen:** the weapon HUD (after US-091) reads "Spear"; the player is not sprinting
 - **Proof:** Tier 4 check `cycle_prev_shift_tab` (Option A) / `cycle_prev_backslash` (Option B) of `Scripts/playtests/us078_weapons.py`
 - **Tier 4 script:** `Scripts/playtests/us078_weapons.py` — run: `py Scripts/playtest_story.py US-078`
 - **Steps:**
 
-| Script | Check | Player step (bridge calls) → expected | Sweep result (8ea853b) |
+| # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| us078 | `cycle_prev_shift_tab` | tap LeftShift+Tab on the Mace -> wait_until player.weapon.index==3, display_name 'Spear' | FAIL (known N9): Longsword |
-| us078 | `cycle_prev_backslash` | tap BackSlash on the first weapon -> wait_until player.weapon.index==4, display_name 'Mace' | PASS |
+| 1 | `starting_weapon` | state player -> player.weapon.index==0 && player.weapon.count==5 && display_name 'Longsword' (case-insensitive) | AC-078.9, AC-078.10, US-077:AC-077.1, US-077:AC-077.5, US-077:AC-077.6 |
+| 2 | `weapon_hud_text` | state player, widgets -> visible MordecaiEquippedWeaponWidget text equals player.weapon.display_name | AC-078.11, AC-078.12, US-077:AC-077.7 |
+| 3 | `weapon_effects_on_asc` | state player on Longsword, then tap Tab through all five weapons -> each current Mordecai.Weapon.Type.* tag is present and the previous type tag is absent in player.tags | US-096:AC-096.3 |
+| 4 | `cycle_next_1` | tap Tab -> wait_until player.weapon.index==1 (from 0), display_name 'Dagger' | AC-078.6, AC-078.8, AC-078.14, US-077:AC-077.3 |
+| 5 | `cycle_next_2` | tap Tab -> wait_until player.weapon.index==2 (from 1), display_name 'Greatsword' | AC-078.6, AC-078.14, US-077:AC-077.3 |
+| 6 | `cycle_next_3` | tap Tab -> wait_until player.weapon.index==3 (from 2), display_name 'Spear' | AC-078.6, AC-078.14, US-077:AC-077.3 |
+| 7 | `cycle_next_4` | tap Tab -> wait_until player.weapon.index==4 (from 3), display_name 'Mace' | AC-078.6, AC-078.14, US-077:AC-077.3 |
+| 8 | `cycle_wrap` | tap Tab on the last weapon -> wait_until player.weapon.index==0, display_name 'Longsword' | AC-078.6, US-077:AC-077.3 |
+| 9 | `cycle_prev_backslash` | tap BackSlash on the first weapon -> wait_until player.weapon.index==4, display_name 'Mace' | AC-078.8, US-077:AC-077.4 |
+| 10 | `cycle_prev_shift_tab` | tap LeftShift+Tab on the Mace -> wait_until player.weapon.index==3, display_name 'Spear' _(known issue: N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next (Specs/agent_playtest_plan_v1.md, Known issues backlog))_ | AC-078.7 |
+| 11 | `cycle_gamepad_y` | tap Gamepad_FaceButton_Top (Y) -> wait_until player.weapon.index==(index+1)%5 with the matching display_name | AC-078.6 |
+| 12 | `weapon_hud_updates` | tap Tab -> the new weapon is equipped and visible MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text) | AC-078.12, AC-078.14, US-077:AC-077.8 |
+| 13 | `light_attack_lmb` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) -> Mordecai.State.Attacking without Mordecai.Attack.Heavy in player.tags within 1 s | AC-078.14 |
+| 14 | `heavy_attack_hold` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) held 0.8 s -> Mordecai.Attack.Heavy in player.tags within 0.5 s | AC-078.13 |
 
 - **Playable alone:** YES
 

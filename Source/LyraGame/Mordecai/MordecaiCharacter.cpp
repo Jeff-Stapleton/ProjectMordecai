@@ -252,6 +252,10 @@ void AMordecaiCharacter::OnAbilitySystemInitialized()
 {
 	Super::OnAbilitySystemInitialized();
 	BindToASC();
+	if (EquipmentComponent)
+	{
+		EquipmentComponent->RefreshWeaponEffects();
+	}
 
 	// Movement-mode changes before the ASC was attached found no ASC: seed Airborne from the current mode
 	UMordecaiHitDetectionSubsystem::SyncAirborneTag(GetAbilitySystemComponent(), this);
@@ -260,6 +264,10 @@ void AMordecaiCharacter::OnAbilitySystemInitialized()
 void AMordecaiCharacter::OnAbilitySystemUninitialized()
 {
 	UnbindFromASC();
+	if (EquipmentComponent)
+	{
+		EquipmentComponent->ClearWeaponEffects();
+	}
 
 	// The ASC lives on the PlayerState and outlives this pawn: leave no Airborne on it
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())

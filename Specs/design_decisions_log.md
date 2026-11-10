@@ -206,3 +206,16 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - **Jeff's exact decision:** “Keep the arrow visible on dead enemies.”
 - **Implementation context (not Jeff's words):** `AMordecaiEnemyCharacter::EnterDeathState` hides the issue #19 placeholder `BodyMesh` but leaves the green facing arrow registered and visible. `ResetForArena` later revives the enemy and restores the body; the same arrow component remains registered throughout.
 - Source: Jeff via Cursor session (2026-11-09, about 15:30 MST).
+
+---
+
+## 2026-11-09 — Weapon effects reach the ASC (issue #36, US-096)
+
+- Jeff: "Repair the five weapon tags in this PR and add the packaged us078 tag check"
+- Jeff: "Prove stat modifiers with a test-only modifier in automated tests, no balance change"
+- Jeff: "Only AC-096.3 in this PR; leave previous-weapon N9 open"
+- Jeff: "File a separate issue for multiplayer equipment replication"
+- **Implementation context (not Jeff's words):** issue #95 tracks multiplayer equipment replication.
+  This change keeps replication out of scope, repairs only the five existing weapon type tags,
+  and adds no stat modifiers to game assets.
+- Source: Jeff via Cursor session (2026-11-09).

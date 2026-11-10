@@ -135,6 +135,12 @@ public:
 	/** Override the ASC reference for headless tests. */
 	void SetASCOverride(UAbilitySystemComponent* InASC);
 
+	/** Apply any equipped weapon effects after the pawn's ASC becomes available. Idempotent. */
+	void RefreshWeaponEffects();
+
+	/** Remove equipped weapon effects from the ASC on which each slot applied them. */
+	void ClearWeaponEffects();
+
 	/**
 	 * US-033 hook: static helper that defers to UMordecaiItemLibrary::CanEquipInstance.
 	 * Future story will thread this into the full EquipWeapon path when weapon
@@ -148,7 +154,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
-	/** Find the ASC on the owning actor (or use override). */
+	/** Resolve override, owner pawn ASC, then the owning PlayerState ASC (Lyra player pattern). */
 	UAbilitySystemComponent* FindAbilitySystemComponent() const;
 
 	/** Internal: apply stat modifiers, abilities, tags for a weapon slot. */
@@ -169,6 +175,7 @@ private:
 
 	struct FSlotEffectState
 	{
+		TWeakObjectPtr<UAbilitySystemComponent> AppliedASC;
 		FActiveGameplayEffectHandle StatModifierGEHandle;
 		TArray<FGameplayAbilitySpecHandle> AbilityHandles;
 		FGameplayTagContainer AppliedTags;

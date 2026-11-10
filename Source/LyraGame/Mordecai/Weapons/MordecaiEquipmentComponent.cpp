@@ -7,6 +7,9 @@
 #include "Mordecai/Items/MordecaiItemLibrary.h"
 #include "Mordecai/Items/MordecaiItemInstance.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerState.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
 
@@ -53,7 +56,22 @@ UAbilitySystemComponent* UMordecaiEquipmentComponent::FindAbilitySystemComponent
 	}
 
 	AActor* Owner = GetOwner();
-	return Owner ? Owner->FindComponentByClass<UAbilitySystemComponent>() : nullptr;
+	if (!Owner)
+	{
+		return nullptr;
+	}
+
+	if (UAbilitySystemComponent* ASC =
+		UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner))
+	{
+		return ASC;
+	}
+
+	const APawn* OwnerPawn = Cast<APawn>(Owner);
+	APlayerState* PlayerState = OwnerPawn ? OwnerPawn->GetPlayerState() : nullptr;
+	return PlayerState
+		? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(PlayerState)
+		: nullptr;
 }
 
 // ---------------------------------------------------------------------------
@@ -335,61 +353,73 @@ void UMordecaiEquipmentComponent::ApplyWeaponEffects(const UMordecaiWeaponDataAs
 	}
 
 	UAbilitySystemComponent* ASC = FindAbilitySystemComponent();
-	FSlotEffectState& State = SlotEffects.FindOrAdd(Slot);
-
-	if (ASC)
+	if (!ASC)
 	{
-		// AC-024.6: Apply StatModifiers as an infinite-duration GE
-		if (WeaponData->StatModifiers.Num() > 0)
-		{
-			UGameplayEffect* StatGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiWeaponStatMod"));
-			StatGE->DurationPolicy = EGameplayEffectDurationType::Infinite;
+		return;
+	}
 
-			for (const FMordecaiStatModifier& StatMod : WeaponData->StatModifiers)
+	if (const FSlotEffectState* Existing = SlotEffects.Find(Slot))
+	{
+		if (Existing->AppliedASC.Get() == ASC)
+		{
+			return;
+		}
+		RemoveWeaponEffects(Slot);
+	}
+
+	FSlotEffectState& State = SlotEffects.Add(Slot);
+	State.AppliedASC = ASC;
+
+	// AC-024.6: Apply StatModifiers as an infinite-duration GE
+	if (WeaponData->StatModifiers.Num() > 0)
+	{
+		UGameplayEffect* StatGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiWeaponStatMod"));
+		StatGE->DurationPolicy = EGameplayEffectDurationType::Infinite;
+
+		for (const FMordecaiStatModifier& StatMod : WeaponData->StatModifiers)
+		{
+			if (StatMod.Attribute.IsValid())
 			{
-				if (StatMod.Attribute.IsValid())
+				FGameplayModifierInfo& Mod = StatGE->Modifiers.AddDefaulted_GetRef();
+				Mod.Attribute = StatMod.Attribute;
+
+				switch (StatMod.Operation)
 				{
-					FGameplayModifierInfo& Mod = StatGE->Modifiers.AddDefaulted_GetRef();
-					Mod.Attribute = StatMod.Attribute;
-
-					switch (StatMod.Operation)
-					{
-					case EMordecaiModifierOp::Add:
-						Mod.ModifierOp = EGameplayModOp::Additive;
-						break;
-					case EMordecaiModifierOp::Multiply:
-						Mod.ModifierOp = EGameplayModOp::Multiplicitive;
-						break;
-					case EMordecaiModifierOp::PercentAdd:
-						Mod.ModifierOp = EGameplayModOp::Additive;
-						break;
-					}
-
-					Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(StatMod.Value));
+				case EMordecaiModifierOp::Add:
+					Mod.ModifierOp = EGameplayModOp::Additive;
+					break;
+				case EMordecaiModifierOp::Multiply:
+					Mod.ModifierOp = EGameplayModOp::Multiplicitive;
+					break;
+				case EMordecaiModifierOp::PercentAdd:
+					Mod.ModifierOp = EGameplayModOp::Additive;
+					break;
 				}
-			}
 
-			FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
-			FGameplayEffectSpec Spec(StatGE, Context, 1.0f);
-			State.StatModifierGEHandle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
-		}
-
-		// AC-024.6: Grant abilities
-		for (const TSubclassOf<UGameplayAbility>& AbilityClass : WeaponData->GrantedAbilities)
-		{
-			if (AbilityClass)
-			{
-				FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1));
-				State.AbilityHandles.Add(Handle);
+				Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(StatMod.Value));
 			}
 		}
 
-		// AC-024.6: Add GrantedTags
-		State.AppliedTags = WeaponData->GrantedTags;
-		for (const FGameplayTag& Tag : State.AppliedTags)
+		FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+		FGameplayEffectSpec Spec(StatGE, Context, 1.0f);
+		State.StatModifierGEHandle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
+	}
+
+	// AC-024.6: Grant abilities
+	for (const TSubclassOf<UGameplayAbility>& AbilityClass : WeaponData->GrantedAbilities)
+	{
+		if (AbilityClass)
 		{
-			ASC->AddLooseGameplayTag(Tag);
+			FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1));
+			State.AbilityHandles.Add(Handle);
 		}
+	}
+
+	// AC-024.6: Add GrantedTags
+	State.AppliedTags = WeaponData->GrantedTags;
+	for (const FGameplayTag& Tag : State.AppliedTags)
+	{
+		ASC->AddLooseGameplayTag(Tag);
 	}
 }
 
@@ -401,7 +431,7 @@ void UMordecaiEquipmentComponent::RemoveWeaponEffects(EMordecaiEquipSlot Slot)
 		return;
 	}
 
-	UAbilitySystemComponent* ASC = FindAbilitySystemComponent();
+	UAbilitySystemComponent* ASC = State->AppliedASC.Get();
 	if (ASC)
 	{
 		// AC-024.7: Remove stat modifier GE
@@ -424,4 +454,22 @@ void UMordecaiEquipmentComponent::RemoveWeaponEffects(EMordecaiEquipSlot Slot)
 	}
 
 	SlotEffects.Remove(Slot);
+}
+
+void UMordecaiEquipmentComponent::RefreshWeaponEffects()
+{
+	if (MainHandWeapon.IsValid() && MainHandWeapon.WeaponDataAsset)
+	{
+		ApplyWeaponEffects(MainHandWeapon.WeaponDataAsset, EMordecaiEquipSlot::MainHand);
+	}
+	if (OffHandWeapon.IsValid() && OffHandWeapon.WeaponDataAsset)
+	{
+		ApplyWeaponEffects(OffHandWeapon.WeaponDataAsset, EMordecaiEquipSlot::OffHand);
+	}
+}
+
+void UMordecaiEquipmentComponent::ClearWeaponEffects()
+{
+	RemoveWeaponEffects(EMordecaiEquipSlot::MainHand);
+	RemoveWeaponEffects(EMordecaiEquipSlot::OffHand);
 }
