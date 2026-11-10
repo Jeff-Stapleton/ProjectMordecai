@@ -11,6 +11,7 @@ AC-078.7 promises Shift+Tab for "previous weapon", but the game maps only BackSl
 ## Execution Mode
 **HEADLESS**
 Programmatic IMC mapping (chord trigger) and the equipment component's ASC lookup, all C++.
+Issue #36 used a one-time EDITOR authoring step (Scripts/us078_01_create_weapon_assets.py) to re-save the five DA_Weapon_* type tags at Jeff's request; the rest stays HEADLESS.
 
 ## References
 - `Specs/agent_playtest_plan_v1.md` — N9 (`MordecaiHeroComponent.cpp:227-232`), "Weapon effects never reach the ASC" (`MordecaiEquipmentComponent.cpp:55-56`), B2 (no equip slot on `player.weapon`, AC-078.15)
@@ -39,7 +40,9 @@ replication remains out of scope and is tracked by issue #95.
 ### Tier 1 — Automation (headless)
 - `Mordecai.Recovery.Weapons.PreviousWeaponInput` — AC-096.1
 - `Mordecai.Recovery.Weapons.EffectsAppliedToPlayerStateASC` — AC-096.3
+- `Mordecai.Recovery.Weapons.PlayerStateFallbackRemainsSingleAcrossASCInitialization` — AC-096.3
 - `Mordecai.Recovery.Weapons.EffectsAppliedAfterLateASCInitialization` — AC-096.3
+- `Mordecai.Recovery.Weapons.PawnDestroyClearsRecordedPlayerStateEffects` — AC-096.3
 - `Mordecai.Recovery.Weapons.SwapDoesNotStackPreviousEffects` — AC-096.3
 - `Mordecai.Recovery.Weapons.SerializedAssetsHaveGrantedTags` — guards the five cooked weapon tags
 ### Tier 2 — PIE smoke (editor integration)
@@ -83,7 +86,7 @@ replication remains out of scope and is tracked by issue #95.
 - [ ] All ACs checked off (AC-096.4 stays unchecked: PENDING TIER 4, not claimed)
 - [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
 - [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
+- [ ] Content: `DA_Weapon_Longsword`, `DA_Weapon_Dagger`, `DA_Weapon_Greatsword`, `DA_Weapon_Spear`, and `DA_Weapon_Mace` type-tag repairs are committed; `py Scripts/check_content_committed.py` exits 0
 - [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-078`: `cycle_prev_shift_tab` goes from FAIL to PASS (Option A) or is removed per the recorded decision (Option B); no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`

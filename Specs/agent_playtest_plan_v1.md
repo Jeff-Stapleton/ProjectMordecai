@@ -263,6 +263,17 @@ The contract is `Specs/story_playtests_v1.md`.
   removes effects from the ASC recorded per slot. The five arena weapon assets serialize their
   type tags; `weapon_effects_on_asc` checks current-present / previous-absent over real-input
   swaps. Multiplayer equipment replication remains issue #95.
+  - Fixes: RED coverage `9be1aec`; PlayerState resolution, recorded-ASC cleanup, asset tags and
+    packaged check `a226a30`; pawn teardown cleanup and review regressions `9fc8aeb`.
+  - Tier 1: `Mordecai.Recovery.Weapons.*` (6/6), including
+    `PlayerStateFallbackRemainsSingleAcrossASCInitialization`,
+    `EffectsAppliedAfterLateASCInitialization`, and
+    `PawnDestroyClearsRecordedPlayerStateEffects`; full run 803/803
+    (`Saved/TestLogs/issue36-r1-tier1-full.log`). The two required mutations fail in
+    `issue36-r1-mutation-same-asc.log` and `issue36-r1-mutation-recorded-asc.log`.
+  - Packaged RED `Saved/Playtests/20261109-175702-us078` (`9be1aec`): all six weapon-tag
+    observations failed. GREEN `Saved/Playtests/20261109-194903-us078` (`a226a30`):
+    `weapon_effects_on_asc` PASS across all five weapons; the run exits 1 only for open N9.
 - **The three red bars are explained.** They are the health bars of three `BP_MordecaiEnemy_Frontliner` enemies that have no mesh, so the enemies are invisible. **FIXED** (issue #19, US-085, `f21525f`): each Frontliner has a dark red cylinder body the size of its capsule under its bar. `AMordecaiEnemyCharacter::BodyMesh` is a non-colliding slot; the Blueprint sets its mesh. On a fresh package:
   - Tier 3 `Saved/Playtests/20261028-085310-boot`: three red bodies under the three bars in `engine_01..03.png`, and 0 errors in `game.log` (before: three "no visible mesh").
   - Tier 4 `enemies_visible` PASS, 3/3 `mesh=True`, in `Saved/Playtests/20261028-085332-us054` and the sweep's `20261028-090901-us054`.
