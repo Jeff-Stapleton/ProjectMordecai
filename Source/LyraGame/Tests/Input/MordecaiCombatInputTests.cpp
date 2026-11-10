@@ -248,6 +248,72 @@ bool FMordecai_Recovery_InputCombatActionsMappedAndBound::RunTest(const FString&
 }
 
 // ---------------------------------------------------------------------------
+// Mordecai.Recovery.Input.AllRuntimeKeysValid (US-097 AC-097.1)
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_InputAllRuntimeKeysValid,
+	"Mordecai.Recovery.Input.AllRuntimeKeysValid",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_InputAllRuntimeKeysValid::RunTest(const FString& Parameters)
+{
+	AMordecaiCharacter* Character = NewObject<AMordecaiCharacter>();
+	UMordecaiHeroComponent* Hero = Character->FindComponentByClass<UMordecaiHeroComponent>();
+	if (!TestNotNull("Hero component", Hero))
+	{
+		return true;
+	}
+
+	UEnhancedInputComponent* EIC = NewObject<UEnhancedInputComponent>(Character);
+	const UInputMappingContext* IMC = Hero->BuildAndBindRuntimeInput(EIC);
+	if (!TestNotNull("Runtime mapping context built", IMC))
+	{
+		return true;
+	}
+
+	for (const FEnhancedActionKeyMapping& Mapping : IMC->GetMappings())
+	{
+		TestTrue(*FString::Printf(TEXT("%s maps a valid engine FKey: %s"),
+			Mapping.Action ? *Mapping.Action->GetName() : TEXT("(null action)"), *Mapping.Key.ToString()),
+			Mapping.Key.IsValid());
+	}
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// Mordecai.Recovery.Input.RightStickReachesLookHandler (US-097 AC-097.4)
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_InputRightStickReachesLookHandler,
+	"Mordecai.Recovery.Input.RightStickReachesLookHandler",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_InputRightStickReachesLookHandler::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiCombatInputTestHelpers;
+
+	AMordecaiCharacter* Character = NewObject<AMordecaiCharacter>();
+	UMordecaiHeroComponent* Hero = Character->FindComponentByClass<UMordecaiHeroComponent>();
+	if (!TestNotNull("Hero component", Hero))
+	{
+		return true;
+	}
+
+	UEnhancedInputComponent* EIC = NewObject<UEnhancedInputComponent>(Character);
+	const UInputMappingContext* IMC = Hero->BuildAndBindRuntimeInput(EIC);
+	const UInputAction* LookStick = LoadMordecaiInputAction(TEXT("IA_Mordecai_Look_Stick"));
+	if (!TestNotNull("Runtime mapping context built", IMC)
+		|| !TestNotNull("IA_Mordecai_Look_Stick loads", LookStick))
+	{
+		return true;
+	}
+
+	TestNotNull("Gamepad_Right2D maps the stick-look action",
+		FindKeyMapping(IMC, LookStick, EKeys::Gamepad_Right2D));
+	TestTrue("The stick-look action reaches the hero look handler on Triggered",
+		FindBindingIndex(EIC, LookStick, ETriggerEvent::Triggered, Hero) != INDEX_NONE);
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 // Mordecai.Recovery.Input.AbilityBindingsPressTheirInputTags
 // Each combat binding presses and releases the input tag of its own ability's spec on the player's ASC.
 // ---------------------------------------------------------------------------
