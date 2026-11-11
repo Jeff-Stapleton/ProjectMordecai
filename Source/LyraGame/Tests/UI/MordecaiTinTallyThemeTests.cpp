@@ -3,7 +3,10 @@
 #include "Algo/AllOf.h"
 #include "Misc/AutomationTest.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Image.h"
 #include "Components/Overlay.h"
+#include "Engine/Engine.h"
+#include "Engine/LocalPlayer.h"
 #include "Mordecai/UI/TinTally/MordecaiTallyWidget.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
@@ -64,8 +67,8 @@ bool FMordecai_UI_Theme_SRGBConversion::RunTest(const FString& Parameters)
 		TestNotNull(*FString::Printf(TEXT("%s is a designer-readable FLinearColor field"), *PropertyName.ToString()), Property);
 		if (Property)
 		{
-			TestEqual(*FString::Printf(TEXT("%s has FLinearColor type"), *PropertyName.ToString()),
-				Property->Struct, TBaseStructure<FLinearColor>::Get());
+			TestTrue(*FString::Printf(TEXT("%s has FLinearColor type"), *PropertyName.ToString()),
+				Property->Struct == TBaseStructure<FLinearColor>::Get());
 		}
 	}
 	TestEqual("the runtime token table has every tokens.json color", FMordecaiUIThemeColors::GetRuntimeColorTokenNames().Num(),
@@ -99,11 +102,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Theme_RuntimeSwapNotifiesWidgets,
 
 bool FMordecai_UI_Theme_RuntimeSwapNotifiesWidgets::RunTest(const FString& Parameters)
 {
-	UMordecaiUIThemeSubsystem* Service = NewObject<UMordecaiUIThemeSubsystem>();
+	ULocalPlayer* LocalPlayer = NewObject<ULocalPlayer>(GEngine);
+	UMordecaiUIThemeSubsystem* Service = NewObject<UMordecaiUIThemeSubsystem>(LocalPlayer);
 	TestEqual("local theme defaults to Diorama", Service->GetActiveTheme(), EMordecaiUITheme::Diorama);
 	TestEqual("Diorama id is stable", Service->GetActiveThemeId(), FName(TEXT("Diorama")));
 
-	UObject* LiveWidget = NewObject<UObject>();
+	UObject* LiveWidget = NewObject<UImage>();
 	const UObject* OriginalWidget = LiveWidget;
 	int32 NotificationCount = 0;
 	EMordecaiUITheme NotifiedTheme = EMordecaiUITheme::Diorama;
@@ -120,7 +124,7 @@ bool FMordecai_UI_Theme_RuntimeSwapNotifiesWidgets::RunTest(const FString& Param
 	TestEqual("runtime selection swaps to High Contrast", Service->GetActiveTheme(), EMordecaiUITheme::HighContrast);
 	TestEqual("live widget receives one notification", NotificationCount, 1);
 	TestEqual("notification identifies High Contrast", NotifiedTheme, EMordecaiUITheme::HighContrast);
-	TestEqual("the live widget is not reconstructed", LiveWidget, OriginalWidget);
+	TestTrue("the live widget is not reconstructed", LiveWidget == OriginalWidget);
 	TestTrue("High Contrast plate is black", Service->GetActiveColors().Plate.Equals(FLinearColor::Black));
 	TestTrue("High Contrast focus is yellow",
 		Service->GetActiveColors().Focus.Equals(FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("FFFF00")))));
@@ -206,8 +210,8 @@ bool FMordecai_UI_Primitives_RoundedBoxManifest::RunTest(const FString& Paramete
 	TestTrue("well radius is 8", WellLayer && IsRadius(WellLayer->Brush, FVector4(8.f)));
 	TestEqual("well lip is 2", Well.InnerStrokeWidth, 2.f);
 	TestEqual("well brush draws the 2px lip", WellLayer ? WellLayer->Brush.OutlineSettings.Width : 0.f, 2.f);
-	const FMordecaiUIPrimitiveLayer* BarLayer =
-		FindLayer(FMordecaiUIPrimitiveBuilder::Well(Colors, true), TEXT("Well"));
+	const FMordecaiUIPrimitiveSpec BarWell = FMordecaiUIPrimitiveBuilder::Well(Colors, true);
+	const FMordecaiUIPrimitiveLayer* BarLayer = FindLayer(BarWell, TEXT("Well"));
 	TestTrue("bar well radius is 6", BarLayer && IsRadius(BarLayer->Brush, FVector4(6.f)));
 
 	const FMordecaiUIPrimitiveSpec Keycap = FMordecaiUIPrimitiveBuilder::Keycap(Colors, EMordecaiKeycapShape::Square);
