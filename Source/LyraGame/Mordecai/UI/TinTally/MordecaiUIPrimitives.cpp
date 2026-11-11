@@ -302,3 +302,12 @@ UOverlay* FMordecaiUIPrimitiveBuilder::Build(
 	}
 	return Root;
 }
+
+void FMordecaiUIPrimitiveBuilder::Apply(
+	UOverlay* Overlay,
+	const FMordecaiUIPrimitiveSpec& Spec)
+{
+	// RED3 scaffold: behavior is implemented after the contract test fails.
+	(void)Overlay;
+	(void)Spec;
+}

@@ -133,4 +133,5 @@ struct LYRAGAME_API FMordecaiUIPrimitiveBuilder
 		EMordecaiUIFocusVariant Variant);
 
 	static UOverlay* Build(UWidgetTree* WidgetTree, const FMordecaiUIPrimitiveSpec& Spec, FName RootName);
+	static void Apply(UOverlay* Overlay, const FMordecaiUIPrimitiveSpec& Spec);
 };
