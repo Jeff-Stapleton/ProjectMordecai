@@ -86,6 +86,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally", meta = (EditFixedSize))
 	TArray<FSlateBrush> BundleFrames;
 
+	/** Exactly six dotted capacity brushes, tinted with the active theme's lip token. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally", meta = (EditFixedSize))
+	TArray<FSlateBrush> GhostBundleFrames;
+
 	/** Optional rank-one cap dot; US-103 supplies the cooked brush. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally")
 	FSlateBrush CapDotBrush;
@@ -104,7 +108,11 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UImage>> RenderedBundleImages;
 
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> RenderedGhostImages;
+
 	FLinearColor CurrentTint = FLinearColor::White;
+	FLinearColor CurrentGhostTint = FLinearColor::White;
 	FDelegateHandle ThemeChangedHandle;
 	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
 };

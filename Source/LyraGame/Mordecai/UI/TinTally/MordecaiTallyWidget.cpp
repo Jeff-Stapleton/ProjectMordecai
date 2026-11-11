@@ -5,6 +5,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
 #include "Components/Image.h"
+#include "Components/Overlay.h"
 #include "Mordecai/UI/TinTally/MordecaiUIThemeSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiTallyWidget)
@@ -13,12 +14,18 @@ UMordecaiTallyWidget::UMordecaiTallyWidget(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	BundleFrames.SetNum(6);
+	GhostBundleFrames.SetNum(6);
 	for (FSlateBrush& Frame : BundleFrames)
+	{
+		Frame.DrawAs = ESlateBrushDrawType::NoDrawType;
+	}
+	for (FSlateBrush& Frame : GhostBundleFrames)
 	{
 		Frame.DrawAs = ESlateBrushDrawType::NoDrawType;
 	}
 	CapDotBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
 	CurrentTint = FMordecaiUIThemeColors::MakeDiorama().Text;
+	CurrentGhostTint = FMordecaiUIThemeColors::MakeDiorama().Lip;
 }
 
 bool UMordecaiTallyWidget::Initialize()
@@ -143,8 +150,6 @@ void UMordecaiTallyWidget::ClampValues()
 
 void UMordecaiTallyWidget::Refresh()
 {
-	// TODO(US-103): render separate lit-fill and dotted-ghost atlas layers;
-	// tint the fill per Usage and tint the ghost with the theme's Lip token.
 	if (!BundleBox || !WidgetTree)
 	{
 		return;
@@ -154,23 +159,40 @@ void UMordecaiTallyWidget::Refresh()
 	{
 		BundleFrames.SetNum(6);
 	}
+	if (GhostBundleFrames.Num() != 6)
+	{
+		GhostBundleFrames.SetNum(6);
+	}
 
 	const TArray<int32> Frames = GetRenderedBundleFrames();
 	if (RenderedBundleImages.Num() != Frames.Num())
 	{
 		BundleBox->ClearChildren();
 		RenderedBundleImages.Reset(Frames.Num());
+		RenderedGhostImages.Reset(Frames.Num());
 		for (int32 Index = 0; Index < Frames.Num(); ++Index)
 		{
-			UImage* BundleImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), NAME_None);
-			BundleImage->SetVisibility(ESlateVisibility::HitTestInvisible);
-			BundleBox->AddChildToHorizontalBox(BundleImage);
-			RenderedBundleImages.Add(BundleImage);
+			UOverlay* Bundle = WidgetTree->ConstructWidget<UOverlay>(
+				UOverlay::StaticClass(), *FString::Printf(TEXT("TallyBundle_%d"), Index));
+			UImage* GhostImage = WidgetTree->ConstructWidget<UImage>(
+				UImage::StaticClass(), *FString::Printf(TEXT("TallyGhost_%d"), Index));
+			UImage* FillImage = WidgetTree->ConstructWidget<UImage>(
+				UImage::StaticClass(), *FString::Printf(TEXT("TallyFill_%d"), Index));
+			GhostImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+			FillImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+			Bundle->AddChildToOverlay(GhostImage);
+			Bundle->AddChildToOverlay(FillImage);
+			BundleBox->AddChildToHorizontalBox(Bundle);
+			RenderedGhostImages.Add(GhostImage);
+			RenderedBundleImages.Add(FillImage);
 		}
 	}
 
 	for (int32 Index = 0; Index < Frames.Num(); ++Index)
 	{
+		const int32 Capacity = FMath::Clamp(Max - Index * 5, 0, 5);
+		RenderedGhostImages[Index]->SetBrush(GhostBundleFrames[Capacity]);
+		RenderedGhostImages[Index]->SetColorAndOpacity(CurrentGhostTint);
 		RenderedBundleImages[Index]->SetBrush(BundleFrames[Frames[Index]]);
 		RenderedBundleImages[Index]->SetColorAndOpacity(CurrentTint);
 	}
@@ -181,7 +203,30 @@ void UMordecaiTallyWidget::ApplyTheme(
 	const FMordecaiUIThemeColors& Colors)
 {
 	(void)Theme;
-	CurrentTint = Colors.Text;
+	switch (Usage)
+	{
+	case EMordecaiTallyUsage::RarityBadge:
+		CurrentTint = Colors.Good;
+		break;
+	case EMordecaiTallyUsage::LoadingThrobber:
+		CurrentTint = Colors.Focus;
+		break;
+	case EMordecaiTallyUsage::Seal:
+		CurrentTint = Colors.Ink;
+		break;
+	case EMordecaiTallyUsage::SkillRank:
+	default:
+		CurrentTint = Colors.Text;
+		break;
+	}
+	CurrentGhostTint = Colors.Lip;
+	for (UImage* GhostImage : RenderedGhostImages)
+	{
+		if (GhostImage)
+		{
+			GhostImage->SetColorAndOpacity(CurrentGhostTint);
+		}
+	}
 	for (UImage* BundleImage : RenderedBundleImages)
 	{
 		if (BundleImage)

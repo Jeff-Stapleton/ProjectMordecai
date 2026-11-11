@@ -339,14 +339,29 @@ bool FMordecaiUIPrimitiveBuilder::Apply(
 		return false;
 	}
 
+	if (Overlay->GetChildrenCount() != Spec.Layers.Num())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Tin Tally primitive Apply layer mismatch: overlay has %d layers, spec has %d"),
+			Overlay->GetChildrenCount(), Spec.Layers.Num());
+		return false;
+	}
+	for (const FMordecaiUIPrimitiveLayer& PrimitiveLayer : Spec.Layers)
+	{
+		UWidget* OverlayChild = nullptr;
+		if (!FindNamedLayerBorder(Overlay, PrimitiveLayer.Name, OverlayChild))
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("Tin Tally primitive Apply layer mismatch: missing named layer %s"),
+				*PrimitiveLayer.Name.ToString());
+			return false;
+		}
+	}
+
 	for (const FMordecaiUIPrimitiveLayer& PrimitiveLayer : Spec.Layers)
 	{
 		UWidget* OverlayChild = nullptr;
 		UBorder* Border = FindNamedLayerBorder(Overlay, PrimitiveLayer.Name, OverlayChild);
-		if (!Border || !OverlayChild)
-		{
-			continue;
-		}
 
 		Border->SetBrush(PrimitiveLayer.Brush);
 		Border->SetPadding(FMargin(0.f));
@@ -359,9 +374,17 @@ bool FMordecaiUIPrimitiveBuilder::Apply(
 			{
 				SizeBox->SetWidthOverride(PrimitiveLayer.DesiredSize.X);
 			}
+			else
+			{
+				SizeBox->ClearWidthOverride();
+			}
 			if (PrimitiveLayer.DesiredSize.Y > 0.f)
 			{
 				SizeBox->SetHeightOverride(PrimitiveLayer.DesiredSize.Y);
+			}
+			else
+			{
+				SizeBox->ClearHeightOverride();
 			}
 		}
 		if (UOverlaySlot* Slot = Cast<UOverlaySlot>(OverlayChild->Slot))

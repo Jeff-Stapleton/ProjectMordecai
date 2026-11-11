@@ -13,8 +13,12 @@ UMordecaiUIThemeSubsystem::UMordecaiUIThemeSubsystem()
 	: NativeDiorama(FMordecaiUIThemeColors::MakeDiorama())
 	, NativeHighContrast(FMordecaiUIThemeColors::MakeHighContrast())
 {
-	// TODO(US-103): load DA_UITheme_Diorama and DA_UITheme_HighContrast once
-	// those cooked assets exist; native colors remain the code-only fallback.
+	DioramaThemeAsset = LoadObject<UMordecaiUIThemeDataAsset>(
+		nullptr,
+		TEXT("/MordecaiCore/UI/TinTally/Themes/DA_UITheme_Diorama.DA_UITheme_Diorama"));
+	HighContrastThemeAsset = LoadObject<UMordecaiUIThemeDataAsset>(
+		nullptr,
+		TEXT("/MordecaiCore/UI/TinTally/Themes/DA_UITheme_HighContrast.DA_UITheme_HighContrast"));
 }
 
 void UMordecaiUIThemeSubsystem::SetActiveTheme(EMordecaiUITheme NewTheme)
