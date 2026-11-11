@@ -68,5 +68,12 @@ Native data types, theme selection, shared widget construction, and automation t
 - [ ] Evidence run dirs appear in Completion Notes and the closing `[US-102]` commit body; the closing commit touches only `stories/`
 - [ ] Pushed; story moves to `stories/done/` only after all checks pass
 
+## Decisions / Design-doc Follow-up
+- Coordinator call (2026-11-10): keep menu print alpha at `0.55`, matching
+  `03-building-in-unreal.md` and `ds/css/_core.css`. The
+  `tokens.json` `print-menu` shadow still says `0.4`; reconcile that
+  documentation conflict in a design-doc follow-up without changing the token
+  file in US-102.
+
 ## Completion Notes
 <Filled in by the implementing agent.>

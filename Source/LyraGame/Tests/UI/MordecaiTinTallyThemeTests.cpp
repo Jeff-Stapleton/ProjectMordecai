@@ -131,6 +131,7 @@ namespace MordecaiTinTallyThemeTest
 		UWorld* World = nullptr;
 		APlayerController* PlayerController = nullptr;
 		ULocalPlayer* LocalPlayer = nullptr;
+		TSharedPtr<SWidget> SlateWidget;
 
 		bool Setup()
 		{
@@ -154,6 +155,7 @@ namespace MordecaiTinTallyThemeTest
 			}
 			PlayerController->Player = LocalPlayer;
 			LocalPlayer->PlayerController = PlayerController;
+			LocalPlayer->PlayerAdded(nullptr, 0);
 			return FLocalPlayerContext(LocalPlayer, World).IsValid();
 		}
 
@@ -162,18 +164,20 @@ namespace MordecaiTinTallyThemeTest
 			UMordecaiTallyWidget* Widget = NewObject<UMordecaiTallyWidget>(World);
 			Widget->SetPlayerContext(FLocalPlayerContext(LocalPlayer, World));
 			Widget->Initialize();
-			Widget->TakeWidget();
+			SlateWidget = Widget->TakeWidget();
 			return Widget;
 		}
 
 		void Teardown()
 		{
+			SlateWidget.Reset();
 			if (PlayerController)
 			{
 				PlayerController->Player = nullptr;
 			}
 			if (LocalPlayer)
 			{
+				LocalPlayer->PlayerRemoved();
 				LocalPlayer->PlayerController = nullptr;
 			}
 			if (World && GEngine)
@@ -574,6 +578,7 @@ bool FMordecai_UI_Primitives_BuildMaterializesFillLayers::RunTest(const FString&
 				TestEqual("non-sized layer fills vertically", OverlaySlot->GetVerticalAlignment(), VAlign_Fill);
 				TestTrue("slot uses the layer padding",
 					OverlaySlot->GetPadding() == Case.Value.Layers[Index].Padding);
+				TestTrue("border content padding is zero", Border->GetPadding() == FMargin(0.f));
 				TestEqual("border is hit-test invisible", Border->GetVisibility(), ESlateVisibility::HitTestInvisible);
 				TestEqual("built brush draw type", Border->Background.DrawAs, Case.Value.Layers[Index].Brush.DrawAs);
 				TestTrue("built brush tint",

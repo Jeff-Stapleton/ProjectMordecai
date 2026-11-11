@@ -8,6 +8,8 @@
 
 #include "MordecaiUIThemeSubsystem.generated.h"
 
+class UUserWidget;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMordecaiUIThemeChanged, EMordecaiUITheme, Theme,
 	const FMordecaiUIThemeColors&, Colors);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FMordecaiUIThemeChangedNative, EMordecaiUITheme,
@@ -43,6 +45,10 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Tin Tally|Theme", meta = (WorldContext = "WorldContextObject"))
 	static UMordecaiUIThemeSubsystem* ResolveForWorld(const UObject* WorldContextObject);
+
+	/** Resolves through the widget's owning local player; safe for split-screen UI. */
+	UFUNCTION(BlueprintPure, Category = "Tin Tally|Theme")
+	static UMordecaiUIThemeSubsystem* ResolveForWidget(const UUserWidget* Widget);
 
 	UPROPERTY(BlueprintAssignable, Category = "Tin Tally|Theme")
 	FMordecaiUIThemeChanged OnThemeChanged;

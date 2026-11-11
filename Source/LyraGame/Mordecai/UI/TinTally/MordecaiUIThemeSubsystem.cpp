@@ -2,6 +2,7 @@
 
 #include "Mordecai/UI/TinTally/MordecaiUIThemeSubsystem.h"
 
+#include "Blueprint/UserWidget.h"
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
@@ -12,6 +13,8 @@ UMordecaiUIThemeSubsystem::UMordecaiUIThemeSubsystem()
 	: NativeDiorama(FMordecaiUIThemeColors::MakeDiorama())
 	, NativeHighContrast(FMordecaiUIThemeColors::MakeHighContrast())
 {
+	// TODO(US-103): load DA_UITheme_Diorama and DA_UITheme_HighContrast once
+	// those cooked assets exist; native colors remain the code-only fallback.
 }
 
 void UMordecaiUIThemeSubsystem::SetActiveTheme(EMordecaiUITheme NewTheme)
@@ -39,8 +42,12 @@ void UMordecaiUIThemeSubsystem::SetThemeAssets(
 	UMordecaiUIThemeDataAsset* DioramaAsset,
 	UMordecaiUIThemeDataAsset* HighContrastAsset)
 {
-	DioramaThemeAsset = DioramaAsset;
-	HighContrastThemeAsset = HighContrastAsset;
+	DioramaThemeAsset =
+		DioramaAsset && DioramaAsset->Theme == EMordecaiUITheme::Diorama ? DioramaAsset : nullptr;
+	HighContrastThemeAsset =
+		HighContrastAsset && HighContrastAsset->Theme == EMordecaiUITheme::HighContrast
+		? HighContrastAsset
+		: nullptr;
 	BroadcastTheme();
 }
 
@@ -55,6 +62,14 @@ UMordecaiUIThemeSubsystem* UMordecaiUIThemeSubsystem::ResolveForWorld(const UObj
 	APlayerController* PlayerController = World ? World->GetFirstPlayerController() : nullptr;
 	ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
 	return LocalPlayer ? LocalPlayer->GetSubsystem<UMordecaiUIThemeSubsystem>() : nullptr;
+}
+
+UMordecaiUIThemeSubsystem* UMordecaiUIThemeSubsystem::ResolveForWidget(const UUserWidget* Widget)
+{
+	const ULocalPlayer* LocalPlayer = Widget ? Widget->GetOwningLocalPlayer() : nullptr;
+	return LocalPlayer
+		? const_cast<ULocalPlayer*>(LocalPlayer)->GetSubsystem<UMordecaiUIThemeSubsystem>()
+		: nullptr;
 }
 
 const FMordecaiUIThemeColors& UMordecaiUIThemeSubsystem::ResolveColors() const

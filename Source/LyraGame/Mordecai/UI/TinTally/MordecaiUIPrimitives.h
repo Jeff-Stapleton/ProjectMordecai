@@ -102,35 +102,23 @@ struct LYRAGAME_API FMordecaiUIPrimitiveBuilder
 	static FMordecaiUIPrimitiveSpec Plate(
 		const FMordecaiUIThemeColors& Colors,
 		EMordecaiUIPrintDepth PrintDepth,
-		EMordecaiUITheme Theme)
-	{
-		return Plate(Colors, PrintDepth);
-	}
+		EMordecaiUITheme Theme);
 	static FMordecaiUIPrimitiveSpec Pill(
 		const FMordecaiUIThemeColors& Colors,
 		EMordecaiUIPrintDepth PrintDepth = EMordecaiUIPrintDepth::HUD);
 	static FMordecaiUIPrimitiveSpec Pill(
 		const FMordecaiUIThemeColors& Colors,
 		EMordecaiUIPrintDepth PrintDepth,
-		EMordecaiUITheme Theme)
-	{
-		return Pill(Colors, PrintDepth);
-	}
+		EMordecaiUITheme Theme);
 	static FMordecaiUIPrimitiveSpec Tag(
 		const FMordecaiUIThemeColors& Colors,
 		EMordecaiUIPrintDepth PrintDepth = EMordecaiUIPrintDepth::HUD);
 	static FMordecaiUIPrimitiveSpec Tag(
 		const FMordecaiUIThemeColors& Colors,
 		EMordecaiUIPrintDepth PrintDepth,
-		EMordecaiUITheme Theme)
-	{
-		return Tag(Colors, PrintDepth);
-	}
+		EMordecaiUITheme Theme);
 	static FMordecaiUIPrimitiveSpec Well(const FMordecaiUIThemeColors& Colors, bool bBar);
-	static FMordecaiUIPrimitiveSpec InsetCardWell(const FMordecaiUIThemeColors& Colors)
-	{
-		return Well(Colors, false);
-	}
+	static FMordecaiUIPrimitiveSpec InsetCardWell(const FMordecaiUIThemeColors& Colors);
 	static FMordecaiUIPrimitiveSpec Keycap(
 		const FMordecaiUIThemeColors& Colors,
 		EMordecaiKeycapShape Shape);
@@ -142,10 +130,7 @@ struct LYRAGAME_API FMordecaiUIPrimitiveBuilder
 		const FMordecaiUIThemeColors& Colors,
 		float PieceRadius,
 		EMordecaiUITheme Theme,
-		EMordecaiUIFocusVariant Variant)
-	{
-		return Focus(Colors, PieceRadius, Theme);
-	}
+		EMordecaiUIFocusVariant Variant);
 
 	static UOverlay* Build(UWidgetTree* WidgetTree, const FMordecaiUIPrimitiveSpec& Spec, FName RootName);
 };

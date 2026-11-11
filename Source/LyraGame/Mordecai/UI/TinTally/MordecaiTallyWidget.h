@@ -5,11 +5,13 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Styling/SlateBrush.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include "MordecaiTallyWidget.generated.h"
 
 class UHorizontalBox;
 class UImage;
+class UMordecaiUIThemeSubsystem;
 
 /** D1's complete allow-list for the tally motif. */
 UENUM(BlueprintType)
@@ -37,6 +39,10 @@ public:
 	virtual bool Initialize() override;
 	virtual void SynchronizeProperties() override;
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Tally")
 	void SetCount(int32 NewCount);
 
@@ -63,10 +69,14 @@ public:
 	static bool IsAllowedUsage(EMordecaiTallyUsage Candidate);
 
 protected:
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally", meta = (ClampMin = "0"))
 	int32 Count = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally",
+		meta = (ClampMin = "0", ClampMax = "20", UIMin = "0", UIMax = "20"))
 	int32 Max = 20;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally")
@@ -76,13 +86,25 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally", meta = (EditFixedSize))
 	TArray<FSlateBrush> BundleFrames;
 
+	/** Optional rank-one cap dot; US-103 supplies the cooked brush. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally")
+	FSlateBrush CapDotBrush;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UHorizontalBox> BundleBox;
 
 private:
+	static constexpr int32 MaxSupportedCount = 20;
+
 	void BuildDefaultLayout();
+	void ClampValues();
 	void Refresh();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UImage>> RenderedBundleImages;
+
+	FLinearColor CurrentTint = FLinearColor::White;
+	FDelegateHandle ThemeChangedHandle;
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
 };

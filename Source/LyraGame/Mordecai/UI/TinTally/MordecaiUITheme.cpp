@@ -4,7 +4,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiUITheme)
 
-namespace MordecaiUITheme
+namespace
 {
 	struct FTokenEntry
 	{
@@ -12,39 +12,48 @@ namespace MordecaiUITheme
 		FLinearColor FMordecaiUIThemeColors::* Member;
 	};
 
-#define TOKEN(NameText, MemberName) { TEXT(NameText), &FMordecaiUIThemeColors::MemberName }
+#define MORDECAI_UI_TOKEN(NameText, MemberName) { TEXT(NameText), &FMordecaiUIThemeColors::MemberName }
 	static const FTokenEntry TokenEntries[] = {
-		TOKEN("plate", Plate), TOKEN("plate-raised", PlateRaised), TOKEN("well", Well), TOKEN("lip", Lip),
-		TOKEN("rim", Rim), TOKEN("rim-shade", RimShade), TOKEN("ink", Ink), TOKEN("enamel", Enamel),
-		TOKEN("enamel-shade", EnamelShade), TOKEN("veil", Veil), TOKEN("veil-death", VeilDeath),
-		TOKEN("text", Text), TOKEN("text-muted", TextMuted), TOKEN("text-disabled", TextDisabled),
-		TOKEN("ink-muted", InkMuted), TOKEN("focus", Focus), TOKEN("vital", Vital),
-		TOKEN("vital-trail", VitalTrail), TOKEN("heal", Heal), TOKEN("stamina-green", StaminaGreen),
-		TOKEN("stamina-yellow", StaminaYellow), TOKEN("danger", Danger), TOKEN("danger-text", DangerText),
-		TOKEN("delta-up", DeltaUp), TOKEN("delta-down", DeltaDown), TOKEN("stamina-red", StaminaRed),
-		TOKEN("foe", Foe), TOKEN("posture", Posture), TOKEN("spell-points", SpellPoints), TOKEN("good", Good),
-		TOKEN("rarity-common", RarityCommon), TOKEN("rarity-green", RarityGreen),
-		TOKEN("rarity-blue", RarityBlue), TOKEN("rarity-purple", RarityPurple),
-		TOKEN("rarity-red", RarityRed), TOKEN("rarity-gold", RarityGold),
-		TOKEN("feat-common", FeatCommon), TOKEN("feat-rare", FeatRare),
-		TOKEN("feat-legendary", FeatLegendary), TOKEN("buff", Buff), TOKEN("debuff", Debuff),
-		TOKEN("dmg-physical", DamagePhysical), TOKEN("dmg-fire", DamageFire),
-		TOKEN("dmg-frost", DamageFrost), TOKEN("dmg-lightning", DamageLightning),
-		TOKEN("dmg-poison", DamagePoison), TOKEN("dmg-corrosive", DamageCorrosive),
-		TOKEN("dmg-arcane", DamageArcane), TOKEN("dmg-shadow", DamageShadow),
-		TOKEN("dmg-shadow-edge", DamageShadowEdge), TOKEN("dmg-radiant", DamageRadiant),
-		TOKEN("biome-verdant", BiomeVerdant), TOKEN("biome-searing", BiomeSearing),
-		TOKEN("biome-mire", BiomeMire), TOKEN("biome-crystal", BiomeCrystal),
-		TOKEN("biome-storm", BiomeStorm), TOKEN("biome-withered", BiomeWithered),
-		TOKEN("world-blockout", WorldBlockout), TOKEN("world-blockout-line", WorldBlockoutLine),
-		TOKEN("world-grass", WorldGrass), TOKEN("world-grass-dot", WorldGrassDot),
-		TOKEN("world-sand", WorldSand), TOKEN("world-sand-dot", WorldSandDot),
-		TOKEN("world-mire", WorldMire), TOKEN("world-mire-dot", WorldMireDot),
-		TOKEN("world-night", WorldNight), TOKEN("world-night-dot", WorldNightDot),
-		TOKEN("world-snow", WorldSnow), TOKEN("world-snow-dot", WorldSnowDot),
-		TOKEN("world-light", WorldLight), TOKEN("world-dark", WorldDark), TOKEN("world-shade", WorldShade)
+		MORDECAI_UI_TOKEN("plate", Plate), MORDECAI_UI_TOKEN("plate-raised", PlateRaised),
+		MORDECAI_UI_TOKEN("well", Well), MORDECAI_UI_TOKEN("lip", Lip),
+		MORDECAI_UI_TOKEN("rim", Rim), MORDECAI_UI_TOKEN("rim-shade", RimShade),
+		MORDECAI_UI_TOKEN("ink", Ink), MORDECAI_UI_TOKEN("enamel", Enamel),
+		MORDECAI_UI_TOKEN("enamel-shade", EnamelShade), MORDECAI_UI_TOKEN("veil", Veil),
+		MORDECAI_UI_TOKEN("veil-death", VeilDeath), MORDECAI_UI_TOKEN("text", Text),
+		MORDECAI_UI_TOKEN("text-muted", TextMuted), MORDECAI_UI_TOKEN("text-disabled", TextDisabled),
+		MORDECAI_UI_TOKEN("ink-muted", InkMuted), MORDECAI_UI_TOKEN("focus", Focus),
+		MORDECAI_UI_TOKEN("vital", Vital), MORDECAI_UI_TOKEN("vital-trail", VitalTrail),
+		MORDECAI_UI_TOKEN("heal", Heal), MORDECAI_UI_TOKEN("stamina-green", StaminaGreen),
+		MORDECAI_UI_TOKEN("stamina-yellow", StaminaYellow), MORDECAI_UI_TOKEN("danger", Danger),
+		MORDECAI_UI_TOKEN("danger-text", DangerText), MORDECAI_UI_TOKEN("delta-up", DeltaUp),
+		MORDECAI_UI_TOKEN("delta-down", DeltaDown), MORDECAI_UI_TOKEN("stamina-red", StaminaRed),
+		MORDECAI_UI_TOKEN("foe", Foe), MORDECAI_UI_TOKEN("posture", Posture),
+		MORDECAI_UI_TOKEN("spell-points", SpellPoints), MORDECAI_UI_TOKEN("good", Good),
+		MORDECAI_UI_TOKEN("rarity-common", RarityCommon), MORDECAI_UI_TOKEN("rarity-green", RarityGreen),
+		MORDECAI_UI_TOKEN("rarity-blue", RarityBlue), MORDECAI_UI_TOKEN("rarity-purple", RarityPurple),
+		MORDECAI_UI_TOKEN("rarity-red", RarityRed), MORDECAI_UI_TOKEN("rarity-gold", RarityGold),
+		MORDECAI_UI_TOKEN("feat-common", FeatCommon), MORDECAI_UI_TOKEN("feat-rare", FeatRare),
+		MORDECAI_UI_TOKEN("feat-legendary", FeatLegendary), MORDECAI_UI_TOKEN("buff", Buff),
+		MORDECAI_UI_TOKEN("debuff", Debuff), MORDECAI_UI_TOKEN("dmg-physical", DamagePhysical),
+		MORDECAI_UI_TOKEN("dmg-fire", DamageFire), MORDECAI_UI_TOKEN("dmg-frost", DamageFrost),
+		MORDECAI_UI_TOKEN("dmg-lightning", DamageLightning), MORDECAI_UI_TOKEN("dmg-poison", DamagePoison),
+		MORDECAI_UI_TOKEN("dmg-corrosive", DamageCorrosive), MORDECAI_UI_TOKEN("dmg-arcane", DamageArcane),
+		MORDECAI_UI_TOKEN("dmg-shadow", DamageShadow), MORDECAI_UI_TOKEN("dmg-shadow-edge", DamageShadowEdge),
+		MORDECAI_UI_TOKEN("dmg-radiant", DamageRadiant), MORDECAI_UI_TOKEN("biome-verdant", BiomeVerdant),
+		MORDECAI_UI_TOKEN("biome-searing", BiomeSearing), MORDECAI_UI_TOKEN("biome-mire", BiomeMire),
+		MORDECAI_UI_TOKEN("biome-crystal", BiomeCrystal), MORDECAI_UI_TOKEN("biome-storm", BiomeStorm),
+		MORDECAI_UI_TOKEN("biome-withered", BiomeWithered),
+		MORDECAI_UI_TOKEN("world-blockout", WorldBlockout),
+		MORDECAI_UI_TOKEN("world-blockout-line", WorldBlockoutLine),
+		MORDECAI_UI_TOKEN("world-grass", WorldGrass), MORDECAI_UI_TOKEN("world-grass-dot", WorldGrassDot),
+		MORDECAI_UI_TOKEN("world-sand", WorldSand), MORDECAI_UI_TOKEN("world-sand-dot", WorldSandDot),
+		MORDECAI_UI_TOKEN("world-mire", WorldMire), MORDECAI_UI_TOKEN("world-mire-dot", WorldMireDot),
+		MORDECAI_UI_TOKEN("world-night", WorldNight), MORDECAI_UI_TOKEN("world-night-dot", WorldNightDot),
+		MORDECAI_UI_TOKEN("world-snow", WorldSnow), MORDECAI_UI_TOKEN("world-snow-dot", WorldSnowDot),
+		MORDECAI_UI_TOKEN("world-light", WorldLight), MORDECAI_UI_TOKEN("world-dark", WorldDark),
+		MORDECAI_UI_TOKEN("world-shade", WorldShade)
 	};
-#undef TOKEN
+#undef MORDECAI_UI_TOKEN
 
 	FLinearColor C(const TCHAR* Hex, float Alpha = 1.f)
 	{
@@ -65,7 +74,6 @@ FLinearColor FMordecaiUIThemeColors::FromSRGBHex(const FString& Hex, float Alpha
 
 FMordecaiUIThemeColors FMordecaiUIThemeColors::MakeDiorama()
 {
-	using namespace MordecaiUITheme;
 	FMordecaiUIThemeColors T;
 	T.Plate = C(TEXT("163634"));
 	T.PlateRaised = C(TEXT("1C403E"));
@@ -145,7 +153,6 @@ FMordecaiUIThemeColors FMordecaiUIThemeColors::MakeDiorama()
 
 FMordecaiUIThemeColors FMordecaiUIThemeColors::MakeHighContrast()
 {
-	using namespace MordecaiUITheme;
 	FMordecaiUIThemeColors T;
 	T.Plate = C(TEXT("000000"));
 	T.PlateRaised = C(TEXT("161616"));
@@ -231,8 +238,8 @@ const TArray<FName>& FMordecaiUIThemeColors::GetRuntimeColorTokenNames()
 	static const TArray<FName> Names = []
 	{
 		TArray<FName> Result;
-		Result.Reserve(UE_ARRAY_COUNT(MordecaiUITheme::TokenEntries));
-		for (const MordecaiUITheme::FTokenEntry& Entry : MordecaiUITheme::TokenEntries)
+		Result.Reserve(UE_ARRAY_COUNT(TokenEntries));
+		for (const FTokenEntry& Entry : TokenEntries)
 		{
 			Result.Emplace(Entry.Name);
 		}
@@ -243,7 +250,7 @@ const TArray<FName>& FMordecaiUIThemeColors::GetRuntimeColorTokenNames()
 
 bool FMordecaiUIThemeColors::TryGetColorToken(FName TokenName, FLinearColor& OutColor) const
 {
-	for (const MordecaiUITheme::FTokenEntry& Entry : MordecaiUITheme::TokenEntries)
+	for (const FTokenEntry& Entry : TokenEntries)
 	{
 		if (TokenName == FName(Entry.Name))
 		{

@@ -5,6 +5,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
 #include "Components/Image.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiTallyWidget)
 
@@ -12,6 +13,12 @@ UMordecaiTallyWidget::UMordecaiTallyWidget(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	BundleFrames.SetNum(6);
+	for (FSlateBrush& Frame : BundleFrames)
+	{
+		Frame.DrawAs = ESlateBrushDrawType::NoDrawType;
+	}
+	CapDotBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
+	CurrentTint = FMordecaiUIThemeColors::MakeDiorama().Text;
 }
 
 bool UMordecaiTallyWidget::Initialize()
@@ -21,6 +28,7 @@ bool UMordecaiTallyWidget::Initialize()
 	{
 		BuildDefaultLayout();
 	}
+	ClampValues();
 	Refresh();
 	return bInitializedNow;
 }
@@ -28,7 +36,46 @@ bool UMordecaiTallyWidget::Initialize()
 void UMordecaiTallyWidget::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
+	ClampValues();
 	Refresh();
+}
+
+#if WITH_EDITOR
+void UMordecaiTallyWidget::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	ClampValues();
+	Refresh();
+}
+#endif
+
+void UMordecaiTallyWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	BoundThemeSubsystem = UMordecaiUIThemeSubsystem::ResolveForWidget(this);
+	if (UMordecaiUIThemeSubsystem* ThemeSubsystem = BoundThemeSubsystem.Get())
+	{
+		if (!ThemeChangedHandle.IsValid())
+		{
+			ThemeChangedHandle = ThemeSubsystem->OnThemeChangedNative().AddUObject(
+				this, &ThisClass::ApplyTheme);
+		}
+		ApplyTheme(ThemeSubsystem->GetActiveTheme(), ThemeSubsystem->GetActiveColors());
+	}
+}
+
+void UMordecaiTallyWidget::NativeDestruct()
+{
+	if (UMordecaiUIThemeSubsystem* ThemeSubsystem = BoundThemeSubsystem.Get();
+		ThemeSubsystem && ThemeChangedHandle.IsValid())
+	{
+		ThemeSubsystem->OnThemeChangedNative().Remove(ThemeChangedHandle);
+	}
+	ThemeChangedHandle.Reset();
+	BoundThemeSubsystem.Reset();
+
+	Super::NativeDestruct();
 }
 
 void UMordecaiTallyWidget::SetCount(int32 NewCount)
@@ -39,15 +86,16 @@ void UMordecaiTallyWidget::SetCount(int32 NewCount)
 
 void UMordecaiTallyWidget::SetMax(int32 NewMax)
 {
-	Max = FMath::Max(0, NewMax);
-	Count = FMath::Clamp(Count, 0, Max);
+	Max = NewMax;
+	ClampValues();
 	Refresh();
 }
 
 void UMordecaiTallyWidget::SetCountAndMax(int32 NewCount, int32 NewMax)
 {
-	Max = FMath::Max(0, NewMax);
-	Count = FMath::Clamp(NewCount, 0, Max);
+	Max = NewMax;
+	Count = NewCount;
+	ClampValues();
 	Refresh();
 }
 
@@ -87,6 +135,12 @@ void UMordecaiTallyWidget::BuildDefaultLayout()
 	WidgetTree->RootWidget = BundleBox;
 }
 
+void UMordecaiTallyWidget::ClampValues()
+{
+	Max = FMath::Clamp(Max, 0, MaxSupportedCount);
+	Count = FMath::Clamp(Count, 0, Max);
+}
+
 void UMordecaiTallyWidget::Refresh()
 {
 	if (!BundleBox || !WidgetTree)
@@ -116,5 +170,21 @@ void UMordecaiTallyWidget::Refresh()
 	for (int32 Index = 0; Index < Frames.Num(); ++Index)
 	{
 		RenderedBundleImages[Index]->SetBrush(BundleFrames[Frames[Index]]);
+		RenderedBundleImages[Index]->SetColorAndOpacity(CurrentTint);
+	}
+}
+
+void UMordecaiTallyWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	(void)Theme;
+	CurrentTint = Colors.Text;
+	for (UImage* BundleImage : RenderedBundleImages)
+	{
+		if (BundleImage)
+		{
+			BundleImage->SetColorAndOpacity(CurrentTint);
+		}
 	}
 }

@@ -10,7 +10,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiUIPrimitives)
 
-namespace MordecaiUIPrimitives
+namespace
 {
 	FSlateBrush Rounded(
 		const FLinearColor& Fill,
@@ -47,10 +47,10 @@ namespace MordecaiUIPrimitives
 		return Depth == EMordecaiUIPrintDepth::Menu ? 6.f : 4.f;
 	}
 
-	FLinearColor PrintColor(const FMordecaiUIThemeColors& Colors)
+	FLinearColor PrintColor(const FMordecaiUIThemeColors& Colors, EMordecaiUITheme Theme)
 	{
 		FLinearColor Result = Colors.Ink;
-		Result.A *= 0.55f;
+		Result.A = Theme == EMordecaiUITheme::HighContrast ? 1.f : 0.55f;
 		return Result;
 	}
 
@@ -68,17 +68,27 @@ FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Plate(
 	const FMordecaiUIThemeColors& Colors,
 	EMordecaiUIPrintDepth PrintDepth)
 {
-	using namespace MordecaiUIPrimitives;
+	return Plate(Colors, PrintDepth, EMordecaiUITheme::Diorama);
+}
+
+FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Plate(
+	const FMordecaiUIThemeColors& Colors,
+	EMordecaiUIPrintDepth PrintDepth,
+	EMordecaiUITheme Theme)
+{
+	const bool bHighContrast = Theme == EMordecaiUITheme::HighContrast;
+	const float GeometryShift = bHighContrast ? 1.f : 0.f;
 	FMordecaiUIPrimitiveSpec Spec;
-	Spec.OuterOutlineWidth = 3.f;
+	Spec.OuterOutlineWidth = bHighContrast ? 4.f : 3.f;
 	Spec.InnerStrokeWidth = 2.f;
 	Spec.Layers = {
-		Layer(TEXT("Print"), Rounded(PrintColor(Colors), FVector4(15.f)), FMargin(0.f),
+		Layer(TEXT("Print"), Rounded(PrintColor(Colors, Theme), FVector4(15.f + GeometryShift)), FMargin(0.f),
 			FVector2D(0.f, PrintOffset(PrintDepth))),
-		Layer(TEXT("Outline"), Rounded(Colors.Ink, FVector4(15.f))),
-		Layer(TEXT("RimShade"), Rounded(Colors.RimShade, FVector4(12.f)), FMargin(3.f)),
-		Layer(TEXT("Rim"), Rounded(Colors.Rim, FVector4(12.f)), FMargin(3.f, 3.f, 5.f, 5.f)),
-		Layer(TEXT("Fill"), Rounded(Colors.Plate, FVector4(10.f)), FMargin(5.f))
+		Layer(TEXT("Outline"), Rounded(Colors.Ink, FVector4(15.f + GeometryShift))),
+		Layer(TEXT("RimShade"), Rounded(Colors.RimShade, FVector4(12.f)), FMargin(3.f + GeometryShift)),
+		Layer(TEXT("Rim"), Rounded(Colors.Rim, FVector4(12.f)),
+			FMargin(3.f + GeometryShift, 3.f + GeometryShift, 5.f + GeometryShift, 5.f + GeometryShift)),
+		Layer(TEXT("Fill"), Rounded(Colors.Plate, FVector4(10.f)), FMargin(5.f + GeometryShift))
 	};
 	return Spec;
 }
@@ -87,8 +97,16 @@ FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Pill(
 	const FMordecaiUIThemeColors& Colors,
 	EMordecaiUIPrintDepth PrintDepth)
 {
-	FMordecaiUIPrimitiveSpec Spec = Plate(Colors, PrintDepth);
-	MordecaiUIPrimitives::MakeHalfHeight(Spec);
+	return Pill(Colors, PrintDepth, EMordecaiUITheme::Diorama);
+}
+
+FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Pill(
+	const FMordecaiUIThemeColors& Colors,
+	EMordecaiUIPrintDepth PrintDepth,
+	EMordecaiUITheme Theme)
+{
+	FMordecaiUIPrimitiveSpec Spec = Plate(Colors, PrintDepth, Theme);
+	MakeHalfHeight(Spec);
 	return Spec;
 }
 
@@ -96,16 +114,29 @@ FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Tag(
 	const FMordecaiUIThemeColors& Colors,
 	EMordecaiUIPrintDepth PrintDepth)
 {
-	using namespace MordecaiUIPrimitives;
-	const FVector4 OuterRadius(7.f, 13.f, 13.f, 7.f);
+	return Tag(Colors, PrintDepth, EMordecaiUITheme::Diorama);
+}
+
+FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Tag(
+	const FMordecaiUIThemeColors& Colors,
+	EMordecaiUIPrintDepth PrintDepth,
+	EMordecaiUITheme Theme)
+{
+	const bool bHighContrast = Theme == EMordecaiUITheme::HighContrast;
+	const float GeometryShift = bHighContrast ? 1.f : 0.f;
+	const FVector4 OuterRadius(
+		7.f + GeometryShift,
+		13.f + GeometryShift,
+		13.f + GeometryShift,
+		7.f + GeometryShift);
 	const FVector4 FaceRadius(4.f, 10.f, 10.f, 4.f);
 	FMordecaiUIPrimitiveSpec Spec;
-	Spec.OuterOutlineWidth = 3.f;
+	Spec.OuterOutlineWidth = bHighContrast ? 4.f : 3.f;
 	Spec.Layers = {
-		Layer(TEXT("Print"), Rounded(PrintColor(Colors), OuterRadius), FMargin(0.f),
+		Layer(TEXT("Print"), Rounded(PrintColor(Colors, Theme), OuterRadius), FMargin(0.f),
 			FVector2D(0.f, PrintOffset(PrintDepth))),
 		Layer(TEXT("Outline"), Rounded(Colors.Ink, OuterRadius)),
-		Layer(TEXT("Face"), Rounded(Colors.Enamel, FaceRadius), FMargin(3.f))
+		Layer(TEXT("Face"), Rounded(Colors.Enamel, FaceRadius), FMargin(3.f + GeometryShift))
 	};
 
 	auto AddGrommet = [&Spec](FName Name, float Size, const FLinearColor& Color)
@@ -113,7 +144,9 @@ FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Tag(
 		FMordecaiUIPrimitiveLayer Grommet =
 			Layer(Name, Rounded(Color, FVector4::Zero(), FLinearColor::Transparent, 0.f, true));
 		Grommet.DesiredSize = FVector2D(Size);
-		Grommet.Center = FVector2D(22.f, 11.f);
+		Grommet.Center = FVector2D(22.f, 0.f);
+		Grommet.HorizontalAlignment = HAlign_Left;
+		Grommet.VerticalAlignment = VAlign_Center;
 		Spec.Layers.Add(Grommet);
 	};
 	AddGrommet(TEXT("GrommetInk"), 22.f, Colors.Ink);
@@ -126,7 +159,6 @@ FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Well(
 	const FMordecaiUIThemeColors& Colors,
 	bool bBar)
 {
-	using namespace MordecaiUIPrimitives;
 	FMordecaiUIPrimitiveSpec Spec;
 	Spec.InnerStrokeWidth = 2.f;
 	const float Radius = bBar ? 6.f : 8.f;
@@ -136,20 +168,35 @@ FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Well(
 	return Spec;
 }
 
+FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::InsetCardWell(
+	const FMordecaiUIThemeColors& Colors)
+{
+	FMordecaiUIPrimitiveSpec Spec;
+	Spec.InnerStrokeWidth = 2.f;
+	Spec.Layers = {
+		Layer(TEXT("InsetCard"), Rounded(Colors.PlateRaised, FVector4(12.f), Colors.Lip, 2.f))
+	};
+	return Spec;
+}
+
 FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Keycap(
 	const FMordecaiUIThemeColors& Colors,
 	EMordecaiKeycapShape Shape)
 {
-	using namespace MordecaiUIPrimitives;
 	const bool bHalfHeight = Shape != EMordecaiKeycapShape::Square;
 	const FVector4 Radius(8.f);
 	FMordecaiUIPrimitiveSpec Spec;
 	Spec.OuterOutlineWidth = 2.f;
 	Spec.Layers = {
-		Layer(TEXT("Lip"), Rounded(Colors.EnamelShade, Radius, Colors.Ink, 2.f, bHalfHeight),
-			FMargin(0.f), FVector2D(0.f, 4.f)),
 		Layer(TEXT("Face"), Rounded(Colors.Enamel, Radius, Colors.Ink, 2.f, bHalfHeight))
 	};
+	FMordecaiUIPrimitiveLayer Lip =
+		Layer(TEXT("Lip"), Rounded(Colors.EnamelShade, FVector4(2.f)));
+	Lip.Padding = FMargin(2.f, 0.f, 2.f, 2.f);
+	Lip.DesiredSize = FVector2D(0.f, 4.f);
+	Lip.HorizontalAlignment = HAlign_Fill;
+	Lip.VerticalAlignment = VAlign_Bottom;
+	Spec.Layers.Add(Lip);
 	return Spec;
 }
 
@@ -158,18 +205,41 @@ FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Focus(
 	float PieceRadius,
 	EMordecaiUITheme Theme)
 {
-	using namespace MordecaiUIPrimitives;
+	return Focus(Colors, PieceRadius, Theme, EMordecaiUIFocusVariant::Default);
+}
+
+FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Focus(
+	const FMordecaiUIThemeColors& Colors,
+	float PieceRadius,
+	EMordecaiUITheme Theme,
+	EMordecaiUIFocusVariant Variant)
+{
 	FMordecaiUIPrimitiveSpec Spec;
 	Spec.FocusStrokeWidth = 3.f;
 	Spec.FocusKeylineWidth = 2.f;
-	Spec.FocusOffset = Theme == EMordecaiUITheme::HighContrast ? 4.f : 3.f;
-	const float RingRadius = PieceRadius + Spec.FocusOffset;
-	const float KeylineRadius = RingRadius + Spec.FocusStrokeWidth;
-	Spec.Layers = {
-		Layer(TEXT("Keyline"), Rounded(FLinearColor::Transparent, FVector4(KeylineRadius), Colors.Ink, 2.f)),
-		Layer(TEXT("Focus"), Rounded(FLinearColor::Transparent, FVector4(RingRadius), Colors.Focus, 3.f),
-			FMargin(Spec.FocusKeylineWidth))
-	};
+	const float PieceOutline = Theme == EMordecaiUITheme::HighContrast ? 4.f : 3.f;
+	Spec.FocusOffset = Variant == EMordecaiUIFocusVariant::Border ? 0.f : PieceOutline;
+	const float RingRadius = PieceRadius + Spec.FocusOffset + Spec.FocusStrokeWidth;
+	const float KeylineRadius = RingRadius + Spec.FocusKeylineWidth;
+
+	if (Variant == EMordecaiUIFocusVariant::FillGap)
+	{
+		Spec.Layers = {
+			Layer(TEXT("Gap"), Rounded(FLinearColor::Transparent,
+				FVector4(PieceRadius + Spec.FocusOffset), Colors.Ink, PieceOutline)),
+			Layer(TEXT("Focus"), Rounded(FLinearColor::Transparent,
+				FVector4(RingRadius), Colors.Focus, Spec.FocusStrokeWidth))
+		};
+	}
+	else
+	{
+		Spec.Layers = {
+			Layer(TEXT("Keyline"), Rounded(FLinearColor::Transparent,
+				FVector4(KeylineRadius), Colors.Ink, Spec.FocusKeylineWidth)),
+			Layer(TEXT("Focus"), Rounded(FLinearColor::Transparent,
+				FVector4(RingRadius), Colors.Focus, Spec.FocusStrokeWidth))
+		};
+	}
 	return Spec;
 }
 
@@ -189,6 +259,7 @@ UOverlay* FMordecaiUIPrimitiveBuilder::Build(
 		const FName LayerName(*FString::Printf(TEXT("%s_%s"), *RootName.ToString(), *PrimitiveLayer.Name.ToString()));
 		UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), LayerName);
 		Border->SetBrush(PrimitiveLayer.Brush);
+		Border->SetPadding(FMargin(0.f));
 		Border->SetRenderTranslation(PrimitiveLayer.Translation);
 		Border->SetVisibility(ESlateVisibility::HitTestInvisible);
 
@@ -196,22 +267,36 @@ UOverlay* FMordecaiUIPrimitiveBuilder::Build(
 		{
 			const FName BoxName(*FString::Printf(TEXT("%s_Box"), *LayerName.ToString()));
 			USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), BoxName);
-			SizeBox->SetWidthOverride(PrimitiveLayer.DesiredSize.X);
-			SizeBox->SetHeightOverride(PrimitiveLayer.DesiredSize.Y);
+			if (PrimitiveLayer.DesiredSize.X > 0.f)
+			{
+				SizeBox->SetWidthOverride(PrimitiveLayer.DesiredSize.X);
+			}
+			if (PrimitiveLayer.DesiredSize.Y > 0.f)
+			{
+				SizeBox->SetHeightOverride(PrimitiveLayer.DesiredSize.Y);
+			}
+			SizeBox->SetVisibility(ESlateVisibility::HitTestInvisible);
 			SizeBox->AddChild(Border);
 			if (UOverlaySlot* Slot = Root->AddChildToOverlay(SizeBox))
 			{
-				Slot->SetHorizontalAlignment(HAlign_Left);
-				Slot->SetVerticalAlignment(VAlign_Top);
-				Slot->SetPadding(FMargin(
-					PrimitiveLayer.Center.X - PrimitiveLayer.DesiredSize.X * 0.5f,
-					PrimitiveLayer.Center.Y - PrimitiveLayer.DesiredSize.Y * 0.5f,
-					0.f,
-					0.f));
+				Slot->SetHorizontalAlignment(PrimitiveLayer.HorizontalAlignment);
+				Slot->SetVerticalAlignment(PrimitiveLayer.VerticalAlignment);
+				FMargin SlotPadding = PrimitiveLayer.Padding;
+				if (PrimitiveLayer.HorizontalAlignment == HAlign_Left && PrimitiveLayer.DesiredSize.X > 0.f)
+				{
+					SlotPadding.Left += PrimitiveLayer.Center.X - PrimitiveLayer.DesiredSize.X * 0.5f;
+				}
+				if (PrimitiveLayer.VerticalAlignment == VAlign_Top && PrimitiveLayer.DesiredSize.Y > 0.f)
+				{
+					SlotPadding.Top += PrimitiveLayer.Center.Y - PrimitiveLayer.DesiredSize.Y * 0.5f;
+				}
+				Slot->SetPadding(SlotPadding);
 			}
 		}
 		else if (UOverlaySlot* Slot = Root->AddChildToOverlay(Border))
 		{
+			Slot->SetHorizontalAlignment(PrimitiveLayer.HorizontalAlignment);
+			Slot->SetVerticalAlignment(PrimitiveLayer.VerticalAlignment);
 			Slot->SetPadding(PrimitiveLayer.Padding);
 		}
 	}
