@@ -172,6 +172,7 @@ The contract is `Specs/story_playtests_v1.md`.
 ---
 
 ## Known issues backlog (found by Phase 1 and Phase 2, not yet fixed)
+- **`verify_pie_defenses.py` can race DevTestMap's enemies.** During US-097 closure, the default-map smoke reproducibly reached the defense check after the pawn was dead / `MOVE_None` (16/17 PASS); the same defense smoke passed on enemy-free MovementTestMap. This is a DevTestMap isolation/timing issue, not an input regression.
 - Three floating red bars around the player: unidentified (enemy health bars on invisible enemies?). **Answered by Phase 2** (see the Phase 2 list below): they are the health bars of three invisible Frontliner enemies.
 - **Pickup name labels rendered rotated 90° (FIXED, issue #38).** Found by Phase 1 (`Saved/Playtests/20261018-223717-boot/engine_03.png`); also in the first Phase 3 sweep (`Saved/Playtests/20261022-184702-boot/engine_01.png`).
   - Cause: `AMordecaiItemPickup` gave its `NameLabel` (a `UTextRenderComponent`) a fixed relative rotation (45, 90, 0), commented "camera looks down from the south". The diorama camera has yaw 0: it looks along +X, pitched −50 (`MordecaiCameraMode_Diorama.cpp`). A TextRender's face is its local +X and its text runs along local −Y (engine `TextRenderComponent.cpp`), so the text ran along world +X: up the screen. Measured against that camera: facing 0.542, upright 0.000.
@@ -236,7 +237,7 @@ The contract is `Specs/story_playtests_v1.md`.
   - Closing on the press would let a held I's key repeats reach the game and reopen the menu about 0.5 s later (found by the review; tribal knowledge). Escape still has that through the engine's back action; not reproduced.
   - Verified on a fresh package of `3294f0a` (`Saved/Playtests/20261030-235207-us069`): `i_closes` FAIL (known) → PASS, and the new `i_held_closes_on_key_up` PASS (held 1.2 s: open; released: closed; still closed 1 s later).
   - Tier 1: `Mordecai.Recovery.PauseMenu.InventoryKeyClosesMenu`. Tier 2: `verify_pie_pause_menu.py`.
-- **Gamepad stick and L3 mappings use invalid FKey names.** `MordecaiHeroComponent.cpp:167,180,197` use `Gamepad_LeftStick2D`, `Gamepad_RightStick2D` and `Gamepad_LeftThumbstickButton`. The engine names are `Gamepad_Left2D`, `Gamepad_Right2D` and `Gamepad_LeftThumbstick`. Gamepad move, look and sprint are dead, silently.
+- **Gamepad stick and L3 mappings used invalid FKey names (FIXED, US-097, issue #33).** `MordecaiIMC_Runtime` now uses the UE 5.7 keys `Gamepad_Left2D`, `Gamepad_Right2D` and `Gamepad_LeftThumbstick`; `Mordecai.Recovery.Input.AllRuntimeKeysValid` guards every runtime mapping and `RightStickReachesLookHandler` guards the right-stick action path.
 - **Facing and aim are pinned to +X.** The diorama camera writes the control rotation every frame (`MordecaiCameraMode_Diorama.cpp:51`), so mouse and right-stick facing (`control_bindings_v1.1.md`) cannot work. Whether fixed facing is intended is Jeff's design call.
 - **Sprint, jump, attacks, block and dodge are not bound at runtime (FIXED, US-083, issue #15).**
   - The only live mappings are the programmatic `MordecaiIMC_Runtime` (`MordecaiHeroComponent.cpp:76-209` before US-083). `IMC_Mordecai.uasset` is never added.

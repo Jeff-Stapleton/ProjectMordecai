@@ -32,7 +32,7 @@ STORY_FILE = os.path.join(os.path.dirname(SCRIPTS), "stories", "done",
 TOKEN = "us001-token"
 INPUT_AND_READ_CMDS = {"ping", "state", "key", "axis", "mouse", "click", "screenshot",
                        "wait_until", "wait", "quit"}
-KNOWN_FAILS = ["sprint_l3", "facing_mouse", "facing_stick", "gamepad_move"]
+KNOWN_FAILS = ["facing_mouse", "facing_stick"]
 FIXED_BY_US083 = ["sprint_shift", "jump_space"]
 
 
@@ -51,8 +51,12 @@ us001 = load_playtest()
 # ---------------------------------------------------------------------------
 class UnboundWorld(fb.FakeWorld):
     """The shared fake plus the combat HUD's bar widgets the real game shows (the shared fake
-    lists only WBP_CombatHUD_C and the pickup prompt).  Everything else is the game before
-    US-083: sprint/jump unbound, facing pinned to +X, gamepad sticks dead."""
+    lists only WBP_CombatHUD_C and the pickup prompt).  Everything else is the game after the
+    US-097 stick-key fix but before US-083: sprint/jump unbound and facing pinned to +X."""
+
+    def __init__(self, **kw):
+        kw.setdefault("stick_moves", True)
+        super().__init__(**kw)
 
     def _s_widgets(self):
         out = super()._s_widgets()
@@ -78,12 +82,12 @@ class UnboundWorld(fb.FakeWorld):
 
 class HudWorld(UnboundWorld):
     """Today's game (US-083): LeftShift toggles sprint (x1.5) and SpaceBar jumps
-    (movement_mode Falling for 0.6 s).  The L3 key name is still invalid (US-097), facing is
-    pinned to +X and the gamepad sticks are dead."""
+    (movement_mode Falling for 0.6 s).  L3 toggles sprint and the left stick moves after
+    US-097; facing remains pinned to +X."""
 
     SPRINT_MULT = 1.5
     JUMP_S = 0.6
-    SPRINT_KEYS = ("LeftShift",)
+    SPRINT_KEYS = ("LeftShift", "Gamepad_LeftThumbstick")
     STICKY_SPRINT = False   # True: a second tap does not end the sprint
     DROP_FIRST_SPRINT_TAP = False  # True: the first sprint tap is lost
 
@@ -130,10 +134,7 @@ class FixedWorld(HudWorld):
     """A game with every known issue fixed: Shift / L3 toggle sprint, SpaceBar jumps, the mouse
     and the right stick turn the pawn, and the left stick moves it."""
 
-    SPRINT_KEYS = ("LeftShift", "Gamepad_LeftThumbstick")
-
     def __init__(self, **kw):
-        kw.setdefault("stick_moves", True)
         super().__init__(**kw)
         self.yaw = 0.0
 
@@ -299,8 +300,8 @@ class TestUs001TodaysGame(PlaytestCase):
                      "move_a", "move_w", "move_d", "move_s", "camera_fixed",
                      "no_camera_rotation_input", "walk_lane_wp1", "walk_lane_wp2",
                      "walk_lane_start", "walk_speed_baseline", "walk_lane_reset",
-                     "sprint_shift", "walk_lane_reset2", "jump_space", "facing_arrow",
-                     "no_crash"):
+                     "sprint_shift", "walk_lane_reset2", "sprint_l3", "jump_space",
+                     "facing_arrow", "gamepad_move", "no_crash"):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(self.statuses(rep, "FAIL"), KNOWN_FAILS)
         self.assertEqual(self.statuses(rep, "SKIP"), [])
@@ -315,9 +316,10 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertFalse(world.sprinting, "the sprint was toggled back")
         # What the details say about each known failure.
         self.assertIn("need > 700", checks["sprint_l3"]["detail"])
+        self.assertNotIn(" -- ", checks["sprint_l3"]["detail"])
         self.assertIn("yaw stayed 0", checks["facing_mouse"]["detail"])
         self.assertIn("yaw stayed 0", checks["facing_stick"]["detail"])
-        self.assertIn("dx 0 cm", checks["gamepad_move"]["detail"])
+        self.assertIn("need > 100", checks["gamepad_move"]["detail"])
         # MovementTestMap has no pickups or enemies: nothing was picked up, nothing was in the way.
         self.assertIn(fb.MOVEMENT_TEST_MAP, checks["map"]["detail"])
         self.assertEqual(world.world_pickups, [])
@@ -334,15 +336,15 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertEqual({a["story"] for a in rep["acs"]}, {"US-001"})
         for ac in ("AC-2.2.5", "AC-2.3.3", "AC-1.2.2", "AC-1.2.4", "AC-2.1.6"):
             self.assertEqual(acs[ac]["status"], "PASS", ac)
-        # WASD works, but the gamepad half of these ACs does not.
         for ac in ("AC-2.1.1", "AC-1.3.2"):
-            self.assertEqual(acs[ac]["status"], "FAIL", ac)
+            self.assertEqual(acs[ac]["status"], "PASS", ac)
             self.assertIn("gamepad_move", acs[ac]["checks"])
             self.assertIn("move_w", acs[ac]["checks"])
-            self.assertEqual(acs[ac]["known_issue"], us001.KI_STICKS)
         self.assertEqual(acs["AC-1.3.2"]["checks"][0], "imc_active")
-        # Sprint needs both keys; L3 still fails (US-097).  Facing is still pinned.
-        for ac in ("AC-1.3.3", "AC-2.1.3", "AC-2.1.2"):
+        for ac in ("AC-1.3.3", "AC-2.1.3"):
+            self.assertEqual(acs[ac]["status"], "PASS", ac)
+        # Facing is still pinned.
+        for ac in ("AC-2.1.2",):
             self.assertEqual(acs[ac]["status"], "FAIL", ac)
             self.assertTrue(acs[ac]["known_issue"], ac)
         self.assertEqual(acs["AC-1.3.3"]["checks"], ["sprint_shift", "sprint_l3"])
@@ -402,7 +404,7 @@ class TestUs001BeforeUs083(PlaytestCase):
         checks = self.by_name(rep)
         for name in FIXED_BY_US083:
             self.assertEqual(checks[name]["status"], "FAIL", name)
-        self.assertEqual(rep["new_failures"], FIXED_BY_US083)
+        self.assertEqual(rep["new_failures"], ["sprint_shift", "sprint_l3", "jump_space"])
         self.assertIn("need > 700", checks["sprint_shift"]["detail"])
         self.assertIn("player.movement_mode", checks["jump_space"]["detail"])
         self.assertIn('"Walking"', checks["jump_space"]["detail"])

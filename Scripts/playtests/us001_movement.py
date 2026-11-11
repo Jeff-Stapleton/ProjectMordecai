@@ -30,14 +30,13 @@ Steps (every step is a check: PASS, FAIL, SKIP or WARN; --plan prints them as a 
   5. Sprint: tap LeftShift (then, from the lane start again, the L3 button) and hold W 1.0 s:
      > 700 cm.  Each toggle is tapped again afterwards so a working sprint does not leak into
      later steps; after the LeftShift one, S held 1.0 s must reach only walking speed (the
-     second tap ended the sprint; a sprint left on SKIPs the L3 step).  L3 is expected to FAIL
-     today (invalid FKey name, US-097).
+     second tap ended the sprint; a sprint left on SKIPs the L3 step).
   6. Jump: tap SpaceBar -> player.movement_mode=="Falling" within 1 s.
   7. Facing: the mouse at (1100, 360) (right of the player: +Y) turns the player to yaw ~90;
      the right stick held left (Gamepad_RightX=-1: -Y) turns it to yaw ~-90.  Screenshot.
-     Expected FAIL today (facing is pinned to +X; the stick names are invalid).
+     Expected FAIL today (facing is pinned to +X).
   8. Gamepad move: Gamepad_LeftY=1 for 0.5 s moves the player > 100 cm along +X.  Expected
-     FAIL today (invalid stick names).
+     to PASS.
 A failed check SKIPs the checks that depend on it; independent checks still run.  A lost bridge
 connection SKIPs everything after it.  Each check names the US-001 ACs it proves (PLAN below);
 report.json["acs"] says which were accepted.
@@ -140,9 +139,7 @@ ARROW_SIZE = 1.5
 
 KI_FACING = ("Known issue: facing and aim are pinned to +X by the diorama camera "
              "(Specs/agent_playtest_plan_v1.md)")
-KI_STICKS = ("Known issue: gamepad stick and L3 mappings use invalid FKey names "
-             "(Specs/agent_playtest_plan_v1.md)")
-KNOWN_ISSUES = (KI_FACING, KI_STICKS)
+KNOWN_ISSUES = (KI_FACING,)
 
 SCREENSHOTS = {
     "start": "MovementTestMap from the fixed overhead camera (pitch -50, looking +X): the open "
@@ -207,8 +204,7 @@ PLAN = (
          proves=("AC-1.3.3", "AC-2.1.3")),
     Step("walk_lane_reset2", f"walk_to({LANE_START[0]:g}, {LANE_START[1]:g}) -> within 60 cm"),
     Step("sprint_l3", f"tap {SPRINT_PAD_KEY} (L3), hold W {SPRINT_HOLD_S:g}s -> dx > "
-         f"{SPRINT_MIN:g} cm (then tap L3 again)", proves=("AC-1.3.3", "AC-2.1.3"),
-         known_issue=KI_STICKS),
+         f"{SPRINT_MIN:g} cm (then tap L3 again)", proves=("AC-1.3.3", "AC-2.1.3")),
     Step("jump_space", f"tap {JUMP_KEY} -> wait_until player.movement_mode==\"Falling\" "
          f"within {JUMP_TIMEOUT_S:g}s", proves=("AC-2.1.4",)),
     Step("facing_mouse", f"mouse {FACING_MOUSE[0]:g} {FACING_MOUSE[1]:g} (right of the "
@@ -218,10 +214,9 @@ PLAN = (
     Step("facing_stick", f"axis Gamepad_RightX=-1 held (left, -Y) -> wait_until "
          f"player.rotation yaw {FACING_STICK_YAW:g} (+-{FACING_TOL:g}) within "
          f"{FACING_TIMEOUT_S:g}s, then release", proves=("AC-2.1.2",),
-         known_issue=f"{KI_FACING}; {KI_STICKS}"),
+         known_issue=KI_FACING),
     Step("gamepad_move", f"axis Gamepad_LeftY=1 for {GAMEPAD_HOLD_S:g}s -> player.location "
-         f"x rises > {GAMEPAD_MIN:g} cm", proves=("AC-2.1.1", "AC-1.3.2"),
-         known_issue=KI_STICKS),
+         f"x rises > {GAMEPAD_MIN:g} cm", proves=("AC-2.1.1", "AC-1.3.2")),
 )
 
 PENDING = {

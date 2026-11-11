@@ -164,7 +164,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 			A.Modifiers.Add(NegA);
 
 			// Gamepad Left Stick
-			FEnhancedActionKeyMapping& Stick = MordecaiIMC->MapKey(MoveAction, FKey(TEXT("Gamepad_LeftStick2D")));
+			FEnhancedActionKeyMapping& Stick = MordecaiIMC->MapKey(MoveAction, EKeys::Gamepad_Left2D);
 			UInputModifierDeadZone* DZ = NewObject<UInputModifierDeadZone>(MordecaiIMC);
 			DZ->LowerThreshold = 0.2f;
 			Stick.Modifiers.Add(DZ);
@@ -177,7 +177,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 		}
 		if (LookStickAction)
 		{
-			FEnhancedActionKeyMapping& RS = MordecaiIMC->MapKey(LookStickAction, FKey(TEXT("Gamepad_RightStick2D")));
+			FEnhancedActionKeyMapping& RS = MordecaiIMC->MapKey(LookStickAction, EKeys::Gamepad_Right2D);
 			UInputModifierDeadZone* DZ2 = NewObject<UInputModifierDeadZone>(MordecaiIMC);
 			DZ2->LowerThreshold = 0.2f;
 			RS.Modifiers.Add(DZ2);
@@ -194,7 +194,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 		if (SprintAction)
 		{
 			MordecaiIMC->MapKey(SprintAction, FKey(TEXT("LeftShift")));
-			MordecaiIMC->MapKey(SprintAction, FKey(TEXT("Gamepad_LeftThumbstickButton")));
+			MordecaiIMC->MapKey(SprintAction, EKeys::Gamepad_LeftThumbstick);
 		}
 
 		if (Spell1Action)
@@ -384,7 +384,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	BindAbilityInput(ParryAction, ETriggerEvent::Triggered, MordecaiGameplayTags::Input_Parry);
 	BindAbilityInput(DodgeAction, ETriggerEvent::Triggered, MordecaiGameplayTags::Input_Dodge);
 
-	// --- US-083: Jump (Space / Gamepad A) and the sprint toggle (Left Shift; the L3 key name is US-097's) ---
+	// --- US-083 / US-097: Jump (Space / Gamepad A) and the sprint toggle (Left Shift / Gamepad L3) ---
 	if (ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner()))
 	{
 		if (JumpAction)
