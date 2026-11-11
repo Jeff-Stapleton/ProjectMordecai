@@ -305,7 +305,7 @@ class TestUs083Plan(unittest.TestCase):
         self.assertEqual(kit.plan_problems(us083.Us083Run), [])
         self.assertIs(us083.Run, us083.Us083Run)
         self.assertEqual(us083.Us083Run.STORY, "US-083")
-        self.assertEqual(us083.Us083Run.COVERS, ())
+        self.assertEqual(us083.Us083Run.COVERS, ("US-119",))
         story = next((p for p in STORY_FILES if os.path.isfile(p)), None)
         if story is None:
             self.skipTest("US-083 story file moved")

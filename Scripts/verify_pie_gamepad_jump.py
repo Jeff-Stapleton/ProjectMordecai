@@ -17,6 +17,7 @@ def _run():
             print(f"  PASS: {name}")
         else:
             failed += 1
+            detail = detail() if callable(detail) else detail
             print(f"  FAIL: {name}" + (f" -- {detail}" if detail else ""))
 
     print("=" * 60)
@@ -32,15 +33,37 @@ def _run():
         router_type = getattr(unreal, "MordecaiCommonUIActionRouter", None)
         check("Mordecai CommonUI action-router class is registered", router_type is not None,
               "the base CommonUI router still owns the analog cursor")
+        game_instance = unreal.GameplayStatics.get_game_instance(world)
+        router_candidates = list(unreal.ObjectIterator(router_type)) if router_type else []
+        # PIE LocalPlayers are outered to LyraEditorEngine, not the PIE GameInstance. Resolve each
+        # candidate's live GameInstance through its LocalPlayer world context before comparing it.
         router = next(
-            (candidate for candidate in unreal.ObjectIterator(router_type)
-             if isinstance(candidate.get_outer(), unreal.LocalPlayer)),
+            (candidate for candidate in router_candidates
+             if (isinstance(candidate.get_outer(), unreal.LocalPlayer)
+                 and unreal.GameplayStatics.get_game_instance(candidate.get_outer())
+                 == game_instance)),
             None) if router_type else None
-        check("Local player uses MordecaiCommonUIActionRouter", router is not None)
+        candidate_owners = [
+            f"{candidate.get_path_name()} -> {candidate.get_outer().get_path_name()}, "
+            f"game instance="
+            f"{unreal.GameplayStatics.get_game_instance(candidate.get_outer()).get_path_name()}"
+            for candidate in router_candidates
+            if (isinstance(candidate.get_outer(), unreal.LocalPlayer)
+                and unreal.GameplayStatics.get_game_instance(candidate.get_outer()))
+        ]
+        check("Local player uses MordecaiCommonUIActionRouter", router is not None,
+              f"PIE game instance={game_instance.get_path_name()}; "
+              f"router ownership chains={candidate_owners}")
         if router is not None:
+            def router_failure_detail():
+                get_mode = getattr(router, "get_active_input_mode", None)
+                mode = get_mode() if get_mode else "<GetActiveInputMode is not Python-reflected>"
+                return (f"active input mode={mode}; "
+                        "Gamepad A would be converted to a CommonUI mouse click")
+
             check("Gameplay mode passes virtual gamepad Accept through",
                   not router.should_simulate_virtual_accept_for_active_input_mode(),
-                  "Gamepad A would be converted to a CommonUI mouse click")
+                  router_failure_detail)
 
     print("")
     print(f"RESULT: {passed} passed, {failed} failed")

@@ -617,6 +617,10 @@ mouse simulation only while the router's active mode is `ECommonInputMode::Game`
 normal CommonUI Accept behavior in `Menu` and `All`, and preserve the HUD capture mode so the first
 mouse click still reaches gameplay. Test the policy at Tier 1, verify the live router/input mode at
 Tier 2, and prove the actual gamepad key path in a packaged Tier 4 run.
+CommonUI's base router steps aside automatically through `ShouldCreateSubsystem` when a subclass
+exists, so the project router needs no config or explicit registration.
+
+**Evidence:** `Saved/Playtests/20261110-190231-us083/report.md` check `jump_gamepad_a` PASS.
 
 ### A native loading screen builds its tree in `Initialize`: the manager's `CreateWidgetInstance(GameInstance)` does not guarantee a player context (issue #39)
 
