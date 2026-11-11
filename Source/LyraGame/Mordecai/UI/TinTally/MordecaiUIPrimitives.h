@@ -26,6 +26,14 @@ enum class EMordecaiKeycapShape : uint8
 	Pill
 };
 
+UENUM(BlueprintType)
+enum class EMordecaiUIFocusVariant : uint8
+{
+	Default,
+	Border,
+	FillGap
+};
+
 USTRUCT(BlueprintType)
 struct LYRAGAME_API FMordecaiUIPrimitiveLayer
 {
@@ -50,6 +58,12 @@ struct LYRAGAME_API FMordecaiUIPrimitiveLayer
 	/** Position of a fixed-size layer's center in design pixels. */
 	UPROPERTY(BlueprintReadOnly, Category = "Tin Tally")
 	FVector2D Center = FVector2D::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Tin Tally")
+	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment = HAlign_Fill;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Tin Tally")
+	TEnumAsByte<EVerticalAlignment> VerticalAlignment = VAlign_Fill;
 };
 
 USTRUCT(BlueprintType)
@@ -85,13 +99,38 @@ struct LYRAGAME_API FMordecaiUIPrimitiveBuilder
 	static FMordecaiUIPrimitiveSpec Plate(
 		const FMordecaiUIThemeColors& Colors,
 		EMordecaiUIPrintDepth PrintDepth = EMordecaiUIPrintDepth::HUD);
+	static FMordecaiUIPrimitiveSpec Plate(
+		const FMordecaiUIThemeColors& Colors,
+		EMordecaiUIPrintDepth PrintDepth,
+		EMordecaiUITheme Theme)
+	{
+		return Plate(Colors, PrintDepth);
+	}
 	static FMordecaiUIPrimitiveSpec Pill(
+		const FMordecaiUIThemeColors& Colors,
+		EMordecaiUIPrintDepth PrintDepth = EMordecaiUIPrintDepth::HUD);
+	static FMordecaiUIPrimitiveSpec Pill(
+		const FMordecaiUIThemeColors& Colors,
+		EMordecaiUIPrintDepth PrintDepth,
+		EMordecaiUITheme Theme)
+	{
+		return Pill(Colors, PrintDepth);
+	}
+	static FMordecaiUIPrimitiveSpec Tag(
 		const FMordecaiUIThemeColors& Colors,
 		EMordecaiUIPrintDepth PrintDepth = EMordecaiUIPrintDepth::HUD);
 	static FMordecaiUIPrimitiveSpec Tag(
 		const FMordecaiUIThemeColors& Colors,
-		EMordecaiUIPrintDepth PrintDepth = EMordecaiUIPrintDepth::HUD);
+		EMordecaiUIPrintDepth PrintDepth,
+		EMordecaiUITheme Theme)
+	{
+		return Tag(Colors, PrintDepth);
+	}
 	static FMordecaiUIPrimitiveSpec Well(const FMordecaiUIThemeColors& Colors, bool bBar);
+	static FMordecaiUIPrimitiveSpec InsetCardWell(const FMordecaiUIThemeColors& Colors)
+	{
+		return Well(Colors, false);
+	}
 	static FMordecaiUIPrimitiveSpec Keycap(
 		const FMordecaiUIThemeColors& Colors,
 		EMordecaiKeycapShape Shape);
@@ -99,6 +138,14 @@ struct LYRAGAME_API FMordecaiUIPrimitiveBuilder
 		const FMordecaiUIThemeColors& Colors,
 		float PieceRadius,
 		EMordecaiUITheme Theme);
+	static FMordecaiUIPrimitiveSpec Focus(
+		const FMordecaiUIThemeColors& Colors,
+		float PieceRadius,
+		EMordecaiUITheme Theme,
+		EMordecaiUIFocusVariant Variant)
+	{
+		return Focus(Colors, PieceRadius, Theme);
+	}
 
 	static UOverlay* Build(UWidgetTree* WidgetTree, const FMordecaiUIPrimitiveSpec& Spec, FName RootName);
 };

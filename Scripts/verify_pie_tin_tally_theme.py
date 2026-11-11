@@ -29,26 +29,64 @@ def _run():
     ).get_game_world()
     check("PIE world exists", world is not None, "Start PIE before running this test")
 
-    service = None
+    local_huds = []
     if world:
-        try:
-            service = unreal.MordecaiUIThemeSubsystem.resolve_for_world(world)
-        except Exception as error:
-            check("Theme service accessor is callable", False, str(error))
+        for player_index in range(8):
+            controller = unreal.GameplayStatics.get_player_controller(
+                world, player_index
+            )
+            if controller is None:
+                break
+            if not controller.is_local_controller():
+                continue
+            try:
+                hud = controller.get_editor_property("combat_hud_widget")
+            except Exception:
+                hud = None
+            if hud is not None:
+                local_huds.append(hud)
 
-    check("Local UI theme service exists", service is not None)
-    if service:
-        theme_id = str(service.get_active_theme_id())
+    services = []
+    accessor_error = None
+    for hud in local_huds:
+        try:
+            services.append(
+                unreal.MordecaiUIThemeSubsystem.resolve_for_widget(hud)
+            )
+        except Exception as error:
+            accessor_error = str(error)
+            break
+
+    # One aggregate assertion means an accessor exception is reported once,
+    # rather than again as a second "service missing" failure.
+    service_access_ok = (
+        accessor_error is None
+        and len(local_huds) > 0
+        and len(services) == len(local_huds)
+        and all(service is not None for service in services)
+        and len({service.get_path_name() for service in services}) == len(services)
+    )
+    check(
+        "Exactly one local UI theme service resolves per local-player HUD",
+        service_access_ok,
+        accessor_error
+        or f"{len(local_huds)} local HUD(s), {len(services)} service(s)",
+    )
+
+    if service_access_ok:
+        default_ids = [str(service.get_active_theme_id()) for service in services]
         check(
-            "Theme service resolves Diorama by default",
-            theme_id == "Diorama",
-            f"Got {theme_id!r}",
+            "Every local theme service resolves Diorama by default",
+            all(theme_id == "Diorama" for theme_id in default_ids),
+            f"Got {default_ids!r}",
         )
-        colors = service.get_active_colors()
+        plate_alphas = [
+            service.get_active_colors().plate.a for service in services
+        ]
         check(
-            "Resolved theme has an opaque plate",
-            abs(colors.plate.a - 1.0) < 0.0001,
-            f"Alpha was {colors.plate.a}",
+            "Every resolved theme has an opaque plate",
+            all(abs(alpha - 1.0) < 0.0001 for alpha in plate_alphas),
+            f"Alphas were {plate_alphas!r}",
         )
 
     print("")
