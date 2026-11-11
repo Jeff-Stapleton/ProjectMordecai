@@ -199,6 +199,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Theme_SRGBConversion,
 
 bool FMordecai_UI_Theme_SRGBConversion::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiTinTallyThemeTest;
+
 	const FLinearColor ExpectedPlate = FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("163634")));
 	const FLinearColor ConvertedPlate = FMordecaiUIThemeColors::FromSRGBHex(TEXT("#163634"));
 	TestTrue("hex colors pass through FLinearColor::FromSRGBColor", ConvertedPlate.Equals(ExpectedPlate));
@@ -573,9 +575,9 @@ bool FMordecai_UI_Primitives_BuildMaterializesFillLayers::RunTest(const FString&
 				TestTrue("slot uses the layer padding",
 					OverlaySlot->GetPadding() == Case.Value.Layers[Index].Padding);
 				TestEqual("border is hit-test invisible", Border->GetVisibility(), ESlateVisibility::HitTestInvisible);
-				TestEqual("built brush draw type", Border->GetBrush().DrawAs, Case.Value.Layers[Index].Brush.DrawAs);
+				TestEqual("built brush draw type", Border->Background.DrawAs, Case.Value.Layers[Index].Brush.DrawAs);
 				TestTrue("built brush tint",
-					BrushTint(Border->GetBrush()).Equals(BrushTint(Case.Value.Layers[Index].Brush), 0.0001f));
+					BrushTint(Border->Background).Equals(BrushTint(Case.Value.Layers[Index].Brush), 0.0001f));
 			}
 		}
 	}
