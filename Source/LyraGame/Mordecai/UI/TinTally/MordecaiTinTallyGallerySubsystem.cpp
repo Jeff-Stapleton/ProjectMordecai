@@ -260,7 +260,9 @@ void UMordecaiTinTallyGallerySubsystem::ShowGallery()
 void UMordecaiTinTallyGallerySubsystem::CaptureGallery()
 {
 	IFileManager::Get().MakeDirectory(*FPaths::GetPath(OutputPath), true);
-	FScreenshotRequest::RequestScreenshot(OutputPath, false, false);
+	// The gallery itself is Slate/UMG. Omitting UI would capture only the map
+	// behind it and could produce a plausible, non-black false positive.
+	FScreenshotRequest::RequestScreenshot(OutputPath, true, false);
 
 	TSharedRef<FJsonObject> Metadata = MakeShared<FJsonObject>();
 	Metadata->SetNumberField(TEXT("schema"), 1);
