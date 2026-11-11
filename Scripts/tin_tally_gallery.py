@@ -13,7 +13,7 @@ import os
 import subprocess
 import time
 
-from PIL import Image, ImageChops, ImageFilter, ImageOps, ImageStat
+from PIL import Image, ImageChops, ImageFilter, ImageStat
 
 import playtest_boot
 
@@ -21,6 +21,13 @@ import playtest_boot
 FOUNDATION_COMPONENTS = ("Plate", "Tag", "Keycap", "Tally", "Glyphs")
 THEMES = ("diorama", "high-contrast")
 CAPTURE_SIZE = (1920, 1080)
+REFERENCE_CROP_SIZE = (960, 720)
+MIN_FOREGROUND_IOU = 0.08
+MAX_BBOX_EDGE_DELTA = 0.20
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REFERENCE_SHOTS_DIR = os.path.join(
+    ROOT, "Design", "TinTally", "ds", "build", "shots"
+)
 
 
 def make_capture_metadata(component, theme, state, build_info, crop_rect):
@@ -69,54 +76,181 @@ def validate_capture(image_path, metadata, build_info, expected_theme):
     return reasons
 
 
-def _geometry_mask(image):
-    gray = ImageOps.grayscale(image.convert("RGB"))
-    return gray.filter(ImageFilter.FIND_EDGES).point(lambda value: 255 if value >= 20 else 0)
+def _background_color(image):
+    width, height = image.size
+    points = (
+        (0, 0),
+        (width - 1, 0),
+        (0, height - 1),
+        (width - 1, height - 1),
+        (min(8, width - 1), min(8, height - 1)),
+        (max(0, width - 9), min(8, height - 1)),
+    )
+    samples = [image.getpixel(point) for point in points]
+    return tuple(sorted(pixel[channel] for pixel in samples)[len(samples) // 2] for channel in range(3))
+
+
+def _foreground_mask(image):
+    """Segment non-sheet pixels and close only one-pixel antialias gaps."""
+    rgb = image.convert("RGB")
+    background = _background_color(rgb)
+    mask = Image.new("L", rgb.size)
+    mask.putdata([
+        255
+        if max(abs(pixel[channel] - background[channel]) for channel in range(3)) >= 18
+        else 0
+        for pixel in rgb.getdata()
+    ])
+    return mask.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.MinFilter(3))
+
+
+def _mask_pixels(mask):
+    return mask.histogram()[255]
+
+
+def _bbox_edge_delta(reference_box, capture_box, size):
+    if reference_box is None and capture_box is None:
+        return 0.0
+    if reference_box is None or capture_box is None:
+        return 1.0
+    width, height = size
+    return max(
+        abs(reference_box[index] - capture_box[index])
+        / (width if index % 2 == 0 else height)
+        for index in range(4)
+    )
+
+
+def reference_path(component, theme):
+    return os.path.join(REFERENCE_SHOTS_DIR, f"{component}.{theme}.png")
 
 
 def compare_images(reference_path, capture_path, output_dir, stem):
-    """Compare one preview/capture pair and write side-by-side/diff evidence."""
+    """Compare foreground geometry without resizing either design-pixel image.
+
+    Acceptance requires foreground-mask IoU >= 0.08 and every foreground
+    bounding-box edge within 20% of the reference viewport. The deliberately
+    broad IoU tolerance allows browser/Slate font rasterization differences;
+    the bounding-box gate rejects the former full-width, one-row fixtures.
+    """
     os.makedirs(output_dir, exist_ok=True)
     safe_stem = stem.replace("/", "_").replace("\\", "_")
+    reference_crop_path = os.path.join(
+        output_dir, f"{safe_stem}-reference-crop.png"
+    )
     side_path = os.path.join(output_dir, f"{safe_stem}-side-by-side.png")
     diff_path = os.path.join(output_dir, f"{safe_stem}-diff.png")
-    with Image.open(reference_path) as ref_source, Image.open(capture_path) as cap_source:
-        reference = ref_source.convert("RGB")
-        capture = cap_source.convert("RGB")
-        if capture.size != reference.size:
-            capture = ImageOps.fit(capture, reference.size, method=Image.Resampling.LANCZOS)
-        ref_edges = _geometry_mask(reference)
-        cap_edges = _geometry_mask(capture)
-        edge_diff = ImageChops.difference(ref_edges, cap_edges)
-        ref_shapes = ImageOps.grayscale(reference).point(
-            lambda value: 255 if value >= 128 else 0
+    try:
+        with (
+            Image.open(reference_path) as ref_source,
+            Image.open(capture_path) as cap_source,
+        ):
+            reference = ref_source.convert("RGB")
+            capture = cap_source.convert("RGB")
+    except (OSError, ValueError) as exc:
+        return {
+            "passed": False,
+            "reason": f"comparison input is missing or unreadable: {exc}",
+            "foreground_iou": 0.0,
+            "bbox_edge_delta": 1.0,
+            "foreground_pixels": {"reference": 0, "capture": 0},
+            "reference_crop": reference_crop_path,
+            "side_by_side": side_path,
+            "diff": diff_path,
+            "thresholds": {
+                "min_foreground_iou": MIN_FOREGROUND_IOU,
+                "max_bbox_edge_delta": MAX_BBOX_EDGE_DELTA,
+            },
+        }
+
+    if reference.width >= capture.width and reference.height >= capture.height:
+        reference = reference.crop((0, 0, capture.width, capture.height))
+    size_matches = reference.size == capture.size
+    if not size_matches:
+        return {
+            "passed": False,
+            "reason": (
+                f"design-pixel size mismatch: reference {reference.size}, "
+                f"capture {capture.size}; images are never resized"
+            ),
+            "foreground_iou": 0.0,
+            "bbox_edge_delta": 1.0,
+            "foreground_pixels": {"reference": 0, "capture": 0},
+            "reference_crop": reference_crop_path,
+            "side_by_side": side_path,
+            "diff": diff_path,
+            "thresholds": {
+                "min_foreground_iou": MIN_FOREGROUND_IOU,
+                "max_bbox_edge_delta": MAX_BBOX_EDGE_DELTA,
+            },
+        }
+
+    reference.save(reference_crop_path)
+    ref_mask = _foreground_mask(reference)
+    cap_mask = _foreground_mask(capture)
+    intersection = ImageChops.multiply(ref_mask, cap_mask)
+    union = ImageChops.lighter(ref_mask, cap_mask)
+    intersection_pixels = _mask_pixels(intersection)
+    union_pixels = _mask_pixels(union)
+    foreground_iou = (
+        intersection_pixels / union_pixels if union_pixels else 1.0
+    )
+    ref_box = ref_mask.getbbox()
+    cap_box = cap_mask.getbbox()
+    bbox_delta = _bbox_edge_delta(ref_box, cap_box, reference.size)
+    foreground_pixels = {
+        "reference": _mask_pixels(ref_mask),
+        "capture": _mask_pixels(cap_mask),
+    }
+    appearance_delta = (
+        max(ImageStat.Stat(ImageChops.difference(reference, capture)).mean) / 255.0
+    )
+    both_uniform_but_different = (
+        union_pixels == 0 and appearance_delta > 0.10
+    )
+    geometry_score = (
+        0.65 * foreground_iou + 0.35 * (1.0 - bbox_delta)
+    )
+    passed = (
+        foreground_iou >= MIN_FOREGROUND_IOU
+        and bbox_delta <= MAX_BBOX_EDGE_DELTA
+        and not both_uniform_but_different
+    )
+
+    difference = ImageChops.difference(reference, capture)
+    difference.save(diff_path)
+    side = Image.new("RGB", (reference.width * 2, reference.height))
+    side.paste(reference, (0, 0))
+    side.paste(capture, (reference.width, 0))
+    side.save(side_path)
+    reason = (
+        "foreground geometry is within tolerance"
+        if passed
+        else (
+            "geometrically divergent "
+            f"(foreground IoU {foreground_iou:.4f}, "
+            f"bbox edge delta {bbox_delta:.4f}; require IoU >= "
+            f"{MIN_FOREGROUND_IOU:.4f} and bbox delta <= "
+            f"{MAX_BBOX_EDGE_DELTA:.4f})"
         )
-        cap_shapes = ImageOps.grayscale(capture).point(
-            lambda value: 255 if value >= 128 else 0
-        )
-        shape_diff = ImageChops.difference(ref_shapes, cap_shapes)
-        divergence = max(
-            ImageStat.Stat(edge_diff).mean[0],
-            ImageStat.Stat(shape_diff).mean[0],
-        )
-        geometry_score = 1.0 - (divergence / 255.0)
-        difference = ImageChops.difference(reference, capture)
-        difference.save(diff_path)
-        side = Image.new("RGB", (reference.width * 2, reference.height))
-        side.paste(reference, (0, 0))
-        side.paste(capture, (reference.width, 0))
-        side.save(side_path)
-    passed = geometry_score >= 0.90
+    )
     return {
         "passed": passed,
-        "reason": (
-            "geometry is within tolerance"
-            if passed
-            else f"geometrically divergent (score {geometry_score:.4f} < 0.9000)"
-        ),
+        "reason": reason,
         "geometry_score": geometry_score,
+        "foreground_iou": foreground_iou,
+        "bbox_edge_delta": bbox_delta,
+        "foreground_pixels": foreground_pixels,
+        "reference_bbox": list(ref_box) if ref_box else None,
+        "capture_bbox": list(cap_box) if cap_box else None,
+        "appearance_delta": appearance_delta,
+        "reference_crop": reference_crop_path,
         "side_by_side": side_path,
         "diff": diff_path,
+        "thresholds": {
+            "min_foreground_iou": MIN_FOREGROUND_IOU,
+            "max_bbox_edge_delta": MAX_BBOX_EDGE_DELTA,
+        },
     }
 
 
@@ -257,13 +391,38 @@ def main(argv=None):
     components = (args.component,) if args.component else FOUNDATION_COMPONENTS
     themes = (args.theme,) if args.theme else THEMES
     results = []
-    if not args.compare_only:
+    summary_path = os.path.join(run_dir, "summary.json")
+    if args.compare_only:
+        if not os.path.isfile(summary_path):
+            print(f"[Gallery] missing prior summary for --compare-only: {summary_path}")
+            return 2
+        results = _load_json(summary_path).get("results", [])
+        results = [
+            result
+            for result in results
+            if result.get("component") in components and result.get("theme") in themes
+        ]
+    else:
         for component in components:
             for theme in themes:
                 print(f"[Gallery] {component} / {theme}")
                 results.append(
                     _capture_one(exe, run_dir, build_info, component, theme, args.state)
                 )
+    compare_dir = os.path.join(run_dir, "compare")
+    for result in results:
+        if not result.get("crop"):
+            continue
+        comparison = compare_images(
+            reference_path(result["component"], result["theme"]),
+            result["crop"],
+            compare_dir,
+            f"{result['component'].lower()}-{result['theme']}",
+        )
+        result["comparison"] = comparison
+        if not comparison["passed"]:
+            result["passed"] = False
+            result.setdefault("reasons", []).append(comparison["reason"])
     report = {
         "schema": 1,
         "commit": build_info.get("commit"),
@@ -272,7 +431,7 @@ def main(argv=None):
         "results": results,
         "passed": bool(results) and all(result["passed"] for result in results),
     }
-    with open(os.path.join(run_dir, "summary.json"), "w", encoding="utf-8") as target:
+    with open(summary_path, "w", encoding="utf-8") as target:
         json.dump(report, target, indent=2)
         target.write("\n")
     print(json.dumps(report, indent=2))

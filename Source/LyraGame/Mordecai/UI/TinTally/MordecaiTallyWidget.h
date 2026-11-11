@@ -52,6 +52,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Tally")
 	void SetCountAndMax(int32 NewCount, int32 NewMax);
 
+	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Tally")
+	void SetUsage(EMordecaiTallyUsage NewUsage);
+
+	/** Configure the cooked atlas slices used by native and Development fixtures. */
+	void SetFrameBrushes(
+		const TArray<FSlateBrush>& NewBundleFrames,
+		const TArray<FSlateBrush>& NewGhostBundleFrames,
+		const FSlateBrush& NewCapDotBrush);
+
 	UFUNCTION(BlueprintPure, Category = "Tin Tally|Tally")
 	int32 GetCount() const { return Count; }
 

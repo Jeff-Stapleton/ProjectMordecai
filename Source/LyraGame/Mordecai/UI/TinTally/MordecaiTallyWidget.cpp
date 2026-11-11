@@ -106,6 +106,32 @@ void UMordecaiTallyWidget::SetCountAndMax(int32 NewCount, int32 NewMax)
 	Refresh();
 }
 
+void UMordecaiTallyWidget::SetUsage(EMordecaiTallyUsage NewUsage)
+{
+	if (IsAllowedUsage(NewUsage))
+	{
+		Usage = NewUsage;
+	}
+	Refresh();
+}
+
+void UMordecaiTallyWidget::SetFrameBrushes(
+	const TArray<FSlateBrush>& NewBundleFrames,
+	const TArray<FSlateBrush>& NewGhostBundleFrames,
+	const FSlateBrush& NewCapDotBrush)
+{
+	if (NewBundleFrames.Num() == 6)
+	{
+		BundleFrames = NewBundleFrames;
+	}
+	if (NewGhostBundleFrames.Num() == 6)
+	{
+		GhostBundleFrames = NewGhostBundleFrames;
+	}
+	CapDotBrush = NewCapDotBrush;
+	Refresh();
+}
+
 TArray<int32> UMordecaiTallyWidget::GetRenderedBundleFrames() const
 {
 	const int32 BundleCount = FMath::Max(1, FMath::DivideAndRoundUp(Max, 5));
