@@ -370,11 +370,21 @@ bool FMordecai_UI_Theme_RuntimeSwapNotifiesWidgets::RunTest(const FString& Param
 	MislabelledDioramaSlot->Colors.Plate = FLinearColor::Red;
 	Service->SetThemeAssets(MislabelledDioramaSlot, nullptr);
 	Service->SetActiveTheme(EMordecaiUITheme::Diorama);
+	TestTrue("a High Contrast-labelled asset in the Diorama slot resolves to native Diorama",
+		Service->GetActiveColors().Plate.Equals(FMordecaiUIThemeColors::MakeDiorama().Plate));
+	TestFalse("the rejected Diorama-slot asset's distinctive red is not observable",
+		Service->GetActiveColors().Plate.Equals(FLinearColor::Red));
+
+	UMordecaiUIThemeDataAsset* MislabelledHighContrastSlot = NewObject<UMordecaiUIThemeDataAsset>();
+	MislabelledHighContrastSlot->Theme = EMordecaiUITheme::Diorama;
+	MislabelledHighContrastSlot->Colors = FMordecaiUIThemeColors::MakeDiorama();
+	MislabelledHighContrastSlot->Colors.Plate = FLinearColor::Red;
+	Service->SetThemeAssets(nullptr, MislabelledHighContrastSlot);
 	Service->SetActiveTheme(EMordecaiUITheme::HighContrast);
-	TestTrue("a mislabelled Diorama-slot asset is rejected when swapped to the theme it claims",
+	TestTrue("a Diorama-labelled asset in the High Contrast slot resolves to native High Contrast",
 		Service->GetActiveColors().Plate.Equals(FMordecaiUIThemeColors::MakeHighContrast().Plate));
-	TestFalse("the rejected asset's distinctive colors are not observable",
-		Service->GetActiveColors().Plate.Equals(MislabelledDioramaSlot->Colors.Plate));
+	TestFalse("the rejected High Contrast-slot asset's distinctive red is not observable",
+		Service->GetActiveColors().Plate.Equals(FLinearColor::Red));
 	TestNotNull("ResolveForWidget is exposed to owning-player widgets",
 		Service->GetClass()->FindFunctionByName(TEXT("ResolveForWidget")));
 
@@ -584,10 +594,19 @@ bool FMordecai_UI_Primitives_RoundedBoxManifest::RunTest(const FString& Paramete
 		const FMordecaiUIPrimitiveLayer* KeycapFace = FindLayer(Keycap, TEXT("Face"));
 		TestEqual(*FString::Printf(TEXT("%s keycap has base and inset face"), *ShapeName),
 			Keycap.Layers.Num(), 2);
+		TestTrue(*FString::Printf(TEXT("%s keycap draws Lip before Face"), *ShapeName),
+			Keycap.Layers.Num() == 2
+			&& Keycap.Layers[0].Name == TEXT("Lip")
+			&& Keycap.Layers[1].Name == TEXT("Face"));
 		TestTrue(*FString::Printf(TEXT("%s keycap base uses enamel-shade"), *ShapeName),
 			KeycapLip && BrushTint(KeycapLip->Brush).Equals(Colors.EnamelShade));
 		TestEqual(*FString::Printf(TEXT("%s keycap base has one 2px ink border"), *ShapeName),
 			KeycapLip ? KeycapLip->Brush.OutlineSettings.Width : 0.f, 2.f);
+		TestTrue(*FString::Printf(TEXT("%s keycap base outline uses ink"), *ShapeName),
+			KeycapLip
+			&& KeycapLip->Brush.OutlineSettings.Color.GetSpecifiedColor().Equals(Colors.Ink));
+		TestTrue(*FString::Printf(TEXT("%s keycap base has zero padding"), *ShapeName),
+			KeycapLip && KeycapLip->Padding == FMargin(0.f));
 		TestTrue(*FString::Printf(TEXT("%s keycap face uses enamel"), *ShapeName),
 			KeycapFace && BrushTint(KeycapFace->Brush).Equals(Colors.Enamel));
 		TestEqual(*FString::Printf(TEXT("%s keycap face has no second outline"), *ShapeName),
@@ -678,6 +697,8 @@ bool FMordecai_UI_Primitives_RoundedBoxManifest::RunTest(const FString& Paramete
 				UOverlaySlot* GapSlot = BuiltGap ? Cast<UOverlaySlot>(BuiltGap->Slot) : nullptr;
 				TestTrue(*FString::Printf(TEXT("%s gap is inset behind the focus ring"), *CaseName),
 					GapSlot && GapSlot->GetPadding() == FMargin(3.f));
+				TestEqual(*FString::Printf(TEXT("%s gap stroke follows the theme outline"), *CaseName),
+					BuiltGap ? BuiltGap->Background.OutlineSettings.Width : 0.f, PieceOutline);
 				TestTrue(*FString::Printf(TEXT("%s inset gap radius stays concentric"), *CaseName),
 					BuiltGap && IsRadius(BuiltGap->Background, FVector4(12.f + ExpectedOffset)));
 				TestTrue(*FString::Printf(TEXT("%s focus ring keeps the outer bounds"), *CaseName),
@@ -692,6 +713,8 @@ bool FMordecai_UI_Primitives_RoundedBoxManifest::RunTest(const FString& Paramete
 					RingSlot && RingSlot->GetPadding() == FMargin(2.f));
 				TestTrue(*FString::Printf(TEXT("%s keyline keeps the outer bounds"), *CaseName),
 					KeylineSlot && KeylineSlot->GetPadding() == FMargin(0.f));
+				TestEqual(*FString::Printf(TEXT("%s keyline stroke is 2"), *CaseName),
+					BuiltKeyline ? BuiltKeyline->Background.OutlineSettings.Width : 0.f, 2.f);
 				TestTrue(*FString::Printf(TEXT("%s keyline radius stays concentric"), *CaseName),
 					BuiltKeyline && IsRadius(
 						BuiltKeyline->Background, FVector4(ExpectedRingRadius + 2.f)));
@@ -831,6 +854,10 @@ bool FMordecai_UI_Primitives_ApplyRetintsInPlace::RunTest(const FString& Paramet
 	TestTrue("the same outline carries the High Contrast radius 16",
 		AppliedOutline && IsRadius(AppliedOutline->Background, FVector4(16.f)));
 
+	UBorder* AppliedPrint = FindBuiltBorder(Built, TEXT("Print"));
+	TestTrue("Apply matches Print by name and preserves its HUD render translation",
+		AppliedPrint && AppliedPrint->GetRenderTransform().Translation == FVector2D(0.f, 4.f));
+
 	UBorder* AppliedRimShade = FindBuiltBorder(Built, TEXT("RimShade"));
 	UOverlaySlot* AppliedRimShadeSlot =
 		AppliedRimShade ? Cast<UOverlaySlot>(AppliedRimShade->Slot) : nullptr;
@@ -840,6 +867,32 @@ bool FMordecai_UI_Primitives_ApplyRetintsInPlace::RunTest(const FString& Paramet
 			FMordecaiUIThemeColors::MakeHighContrast().RimShade));
 	TestTrue("the same rim-shade slot carries the High Contrast 4px padding",
 		AppliedRimShadeSlot && AppliedRimShadeSlot->GetPadding() == FMargin(4.f));
+
+	UWidgetTree* TagTree = NewObject<UWidgetTree>();
+	const FMordecaiUIPrimitiveSpec DioramaTag = FMordecaiUIPrimitiveBuilder::Tag(
+		FMordecaiUIThemeColors::MakeDiorama(), EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::Diorama);
+	UOverlay* BuiltTag = FMordecaiUIPrimitiveBuilder::Build(TagTree, DioramaTag, TEXT("ApplyTag"));
+	UBorder* OriginalGrommet = FindBuiltBorder(BuiltTag, TEXT("GrommetInk"));
+	USizeBox* OriginalGrommetBox =
+		OriginalGrommet ? Cast<USizeBox>(OriginalGrommet->GetParent()) : nullptr;
+	UOverlaySlot* OriginalGrommetSlot =
+		OriginalGrommetBox ? Cast<UOverlaySlot>(OriginalGrommetBox->Slot) : nullptr;
+	TestTrue("Diorama grommet SizeBox starts at Left 14",
+		OriginalGrommetSlot && OriginalGrommetSlot->GetPadding().Left == 14.f);
+
+	const FMordecaiUIPrimitiveSpec HighContrastTag = FMordecaiUIPrimitiveBuilder::Tag(
+		FMordecaiUIThemeColors::MakeHighContrast(), EMordecaiUIPrintDepth::HUD,
+		EMordecaiUITheme::HighContrast);
+	FMordecaiUIPrimitiveBuilder::Apply(BuiltTag, HighContrastTag);
+	UBorder* AppliedGrommet = FindBuiltBorder(BuiltTag, TEXT("GrommetInk"));
+	USizeBox* AppliedGrommetBox =
+		AppliedGrommet ? Cast<USizeBox>(AppliedGrommet->GetParent()) : nullptr;
+	UOverlaySlot* AppliedGrommetSlot =
+		AppliedGrommetBox ? Cast<UOverlaySlot>(AppliedGrommetBox->Slot) : nullptr;
+	TestTrue("Apply preserves the grommet SizeBox and matches it by layer name",
+		AppliedGrommet == OriginalGrommet && AppliedGrommetBox == OriginalGrommetBox);
+	TestTrue("High Contrast Apply moves the grommet SizeBox slot Left from 14 to 15",
+		AppliedGrommetSlot && AppliedGrommetSlot->GetPadding().Left == 15.f);
 	return true;
 }
 

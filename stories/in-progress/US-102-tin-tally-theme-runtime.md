@@ -81,3 +81,14 @@ Native data types, theme selection, shared widget construction, and automation t
   widget and reach the intended retint assertions. The production expectations
   were not weakened, but that means the original RED2 commit did not contain
   the final passing fixture unchanged.
+- US-103 follow-up: when real callers can supply a primitive spec whose layer
+  set differs from the built overlay, make `Apply()` emit an `ensure` or log
+  instead of silently tolerating the mismatch.
+- US-103 follow-up: clear stale `USizeBox` width and height overrides when an
+  applied layer changes from a fixed desired size to an unset axis.
+- Reference-frame clarification: the tag manifest's
+  `03-building-in-unreal.md:44` “centred at x 22” is measured from the tag face,
+  not the outer overlay edge (25 px Diorama, 26 px High Contrast).
+- Documentation conflict: `tokens.json` gives menu print alpha as `0.4`, while
+  `03-building-in-unreal.md` and `_core.css` specify `0.55`; US-102 follows the
+  coordinator decision to retain `0.55`.
