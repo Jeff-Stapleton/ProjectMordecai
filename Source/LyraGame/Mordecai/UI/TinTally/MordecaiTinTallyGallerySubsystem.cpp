@@ -13,6 +13,7 @@
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
+#include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/FileManager.h"
@@ -56,7 +57,7 @@ namespace
 		return nullptr;
 	}
 
-	UCommonTextBlock* AddText(
+	UTextBlock* AddText(
 		UWidgetTree* Tree,
 		UCanvasPanel* Canvas,
 		const FString& Value,
@@ -68,7 +69,7 @@ namespace
 		float Height,
 		ETextJustify::Type Justification = ETextJustify::Left)
 	{
-		UCommonTextBlock* Text = Tree->ConstructWidget<UCommonTextBlock>();
+		UTextBlock* Text = Tree->ConstructWidget<UTextBlock>();
 		Text->SetText(FText::FromString(Value));
 		Text->SetJustification(Justification);
 		Text->SetAutoWrapText(true);
@@ -78,11 +79,12 @@ namespace
 			StyleName);
 		if (UClass* StyleClass = LoadClass<UCommonTextStyle>(nullptr, *ClassPath))
 		{
-			Text->SetStyle(StyleClass);
+			const UCommonTextStyle* Style = GetDefault<UCommonTextStyle>(StyleClass);
+			FSlateFontInfo Font;
+			Style->GetFont(Font);
+			Text->SetFont(Font);
+			Text->SetLineHeightPercentage(Style->GetLineHeightPercentage());
 		}
-		// SetStyle copies every style property, including the style's default
-		// color. Apply the active-theme tint after it so High Contrast text
-		// does not become black on the black plate.
 		Text->SetColorAndOpacity(FSlateColor(Color));
 		Place(Canvas, Text, X, Y, Width, Height);
 		return Text;

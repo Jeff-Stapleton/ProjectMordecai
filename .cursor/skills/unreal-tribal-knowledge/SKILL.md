@@ -486,9 +486,12 @@ its default color. Calling `SetStyle` after `SetColorAndOpacity` silently replac
 tint with the style's black default. A Diorama-only screenshot can hide this because black still
 contrasts with teal; the paired High Contrast capture exposed it.
 
-**Fix:** Apply the `UCommonTextStyle` first, then call `SetColorAndOpacity` (and any other
-instance/theme overrides) afterward. Verify both themes in the packaged gallery; do not infer High
-Contrast from a Diorama pass.
+**Fix:** For a static programmatic fixture, read `Font` and `LineHeightPercentage` from the cooked
+`UCommonTextStyle` CDO and apply those values to a plain `UTextBlock`, then apply the active-theme
+color. Merely calling `SetColorAndOpacity` after `SetStyle` is insufficient: later CommonText
+synchronization can copy the style color again. A shipping CommonText subclass that needs dynamic
+theme overrides should reapply them from `SynchronizeProperties` after `Super`. Verify both themes
+in the packaged gallery; do not infer High Contrast from a Diorama pass.
 
 ### CommonUI Menu input mode blocks every unbound key: a menu that closes through an Enhanced Input action can never be closed
 
