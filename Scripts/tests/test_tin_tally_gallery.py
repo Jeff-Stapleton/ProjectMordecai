@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from PIL import Image
 
@@ -12,6 +13,10 @@ if SCRIPTS not in sys.path:
     sys.path.insert(0, SCRIPTS)
 
 import tin_tally_gallery as gallery  # noqa: E402
+
+FIXTURES = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "fixtures", "tin_tally_gallery"
+)
 
 
 class TempImageCase(unittest.TestCase):
@@ -125,6 +130,76 @@ class TestImageComparison(TempImageCase):
         self.assertIn("geometr", result["reason"].lower())
         self.assertTrue(os.path.isfile(result["side_by_side"]))
         self.assertTrue(os.path.isfile(result["diff"]))
+
+    def test_prior_stretched_keycap_capture_is_rejected(self):
+        reference = os.path.join(FIXTURES, "keycap-reference-top.png")
+        stretched = os.path.join(FIXTURES, "keycap-stretched.png")
+        result = gallery.compare_images(reference, stretched, self.tmp, "Keycap.diorama")
+        self.assertFalse(result["passed"], result)
+        self.assertIn("geometr", result["reason"].lower())
+
+    def test_comparison_reports_foreground_and_bounding_box_metrics(self):
+        reference = os.path.join(FIXTURES, "keycap-reference-top.png")
+        stretched = os.path.join(FIXTURES, "keycap-stretched.png")
+        result = gallery.compare_images(reference, stretched, self.tmp, "Keycap.diorama")
+        self.assertIn("foreground_iou", result)
+        self.assertIn("bbox_edge_delta", result)
+        self.assertIn("foreground_pixels", result)
+        self.assertIn("reference_crop", result)
+        self.assertTrue(os.path.isfile(result["reference_crop"]))
+
+
+class TestGalleryOrchestration(TempImageCase):
+    def test_gallery_run_compares_every_capture_to_its_reference(self):
+        crop = self.image("keycap-diorama-crop.png", size=(960, 720))
+        capture_result = {
+            "component": "Keycap",
+            "theme": "diorama",
+            "state": "sheet",
+            "passed": True,
+            "reasons": [],
+            "full": self.image("keycap-diorama-full.png", size=(1920, 1080)),
+            "crop": crop,
+            "metadata": os.path.join(self.tmp, "keycap-diorama.json"),
+            "log": os.path.join(self.tmp, "keycap-diorama.log"),
+        }
+        comparison = {
+            "passed": True,
+            "reason": "foreground geometry is within tolerance",
+            "foreground_iou": 1.0,
+            "bbox_edge_delta": 0.0,
+            "foreground_pixels": {"reference": 100, "capture": 100},
+            "reference_crop": os.path.join(self.tmp, "reference.png"),
+            "side_by_side": os.path.join(self.tmp, "side.png"),
+            "diff": os.path.join(self.tmp, "diff.png"),
+        }
+        with (
+            mock.patch.object(
+                gallery.playtest_boot,
+                "gate",
+                return_value=({"build": self.build()}, None),
+            ),
+            mock.patch.object(gallery, "_capture_one", return_value=capture_result),
+            mock.patch.object(
+                gallery,
+                "compare_images",
+                return_value=comparison,
+            ) as compare,
+        ):
+            result = gallery.main(
+                [
+                    "--component",
+                    "Keycap",
+                    "--theme",
+                    "diorama",
+                    "--run-dir",
+                    self.tmp,
+                ]
+            )
+        self.assertEqual(result, 0)
+        compare.assert_called_once()
+        summary = gallery._load_json(os.path.join(self.tmp, "summary.json"))
+        self.assertEqual(summary["results"][0]["comparison"], comparison)
 
 
 class TestSweepComparison(unittest.TestCase):

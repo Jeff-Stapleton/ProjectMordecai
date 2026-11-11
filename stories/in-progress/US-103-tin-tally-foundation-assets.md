@@ -86,6 +86,11 @@ The story creates and configures font, material, texture, style, DataAsset, and 
     the required 1920x1080 frame. Browser/Slate font raster fringe may affect
     the similarity score, but dimensions, theme identity, hard-edge geometry,
     visibility, and exact metadata are never masked.
+  - Coordinator correction: each 960x720 gallery crop represents the top
+    960x720 design-pixel viewport of its component preview, without stretching
+    either image. The previews are taller than the required capture region;
+    this viewport is the common region that contains each component's anatomy
+    and its first representative variants.
 - RED scaffold: `Scripts/tin_tally_gallery.py` intentionally returns
   not-implemented results so its offline tests fail at assertions rather than
   import/compile time. It is replaced in GREEN without weakening the tests.
@@ -101,6 +106,17 @@ The story creates and configures font, material, texture, style, DataAsset, and 
     testable, RED changes `FMordecaiUIPrimitiveBuilder::Apply` to return a
     scaffold boolean while retaining its old behavior (`true` for any
     non-null overlay). GREEN must add validation before returning `false`.
+- Coordinator correction RED (2026-11-11):
+  - Retained the rejected packaged Keycap crop and the Chrome-rendered
+    top-viewport reference as regression fixtures.
+  - `py Scripts/run_python_tests.py -k tin_tally_gallery -v` ran 13 tests:
+    11 passed and 2 failed at assertions. The old comparator directly rejects
+    the stretched fixture, but the failures prove it does not report foreground
+    IoU/bounding-box metrics and the gallery workflow never calls it or records
+    comparison evidence.
+  - The visual PASS claims below are superseded by coordinator review:
+    Plate, Tag, Keycap, and Tally failed AC-103.5 in both themes; Glyphs were
+    plausible but still lacked required reference comparison artifacts.
 - Delivery commits:
   - Story start: `876b739`.
   - RED (tests unchanged during GREEN): `0204c54`.
