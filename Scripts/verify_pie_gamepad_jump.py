@@ -32,7 +32,10 @@ def _run():
         router_type = getattr(unreal, "MordecaiCommonUIActionRouter", None)
         check("Mordecai CommonUI action-router class is registered", router_type is not None,
               "the base CommonUI router still owns the analog cursor")
-        router = next(iter(unreal.ObjectIterator(router_type)), None) if router_type else None
+        router = next(
+            (candidate for candidate in unreal.ObjectIterator(router_type)
+             if isinstance(candidate.get_outer(), unreal.LocalPlayer)),
+            None) if router_type else None
         check("Local player uses MordecaiCommonUIActionRouter", router is not None)
         if router is not None:
             check("Gameplay mode passes virtual gamepad Accept through",

@@ -599,6 +599,25 @@ stale values. Prove both transitions with a Tier 1 lifecycle test and packaged s
 **Evidence:** PR #84 commit `3273068`; `Saved/Playtests/20261104-185741-us054combat`
 `bridge_05.png` hides the HUD under the death screen and `bridge_06.png` restores it after respawn.
 
+### CommonUI's analog cursor turns gamepad Accept into a mouse click before Enhanced Input (issue #85, US-119)
+
+**Problem:** Space jumps through `IA_Mordecai_Jump`, but real Gamepad A
+(`Gamepad_FaceButton_Bottom`) does not, even though both keys are present in the runtime mapping
+context and the bridge sends a valid gamepad key event. The regression begins when the persistent
+combat HUD uses `CapturePermanently_IncludingInitialMouseDown`.
+
+**Root cause:** `FCommonAnalogCursor::IsRelevantInput` treats the virtual gamepad Accept key as
+analog-cursor input whenever `CanReleaseMouseCapture()` is true. That capture mode makes the
+condition true. `FAnalogCursor::HandleKeyDownEvent` then translates Gamepad A into a simulated
+left-click and consumes it before Enhanced Input can trigger the shared jump action. A valid key
+name and a correct mapping therefore do not prove the action sees the event.
+
+**Fix:** Supply a project `UCommonUIActionRouterBase` whose analog cursor suppresses virtual-Accept
+mouse simulation only while the router's active mode is `ECommonInputMode::Game`. Preserve the
+normal CommonUI Accept behavior in `Menu` and `All`, and preserve the HUD capture mode so the first
+mouse click still reaches gameplay. Test the policy at Tier 1, verify the live router/input mode at
+Tier 2, and prove the actual gamepad key path in a packaged Tier 4 run.
+
 ### A native loading screen builds its tree in `Initialize`: the manager's `CreateWidgetInstance(GameInstance)` does not guarantee a player context (issue #39)
 
 **Problem:** From Phase 1 on, the packaged game showed Lyra's loading screen on every load: the LYRA logo, plus a debug line ("Keeping loading screen up for an additional 2.00 seconds..."). It went unfixed for 12 days because nothing looked at it:

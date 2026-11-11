@@ -14,8 +14,9 @@ FMordecaiCommonAnalogCursor::FMordecaiCommonAnalogCursor(
 bool FMordecaiCommonAnalogCursor::ShouldSimulateVirtualAccept(
 	const ECommonInputMode InputMode)
 {
-	// RED scaffold: this is CommonUI's current behavior in every input mode.
-	return true;
+	// In Game mode, virtual Accept is also a gameplay button (Gamepad A -> Jump). CommonUI's
+	// simulated click consumes it before Enhanced Input. Menus still need the ordinary UI click.
+	return InputMode != ECommonInputMode::Game;
 }
 
 bool FMordecaiCommonAnalogCursor::ShouldVirtualAcceptSimulateMouseButton(
@@ -23,4 +24,14 @@ bool FMordecaiCommonAnalogCursor::ShouldVirtualAcceptSimulateMouseButton(
 	const EInputEvent InputEvent) const
 {
 	return ShouldSimulateVirtualAccept(ActionRouter.GetActiveInputMode());
+}
+
+bool UMordecaiCommonUIActionRouter::ShouldSimulateVirtualAcceptForActiveInputMode() const
+{
+	return FMordecaiCommonAnalogCursor::ShouldSimulateVirtualAccept(GetActiveInputMode());
+}
+
+TSharedRef<FCommonAnalogCursor> UMordecaiCommonUIActionRouter::MakeAnalogCursor() const
+{
+	return FCommonAnalogCursor::CreateAnalogCursor<FMordecaiCommonAnalogCursor>(*this);
 }
