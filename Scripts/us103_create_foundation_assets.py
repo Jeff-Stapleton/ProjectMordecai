@@ -157,6 +157,46 @@ def import_fonts():
     return face_assets, fonts
 
 
+def configure_composite_fonts(face_assets, fonts):
+    families = {
+        "F_Tally_Display": [
+            ("Regular", "FF_Rowdies_Regular"),
+            ("Bold", "FF_Rowdies_Bold"),
+        ],
+        "F_Tally_UI": [
+            ("Medium", "FF_AtkinsonNext_Medium"),
+            ("SemiBold", "FF_AtkinsonNext_SemiBold"),
+            ("Bold", "FF_AtkinsonNext_Bold"),
+            ("ExtraBold", "FF_AtkinsonNext_ExtraBold"),
+        ],
+        "F_Tally_Mono": [
+            ("SemiBold", "FF_AtkinsonMono_SemiBold"),
+            ("Bold", "FF_AtkinsonMono_Bold"),
+            ("ExtraBold", "FF_AtkinsonMono_ExtraBold"),
+        ],
+    }
+    for font_name, entries in families.items():
+        serialized_entries = ",".join(
+            (
+                f'(Name="{entry_name}",Font=(FontFaceAsset='
+                f'"/Script/Engine.FontFace\'{face_assets[face_name].get_path_name()}\'"))'
+            )
+            for entry_name, face_name in entries
+        )
+        serialized = (
+            f"(DefaultTypeface=(Fonts=({serialized_entries})),"
+            "FallbackTypeface=(Typeface=(Fonts=),ScalingFactor=1.000000),"
+            "SubTypefaces=,bEnableAscentDescentOverride=True)"
+        )
+        composite = fonts[font_name].get_editor_property("composite_font")
+        composite.import_text(serialized)
+        fonts[font_name].set_editor_property("composite_font", composite)
+        if not unreal.EditorAssetLibrary.save_loaded_asset(
+            fonts[font_name], only_if_is_dirty=False
+        ):
+            raise RuntimeError(f"failed to save configured composite font {font_name}")
+
+
 def create_text_styles(fonts):
     data = json.loads(TOKENS.read_text(encoding="utf-8"))
     family_font = {
@@ -186,9 +226,25 @@ def create_text_styles(fonts):
                 style["fontSize"].removesuffix("px")
             )
             family = style.get("family", group.get("family"))
+            weight = int(style["fontWeight"])
+            face_name = {
+                "display": {400: "Regular", 700: "Bold"},
+                "ui": {
+                    500: "Medium",
+                    600: "SemiBold",
+                    700: "Bold",
+                    800: "ExtraBold",
+                },
+                "mono": {
+                    600: "SemiBold",
+                    700: "Bold",
+                    800: "ExtraBold",
+                },
+            }[family][weight]
             font_info = unreal.SlateFontInfo(
                 font_object=family_font[family],
                 size=point_size,
+                typeface_font_name=face_name,
                 letter_spacing=round(
                     float(style.get("letterSpacing", "0em").removesuffix("em")) * 1000
                 ),
@@ -307,7 +363,8 @@ def main():
         ensure(f"{BASE}/{folder}")
     build_theme("diorama", "DA_UITheme_Diorama")
     build_theme("high-contrast", "DA_UITheme_HighContrast")
-    _, fonts = import_fonts()
+    faces, fonts = import_fonts()
+    configure_composite_fonts(faces, fonts)
     create_text_styles(fonts)
     textures = import_textures()
     material = create_material()
