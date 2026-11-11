@@ -239,8 +239,10 @@ bool FMordecai_UI_Theme_SRGBConversion::RunTest(const FString& Parameters)
 			FMordecaiUIThemeColors::GetRuntimeColorTokenNames()[Index], TokenName);
 		if (ColorProperties.IsValidIndex(Index))
 		{
+#if WITH_EDITOR
 			TestEqual(*FString::Printf(TEXT("%s DisplayName"), Expected.Name),
 				ColorProperties[Index]->GetDisplayNameText().ToString(), FString(Expected.Name));
+#endif
 		}
 
 		const FLinearColor ExpectedDiorama =
@@ -623,8 +625,10 @@ bool FMordecai_UI_TallyWidget_CountAndClamp::RunTest(const FString& Parameters)
 
 	const FIntProperty* MaxProperty = FindFProperty<FIntProperty>(Tally->GetClass(), TEXT("Max"));
 	TestNotNull("Max is reflected", MaxProperty);
+#if WITH_EDITOR
 	TestEqual("Max documents the supported rank ceiling", MaxProperty ? MaxProperty->GetMetaData(TEXT("ClampMax")) : FString(),
 		FString(TEXT("20")));
+#endif
 	const FStructProperty* CapDotProperty = FindFProperty<FStructProperty>(Tally->GetClass(), TEXT("CapDotBrush"));
 	TestNotNull("the optional D1 rank-one cap-dot brush is exposed", CapDotProperty);
 	if (CapDotProperty)
