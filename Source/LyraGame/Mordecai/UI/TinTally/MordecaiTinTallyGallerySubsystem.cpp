@@ -70,7 +70,6 @@ namespace
 	{
 		UCommonTextBlock* Text = Tree->ConstructWidget<UCommonTextBlock>();
 		Text->SetText(FText::FromString(Value));
-		Text->SetColorAndOpacity(FSlateColor(Color));
 		Text->SetJustification(Justification);
 		Text->SetAutoWrapText(true);
 		const FString ClassPath = FString::Printf(
@@ -81,6 +80,10 @@ namespace
 		{
 			Text->SetStyle(StyleClass);
 		}
+		// SetStyle copies every style property, including the style's default
+		// color. Apply the active-theme tint after it so High Contrast text
+		// does not become black on the black plate.
+		Text->SetColorAndOpacity(FSlateColor(Color));
 		Place(Canvas, Text, X, Y, Width, Height);
 		return Text;
 	}

@@ -475,6 +475,21 @@ When building widget trees programmatically:
 - Use `CreateWidget<T>(this)` for `UUserWidget` subclasses (they have their own WidgetTree)
 - Child `UUserWidget` instances can be added to a parent's `UCanvasPanel` via `AddChildToCanvas()` — they render as nested widgets
 
+### UCommonTextBlock::SetStyle overwrites a theme tint set before it (US-103)
+
+**Problem:** Programmatic gallery text rendered black. It was barely visible on the Diorama teal
+plate and completely disappeared on High Contrast's black plate, although the code had called
+`SetColorAndOpacity(Colors.TextMuted)` and the packaged composite fonts were valid.
+
+**Root cause:** `UCommonTextBlock::SetStyle` copies the style's complete text appearance, including
+its default color. Calling `SetStyle` after `SetColorAndOpacity` silently replaced the active-theme
+tint with the style's black default. A Diorama-only screenshot can hide this because black still
+contrasts with teal; the paired High Contrast capture exposed it.
+
+**Fix:** Apply the `UCommonTextStyle` first, then call `SetColorAndOpacity` (and any other
+instance/theme overrides) afterward. Verify both themes in the packaged gallery; do not infer High
+Contrast from a Diorama pass.
+
 ### CommonUI Menu input mode blocks every unbound key: a menu that closes through an Enhanced Input action can never be closed
 
 **Problem:** The first Tier 4 run (`Saved/Playtests/20261020-144643-us079`) opened the Mordecai pause menu with a real I press, then tapped a real Escape: the menu was still open 3 s later (check `menu_closes_escape` FAIL, `commonui_input_mode='Menu'`, `game_input_allowed=False`; `bridge_03.png` still shows "Paused" and the inventory tab). Pressing I does not close it either. A player who opens the menu cannot close it. Tier 2 never noticed: `verify_pie_inventory.py` toggles the menu with a direct call (`toggle_pause_menu_to_tab`).
