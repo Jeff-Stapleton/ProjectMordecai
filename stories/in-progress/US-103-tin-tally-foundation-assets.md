@@ -101,3 +101,45 @@ The story creates and configures font, material, texture, style, DataAsset, and 
     testable, RED changes `FMordecaiUIPrimitiveBuilder::Apply` to return a
     scaffold boolean while retaining its old behavior (`true` for any
     non-null overlay). GREEN must add validation before returning `false`.
+- Delivery commits:
+  - Story start: `876b739`.
+  - RED (tests unchanged during GREEN): `0204c54`.
+  - GREEN foundation/runtime/gallery: `737a339`.
+  - Packaged-gallery UI capture correction found by PIL review: `5f5bdaa`.
+- Verification (final source and content):
+  - Compile: PASS.
+  - Targeted `Mordecai.UI`: 115 passed, 0 failed
+    (`Saved/TestLogs/tests-20261111-124250.log`).
+  - Full Tier 1: 821 passed, 0 failed
+    (`Saved/TestLogs/tests-20261111-124406.log`).
+  - Full Python tooling: 638 passed, 0 failed, 0 errors, 0 skipped.
+  - Tier 2: 20 smoke scripts passed, including
+    `verify_pie_tin_tally_gallery.py`.
+  - `py -I Design/TinTally/tools/render.py check`: `problems: 0`.
+  - `py Scripts/check_content_committed.py`: PASS; 161 foundation assets
+    accompany the idempotent creation script.
+- Exact clean Development package:
+  - Package commit `5f5bdaa6700873171fdce0f872595541e241ce0b`;
+    `dirty=false`, `source_changed_during_build=false`.
+  - MovementTestMap boot PASS:
+    `Saved/Playtests/20261111-125529-boot`. Every boot PNG was checked by
+    Pillow: 7/7 readable, correctly sized, varied, and non-black; the report
+    records the Mordecai loading screen and arena experience with no missing
+    cooked content.
+  - Packaged gallery PASS for Plate, Tag, Keycap, Tally, and all 117 Glyphs
+    in both themes: `Saved/Playtests/20261111-125612-tin-tally-gallery`.
+    Pillow checked all 20 full/crop PNGs: full frames are 1920x1080, crops are
+    960x720, none are black, every crop has non-background geometry, and
+    Diorama teal/cream distributions differ from High Contrast black/white.
+    PNGs were not opened in this agent per coordinator instruction; human
+    visual sign-off remains for coordinator review from the evidence bundle.
+- Packaged regression:
+  - Baseline `559e28f95f`: `Saved/Playtests/20261111-115929-sweep`.
+  - Final `5f5bdaa670`: `Saved/Playtests/20261111-125805-sweep`.
+  - Both sweeps retain the same five pre-existing failing scripts
+    (`us001`, `us054_arena`, `us057`, `us069`, `us078`); comparison reports
+    zero script-level and zero individual-check PASS-to-FAIL transitions.
+- Evidence bundle (292 files, SHA-256 manifest verified):
+  `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4d6a1be8-b372-5492-abbe-334810677171\files\issue-102-us103-5f5bdaa`.
+- Story intentionally remains in progress with ACs unchecked for coordinator
+  image review, closure, and merge.
