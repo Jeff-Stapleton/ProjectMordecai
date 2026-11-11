@@ -143,6 +143,8 @@ void UMordecaiTallyWidget::ClampValues()
 
 void UMordecaiTallyWidget::Refresh()
 {
+	// TODO(US-103): render separate lit-fill and dotted-ghost atlas layers;
+	// tint the fill per Usage and tint the ghost with the theme's Lip token.
 	if (!BundleBox || !WidgetTree)
 	{
 		return;

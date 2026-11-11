@@ -76,4 +76,8 @@ Native data types, theme selection, shared widget construction, and automation t
   file in US-102.
 
 ## Completion Notes
-<Filled in by the implementing agent.>
+- RED2 fixture note: the first live-theme-swap test committed in RED2 needed
+  fixture-only edits during GREEN2 before it could construct a real local-player
+  widget and reach the intended retint assertions. The production expectations
+  were not weakened, but that means the original RED2 commit did not contain
+  the final passing fixture unchanged.

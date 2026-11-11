@@ -17,8 +17,9 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FMordecaiUIThemeChangedNative, EMordecaiUIT
 
 /**
  * Per-local-player theme selection. Widgets subscribe once and retint their
- * existing brushes when OnThemeChanged fires; no gameplay UI reconstruction
- * is required.
+ * existing brushes when OnThemeChanged fires; shared primitive overlays use
+ * FMordecaiUIPrimitiveBuilder::Apply, so no gameplay UI reconstruction is
+ * required.
  */
 UCLASS()
 class LYRAGAME_API UMordecaiUIThemeSubsystem : public ULocalPlayerSubsystem

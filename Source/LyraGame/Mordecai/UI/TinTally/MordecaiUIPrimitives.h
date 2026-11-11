@@ -93,6 +93,7 @@ struct LYRAGAME_API FMordecaiUIPrimitiveSpec
 /**
  * Constructs all shared Tin Tally pieces from texture-free RoundedBox brushes.
  * Build() materializes a spec into a reusable Overlay in a widget tree.
+ * Apply() retints and regeometries its named layers in place without rebuilding.
  */
 struct LYRAGAME_API FMordecaiUIPrimitiveBuilder
 {

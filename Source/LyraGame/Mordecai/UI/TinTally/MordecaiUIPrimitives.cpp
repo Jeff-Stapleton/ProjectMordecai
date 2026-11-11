@@ -62,6 +62,46 @@ namespace
 			PrimitiveLayer.Brush.OutlineSettings.CornerRadii = FVector4::Zero();
 		}
 	}
+
+	FMargin ResolveSlotPadding(const FMordecaiUIPrimitiveLayer& PrimitiveLayer)
+	{
+		FMargin SlotPadding = PrimitiveLayer.Padding;
+		if (PrimitiveLayer.HorizontalAlignment == HAlign_Left && PrimitiveLayer.DesiredSize.X > 0.f)
+		{
+			SlotPadding.Left += PrimitiveLayer.Center.X - PrimitiveLayer.DesiredSize.X * 0.5f;
+		}
+		if (PrimitiveLayer.VerticalAlignment == VAlign_Top && PrimitiveLayer.DesiredSize.Y > 0.f)
+		{
+			SlotPadding.Top += PrimitiveLayer.Center.Y - PrimitiveLayer.DesiredSize.Y * 0.5f;
+		}
+		return SlotPadding;
+	}
+
+	UBorder* FindNamedLayerBorder(UOverlay* Overlay, FName LayerName, UWidget*& OutOverlayChild)
+	{
+		OutOverlayChild = nullptr;
+		if (!Overlay)
+		{
+			return nullptr;
+		}
+
+		const FString NameSuffix = FString::Printf(TEXT("_%s"), *LayerName.ToString());
+		for (int32 Index = 0; Index < Overlay->GetChildrenCount(); ++Index)
+		{
+			UWidget* OverlayChild = Overlay->GetChildAt(Index);
+			UBorder* Border = Cast<UBorder>(OverlayChild);
+			if (USizeBox* SizeBox = Cast<USizeBox>(OverlayChild))
+			{
+				Border = SizeBox->GetChildrenCount() > 0 ? Cast<UBorder>(SizeBox->GetChildAt(0)) : nullptr;
+			}
+			if (Border && Border->GetName().EndsWith(NameSuffix))
+			{
+				OutOverlayChild = OverlayChild;
+				return Border;
+			}
+		}
+		return nullptr;
+	}
 }
 
 FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Plate(
@@ -139,12 +179,12 @@ FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Tag(
 		Layer(TEXT("Face"), Rounded(Colors.Enamel, FaceRadius), FMargin(3.f + GeometryShift))
 	};
 
-	auto AddGrommet = [&Spec](FName Name, float Size, const FLinearColor& Color)
+	auto AddGrommet = [&Spec, GeometryShift](FName Name, float Size, const FLinearColor& Color)
 	{
 		FMordecaiUIPrimitiveLayer Grommet =
 			Layer(Name, Rounded(Color, FVector4::Zero(), FLinearColor::Transparent, 0.f, true));
 		Grommet.DesiredSize = FVector2D(Size);
-		Grommet.Center = FVector2D(22.f, 0.f);
+		Grommet.Center = FVector2D(25.f + GeometryShift, 0.f);
 		Grommet.HorizontalAlignment = HAlign_Left;
 		Grommet.VerticalAlignment = VAlign_Center;
 		Spec.Layers.Add(Grommet);
@@ -184,19 +224,13 @@ FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Keycap(
 	EMordecaiKeycapShape Shape)
 {
 	const bool bHalfHeight = Shape != EMordecaiKeycapShape::Square;
-	const FVector4 Radius(8.f);
 	FMordecaiUIPrimitiveSpec Spec;
 	Spec.OuterOutlineWidth = 2.f;
 	Spec.Layers = {
-		Layer(TEXT("Face"), Rounded(Colors.Enamel, Radius, Colors.Ink, 2.f, bHalfHeight))
+		Layer(TEXT("Lip"), Rounded(Colors.EnamelShade, FVector4(8.f), Colors.Ink, 2.f, bHalfHeight)),
+		Layer(TEXT("Face"), Rounded(Colors.Enamel, FVector4(6.f), FLinearColor::Transparent, 0.f, bHalfHeight),
+			FMargin(2.f, 2.f, 2.f, 6.f))
 	};
-	FMordecaiUIPrimitiveLayer Lip =
-		Layer(TEXT("Lip"), Rounded(Colors.EnamelShade, FVector4(2.f)));
-	Lip.Padding = FMargin(2.f, 0.f, 2.f, 2.f);
-	Lip.DesiredSize = FVector2D(0.f, 4.f);
-	Lip.HorizontalAlignment = HAlign_Fill;
-	Lip.VerticalAlignment = VAlign_Bottom;
-	Spec.Layers.Add(Lip);
 	return Spec;
 }
 
@@ -226,7 +260,8 @@ FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Focus(
 	{
 		Spec.Layers = {
 			Layer(TEXT("Gap"), Rounded(FLinearColor::Transparent,
-				FVector4(PieceRadius + Spec.FocusOffset), Colors.Ink, PieceOutline)),
+				FVector4(PieceRadius + Spec.FocusOffset), Colors.Ink, PieceOutline),
+				FMargin(Spec.FocusStrokeWidth)),
 			Layer(TEXT("Focus"), Rounded(FLinearColor::Transparent,
 				FVector4(RingRadius), Colors.Focus, Spec.FocusStrokeWidth))
 		};
@@ -237,7 +272,8 @@ FMordecaiUIPrimitiveSpec FMordecaiUIPrimitiveBuilder::Focus(
 			Layer(TEXT("Keyline"), Rounded(FLinearColor::Transparent,
 				FVector4(KeylineRadius), Colors.Ink, Spec.FocusKeylineWidth)),
 			Layer(TEXT("Focus"), Rounded(FLinearColor::Transparent,
-				FVector4(RingRadius), Colors.Focus, Spec.FocusStrokeWidth))
+				FVector4(RingRadius), Colors.Focus, Spec.FocusStrokeWidth),
+				FMargin(Spec.FocusKeylineWidth))
 		};
 	}
 	return Spec;
@@ -281,16 +317,7 @@ UOverlay* FMordecaiUIPrimitiveBuilder::Build(
 			{
 				Slot->SetHorizontalAlignment(PrimitiveLayer.HorizontalAlignment);
 				Slot->SetVerticalAlignment(PrimitiveLayer.VerticalAlignment);
-				FMargin SlotPadding = PrimitiveLayer.Padding;
-				if (PrimitiveLayer.HorizontalAlignment == HAlign_Left && PrimitiveLayer.DesiredSize.X > 0.f)
-				{
-					SlotPadding.Left += PrimitiveLayer.Center.X - PrimitiveLayer.DesiredSize.X * 0.5f;
-				}
-				if (PrimitiveLayer.VerticalAlignment == VAlign_Top && PrimitiveLayer.DesiredSize.Y > 0.f)
-				{
-					SlotPadding.Top += PrimitiveLayer.Center.Y - PrimitiveLayer.DesiredSize.Y * 0.5f;
-				}
-				Slot->SetPadding(SlotPadding);
+				Slot->SetPadding(ResolveSlotPadding(PrimitiveLayer));
 			}
 		}
 		else if (UOverlaySlot* Slot = Root->AddChildToOverlay(Border))
@@ -307,7 +334,41 @@ void FMordecaiUIPrimitiveBuilder::Apply(
 	UOverlay* Overlay,
 	const FMordecaiUIPrimitiveSpec& Spec)
 {
-	// RED3 scaffold: behavior is implemented after the contract test fails.
-	(void)Overlay;
-	(void)Spec;
+	if (!Overlay)
+	{
+		return;
+	}
+
+	for (const FMordecaiUIPrimitiveLayer& PrimitiveLayer : Spec.Layers)
+	{
+		UWidget* OverlayChild = nullptr;
+		UBorder* Border = FindNamedLayerBorder(Overlay, PrimitiveLayer.Name, OverlayChild);
+		if (!Border || !OverlayChild)
+		{
+			continue;
+		}
+
+		Border->SetBrush(PrimitiveLayer.Brush);
+		Border->SetPadding(FMargin(0.f));
+		Border->SetRenderTranslation(PrimitiveLayer.Translation);
+		Border->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+		if (USizeBox* SizeBox = Cast<USizeBox>(OverlayChild))
+		{
+			if (PrimitiveLayer.DesiredSize.X > 0.f)
+			{
+				SizeBox->SetWidthOverride(PrimitiveLayer.DesiredSize.X);
+			}
+			if (PrimitiveLayer.DesiredSize.Y > 0.f)
+			{
+				SizeBox->SetHeightOverride(PrimitiveLayer.DesiredSize.Y);
+			}
+		}
+		if (UOverlaySlot* Slot = Cast<UOverlaySlot>(OverlayChild->Slot))
+		{
+			Slot->SetHorizontalAlignment(PrimitiveLayer.HorizontalAlignment);
+			Slot->SetVerticalAlignment(PrimitiveLayer.VerticalAlignment);
+			Slot->SetPadding(ResolveSlotPadding(PrimitiveLayer));
+		}
+	}
 }
