@@ -5,6 +5,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "AbilitySystem/LyraAbilitySystemComponent.h"
+#include "CommonInputTypeEnum.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayAbilitySpec.h"
@@ -21,6 +22,8 @@
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiHeroComponent.h"
+#include "Mordecai/UI/MordecaiCombatHUDWidget.h"
+#include "Mordecai/UI/MordecaiCommonAnalogCursor.h"
 #include "Tests/Combat/MordecaiCombatGrantTestEnv.h"
 #include "UObject/SoftObjectPath.h"
 
@@ -244,6 +247,38 @@ bool FMordecai_Recovery_InputCombatActionsMappedAndBound::RunTest(const FString&
 	TestTrue("Same context on a second build", Hero->BuildAndBindRuntimeInput(EIC) == IMC);
 	TestEqual("Same number of bindings after a second build", EIC->GetActionEventBindings().Num(), NumBindings);
 	TestTrue("Same parry action on a second build", FindChordedAction(IMC, EKeys::LeftMouseButton, Block) == Parry);
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// Mordecai.Recovery.Input.GamepadAcceptPassesThroughGameplayHUD (US-119 AC-119.1)
+// The combat HUD must retain PR #84's initial-click capture mode without letting CommonUI turn
+// Gamepad A into a virtual mouse click before Enhanced Input sees the jump action.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_InputGamepadAcceptPassesThroughGameplayHUD,
+	"Mordecai.Recovery.Input.GamepadAcceptPassesThroughGameplayHUD",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_InputGamepadAcceptPassesThroughGameplayHUD::RunTest(const FString& Parameters)
+{
+	const UMordecaiCombatHUDWidget* HUD = NewObject<UMordecaiCombatHUDWidget>();
+	const TOptional<FUIInputConfig> Config = HUD->GetDesiredInputConfig();
+	if (!TestTrue("Combat HUD declares an input config", Config.IsSet()))
+	{
+		return true;
+	}
+
+	TestEqual("Combat HUD keeps gameplay input active",
+		Config->GetInputMode(), ECommonInputMode::Game);
+	TestEqual("Combat HUD preserves the first mouse click when capturing",
+		Config->GetMouseCaptureMode(), EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+
+	TestFalse("Gameplay mode passes virtual gamepad Accept to Enhanced Input",
+		FMordecaiCommonAnalogCursor::ShouldSimulateVirtualAccept(ECommonInputMode::Game));
+	TestTrue("Menu mode retains CommonUI virtual-Accept clicks",
+		FMordecaiCommonAnalogCursor::ShouldSimulateVirtualAccept(ECommonInputMode::Menu));
+	TestTrue("Combined UI/game mode retains CommonUI virtual-Accept clicks",
+		FMordecaiCommonAnalogCursor::ShouldSimulateVirtualAccept(ECommonInputMode::All));
 	return true;
 }
 

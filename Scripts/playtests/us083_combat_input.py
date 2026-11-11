@@ -250,6 +250,7 @@ def _idle_no_dodge(tags):
 
 class Us083Run(kit.PlaytestRun):
     STORY = STORY
+    COVERS = ("US-119",)
     FEATURES = ("block_parry", "melee_attack", "dodge", "movement", "sprint")
     TITLE = TITLE
     MAP = kit.MOVEMENT_TEST_MAP
