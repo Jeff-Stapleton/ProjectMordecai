@@ -238,7 +238,18 @@ namespace MordecaiTinTallyThemeTest
 		const UHorizontalBox* Box = Tally && Tally->WidgetTree
 			? Cast<UHorizontalBox>(Tally->WidgetTree->RootWidget)
 			: nullptr;
-		return Box ? Cast<UImage>(Box->GetChildAt(Index)) : nullptr;
+		if (!Box)
+		{
+			return nullptr;
+		}
+		if (UImage* LegacyImage = Cast<UImage>(Box->GetChildAt(Index)))
+		{
+			return LegacyImage;
+		}
+		return Tally->WidgetTree
+			? Cast<UImage>(Tally->WidgetTree->FindWidget(
+				FName(*FString::Printf(TEXT("TallyFill_%d"), Index))))
+			: nullptr;
 	}
 }
 

@@ -71,4 +71,33 @@ The story creates and configures font, material, texture, style, DataAsset, and 
 - [ ] Pushed; story moves to `stories/done/` only after all checks pass
 
 ## Completion Notes
-<Filled in by the implementing agent.>
+- Interpretation calls (design-doc faithful):
+  - AC-103.2's "static Rowdies and Atkinson TTFs" means the nine faces
+    needed by `tokens.json`: Rowdies 400/700, Atkinson Hyperlegible Next
+    500/600/700/800, and Atkinson Hyperlegible Mono 600/700/800.
+  - Unreal asset identifiers cannot retain the token hyphens safely across
+    generated-class paths, so `TS_Tally_<style>` maps `-` to `_`
+    (`TS_Tally_tally_display`, `TS_Tally_ui_body`, and so on) while metadata
+    retains the exact design token.
+  - AC-103.4 uses a command-line Development-only gallery overlay on
+    MovementTestMap rather than an input-controlled screen. It therefore adds
+    no new Tier 4 input script; the full existing sweep is the Tier 4 gate.
+  - The gallery crop uses a deterministic 960-design-pixel region centred in
+    the required 1920x1080 frame. Browser/Slate font raster fringe may affect
+    the similarity score, but dimensions, theme identity, hard-edge geometry,
+    visibility, and exact metadata are never masked.
+- RED scaffold: `Scripts/tin_tally_gallery.py` intentionally returns
+  not-implemented results so its offline tests fail at assertions rather than
+  import/compile time. It is replaced in GREEN without weakening the tests.
+- RED evidence (2026-11-11):
+  - `py Scripts/run_tests.py Mordecai.UI.Foundation` compiled and ran four
+    tests: 0 passed, 4 failed at assertions. Missing cooked assets/styles,
+    glyph count 0/117, absent two-layer tally widgets, stale SizeBox width,
+    and mismatched-spec acceptance all failed as intended. Log:
+    `Saved/TestLogs/tests-20261111-104659.log`.
+  - `py Scripts/run_python_tests.py -k tin_tally_gallery -v` ran 10 tests:
+    0 passed, 10 failed at assertions, 0 errors.
+  - To avoid compile-RED while making mismatched-spec rejection directly
+    testable, RED changes `FMordecaiUIPrimitiveBuilder::Apply` to return a
+    scaffold boolean while retaining its old behavior (`true` for any
+    non-null overlay). GREEN must add validation before returning `false`.

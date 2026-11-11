@@ -330,13 +330,13 @@ UOverlay* FMordecaiUIPrimitiveBuilder::Build(
 	return Root;
 }
 
-void FMordecaiUIPrimitiveBuilder::Apply(
+bool FMordecaiUIPrimitiveBuilder::Apply(
 	UOverlay* Overlay,
 	const FMordecaiUIPrimitiveSpec& Spec)
 {
 	if (!Overlay)
 	{
-		return;
+		return false;
 	}
 
 	for (const FMordecaiUIPrimitiveLayer& PrimitiveLayer : Spec.Layers)
@@ -371,4 +371,5 @@ void FMordecaiUIPrimitiveBuilder::Apply(
 			Slot->SetPadding(ResolveSlotPadding(PrimitiveLayer));
 		}
 	}
+	return true;
 }
