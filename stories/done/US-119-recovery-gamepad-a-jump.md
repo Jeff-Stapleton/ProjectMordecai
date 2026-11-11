@@ -2,6 +2,7 @@
 
 **Epic:** Epic R: Playability Recovery
 **Priority:** P0
+**Status:** Done
 **Depends on:** US-083, US-091, US-097
 **Paired story:** none
 
@@ -99,3 +100,4 @@ The fix is native C++ input routing with headless automation coverage; Tier 2 us
 - Screenshot review: no PNG was opened by the agent after two image-reader crashes. The bundle contains every baseline, candidate-sweep, and story-run PNG (173 files), and scripted PIL validation found 0 near-uniform images. The coordinator audited all 387 bundle hashes and reviewed the US-083 screenshots as normal on 2026-11-10.
 - Closure verification (2026-11-10): US-119 lint PASS (0 problems); focused live PIE router smoke PASS (5/5 checks); full Tier 1 PASS (811/811, `Saved/TestLogs/tests-20261110-193440.log`); Python tooling PASS (628/628). In PIE, `ULocalPlayer` is outered to `LyraEditorEngine`, so the smoke ties each router candidate to the live PIE game instance through the local player's world context rather than an invalid UObject outer-chain comparison.
 - Evidence bundle: `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-a070a6c1-b226-5814-8e79-461fc687d27c\files\issue-85-gamepad-a-jump-bdf68ee`.
+- **Closed at the coordinator's call (2026-11-10).** The packaged proof is `bdf68eeab264b053506f71817883d578f8593f08`; the closure commits are test/docs only, so no repackage was performed.
