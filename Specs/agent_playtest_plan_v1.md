@@ -172,6 +172,7 @@ The contract is `Specs/story_playtests_v1.md`.
 ---
 
 ## Known issues backlog (found by Phase 1 and Phase 2, not yet fixed)
+- **`verify_pie_defenses.py` can race DevTestMap's enemies.** During US-097 closure, the default-map smoke reproducibly reached the defense check after the pawn was dead / `MOVE_None` (16/17 PASS); the same defense smoke passed on enemy-free MovementTestMap. This is a DevTestMap isolation/timing issue, not an input regression.
 - Three floating red bars around the player: unidentified (enemy health bars on invisible enemies?). **Answered by Phase 2** (see the Phase 2 list below): they are the health bars of three invisible Frontliner enemies.
 - **Pickup name labels rendered rotated 90° (FIXED, issue #38).** Found by Phase 1 (`Saved/Playtests/20261018-223717-boot/engine_03.png`); also in the first Phase 3 sweep (`Saved/Playtests/20261022-184702-boot/engine_01.png`).
   - Cause: `AMordecaiItemPickup` gave its `NameLabel` (a `UTextRenderComponent`) a fixed relative rotation (45, 90, 0), commented "camera looks down from the south". The diorama camera has yaw 0: it looks along +X, pitched −50 (`MordecaiCameraMode_Diorama.cpp`). A TextRender's face is its local +X and its text runs along local −Y (engine `TextRenderComponent.cpp`), so the text ran along world +X: up the screen. Measured against that camera: facing 0.542, upright 0.000.

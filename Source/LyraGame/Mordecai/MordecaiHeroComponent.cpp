@@ -384,7 +384,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	BindAbilityInput(ParryAction, ETriggerEvent::Triggered, MordecaiGameplayTags::Input_Parry);
 	BindAbilityInput(DodgeAction, ETriggerEvent::Triggered, MordecaiGameplayTags::Input_Dodge);
 
-	// --- US-083: Jump (Space / Gamepad A) and the sprint toggle (Left Shift; the L3 key name is US-097's) ---
+	// --- US-083 / US-097: Jump (Space / Gamepad A) and the sprint toggle (Left Shift / Gamepad L3) ---
 	if (ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner()))
 	{
 		if (JumpAction)

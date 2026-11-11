@@ -7,6 +7,7 @@
 # [LOGIC] check here -- the keys are played for real only by the Tier 4 playtests):
 #   - the controller's DefaultCombatAbilities holds the 5 combat abilities (native defaults)
 #   - the player state's ASC holds a spec for each of them
+#   - every key in the live MordecaiIMC_Runtime is a valid engine FKey
 #   - the hero component's MordecaiIMC_Runtime maps LMB / RT (light Tap, heavy HoldAndRelease,
 #     parry chorded on Block + Pressed), RMB / LT (block, Down), LeftAlt / Gamepad B (dodge,
 #     Pressed), SpaceBar / Gamepad A (jump) and LeftShift (sprint)
@@ -108,14 +109,20 @@ def _run():
     if imc:
         check("Context is MordecaiIMC_Runtime", imc.get_name() == "MordecaiIMC_Runtime", imc.get_name())
         mappings = []
+        invalid_keys = []
         try:
             for m in imc.get_editor_property("default_key_mappings").get_editor_property("mappings"):
                 action = m.get_editor_property("action")
-                key = str(m.get_editor_property("key").get_editor_property("key_name"))
+                key_value = m.get_editor_property("key")
+                key = str(key_value.get_editor_property("key_name"))
                 triggers = [t.get_class().get_name() for t in m.get_editor_property("triggers") if t]
                 mappings.append((key, action.get_name() if action else None, triggers))
+                if not unreal.InputLibrary.key_is_valid(key_value):
+                    invalid_keys.append((key, action.get_name() if action else None))
         except Exception as e:
             check("Mappings readable", False, str(e))
+        check("Runtime mapping context has mappings", len(mappings) > 0)
+        check("Every runtime mapping key is valid", not invalid_keys, f"invalid: {invalid_keys}")
         for key, action, triggers in EXPECTED_MAPPINGS:
             found = [m for m in mappings if m[0] == key and m[1] == action]
             ok = any(all(t in m[2] for t in triggers) for m in found)

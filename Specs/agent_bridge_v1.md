@@ -375,7 +375,7 @@ The bridge replies `{"ok":true,"cmd":"quit"}`, flushes every connection, release
 | `SpaceBar` / `Gamepad_FaceButton_Bottom` | Jump |
 | `LeftShift` | Sprint toggle (a second tap walks again) |
 
-  Block and parry on the mouse need the right mouse button held across reads, which the playtest client cannot do (B2); on the gamepad, `axis` without `hold_s` holds LT / RT across reads (`Scripts/playtests/us083_combat_input.py`). Gamepad sticks and L3 use invalid key names today (Known issues).
+  Block and parry on the mouse need the right mouse button held across reads, which the playtest client cannot do (B2); on the gamepad, `axis` without `hold_s` holds LT / RT across reads (`Scripts/playtests/us083_combat_input.py`). Gamepad movement/aim use `Gamepad_Left2D` / `Gamepad_Right2D`, and L3 uses `Gamepad_LeftThumbstick` (US-097).
 
 ## 6. Python client (`Scripts/agent_bridge.py`)
 

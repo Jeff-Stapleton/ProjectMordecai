@@ -29,11 +29,6 @@ from tests import fake_bridge as fb  # noqa: E402
 PLAYTEST = os.path.join(SCRIPTS, "playtests", "us001_movement.py")
 STORY_FILE = os.path.join(os.path.dirname(SCRIPTS), "stories", "done",
                           "US-001-project-foundation.md")
-COVERED_STORY_FILES = [
-    os.path.join(os.path.dirname(SCRIPTS), "stories", folder,
-                 "US-097-recovery-gamepad-key-names.md")
-    for folder in ("in-progress", "done")
-]
 TOKEN = "us001-token"
 INPUT_AND_READ_CMDS = {"ping", "state", "key", "axis", "mouse", "click", "screenshot",
                        "wait_until", "wait", "quit"}
@@ -600,12 +595,8 @@ class TestUs001Plan(unittest.TestCase):
     def story_ac_ids(self):
         if not os.path.isfile(STORY_FILE):
             self.skipTest(f"{STORY_FILE} moved")
-        ids = set()
-        paths = [STORY_FILE] + [path for path in COVERED_STORY_FILES if os.path.isfile(path)]
-        for path in paths:
-            with open(path, encoding="utf-8") as f:
-                ids.update(re.findall(r"^- \[[ xX]\] \**(AC[-\w.]*\w)", f.read(), re.M))
-        return ids
+        with open(STORY_FILE, encoding="utf-8") as f:
+            return set(re.findall(r"^- \[[ xX]\] \**(AC[-\w.]*\w)", f.read(), re.M))
 
     def test_the_plan_is_valid_and_proves_real_acs(self):
         self.assertEqual(kit.plan_problems(us001.Us001Run), [])

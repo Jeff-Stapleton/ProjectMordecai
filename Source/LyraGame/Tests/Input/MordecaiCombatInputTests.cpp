@@ -256,6 +256,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_InputAllRuntimeKeysValid,
 
 bool FMordecai_Recovery_InputAllRuntimeKeysValid::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiCombatInputTestHelpers;
+
 	AMordecaiCharacter* Character = NewObject<AMordecaiCharacter>();
 	UMordecaiHeroComponent* Hero = Character->FindComponentByClass<UMordecaiHeroComponent>();
 	if (!TestNotNull("Hero component", Hero))
@@ -268,6 +270,20 @@ bool FMordecai_Recovery_InputAllRuntimeKeysValid::RunTest(const FString& Paramet
 	if (!TestNotNull("Runtime mapping context built", IMC))
 	{
 		return true;
+	}
+
+	TestTrue("Runtime mapping context has mappings", IMC->GetMappings().Num() > 0);
+	const UInputAction* Move = LoadMordecaiInputAction(TEXT("IA_Mordecai_Move"));
+	const UInputAction* Sprint = LoadMordecaiInputAction(TEXT("IA_Mordecai_Sprint"));
+	if (TestNotNull("IA_Mordecai_Move loads", Move))
+	{
+		TestNotNull("Gamepad_Left2D maps the move action",
+			FindKeyMapping(IMC, Move, EKeys::Gamepad_Left2D));
+	}
+	if (TestNotNull("IA_Mordecai_Sprint loads", Sprint))
+	{
+		TestNotNull("Gamepad_LeftThumbstick maps the sprint action",
+			FindKeyMapping(IMC, Sprint, EKeys::Gamepad_LeftThumbstick));
 	}
 
 	for (const FEnhancedActionKeyMapping& Mapping : IMC->GetMappings())
