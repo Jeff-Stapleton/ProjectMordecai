@@ -13,7 +13,6 @@
 #include "Fonts/CompositeFont.h"
 #include "Engine/Texture2D.h"
 #include "Materials/Material.h"
-#include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/AutomationTest.h"
 #include "Modules/ModuleManager.h"
@@ -270,13 +269,10 @@ bool FMordecai_UI_Foundation_AssetPathsAndTypes::RunTest(const FString& Paramete
 				}));
 		}
 		bool bSamplesHatch = false;
-		for (UMaterialExpression* Expression : Pattern->GetExpressions())
+		for (const TObjectPtr<UObject>& ReferencedTexture : Pattern->GetReferencedTextures())
 		{
-			if (const UMaterialExpressionTextureSample* Sample =
-				Cast<UMaterialExpressionTextureSample>(Expression))
-			{
-				bSamplesHatch |= Sample->Texture && Sample->Texture->GetName() == TEXT("T_UI_Hatch16");
-			}
+			bSamplesHatch |= ReferencedTexture
+				&& ReferencedTexture->GetName() == TEXT("T_UI_Hatch16");
 		}
 		TestTrue("pattern graph samples T_UI_Hatch16", bSamplesHatch);
 	}
