@@ -24,6 +24,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally")
 	FMordecaiUIPrimitiveSpec HighContrast;
+
+	/** Idempotently snapshots the named native builder into both saved theme specs. */
+	UFUNCTION(BlueprintCallable, Category = "Tin Tally")
+	bool PopulateFromBuilder(FName PrimitiveName);
 };
 
 /** Cook anchor and credits data for the complete Tin Tally foundation. */

@@ -1,0 +1,4 @@
+Atkinson Hyperlegible Mono
+Braille Institute · Applied Design Works · Letters from Sweden
+Copyright 2020-2024 The Atkinson Hyperlegible Mono Project Authors (https://github.com/googlefonts/atkinson-hyperlegible-next-mono)
+Licensed under the SIL Open Font License 1.1; see OFL.txt in this directory.

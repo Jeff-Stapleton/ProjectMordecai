@@ -3,8 +3,6 @@
 #include "Mordecai/UI/TinTally/MordecaiTinTallyGallerySubsystem.h"
 
 #include "Blueprint/WidgetTree.h"
-#include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "CommonTextBlock.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
@@ -14,11 +12,15 @@
 #include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/FileManager.h"
-#include "JsonObjectConverter.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
+#include "Misc/App.h"
 #include "Misc/CommandLine.h"
+#include "Misc/EngineVersion.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
@@ -26,7 +28,6 @@
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 #include "Mordecai/UI/TinTally/MordecaiUIThemeSubsystem.h"
-#include "Modules/ModuleManager.h"
 #include "Serialization/JsonSerializer.h"
 #include "UnrealClient.h"
 
@@ -380,21 +381,31 @@ namespace
 	void AddPattern(
 		UWidgetTree* Tree,
 		UCanvasPanel* Canvas,
-		const FLinearColor& Tint,
+		const FLinearColor& LineColor,
 		float X,
 		float Y,
 		float Width,
 		float Height)
 	{
-		UTexture2D* Pattern = LoadObject<UTexture2D>(
+		UMaterialInterface* Pattern = LoadObject<UMaterialInterface>(
 			nullptr,
-			TEXT("/MordecaiCore/UI/TinTally/Textures/T_UI_Hatch16.T_UI_Hatch16"));
+			TEXT("/MordecaiCore/UI/TinTally/Materials/M_UI_PatternFill.M_UI_PatternFill"));
+		UMaterialInstanceDynamic* Instance =
+			Pattern ? UMaterialInstanceDynamic::Create(Pattern, Canvas) : nullptr;
+		if (!Instance)
+		{
+			return;
+		}
+		Instance->SetVectorParameterValue(TEXT("Base"), FLinearColor::Transparent);
+		Instance->SetVectorParameterValue(TEXT("Line"), LineColor);
+		Instance->SetScalarParameterValue(TEXT("Period"), 16.f);
+		Instance->SetScalarParameterValue(TEXT("Angle"), 0.f);
+		Instance->SetScalarParameterValue(TEXT("LineWidth"), 1.f);
 		FSlateBrush Brush;
-		Brush.SetResourceObject(Pattern);
+		Brush.SetResourceObject(Instance);
 		Brush.DrawAs = ESlateBrushDrawType::Image;
-		Brush.ImageSize = FVector2D(16.f, 16.f);
-		Brush.Tiling = ESlateBrushTileType::Both;
-		AddBrush(Tree, Canvas, Brush, Tint, X, Y, Width, Height);
+		Brush.ImageSize = FVector2D(Width, Height);
+		AddBrush(Tree, Canvas, Brush, FLinearColor::White, X, Y, Width, Height);
 	}
 
 	FSlateBrush TallyAtlasBrush(UTexture2D* Atlas, int32 Frame, const FVector2D& Size)
@@ -1377,10 +1388,18 @@ bool UMordecaiTinTallyGallerySubsystem::IsValidSelection(
 	const FString& Theme,
 	const FString& State)
 {
-	(void)Component;
-	(void)Theme;
-	(void)State;
-	return true;
+	const bool bKnownComponent =
+		Component.Equals(TEXT("Plate"), ESearchCase::IgnoreCase)
+		|| Component.Equals(TEXT("Tag"), ESearchCase::IgnoreCase)
+		|| Component.Equals(TEXT("Keycap"), ESearchCase::IgnoreCase)
+		|| Component.Equals(TEXT("Tally"), ESearchCase::IgnoreCase)
+		|| Component.Equals(TEXT("Glyphs"), ESearchCase::IgnoreCase);
+	const bool bKnownTheme =
+		Theme.Equals(TEXT("diorama"), ESearchCase::IgnoreCase)
+		|| Theme.Equals(TEXT("high-contrast"), ESearchCase::IgnoreCase);
+	return bKnownComponent
+		&& bKnownTheme
+		&& State.Equals(TEXT("sheet"), ESearchCase::IgnoreCase);
 }
 
 void UMordecaiTinTallyGallerySubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -1389,6 +1408,19 @@ void UMordecaiTinTallyGallerySubsystem::Initialize(FSubsystemCollectionBase& Col
 #if !UE_BUILD_SHIPPING
 	if (FParse::Param(FCommandLine::Get(), TEXT("TinTallyGallery")))
 	{
+		const FString Component =
+			GalleryValue(TEXT("TinTallyGalleryComponent="), TEXT("Plate"));
+		const FString Theme =
+			GalleryValue(TEXT("TinTallyGalleryTheme="), TEXT("diorama"));
+		const FString State =
+			GalleryValue(TEXT("TinTallyGalleryState="), TEXT("sheet"));
+		if (!IsValidSelection(Component, Theme, State))
+		{
+			UE_LOG(LogTemp, Error,
+				TEXT("Tin Tally gallery rejected unknown selection Component='%s' Theme='%s' State='%s'"),
+				*Component, *Theme, *State);
+			return;
+		}
 		OutputPath = GalleryValue(
 			TEXT("TinTallyGalleryOutput="),
 			*(FPaths::ProjectSavedDir() / TEXT("TinTallyGallery/full.png")));
@@ -1436,13 +1468,6 @@ void UMordecaiTinTallyGallerySubsystem::ShowGallery()
 	if (UMordecaiUIThemeSubsystem* ThemeSubsystem =
 		UMordecaiUIThemeSubsystem::ResolveForWorld(World))
 	{
-		UMordecaiUIThemeDataAsset* Diorama = LoadObject<UMordecaiUIThemeDataAsset>(
-			nullptr,
-			TEXT("/MordecaiCore/UI/TinTally/Themes/DA_UITheme_Diorama.DA_UITheme_Diorama"));
-		UMordecaiUIThemeDataAsset* HighContrast = LoadObject<UMordecaiUIThemeDataAsset>(
-			nullptr,
-			TEXT("/MordecaiCore/UI/TinTally/Themes/DA_UITheme_HighContrast.DA_UITheme_HighContrast"));
-		ThemeSubsystem->SetThemeAssets(Diorama, HighContrast);
 		const FString ThemeName =
 			GalleryValue(TEXT("TinTallyGalleryTheme="), TEXT("diorama"));
 		ThemeSubsystem->SetActiveTheme(
@@ -1469,14 +1494,34 @@ void UMordecaiTinTallyGallerySubsystem::CaptureGallery()
 	Metadata->SetNumberField(TEXT("schema"), 1);
 	Metadata->SetStringField(TEXT("component"),
 		GalleryValue(TEXT("TinTallyGalleryComponent="), TEXT("Plate")));
-	Metadata->SetStringField(TEXT("theme"),
-		GalleryValue(TEXT("TinTallyGalleryTheme="), TEXT("diorama")));
-	Metadata->SetStringField(TEXT("state"),
-		GalleryValue(TEXT("TinTallyGalleryState="), TEXT("sheet")));
+	FString ResolvedTheme = TEXT("unknown");
+	if (UMordecaiUIThemeSubsystem* ThemeSubsystem =
+		UMordecaiUIThemeSubsystem::ResolveForWorld(GalleryWorld.Get()))
+	{
+		ResolvedTheme = ThemeSubsystem->GetActiveTheme() == EMordecaiUITheme::HighContrast
+			? TEXT("high-contrast")
+			: TEXT("diorama");
+	}
+	Metadata->SetStringField(TEXT("theme"), ResolvedTheme);
+	Metadata->SetStringField(TEXT("state"), TEXT("sheet"));
 	Metadata->SetStringField(TEXT("commit"),
 		GalleryValue(TEXT("TinTallyGalleryCommit="), TEXT("unknown")));
+	Metadata->SetStringField(TEXT("package_built_at"),
+		GalleryValue(TEXT("TinTallyGalleryBuiltAt="), TEXT("unknown")));
+	FString BuildStamp = FApp::GetBuildVersion();
+	if (BuildStamp.IsEmpty())
+	{
+		BuildStamp = FEngineVersion::Current().ToString();
+	}
+	Metadata->SetStringField(TEXT("build_stamp"), BuildStamp);
+	FIntPoint ViewportSize = FIntPoint::ZeroValue;
+	if (GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport)
+	{
+		ViewportSize = GEngine->GameViewport->Viewport->GetSizeXY();
+	}
 	Metadata->SetArrayField(TEXT("resolution"), {
-		MakeShared<FJsonValueNumber>(1920), MakeShared<FJsonValueNumber>(1080) });
+		MakeShared<FJsonValueNumber>(ViewportSize.X),
+		MakeShared<FJsonValueNumber>(ViewportSize.Y) });
 	Metadata->SetArrayField(TEXT("crop_rect"), {
 		MakeShared<FJsonValueNumber>(480), MakeShared<FJsonValueNumber>(120),
 		MakeShared<FJsonValueNumber>(960), MakeShared<FJsonValueNumber>(720) });

@@ -5,17 +5,18 @@ idempotent: it updates existing assets and replaces imported source data.
 """
 
 import json
-import os
 import pathlib
 import re
+import tempfile
 
 import unreal
 
 
 ROOT = pathlib.Path(unreal.Paths.project_dir()).resolve()
 TOKENS = ROOT / "Design" / "TinTally" / "ds" / "project" / "tokens.json"
-TEMP = pathlib.Path(os.environ["TEMP"])
-FONT_SOURCE = TEMP / "us103-fonts"
+FONT_SOURCE = ROOT / "Design" / "TinTally" / "ds" / "project" / "fonts" / "static"
+TEMP = pathlib.Path(tempfile.gettempdir())
+FONT_IMPORT_STAGE = TEMP / "us103-font-import"
 IMAGE_SOURCE = TEMP / "us103-foundation"
 BASE = "/MordecaiCore/UI/TinTally"
 TOOLS = unreal.AssetToolsHelpers.get_asset_tools()
@@ -126,12 +127,13 @@ def import_fonts():
         "FF_AtkinsonMono_Bold": "AtkinsonHyperlegibleMono-Bold.ttf",
         "FF_AtkinsonMono_ExtraBold": "AtkinsonHyperlegibleMono-ExtraBold.ttf",
     }
+    FONT_IMPORT_STAGE.mkdir(parents=True, exist_ok=True)
     face_assets = {}
     for asset_name, source_name in faces.items():
         source = FONT_SOURCE / source_name
         if not source.is_file():
             raise RuntimeError(f"missing static TTF: {source}")
-        copied = FONT_SOURCE / f"{asset_name}.ttf"
+        copied = FONT_IMPORT_STAGE / f"{asset_name}.ttf"
         copied.write_bytes(source.read_bytes())
         face = import_asset(
             copied, f"{BASE}/Fonts/Faces", unreal.FontFileImportFactory()
@@ -260,7 +262,7 @@ def configure_texture(texture):
         "compression_settings", unreal.TextureCompressionSettings.TC_EDITOR_ICON
     )
     texture.set_editor_property("lod_group", unreal.TextureGroup.TEXTUREGROUP_UI)
-    texture.set_editor_property("filter", unreal.TextureFilter.TF_NEAREST)
+    texture.set_editor_property("filter", unreal.TextureFilter.TF_BILINEAR)
     unreal.EditorAssetLibrary.save_loaded_asset(texture)
 
 
@@ -301,15 +303,87 @@ def create_material():
         )
     material.set_editor_property("material_domain", unreal.MaterialDomain.MD_UI)
     unreal.MaterialEditingLibrary.delete_all_material_expressions(material)
-    unreal.MaterialEditingLibrary.create_material_expression(
+    screen = unreal.MaterialEditingLibrary.create_material_expression(
         material, unreal.MaterialExpressionScreenPosition, -300, 0
     )
-    color = unreal.MaterialEditingLibrary.create_material_expression(
-        material, unreal.MaterialExpressionConstant4Vector, 0, 0
+    period = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionScalarParameter, -300, 160
     )
-    color.set_editor_property("constant", unreal.LinearColor.WHITE)
+    period.set_editor_property("parameter_name", "Period")
+    period.set_editor_property("default_value", 16.0)
+    angle = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionScalarParameter, -300, 260
+    )
+    angle.set_editor_property("parameter_name", "Angle")
+    angle.set_editor_property("default_value", 0.0)
+    line_width = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionScalarParameter, 80, 300
+    )
+    line_width.set_editor_property("parameter_name", "LineWidth")
+    line_width.set_editor_property("default_value", 1.0)
+    base = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionVectorParameter, 320, -120
+    )
+    base.set_editor_property("parameter_name", "Base")
+    base.set_editor_property("default_value", unreal.LinearColor(0.0, 0.0, 0.0, 0.0))
+    line = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionVectorParameter, 320, -20
+    )
+    line.set_editor_property("parameter_name", "Line")
+    line.set_editor_property("default_value", unreal.LinearColor.WHITE)
+    divide = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionDivide, -100, 40
+    )
+    rotator = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionRotator, 80, 40
+    )
+    rotator.set_editor_property("speed", 1.0)
+    sample = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionTextureSample, 260, 140
+    )
+    sample.set_editor_property(
+        "texture",
+        unreal.EditorAssetLibrary.load_asset(f"{BASE}/Textures/T_UI_Hatch16"),
+    )
+    multiply = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionMultiply, 480, 140
+    )
+    color_lerp = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionLinearInterpolate, 700, 20
+    )
+    base_alpha = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionComponentMask, 500, -120
+    )
+    base_alpha.set_editor_property("a", True)
+    line_alpha = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionComponentMask, 500, -40
+    )
+    line_alpha.set_editor_property("a", True)
+    opacity_lerp = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionLinearInterpolate, 700, 180
+    )
+
+    connect = unreal.MaterialEditingLibrary.connect_material_expressions
+    connect(screen, "PixelPosition", divide, "A")
+    connect(period, "", divide, "B")
+    connect(divide, "", rotator, "Coordinate")
+    connect(angle, "", rotator, "Time")
+    connect(rotator, "", sample, "Coordinates")
+    connect(sample, "R", multiply, "A")
+    connect(line_width, "", multiply, "B")
+    connect(base, "", color_lerp, "A")
+    connect(line, "", color_lerp, "B")
+    connect(multiply, "", color_lerp, "Alpha")
+    connect(base, "", base_alpha, "Input")
+    connect(line, "", line_alpha, "Input")
+    connect(base_alpha, "", opacity_lerp, "A")
+    connect(line_alpha, "", opacity_lerp, "B")
+    connect(multiply, "", opacity_lerp, "Alpha")
     unreal.MaterialEditingLibrary.connect_material_property(
-        color, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR
+        color_lerp, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR
+    )
+    unreal.MaterialEditingLibrary.connect_material_property(
+        opacity_lerp, "", unreal.MaterialProperty.MP_OPACITY
     )
     unreal.MaterialEditingLibrary.recompile_material(material)
     unreal.EditorAssetLibrary.save_loaded_asset(material)
@@ -324,6 +398,8 @@ def create_styles():
             f"{BASE}/Styles",
             unreal.MordecaiUIPrimitiveStyleDataAsset,
         )
+        if not style.populate_from_builder(name):
+            raise RuntimeError(f"unknown primitive builder: {name}")
         unreal.EditorAssetLibrary.save_loaded_asset(style)
         styles.append(style)
     return styles
@@ -336,9 +412,9 @@ def create_manifest(fonts, textures, material, styles):
     manifest.set_editor_property(
         "font_license_notices",
         [
-            "Rowdies — Copyright The Rowdies Project Authors — SIL Open Font License 1.1",
-            "Atkinson Hyperlegible Next — Copyright Braille Institute of America — SIL Open Font License 1.1",
-            "Atkinson Hyperlegible Mono — Copyright Braille Institute of America — SIL Open Font License 1.1",
+            "Rowdies — Copyright 2018 The Rowdies Project Authors (https://github.com/magictype/rowdies) — SIL Open Font License 1.1",
+            "Atkinson Hyperlegible Next — Copyright 2020-2024 The Atkinson Hyperlegible Next Project Authors (https://github.com/googlefonts/atkinson-hyperlegible-next) — SIL Open Font License 1.1",
+            "Atkinson Hyperlegible Mono — Copyright 2020-2024 The Atkinson Hyperlegible Mono Project Authors (https://github.com/googlefonts/atkinson-hyperlegible-next-mono) — SIL Open Font License 1.1",
         ],
     )
     manifest.set_editor_property("composite_fonts", list(fonts.values()))

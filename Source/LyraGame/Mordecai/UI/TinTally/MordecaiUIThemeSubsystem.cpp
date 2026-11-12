@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
+#include "UObject/SoftObjectPath.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiUIThemeSubsystem)
 
@@ -18,6 +19,13 @@ UMordecaiUIThemeSubsystem::UMordecaiUIThemeSubsystem()
 void UMordecaiUIThemeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	const TSoftObjectPtr<UMordecaiUIThemeDataAsset> DioramaPath(
+		FSoftObjectPath(TEXT(
+			"/MordecaiCore/UI/TinTally/Themes/DA_UITheme_Diorama.DA_UITheme_Diorama")));
+	const TSoftObjectPtr<UMordecaiUIThemeDataAsset> HighContrastPath(
+		FSoftObjectPath(TEXT(
+			"/MordecaiCore/UI/TinTally/Themes/DA_UITheme_HighContrast.DA_UITheme_HighContrast")));
+	SetThemeAssets(DioramaPath.LoadSynchronous(), HighContrastPath.LoadSynchronous());
 }
 
 void UMordecaiUIThemeSubsystem::SetActiveTheme(EMordecaiUITheme NewTheme)
@@ -56,8 +64,9 @@ void UMordecaiUIThemeSubsystem::SetThemeAssets(
 
 UMordecaiUIThemeDataAsset* UMordecaiUIThemeSubsystem::GetThemeAsset(EMordecaiUITheme Theme) const
 {
-	(void)Theme;
-	return nullptr;
+	return Theme == EMordecaiUITheme::HighContrast
+		? HighContrastThemeAsset.Get()
+		: DioramaThemeAsset.Get();
 }
 
 UMordecaiUIThemeSubsystem* UMordecaiUIThemeSubsystem::ResolveForWorld(const UObject* WorldContextObject)

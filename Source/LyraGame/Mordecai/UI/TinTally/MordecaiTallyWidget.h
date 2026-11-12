@@ -62,7 +62,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Tally")
 	void SetSealOnEnamel(bool bNewSealOnEnamel);
 
-	/** Configure the cooked atlas slices used by native and Development fixtures. */
+	/** Configure the cooked atlas slices used by native and non-Shipping fixtures. */
 	void SetFrameBrushes(
 		const TArray<FSlateBrush>& NewBundleFrames,
 		const TArray<FSlateBrush>& NewGhostBundleFrames,
@@ -135,6 +135,8 @@ private:
 
 	FLinearColor CurrentTint = FLinearColor::White;
 	FLinearColor CurrentGhostTint = FLinearColor::White;
+	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
+	FMordecaiUIThemeColors CurrentThemeColors;
 	FDelegateHandle ThemeChangedHandle;
 	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
 };

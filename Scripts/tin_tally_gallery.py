@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Packaged Tin Tally visual-gallery capture and comparison harness.
-
-US-103 RED scaffold: the public helpers exist so the tests compile and fail at
-assertion level. GREEN implements the package freshness gate, metadata checks,
-image comparison/evidence, packaged capture orchestration, and sweep diff.
-"""
+"""Packaged Tin Tally visual-gallery capture and comparison harness."""
 
 import argparse
 import datetime
@@ -29,6 +24,9 @@ MIN_TEXT_ROW_SIMILARITY = 0.15
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REFERENCE_SHOTS_DIR = os.path.join(
     ROOT, "Design", "TinTally", "ds", "build", "shots"
+)
+TOKENS_PATH = os.path.join(
+    ROOT, "Design", "TinTally", "ds", "project", "tokens.json"
 )
 TEXT_BANDS = {
     "plate": ((18, 54), (60, 292), (324, 354), (386, 442), (478, 620)),
@@ -116,7 +114,14 @@ def make_capture_metadata(component, theme, state, build_info, crop_rect):
     }
 
 
-def validate_capture(image_path, metadata, build_info, expected_theme):
+def validate_capture(
+    image_path,
+    metadata,
+    build_info,
+    expected_theme,
+    expected_component=None,
+    expected_state="sheet",
+):
     """Return a list of rejection reasons; an empty list means valid."""
     reasons = []
     if not os.path.isfile(image_path):
@@ -127,6 +132,10 @@ def validate_capture(image_path, metadata, build_info, expected_theme):
     except (OSError, ValueError) as exc:
         return [f"capture is unreadable: {exc}"]
 
+    if image.size != CAPTURE_SIZE:
+        reasons.append(
+            f"capture image size must be 1920x1080; got {image.size[0]}x{image.size[1]}"
+        )
     if metadata.get("resolution") != list(CAPTURE_SIZE):
         reasons.append(
             f"capture metadata must be 1920x1080; got {metadata.get('resolution')}"
@@ -135,17 +144,56 @@ def validate_capture(image_path, metadata, build_info, expected_theme):
         reasons.append(
             f"theme mismatch: expected {expected_theme}, got {metadata.get('theme')}"
         )
+    if (
+        expected_component
+        and str(metadata.get("component", "")).casefold()
+        != expected_component.casefold()
+    ):
+        reasons.append(
+            "component mismatch: "
+            f"expected {expected_component}, got {metadata.get('component')}"
+        )
+    if metadata.get("state") != expected_state:
+        reasons.append(
+            f"state mismatch: expected {expected_state}, got {metadata.get('state')}"
+        )
     if metadata.get("commit") != build_info.get("commit"):
         reasons.append(
             f"stale capture commit {metadata.get('commit')} != {build_info.get('commit')}"
         )
     if build_info.get("dirty"):
         reasons.append("package metadata says dirty=true")
+    if not metadata.get("build_stamp"):
+        reasons.append("capture metadata has no game build stamp")
+    if metadata.get("package_built_at") != build_info.get("built_at"):
+        reasons.append(
+            "capture package timestamp does not match the clean package metadata"
+        )
 
     extrema = image.getextrema()
     if all(channel[1] <= 2 for channel in extrema):
         reasons.append("capture is black")
+    if image.size == CAPTURE_SIZE:
+        expected_plate = _theme_plate_rgb(expected_theme)
+        sample = image.getpixel((CAPTURE_SIZE[0] - 490, 120 + 710))
+        if max(abs(sample[index] - expected_plate[index]) for index in range(3)) > 12:
+            reasons.append(
+                "sheet plate pixel does not match the resolved "
+                f"{expected_theme} plate token: got {sample}, expected {expected_plate}"
+            )
     return reasons
+
+
+def _theme_plate_rgb(theme):
+    data = _load_json(TOKENS_PATH)
+    plate = next(
+        token["value"]
+        for token in data["color"]["tokens"]
+        if token["name"] == "plate"
+    )
+    value = plate[theme] if isinstance(plate, dict) else plate
+    value = value.lstrip("#")
+    return tuple(int(value[index:index + 2], 16) for index in (0, 2, 4))
 
 
 def _background_color(image):
@@ -509,6 +557,11 @@ def _capture_one(exe, run_dir, build_info, component, theme, state):
     full_path = os.path.abspath(os.path.join(run_dir, f"{stem}-full.png"))
     metadata_path = os.path.splitext(full_path)[0] + ".json"
     log_path = os.path.abspath(os.path.join(run_dir, f"{stem}.log"))
+    for stale_path in (full_path, metadata_path):
+        try:
+            os.remove(stale_path)
+        except FileNotFoundError:
+            pass
     game_args = [
         playtest_boot.MOVEMENT_TEST_MAP,
         "-game",
@@ -524,6 +577,7 @@ def _capture_one(exe, run_dir, build_info, component, theme, state):
         f"-TinTallyGalleryTheme={theme}",
         f"-TinTallyGalleryState={state}",
         f"-TinTallyGalleryCommit={build_info['commit']}",
+        f"-TinTallyGalleryBuiltAt={build_info['built_at']}",
         f'-TinTallyGalleryOutput="{full_path.replace(os.sep, "/")}"',
     ]
     process, job, _ = playtest_boot.launch_game(exe, game_args)
@@ -553,13 +607,14 @@ def _capture_one(exe, run_dir, build_info, component, theme, state):
             job.close()
 
     metadata = _load_json(metadata_path)
-    metadata.update(
-        make_capture_metadata(component, theme, state, build_info, [480, 120, 960, 720])
+    reasons = validate_capture(
+        full_path,
+        metadata,
+        build_info,
+        theme,
+        expected_component=component,
+        expected_state=state,
     )
-    with open(metadata_path, "w", encoding="utf-8") as target:
-        json.dump(metadata, target, indent=2)
-        target.write("\n")
-    reasons = validate_capture(full_path, metadata, build_info, theme)
     crop_path = os.path.join(run_dir, f"{stem}-crop.png")
     if not reasons:
         with Image.open(full_path) as image:
@@ -625,11 +680,7 @@ def main(argv=None):
     for result in results:
         if not result.get("crop"):
             continue
-        result["reasons"] = [
-            reason
-            for reason in result.get("reasons", [])
-            if not reason.startswith("geometrically or text/edge divergent")
-        ]
+        result["compare_failures"] = []
         comparison = compare_images(
             reference_path(result["component"], result["theme"]),
             result["crop"],
@@ -637,10 +688,10 @@ def main(argv=None):
             f"{result['component'].lower()}-{result['theme']}",
         )
         result["comparison"] = comparison
-        result["passed"] = not result["reasons"] and comparison["passed"]
+        result["passed"] = not result.get("reasons") and comparison["passed"]
         if not comparison["passed"]:
             result["passed"] = False
-            result.setdefault("reasons", []).append(comparison["reason"])
+            result["compare_failures"].append(comparison["reason"])
     report = {
         "schema": 1,
         "commit": build_info.get("commit"),

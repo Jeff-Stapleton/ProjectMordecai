@@ -10,9 +10,7 @@
 
 #include "MordecaiTinTallyGallerySubsystem.generated.h"
 
-class UVerticalBox;
-
-/** Deterministic, command-line selected foundation sheet used only by Development builds. */
+/** Deterministic, command-line selected foundation sheet used only by non-Shipping builds. */
 UCLASS()
 class LYRAGAME_API UMordecaiTinTallyGalleryWidget : public UUserWidget
 {
@@ -57,6 +55,8 @@ private:
 	FTimerHandle ShowTimer;
 	FTimerHandle CaptureTimer;
 	TWeakObjectPtr<UWorld> GalleryWorld;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UMordecaiTinTallyGalleryWidget> GalleryWidget;
 	FString OutputPath;
 };

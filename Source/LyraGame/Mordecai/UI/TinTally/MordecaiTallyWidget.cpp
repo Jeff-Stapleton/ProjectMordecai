@@ -24,8 +24,9 @@ UMordecaiTallyWidget::UMordecaiTallyWidget(const FObjectInitializer& ObjectIniti
 		Frame.DrawAs = ESlateBrushDrawType::NoDrawType;
 	}
 	CapDotBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
-	CurrentTint = FMordecaiUIThemeColors::MakeDiorama().Text;
-	CurrentGhostTint = FMordecaiUIThemeColors::MakeDiorama().Lip;
+	CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
+	CurrentTint = CurrentThemeColors.Text;
+	CurrentGhostTint = CurrentThemeColors.Lip;
 }
 
 bool UMordecaiTallyWidget::Initialize()
@@ -112,18 +113,21 @@ void UMordecaiTallyWidget::SetUsage(EMordecaiTallyUsage NewUsage)
 	{
 		Usage = NewUsage;
 	}
+	ApplyTheme(CurrentTheme, CurrentThemeColors);
 	Refresh();
 }
 
 void UMordecaiTallyWidget::SetRarityTier(EMordecaiItemRarity NewRarity)
 {
-	(void)NewRarity;
+	Rarity = NewRarity;
+	ApplyTheme(CurrentTheme, CurrentThemeColors);
 	Refresh();
 }
 
 void UMordecaiTallyWidget::SetSealOnEnamel(bool bNewSealOnEnamel)
 {
-	(void)bNewSealOnEnamel;
+	bSealOnEnamel = bNewSealOnEnamel;
+	ApplyTheme(CurrentTheme, CurrentThemeColors);
 	Refresh();
 }
 
@@ -240,17 +244,39 @@ void UMordecaiTallyWidget::ApplyTheme(
 	EMordecaiUITheme Theme,
 	const FMordecaiUIThemeColors& Colors)
 {
-	(void)Theme;
+	CurrentTheme = Theme;
+	CurrentThemeColors = Colors;
 	switch (Usage)
 	{
 	case EMordecaiTallyUsage::RarityBadge:
-		CurrentTint = Colors.Good;
+		switch (Rarity)
+		{
+		case EMordecaiItemRarity::Green:
+			CurrentTint = Colors.RarityGreen;
+			break;
+		case EMordecaiItemRarity::Blue:
+			CurrentTint = Colors.RarityBlue;
+			break;
+		case EMordecaiItemRarity::Purple:
+			CurrentTint = Colors.RarityPurple;
+			break;
+		case EMordecaiItemRarity::Red:
+			CurrentTint = Colors.RarityRed;
+			break;
+		case EMordecaiItemRarity::Gold:
+			CurrentTint = Colors.RarityGold;
+			break;
+		case EMordecaiItemRarity::Common:
+		default:
+			CurrentTint = Colors.RarityCommon;
+			break;
+		}
 		break;
 	case EMordecaiTallyUsage::LoadingThrobber:
-		CurrentTint = Colors.Focus;
+		CurrentTint = Colors.Text;
 		break;
 	case EMordecaiTallyUsage::Seal:
-		CurrentTint = Colors.Ink;
+		CurrentTint = bSealOnEnamel ? Colors.Ink : Colors.Rim;
 		break;
 	case EMordecaiTallyUsage::SkillRank:
 	default:
