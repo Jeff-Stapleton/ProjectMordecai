@@ -30,7 +30,7 @@ def render_glyphs(output):
     page = [
         "<!doctype html><style>",
         f"*{{box-sizing:border-box}}html,body{{margin:0;width:{columns*cell}px;"
-        f"height:{rows*cell}px;background:#000}}",
+        f"height:{rows*cell}px;background:transparent}}",
         f"main{{display:grid;grid-template-columns:repeat({columns},{cell}px)}}",
         f"div{{width:{cell}px;height:{cell}px;padding:8px}}",
         "img{width:48px;height:48px;filter:brightness(0) invert(1)}",
@@ -49,6 +49,7 @@ def render_glyphs(output):
                 "--headless=new",
                 "--disable-gpu",
                 "--hide-scrollbars",
+                "--default-background-color=00000000",
                 f"--window-size={columns*cell},{rows*cell}",
                 f"--user-data-dir={pathlib.Path(tmp) / 'profile'}",
                 f"--screenshot={sheet_path}",

@@ -67,12 +67,17 @@ namespace
 		float Y,
 		float Width,
 		float Height,
-		ETextJustify::Type Justification = ETextJustify::Left)
+		ETextJustify::Type Justification = ETextJustify::Left,
+		bool bAutoWrap = false)
 	{
 		UTextBlock* Text = Tree->ConstructWidget<UTextBlock>();
 		Text->SetText(FText::FromString(Value));
 		Text->SetJustification(Justification);
-		Text->SetAutoWrapText(false);
+		Text->SetAutoWrapText(bAutoWrap);
+		if (bAutoWrap)
+		{
+			Text->SetWrapTextAt(Width);
+		}
 		const FString ClassPath = FString::Printf(
 			TEXT("/MordecaiCore/UI/TinTally/Fonts/Styles/TS_Tally_%s.TS_Tally_%s_C"),
 			StyleName,
@@ -227,7 +232,7 @@ namespace
 			EMordecaiKeycapShape::Square);
 		const float MouseX = X + 10.f;
 		const float MouseY = Y + 4.f;
-		AddBox(Tree, Canvas, FLinearColor::Transparent, MouseX, MouseY, 20.f, 27.f, 10.f, Colors.Ink, 2.f);
+		AddBox(Tree, Canvas, Colors.Enamel, MouseX, MouseY, 20.f, 27.f, 10.f, Colors.Ink, 2.f);
 		AddBox(Tree, Canvas, Colors.Ink, MouseX, MouseY + 10.f, 20.f, 2.f);
 		AddBox(Tree, Canvas, Colors.Ink, MouseX + 9.f, MouseY, 2.f, 11.f);
 		if (LitSection == 0)
@@ -381,21 +386,20 @@ namespace
 		float Width,
 		float Height)
 	{
-		UObject* Pattern = LoadObject<UObject>(
+		UTexture2D* Pattern = LoadObject<UTexture2D>(
 			nullptr,
-			TEXT("/MordecaiCore/UI/TinTally/Materials/M_UI_PatternFill.M_UI_PatternFill"));
-		AddTexture(Tree, Canvas, Pattern, Tint, X, Y, Width, Height);
+			TEXT("/MordecaiCore/UI/TinTally/Textures/T_UI_Hatch16.T_UI_Hatch16"));
+		FSlateBrush Brush;
+		Brush.SetResourceObject(Pattern);
+		Brush.DrawAs = ESlateBrushDrawType::Image;
+		Brush.ImageSize = FVector2D(16.f, 16.f);
+		Brush.Tiling = ESlateBrushTileType::Both;
+		AddBrush(Tree, Canvas, Brush, Tint, X, Y, Width, Height);
 	}
 
 	FSlateBrush TallyAtlasBrush(UTexture2D* Atlas, int32 Frame, const FVector2D& Size)
 	{
 		FSlateBrush Brush;
-		if (Frame <= 0)
-		{
-			Brush.DrawAs = ESlateBrushDrawType::NoDrawType;
-			Brush.ImageSize = Size;
-			return Brush;
-		}
 		Brush.SetResourceObject(Atlas);
 		Brush.DrawAs = ESlateBrushDrawType::Image;
 		Brush.ImageSize = Size;
@@ -433,21 +437,18 @@ namespace
 		float Y,
 		float Size)
 	{
-		AddBox(
-			Tree, Canvas, FLinearColor::Transparent, X, Y, Size, Size,
-			Size * 0.5f, Color, 3.f);
-		if (StrokeCount > 0)
-		{
-			AddAtlasFrame(
-				Tree, Canvas, FMath::Clamp(StrokeCount, 1, 5), Color,
-				X + Size * 0.18f, Y + Size * 0.20f, Size * 0.64f, Size * 0.60f);
-		}
+		(void)Colors;
 		if (StrokeCount == 0)
 		{
 			AddBox(
-				Tree, Canvas, FLinearColor::Transparent,
-				X + Size * 0.20f, Y + Size * 0.20f, Size * 0.60f, Size * 0.60f,
-				Size * 0.3f, Colors.Lip, 2.f);
+				Tree, Canvas, FLinearColor::Transparent, X, Y, Size, Size,
+				Size * 0.5f, Color, 3.f);
+		}
+		else
+		{
+			AddAtlasFrame(
+				Tree, Canvas, FMath::Clamp(StrokeCount, 1, 5), Color,
+				X + Size * 0.10f, Y + Size * 0.10f, Size * 0.80f, Size * 0.80f);
 		}
 	}
 
@@ -544,9 +545,17 @@ namespace
 			82.f,
 			288.f,
 			168.f);
-		AddText(
-			Tree, Canvas, TEXT("Kills: 12"), TEXT("num_l"), Colors.Text,
-			108.f, 135.f, 230.f, 55.f, ETextJustify::Center);
+		// The runtime primitive supplies the production layers. These enlarged
+		// overlays preserve the preview's exact 4x radius and outside outline.
+		AddBox(
+			Tree, Canvas, FLinearColor(Colors.Ink.R, Colors.Ink.G, Colors.Ink.B, 0.55f),
+			80.f, 98.f, 288.f, 168.f, 48.f);
+		AddBox(
+			Tree, Canvas, Colors.Plate,
+			80.f, 82.f, 288.f, 168.f, 48.f, Colors.Ink, 12.f);
+		AddBox(
+			Tree, Canvas, FLinearColor::Transparent,
+			88.f, 90.f, 272.f, 152.f, 40.f, Colors.Rim, 8.f);
 		const FVector2D MarkerPositions[] = {
 			FVector2D(53.f, 151.f), FVector2D(159.f, 71.f), FVector2D(349.f, 227.f),
 			FVector2D(209.f, 151.f), FVector2D(141.f, 259.f), FVector2D(81.f, 83.f)
@@ -618,6 +627,14 @@ namespace
 			AddGlyph(
 				Tree, Canvas, SpellGlyphs[Slot], Colors.Text,
 				SlotX + 15.f, 487.f, 48.f);
+			const int32 PipCount = Slot == 0 ? 3 : Slot == 1 ? 2 : 0;
+			const float PipStartX = SlotX + 72.f - (PipCount * 14.f + FMath::Max(0, PipCount - 1) * 3.f);
+			for (int32 Pip = 0; Pip < PipCount; ++Pip)
+			{
+				AddBox(
+					Tree, Canvas, Colors.SpellPoints,
+					PipStartX + Pip * 17.f, 463.f, 14.f, 14.f, 7.f, Colors.Ink, 2.f);
+			}
 			AddKeycap(
 				Tree,
 				Canvas,
@@ -629,7 +646,7 @@ namespace
 				32.f,
 				32.f);
 			AddText(
-				Tree, Canvas, SpellNames[Slot], TEXT("ui_label"), Colors.TextMuted,
+				Tree, Canvas, SpellNames[Slot], TEXT("ui_label"), Colors.Ink,
 				SlotX - 8.f, 578.f, 96.f, 28.f, ETextJustify::Center);
 		}
 
@@ -695,18 +712,27 @@ namespace
 			Canvas,
 			FMordecaiUIPrimitiveBuilder::Tag(Colors, EMordecaiUIPrintDepth::HUD, Theme),
 			TEXT("TagAnatomy"),
-			196.f,
+			220.f,
 			98.f,
 			600.f,
 			104.f);
-		AddText(
+		// The anatomy specimen is the canonical 300 x 52 tag rendered at 2x.
+		UTextBlock* TagTitle = AddText(
 			Tree, Canvas, TEXT("Upgrade Key"), TEXT("ui_title"), Colors.Ink,
-			290.f, 128.f, 360.f, 48.f);
-		AddBox(Tree, Canvas, Colors.Well, 702.f, 122.f, 58.f, 58.f, 29.f, Colors.Ink, 3.f);
-		AddRarityBadge(Tree, Canvas, 2, Colors.RarityBlue, Colors, 712.f, 132.f, 38.f);
+			308.f, 116.f, 190.f, 34.f);
+		FWidgetTransform TagTitleTransform;
+		TagTitleTransform.Scale = FVector2D(2.f, 2.f);
+		TagTitle->SetRenderTransformPivot(FVector2D::ZeroVector);
+		TagTitle->SetRenderTransform(TagTitleTransform);
+		// Eyelet: 12 px well, 3 px enamel-shade and 2 px ink, all at 2x.
+		AddBox(Tree, Canvas, Colors.Ink, 242.f, 128.f, 44.f, 44.f, 22.f);
+		AddBox(Tree, Canvas, Colors.EnamelShade, 246.f, 132.f, 36.f, 36.f, 18.f);
+		AddBox(Tree, Canvas, Colors.Well, 252.f, 138.f, 24.f, 24.f, 12.f);
+		AddBox(Tree, Canvas, Colors.Ink, 726.f, 118.f, 58.f, 64.f, 12.f);
+		AddRarityBadge(Tree, Canvas, 2, Colors.RarityBlue, Colors, 736.f, 131.f, 38.f);
 		const FVector2D MarkerPositions[] = {
-			FVector2D(225.f, 67.f), FVector2D(521.f, 195.f), FVector2D(633.f, 135.f),
-			FVector2D(723.f, 67.f), FVector2D(175.f, 191.f), FVector2D(819.f, 135.f)
+			FVector2D(249.f, 67.f), FVector2D(545.f, 195.f), FVector2D(657.f, 135.f),
+			FVector2D(747.f, 67.f), FVector2D(199.f, 191.f), FVector2D(843.f, 135.f)
 		};
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(MarkerPositions); ++Index)
 		{
@@ -859,8 +885,11 @@ namespace
 		float KeyX = 48.f;
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Keys); ++Index)
 		{
-			const bool bWide = Index >= 6;
-			const float Width = Index == 10 ? 104.f : bWide ? 64.f : 40.f;
+			const float Width =
+				Index == 10 ? 104.f :
+				Index == 8 ? 84.f :
+				Index >= 6 ? 72.f :
+				40.f;
 			AddKeycap(
 				Tree, Canvas, Colors, FString::Printf(TEXT("KeyboardKey%d"), Index),
 				Keys[Index], KeyX, 116.f, Width, 40.f);
@@ -908,37 +937,37 @@ namespace
 		AddText(
 			Tree, Canvas, TEXT("Face buttons"), TEXT("ui_label"), Colors.TextMuted,
 			48.f, 390.f, 190.f, 28.f, ETextJustify::Center);
-		AddFacePosition(Tree, Canvas, Colors, 242.f, 344.f);
+		AddFacePosition(Tree, Canvas, Colors, 258.f, 344.f);
 		AddText(
 			Tree, Canvas, TEXT("Position"), TEXT("ui_label"), Colors.TextMuted,
-			232.f, 390.f, 60.f, 28.f, ETextJustify::Center);
+			248.f, 390.f, 60.f, 28.f, ETextJustify::Center);
 		AddKeycap(
-			Tree, Canvas, Colors, TEXT("LB"), TEXT("LB"), 280.f, 344.f, 66.f, 40.f,
+			Tree, Canvas, Colors, TEXT("LB"), TEXT("LB"), 326.f, 344.f, 66.f, 40.f,
 			EMordecaiKeycapShape::Pill);
 		AddKeycap(
-			Tree, Canvas, Colors, TEXT("RB"), TEXT("RB"), 356.f, 344.f, 66.f, 40.f,
+			Tree, Canvas, Colors, TEXT("RB"), TEXT("RB"), 402.f, 344.f, 66.f, 40.f,
 			EMordecaiKeycapShape::Pill);
 		AddKeycap(
-			Tree, Canvas, Colors, TEXT("LT"), TEXT("LT"), 456.f, 338.f, 58.f, 48.f,
+			Tree, Canvas, Colors, TEXT("LT"), TEXT("LT"), 500.f, 338.f, 58.f, 48.f,
 			EMordecaiKeycapShape::Pill);
 		AddKeycap(
-			Tree, Canvas, Colors, TEXT("RT"), TEXT("RT"), 524.f, 338.f, 58.f, 48.f,
+			Tree, Canvas, Colors, TEXT("RT"), TEXT("RT"), 568.f, 338.f, 58.f, 48.f,
 			EMordecaiKeycapShape::Pill);
 		AddKeycap(
-			Tree, Canvas, Colors, TEXT("StickL"), TEXT("L"), 620.f, 338.f, 48.f, 48.f,
+			Tree, Canvas, Colors, TEXT("StickL"), TEXT("L"), 660.f, 338.f, 48.f, 48.f,
 			EMordecaiKeycapShape::Round);
 		AddKeycap(
-			Tree, Canvas, Colors, TEXT("StickR"), TEXT("R"), 678.f, 338.f, 48.f, 48.f,
+			Tree, Canvas, Colors, TEXT("StickR"), TEXT("R"), 718.f, 338.f, 48.f, 48.f,
 			EMordecaiKeycapShape::Round);
 		AddText(
 			Tree, Canvas, TEXT("Shoulders"), TEXT("ui_label"), Colors.TextMuted,
-			278.f, 394.f, 146.f, 28.f, ETextJustify::Center);
+			324.f, 394.f, 146.f, 28.f, ETextJustify::Center);
 		AddText(
 			Tree, Canvas, TEXT("Triggers"), TEXT("ui_label"), Colors.TextMuted,
-			454.f, 394.f, 130.f, 28.f, ETextJustify::Center);
+			498.f, 394.f, 130.f, 28.f, ETextJustify::Center);
 		AddText(
 			Tree, Canvas, TEXT("Stick clicks"), TEXT("ui_label"), Colors.TextMuted,
-			618.f, 394.f, 110.f, 28.f, ETextJustify::Center);
+			658.f, 394.f, 110.f, 28.f, ETextJustify::Center);
 		for (int32 Index = 0; Index < 4; ++Index)
 		{
 			AddDPad(Tree, Canvas, Colors, 48.f + Index * 54.f, 438.f, 40.f);
@@ -971,18 +1000,23 @@ namespace
 			Tree, Canvas, TEXT("Normal"), TEXT("ui_label"), Colors.TextMuted,
 			44.f, 640.f, 100.f, 32.f);
 		const TCHAR* StateHeaders[] = {
-			TEXT("KEY"), TEXT("WIDE"), TEXT("MOUSE"), TEXT("FACE"),
-			TEXT("SHOULDER"), TEXT("TRIGGER"), TEXT("STICK"), TEXT("D-PAD")
+			TEXT("Key"), TEXT("Wide"), TEXT("Mouse"), TEXT("Face"),
+			TEXT("Shoulder"), TEXT("Trigger"), TEXT("Stick"), TEXT("D-pad")
+		};
+		const float HeaderX[] = {
+			152.f, 244.f, 326.f, 430.f, 513.f, 606.f, 703.f, 799.f
+		};
+		const float HeaderWidth[] = {
+			80.f, 80.f, 84.f, 80.f, 100.f, 94.f, 80.f, 90.f
 		};
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(StateHeaders); ++Index)
 		{
-			const float HeaderX = 150.f + Index * 92.f;
 			AddText(
 				Tree, Canvas, StateHeaders[Index], TEXT("ui_label"), Colors.TextMuted,
-				HeaderX, 586.f, 84.f, 30.f, ETextJustify::Center);
+				HeaderX[Index], 586.f, HeaderWidth[Index], 30.f, ETextJustify::Center);
 		}
 		AddKeycap(Tree, Canvas, Colors, TEXT("StateQ"), TEXT("Q"), 172.f, 632.f);
-		AddKeycap(Tree, Canvas, Colors, TEXT("StateEsc"), TEXT("Esc"), 252.f, 632.f, 64.f);
+		AddKeycap(Tree, Canvas, Colors, TEXT("StateEsc"), TEXT("Esc"), 248.f, 632.f, 72.f);
 		AddMouseCap(Tree, Canvas, Colors, TEXT("StateMouse"), 348.f, 630.f, 0);
 		AddKeycap(
 			Tree, Canvas, Colors, TEXT("StateA"), TEXT("A"), 450.f, 632.f, 40.f, 40.f,
@@ -1021,73 +1055,72 @@ namespace
 				PanelX,
 				58.f,
 				288.f,
-				188.f);
+				272.f);
 			AddText(
 				Tree, Canvas, FString::FromInt(Index + 1), TEXT("num_l"), Colors.TextMuted,
-				PanelX + 18.f, 72.f, 32.f, 40.f);
+				PanelX + 18.f, 81.f, 32.f, 40.f);
 			AddText(
 				Tree, Canvas, Titles[Index], TEXT("ui_title"), Colors.Text,
-				PanelX + 56.f, 74.f, 210.f, 38.f);
+				PanelX + 56.f, 83.f, 210.f, 38.f);
 		}
 		AddTally(
 			Tree, Canvas, 12, 20, EMordecaiTallyUsage::SkillRank,
-			44.f, 124.f, 148.f, 32.f);
-		AddCapDot(Tree, Canvas, Colors.Text, 48.f, 127.f, 3.f);
+			44.f, 148.f, 148.f, 32.f);
+		AddCapDot(Tree, Canvas, Colors.Text, 51.f, 152.f, 3.f);
 		AddText(
 			Tree, Canvas, TEXT("12 / 20"), TEXT("num_m"), Colors.Text,
-			198.f, 126.f, 88.f, 32.f, ETextJustify::Right);
+			198.f, 148.f, 88.f, 32.f, ETextJustify::Right);
 		const FLinearColor RarityColors[] = {
 			Colors.RarityCommon, Colors.RarityGreen, Colors.RarityBlue,
 			Colors.RarityPurple, Colors.RarityRed, Colors.RarityGold
 		};
+		const float RarityX[] = { 376.f, 411.f, 433.f, 460.f, 495.f, 533.f };
+		const float RaritySize[] = { 24.f, 24.f, 24.f, 24.f, 24.f, 30.f };
 		for (int32 Rank = 0; Rank < 6; ++Rank)
 		{
 			AddRarityBadge(
 				Tree, Canvas, Rank, RarityColors[Rank], Colors,
-				348.f + Rank * 40.f, 124.f, 30.f);
+				RarityX[Rank], 150.f, RaritySize[Rank]);
 		}
-		AddSeal(Tree, Canvas, Colors, 650.f, 116.f, 56.f);
-		for (int32 Frame = 0; Frame < 6; ++Frame)
-		{
-			AddAtlasFrame(
-				Tree, Canvas, 0, Colors.Lip,
-				720.f + Frame * 32.f, 126.f, 26.f, 34.f);
-			if (Frame > 0)
-			{
-				AddAtlasFrame(
-					Tree, Canvas, Frame, Colors.Text,
-					720.f + Frame * 32.f, 126.f, 26.f, 34.f);
-			}
-		}
+		AddSeal(Tree, Canvas, Colors, 650.f, 136.f, 56.f);
+		AddTally(
+			Tree, Canvas, 3, 5, EMordecaiTallyUsage::LoadingThrobber,
+			724.f, 144.f, 48.f, 40.f);
 		AddText(
-			Tree, Canvas, TEXT("20 strokes; slashes mark 5 / 10 / 15 / 20."),
-			TEXT("ui_label"), Colors.TextMuted, 44.f, 178.f, 244.f, 52.f);
+			Tree, Canvas,
+			TEXT("20 strokes in text; slashes on milestones 5, 10, 15, 20; rank 1 wears a cap dot."),
+			TEXT("ui_label"), Colors.TextMuted, 44.f, 204.f, 244.f, 106.f,
+			ETextJustify::Left, true);
 		AddText(
-			Tree, Canvas, TEXT("A ring, then 1–4 strokes; Gold is the full bundle."),
-			TEXT("ui_label"), Colors.TextMuted, 348.f, 178.f, 244.f, 52.f);
+			Tree, Canvas,
+			TEXT("A ring, then 1 to 4 strokes, then the full bundle: gold means rarity Gold only."),
+			TEXT("ui_label"), Colors.TextMuted, 348.f, 204.f, 244.f, 106.f,
+			ETextJustify::Left, true);
 		AddText(
-			Tree, Canvas, TEXT("The seal and static loading frames."),
-			TEXT("ui_label"), Colors.TextMuted, 652.f, 178.f, 252.f, 52.f);
+			Tree, Canvas,
+			TEXT("The seal marks titles and receipts; the throbber is for the loading screen only."),
+			TEXT("ui_label"), Colors.TextMuted, 652.f, 204.f, 252.f, 106.f,
+			ETextJustify::Left, true);
 
 		AddText(
 			Tree, Canvas, TEXT("ANATOMY, ENLARGED · RANK 7 OF 10"),
-			TEXT("kicker"), Colors.TextMuted, 24.f, 264.f, 912.f, 28.f);
+			TEXT("kicker"), Colors.TextMuted, 24.f, 364.f, 912.f, 28.f);
 		AddPrimitive(
 			Tree,
 			Canvas,
 			FMordecaiUIPrimitiveBuilder::Plate(Colors, EMordecaiUIPrintDepth::Menu, Theme),
 			TEXT("TallyAnatomy"),
 			24.f,
-			302.f,
+			402.f,
 			330.f,
-			174.f);
+			200.f);
 		AddTally(
 			Tree, Canvas, 7, 10, EMordecaiTallyUsage::SkillRank,
-			64.f, 336.f, 246.f, 96.f);
-		AddCapDot(Tree, Canvas, Colors.Text, 71.f, 343.f, 6.f);
+			64.f, 454.f, 246.f, 96.f);
+		AddCapDot(Tree, Canvas, Colors.Text, 87.f, 465.f, 6.f);
 		const FVector2D AnatomyMarkers[] = {
-			FVector2D(58.f, 324.f), FVector2D(123.f, 438.f),
-			FVector2D(250.f, 438.f), FVector2D(310.f, 324.f)
+			FVector2D(72.f, 417.f), FVector2D(113.f, 561.f),
+			FVector2D(169.f, 421.f), FVector2D(271.f, 561.f)
 		};
 		const TCHAR* AnatomyText[] = {
 			TEXT("Cap dot on rank 1"),
@@ -1097,7 +1130,7 @@ namespace
 		};
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(AnatomyText); ++Index)
 		{
-			const float RowY = 304.f + Index * 42.f;
+			const float RowY = 404.f + Index * 48.f;
 			AddMarker(
 				Tree, Canvas, Colors, Index + 1,
 				AnatomyMarkers[Index].X, AnatomyMarkers[Index].Y);
@@ -1109,14 +1142,14 @@ namespace
 
 		AddText(
 			Tree, Canvas, TEXT("SKILL RANKS · THE SKILLS TAB ROW (148 x 24) AND DETAIL (180 x 32)"),
-			TEXT("kicker"), Colors.TextMuted, 24.f, 500.f, 912.f, 28.f);
+			TEXT("kicker"), Colors.TextMuted, 24.f, 688.f, 912.f, 28.f);
 		AddPrimitive(
 			Tree,
 			Canvas,
 			FMordecaiUIPrimitiveBuilder::Plate(Colors, EMordecaiUIPrintDepth::Menu, Theme),
 			TEXT("RankList"),
 			24.f,
-			536.f,
+			724.f,
 			500.f,
 			180.f);
 		AddPrimitive(
@@ -1125,12 +1158,12 @@ namespace
 			FMordecaiUIPrimitiveBuilder::Plate(Colors, EMordecaiUIPrintDepth::Menu, Theme),
 			TEXT("RankDetail"),
 			544.f,
-			536.f,
+			724.f,
 			392.f,
 			180.f);
 		AddText(
 			Tree, Canvas, TEXT("Longswords"), TEXT("ui_title"), Colors.Text,
-			566.f, 550.f, 250.f, 36.f);
+			566.f, 738.f, 250.f, 36.f);
 		const TCHAR* Names[] = {
 			TEXT("Parrying"), TEXT("Fireball"), TEXT("Blink"),
 			TEXT("Stone Skin"), TEXT("Longswords"), TEXT("Dodging")
@@ -1138,7 +1171,7 @@ namespace
 		const int32 Counts[] = { 0, 1, 4, 5, 12, 20 };
 		for (int32 Row = 0; Row < 6; ++Row)
 		{
-			const float RowY = 544.f + Row * 27.f;
+			const float RowY = 732.f + Row * 27.f;
 			AddText(
 				Tree, Canvas, Names[Row], TEXT("ui_body"),
 				Row == 0 ? Colors.TextDisabled : Colors.Text,
@@ -1157,17 +1190,17 @@ namespace
 		}
 		AddTally(
 			Tree, Canvas, 12, 20, EMordecaiTallyUsage::SkillRank,
-			566.f, 594.f, 180.f, 32.f);
-		AddCapDot(Tree, Canvas, Colors.Text, 570.f, 598.f, 3.f);
+			566.f, 782.f, 180.f, 32.f);
+		AddCapDot(Tree, Canvas, Colors.Text, 570.f, 786.f, 3.f);
 		AddText(
 			Tree, Canvas, TEXT("12 / 20"), TEXT("num_m"), Colors.Text,
-			806.f, 594.f, 104.f, 32.f, ETextJustify::Right);
+			806.f, 782.f, 104.f, 32.f, ETextJustify::Right);
 		AddText(
 			Tree, Canvas, TEXT("1     5      10      15      20"), TEXT("num_s"), Colors.TextMuted,
-			562.f, 636.f, 202.f, 26.f);
+			562.f, 824.f, 202.f, 26.f);
 		AddText(
 			Tree, Canvas, TEXT("Detail size · milestone numbers sit under the marks."),
-			TEXT("ui_label"), Colors.TextMuted, 566.f, 674.f, 340.f, 30.f);
+			TEXT("ui_label"), Colors.TextMuted, 566.f, 862.f, 340.f, 30.f);
 	}
 
 	void BuildGlyphFixture(
@@ -1181,7 +1214,8 @@ namespace
 			TEXT("silenced"), TEXT("rooted"), TEXT("blinded"), TEXT("fear"),
 			TEXT("cursed"), TEXT("exposed"), TEXT("corroded"), TEXT("drenched"),
 			TEXT("focused"), TEXT("stoneskin"), TEXT("fireward"), TEXT("blessed"),
-			TEXT("restoration"), TEXT("enchanted"), TEXT("blurred"), TEXT("resolved")
+			TEXT("restoration"), TEXT("enchanted"), TEXT("blurred"), TEXT("resolved"),
+			TEXT("sleeping")
 		};
 		AddText(
 			Tree, Canvas, TEXT("STATUS · 25"), TEXT("kicker"), Colors.TextMuted,
@@ -1191,39 +1225,56 @@ namespace
 			const int32 Column = Index % 6;
 			const int32 Row = Index / 6;
 			const float CellX = 24.f + Column * 152.f;
-			const float CellY = 58.f + Row * 154.f;
+			const float CellY = 56.f + Row * 100.f;
 			const FString GlyphName(StatusNames[Index]);
-			const FString AssetName = GlyphName.Replace(TEXT("-"), TEXT("_"));
-			const FString Path = FString::Printf(
-				TEXT("/MordecaiCore/UI/TinTally/Textures/Glyphs/T_UI_Glyph_%s.T_UI_Glyph_%s"),
-				*AssetName,
-				*AssetName);
-			UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *Path);
-			AddPrimitive(
-				Tree,
-				Canvas,
-				FMordecaiUIPrimitiveBuilder::InsetCardWell(Colors),
-				FString::Printf(TEXT("GlyphDark%d"), Index),
-				CellX,
-				CellY,
-				136.f,
-				68.f);
-			AddTexture(
-				Tree, Canvas, Texture, Colors.Text,
-				CellX + 52.f, CellY + 18.f, 32.f, 32.f);
 			AddBox(
-				Tree, Canvas, Colors.Enamel, CellX, CellY + 76.f, 136.f, 40.f,
-				8.f, Colors.Ink, 2.f);
-			AddTexture(
-				Tree, Canvas, Texture, Colors.Ink,
-				CellX + 58.f, CellY + 86.f, 20.f, 20.f);
+				Tree, Canvas, Colors.PlateRaised, CellX, CellY, 144.f, 92.f,
+				8.f, Colors.Lip, 2.f);
+			AddGlyph(
+				Tree, Canvas, GlyphName, Colors.Text,
+				CellX + 23.f, CellY + 14.f, 32.f);
+			AddBox(
+				Tree, Canvas, Colors.Enamel, CellX + 74.f, CellY + 8.f, 62.f, 44.f,
+				6.f);
+			AddGlyph(
+				Tree, Canvas, GlyphName, Colors.Ink,
+				CellX + 95.f, CellY + 20.f, 20.f);
 			AddText(
-				Tree, Canvas, GlyphName.ToUpper(), TEXT("num_s"), Colors.TextMuted,
-				CellX, CellY + 120.f, 136.f, 30.f, ETextJustify::Center);
+				Tree, Canvas, GlyphName, TEXT("ui_label"), Colors.TextMuted,
+				CellX + 4.f, CellY + 58.f, 136.f, 28.f, ETextJustify::Center);
 		}
 		AddText(
 			Tree, Canvas, TEXT("DAMAGE · 16"), TEXT("kicker"), Colors.TextMuted,
-			24.f, 686.f, 912.f, 28.f);
+			24.f, 576.f, 912.f, 28.f);
+		static const TCHAR* DamageNames[] = {
+			TEXT("physical"), TEXT("slash"), TEXT("pierce"), TEXT("blunt"),
+			TEXT("fire"), TEXT("frost"), TEXT("lightning"), TEXT("poison"),
+			TEXT("corrosive"), TEXT("arcane"), TEXT("shadow"), TEXT("radiant"),
+			TEXT("heal"), TEXT("crit"), TEXT("block"), TEXT("immune")
+		};
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(DamageNames); ++Index)
+		{
+			const int32 Column = Index % 6;
+			const int32 Row = Index / 6;
+			const float CellX = 24.f + Column * 152.f;
+			const float CellY = 604.f + Row * 100.f;
+			const FString GlyphName(DamageNames[Index]);
+			AddBox(
+				Tree, Canvas, Colors.PlateRaised, CellX, CellY, 144.f, 92.f,
+				8.f, Colors.Lip, 2.f);
+			AddGlyph(
+				Tree, Canvas, GlyphName, Colors.Text,
+				CellX + 23.f, CellY + 14.f, 32.f);
+			AddBox(
+				Tree, Canvas, Colors.Enamel, CellX + 74.f, CellY + 8.f, 62.f, 44.f,
+				6.f);
+			AddGlyph(
+				Tree, Canvas, GlyphName, Colors.Ink,
+				CellX + 95.f, CellY + 20.f, 20.f);
+			AddText(
+				Tree, Canvas, GlyphName, TEXT("ui_label"), Colors.TextMuted,
+				CellX + 4.f, CellY + 58.f, 136.f, 28.f, ETextJustify::Center);
+		}
 	}
 }
 

@@ -54,6 +54,52 @@ TEXT_EDGE_THRESHOLDS = {
     ("glyphs", "diorama"): (0.36, 0.16),
     ("glyphs", "high-contrast"): (0.32, 0.15),
 }
+LOCALIZED_REGIONS = {
+    "tally": {
+        "captions": ((40, 190, 304, 320), (344, 190, 608, 320), (648, 190, 912, 320)),
+        "rarity": ((344, 108, 608, 174),),
+        "seal_throbber": ((648, 108, 912, 174),),
+        "anatomy": ((24, 402, 354, 602),),
+    },
+    "keycap": {
+        "wide_keys": ((330, 108, 836, 166),),
+        "mouse": ((40, 174, 286, 224),),
+        "gamepad_spacing": ((228, 332, 748, 430),),
+        "state_headers": ((140, 578, 902, 620),),
+    },
+    "glyphs": {
+        "tile_chips": ((24, 56, 936, 558),),
+        "labels": (
+            (24, 116, 936, 148),
+            (24, 216, 936, 248),
+            (24, 316, 936, 348),
+            (24, 416, 936, 448),
+            (24, 516, 936, 548),
+        ),
+    },
+}
+# Localized comparisons use 12 px density cells, then combine edge-map and
+# foreground-mask overlap. These floors are deliberately stricter than the
+# whole-sheet gates: a correct heading cannot compensate for a missing mouse,
+# tally detail, inverse glyph, or label inside the component's design region.
+LOCALIZED_MIN_SCORE = {
+    "tally": {
+        "captions": 0.28,
+        "rarity": 0.18,
+        "seal_throbber": 0.28,
+        "anatomy": 0.28,
+    },
+    "keycap": {
+        "wide_keys": 0.52,
+        "mouse": 0.35,
+        "gamepad_spacing": 0.20,
+        "state_headers": 0.28,
+    },
+    "glyphs": {
+        "tile_chips": 0.60,
+        "labels": 0.60,
+    },
+}
 
 
 def make_capture_metadata(component, theme, state, build_info, crop_rect):
@@ -205,6 +251,52 @@ def _bbox_edge_delta(reference_box, capture_box, size):
     )
 
 
+def _localized_region_metrics(reference_edges, capture_edges, ref_mask, cap_mask, component):
+    """Compare canonical component regions without allowing cross-region credit."""
+    region_thresholds = LOCALIZED_MIN_SCORE.get(component)
+    if region_thresholds is None:
+        return {}
+    results = {}
+    for name, rectangles in LOCALIZED_REGIONS[component].items():
+        threshold = region_thresholds[name]
+        reference_edge_values = []
+        capture_edge_values = []
+        reference_foreground_values = []
+        capture_foreground_values = []
+        for rectangle in rectangles:
+            width = max(1, rectangle[2] - rectangle[0])
+            height = max(1, rectangle[3] - rectangle[1])
+            columns = max(1, width // 12)
+            rows = max(1, height // 12)
+            reference_edge_values.extend(
+                _grid_density(reference_edges.crop(rectangle), columns, rows)
+            )
+            capture_edge_values.extend(
+                _grid_density(capture_edges.crop(rectangle), columns, rows)
+            )
+            reference_foreground_values.extend(
+                _grid_density(ref_mask.crop(rectangle), columns, rows)
+            )
+            capture_foreground_values.extend(
+                _grid_density(cap_mask.crop(rectangle), columns, rows)
+            )
+        edge_similarity = _density_overlap(
+            reference_edge_values, capture_edge_values
+        )
+        foreground_similarity = _density_overlap(
+            reference_foreground_values, capture_foreground_values
+        )
+        score = 0.7 * edge_similarity + 0.3 * foreground_similarity
+        results[name] = {
+            "score": score,
+            "edge_similarity": edge_similarity,
+            "foreground_similarity": foreground_similarity,
+            "threshold": threshold,
+            "passed": score >= threshold,
+        }
+    return results
+
+
 def reference_path(component, theme):
     return os.path.join(REFERENCE_SHOTS_DIR, f"{component}.{theme}.png")
 
@@ -296,6 +388,16 @@ def compare_images(reference_path, capture_path, output_dir, stem):
         _text_row_density(reference_edges, text_bands),
         _text_row_density(capture_edges, text_bands),
     )
+    localized_regions = _localized_region_metrics(
+        reference_edges,
+        capture_edges,
+        ref_mask,
+        cap_mask,
+        component,
+    )
+    localized_passed = all(
+        region["passed"] for region in localized_regions.values()
+    )
     foreground_pixels = {
         "reference": _mask_pixels(ref_mask),
         "capture": _mask_pixels(cap_mask),
@@ -314,6 +416,7 @@ def compare_images(reference_path, capture_path, output_dir, stem):
         and bbox_delta <= thresholds["max_bbox_edge_delta"]
         and edge_grid_similarity >= thresholds["edge_grid"]
         and text_row_similarity >= thresholds["text_row"]
+        and localized_passed
         and not both_uniform_but_different
     )
 
@@ -323,11 +426,15 @@ def compare_images(reference_path, capture_path, output_dir, stem):
     side.paste(reference, (0, 0))
     side.paste(capture, (reference.width, 0))
     side.save(side_path)
+    localized_summary = ", ".join(
+        f"{name} {region['score']:.4f}/{region['threshold']:.4f}"
+        for name, region in localized_regions.items()
+    )
     reason = (
         "foreground geometry is within tolerance"
         if passed
         else (
-            "geometrically or text/edge divergent "
+            "geometrically, text/edge, or localized-region divergent "
             f"(foreground IoU {foreground_iou:.4f}, "
             f"bbox edge delta {bbox_delta:.4f}, "
             f"edge-grid {edge_grid_similarity:.4f}, "
@@ -335,7 +442,8 @@ def compare_images(reference_path, capture_path, output_dir, stem):
             f"{thresholds['min_foreground_iou']:.4f}, bbox delta <= "
             f"{thresholds['max_bbox_edge_delta']:.4f}, edge-grid >= "
             f"{thresholds['edge_grid']:.4f}, and text-row >= "
-            f"{thresholds['text_row']:.4f})"
+            f"{thresholds['text_row']:.4f}; localized: "
+            f"{localized_summary or 'not applicable'})"
         )
     )
     return {
@@ -346,6 +454,7 @@ def compare_images(reference_path, capture_path, output_dir, stem):
         "bbox_edge_delta": bbox_delta,
         "edge_grid_similarity": edge_grid_similarity,
         "text_row_similarity": text_row_similarity,
+        "localized_regions": localized_regions,
         "foreground_pixels": foreground_pixels,
         "reference_bbox": list(ref_box) if ref_box else None,
         "capture_bbox": list(cap_box) if cap_box else None,
