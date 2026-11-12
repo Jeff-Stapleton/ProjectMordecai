@@ -695,6 +695,9 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 	TestEqual("prompt copy is vertically centred in its 60px size box",
 		PromptTextSlot ? PromptTextSlot->GetVerticalAlignment() : VAlign_Fill,
 		VAlign_Center);
+	TestEqual("prompt glyphs compensate for the UI font's high baseline",
+		PromptText ? static_cast<float>(PromptText->GetRenderTransform().Translation.Y) : 0.f,
+		6.f);
 	TestEqual("prompt restores ellipsis overflow",
 		PromptText ? PromptText->GetTextOverflowPolicy() : ETextOverflowPolicy::Clip,
 		ETextOverflowPolicy::Ellipsis);
