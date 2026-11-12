@@ -214,5 +214,8 @@ The story creates and configures font, material, texture, style, DataAsset, and 
   - Both retain the same failures (`us001`, `us054_arena`, `us057`, `us069`,
     `us078`); zero script-level and zero individual-check PASS-to-FAIL
     transitions.
+- Corrected evidence bundle (381 files, all 381 SHA-256 hashes independently
+  re-read and verified):
+  `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4d6a1be8-b372-5492-abbe-334810677171\files\issue-102-us103-655a2e3`.
 - Story intentionally remains in progress with ACs unchecked for coordinator
   image review, closure, and merge.
