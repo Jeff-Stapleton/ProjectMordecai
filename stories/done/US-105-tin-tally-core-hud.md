@@ -2,6 +2,7 @@
 
 **Epic:** Epic Tin Tally: In-engine UI
 **Priority:** P1
+**Status:** Done
 **Depends on:** US-103, US-088
 **Paired story:** none
 
@@ -68,7 +69,7 @@ All surfaces use native C++ fallbacks and foundation assets created by US-103.
 - [x] US-057, US-079, US-091 and their `--lint` checks pass on the same package; full sweep has no baseline PASS to FAIL (US-057's sole failure is the coordinator-accepted pre-existing N16/#21 baseline)
 - [x] Both-theme preview comparisons pass; every `engine_NN.png`, `bridge_NN.png`, preview, crop, and diff is opened and described (coordinator-approved scripted-analysis/bundled-image review path below)
 - [x] Evidence run dirs appear in Completion Notes and the closing `[US-105]` commit body; the closing commit touches only `stories/`
-- [x] Pushed; story remains in `stories/backlog/` for this requested fix round rather than being moved
+- [x] Coordinator audited Round 4 and approved moving the story to `stories/done/`
 
 ## Completion Notes
 - RED commits: `9e4ae439ca` (round-two HUD coverage) and `478c1d2ce5` (real-widget gallery stage/probe coverage). Both failed for the intended missing behavior before their fixes.
@@ -112,3 +113,11 @@ All surfaces use native C++ fallbacks and foundation assets created by US-103.
 - Image evidence follows the coordinator-approved path: no PNG/JPG was opened with the file-read tool; Pillow analyzed all 144 bundled images, with zero black and zero near-uniform frames, and the complete images are present for coordinator review.
 - Evidence bundle: `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4eb93230-a5cd-5e66-9c54-ede2ebbf0cc1\files\us105-r4-e010936` (268 files including `SHA256SUMS.txt`, 144 images, raw baseline/final sweep JSON and Markdown summaries; copied and hash-verified).
 - Optional LOW items still deferred for follow-up: per-update stamina allocation/brush churn, same-name rivet rebuild optimization, cooldown-outline fallback without a theme, gallery SP 14/13 fixture, gauge-sheet frame clipping, spawn-time posture delay, and the theme resolver `const_cast`.
+
+### Final Coordinator Closeout
+
+- Audited evidence head: `d80d4773c5cbb752c9fa8f8bfeb555fecaae7001`; package commit: `e0109361eab91b367c3886b963d739c3566a408e` (`dirty=false`, `source_changed_during_build=false`); hash-verified bundle: `us105-r4-e010936` (268 files).
+- Final verification: compile PASS; Tier 1 831/831 PASS; Tier 2 20/20 PASS; four Tier 3 boots PASS; required US-091 weapons Tier 4 PASS; every US-105 check in US-057 PASS except the accepted N16 / issue #21 baseline; both-theme real-widget gallery PASS.
+- Full sweep versus main-equivalent baseline: identical failing set, script PASS-to-FAIL `[]`, check PASS-to-FAIL `[]`.
+- Coordinator-accepted decisions: cost rivets remain at `y = -7` to centre their 14 px discs on the slot top edge; N16 / issue #21 is accepted as a pre-existing baseline; the coordinator completed the PNG visual review and accepted the Tab fit, countdown backing, and prompt centring.
+- Deferred LOW items are tracked in a follow-up issue: per-update stamina allocation/brush churn, same-name rivet rebuild optimization, cooldown-outline fallback without a theme, gallery SP 14/13 fixture, gauge-sheet frame clipping, spawn-time posture delay, and the theme resolver `const_cast`.
