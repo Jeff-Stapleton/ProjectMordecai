@@ -256,13 +256,22 @@ def create_text_styles(fonts):
             unreal.EditorAssetLibrary.save_loaded_asset(blueprint)
 
 
-def configure_texture(texture):
+def configure_texture(texture, *, hatch=False):
     texture.set_editor_property("srgb", False)
     texture.set_editor_property(
         "compression_settings", unreal.TextureCompressionSettings.TC_EDITOR_ICON
     )
     texture.set_editor_property("lod_group", unreal.TextureGroup.TEXTUREGROUP_UI)
-    texture.set_editor_property("filter", unreal.TextureFilter.TF_BILINEAR)
+    texture.set_editor_property(
+        "filter",
+        unreal.TextureFilter.TF_NEAREST if hatch else unreal.TextureFilter.TF_BILINEAR,
+    )
+    if hatch:
+        texture.set_editor_property("address_x", unreal.TextureAddress.TA_WRAP)
+        texture.set_editor_property("address_y", unreal.TextureAddress.TA_WRAP)
+        texture.set_editor_property(
+            "mip_gen_settings", unreal.TextureMipGenSettings.TMGS_NO_MIPMAPS
+        )
     unreal.EditorAssetLibrary.save_loaded_asset(texture)
 
 
@@ -276,7 +285,7 @@ def import_textures():
         raise RuntimeError(f"expected 117 glyph textures, imported {len(textures)}")
     for name in ("T_UI_Hatch16", "T_UI_TallyAtlas"):
         texture = import_asset(IMAGE_SOURCE / f"{name}.png", f"{BASE}/Textures")
-        configure_texture(texture)
+        configure_texture(texture, hatch=name == "T_UI_Hatch16")
         textures.append(texture)
     for name in (
         "T_UI_Badge_FeatCommon",
@@ -304,10 +313,13 @@ def create_material():
     material.set_editor_property("material_domain", unreal.MaterialDomain.MD_UI)
     unreal.MaterialEditingLibrary.delete_all_material_expressions(material)
     screen = unreal.MaterialEditingLibrary.create_material_expression(
-        material, unreal.MaterialExpressionScreenPosition, -300, 0
+        material, unreal.MaterialExpressionScreenPosition, -520, 0
+    )
+    view_size = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionViewSize, -520, 120
     )
     period = unreal.MaterialEditingLibrary.create_material_expression(
-        material, unreal.MaterialExpressionScalarParameter, -300, 160
+        material, unreal.MaterialExpressionScalarParameter, -520, 240
     )
     period.set_editor_property("parameter_name", "Period")
     period.set_editor_property("default_value", 16.0)
@@ -325,25 +337,39 @@ def create_material():
         material, unreal.MaterialExpressionVectorParameter, 320, -120
     )
     base.set_editor_property("parameter_name", "Base")
-    base.set_editor_property("default_value", unreal.LinearColor(0.0, 0.0, 0.0, 0.0))
+    base.set_editor_property(
+        "default_value", unreal.LinearColor(0.7913, 0.7682, 0.7011, 1.0)
+    )
     line = unreal.MaterialEditingLibrary.create_material_expression(
         material, unreal.MaterialExpressionVectorParameter, 320, -20
     )
     line.set_editor_property("parameter_name", "Line")
-    line.set_editor_property("default_value", unreal.LinearColor.WHITE)
-    divide = unreal.MaterialEditingLibrary.create_material_expression(
+    line.set_editor_property(
+        "default_value", unreal.LinearColor(0.6654, 0.6376, 0.5647, 1.0)
+    )
+    normalized_period = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionDivide, -300, 140
+    )
+    screen_tiles = unreal.MaterialEditingLibrary.create_material_expression(
         material, unreal.MaterialExpressionDivide, -100, 40
     )
     rotator = unreal.MaterialEditingLibrary.create_material_expression(
-        material, unreal.MaterialExpressionRotator, 80, 40
+        material, unreal.MaterialExpressionRotator, 180, 40
     )
     rotator.set_editor_property("speed", 1.0)
+    wrap = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionFrac, 220, 40
+    )
     sample = unreal.MaterialEditingLibrary.create_material_expression(
-        material, unreal.MaterialExpressionTextureSample, 260, 140
+        material, unreal.MaterialExpressionTextureSample, 380, 140
     )
     sample.set_editor_property(
         "texture",
         unreal.EditorAssetLibrary.load_asset(f"{BASE}/Textures/T_UI_Hatch16"),
+    )
+    sample.set_editor_property(
+        "sampler_source",
+        unreal.SamplerSourceMode.SSM_FROM_TEXTURE_ASSET,
     )
     multiply = unreal.MaterialEditingLibrary.create_material_expression(
         material, unreal.MaterialExpressionMultiply, 480, 140
@@ -363,19 +389,30 @@ def create_material():
         material, unreal.MaterialExpressionLinearInterpolate, 700, 180
     )
 
-    connect = unreal.MaterialEditingLibrary.connect_material_expressions
-    connect(screen, "PixelPosition", divide, "A")
-    connect(period, "", divide, "B")
-    connect(divide, "", rotator, "Coordinate")
+    def connect(source, output_name, target, input_name):
+        if not unreal.MaterialEditingLibrary.connect_material_expressions(
+            source, output_name, target, input_name
+        ):
+            raise RuntimeError(
+                f"material connection failed: {source.get_name()}.{output_name} "
+                f"-> {target.get_name()}.{input_name}"
+            )
+
+    connect(period, "", normalized_period, "A")
+    connect(view_size, "", normalized_period, "B")
+    connect(screen, "ViewportUV", screen_tiles, "A")
+    connect(normalized_period, "", screen_tiles, "B")
+    connect(screen_tiles, "", rotator, "Coordinate")
     connect(angle, "", rotator, "Time")
-    connect(rotator, "", sample, "Coordinates")
+    connect(rotator, "", wrap, "None")
+    connect(wrap, "", sample, "UVs")
     connect(sample, "R", multiply, "A")
     connect(line_width, "", multiply, "B")
     connect(base, "", color_lerp, "A")
     connect(line, "", color_lerp, "B")
     connect(multiply, "", color_lerp, "Alpha")
-    connect(base, "", base_alpha, "Input")
-    connect(line, "", line_alpha, "Input")
+    connect(base, "", base_alpha, "None")
+    connect(line, "", line_alpha, "None")
     connect(base_alpha, "", opacity_lerp, "A")
     connect(line_alpha, "", opacity_lerp, "B")
     connect(multiply, "", opacity_lerp, "Alpha")

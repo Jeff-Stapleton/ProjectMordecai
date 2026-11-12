@@ -312,8 +312,23 @@ bool FMordecai_UI_Foundation_AssetPathsAndTypes::RunTest(const FString& Paramete
 	{
 		if (const UTexture2D* Texture = Cast<UTexture2D>(AssetData.GetAsset()))
 		{
-			TestTrue(*FString::Printf(TEXT("%s does not use nearest filtering"),
-				*Texture->GetName()), Texture->Filter != TF_Nearest);
+			if (Texture->GetName() == TEXT("T_UI_Hatch16"))
+			{
+				TestEqual("the native 16px hatch uses nearest filtering",
+					Texture->Filter, TEnumAsByte<TextureFilter>(TF_Nearest));
+				TestEqual("the native 16px hatch has no generated mip chain",
+					Texture->MipGenSettings,
+					TEnumAsByte<TextureMipGenSettings>(TMGS_NoMipmaps));
+				TestEqual("the native 16px hatch wraps horizontally",
+					Texture->AddressX, TEnumAsByte<TextureAddress>(TA_Wrap));
+				TestEqual("the native 16px hatch wraps vertically",
+					Texture->AddressY, TEnumAsByte<TextureAddress>(TA_Wrap));
+			}
+			else
+			{
+				TestTrue(*FString::Printf(TEXT("%s keeps bilinear filtering"),
+					*Texture->GetName()), Texture->Filter != TF_Nearest);
+			}
 		}
 	}
 

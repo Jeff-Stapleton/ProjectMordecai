@@ -381,6 +381,7 @@ namespace
 	void AddPattern(
 		UWidgetTree* Tree,
 		UCanvasPanel* Canvas,
+		const FLinearColor& BaseColor,
 		const FLinearColor& LineColor,
 		float X,
 		float Y,
@@ -396,7 +397,7 @@ namespace
 		{
 			return;
 		}
-		Instance->SetVectorParameterValue(TEXT("Base"), FLinearColor::Transparent);
+		Instance->SetVectorParameterValue(TEXT("Base"), BaseColor);
 		Instance->SetVectorParameterValue(TEXT("Line"), LineColor);
 		Instance->SetScalarParameterValue(TEXT("Period"), 16.f);
 		Instance->SetScalarParameterValue(TEXT("Angle"), 0.f);
@@ -543,10 +544,14 @@ namespace
 		AddText(
 			Tree, Canvas, TEXT("ANATOMY AT 4X · ONE PLATE ACROSS A LIGHT AND A DARK FLOOR"),
 			TEXT("kicker"), Colors.TextMuted, 24.f, 22.f, 912.f, 28.f);
-		AddBox(Tree, Canvas, Colors.Enamel, 24.f, 60.f, 200.f, 236.f, 10.f);
-		AddPattern(Tree, Canvas, Colors.WorldBlockoutLine, 24.f, 60.f, 200.f, 236.f);
+		AddBox(Tree, Canvas, Colors.WorldBlockout, 24.f, 60.f, 200.f, 236.f, 10.f);
+		AddPattern(
+			Tree, Canvas, Colors.WorldBlockout, Colors.WorldBlockoutLine,
+			24.f, 60.f, 200.f, 236.f);
 		AddBox(Tree, Canvas, Colors.WorldNight, 224.f, 60.f, 200.f, 236.f, 10.f);
-		AddPattern(Tree, Canvas, Colors.WorldNightDot, 224.f, 60.f, 200.f, 236.f);
+		AddPattern(
+			Tree, Canvas, Colors.WorldNight, Colors.WorldNightDot,
+			224.f, 60.f, 200.f, 236.f);
 		AddPrimitive(
 			Tree,
 			Canvas,
@@ -558,15 +563,17 @@ namespace
 			168.f);
 		// The runtime primitive supplies the production layers. These enlarged
 		// overlays preserve the preview's exact 4x radius and outside outline.
+		constexpr float PlateRadius4x = 48.f;
+		constexpr float OutlineRadius4x = 60.f;
 		AddBox(
 			Tree, Canvas, FLinearColor(Colors.Ink.R, Colors.Ink.G, Colors.Ink.B, 0.55f),
-			80.f, 98.f, 288.f, 168.f, 48.f);
+			80.f, 98.f, 288.f, 168.f, OutlineRadius4x);
 		AddBox(
 			Tree, Canvas, Colors.Plate,
-			80.f, 82.f, 288.f, 168.f, 48.f, Colors.Ink, 12.f);
+			80.f, 82.f, 288.f, 168.f, OutlineRadius4x, Colors.Ink, 12.f);
 		AddBox(
 			Tree, Canvas, FLinearColor::Transparent,
-			88.f, 90.f, 272.f, 152.f, 40.f, Colors.Rim, 8.f);
+			88.f, 90.f, 272.f, 152.f, PlateRadius4x, Colors.Rim, 8.f);
 		const FVector2D MarkerPositions[] = {
 			FVector2D(53.f, 151.f), FVector2D(159.f, 71.f), FVector2D(349.f, 227.f),
 			FVector2D(209.f, 151.f), FVector2D(141.f, 259.f), FVector2D(81.f, 83.f)
@@ -597,8 +604,10 @@ namespace
 		AddText(
 			Tree, Canvas, TEXT("DEPTH LADDER · WORLD, PLATE, INSET, WELL"),
 			TEXT("kicker"), Colors.TextMuted, 24.f, 326.f, 912.f, 28.f);
-		AddBox(Tree, Canvas, Colors.Enamel, 24.f, 366.f, 400.f, 340.f, 10.f);
-		AddPattern(Tree, Canvas, Colors.WorldBlockoutLine, 24.f, 366.f, 400.f, 340.f);
+		AddBox(Tree, Canvas, Colors.WorldBlockout, 24.f, 366.f, 400.f, 340.f, 10.f);
+		AddPattern(
+			Tree, Canvas, Colors.WorldBlockout, Colors.WorldBlockoutLine,
+			24.f, 366.f, 400.f, 340.f);
 		AddPrimitive(
 			Tree,
 			Canvas,
@@ -717,7 +726,9 @@ namespace
 			Tree, Canvas, TEXT("ANATOMY AT 2X"),
 			TEXT("kicker"), Colors.TextMuted, 24.f, 22.f, 912.f, 28.f);
 		AddBox(Tree, Canvas, Colors.WorldBlockout, 24.f, 60.f, 912.f, 184.f, 10.f);
-		AddPattern(Tree, Canvas, Colors.WorldBlockoutLine, 24.f, 60.f, 912.f, 184.f);
+		AddPattern(
+			Tree, Canvas, Colors.WorldBlockout, Colors.WorldBlockoutLine,
+			24.f, 60.f, 912.f, 184.f);
 		AddPrimitive(
 			Tree,
 			Canvas,
@@ -775,7 +786,9 @@ namespace
 			Tree, Canvas, TEXT("HUNG · THREADED UNDER THE RAIL HEAD, OR FROM A PLATE"),
 			TEXT("kicker"), Colors.TextMuted, 24.f, 350.f, 912.f, 28.f);
 		AddBox(Tree, Canvas, Colors.WorldBlockout, 24.f, 390.f, 400.f, 316.f, 10.f);
-		AddPattern(Tree, Canvas, Colors.WorldBlockoutLine, 24.f, 390.f, 400.f, 316.f);
+		AddPattern(
+			Tree, Canvas, Colors.WorldBlockout, Colors.WorldBlockoutLine,
+			24.f, 390.f, 400.f, 316.f);
 		AddPrimitive(
 			Tree,
 			Canvas,
@@ -823,7 +836,9 @@ namespace
 		}
 
 		AddBox(Tree, Canvas, Colors.WorldMire, 444.f, 390.f, 492.f, 316.f, 10.f);
-		AddPattern(Tree, Canvas, Colors.WorldMireDot, 444.f, 390.f, 492.f, 316.f);
+		AddPattern(
+			Tree, Canvas, Colors.WorldMire, Colors.WorldMireDot,
+			444.f, 390.f, 492.f, 316.f);
 		AddPrimitive(
 			Tree,
 			Canvas,
@@ -1341,6 +1356,9 @@ bool UMordecaiTinTallyGalleryWidget::Initialize()
 	}
 	UCanvasPanel* Fixture = WidgetTree->ConstructWidget<UCanvasPanel>(
 		UCanvasPanel::StaticClass(), TEXT("GalleryFixture"));
+	FWidgetTransform FixtureTransform;
+	FixtureTransform.Translation = FVector2D(0.f, 1.f);
+	Fixture->SetRenderTransform(FixtureTransform);
 	Sheet->SetContent(Fixture);
 
 	if (Component.Equals(TEXT("Tag"), ESearchCase::IgnoreCase))

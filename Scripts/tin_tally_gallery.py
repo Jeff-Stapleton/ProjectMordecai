@@ -350,6 +350,45 @@ def reference_path(component, theme):
     return os.path.join(REFERENCE_SHOTS_DIR, f"{component}.{theme}.png")
 
 
+def _plate_hatch_metrics(reference, capture):
+    if reference.size != REFERENCE_CROP_SIZE or capture.size != REFERENCE_CROP_SIZE:
+        return None
+    region_box = (28, 66, 74, 290)
+
+    def measure(image):
+        region = image.convert("L").crop(region_box)
+        mean_luminance = ImageStat.Stat(region).mean[0]
+        pixels = region.load()
+        period_errors = {}
+        for lag in range(12, 21):
+            difference = sum(
+                abs(pixels[x, y] - pixels[x - lag, y])
+                for y in range(region.height)
+                for x in range(lag, region.width)
+            )
+            period_errors[lag] = (
+                difference / ((region.width - lag) * region.height)
+            )
+        dominant_period = min(period_errors, key=period_errors.get)
+        return mean_luminance, dominant_period
+
+    reference_luminance, _ = measure(reference)
+    capture_luminance, capture_period = measure(capture)
+    luminance_delta = abs(reference_luminance - capture_luminance)
+    passed = luminance_delta <= 40.0 and 15 <= capture_period <= 17
+    return {
+        "region": list(region_box),
+        "reference_mean_luminance": reference_luminance,
+        "capture_mean_luminance": capture_luminance,
+        "mean_luminance_delta": luminance_delta,
+        "dominant_period_px": capture_period,
+        "max_mean_luminance_delta": 40.0,
+        "expected_period_px": 16,
+        "period_tolerance_px": 1,
+        "passed": passed,
+    }
+
+
 def compare_images(reference_path, capture_path, output_dir, stem):
     """Compare foreground geometry without resizing either design-pixel image.
 
@@ -447,6 +486,12 @@ def compare_images(reference_path, capture_path, output_dir, stem):
     localized_passed = all(
         region["passed"] for region in localized_regions.values()
     )
+    hatch_metrics = (
+        _plate_hatch_metrics(reference, capture)
+        if component == "plate"
+        else None
+    )
+    hatch_passed = hatch_metrics is None or hatch_metrics["passed"]
     foreground_pixels = {
         "reference": _mask_pixels(ref_mask),
         "capture": _mask_pixels(cap_mask),
@@ -466,6 +511,7 @@ def compare_images(reference_path, capture_path, output_dir, stem):
         and edge_grid_similarity >= thresholds["edge_grid"]
         and text_row_similarity >= thresholds["text_row"]
         and localized_passed
+        and hatch_passed
         and not both_uniform_but_different
     )
 
@@ -478,6 +524,17 @@ def compare_images(reference_path, capture_path, output_dir, stem):
     localized_summary = ", ".join(
         f"{name} {region['score']:.4f}/{region['threshold']:.4f}"
         for name, region in localized_regions.items()
+    )
+    hatch_summary = (
+        "not applicable"
+        if hatch_metrics is None
+        else (
+            f"luminance delta {hatch_metrics['mean_luminance_delta']:.2f}/"
+            f"{hatch_metrics['max_mean_luminance_delta']:.2f}, period "
+            f"{hatch_metrics['dominant_period_px']} px/"
+            f"{hatch_metrics['expected_period_px']}±"
+            f"{hatch_metrics['period_tolerance_px']} px"
+        )
     )
     reason = (
         "foreground geometry is within tolerance"
@@ -492,7 +549,7 @@ def compare_images(reference_path, capture_path, output_dir, stem):
             f"{thresholds['max_bbox_edge_delta']:.4f}, edge-grid >= "
             f"{thresholds['edge_grid']:.4f}, and text-row >= "
             f"{thresholds['text_row']:.4f}; localized: "
-            f"{localized_summary or 'not applicable'})"
+            f"{localized_summary or 'not applicable'}; hatch: {hatch_summary})"
         )
     )
     return {
@@ -504,6 +561,7 @@ def compare_images(reference_path, capture_path, output_dir, stem):
         "edge_grid_similarity": edge_grid_similarity,
         "text_row_similarity": text_row_similarity,
         "localized_regions": localized_regions,
+        "hatch_region": hatch_metrics,
         "foreground_pixels": foreground_pixels,
         "reference_bbox": list(ref_box) if ref_box else None,
         "capture_bbox": list(cap_box) if cap_box else None,
