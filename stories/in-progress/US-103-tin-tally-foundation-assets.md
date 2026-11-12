@@ -297,3 +297,78 @@ The story creates and configures font, material, texture, style, DataAsset, and 
   `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4d6a1be8-b372-5492-abbe-334810677171\files\issue-102-us103-77c2817`.
 - Story intentionally remains in progress with ACs unchecked for coordinator
   visual review, closure, and merge; PR remains draft.
+- Round-four RED and implementation:
+  - RED commit `4040d16028` retained the exact round-three Tally, Keycap, and
+    Glyphs crops. `py Scripts/run_python_tests.py -k tin_tally_gallery -v`
+    ran 18 tests with three assertion failures because the comparator did not
+    report localized regions and still accepted all three captures.
+  - Implementation commit `ff40a01550` wraps Tally captions inside 272 px
+    cards; draws the rarity ring/strokes/full bundle, deterministic
+    seal/throbber, ghost capacity dots, and cap dot; fixes wide/mouse/gamepad
+    key geometry; restores Plate pattern/radius/pips; renders the Tag anatomy
+    at 2x; and makes Glyph cells match the preview grid.
+  - Interpretation call: the animated loading throbber is represented by a
+    deterministic mid-sequence frame in the static Development gallery. Tag
+    `Upgrade Key` remains `TS_Tally_ui_title` (Atkinson UI Bold at its token
+    size) and is render-scaled with the 2x specimen rather than changing its
+    font token.
+  - The 117 glyph textures were regenerated with transparent backgrounds and
+    reimported. This preserves the same cooked glyph assets while allowing an
+    ink-tinted inverse glyph on enamel instead of tinting an opaque source
+    square.
+- Round-four verification at `ff40a01550`:
+  - Compile PASS; targeted `Mordecai.UI.Foundation` 5/5
+    (`Saved/TestLogs/tests-20261111-195754.log`); full Tier 1 822/822
+    (`Saved/TestLogs/tests-20261111-200855.log`).
+  - Full Python tooling 646/646, including round-three rejection; Tier 2
+    20/20 smoke scripts; `render.py check` reports `problems: 0`; config sync,
+    content guard, diff check, and LFS-smudge check PASS.
+  - The retained round-three Tally scores
+    `captions .2041 / rarity .1321 / seal .2109 / anatomy .2299` and fails
+    the localized `.28 / .18 / .28 / .28` floors. Round-three Keycap fails
+    `wide_keys .4811 < .52`. Round-three Glyphs fails
+    `tile_chips .2823 / labels .3335 < .60`.
+- Round-four exact clean Development package:
+  - Commit `ff40a01550784988554ce86e165b183a2646cdc2`;
+    `dirty=false`, `source_changed_during_build=false`; package log
+    `Saved/Playtests/package-20261111-204928.log`.
+  - MovementTestMap boot `Saved/Playtests/20261111-205814-boot` PASS:
+    all 10 checks passed. Pillow verified all seven images as readable,
+    varied, and non-black in `scripted-visual-inspection.json`.
+  - Packaged gallery `Saved/Playtests/20261111-205915-tin-tally-gallery`
+    PASS: all 10 component/theme comparisons. Metrics are foreground IoU /
+    bbox-edge delta / edge-grid / text-row:
+    - Plate Diorama `.4454/.0111/.4112/.3962`; HC
+      `.3738/.0194/.3855/.3819`.
+    - Tag Diorama `.6279/.0194/.4609/.3003`; HC
+      `.5221/.0194/.4269/.2899`.
+    - Keycap Diorama `.2093/.0031/.4152/.1968`; HC
+      `.1835/.0056/.3283/.1872`. Localized D/HC:
+      wide `.5632/.5378`, mouse `.4245/.3600`, gamepad spacing
+      `.2602/.2195`, state headers `.4203/.2836`.
+    - Tally Diorama `.2199/.0198/.4669/.3796`; HC
+      `.1831/.0208/.4179/.3887`. Localized D/HC:
+      captions `.3330/.3364`, rarity `.4462/.4776`, seal/throbber
+      `.4829/.4722`, anatomy `.3471/.3401`.
+    - Glyphs Diorama `.6672/.0083/.8095/.7526`; HC
+      `.9411/.0083/.7999/.7478`. Localized D/HC:
+      tile chips `.7484/.7980`, labels `.7725/.8299`.
+  - Per coordinator instruction no PNG was opened with the file-read tool.
+    Pillow checked all 50 gallery PNGs and found foreground in every required
+    Plate, Tag, Keycap, Tally, and Glyph region in both themes.
+- Round-four packaged regression:
+  - Baseline `559e28f95f`: 15 scripts, 10 PASS / 5 FAIL.
+  - Final `ff40a01550`: `Saved/Playtests/20261111-210135-sweep`, 15 scripts,
+    10 PASS / 5 FAIL with the same failing scripts and checks (`us001`,
+    `us054_arena`, `us057`, `us069`, `us078`); zero script-level and zero
+    individual-check PASS-to-FAIL transitions. The sweep report labels
+    `enemies_present` and `stone_skin_indicator` NEW because they lack current
+    known-issue metadata, but both are already FAIL in the saved baseline.
+  - Pillow checked all 82 Tier 3/Tier 4 sweep images across 19 run dirs:
+    readable, non-black, and non-uniform for every required engine/bridge
+    frame (`sweep/scripted-visual-inspection.json`).
+- Round-four evidence bundle: 295/295 SHA-256 hashes re-read and verified,
+  containing all 139 reviewed PNGs (boot 7, gallery 50, sweep 82):
+  `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4d6a1be8-b372-5492-abbe-334810677171\files\issue-102-us103-ff40a01`.
+- Story remains in progress with ACs unchecked for coordinator visual review,
+  closure, and merge; PR remains draft.
