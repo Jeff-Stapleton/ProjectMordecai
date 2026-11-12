@@ -315,7 +315,8 @@ void UMordecaiEquippedWeaponWidget::ApplyTheme(
 	{
 		FSlateFontInfo Font = SwapKey->GetFont();
 		Font.TypefaceFontName = TEXT("ExtraBold");
-		Font.Size = 22;
+		// UMG uses points: the card's 22px Mono label is 16.5pt.
+		Font.Size = 16.5f;
 		SwapKey->SetFont(Font);
 		SwapKey->SetColorAndOpacity(FSlateColor(Colors.Ink));
 	}

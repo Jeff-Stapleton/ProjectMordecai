@@ -96,6 +96,9 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UBorder> CooldownShutterLip;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UBorder> CooldownTextBacking;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	FGameplayTag BoundCooldownTag;
 

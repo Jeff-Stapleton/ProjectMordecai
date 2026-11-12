@@ -22,7 +22,7 @@ class VerifyPieMagicContractTests(unittest.TestCase):
 
         alive = combat_hud_layer_checks(
             player_dead=False,
-            game_layer_contains_hud=True,
+            game_layer_is_ui_layer_game=True,
             death_screen_is_active_widget=False,
             hud_is_activated=True,
             hud_is_visible=True,
@@ -35,7 +35,7 @@ class VerifyPieMagicContractTests(unittest.TestCase):
 
         dead = combat_hud_layer_checks(
             player_dead=True,
-            game_layer_contains_hud=True,
+            game_layer_is_ui_layer_game=True,
             death_screen_is_active_widget=True,
             hud_is_activated=False,
             hud_is_visible=False,
@@ -86,7 +86,7 @@ class VerifyPieMagicContractTests(unittest.TestCase):
         self.assertNotIn("SKIP: CombatHUDWidget visible", source)
         self.assertIn("unreal.Paths.convert_relative_path_to_full", source)
         self.assertIn("player_dead_from_state", source)
-        self.assertIn("get_widget_list()", source)
+        self.assertIn('"GameLayer_Stack"', source)
 
 
 if __name__ == "__main__":

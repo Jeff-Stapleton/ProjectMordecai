@@ -27,6 +27,9 @@
 
 namespace
 {
+	const FText PreviewCooldownText = NSLOCTEXT(
+		"MordecaiSpellCooldown", "GalleryPreviewCooldown", "2.4");
+
 	FLinearColor ResolveSpellGlyphTint(
 		const FName GlyphName,
 		const FMordecaiUIThemeColors& Colors)
@@ -148,6 +151,18 @@ void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 	CooldownShutterLip->SetVisibility(ESlateVisibility::Collapsed);
 	Place(CooldownShutterLip, FVector2D(7.f, 68.f), FVector2D(64.f, 3.f), 3);
 
+	CooldownTextBacking = WidgetTree->ConstructWidget<UBorder>(
+		UBorder::StaticClass(), TEXT("CooldownTextBacking"));
+	FSlateBrush BackingBrush;
+	BackingBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
+	BackingBrush.TintColor = FSlateColor(Colors.Ink);
+	BackingBrush.OutlineSettings = FSlateBrushOutlineSettings(
+		FVector4(4.f), FSlateColor(FLinearColor::Transparent), 0.f);
+	CooldownTextBacking->SetBrush(BackingBrush);
+	CooldownTextBacking->SetPadding(FMargin(0.f));
+	CooldownTextBacking->SetVisibility(ESlateVisibility::Collapsed);
+	Place(CooldownTextBacking, FVector2D(10.f, 24.f), FVector2D(58.f, 30.f), 4);
+
 	CooldownText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CooldownText"));
 	CooldownText->SetText(FText::GetEmpty());
 	CooldownText->SetColorAndOpacity(FSlateColor(Colors.Text));
@@ -158,7 +173,7 @@ void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 	FontInfo.OutlineSettings.OutlineColor = Colors.Ink.ToFColorSRGB();
 	CooldownText->SetFont(FontInfo);
 	MordecaiUITypography::Apply(CooldownText, TEXT("num_m"));
-	Place(CooldownText, FVector2D(7.f, 24.f), FVector2D(64.f, 30.f), 4);
+	Place(CooldownText, FVector2D(7.f, 24.f), FVector2D(64.f, 30.f), 5);
 
 	SlotKey = FMordecaiUIPrimitiveBuilder::Build(
 		WidgetTree,
@@ -292,9 +307,15 @@ void UMordecaiSpellCooldownWidget::SetPreviewCooldownFraction(float Fraction)
 	ApplyCooldownFraction(PreviewCooldownFraction);
 	if (CooldownText)
 	{
-		CooldownText->SetText(bPreviewCooldownHeld
-			? FText::FromString(TEXT("2.4"))
-			: FText::GetEmpty());
+		if (bPreviewCooldownHeld
+			&& !CooldownText->GetText().IdenticalTo(PreviewCooldownText))
+		{
+			CooldownText->SetText(PreviewCooldownText);
+		}
+		else if (!bPreviewCooldownHeld && !CooldownText->GetText().IsEmpty())
+		{
+			CooldownText->SetText(FText::GetEmpty());
+		}
 	}
 }
 
@@ -399,9 +420,9 @@ void UMordecaiSpellCooldownWidget::UpdateDisplay()
 	{
 		bIsOnCooldown = true;
 		ApplyCooldownFraction(PreviewCooldownFraction);
-		if (CooldownText)
+		if (CooldownText && !CooldownText->GetText().IdenticalTo(PreviewCooldownText))
 		{
-			CooldownText->SetText(FText::FromString(TEXT("2.4")));
+			CooldownText->SetText(PreviewCooldownText);
 		}
 		return;
 	}
@@ -464,6 +485,11 @@ void UMordecaiSpellCooldownWidget::ApplyCooldownFraction(float Fraction)
 			LipSlot->SetPosition(FVector2D(7.f, 7.f + 64.f * Clamped - 3.f));
 		}
 	}
+	if (CooldownTextBacking)
+	{
+		CooldownTextBacking->SetVisibility(
+			Clamped > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 void UMordecaiSpellCooldownWidget::ApplyTheme(
@@ -497,7 +523,9 @@ void UMordecaiSpellCooldownWidget::ApplyTheme(
 	if (LockChip)
 	{
 		FMordecaiUIPrimitiveBuilder::Apply(
-			LockChip, FMordecaiUIPrimitiveBuilder::Pill(Colors));
+			LockChip,
+			FMordecaiUIPrimitiveBuilder::Pill(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme));
 	}
 	if (ShutterMaterial)
 	{
@@ -507,6 +535,12 @@ void UMordecaiSpellCooldownWidget::ApplyTheme(
 	if (CooldownShutterLip)
 	{
 		CooldownShutterLip->SetBrushColor(Colors.Rim);
+	}
+	if (CooldownTextBacking)
+	{
+		FSlateBrush Brush = CooldownTextBacking->Background;
+		Brush.TintColor = FSlateColor(Colors.Ink);
+		CooldownTextBacking->SetBrush(Brush);
 	}
 	if (SpellIcon)
 	{

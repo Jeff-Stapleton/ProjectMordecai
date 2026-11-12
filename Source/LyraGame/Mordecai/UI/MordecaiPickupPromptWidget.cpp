@@ -9,6 +9,7 @@
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
+#include "Components/SizeBoxSlot.h"
 #include "Components/TextBlock.h"
 #include "Mordecai/Items/MordecaiItemPickup.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
@@ -151,7 +152,10 @@ void UMordecaiPickupPromptWidget::BuildDefaultLayout()
 		USizeBox::StaticClass(), TEXT("PromptTextBox"));
 	PromptTextBox->SetMaxDesiredWidth(484.f);
 	PromptTextBox->SetMinDesiredHeight(60.f);
-	PromptTextBox->AddChild(PromptText);
+	if (USizeBoxSlot* PromptTextSlot = Cast<USizeBoxSlot>(PromptTextBox->AddChild(PromptText)))
+	{
+		PromptTextSlot->SetVerticalAlignment(VAlign_Center);
+	}
 	if (UOverlaySlot* TextSlot = Tag->AddChildToOverlay(PromptTextBox))
 	{
 		TextSlot->SetPadding(FMargin(40.f, 0.f, 16.f, 0.f));
