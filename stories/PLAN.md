@@ -199,6 +199,10 @@ Delegated town systems.
 19. **Epic 9** — Town Management
 
 ## Notes
+- 2026-11-12: US-103 (Tin Tally foundation assets and visual-acceptance
+  gallery, issue #102) DONE at the coordinator's call. Delivered package
+  `40663c44e6`; bundle `issue-102-us103-40663c4` verified 331/331 hashes;
+  remaining accepted deviations are tracked by follow-up issue #122.
 - This plan is a living document. Stories will be broken down further as we approach each epic.
 - DLC reserved: Hex (Dark Magic), Venom (Nature/Poison), Conjure (Summoning)
 - Story numbers are placeholders for unscoped epics — will be refined when each epic is scoped in detail
