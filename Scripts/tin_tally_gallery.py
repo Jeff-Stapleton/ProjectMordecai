@@ -14,6 +14,15 @@ import playtest_boot
 
 
 FOUNDATION_COMPONENTS = ("Plate", "Tag", "Keycap", "Tally", "Glyphs")
+HUD_COMPONENTS = (
+    "HUDLayout",
+    "GaugePlate",
+    "Bar",
+    "SpellSlot",
+    "InteractPrompt",
+    "LoadoutPlate",
+)
+GALLERY_COMPONENTS = FOUNDATION_COMPONENTS + HUD_COMPONENTS
 THEMES = ("diorama", "high-contrast")
 CAPTURE_SIZE = (1920, 1080)
 REFERENCE_CROP_SIZE = (960, 720)
@@ -176,7 +185,13 @@ def validate_capture(
         reasons.append("capture is black")
     if image.size == CAPTURE_SIZE:
         expected_plate = _theme_plate_rgb(expected_theme)
-        sample = image.getpixel((CAPTURE_SIZE[0] - 490, 120 + 710))
+        component = (expected_component or metadata.get("component", "")).lower()
+        sample_point = (
+            (477, 107)
+            if component == "hudlayout"
+            else (CAPTURE_SIZE[0] - 490, 120 + 710)
+        )
+        sample = image.getpixel(sample_point)
         if max(abs(sample[index] - expected_plate[index]) for index in range(3)) > 12:
             reasons.append(
                 "sheet plate pixel does not match the resolved "
@@ -677,7 +692,12 @@ def _capture_one(exe, run_dir, build_info, component, theme, state):
     crop_path = os.path.join(run_dir, f"{stem}-crop.png")
     if not reasons:
         with Image.open(full_path) as image:
-            image.crop((480, 120, 1440, 840)).save(crop_path)
+            crop_rect = (
+                (0, 0, 1920, 1080)
+                if component == "HUDLayout"
+                else (480, 120, 1440, 840)
+            )
+            image.crop(crop_rect).save(crop_path)
     return {
         "component": component,
         "theme": theme,
@@ -693,7 +713,7 @@ def _capture_one(exe, run_dir, build_info, component, theme, state):
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--component", choices=FOUNDATION_COMPONENTS)
+    parser.add_argument("--component", choices=GALLERY_COMPONENTS)
     parser.add_argument("--theme", choices=THEMES)
     parser.add_argument("--state", default="sheet")
     parser.add_argument("--run-dir")
@@ -714,7 +734,7 @@ def main(argv=None):
         or os.path.join(playtest_boot.PLAYTESTS_DIR, f"{timestamp}-tin-tally-gallery")
     )
     os.makedirs(run_dir, exist_ok=True)
-    components = (args.component,) if args.component else FOUNDATION_COMPONENTS
+    components = (args.component,) if args.component else GALLERY_COMPONENTS
     themes = (args.theme,) if args.theme else THEMES
     results = []
     summary_path = os.path.join(run_dir, "summary.json")

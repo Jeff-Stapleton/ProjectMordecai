@@ -17,9 +17,17 @@
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Input/UIActionBindingHandle.h"
+#include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
+#include "Mordecai/UI/MordecaiHUDConstants.h"
 #include "UI/IndicatorSystem/IndicatorLayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCombatHUDWidget)
@@ -45,6 +53,20 @@ void UMordecaiCombatHUDWidget::NativeOnInitialized()
 	{
 		BuildDefaultLayout();
 	}
+}
+
+void UMordecaiCombatHUDWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this, BoundThemeSubsystem, ThemeChangedHandle,
+		this, &UMordecaiCombatHUDWidget::ApplyTheme);
+}
+
+void UMordecaiCombatHUDWidget::NativeDestruct()
+{
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
+	Super::NativeDestruct();
 }
 
 void UMordecaiCombatHUDWidget::NativeOnActivated()
@@ -74,6 +96,13 @@ void UMordecaiCombatHUDWidget::NativeOnDeactivated()
 	SetVisibility(ESlateVisibility::Collapsed);
 }
 
+void UMordecaiCombatHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	(void)InDeltaTime;
+	UpdateLowHealthRimForTime(GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f);
+}
+
 void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
@@ -90,7 +119,7 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 	IndicatorSlot->SetOffsets(FMargin(0.f));
 	IndicatorSlot->SetZOrder(-1);
 
-	// Helper: add a child UUserWidget to the canvas at a specific position/size
+	// Helper: every final-map box is fixed-size in 1920x1080 design pixels.
 	auto AddChild = [Root](UWidget* Child, FAnchors Anchors, FVector2D Position, FVector2D Size, FVector2D Alignment = FVector2D::ZeroVector)
 	{
 		if (!Child) return;
@@ -104,34 +133,65 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 
 	const FAnchors TopLeft(0.f, 0.f, 0.f, 0.f);
 	const FAnchors TopRight(1.f, 0.f, 1.f, 0.f);
+	const FAnchors Center(0.5f, 0.5f, 0.5f, 0.5f);
 	const FAnchors BottomCenter(0.5f, 1.f, 0.5f, 1.f);
-	const FAnchors BottomLeft(0.f, 1.f, 0.f, 1.f);
 	const FAnchors BottomRight(1.f, 1.f, 1.f, 1.f);
+	const FMordecaiUIThemeColors Colors = FMordecaiUIThemeColors::MakeDiorama();
 
-	// --- Core Resource Bars (top-left cluster) ---
+	// --- GaugePlate: one Tin Tally plate containing all four resource rows ---
+	if (!GaugePlate)
+	{
+		GaugePlate = FMordecaiUIPrimitiveBuilder::Build(
+			WidgetTree,
+			FMordecaiUIPrimitiveBuilder::Plate(
+				Colors, EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::Diorama),
+			TEXT("GaugePlate"));
+	}
+	UCanvasPanel* GaugeContent = WidgetTree->ConstructWidget<UCanvasPanel>(
+		UCanvasPanel::StaticClass(), TEXT("GaugeContent"));
+	if (UOverlaySlot* ContentSlot = GaugePlate->AddChildToOverlay(GaugeContent))
+	{
+		ContentSlot->SetPadding(FMargin(0.f));
+	}
+
+	auto AddGaugeRow = [GaugeContent](UWidget* Child, FVector2D Position, FVector2D Size)
+	{
+		if (UCanvasPanelSlot* Slot = GaugeContent->AddChildToCanvas(Child))
+		{
+			Slot->SetPosition(Position);
+			Slot->SetSize(Size);
+			Slot->SetAutoSize(false);
+		}
+	};
+
 	if (!HealthBar)
 	{
-		HealthBar = CreateWidget<UMordecaiHealthBarWidget>(this);
+		HealthBar = CreateWidget<UMordecaiHealthBarWidget>(
+			this, UMordecaiHealthBarWidget::StaticClass(), TEXT("HealthBar"));
 	}
-	AddChild(HealthBar, TopLeft, FVector2D(20, 20), FVector2D(250, 20));
+	AddGaugeRow(HealthBar, FVector2D(14.f, 14.f), FVector2D(424.f, 34.f));
 
 	if (!StaminaBar)
 	{
-		StaminaBar = CreateWidget<UMordecaiStaminaBarWidget>(this);
+		StaminaBar = CreateWidget<UMordecaiStaminaBarWidget>(
+			this, UMordecaiStaminaBarWidget::StaticClass(), TEXT("StaminaBar"));
 	}
-	AddChild(StaminaBar, TopLeft, FVector2D(20, 48), FVector2D(250, 20));
+	AddGaugeRow(StaminaBar, FVector2D(14.f, 56.f), FVector2D(424.f, 28.f));
 
 	if (!PostureBar)
 	{
-		PostureBar = CreateWidget<UMordecaiPostureBarWidget>(this);
+		PostureBar = CreateWidget<UMordecaiPostureBarWidget>(
+			this, UMordecaiPostureBarWidget::StaticClass(), TEXT("PostureBar"));
 	}
-	AddChild(PostureBar, TopLeft, FVector2D(20, 76), FVector2D(250, 16));
+	AddGaugeRow(PostureBar, FVector2D(52.f, 91.f), FVector2D(268.f, 8.f));
 
 	if (!SpellPointsBar)
 	{
-		SpellPointsBar = CreateWidget<UMordecaiSpellPointsBarWidget>(this);
+		SpellPointsBar = CreateWidget<UMordecaiSpellPointsBarWidget>(
+			this, UMordecaiSpellPointsBarWidget::StaticClass(), TEXT("SpellPointsBar"));
 	}
-	AddChild(SpellPointsBar, TopLeft, FVector2D(20, 100), FVector2D(250, 16));
+	AddGaugeRow(SpellPointsBar, FVector2D(14.f, 106.f), FVector2D(424.f, 28.f));
+	AddChild(GaugePlate, TopLeft, FVector2D(32.f), FVector2D(456.f, 152.f));
 
 	// --- Spell Cooldowns ---
 	TObjectPtr<UMordecaiSpellCooldownWidget>* CooldownWidgets[] = {
@@ -146,56 +206,144 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 		TObjectPtr<UMordecaiSpellCooldownWidget>& CooldownWidget = *CooldownWidgets[SlotIndex];
 		if (!CooldownWidget)
 		{
-			CooldownWidget = CreateWidget<UMordecaiSpellCooldownWidget>(this);
+			CooldownWidget = CreateWidget<UMordecaiSpellCooldownWidget>(
+				this,
+				UMordecaiSpellCooldownWidget::StaticClass(),
+				FName(*FString::Printf(TEXT("SpellCooldown%c"), TCHAR('A' + SlotIndex))));
 		}
 		CooldownWidget->SetSlotKeyLabel(FText::FromString(SlotKeyLabels[SlotIndex]));
 		AddChild(
 			CooldownWidget,
 			TopLeft,
-			FVector2D(20.f + (64.f * SlotIndex), 124.f),
-			FVector2D(58.f, 40.f));
+			FVector2D(32.f + (88.f * SlotIndex), 216.f),
+			FVector2D(78.f));
 	}
 
-	// --- Kill Counter (top-right) ---
+	// --- Tally rail head (top-right) ---
+	if (!TallyRailHead)
+	{
+		// US-114 owns the tally rail head's complete behavior; US-105 keeps its shipped plate in place.
+		TallyRailHead = FMordecaiUIPrimitiveBuilder::Build(
+			WidgetTree,
+			FMordecaiUIPrimitiveBuilder::Plate(
+				Colors, EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::Diorama),
+			TEXT("TallyRailHead"));
+	}
+	UCanvasPanel* RailContent = WidgetTree->ConstructWidget<UCanvasPanel>(
+		UCanvasPanel::StaticClass(), TEXT("TallyRailHeadContent"));
+	if (UOverlaySlot* ContentSlot = TallyRailHead->AddChildToOverlay(RailContent))
+	{
+		ContentSlot->SetPadding(FMargin(0.f));
+	}
 	if (!KillCounter)
 	{
-		KillCounter = CreateWidget<UMordecaiKillCounterWidget>(this);
+		KillCounter = CreateWidget<UMordecaiKillCounterWidget>(
+			this, UMordecaiKillCounterWidget::StaticClass(), TEXT("KillCounter"));
 	}
-	AddChild(KillCounter, TopRight, FVector2D(-170, 20), FVector2D(150, 24));
+	if (UCanvasPanelSlot* RailSlot = RailContent->AddChildToCanvas(KillCounter))
+	{
+		RailSlot->SetPosition(FVector2D(14.f, 8.f));
+		RailSlot->SetSize(FVector2D(292.f, 40.f));
+		RailSlot->SetAutoSize(false);
+	}
+	AddChild(TallyRailHead, TopRight, FVector2D(-32.f, 32.f),
+		FVector2D(320.f, 56.f), FVector2D(1.f, 0.f));
 
-	// --- Combat Feedback (center-bottom) ---
+	// --- Centre callout lane ---
 	if (!ComboCounter)
 	{
-		ComboCounter = CreateWidget<UMordecaiComboCounterWidget>(this);
+		ComboCounter = CreateWidget<UMordecaiComboCounterWidget>(
+			this, UMordecaiComboCounterWidget::StaticClass(), TEXT("ComboCounter"));
 	}
-	AddChild(ComboCounter, BottomCenter, FVector2D(0, -120), FVector2D(200, 40), FVector2D(0.5f, 1.f));
+	AddChild(ComboCounter, Center, FVector2D(0.f, 184.f),
+		FVector2D(220.f, 36.f), FVector2D(0.5f, 0.f));
 
 	if (!CombatFeedback)
 	{
-		CombatFeedback = CreateWidget<UMordecaiCombatFeedbackWidget>(this);
+		CombatFeedback = CreateWidget<UMordecaiCombatFeedbackWidget>(
+			this, UMordecaiCombatFeedbackWidget::StaticClass(), TEXT("CombatFeedback"));
 	}
-	AddChild(CombatFeedback, BottomCenter, FVector2D(0, -80), FVector2D(300, 30), FVector2D(0.5f, 1.f));
+	AddChild(CombatFeedback, Center, FVector2D(0.f, 128.f),
+		FVector2D(520.f, 52.f), FVector2D(0.5f, 0.f));
 
-	// --- Status Effects (bottom-left) ---
+	// --- Status effects (left column) ---
 	if (!StatusEffectBar)
 	{
-		StatusEffectBar = CreateWidget<UMordecaiStatusEffectBarWidget>(this);
+		StatusEffectBar = CreateWidget<UMordecaiStatusEffectBarWidget>(
+			this, UMordecaiStatusEffectBarWidget::StaticClass(), TEXT("StatusEffectBar"));
 	}
-	AddChild(StatusEffectBar, BottomLeft, FVector2D(20, -60), FVector2D(400, 40));
+	AddChild(StatusEffectBar, TopLeft, FVector2D(32.f, 318.f), FVector2D(456.f, 112.f));
 
-	// --- Pickup / Inventory Assist Prompts (US-079, bottom-center above feedback) ---
+	// --- Bottom-centre prompt unit (540 prompt + 12 gap + 151 hint) ---
 	if (!PickupPrompt)
 	{
-		PickupPrompt = CreateWidget<UMordecaiPickupPromptWidget>(this);
+		PickupPrompt = CreateWidget<UMordecaiPickupPromptWidget>(
+			this, UMordecaiPickupPromptWidget::StaticClass(), TEXT("PickupPrompt"));
 	}
-	AddChild(PickupPrompt, BottomCenter, FVector2D(0, -30), FVector2D(420, 56), FVector2D(0.5f, 1.f));
+	AddChild(PickupPrompt, BottomCenter, FVector2D(90.f, -36.f),
+		FVector2D(720.f, 60.f), FVector2D(0.5f, 1.f));
 
 	// --- Loadout Plate (Tin Tally D20, bottom-right map box) ---
 	if (!EquippedWeaponWidget)
 	{
-		EquippedWeaponWidget = CreateWidget<UMordecaiEquippedWeaponWidget>(this);
+		EquippedWeaponWidget = CreateWidget<UMordecaiEquippedWeaponWidget>(
+			this, UMordecaiEquippedWeaponWidget::StaticClass(), TEXT("EquippedWeaponWidget"));
 	}
-	AddChild(EquippedWeaponWidget, BottomRight, FVector2D(-32, -32), FVector2D(340, 84), FVector2D(1.f, 1.f));
+	AddChild(EquippedWeaponWidget, BottomRight, FVector2D(-32.f), FVector2D(340.f, 84.f), FVector2D(1.f));
+
+	BuildLowHealthFrame(Root);
+	SetHUDMargin(32.f);
+}
+
+void UMordecaiCombatHUDWidget::BuildLowHealthFrame(UCanvasPanel* Root)
+{
+	if (!Root || LowHealthFrame)
+	{
+		return;
+	}
+	const FMordecaiUIThemeColors Colors = FMordecaiUIThemeColors::MakeDiorama();
+	LowHealthFrame = WidgetTree->ConstructWidget<UCanvasPanel>(
+		UCanvasPanel::StaticClass(), TEXT("LowHealthFrame"));
+	LowHealthFrame->SetVisibility(ESlateVisibility::Collapsed);
+	LowHealthFrame->SetRenderOpacity(1.f);
+
+	auto AddBand = [this, LowFrame = LowHealthFrame](
+		const TCHAR* Name,
+		const FLinearColor& Color,
+		const FAnchors& Anchors,
+		const FMargin& Offsets)
+	{
+		UBorder* Band = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), FName(Name));
+		Band->SetBrushColor(Color);
+		Band->SetPadding(FMargin(0.f));
+		Band->SetVisibility(ESlateVisibility::HitTestInvisible);
+		if (UCanvasPanelSlot* Slot = LowFrame->AddChildToCanvas(Band))
+		{
+			Slot->SetAnchors(Anchors);
+			Slot->SetOffsets(Offsets);
+		}
+	};
+	AddBand(TEXT("LowHealthTopVital"), Colors.Vital,
+		FAnchors(0.f, 0.f, 1.f, 0.f), FMargin(0.f, 0.f, 0.f, 8.f));
+	AddBand(TEXT("LowHealthTopInk"), Colors.Ink,
+		FAnchors(0.f, 0.f, 1.f, 0.f), FMargin(0.f, 8.f, 0.f, 3.f));
+	AddBand(TEXT("LowHealthBottomVital"), Colors.Vital,
+		FAnchors(0.f, 1.f, 1.f, 1.f), FMargin(0.f, -8.f, 0.f, 8.f));
+	AddBand(TEXT("LowHealthBottomInk"), Colors.Ink,
+		FAnchors(0.f, 1.f, 1.f, 1.f), FMargin(0.f, -11.f, 0.f, 3.f));
+	AddBand(TEXT("LowHealthLeftVital"), Colors.Vital,
+		FAnchors(0.f, 0.f, 0.f, 1.f), FMargin(0.f, 0.f, 8.f, 0.f));
+	AddBand(TEXT("LowHealthLeftInk"), Colors.Ink,
+		FAnchors(0.f, 0.f, 0.f, 1.f), FMargin(8.f, 8.f, 3.f, -8.f));
+	AddBand(TEXT("LowHealthRightVital"), Colors.Vital,
+		FAnchors(1.f, 0.f, 1.f, 1.f), FMargin(-8.f, 0.f, 8.f, 0.f));
+	AddBand(TEXT("LowHealthRightInk"), Colors.Ink,
+		FAnchors(1.f, 0.f, 1.f, 1.f), FMargin(-11.f, 8.f, 3.f, -8.f));
+
+	UCanvasPanelSlot* FrameSlot = Root->AddChildToCanvas(LowHealthFrame);
+	FrameSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+	FrameSlot->SetOffsets(FMargin(0.f));
+	FrameSlot->SetZOrder(100);
 }
 
 // ---------------------------------------------------------------------------
@@ -206,6 +354,7 @@ int32 UMordecaiCombatHUDWidget::GetBoundChildCount() const
 {
 	int32 Count = 0;
 	if (IndicatorLayer) Count++;
+	if (GaugePlate) Count++;
 	if (HealthBar) Count++;
 	if (StaminaBar) Count++;
 	if (PostureBar) Count++;
@@ -218,9 +367,53 @@ int32 UMordecaiCombatHUDWidget::GetBoundChildCount() const
 	if (ComboCounter) Count++;
 	if (CombatFeedback) Count++;
 	if (KillCounter) Count++;
+	if (TallyRailHead) Count++;
 	if (PickupPrompt) Count++;
 	if (EquippedWeaponWidget) Count++;
+	if (LowHealthFrame) Count++;
 	return Count;
+}
+
+UWidget* UMordecaiCombatHUDWidget::GetNamedWidget(UUserWidget* Owner, FName WidgetName) const
+{
+	UUserWidget* SearchOwner = Owner ? Owner : const_cast<UMordecaiCombatHUDWidget*>(this);
+	return SearchOwner && SearchOwner->WidgetTree
+		? SearchOwner->WidgetTree->FindWidget(WidgetName)
+		: nullptr;
+}
+
+void UMordecaiCombatHUDWidget::SetHUDMargin(float InMargin)
+{
+	HUDMargin = InMargin >= 64.f ? 96.f : 32.f;
+	const float Shift = HUDMargin - 32.f;
+	auto Move = [](UWidget* Widget, const FVector2D& Position)
+	{
+		if (UCanvasPanelSlot* Slot = Widget ? Cast<UCanvasPanelSlot>(Widget->Slot) : nullptr)
+		{
+			Slot->SetPosition(Position);
+		}
+	};
+
+	Move(GaugePlate, FVector2D(HUDMargin));
+	UMordecaiSpellCooldownWidget* Cooldowns[] = {
+		SpellCooldownA, SpellCooldownB, SpellCooldownC, SpellCooldownD
+	};
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Cooldowns); ++Index)
+	{
+		Move(Cooldowns[Index], FVector2D(HUDMargin + Index * 88.f, 216.f + Shift));
+	}
+	Move(StatusEffectBar, FVector2D(HUDMargin, 318.f + Shift));
+	Move(TallyRailHead, FVector2D(-HUDMargin, HUDMargin));
+	Move(PickupPrompt, FVector2D(90.f, -36.f - Shift));
+	Move(EquippedWeaponWidget, FVector2D(-HUDMargin));
+}
+
+float UMordecaiCombatHUDWidget::GetTopCenterSafeWidth() const
+{
+	// TODO(DECISION): BossBar/Banner owns this proposal. It returns the 1920-wide design canvas
+	// after reserving the 456px gauge, the active edge margin and a 16px gutter on both sides:
+	// 912px at the normal 32px margin and 784px at the TV-safe 96px margin.
+	return FMath::Max(0.f, 1920.f - 2.f * (HUDMargin + 456.f + 16.f));
 }
 
 // ---------------------------------------------------------------------------
@@ -233,7 +426,32 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 	{
 		return;
 	}
+	if (UAbilitySystemComponent* Previous = BoundASC.Get())
+	{
+		Previous->GetGameplayAttributeValueChangeDelegate(
+			UMordecaiAttributeSet::GetHealthAttribute()).RemoveAll(this);
+		Previous->GetGameplayAttributeValueChangeDelegate(
+			UMordecaiAttributeSet::GetMaxHealthAttribute()).RemoveAll(this);
+	}
 	BoundASC = ASC;
+	ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute())
+		.AddUObject(this, &ThisClass::OnHUDHealthChanged);
+	ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxHealthAttribute())
+		.AddUObject(this, &ThisClass::OnHUDMaxHealthChanged);
+	bool bFound = false;
+	CachedHUDHealth = ASC->GetGameplayAttributeValue(
+		UMordecaiAttributeSet::GetHealthAttribute(), bFound);
+	if (!bFound)
+	{
+		CachedHUDHealth = 0.f;
+	}
+	CachedHUDMaxHealth = ASC->GetGameplayAttributeValue(
+		UMordecaiAttributeSet::GetMaxHealthAttribute(), bFound);
+	if (!bFound)
+	{
+		CachedHUDMaxHealth = 0.f;
+	}
+	UpdateLowHealthFrame();
 
 	// Core resource bars (US-052)
 	if (HealthBar)
@@ -293,6 +511,7 @@ void UMordecaiCombatHUDWidget::BindSpellCooldownSlots(
 		}
 		const UMordecaiSpellDataAsset* Data =
 			SpellDataAssets.IsValidIndex(SlotIndex) ? SpellDataAssets[SlotIndex].Get() : nullptr;
+		Widget->ConfigureFromSpellData(const_cast<UMordecaiSpellDataAsset*>(Data));
 		Widget->BindToCooldownTag(
 			ASC,
 			Data ? Data->CooldownTag : FGameplayTag(),
@@ -327,4 +546,101 @@ void UMordecaiCombatHUDWidget::BindToInteraction(UMordecaiPickupInteractionCompo
 	{
 		PickupPrompt->BindToInteraction(Interaction);
 	}
+}
+
+void UMordecaiCombatHUDWidget::OnHUDHealthChanged(const FOnAttributeChangeData& Data)
+{
+	CachedHUDHealth = Data.NewValue;
+	UpdateLowHealthFrame();
+}
+
+void UMordecaiCombatHUDWidget::OnHUDMaxHealthChanged(const FOnAttributeChangeData& Data)
+{
+	CachedHUDMaxHealth = Data.NewValue;
+	UpdateLowHealthFrame();
+}
+
+void UMordecaiCombatHUDWidget::UpdateLowHealthFrame()
+{
+	if (!LowHealthFrame)
+	{
+		return;
+	}
+	const float HealthRatio = CachedHUDMaxHealth > 0.f
+		? CachedHUDHealth / CachedHUDMaxHealth
+		: 1.f;
+	LowHealthFrame->SetRenderOpacity(1.f);
+	LowHealthFrame->SetVisibility(
+		HealthRatio <= MordecaiHUDConstants::LowHealthThreshold
+			? ESlateVisibility::HitTestInvisible
+			: ESlateVisibility::Collapsed);
+}
+
+void UMordecaiCombatHUDWidget::UpdateLowHealthRimForTime(float TimeSeconds)
+{
+	if (!CachedGaugeRim)
+	{
+		CachedGaugeRim = WidgetTree
+			? Cast<UBorder>(WidgetTree->FindWidget(TEXT("GaugePlate_Rim")))
+			: nullptr;
+	}
+	if (!CachedGaugeRim)
+	{
+		return;
+	}
+	const bool bLowHealth = CachedHUDMaxHealth > 0.f
+		&& CachedHUDHealth / CachedHUDMaxHealth <= MordecaiHUDConstants::LowHealthThreshold;
+	const bool bVitalStep = bLowHealth && FMath::Fmod(FMath::Max(0.f, TimeSeconds), 1.f) < 0.5f;
+	if (!bRimStepInitialized || bVitalStep != bLastRimVitalStep)
+	{
+		FSlateBrush Brush = CachedGaugeRim->Background;
+		Brush.TintColor = FSlateColor(
+			bVitalStep ? CurrentThemeColors.Vital : CurrentThemeColors.Rim);
+		CachedGaugeRim->SetBrush(Brush);
+		CachedGaugeRim->SetBrushColor(FLinearColor::White);
+		bLastRimVitalStep = bVitalStep;
+		bRimStepInitialized = true;
+	}
+}
+
+void UMordecaiCombatHUDWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	CurrentTheme = Theme;
+	CurrentThemeColors = Colors;
+	if (GaugePlate)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			GaugePlate,
+			FMordecaiUIPrimitiveBuilder::Plate(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme));
+	}
+	if (TallyRailHead)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			TallyRailHead,
+			FMordecaiUIPrimitiveBuilder::Plate(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme));
+	}
+	CachedGaugeRim = WidgetTree
+		? Cast<UBorder>(WidgetTree->FindWidget(TEXT("GaugePlate_Rim")))
+		: nullptr;
+	bRimStepInitialized = false;
+	auto RetintBand = [this](const TCHAR* Name, const FLinearColor& Color)
+	{
+		if (UBorder* Band = WidgetTree ? Cast<UBorder>(WidgetTree->FindWidget(FName(Name))) : nullptr)
+		{
+			Band->SetBrushColor(Color);
+		}
+	};
+	RetintBand(TEXT("LowHealthTopVital"), Colors.Vital);
+	RetintBand(TEXT("LowHealthBottomVital"), Colors.Vital);
+	RetintBand(TEXT("LowHealthLeftVital"), Colors.Vital);
+	RetintBand(TEXT("LowHealthRightVital"), Colors.Vital);
+	RetintBand(TEXT("LowHealthTopInk"), Colors.Ink);
+	RetintBand(TEXT("LowHealthBottomInk"), Colors.Ink);
+	RetintBand(TEXT("LowHealthLeftInk"), Colors.Ink);
+	RetintBand(TEXT("LowHealthRightInk"), Colors.Ink);
+	UpdateLowHealthRimForTime(GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f);
 }

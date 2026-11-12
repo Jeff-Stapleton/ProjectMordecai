@@ -8,7 +8,16 @@
 #
 # NOTE: All PIE references held inside _run() to avoid GC reference leaks.
 
+import os
+import sys
+
 import unreal
+
+_scripts_dir = unreal.Paths.convert_relative_path_to_full(
+    os.path.join(unreal.Paths.project_dir(), "Scripts"))
+if _scripts_dir not in sys.path:
+    sys.path.insert(0, _scripts_dir)
+from pie_verify_contracts import combat_hud_layer_checks, player_dead_from_state
 
 def _run():
     pass_count = 0
@@ -70,6 +79,7 @@ def _run():
 
     # --- Player State & ASC ---
     asc = None
+    ps = None
     if pc:
         try:
             ps = pc.player_state
@@ -106,6 +116,32 @@ def _run():
         except Exception as e:
             check("PlayerState accessible", False, str(e))
 
+    player_health = None
+    asc_has_dead_tag = None
+    if ps:
+        try:
+            attributes = ps.get_mordecai_attribute_set()
+            if attributes:
+                player_health = float(
+                    attributes.get_editor_property("health").get_editor_property(
+                        "current_value"))
+        except Exception:
+            pass
+    if asc:
+        try:
+            dead_tag = unreal.GameplayTag()
+            imported = dead_tag.import_text('(TagName="Mordecai.State.Dead")')
+            if imported:
+                asc_has_dead_tag = bool(asc.has_matching_gameplay_tag(dead_tag))
+        except Exception:
+            pass
+    check(
+        "Player death state readable",
+        player_health is not None or asc_has_dead_tag is not None,
+        "Neither Health nor Mordecai.State.Dead could be read from the PlayerState ASC",
+    )
+    player_dead = player_dead_from_state(player_health, asc_has_dead_tag)
+
     # --- Combat HUD ---
     hud_widget = None
     try:
@@ -117,7 +153,48 @@ def _run():
           "PlayerController.CombatHUDWidget is null")
 
     if hud_widget:
-        check("CombatHUDWidget visible", hud_widget.is_visible())
+        death_screens = unreal.WidgetLibrary.get_all_widgets_of_class(
+            world, unreal.MordecaiDeathScreenWidget, False)
+        try:
+            # W_OverallUILayout registers GameLayer_Stack as UI.Layer.Game.
+            # CommonUI's native GetWidgetList is not reflected to Python.
+            game_layer = next(
+                (stack for stack in unreal.ObjectIterator(
+                    unreal.CommonActivatableWidgetStack)
+                 if stack.get_name() == "GameLayer_Stack"),
+                None)
+            active_game_widget = game_layer.get_active_widget() if game_layer else None
+            layer_checks = combat_hud_layer_checks(
+                player_dead=player_dead,
+                game_layer_is_ui_layer_game=game_layer is not None,
+                death_screen_is_active_widget=active_game_widget in death_screens,
+                hud_is_activated=hud_widget.is_activated(),
+                hud_is_visible=hud_widget.is_visible(),
+            )
+        except Exception as exc:
+            check("UI.Layer.Game state readable", False, str(exc))
+            layer_checks = None
+
+        if player_dead and layer_checks:
+            check(
+                "Death screen is active on the UI.Layer.Game stack",
+                layer_checks["death_screen_on_game_layer"],
+                "The stack containing CombatHUDWidget does not have a death screen active",
+            )
+            check(
+                "CombatHUDWidget inactive while death screen owns UI.Layer.Game",
+                layer_checks["hud_inactive_under_death"],
+                "Combat HUD remained activated underneath the death screen",
+            )
+        elif not player_dead and layer_checks:
+            layer_checks = combat_hud_layer_checks(
+                player_dead=False,
+                game_layer_is_ui_layer_game=game_layer is not None,
+                death_screen_is_active_widget=False,
+                hud_is_activated=hud_widget.is_activated(),
+                hud_is_visible=hud_widget.is_visible(),
+            )
+            check("CombatHUDWidget visible", layer_checks["hud_visible"])
 
         try:
             child_count = hud_widget.get_bound_child_count()

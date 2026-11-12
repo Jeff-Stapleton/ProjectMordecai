@@ -4,12 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include "MordecaiSpellPointsBarWidget.generated.h"
 
 class UAbilitySystemComponent;
+class UHorizontalBox;
 class UProgressBar;
 class UTextBlock;
+class UMordecaiUIThemeSubsystem;
 struct FOnAttributeChangeData;
 
 /**
@@ -45,12 +48,17 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> SpellPointsProgressBar;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> SpellPointsText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UHorizontalBox> SpellPointTokens;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	float CachedSpellPoints = 10.f;
@@ -63,6 +71,14 @@ private:
 	void OnSpellPointsChanged(const FOnAttributeChangeData& Data);
 	void OnMaxSpellPointsChanged(const FOnAttributeChangeData& Data);
 	void UpdateDisplay();
+	void RebuildTokens(int32 Current, int32 Maximum);
+	void RetintTokens(int32 Current);
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
+	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
+	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
+	int32 BuiltTokenMaximum = INDEX_NONE;
 };

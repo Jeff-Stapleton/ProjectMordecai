@@ -5,12 +5,20 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include "MordecaiSpellCooldownWidget.generated.h"
 
 class UAbilitySystemComponent;
+class UHorizontalBox;
+class UImage;
+class UMaterialInstanceDynamic;
+class UOverlay;
 class UProgressBar;
 class UTextBlock;
+class UBorder;
+class UMordecaiSpellDataAsset;
+class UMordecaiUIThemeSubsystem;
 
 /**
  * UMordecaiSpellCooldownWidget
@@ -43,12 +51,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void SetSlotKeyLabel(const FText& Label);
 
+	/** Bind the shipped glyph and SP-cost rivets for one spell. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
+	void ConfigureFromSpellData(UMordecaiSpellDataAsset* SpellData);
+
+	/** Gallery/test preview without bypassing the live widget presentation. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
+	void SetPreviewCooldownFraction(float Fraction);
+
 	/** Check if the spell is currently on cooldown. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	bool IsOnCooldown() const { return bIsOnCooldown; }
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
@@ -60,6 +77,27 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> SlotKeyText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> SpellIcon;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> SlotKey;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UHorizontalBox> CostRivets;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> LockChip;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> MuzzleBadge;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UBorder> CooldownShutterLip;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UBorder> CooldownTextBacking;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	FGameplayTag BoundCooldownTag;
@@ -81,7 +119,19 @@ private:
 	void UnbindFromCooldownTag();
 	void OnCooldownTagChanged(const FGameplayTag Tag, int32 NewCount);
 	void UpdateDisplay();
+	void ApplyCooldownFraction(float Fraction);
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
 	FDelegateHandle CooldownTagChangedHandle;
+	FDelegateHandle ThemeChangedHandle;
+	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
+	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
+	FName ConfiguredSpellGlyph;
+	float PreviewCooldownFraction = 0.f;
+	bool bPreviewCooldownHeld = false;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> ShutterMaterial;
 };

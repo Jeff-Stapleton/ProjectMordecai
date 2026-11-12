@@ -5,11 +5,16 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include "MordecaiStaminaBarWidget.generated.h"
 
 class UAbilitySystemComponent;
+class UImage;
+class UMaterialInstanceDynamic;
 class UProgressBar;
+class UTextBlock;
+class UMordecaiUIThemeSubsystem;
 struct FOnAttributeChangeData;
 
 /**
@@ -62,9 +67,20 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> StaminaProgressBar;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> StaminaTierText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UProgressBar> StaminaDebtBar;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> SprintPip;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	float CachedStamina = 100.f;
@@ -77,8 +93,19 @@ private:
 	void OnStaminaChanged(const FOnAttributeChangeData& Data);
 	void OnMaxStaminaChanged(const FOnAttributeChangeData& Data);
 	void UpdateDisplay();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
 
 	FLinearColor GetColorForTier(EMordecaiStaminaTier Tier) const;
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
+	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
+	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> RedTierMaterial;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> DebtMaterial;
 };
