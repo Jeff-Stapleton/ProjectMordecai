@@ -596,6 +596,21 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		Find<UTextBlock>(Slot, TEXT("CooldownText"))
 			? Find<UTextBlock>(Slot, TEXT("CooldownText"))->GetText().ToString() : FString(),
 		FString(TEXT("2.4")));
+	const UCanvasPanelSlot* CooldownTextSlot = Find<UTextBlock>(Slot, TEXT("CooldownText"))
+		? Cast<UCanvasPanelSlot>(Find<UTextBlock>(Slot, TEXT("CooldownText"))->Slot)
+		: nullptr;
+	const UCanvasPanelSlot* LockChipSlot = Find<UWidget>(Slot, TEXT("LockChip"))
+		? Cast<UCanvasPanelSlot>(Find<UWidget>(Slot, TEXT("LockChip"))->Slot)
+		: nullptr;
+	const UCanvasPanelSlot* MuzzleBadgeSlot = Find<UWidget>(Slot, TEXT("MuzzleBadge"))
+		? Cast<UCanvasPanelSlot>(Find<UWidget>(Slot, TEXT("MuzzleBadge"))->Slot)
+		: nullptr;
+	TestTrue("cooldown seconds render on the slot's top visual layer",
+		CooldownTextSlot
+		&& LockChipSlot
+		&& MuzzleBadgeSlot
+		&& CooldownTextSlot->GetZOrder() > LockChipSlot->GetZOrder()
+		&& CooldownTextSlot->GetZOrder() > MuzzleBadgeSlot->GetZOrder());
 	TestEqual("glyph dims to 0.4 while cooling",
 		Glyph ? Glyph->GetColorAndOpacity().A : 0.f, 0.4f, 0.001f);
 	TestEqual("keycap hangs at in-slot y=56",
@@ -687,6 +702,14 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		&& SwapKey->GetFont().FontObject->GetName() == TEXT("F_Tally_Mono")
 		&& SwapKey->GetFont().TypefaceFontName == TEXT("ExtraBold")
 		&& SwapKey->GetFont().Size == 22);
+	Loadout->ForceLayoutPrepass();
+	const UCanvasPanelSlot* SwapKeycapSlot = Find<UWidget>(Loadout, TEXT("SwapKeycap"))
+		? Cast<UCanvasPanelSlot>(Find<UWidget>(Loadout, TEXT("SwapKeycap"))->Slot)
+		: nullptr;
+	TestTrue("Tab keycap fits its desired label width plus 8px horizontal padding",
+		SwapKey
+		&& SwapKeycapSlot
+		&& SwapKey->GetDesiredSize().X + 16.f <= SwapKeycapSlot->GetSize().X);
 	UTextBlock* TierText = Find<UTextBlock>(Stamina, TEXT("StaminaTierText"));
 	TestEqual("tier pill uses weight 700",
 		TierText ? TierText->GetFont().TypefaceFontName : NAME_None,
