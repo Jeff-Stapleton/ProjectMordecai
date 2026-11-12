@@ -316,9 +316,11 @@ bool FMordecai_UI_Foundation_AssetPathsAndTypes::RunTest(const FString& Paramete
 			{
 				TestEqual("the native 16px hatch uses nearest filtering",
 					Texture->Filter, TEnumAsByte<TextureFilter>(TF_Nearest));
+#if WITH_EDITORONLY_DATA
 				TestEqual("the native 16px hatch has no generated mip chain",
 					Texture->MipGenSettings,
 					TEnumAsByte<TextureMipGenSettings>(TMGS_NoMipmaps));
+#endif
 				TestEqual("the native 16px hatch wraps horizontally",
 					Texture->AddressX, TEnumAsByte<TextureAddress>(TA_Wrap));
 				TestEqual("the native 16px hatch wraps vertically",
