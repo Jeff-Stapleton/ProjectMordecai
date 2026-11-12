@@ -78,9 +78,9 @@ def _run():
         # (child properties are protected, so we use GetBoundChildCount instead)
         try:
             child_count = hud_widget.get_bound_child_count()
-            check(f"All HUD child widgets present ({child_count}/13)",
-                  child_count == 13,
-                  f"{child_count}/13 -- expected the twelve HUD controls plus IndicatorLayer")
+            check(f"All HUD child widgets present ({child_count}/15)",
+                  child_count == 15,
+                  f"{child_count}/15 -- expected the fourteen HUD controls plus IndicatorLayer")
         except Exception as e:
             check("GetBoundChildCount accessible", False, str(e))
 

@@ -154,27 +154,34 @@ def _run():
                   abs(duration - expected_duration) < 0.001,
                   f"Got {duration:g}")
 
-    # The issue #35 slice owns the two existing slots only. Issue #13 owns widgets C/D.
+    # Issue #13: one labelled, bound cooldown widget per loadout slot.
     cooldown_widgets = unreal.WidgetLibrary.get_all_widgets_of_class(
         world, unreal.MordecaiSpellCooldownWidget, False)
-    check("Two existing spell cooldown widgets remain in scope",
-          len(cooldown_widgets) == 2,
-          f"Found {len(cooldown_widgets)}; widgets C/D remain issue #13")
+    check("Four spell cooldown widgets exist",
+          len(cooldown_widgets) == 4,
+          f"Found {len(cooldown_widgets)}")
     expected_bound = {
         'Mordecai.Cooldown.Spell.Fireball',
         'Mordecai.Cooldown.Spell.Blink',
+        'Mordecai.Cooldown.Spell.StoneSkin',
+        'Mordecai.Cooldown.Spell.Restoration',
     }
     actual_bound = set()
+    actual_labels = set()
     for widget in cooldown_widgets:
         try:
             actual_bound.add(
                 widget.get_editor_property('bound_cooldown_tag').export_text()
                 .replace('(TagName="', '').replace('")', ''))
+            actual_labels.add(str(widget.get_editor_property('slot_key_label')))
         except Exception as exc:
-            check("Cooldown widget BoundCooldownTag readable", False, str(exc))
-    check("Slots A/B are bound after spell grants",
+            check("Cooldown widget tag and label readable", False, str(exc))
+    check("Slots A-D are bound after spell grants",
           actual_bound == expected_bound,
           f"Got {sorted(actual_bound)}")
+    check("Cooldown slot labels are Q / E / R / 1",
+          actual_labels == {'Q', 'E', 'R', '1'},
+          f"Got {sorted(actual_labels)}")
 
     # --- Enemy with fire attack ---
     all_actors = unreal.GameplayStatics.get_all_actors_of_class(world, unreal.Actor)

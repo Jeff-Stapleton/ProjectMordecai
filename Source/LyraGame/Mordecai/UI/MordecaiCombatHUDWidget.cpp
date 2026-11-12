@@ -134,17 +134,27 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 	AddChild(SpellPointsBar, TopLeft, FVector2D(20, 100), FVector2D(250, 16));
 
 	// --- Spell Cooldowns ---
-	if (!SpellCooldownA)
+	TObjectPtr<UMordecaiSpellCooldownWidget>* CooldownWidgets[] = {
+		&SpellCooldownA,
+		&SpellCooldownB,
+		&SpellCooldownC,
+		&SpellCooldownD,
+	};
+	const TCHAR* SlotKeyLabels[] = { TEXT("Q"), TEXT("E"), TEXT("R"), TEXT("1") };
+	for (int32 SlotIndex = 0; SlotIndex < UE_ARRAY_COUNT(CooldownWidgets); ++SlotIndex)
 	{
-		SpellCooldownA = CreateWidget<UMordecaiSpellCooldownWidget>(this);
+		TObjectPtr<UMordecaiSpellCooldownWidget>& CooldownWidget = *CooldownWidgets[SlotIndex];
+		if (!CooldownWidget)
+		{
+			CooldownWidget = CreateWidget<UMordecaiSpellCooldownWidget>(this);
+		}
+		CooldownWidget->SetSlotKeyLabel(FText::FromString(SlotKeyLabels[SlotIndex]));
+		AddChild(
+			CooldownWidget,
+			TopLeft,
+			FVector2D(20.f + (64.f * SlotIndex), 124.f),
+			FVector2D(58.f, 40.f));
 	}
-	AddChild(SpellCooldownA, TopLeft, FVector2D(20, 124), FVector2D(120, 16));
-
-	if (!SpellCooldownB)
-	{
-		SpellCooldownB = CreateWidget<UMordecaiSpellCooldownWidget>(this);
-	}
-	AddChild(SpellCooldownB, TopLeft, FVector2D(150, 124), FVector2D(120, 16));
 
 	// --- Kill Counter (top-right) ---
 	if (!KillCounter)
@@ -203,6 +213,8 @@ int32 UMordecaiCombatHUDWidget::GetBoundChildCount() const
 	if (StatusEffectBar) Count++;
 	if (SpellCooldownA) Count++;
 	if (SpellCooldownB) Count++;
+	if (SpellCooldownC) Count++;
+	if (SpellCooldownD) Count++;
 	if (ComboCounter) Count++;
 	if (CombatFeedback) Count++;
 	if (KillCounter) Count++;
@@ -246,7 +258,7 @@ void UMordecaiCombatHUDWidget::BindToASC(UAbilitySystemComponent* ASC)
 	{
 		StatusEffectBar->BindToASC(ASC);
 	}
-	// Note: SpellCooldownA/B are bound individually via BindToCooldownTag()
+	// Note: SpellCooldownA-D are bound individually via BindToCooldownTag()
 	// from the player controller or experience setup, since each slot needs
 	// its specific cooldown tag and duration.
 
@@ -287,9 +299,16 @@ void UMordecaiCombatHUDWidget::BindSpellCooldownSlots(
 			Data ? Data->CooldownDuration : 0.f);
 	};
 
-	// Issue #35 binds the two existing controls. Slots C/D and their Q/E/R/1 labels remain issue #13.
-	BindSlot(SpellCooldownA, 0);
-	BindSlot(SpellCooldownB, 1);
+	UMordecaiSpellCooldownWidget* CooldownWidgets[] = {
+		SpellCooldownA,
+		SpellCooldownB,
+		SpellCooldownC,
+		SpellCooldownD,
+	};
+	for (int32 SlotIndex = 0; SlotIndex < UE_ARRAY_COUNT(CooldownWidgets); ++SlotIndex)
+	{
+		BindSlot(CooldownWidgets[SlotIndex], SlotIndex);
+	}
 }
 
 void UMordecaiCombatHUDWidget::BindToEquipmentComponent(UMordecaiEquipmentComponent* Equipment)

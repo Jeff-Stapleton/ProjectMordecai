@@ -3133,3 +3133,16 @@ Sweep `20261029-175504-sweep` @ `9904cde`. Every remaining failure is a known is
 ### Next Session Recommendation
 - Scope a recovery story for N32 / #53.
 - Then US-085, and us054_combat's `dead_no_move` ordering, as in the entry above.
+
+## 2026-11-12 — Issue #13: US-088 / US-089 cooldown closure
+
+### Completed
+- US-088 and paired US-089 are DONE at the coordinator's call. US-089's serialized cooldown tags and 2/4/15/10-second durations were already covered by issue #35; issue #13 changed no durations and delivered the missing C/D widgets and four-slot binding.
+- AC-088.3 and the C/D half of AC-088.4 are proven at clean package commit `a7a098c5fc16ae82f41d0fdceaa1765bee771f97` (`dirty=false`, `source_changed_during_build=false`): the default HUD creates A-D labelled Q / E / R / 1 and binds them to Fireball/Blink/Stone Skin/Restoration.
+- Tier 1: 826/826 PASS. Tier 2: 20/20 PASS on a fresh editor. An editor started before the rebuild initially showed the stale 13-child HUD instead of 15; restarting after the rebuild removed that stale-editor failure.
+- Fresh-package CombatTestMap boot: `Saved/Playtests/20261112-055752-boot` PASS.
+- US-057: `cooldown_widgets`, `fireball_cooldown_state`, `cooldown_hud`, and real-input `stone_skin_cooldown_hud` PASS in `Saved/Playtests/20261112-055851-us057`. N16 `stone_skin_indicator` still renders `Status 10.0` and is outside issue #13.
+- Full sweep `Saved/Playtests/20261112-055932-sweep` versus exact-main `Saved/Playtests/20261112-043446-sweep` at `b84a2e1`: zero PASS→FAIL; `cooldown_widgets` is the only FAIL→PASS; `stone_skin_cooldown_hud` is a new PASS.
+- Evidence bundle `Saved/Playtests/issue13-a7a098c/` contains the baseline/final sweep summaries and a verified 396-entry SHA-256 manifest.
+- The coordinator opened final-sweep `bridge_03.png` and `bridge_04.png` with Read: four cooldown bars appear under the SP bar; E/R show 0.8/12.0 seconds and then R shows 11.1. Q/E labels are visible but tiny; Development-build debug messages cover R/1. Legibility is follow-up #124 / US-105.
+- N8 / issue #13 is fixed. Review verdict: **NOT MERGE-BLOCKING**; the only run failure is the pre-existing #21 Stone Skin indicator defect.

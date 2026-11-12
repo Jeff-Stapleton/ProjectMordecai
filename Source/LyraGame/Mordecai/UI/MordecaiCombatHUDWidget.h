@@ -47,7 +47,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void BindToASC(UAbilitySystemComponent* ASC);
 
-	/** Bind existing slots A/B to spell loadout slots 0/1 after the abilities are granted (issue #13 owns C/D). */
+	/** Bind cooldown widgets A-D to spell loadout slots 0-3 after the abilities are granted. */
 	void BindSpellCooldownSlots(
 		UAbilitySystemComponent* ASC,
 		const TArray<TObjectPtr<UMordecaiSpellDataAsset>>& SpellDataAssets);
@@ -102,6 +102,12 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UMordecaiSpellCooldownWidget> SpellCooldownB;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UMordecaiSpellCooldownWidget> SpellCooldownC;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UMordecaiSpellCooldownWidget> SpellCooldownD;
 
 	// --- Combat Feedback (US-061) ---
 

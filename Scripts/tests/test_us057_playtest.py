@@ -47,6 +47,7 @@ RESTORATION_TAG = "Mordecai.Status.Restoration"
 COOLDOWN_S = {"Fireball": 2.0, "Blink": 4.0, "StoneSkin": 15.0, "Restoration": 10.0}
 TAG_FOR = {"StoneSkin": STONE_SKIN_TAG, "Restoration": RESTORATION_TAG}
 COOLDOWN_NAMES = "ABCDEFGH"
+COOLDOWN_LABELS = ("Q", "E", "R", "1")
 
 
 class MagicWorld(fb.FakeWorld):
@@ -179,7 +180,8 @@ class MagicWorld(fb.FakeWorld):
                         "name": f"SpellCooldown{COOLDOWN_NAMES[i]}",
                         "rect": [20 + 130 * i, 124, 120, 16],
                         # The bridge omits the live widget's empty ready-state text.
-                        "texts": [f"{left:.1f}"] if left > 0 else [], "buttons": []})
+                        "texts": ([COOLDOWN_LABELS[i]] + ([f"{left:.1f}"] if left > 0 else [])),
+                        "buttons": []})
         out.append({"class": "MordecaiStatusEffectBarWidget", "name": "StatusEffectBar",
                     "rect": [20, 620, 400, 40], "texts": [], "buttons": []})
         if self.indicators:
@@ -283,9 +285,12 @@ class PlaytestCase(unittest.TestCase):
             return f.read()
 
 
-TODAY_KNOWN = ["cooldown_widgets"]
-TODAY_NEW = ["fireball_cooldown_state", "cooldown_hud"]
-TODAY_FAILURES = TODAY_KNOWN + TODAY_NEW
+PRE_FIX_FAILURES = [
+    "cooldown_widgets",
+    "fireball_cooldown_state",
+    "cooldown_hud",
+    "stone_skin_cooldown_hud",
+]
 PLAN_CHECKS = [s.check for s in us057.PLAN]
 
 
@@ -310,9 +315,8 @@ class TestUs057PassPath(PlaytestCase):
         self.assertIn("TestDummy health 200 -> 175", checks["fireball_hits_enemy"]["detail"])
         self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
         self.assertIn(fb.COMBAT_TEST_MAP, checks["map"]["detail"])
-        # Only issue #13 remains known; passing it is a fixed-candidate.
-        self.assertEqual(sorted(rep["fixed_candidates"]), sorted(TODAY_KNOWN))
-        self.assertIn("PASS (FIXED?)", self.md())
+        self.assertEqual(rep["fixed_candidates"], [])
+        self.assertNotIn("PASS (FIXED?)", self.md())
         self.assertNotIn(RESTORATION_TAG, world.status)
         self.assertNotIn(STONE_SKIN_TAG, world.status)
 
@@ -364,25 +368,25 @@ class TestUs057PassPath(PlaytestCase):
         self.assertEqual(checks["fireball_hits_enemy"]["status"], "PASS")
 
 
-class TestUs057TodaysGame(PlaytestCase):
-    def test_todays_game_reports_cooldowns_as_new_and_widgets_as_known(self):
+class TestUs057PreFixGame(PlaytestCase):
+    def test_pre_fix_game_reports_cooldown_failures_as_new(self):
         # Model the pre-#35 package: no cooldowns and only the two issue-#13 HUD widgets.
         _, server = self.serve()
         code, rep = self.play(server)
         self.assertEqual(code, 1, self.log.getvalue()[-4000:])
-        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(TODAY_FAILURES))
-        self.assertEqual(sorted(rep["known_failures"]), sorted(TODAY_KNOWN))
-        self.assertEqual(sorted(rep["new_failures"]), sorted(TODAY_NEW))
+        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(PRE_FIX_FAILURES))
+        self.assertEqual(rep["known_failures"], [])
+        self.assertEqual(sorted(rep["new_failures"]), sorted(PRE_FIX_FAILURES))
         self.assertEqual(self.statuses(rep, "SKIP"), [])
         checks = self.by_name(rep)
         self.assertIn("2 SpellCooldown widget(s) on screen (expected 4)",
                       checks["cooldown_widgets"]["detail"])
         self.assertIn("cooldown_remaining_s stayed 0.00", checks["fireball_cooldown_state"]["detail"])
         self.assertIn("cooldown_tag ''", checks["fireball_cooldown_state"]["detail"])
-        self.assertIn("texts seen: none", checks["cooldown_hud"]["detail"])
+        self.assertIn("texts seen: ['Q', 'E']", checks["cooldown_hud"]["detail"])
         self.assertNotIn("Ready", checks["cooldown_hud"]["detail"])
         md = self.md()
-        self.assertIn("FAIL (known)", md)
+        self.assertNotIn("FAIL (known)", md)
         self.assertIn("FAIL (NEW)", md)
         acs = {(a["story"], a["id"]): a for a in rep["acs"]}
         self.assertEqual(acs[("US-057", "AC-057.1")]["status"], "FAIL")
@@ -398,7 +402,7 @@ class TestUs057TodaysGame(PlaytestCase):
 
 class TestUs057Failures(PlaytestCase):
     def fail_set(self, rep):
-        return sorted(set(self.statuses(rep, "FAIL")) - set(TODAY_FAILURES))
+        return sorted(set(self.statuses(rep, "FAIL")) - set(PRE_FIX_FAILURES))
 
     def test_no_projectile_and_no_damage_are_new_failures(self):
         _, server = self.serve(projectiles=False)
@@ -545,7 +549,7 @@ class TestUs057Report(PlaytestCase):
                 and not line.startswith("| #")]
         self.assertEqual(len(rows), len(PLAN_CHECKS))
         self.assertIn("`fireball_hits_enemy`", out.getvalue())
-        self.assertIn("known issue", out.getvalue())
+        self.assertNotIn("known issue", out.getvalue())
         self.assertEqual(kit.plan_problems(us057.Run), [])
 
     def test_ac_ids_exist_in_the_story_files(self):
