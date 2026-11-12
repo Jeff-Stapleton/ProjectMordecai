@@ -1372,6 +1372,17 @@ bool UMordecaiTinTallyGallerySubsystem::ShouldCreateSubsystem(UObject* Outer) co
 #endif
 }
 
+bool UMordecaiTinTallyGallerySubsystem::IsValidSelection(
+	const FString& Component,
+	const FString& Theme,
+	const FString& State)
+{
+	(void)Component;
+	(void)Theme;
+	(void)State;
+	return true;
+}
+
 void UMordecaiTinTallyGallerySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);

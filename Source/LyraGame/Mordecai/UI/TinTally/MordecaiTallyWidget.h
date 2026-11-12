@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Styling/SlateBrush.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/Weapons/MordecaiWeaponTypes.h"
 
 #include "MordecaiTallyWidget.generated.h"
 
@@ -55,6 +56,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Tally")
 	void SetUsage(EMordecaiTallyUsage NewUsage);
 
+	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Tally")
+	void SetRarityTier(EMordecaiItemRarity NewRarity);
+
+	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Tally")
+	void SetSealOnEnamel(bool bNewSealOnEnamel);
+
 	/** Configure the cooked atlas slices used by native and Development fixtures. */
 	void SetFrameBrushes(
 		const TArray<FSlateBrush>& NewBundleFrames,
@@ -90,6 +97,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally")
 	EMordecaiTallyUsage Usage = EMordecaiTallyUsage::SkillRank;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally")
+	EMordecaiItemRarity Rarity = EMordecaiItemRarity::Common;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally")
+	bool bSealOnEnamel = false;
 
 	/** Exactly six brushes: empty, one, two, three, four, full bundle. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally", meta = (EditFixedSize))

@@ -251,6 +251,23 @@ namespace MordecaiTinTallyThemeTest
 				FName(*FString::Printf(TEXT("TallyFill_%d"), Index))))
 			: nullptr;
 	}
+
+	FLinearColor RarityColor(
+		const FMordecaiUIThemeColors& Colors,
+		EMordecaiItemRarity Rarity)
+	{
+		switch (Rarity)
+		{
+		case EMordecaiItemRarity::Green: return Colors.RarityGreen;
+		case EMordecaiItemRarity::Blue: return Colors.RarityBlue;
+		case EMordecaiItemRarity::Purple: return Colors.RarityPurple;
+		case EMordecaiItemRarity::Red: return Colors.RarityRed;
+		case EMordecaiItemRarity::Gold: return Colors.RarityGold;
+		case EMordecaiItemRarity::Common:
+		default:
+			return Colors.RarityCommon;
+		}
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Theme_SRGBConversion,
@@ -407,6 +424,24 @@ bool FMordecai_UI_Theme_RuntimeSwapNotifiesWidgets::RunTest(const FString& Param
 	}
 	UMordecaiUIThemeSubsystem* PlayerService =
 		Env.LocalPlayer->GetSubsystem<UMordecaiUIThemeSubsystem>();
+	UMordecaiUIThemeDataAsset* FreshDiorama = PlayerService
+		? PlayerService->GetThemeAsset(EMordecaiUITheme::Diorama)
+		: nullptr;
+	UMordecaiUIThemeDataAsset* FreshHighContrast = PlayerService
+		? PlayerService->GetThemeAsset(EMordecaiUITheme::HighContrast)
+		: nullptr;
+	TestNotNull("fresh local-player subsystem resolves the saved Diorama theme asset",
+		FreshDiorama);
+	TestNotNull("fresh local-player subsystem resolves the saved High Contrast theme asset",
+		FreshHighContrast);
+	TestTrue("fresh Diorama asset uses the canonical saved path",
+		FreshDiorama
+		&& FreshDiorama->GetPathName()
+			== TEXT("/MordecaiCore/UI/TinTally/Themes/DA_UITheme_Diorama.DA_UITheme_Diorama"));
+	TestTrue("fresh High Contrast asset uses the canonical saved path",
+		FreshHighContrast
+		&& FreshHighContrast->GetPathName()
+			== TEXT("/MordecaiCore/UI/TinTally/Themes/DA_UITheme_HighContrast.DA_UITheme_HighContrast"));
 	UMordecaiTallyWidget* Tally = Env.MakeTally();
 	UHorizontalBox* OriginalBox = Tally && Tally->WidgetTree
 		? Cast<UHorizontalBox>(Tally->WidgetTree->RootWidget)
@@ -444,6 +479,75 @@ bool FMordecai_UI_Theme_RuntimeSwapNotifiesWidgets::RunTest(const FString& Param
 	}
 	TestFalse("the theme delegate is unbound after the live widget is destroyed",
 		PlayerService && PlayerService->OnThemeChangedNative().IsBoundToObject(Tally));
+	Env.Teardown();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_TallyWidget_UsageTints,
+	"Mordecai.UI.TallyWidget.UsageTints",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_TallyWidget_UsageTints::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiTinTallyThemeTest;
+	FThemeWidgetTestEnv Env;
+	if (!TestTrue("tally usage tint test world", Env.Setup()))
+	{
+		return true;
+	}
+	UMordecaiUIThemeSubsystem* Service =
+		Env.LocalPlayer->GetSubsystem<UMordecaiUIThemeSubsystem>();
+	UMordecaiTallyWidget* Tally = Env.MakeTally();
+	Tally->SetCountAndMax(3, 5);
+	UImage* Fill = GetBundleImage(Tally, 0);
+	if (!TestNotNull("usage tint test has a rendered fill", Fill) || !Service)
+	{
+		return true;
+	}
+
+	for (EMordecaiUITheme Theme :
+		{ EMordecaiUITheme::Diorama, EMordecaiUITheme::HighContrast })
+	{
+		Service->SetActiveTheme(
+			Theme == EMordecaiUITheme::Diorama
+				? EMordecaiUITheme::HighContrast
+				: EMordecaiUITheme::Diorama);
+		Service->SetActiveTheme(Theme);
+		const FMordecaiUIThemeColors Colors = Service->GetActiveColors();
+		const FString ThemeName =
+			StaticEnum<EMordecaiUITheme>()->GetNameStringByValue(static_cast<int64>(Theme));
+
+		Tally->SetUsage(EMordecaiTallyUsage::SkillRank);
+		TestTrue(*FString::Printf(TEXT("%s skill rank uses text"), *ThemeName),
+			Fill->GetColorAndOpacity().Equals(Colors.Text, 0.0001f));
+		Tally->SetUsage(EMordecaiTallyUsage::LoadingThrobber);
+		TestTrue(*FString::Printf(TEXT("%s loading throbber uses text"), *ThemeName),
+			Fill->GetColorAndOpacity().Equals(Colors.Text, 0.0001f));
+		Tally->SetSealOnEnamel(false);
+		Tally->SetUsage(EMordecaiTallyUsage::Seal);
+		TestTrue(*FString::Printf(TEXT("%s plate seal uses rim"), *ThemeName),
+			Fill->GetColorAndOpacity().Equals(Colors.Rim, 0.0001f));
+		Tally->SetSealOnEnamel(true);
+		TestTrue(*FString::Printf(TEXT("%s enamel seal stamp uses ink"), *ThemeName),
+			Fill->GetColorAndOpacity().Equals(Colors.Ink, 0.0001f));
+
+		for (EMordecaiItemRarity Rarity : {
+			EMordecaiItemRarity::Common, EMordecaiItemRarity::Green,
+			EMordecaiItemRarity::Blue, EMordecaiItemRarity::Purple,
+			EMordecaiItemRarity::Red, EMordecaiItemRarity::Gold })
+		{
+			Tally->SetRarityTier(Rarity);
+			Tally->SetUsage(EMordecaiTallyUsage::RarityBadge);
+			const FString RarityName =
+				StaticEnum<EMordecaiItemRarity>()->GetNameStringByValue(
+					static_cast<int64>(Rarity));
+			TestTrue(*FString::Printf(TEXT("%s rarity %s uses its explicit token, never Good"),
+				*ThemeName, *RarityName),
+				Fill->GetColorAndOpacity().Equals(RarityColor(Colors, Rarity), 0.0001f));
+		}
+	}
+	Env.SlateWidget.Reset();
+	Tally->ReleaseSlateResources(true);
 	Env.Teardown();
 	return true;
 }

@@ -1,4 +1,4 @@
-// Project Mordecai — Tin Tally cooked-foundation contract tests (US-103 RED)
+// Project Mordecai — Tin Tally cooked-foundation contract tests (US-103)
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -13,10 +13,13 @@
 #include "Fonts/CompositeFont.h"
 #include "Engine/Texture2D.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialExpressionTextureSample.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/AutomationTest.h"
 #include "Modules/ModuleManager.h"
 #include "Mordecai/UI/TinTally/MordecaiTinTallyGallerySubsystem.h"
 #include "Mordecai/UI/TinTally/MordecaiTallyWidget.h"
+#include "Mordecai/UI/TinTally/MordecaiUIFoundation.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 #include "UObject/UnrealType.h"
@@ -85,6 +88,67 @@ namespace MordecaiTinTallyFoundationTest
 			return Layer.Name == Name;
 		});
 	}
+
+	bool SpecsEqual(const FMordecaiUIPrimitiveSpec& Actual, const FMordecaiUIPrimitiveSpec& Expected)
+	{
+		if (Actual.Layers.Num() != Expected.Layers.Num()
+			|| !FMath::IsNearlyEqual(Actual.OuterOutlineWidth, Expected.OuterOutlineWidth)
+			|| !FMath::IsNearlyEqual(Actual.InnerStrokeWidth, Expected.InnerStrokeWidth)
+			|| !FMath::IsNearlyEqual(Actual.FocusStrokeWidth, Expected.FocusStrokeWidth)
+			|| !FMath::IsNearlyEqual(Actual.FocusKeylineWidth, Expected.FocusKeylineWidth)
+			|| !FMath::IsNearlyEqual(Actual.FocusOffset, Expected.FocusOffset))
+		{
+			return false;
+		}
+		for (int32 Index = 0; Index < Actual.Layers.Num(); ++Index)
+		{
+			const FMordecaiUIPrimitiveLayer& A = Actual.Layers[Index];
+			const FMordecaiUIPrimitiveLayer& E = Expected.Layers[Index];
+			if (A.Name != E.Name
+				|| A.Padding != E.Padding
+				|| A.Translation != E.Translation
+				|| A.DesiredSize != E.DesiredSize
+				|| A.Center != E.Center
+				|| A.HorizontalAlignment != E.HorizontalAlignment
+				|| A.VerticalAlignment != E.VerticalAlignment
+				|| A.Brush.DrawAs != E.Brush.DrawAs
+				|| !A.Brush.TintColor.GetSpecifiedColor().Equals(
+					E.Brush.TintColor.GetSpecifiedColor(), 0.0001f)
+				|| !A.Brush.OutlineSettings.CornerRadii.Equals(
+					E.Brush.OutlineSettings.CornerRadii, 0.0001f)
+				|| !A.Brush.OutlineSettings.Color.GetSpecifiedColor().Equals(
+					E.Brush.OutlineSettings.Color.GetSpecifiedColor(), 0.0001f)
+				|| !FMath::IsNearlyEqual(
+					A.Brush.OutlineSettings.Width, E.Brush.OutlineSettings.Width)
+				|| A.Brush.OutlineSettings.RoundingType
+					!= E.Brush.OutlineSettings.RoundingType)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	USizeBox* FindLayerSizeBox(UOverlay* Overlay, FName LayerName)
+	{
+		if (!Overlay)
+		{
+			return nullptr;
+		}
+		const FString Suffix = FString::Printf(TEXT("_%s"), *LayerName.ToString());
+		for (int32 Index = 0; Index < Overlay->GetChildrenCount(); ++Index)
+		{
+			USizeBox* SizeBox = Cast<USizeBox>(Overlay->GetChildAt(Index));
+			const UWidget* Child = SizeBox && SizeBox->GetChildrenCount() > 0
+				? SizeBox->GetChildAt(0)
+				: nullptr;
+			if (Child && Child->GetName().EndsWith(Suffix))
+			{
+				return SizeBox;
+			}
+		}
+		return nullptr;
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Foundation_AssetPathsAndTypes,
@@ -104,16 +168,34 @@ bool FMordecai_UI_Foundation_AssetPathsAndTypes::RunTest(const FString& Paramete
 	if (Diorama)
 	{
 		TestEqual("Diorama asset is labelled Diorama", Diorama->Theme, EMordecaiUITheme::Diorama);
-		TestTrue("Diorama contains reviewed sRGB-converted token values",
-			Diorama->Colors.Plate.Equals(FMordecaiUIThemeColors::MakeDiorama().Plate, 0.0001f));
 	}
 	if (HighContrast)
 	{
 		TestEqual("High Contrast asset is labelled High Contrast",
 			HighContrast->Theme, EMordecaiUITheme::HighContrast);
-		TestTrue("High Contrast contains reviewed sRGB-converted token values",
-			HighContrast->Colors.Focus.Equals(
-				FMordecaiUIThemeColors::MakeHighContrast().Focus, 0.0001f));
+	}
+	if (Diorama && HighContrast)
+	{
+		const FMordecaiUIThemeColors NativeDiorama = FMordecaiUIThemeColors::MakeDiorama();
+		const FMordecaiUIThemeColors NativeHighContrast =
+			FMordecaiUIThemeColors::MakeHighContrast();
+		for (FName Token : FMordecaiUIThemeColors::GetRuntimeColorTokenNames())
+		{
+			FLinearColor SavedDiorama;
+			FLinearColor SavedHighContrast;
+			FLinearColor ExpectedDiorama;
+			FLinearColor ExpectedHighContrast;
+			const bool bResolved = Diorama->Colors.TryGetColorToken(Token, SavedDiorama)
+				&& HighContrast->Colors.TryGetColorToken(Token, SavedHighContrast)
+				&& NativeDiorama.TryGetColorToken(Token, ExpectedDiorama)
+				&& NativeHighContrast.TryGetColorToken(Token, ExpectedHighContrast);
+			TestTrue(*FString::Printf(TEXT("%s resolves in both saved and native themes"),
+				*Token.ToString()), bResolved);
+			TestTrue(*FString::Printf(TEXT("%s saved Diorama equals native"), *Token.ToString()),
+				bResolved && SavedDiorama.Equals(ExpectedDiorama, 0.0001f));
+			TestTrue(*FString::Printf(TEXT("%s saved High Contrast equals native"), *Token.ToString()),
+				bResolved && SavedHighContrast.Equals(ExpectedHighContrast, 0.0001f));
+		}
 	}
 
 	for (const TCHAR* FontName : { TEXT("F_Tally_Display"), TEXT("F_Tally_UI"), TEXT("F_Tally_Mono") })
@@ -161,6 +243,42 @@ bool FMordecai_UI_Foundation_AssetPathsAndTypes::RunTest(const FString& Paramete
 	if (Pattern)
 	{
 		TestEqual("pattern material is a UI material", Pattern->MaterialDomain, MD_UI);
+		TArray<FMaterialParameterInfo> Scalars;
+		TArray<FMaterialParameterInfo> Vectors;
+		TArray<FGuid> ScalarIds;
+		TArray<FGuid> VectorIds;
+		Pattern->GetAllScalarParameterInfo(Scalars, ScalarIds);
+		Pattern->GetAllVectorParameterInfo(Vectors, VectorIds);
+		const TSet<FName> ScalarNames = {
+			TEXT("Period"), TEXT("Angle"), TEXT("LineWidth")
+		};
+		const TSet<FName> VectorNames = { TEXT("Base"), TEXT("Line") };
+		for (FName Name : ScalarNames)
+		{
+			TestTrue(*FString::Printf(TEXT("pattern exposes scalar %s"), *Name.ToString()),
+				Scalars.ContainsByPredicate([Name](const FMaterialParameterInfo& Info)
+				{
+					return Info.Name == Name;
+				}));
+		}
+		for (FName Name : VectorNames)
+		{
+			TestTrue(*FString::Printf(TEXT("pattern exposes vector %s"), *Name.ToString()),
+				Vectors.ContainsByPredicate([Name](const FMaterialParameterInfo& Info)
+				{
+					return Info.Name == Name;
+				}));
+		}
+		bool bSamplesHatch = false;
+		for (UMaterialExpression* Expression : Pattern->GetExpressions())
+		{
+			if (const UMaterialExpressionTextureSample* Sample =
+				Cast<UMaterialExpressionTextureSample>(Expression))
+			{
+				bSamplesHatch |= Sample->Texture && Sample->Texture->GetName() == TEXT("T_UI_Hatch16");
+			}
+		}
+		TestTrue("pattern graph samples T_UI_Hatch16", bSamplesHatch);
 	}
 
 	TestNotNull("the tally atlas loads", Load<UTexture2D>(
@@ -190,8 +308,83 @@ bool FMordecai_UI_Foundation_AssetPathsAndTypes::RunTest(const FString& Paramete
 		}
 	}
 
-	TestNotNull("the Development gallery subsystem is compiled",
+	FAssetRegistryModule& RegistryModule =
+		FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	TArray<FAssetData> FoundationAssets;
+	RegistryModule.Get().GetAssetsByPath(FName(Root), FoundationAssets, true);
+	for (const FAssetData& AssetData : FoundationAssets)
+	{
+		if (const UTexture2D* Texture = Cast<UTexture2D>(AssetData.GetAsset()))
+		{
+			TestTrue(*FString::Printf(TEXT("%s does not use nearest filtering"),
+				*Texture->GetName()), Texture->Filter != TF_Nearest);
+		}
+	}
+
+	TestNotNull("the non-Shipping gallery subsystem is compiled",
 		FindObject<UClass>(nullptr, TEXT("/Script/LyraGame.MordecaiTinTallyGallerySubsystem")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Foundation_PrimitiveStyleAssetsMatchBuilders,
+	"Mordecai.UI.Foundation.PrimitiveStyleAssetsMatchBuilders",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_Foundation_PrimitiveStyleAssetsMatchBuilders::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiTinTallyFoundationTest;
+	const FMordecaiUIThemeColors Diorama = FMordecaiUIThemeColors::MakeDiorama();
+	const FMordecaiUIThemeColors HighContrast = FMordecaiUIThemeColors::MakeHighContrast();
+	struct FStyleExpectation
+	{
+		const TCHAR* Name;
+		FMordecaiUIPrimitiveSpec Diorama;
+		FMordecaiUIPrimitiveSpec HighContrast;
+	};
+	const FStyleExpectation Expectations[] = {
+		{ TEXT("Plate"),
+			FMordecaiUIPrimitiveBuilder::Plate(Diorama, EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::Diorama),
+			FMordecaiUIPrimitiveBuilder::Plate(HighContrast, EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::HighContrast) },
+		{ TEXT("Pill"),
+			FMordecaiUIPrimitiveBuilder::Pill(Diorama, EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::Diorama),
+			FMordecaiUIPrimitiveBuilder::Pill(HighContrast, EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::HighContrast) },
+		{ TEXT("Tag"),
+			FMordecaiUIPrimitiveBuilder::Tag(Diorama, EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::Diorama),
+			FMordecaiUIPrimitiveBuilder::Tag(HighContrast, EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::HighContrast) },
+		{ TEXT("Well"),
+			FMordecaiUIPrimitiveBuilder::Well(Diorama, false),
+			FMordecaiUIPrimitiveBuilder::Well(HighContrast, false) },
+		{ TEXT("Keycap"),
+			FMordecaiUIPrimitiveBuilder::Keycap(Diorama, EMordecaiKeycapShape::Square),
+			FMordecaiUIPrimitiveBuilder::Keycap(HighContrast, EMordecaiKeycapShape::Square) },
+		{ TEXT("Focus"),
+			FMordecaiUIPrimitiveBuilder::Focus(Diorama, 12.f, EMordecaiUITheme::Diorama),
+			FMordecaiUIPrimitiveBuilder::Focus(HighContrast, 12.f, EMordecaiUITheme::HighContrast) },
+	};
+	for (const FStyleExpectation& Expected : Expectations)
+	{
+		const FString Path = FString::Printf(
+			TEXT("/MordecaiCore/UI/TinTally/Styles/ST_Tally_%s.ST_Tally_%s"),
+			Expected.Name, Expected.Name);
+		const UMordecaiUIPrimitiveStyleDataAsset* Style =
+			Load<UMordecaiUIPrimitiveStyleDataAsset>(*Path);
+		TestNotNull(*FString::Printf(TEXT("ST_Tally_%s loads"), Expected.Name), Style);
+		TestTrue(*FString::Printf(TEXT("ST_Tally_%s Diorama equals builder output"), Expected.Name),
+			Style && SpecsEqual(Style->Diorama, Expected.Diorama));
+		TestTrue(*FString::Printf(TEXT("ST_Tally_%s High Contrast equals builder output"), Expected.Name),
+			Style && SpecsEqual(Style->HighContrast, Expected.HighContrast));
+	}
+	const UMordecaiUIPrimitiveStyleDataAsset* FocusStyle =
+		Load<UMordecaiUIPrimitiveStyleDataAsset>(
+			TEXT("/MordecaiCore/UI/TinTally/Styles/ST_Tally_Focus.ST_Tally_Focus"));
+	const FMordecaiUIPrimitiveLayer* OuterInk =
+		FocusStyle ? FindLayer(FocusStyle->Diorama, TEXT("Keyline")) : nullptr;
+	const FMordecaiUIPrimitiveLayer* Focus =
+		FocusStyle ? FindLayer(FocusStyle->Diorama, TEXT("Focus")) : nullptr;
+	TestTrue("saved focus has an outer ink keyline",
+		OuterInk && OuterInk->Brush.OutlineSettings.Color.GetSpecifiedColor().Equals(Diorama.Ink));
+	TestTrue("saved focus has the focus-token middle ring",
+		Focus && Focus->Brush.OutlineSettings.Color.GetSpecifiedColor().Equals(Diorama.Focus));
 	return true;
 }
 
@@ -317,6 +510,34 @@ bool FMordecai_UI_Foundation_GalleryTextUsesTokenStylesAndCase::RunTest(const FS
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Foundation_GalleryRejectsUnknownSelection,
+	"Mordecai.UI.Foundation.GalleryRejectsUnknownSelection",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_Foundation_GalleryRejectsUnknownSelection::RunTest(const FString& Parameters)
+{
+	TestTrue("known component/theme/sheet selection is valid",
+		UMordecaiTinTallyGallerySubsystem::IsValidSelection(
+			TEXT("Plate"), TEXT("diorama"), TEXT("sheet")));
+	TestFalse("unknown component is rejected",
+		UMordecaiTinTallyGallerySubsystem::IsValidSelection(
+			TEXT("Unknown"), TEXT("diorama"), TEXT("sheet")));
+	TestFalse("unknown theme is rejected",
+		UMordecaiTinTallyGallerySubsystem::IsValidSelection(
+			TEXT("Plate"), TEXT("sepia"), TEXT("sheet")));
+	TestFalse("only the sheet state is currently accepted",
+		UMordecaiTinTallyGallerySubsystem::IsValidSelection(
+			TEXT("Plate"), TEXT("diorama"), TEXT("hover")));
+
+	const FObjectProperty* GalleryWidgetProperty = FindFProperty<FObjectProperty>(
+		UMordecaiTinTallyGallerySubsystem::StaticClass(), TEXT("GalleryWidget"));
+	TestNotNull("gallery subsystem retains its widget through reflection", GalleryWidgetProperty);
+	TestTrue("gallery widget reference is transient",
+		GalleryWidgetProperty
+		&& GalleryWidgetProperty->HasAnyPropertyFlags(CPF_Transient));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Foundation_NoRetiredAssetNames,
 	"Mordecai.UI.Foundation.NoRetiredAssetNames",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -387,12 +608,14 @@ bool FMordecai_UI_Foundation_RuntimeFollowups::RunTest(const FString& Parameters
 		}))
 	{
 		Grommet->DesiredSize.X = 0.f;
+		Grommet->DesiredSize.Y = 0.f;
 	}
 	FMordecaiUIPrimitiveBuilder::Apply(BuiltTag, UnsetWidthTag);
-	USizeBox* GrommetBox = BuiltTag && BuiltTag->GetChildrenCount() > 3
-		? Cast<USizeBox>(BuiltTag->GetChildAt(3)) : nullptr;
+	USizeBox* GrommetBox = FindLayerSizeBox(BuiltTag, TEXT("GrommetInk"));
 	TestTrue("Apply clears a stale fixed-width override when the new spec unsets that axis",
 		GrommetBox && !GrommetBox->IsWidthOverride());
+	TestTrue("Apply clears a stale fixed-height override when the new spec unsets that axis",
+		GrommetBox && !GrommetBox->IsHeightOverride());
 
 	UWidgetTree* PlateTree = NewObject<UWidgetTree>();
 	const FMordecaiUIPrimitiveSpec Plate = FMordecaiUIPrimitiveBuilder::Plate(Colors);
@@ -406,5 +629,15 @@ bool FMordecai_UI_Foundation_RuntimeFollowups::RunTest(const FString& Parameters
 		1);
 	TestFalse("Apply rejects a primitive spec whose named layer set no longer matches",
 		FMordecaiUIPrimitiveBuilder::Apply(BuiltPlate, MismatchedPlate));
+
+	FMordecaiUIPrimitiveSpec SameCountNameMismatch = Plate;
+	SameCountNameMismatch.Layers.Last().Name = TEXT("NotTheFill");
+	AddExpectedMessagePlain(
+		TEXT("Tin Tally primitive Apply layer mismatch"),
+		ELogVerbosity::Warning,
+		EAutomationExpectedMessageFlags::Contains,
+		1);
+	TestFalse("Apply rejects a same-count spec whose named layer set differs",
+		FMordecaiUIPrimitiveBuilder::Apply(BuiltPlate, SameCountNameMismatch));
 	return true;
 }

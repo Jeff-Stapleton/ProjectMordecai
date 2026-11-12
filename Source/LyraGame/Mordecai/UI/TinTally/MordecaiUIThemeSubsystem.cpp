@@ -13,12 +13,11 @@ UMordecaiUIThemeSubsystem::UMordecaiUIThemeSubsystem()
 	: NativeDiorama(FMordecaiUIThemeColors::MakeDiorama())
 	, NativeHighContrast(FMordecaiUIThemeColors::MakeHighContrast())
 {
-	DioramaThemeAsset = LoadObject<UMordecaiUIThemeDataAsset>(
-		nullptr,
-		TEXT("/MordecaiCore/UI/TinTally/Themes/DA_UITheme_Diorama.DA_UITheme_Diorama"));
-	HighContrastThemeAsset = LoadObject<UMordecaiUIThemeDataAsset>(
-		nullptr,
-		TEXT("/MordecaiCore/UI/TinTally/Themes/DA_UITheme_HighContrast.DA_UITheme_HighContrast"));
+}
+
+void UMordecaiUIThemeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
 }
 
 void UMordecaiUIThemeSubsystem::SetActiveTheme(EMordecaiUITheme NewTheme)
@@ -53,6 +52,12 @@ void UMordecaiUIThemeSubsystem::SetThemeAssets(
 		? HighContrastAsset
 		: nullptr;
 	BroadcastTheme();
+}
+
+UMordecaiUIThemeDataAsset* UMordecaiUIThemeSubsystem::GetThemeAsset(EMordecaiUITheme Theme) const
+{
+	(void)Theme;
+	return nullptr;
 }
 
 UMordecaiUIThemeSubsystem* UMordecaiUIThemeSubsystem::ResolveForWorld(const UObject* WorldContextObject)

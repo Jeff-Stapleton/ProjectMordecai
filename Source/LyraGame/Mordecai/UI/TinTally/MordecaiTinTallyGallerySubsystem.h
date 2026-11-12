@@ -43,6 +43,10 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+	static bool IsValidSelection(
+		const FString& Component,
+		const FString& Theme,
+		const FString& State);
 
 private:
 	void OnWorldInitialized(UWorld* World, const UWorld::InitializationValues InitializationValues);

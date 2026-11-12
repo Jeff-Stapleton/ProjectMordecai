@@ -1,6 +1,7 @@
 """Offline tests for the US-103 packaged Tin Tally gallery harness."""
 
 import os
+import json
 import sys
 import tempfile
 import unittest
@@ -25,7 +26,7 @@ class TempImageCase(unittest.TestCase):
         self.tmp = self._tmp.name
         self.addCleanup(self._tmp.cleanup)
 
-    def image(self, name, color=(20, 80, 70, 255), size=(64, 64)):
+    def image(self, name, color=(22, 54, 52, 255), size=(1920, 1080)):
         path = os.path.join(self.tmp, name)
         Image.new("RGBA", size, color).save(path)
         return path
@@ -47,6 +48,7 @@ class TempImageCase(unittest.TestCase):
             "state": "sheet",
             "commit": commit,
             "package_built_at": "2026-11-11T10:00:00-07:00",
+            "build_stamp": "test-build",
             "resolution": [1920, 1080],
             "crop_rect": [480, 120, 960, 720],
         }
@@ -105,11 +107,32 @@ class TestCaptureValidation(TempImageCase):
         self.assertTrue(any("theme" in reason.lower() for reason in reasons), reasons)
 
     def test_rejects_wrong_resolution(self):
-        capture = self.image("capture.png")
+        capture = self.image("capture.png", size=(1280, 720))
         metadata = self.metadata()
         metadata["resolution"] = [1280, 720]
         reasons = gallery.validate_capture(capture, metadata, self.build(), "diorama")
         self.assertTrue(any("1920" in reason for reason in reasons), reasons)
+
+    def test_rejects_physical_image_size_that_disagrees_with_required_capture(self):
+        capture = self.image("capture.png", size=(1280, 720))
+        reasons = gallery.validate_capture(
+            capture, self.metadata(), self.build(), "diorama"
+        )
+        self.assertTrue(any("image size" in reason.lower() for reason in reasons), reasons)
+
+    def test_rejects_sheet_pixel_that_does_not_match_resolved_theme_plate(self):
+        capture = self.image("wrong-theme-pixels.png", color=(255, 0, 255, 255))
+        reasons = gallery.validate_capture(
+            capture, self.metadata(), self.build(), "diorama"
+        )
+        self.assertTrue(any("plate" in reason.lower() for reason in reasons), reasons)
+
+    def test_rejects_missing_game_build_stamp(self):
+        capture = self.image("capture.png")
+        metadata = self.metadata()
+        metadata.pop("build_stamp")
+        reasons = gallery.validate_capture(capture, metadata, self.build(), "diorama")
+        self.assertTrue(any("build stamp" in reason.lower() for reason in reasons), reasons)
 
 
 class TestImageComparison(TempImageCase):
@@ -202,6 +225,85 @@ class TestImageComparison(TempImageCase):
 
 
 class TestGalleryOrchestration(TempImageCase):
+    class FakeProcess:
+        def __init__(self, polls=None):
+            self.polls = list(polls or [None])
+            self.returncode = None
+
+        def poll(self):
+            if len(self.polls) > 1:
+                return self.polls.pop(0)
+            return self.polls[0]
+
+        def terminate(self):
+            self.returncode = 0
+            self.polls = [0]
+
+        def wait(self, timeout=None):
+            return self.returncode or 0
+
+        def kill(self):
+            self.terminate()
+
+    def fake_launch(self, raw_metadata, image_size=(1920, 1080), color=(22, 54, 52, 255)):
+        def launch(_exe, game_args):
+            output_arg = next(
+                value for value in game_args
+                if value.startswith('-TinTallyGalleryOutput="')
+            )
+            output = output_arg.split('"', 1)[1].rsplit('"', 1)[0].replace("/", os.sep)
+            Image.new("RGBA", image_size, color).save(output)
+            with open(os.path.splitext(output)[0] + ".json", "w", encoding="utf-8") as target:
+                json.dump(raw_metadata, target)
+            return self.FakeProcess(), None, None
+        return launch
+
+    def test_capture_rejects_raw_wrong_theme_before_any_client_metadata_merge(self):
+        raw = self.metadata(theme="high-contrast")
+        with mock.patch.object(
+            gallery.playtest_boot,
+            "launch_game",
+            side_effect=self.fake_launch(raw),
+        ):
+            result = gallery._capture_one(
+                "game.exe", self.tmp, self.build(), "Plate", "diorama", "sheet"
+            )
+        self.assertFalse(result["passed"], result)
+        self.assertTrue(any("theme" in reason.lower() for reason in result["reasons"]))
+
+    def test_capture_rejects_raw_wrong_resolution_and_physical_size(self):
+        raw = self.metadata()
+        raw["resolution"] = [1280, 720]
+        with mock.patch.object(
+            gallery.playtest_boot,
+            "launch_game",
+            side_effect=self.fake_launch(raw, image_size=(1280, 720)),
+        ):
+            result = gallery._capture_one(
+                "game.exe", self.tmp, self.build(), "Plate", "diorama", "sheet"
+            )
+        self.assertFalse(result["passed"], result)
+        self.assertTrue(any("1920" in reason for reason in result["reasons"]))
+
+    def test_capture_deletes_stale_targets_before_launch(self):
+        stale_png = os.path.join(self.tmp, "plate-diorama-full.png")
+        stale_json = os.path.splitext(stale_png)[0] + ".json"
+        self.image("plate-diorama-full.png")
+        with open(stale_json, "w", encoding="utf-8") as target:
+            json.dump(self.metadata(), target)
+        process = self.FakeProcess([None, 0])
+        with mock.patch.object(
+            gallery.playtest_boot,
+            "launch_game",
+            return_value=(process, None, None),
+        ):
+            result = gallery._capture_one(
+                "game.exe", self.tmp, self.build(), "Plate", "diorama", "sheet"
+            )
+        self.assertFalse(result["passed"], result)
+        self.assertFalse(os.path.exists(stale_png))
+        self.assertFalse(os.path.exists(stale_json))
+
     def test_gallery_run_compares_every_capture_to_its_reference(self):
         crop = self.image("keycap-diorama-crop.png", size=(960, 720))
         capture_result = {
@@ -252,6 +354,50 @@ class TestGalleryOrchestration(TempImageCase):
         compare.assert_called_once()
         summary = gallery._load_json(os.path.join(self.tmp, "summary.json"))
         self.assertEqual(summary["results"][0]["comparison"], comparison)
+
+    def test_comparison_failures_are_stored_separately_from_capture_reasons(self):
+        crop = self.image("keycap-diorama-crop.png", size=(960, 720))
+        capture_result = {
+            "component": "Keycap",
+            "theme": "diorama",
+            "state": "sheet",
+            "passed": True,
+            "reasons": [],
+            "full": self.image("keycap-diorama-full.png"),
+            "crop": crop,
+            "metadata": os.path.join(self.tmp, "keycap-diorama.json"),
+            "log": os.path.join(self.tmp, "keycap-diorama.log"),
+        }
+        comparison = {
+            "passed": False,
+            "reason": "localized region diverged",
+            "side_by_side": os.path.join(self.tmp, "side.png"),
+            "diff": os.path.join(self.tmp, "diff.png"),
+        }
+        with (
+            mock.patch.object(
+                gallery.playtest_boot,
+                "gate",
+                return_value=({"build": self.build()}, None),
+            ),
+            mock.patch.object(gallery, "_capture_one", return_value=capture_result),
+            mock.patch.object(gallery, "compare_images", return_value=comparison),
+        ):
+            result = gallery.main(
+                [
+                    "--component",
+                    "Keycap",
+                    "--theme",
+                    "diorama",
+                    "--run-dir",
+                    self.tmp,
+                ]
+            )
+        self.assertEqual(result, 1)
+        summary = gallery._load_json(os.path.join(self.tmp, "summary.json"))
+        row = summary["results"][0]
+        self.assertEqual(row["reasons"], [])
+        self.assertEqual(row["compare_failures"], ["localized region diverged"])
 
 
 class TestSweepComparison(unittest.TestCase):

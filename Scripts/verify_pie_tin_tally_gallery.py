@@ -1,5 +1,8 @@
-# PIE Smoke Test: cooked Tin Tally foundation and Development gallery (US-103)
+# PIE Smoke Test: cooked Tin Tally foundation and non-Shipping gallery (US-103)
 # Theme toggles are direct subsystem calls and are labelled [LOGIC].
+
+import json
+import pathlib
 
 import unreal
 
@@ -39,11 +42,23 @@ def _run():
         ", ".join(path for path, asset in loaded.items() if asset is None),
     )
 
+    manifest = loaded[required[-1]]
+    manifest_assets = []
+    if manifest:
+        for field in ("composite_fonts", "textures", "primitive_styles"):
+            manifest_assets.extend(manifest.get_editor_property(field))
+        manifest_assets.append(manifest.get_editor_property("pattern_fill_material"))
+    check(
+        "The whole foundation manifest resolves",
+        bool(manifest_assets) and all(asset is not None for asset in manifest_assets),
+        f"{sum(asset is None for asset in manifest_assets)} unresolved reference(s)",
+    )
+
     gallery_class = unreal.load_class(
         None, "/Script/LyraGame.MordecaiTinTallyGallerySubsystem"
     )
     check(
-        "Development gallery subsystem class loads",
+        "Non-Shipping gallery subsystem class loads",
         gallery_class is not None,
     )
 
@@ -64,16 +79,58 @@ def _run():
     )
     check("Local theme subsystem resolves", service is not None)
     if service and loaded[required[0]] and loaded[required[1]]:
+        tokens_path = (
+            pathlib.Path(unreal.Paths.project_dir())
+            / "Design"
+            / "TinTally"
+            / "ds"
+            / "project"
+            / "tokens.json"
+        )
+        token_data = json.loads(tokens_path.read_text(encoding="utf-8"))
+        color_properties = []
+        for token in token_data["color"]["tokens"]:
+            property_name = token["name"].replace("-", "_")
+            if property_name.startswith("dmg_"):
+                property_name = "damage_" + property_name[4:]
+            color_properties.append(property_name)
+
+        def colors_match(actual, expected):
+            for property_name in color_properties:
+                actual_color = actual.get_editor_property(property_name)
+                expected_color = expected.get_editor_property(property_name)
+                if any(
+                    abs(getattr(actual_color, channel) - getattr(expected_color, channel))
+                    > 0.0001
+                    for channel in ("r", "g", "b", "a")
+                ):
+                    return False
+            return True
+
         service.set_theme_assets(loaded[required[0]], loaded[required[1]])
         service.set_active_theme(unreal.MordecaiUITheme.HIGH_CONTRAST)
         check(
             "[LOGIC] High Contrast gallery theme selects the cooked asset",
             str(service.get_active_theme_id()) == "HighContrast",
         )
+        check(
+            "[LOGIC] High Contrast active colours equal every saved manifest colour",
+            colors_match(
+                service.get_active_colors(),
+                loaded[required[1]].get_editor_property("colors"),
+            ),
+        )
         service.set_active_theme(unreal.MordecaiUITheme.DIORAMA)
         check(
             "[LOGIC] Diorama gallery theme selects the cooked asset",
             str(service.get_active_theme_id()) == "Diorama",
+        )
+        check(
+            "[LOGIC] Diorama active colours equal every saved manifest colour",
+            colors_match(
+                service.get_active_colors(),
+                loaded[required[0]].get_editor_property("colors"),
+            ),
         )
 
     print("")

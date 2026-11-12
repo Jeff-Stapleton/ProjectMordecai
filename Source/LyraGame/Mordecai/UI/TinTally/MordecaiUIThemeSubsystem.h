@@ -28,6 +28,7 @@ class LYRAGAME_API UMordecaiUIThemeSubsystem : public ULocalPlayerSubsystem
 
 public:
 	UMordecaiUIThemeSubsystem();
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Theme")
 	void SetActiveTheme(EMordecaiUITheme NewTheme);
@@ -43,6 +44,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Theme")
 	void SetThemeAssets(UMordecaiUIThemeDataAsset* DioramaAsset, UMordecaiUIThemeDataAsset* HighContrastAsset);
+
+	UFUNCTION(BlueprintPure, Category = "Tin Tally|Theme")
+	UMordecaiUIThemeDataAsset* GetThemeAsset(EMordecaiUITheme Theme) const;
 
 	UFUNCTION(BlueprintPure, Category = "Tin Tally|Theme", meta = (WorldContext = "WorldContextObject"))
 	static UMordecaiUIThemeSubsystem* ResolveForWorld(const UObject* WorldContextObject);

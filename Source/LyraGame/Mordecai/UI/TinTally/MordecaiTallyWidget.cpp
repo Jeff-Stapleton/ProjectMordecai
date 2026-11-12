@@ -115,6 +115,18 @@ void UMordecaiTallyWidget::SetUsage(EMordecaiTallyUsage NewUsage)
 	Refresh();
 }
 
+void UMordecaiTallyWidget::SetRarityTier(EMordecaiItemRarity NewRarity)
+{
+	(void)NewRarity;
+	Refresh();
+}
+
+void UMordecaiTallyWidget::SetSealOnEnamel(bool bNewSealOnEnamel)
+{
+	(void)bNewSealOnEnamel;
+	Refresh();
+}
+
 void UMordecaiTallyWidget::SetFrameBrushes(
 	const TArray<FSlateBrush>& NewBundleFrames,
 	const TArray<FSlateBrush>& NewGhostBundleFrames,
