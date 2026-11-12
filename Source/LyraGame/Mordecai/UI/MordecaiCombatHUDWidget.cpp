@@ -410,8 +410,10 @@ void UMordecaiCombatHUDWidget::SetHUDMargin(float InMargin)
 
 float UMordecaiCombatHUDWidget::GetTopCenterSafeWidth() const
 {
-	// TODO(DECISION): BossBar/Banner owns the proposed 784px TV-safe width at the 96px margin.
-	return HUDMargin >= 64.f ? 784.f : 0.f;
+	// TODO(DECISION): BossBar/Banner owns this proposal. It returns the 1920-wide design canvas
+	// after reserving the 456px gauge, the active edge margin and a 16px gutter on both sides:
+	// 912px at the normal 32px margin and 784px at the TV-safe 96px margin.
+	return FMath::Max(0.f, 1920.f - 2.f * (HUDMargin + 456.f + 16.f));
 }
 
 // ---------------------------------------------------------------------------

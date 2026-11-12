@@ -25,6 +25,24 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiSpellCooldownWidget)
 
+namespace
+{
+	FLinearColor ResolveSpellGlyphTint(
+		const FName GlyphName,
+		const FMordecaiUIThemeColors& Colors)
+	{
+		if (GlyphName == TEXT("fireball"))
+		{
+			return Colors.DamageFire;
+		}
+		if (GlyphName == TEXT("restoration"))
+		{
+			return Colors.Heal;
+		}
+		return Colors.Text;
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Programmatic Fallback (empty Blueprint support)
 // ---------------------------------------------------------------------------
@@ -162,7 +180,7 @@ void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 
 	CostRivets = WidgetTree->ConstructWidget<UHorizontalBox>(
 		UHorizontalBox::StaticClass(), TEXT("CostRivets"));
-	Place(CostRivets, FVector2D(8.f, -9.f), FVector2D(64.f, 14.f), 6);
+	Place(CostRivets, FVector2D(72.f, -7.f), FVector2D(0.f, 14.f), 6);
 
 	LockChip = FMordecaiUIPrimitiveBuilder::Build(
 		WidgetTree, FMordecaiUIPrimitiveBuilder::Pill(Colors), TEXT("LockChip"));
@@ -221,6 +239,7 @@ void UMordecaiSpellCooldownWidget::ConfigureFromSpellData(UMordecaiSpellDataAsse
 	FString GlyphName = SpellData->SpellId.ToString().ToLower();
 	GlyphName.ReplaceInline(TEXT("_"), TEXT(""));
 	GlyphName.ReplaceInline(TEXT(" "), TEXT(""));
+	ConfiguredSpellGlyph = FName(GlyphName);
 	const FString TexturePath = FString::Printf(
 		TEXT("/MordecaiCore/UI/TinTally/Textures/Glyphs/T_UI_Glyph_%s.T_UI_Glyph_%s"),
 		*GlyphName,
@@ -229,21 +248,31 @@ void UMordecaiSpellCooldownWidget::ConfigureFromSpellData(UMordecaiSpellDataAsse
 	FSlateBrush IconBrush = SpellIcon->GetBrush();
 	IconBrush.DrawAs = GlyphTexture ? ESlateBrushDrawType::Image : ESlateBrushDrawType::NoDrawType;
 	IconBrush.SetResourceObject(GlyphTexture);
-	IconBrush.TintColor = FSlateColor(CurrentThemeColors.Text);
+	IconBrush.TintColor = FSlateColor(
+		ResolveSpellGlyphTint(ConfiguredSpellGlyph, CurrentThemeColors));
 	SpellIcon->SetBrush(IconBrush);
 
 	CostRivets->ClearChildren();
-	for (int32 Index = 0; Index < FMath::Max(0, SpellData->SpellPointCost); ++Index)
+	const int32 RivetCount = FMath::Max(0, SpellData->SpellPointCost);
+	const float RivetRowWidth = RivetCount > 0
+		? RivetCount * 14.f + (RivetCount - 1) * 3.f
+		: 0.f;
+	if (UCanvasPanelSlot* RivetRowSlot = Cast<UCanvasPanelSlot>(CostRivets->Slot))
+	{
+		RivetRowSlot->SetPosition(FVector2D(72.f - RivetRowWidth, -7.f));
+		RivetRowSlot->SetSize(FVector2D(RivetRowWidth, 14.f));
+	}
+	for (int32 Index = 0; Index < RivetCount; ++Index)
 	{
 		UImage* Rivet = WidgetTree->ConstructWidget<UImage>(
 			UImage::StaticClass(),
 			FName(*FString::Printf(TEXT("CostRivet_%02d"), Index)));
 		FSlateBrush Brush;
 		Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
-		Brush.ImageSize = FVector2D(8.f);
+		Brush.ImageSize = FVector2D(14.f);
 		Brush.TintColor = FSlateColor(CurrentThemeColors.SpellPoints);
 		Brush.OutlineSettings = FSlateBrushOutlineSettings(
-			FVector4(4.f), FSlateColor(CurrentThemeColors.Ink), 1.f);
+			FVector4(7.f), FSlateColor(CurrentThemeColors.Ink), 2.f);
 		Rivet->SetBrush(Brush);
 		Rivet->SetVisibility(ESlateVisibility::HitTestInvisible);
 		if (UHorizontalBoxSlot* RivetSlot = CostRivets->AddChildToHorizontalBox(Rivet))
@@ -257,11 +286,13 @@ void UMordecaiSpellCooldownWidget::ConfigureFromSpellData(UMordecaiSpellDataAsse
 
 void UMordecaiSpellCooldownWidget::SetPreviewCooldownFraction(float Fraction)
 {
-	bIsOnCooldown = Fraction > 0.f;
-	ApplyCooldownFraction(Fraction);
+	PreviewCooldownFraction = FMath::Clamp(Fraction, 0.f, 1.f);
+	bPreviewCooldownHeld = PreviewCooldownFraction > 0.f;
+	bIsOnCooldown = bPreviewCooldownHeld;
+	ApplyCooldownFraction(PreviewCooldownFraction);
 	if (CooldownText)
 	{
-		CooldownText->SetText(bIsOnCooldown
+		CooldownText->SetText(bPreviewCooldownHeld
 			? FText::FromString(TEXT("2.4"))
 			: FText::GetEmpty());
 	}
@@ -301,6 +332,8 @@ void UMordecaiSpellCooldownWidget::UnbindFromCooldownTag()
 		CooldownTagChangedHandle.Reset();
 	}
 	BoundASC.Reset();
+	bPreviewCooldownHeld = false;
+	PreviewCooldownFraction = 0.f;
 	bIsOnCooldown = false;
 }
 
@@ -310,6 +343,8 @@ void UMordecaiSpellCooldownWidget::UnbindFromCooldownTag()
 
 void UMordecaiSpellCooldownWidget::OnCooldownTagChanged(const FGameplayTag Tag, int32 NewCount)
 {
+	bPreviewCooldownHeld = false;
+	PreviewCooldownFraction = 0.f;
 	if (NewCount > 0)
 	{
 		// Cooldown started
@@ -360,6 +395,17 @@ void UMordecaiSpellCooldownWidget::NativeTick(const FGeometry& MyGeometry, float
 
 void UMordecaiSpellCooldownWidget::UpdateDisplay()
 {
+	if (bPreviewCooldownHeld)
+	{
+		bIsOnCooldown = true;
+		ApplyCooldownFraction(PreviewCooldownFraction);
+		if (CooldownText)
+		{
+			CooldownText->SetText(FText::FromString(TEXT("2.4")));
+		}
+		return;
+	}
+
 	if (bIsOnCooldown && GetWorld())
 	{
 		const float CurrentTime = GetWorld()->GetTimeSeconds();
@@ -465,7 +511,8 @@ void UMordecaiSpellCooldownWidget::ApplyTheme(
 	if (SpellIcon)
 	{
 		FSlateBrush Brush = SpellIcon->GetBrush();
-		Brush.TintColor = FSlateColor(Colors.Text);
+		Brush.TintColor = FSlateColor(
+			ResolveSpellGlyphTint(ConfiguredSpellGlyph, Colors));
 		SpellIcon->SetBrush(Brush);
 	}
 	MordecaiUITypography::Apply(CooldownText, TEXT("num_m"));

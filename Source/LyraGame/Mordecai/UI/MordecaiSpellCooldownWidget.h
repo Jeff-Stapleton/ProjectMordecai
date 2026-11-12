@@ -125,6 +125,9 @@ private:
 	FDelegateHandle ThemeChangedHandle;
 	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
 	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
+	FName ConfiguredSpellGlyph;
+	float PreviewCooldownFraction = 0.f;
+	bool bPreviewCooldownHeld = false;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> ShutterMaterial;

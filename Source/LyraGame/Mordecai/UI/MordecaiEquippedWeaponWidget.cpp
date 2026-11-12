@@ -308,10 +308,17 @@ void UMordecaiEquippedWeaponWidget::ApplyTheme(
 	}
 	MordecaiUITypography::Apply(WeaponNameText, TEXT("ui_title"));
 	MordecaiUITypography::Apply(DamageSubtypeText, TEXT("ui_label"));
-	MordecaiUITypography::Apply(SwapKey, TEXT("ui_label"));
+	MordecaiUITypography::Apply(SwapKey, TEXT("num_s"));
 	if (WeaponNameText) WeaponNameText->SetColorAndOpacity(FSlateColor(Colors.Text));
 	if (DamageSubtypeText) DamageSubtypeText->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
-	if (SwapKey) SwapKey->SetColorAndOpacity(FSlateColor(Colors.Ink));
+	if (SwapKey)
+	{
+		FSlateFontInfo Font = SwapKey->GetFont();
+		Font.TypefaceFontName = TEXT("ExtraBold");
+		Font.Size = 22;
+		SwapKey->SetFont(Font);
+		SwapKey->SetColorAndOpacity(FSlateColor(Colors.Ink));
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

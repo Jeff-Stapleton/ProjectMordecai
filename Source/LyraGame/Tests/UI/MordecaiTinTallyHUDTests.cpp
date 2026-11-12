@@ -545,6 +545,7 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 	{
 		return true;
 	}
+	TSharedRef<SWidget> SlotSlate = Slot->TakeWidget();
 	UMordecaiSpellDataAsset* Fireball = NewObject<UMordecaiSpellDataAsset>();
 	Fireball->SpellId = TEXT("Fireball");
 	Fireball->SpellPointCost = 3;
@@ -584,7 +585,6 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 	}
 	const UCanvasPanelSlot* LipSlot = Lip ? Cast<UCanvasPanelSlot>(Lip->Slot) : nullptr;
 	TestEqual("cooldown shutter rim lip is 3px", static_cast<float>(LipSlot ? LipSlot->GetSize().Y : 0.0), 3.f);
-	TSharedRef<SWidget> SlotSlate = Slot->TakeWidget();
 	TestTrue("gallery can set a deterministic mid-cooldown state",
 		InvokeFloat(Slot, TEXT("SetPreviewCooldownFraction"), 0.5f));
 	SlotSlate->Tick(FGeometry(), 1.0, 1.f / 60.f);

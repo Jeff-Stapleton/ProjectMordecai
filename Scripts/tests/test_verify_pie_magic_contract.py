@@ -2,7 +2,7 @@ import os
 import unittest
 
 try:
-    from verify_pie_contracts import combat_hud_layer_checks
+    from pie_verify_contracts import combat_hud_layer_checks
 except ImportError:
     combat_hud_layer_checks = None
 
@@ -14,7 +14,7 @@ class VerifyPieMagicContractTests(unittest.TestCase):
     def test_combat_hud_layer_contract_covers_alive_and_dead_paths(self):
         self.assertIsNotNone(
             combat_hud_layer_checks,
-            "verify_pie_contracts.combat_hud_layer_checks must provide a testable HUD-layer contract",
+            "pie_verify_contracts.combat_hud_layer_checks must provide a testable HUD-layer contract",
         )
         if combat_hud_layer_checks is None:
             return

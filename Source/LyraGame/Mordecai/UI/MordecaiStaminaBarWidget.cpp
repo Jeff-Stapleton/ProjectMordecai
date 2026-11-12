@@ -389,6 +389,15 @@ void UMordecaiStaminaBarWidget::ApplyTheme(
 		FMordecaiUIPrimitiveBuilder::Apply(
 			Well, FMordecaiUIPrimitiveBuilder::Well(Colors, true));
 	}
+	if (UOverlay* TierPill = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("StaminaTierPill")))
+		: nullptr)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			TierPill,
+			FMordecaiUIPrimitiveBuilder::Pill(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme));
+	}
 	for (const FName Name : { FName(TEXT("StaminaNotch33")), FName(TEXT("StaminaNotch66")) })
 	{
 		if (UBorder* Notch = WidgetTree ? Cast<UBorder>(WidgetTree->FindWidget(Name)) : nullptr)
@@ -417,9 +426,15 @@ void UMordecaiStaminaBarWidget::ApplyTheme(
 		? Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("StaminaLabel")))
 		: nullptr)
 	{
-		MordecaiUITypography::Apply(Label, TEXT("ui_label"));
+		MordecaiUITypography::Apply(Label, TEXT("num_s"));
 		Label->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
 	}
 	MordecaiUITypography::Apply(StaminaTierText, TEXT("num_s"));
+	if (StaminaTierText)
+	{
+		FSlateFontInfo Font = StaminaTierText->GetFont();
+		Font.TypefaceFontName = TEXT("Bold");
+		StaminaTierText->SetFont(Font);
+	}
 	UpdateDisplay();
 }

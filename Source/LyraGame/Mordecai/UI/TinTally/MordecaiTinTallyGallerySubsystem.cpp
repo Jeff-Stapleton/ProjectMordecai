@@ -1599,7 +1599,7 @@ namespace
 				EmbedShippedWidget<UMordecaiPickupPromptWidget>(
 					Owner, Tree, Canvas,
 					FName(*FString::Printf(TEXT("GalleryRealInteractPrompt_%d"), Row)),
-					FVector2D(132.f, Y), FVector2D(703.f, 60.f));
+					FVector2D(115.f, Y), FVector2D(720.f, 60.f));
 			Prompt->SetGalleryPreviewPrompt(FText::FromString(Prompts[Row]));
 		}
 	}

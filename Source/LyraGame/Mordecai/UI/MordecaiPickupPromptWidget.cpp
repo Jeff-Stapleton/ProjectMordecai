@@ -8,6 +8,7 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Mordecai/Items/MordecaiItemPickup.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
@@ -142,12 +143,18 @@ void UMordecaiPickupPromptWidget::BuildDefaultLayout()
 	PromptText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PromptText"));
 	PromptText->SetJustification(ETextJustify::Right);
 	PromptText->SetColorAndOpacity(FSlateColor(Colors.Ink));
+	PromptText->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
 	FSlateFontInfo PromptFont = PromptText->GetFont();
 	PromptFont.Size = 17;
 	PromptText->SetFont(PromptFont);
-	if (UOverlaySlot* TextSlot = Tag->AddChildToOverlay(PromptText))
+	USizeBox* PromptTextBox = WidgetTree->ConstructWidget<USizeBox>(
+		USizeBox::StaticClass(), TEXT("PromptTextBox"));
+	PromptTextBox->SetMaxDesiredWidth(484.f);
+	PromptTextBox->SetMinDesiredHeight(60.f);
+	PromptTextBox->AddChild(PromptText);
+	if (UOverlaySlot* TextSlot = Tag->AddChildToOverlay(PromptTextBox))
 	{
-		TextSlot->SetPadding(FMargin(40.f, 14.f, 16.f, 14.f));
+		TextSlot->SetPadding(FMargin(40.f, 0.f, 16.f, 0.f));
 		TextSlot->SetHorizontalAlignment(HAlign_Right);
 		TextSlot->SetVerticalAlignment(VAlign_Center);
 	}
@@ -234,6 +241,9 @@ void UMordecaiPickupPromptWidget::ApplyTheme(
 	MordecaiUITypography::Apply(PromptText, TEXT("ui_body"));
 	if (PromptText)
 	{
+		FSlateFontInfo Font = PromptText->GetFont();
+		Font.TypefaceFontName = TEXT("Bold");
+		PromptText->SetFont(Font);
 		PromptText->SetColorAndOpacity(FSlateColor(Colors.Ink));
 	}
 	MordecaiUITypography::Apply(InventoryHintText, TEXT("ui_label"));

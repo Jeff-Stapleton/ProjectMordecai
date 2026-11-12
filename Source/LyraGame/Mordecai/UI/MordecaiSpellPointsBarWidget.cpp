@@ -295,7 +295,7 @@ void UMordecaiSpellPointsBarWidget::ApplyTheme(
 		? Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("SpellPointsLabel")))
 		: nullptr)
 	{
-		MordecaiUITypography::Apply(Label, TEXT("ui_label"));
+		MordecaiUITypography::Apply(Label, TEXT("num_s"));
 		Label->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
 	}
 	MordecaiUITypography::Apply(SpellPointsText, TEXT("num_m"));

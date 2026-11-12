@@ -325,7 +325,7 @@ void UMordecaiHealthBarWidget::ApplyTheme(
 		? Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("HealthLabel")))
 		: nullptr)
 	{
-		MordecaiUITypography::Apply(Label, TEXT("ui_label"));
+		MordecaiUITypography::Apply(Label, TEXT("num_s"));
 		Label->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
 	}
 	MordecaiUITypography::Apply(HealthPercentText, TEXT("num_l"));

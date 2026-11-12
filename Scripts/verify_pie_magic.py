@@ -8,7 +8,15 @@
 #
 # NOTE: All PIE references held inside _run() to avoid GC reference leaks.
 
+import os
+import sys
+
 import unreal
+
+_scripts_dir = os.path.join(unreal.Paths.project_dir(), "Scripts")
+if _scripts_dir not in sys.path:
+    sys.path.insert(0, _scripts_dir)
+from pie_verify_contracts import combat_hud_layer_checks
 
 def _run():
     pass_count = 0
@@ -119,11 +127,41 @@ def _run():
     if hud_widget:
         death_screens = unreal.WidgetLibrary.get_all_widgets_of_class(
             world, unreal.MordecaiDeathScreenWidget, False)
-        death_visible = any(widget.is_visible() for widget in death_screens)
-        if death_visible:
-            print("  SKIP: CombatHUDWidget visible -- player is dead and the death screen owns the layer")
+        death_screen = next(
+            (widget for widget in death_screens if widget.is_visible()), None)
+        if death_screen:
+            try:
+                game_layer = next(
+                    (stack for stack in unreal.ObjectIterator(
+                        unreal.CommonActivatableWidgetStack)
+                     if stack.get_active_widget() == death_screen),
+                    None)
+                layer_checks = combat_hud_layer_checks(
+                    player_dead=True,
+                    death_screen_is_active_widget=game_layer is not None,
+                    hud_is_activated=hud_widget.is_activated(),
+                    hud_is_visible=hud_widget.is_visible(),
+                )
+                check(
+                    "Death screen is active on the UI.Layer.Game stack",
+                    layer_checks["death_screen_on_game_layer"],
+                    "No CommonActivatableWidgetStack has the visible death screen active",
+                )
+                check(
+                    "CombatHUDWidget inactive while death screen owns UI.Layer.Game",
+                    layer_checks["hud_inactive_under_death"],
+                    "Combat HUD remained activated underneath the death screen",
+                )
+            except Exception as exc:
+                check("Death-path UI.Layer.Game state readable", False, str(exc))
         else:
-            check("CombatHUDWidget visible", hud_widget.is_visible())
+            layer_checks = combat_hud_layer_checks(
+                player_dead=False,
+                death_screen_is_active_widget=False,
+                hud_is_activated=hud_widget.is_activated(),
+                hud_is_visible=hud_widget.is_visible(),
+            )
+            check("CombatHUDWidget visible", layer_checks["hud_visible"])
 
         try:
             child_count = hud_widget.get_bound_child_count()
