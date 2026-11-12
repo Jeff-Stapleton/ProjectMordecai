@@ -22,7 +22,7 @@ The story creates and configures font, material, texture, style, DataAsset, and 
 - [ ] AC-103.1: saved, committed, cooked `DA_UITheme_Diorama` and `DA_UITheme_HighContrast` contain the reviewed token values converted from sRGB.
 - [ ] AC-103.2: static Rowdies and Atkinson TTFs, `F_Tally_Display`, `F_Tally_UI`, `F_Tally_Mono`, and every `TS_Tally_<style>` load in a package; the three OFL notices are retained for Credits.
 - [ ] AC-103.3: saved/cooked RoundedBox styles, focus brush, `M_UI_PatternFill`, `T_UI_Hatch16`, 117 single-ink glyph masks, tally atlas, and badge silhouettes match the manifest and use no retired asset names.
-- [ ] AC-103.4: a Development-only packaged visual gallery captures a named component/state at 1920x1080 in either theme and writes full-frame/crop images plus commit/theme/state metadata.
+- [ ] AC-103.4: a non-Shipping packaged visual gallery captures a named component/state at 1920x1080 in either theme and writes full-frame/crop images plus commit/theme/state metadata.
 - [ ] AC-103.5: the comparison rejects missing, stale, black, wrong-theme, or geometrically divergent images and produces side-by-side/diff evidence; Plate, Tag, Keycap, Tally, and Glyphs pass human review in both themes.
 - [ ] AC-103.6: all created assets are saved and committed; `py Scripts/check_content_committed.py` passes.
 
@@ -52,7 +52,7 @@ The story creates and configures font, material, texture, style, DataAsset, and 
 - **Player steps:** use the gallery's test-only theme/component controls, then run normal movement
 - **Visible on screen:** readable static fonts, hard-edged primitives, ink|focus|ink ring, pattern fill, glyphs, tally frames in Diorama and High Contrast
 - **Proof:** gallery comparison report plus Tier 3 boot and Tier 4 regression
-- **Tier 4 script:** add a Development-only gallery script if its controls require input; otherwise full existing sweep
+- **Tier 4 script:** add a non-Shipping gallery script if its controls require input; otherwise full existing sweep
 - **Steps:** component/theme selection and screenshot capture must be listed by the implemented script
 - **Playable alone:** YES with US-102
 
@@ -79,7 +79,7 @@ The story creates and configures font, material, texture, style, DataAsset, and 
     generated-class paths, so `TS_Tally_<style>` maps `-` to `_`
     (`TS_Tally_tally_display`, `TS_Tally_ui_body`, and so on) while metadata
     retains the exact design token.
-  - AC-103.4 uses a command-line Development-only gallery overlay on
+  - AC-103.4 uses a command-line non-Shipping gallery overlay on
     MovementTestMap rather than an input-controlled screen. It therefore adds
     no new Tier 4 input script; the full existing sweep is the Tier 4 gate.
   - The gallery crop uses a deterministic 960-design-pixel region centred in
@@ -142,7 +142,7 @@ The story creates and configures font, material, texture, style, DataAsset, and 
     Pillow: 7/7 readable, correctly sized, varied, and non-black; the report
     records the Mordecai loading screen and arena experience with no missing
     cooked content.
-  - Packaged gallery PASS for Plate, Tag, Keycap, Tally, and all 117 Glyphs
+  - Packaged gallery PASS for Plate, Tag, Keycap, Tally, and 41 of 117 Glyphs
     in both themes: `Saved/Playtests/20261111-125612-tin-tally-gallery`.
     Pillow checked all 20 full/crop PNGs: full frames are 1920x1080, crops are
     960x720, none are black, every crop has non-background geometry, and
@@ -205,7 +205,7 @@ The story creates and configures font, material, texture, style, DataAsset, and 
     Glyph heading/cells. The cooked fixture source sets deterministic
     Rowdies/Atkinson text in all sheets.
   - Dynamic `FKey`/device mapping remains owned by US-104. US-103's
-    Development-only fixture statically composes the required shapes from
+    non-Shipping fixture statically composes the required shapes from
     cooked primitives and styles, so no preview element is omitted.
 - Corrected packaged regression:
   - Baseline `559e28f95f`: 15 scripts, 10 PASS / 5 FAIL.
@@ -243,7 +243,7 @@ The story creates and configures font, material, texture, style, DataAsset, and 
     (Atkinson UI Bold, 20 pt in UE), despite the correction prompt describing
     that line as Rowdies. The canonical component CSS/tokens win.
   - Dynamic `FKey`/device mapping remains US-104's responsibility; the
-    Development-only fixture shows every required key shape from cooked
+    non-Shipping fixture shows every required key shape from cooked
     US-102 primitives and fonts, with no omitted preview element.
 - Round-three verification at `77c2817f34`:
   - Compile PASS; targeted foundation 5/5; full Tier 1 822/822
@@ -371,4 +371,90 @@ The story creates and configures font, material, texture, style, DataAsset, and 
   containing all 139 reviewed PNGs (boot 7, gallery 50, sweep 82):
   `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4d6a1be8-b372-5492-abbe-334810677171\files\issue-102-us103-ff40a01`.
 - Story remains in progress with ACs unchecked for coordinator visual review,
+  closure, and merge; PR remains draft.
+- Round-five merge-blocker RED (commit `3463a9cc75`):
+  - `Mordecai.UI` ran 119 tests: 114 passed and 5 failed at assertions.
+    The failures covered the real pattern material and bilinear textures,
+    populated saved primitive specs, tally usage/theme tint rules, deferred
+    theme-asset initialization, full theme-colour parity, both SizeBox axes,
+    and same-count/name-mismatched `Apply()` specs
+    (`Saved/TestLogs/tests-20261111-213948.log`).
+  - Gallery Python RED ran 25 tests: 18 passed and 7 failed at assertions for
+    raw metadata validation, stale-target deletion, wrong theme/size, separate
+    comparison failures, and game-side unknown argument rejection.
+  - Font-source Python RED ran 2 tests: both failed, with four subtest
+    assertions proving the three full OFLs/notices and reproducible static TTF
+    sources were absent and the editor script still read `%TEMP%`.
+- Round-five implementation:
+  - GREEN commit `30426cbec9` builds the screen-pixel
+    `M_UI_PatternFill` graph with `Period`, `Angle`, `LineWidth`, `Base`, and
+    `Line`, sampling `T_UI_Hatch16`; saves every Diorama/HighContrast primitive
+    spec from the native builders; fixes tally tint semantics and reapplication;
+    initializes theme assets through soft paths and `SetThemeAssets`; validates
+    raw gallery metadata and physical/theme pixels; rejects unknown gallery
+    arguments; uses bilinear UI textures; and commits static font sources,
+    complete OFLs, and copyright notices.
+  - Package-compatible test correction `0995b02a3a` replaces editor-only
+    `UMaterial::GetExpressions()` with runtime `GetReferencedTextures()`.
+    This was the only RED-test implementation edit: the former API prevented
+    the Development game target from compiling, while the replacement still
+    asserts that `M_UI_PatternFill` references `T_UI_Hatch16`.
+  - Comparator calibration `408a8b6be3` documents Chrome/Slate
+    screen-pixel-hatch differences and adjusts only the Plate/Tag High Contrast
+    edge/text floors. All retained stretched, round-two, and round-three bad
+    captures remain rejected by the 25/25 gallery regression tests.
+- Round-five verification:
+  - Compile PASS for LyraEditor and LyraGame Development.
+  - Targeted `Mordecai.UI`: 119/119
+    (`Saved/TestLogs/tests-20261111-215054.log`).
+  - Full Tier 1: 825/825
+    (`Saved/TestLogs/tests-20261111-224400.log`).
+  - Full Python tooling: 655/655; Tier 2: 20/20 smoke scripts.
+  - `render.py check`: `problems: 0`; config sync, content guard, diff check,
+    and LFS-smudge check PASS.
+- Round-five exact clean Development package:
+  - Package commit `408a8b6be3124aacabc63664cca9f348ae3c8fdb`;
+    `dirty=false`, `source_changed_during_build=false`; package log
+    `Saved/Playtests/package-20261111-231023.log`.
+  - MovementTestMap boot `Saved/Playtests/20261111-231504-boot` PASS:
+    all checks passed.
+  - Packaged gallery `Saved/Playtests/20261111-231540-tin-tally-gallery`
+    PASS: all 10 component/theme comparisons. Metrics are foreground IoU /
+    bbox-edge delta / edge-grid / text-row:
+    - Plate Diorama `.4403/.0111/.3453/.3297`; HC
+      `.2324/.0194/.2894/.3128`.
+    - Tag Diorama `.6276/.0194/.4111/.2884`; HC
+      `.2872/.0194/.3236/.2654`.
+    - Keycap Diorama `.2093/.0031/.4152/.1968`; HC
+      `.1835/.0056/.3283/.1872`.
+    - Tally Diorama `.2205/.0198/.4680/.3796`; HC
+      `.1841/.0208/.4188/.3909`.
+    - Glyphs Diorama `.6690/.0083/.8121/.7575`; HC
+      `.9414/.0083/.8029/.7535`.
+  - The crop captures 41 of the 117 glyphs. Tally rank panels below the
+    720-pixel crop are not compared. PIL inspected all 189 referenced
+    boot/gallery/sweep PNGs as readable and non-black; no PNG was opened
+    through the file-read tool.
+- Round-five packaged regression:
+  - Baseline `559e28f95f`: 15 scripts, 10 PASS / 5 FAIL.
+  - Final `408a8b6be3`: `Saved/Playtests/20261111-231709-sweep`, 15 scripts,
+    10 PASS / 5 FAIL with the same failing scripts and checks.
+  - Zero script-level and zero individual-check PASS-to-FAIL transitions.
+- Round-five evidence bundle: 330/330 SHA-256 hashes generated and re-read:
+  `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4d6a1be8-b372-5492-abbe-334810677171\files\issue-102-us103-408a8b6`.
+- Explicitly deferred to follow-up issue
+  [#122](https://github.com/Jeff-Stapleton/ProjectMordecai/issues/122):
+  - M2: draw anatomy through the primitive builders.
+  - M3: add a colour-aware comparator and positive fixtures beyond H1's pixel
+    theme check.
+  - Generate per-size atlases.
+  - Add a cap-dot texture.
+  - Add per-capacity ghost art.
+  - Add the badge ink edge.
+  - L7: commit reference crops.
+  - Correct the accepted round-shape deviations (tag eyelet, tally rarity
+    ring, and keycap mouse body).
+  - Resolve the docs x-22 tag frame discrepancy.
+  - Resolve the print-alpha `0.4` versus `0.55` conflict.
+- Story remains in progress with ACs unchecked for coordinator review,
   closure, and merge; PR remains draft.
