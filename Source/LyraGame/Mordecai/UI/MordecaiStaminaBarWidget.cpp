@@ -13,8 +13,11 @@
 #include "Components/TextBlock.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Mordecai/UI/MordecaiHUDConstants.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
+#include "Mordecai/UI/TinTally/MordecaiUITypography.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiStaminaBarWidget)
 
@@ -30,6 +33,20 @@ void UMordecaiStaminaBarWidget::NativeOnInitialized()
 	{
 		BuildDefaultContent();
 	}
+}
+
+void UMordecaiStaminaBarWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this, BoundThemeSubsystem, ThemeChangedHandle,
+		this, &UMordecaiStaminaBarWidget::ApplyTheme);
+}
+
+void UMordecaiStaminaBarWidget::NativeDestruct()
+{
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
+	Super::NativeDestruct();
 }
 
 void UMordecaiStaminaBarWidget::BuildDefaultContent()
@@ -130,6 +147,7 @@ void UMordecaiStaminaBarWidget::BuildDefaultContent()
 	}
 
 	SprintPip = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("SprintPip"));
+	// TODO(DECISION): US-105 does not own the sprint-pip signal source; wire its full behavior when the movement owner decides it.
 	FSlateBrush PipBrush;
 	PipBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
 	PipBrush.TintColor = FSlateColor(FLinearColor::Transparent);
@@ -159,12 +177,6 @@ void UMordecaiStaminaBarWidget::BuildDefaultContent()
 // ---------------------------------------------------------------------------
 // Tier thresholds for HUD display (AC-052.8)
 // ---------------------------------------------------------------------------
-namespace MordecaiHUDConstants
-{
-	static constexpr float GreenThreshold = 0.66f;
-	static constexpr float YellowThreshold = 0.33f;
-}
-
 // ---------------------------------------------------------------------------
 // Static Helpers (AC-052.7, AC-052.8, AC-052.11)
 // ---------------------------------------------------------------------------
@@ -191,11 +203,11 @@ EMordecaiStaminaTier UMordecaiStaminaBarWidget::CalcStaminaTier(float Stamina, f
 	{
 		return EMordecaiStaminaTier::Exhausted;
 	}
-	if (Ratio >= MordecaiHUDConstants::GreenThreshold)
+	if (Ratio >= MordecaiHUDConstants::StaminaGreenThreshold)
 	{
 		return EMordecaiStaminaTier::Green;
 	}
-	if (Ratio >= MordecaiHUDConstants::YellowThreshold)
+	if (Ratio >= MordecaiHUDConstants::StaminaYellowThreshold)
 	{
 		return EMordecaiStaminaTier::Yellow;
 	}
@@ -315,8 +327,36 @@ void UMordecaiStaminaBarWidget::UpdateDisplay()
 		StaminaTierText->SetText(FText::FromString(TierCopy));
 		StaminaTierText->SetColorAndOpacity(FSlateColor(
 			Tier == EMordecaiStaminaTier::Exhausted
-				? FMordecaiUIThemeColors::MakeDiorama().DangerText
-				: FMordecaiUIThemeColors::MakeDiorama().Text));
+				? CurrentThemeColors.DangerText
+				: CurrentThemeColors.Ink));
+	}
+	if (UOverlay* TierPill = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("StaminaTierPill")))
+		: nullptr)
+	{
+		const FLinearColor FillColor = Tier == EMordecaiStaminaTier::Exhausted
+			? CurrentThemeColors.Ink
+			: GetColorForTier(Tier);
+		const FLinearColor OutlineColor = Tier == EMordecaiStaminaTier::Exhausted
+			? CurrentThemeColors.Danger
+			: CurrentThemeColors.Ink;
+		for (int32 Index = 0; Index < TierPill->GetChildrenCount(); ++Index)
+		{
+			if (UBorder* Layer = Cast<UBorder>(TierPill->GetChildAt(Index)))
+			{
+				FSlateBrush Brush = Layer->Background;
+				if (Layer->GetName().EndsWith(TEXT("_Fill")))
+				{
+					Brush.TintColor = FSlateColor(FillColor);
+				}
+				else if (Layer->GetName().EndsWith(TEXT("_Outline")))
+				{
+					Brush.TintColor = FSlateColor(OutlineColor);
+				}
+				Layer->SetBrush(Brush);
+				Layer->SetBrushColor(FLinearColor::White);
+			}
+		}
 	}
 }
 
@@ -330,4 +370,56 @@ FLinearColor UMordecaiStaminaBarWidget::GetColorForTier(EMordecaiStaminaTier Tie
 	case EMordecaiStaminaTier::Exhausted: return ExhaustedTierColor;
 	default:                              return YellowTierColor;
 	}
+}
+
+void UMordecaiStaminaBarWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	CurrentTheme = Theme;
+	CurrentThemeColors = Colors;
+	GreenTierColor = Colors.StaminaGreen;
+	YellowTierColor = Colors.StaminaYellow;
+	RedTierColor = Colors.StaminaRed;
+	ExhaustedTierColor = Colors.Danger;
+	if (UOverlay* Well = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("StaminaWell")))
+		: nullptr)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			Well, FMordecaiUIPrimitiveBuilder::Well(Colors, true));
+	}
+	for (const FName Name : { FName(TEXT("StaminaNotch33")), FName(TEXT("StaminaNotch66")) })
+	{
+		if (UBorder* Notch = WidgetTree ? Cast<UBorder>(WidgetTree->FindWidget(Name)) : nullptr)
+		{
+			Notch->SetBrushColor(Colors.Ink);
+		}
+	}
+	if (SprintPip)
+	{
+		FSlateBrush Brush = SprintPip->GetBrush();
+		Brush.OutlineSettings.Color = FSlateColor(Colors.Lip);
+		SprintPip->SetBrush(Brush);
+	}
+	if (RedTierMaterial)
+	{
+		RedTierMaterial->SetVectorParameterValue(TEXT("Base"), Colors.StaminaRed);
+		RedTierMaterial->SetVectorParameterValue(
+			TEXT("Line"), FLinearColor(Colors.Ink.R, Colors.Ink.G, Colors.Ink.B, 0.35f));
+	}
+	if (DebtMaterial)
+	{
+		DebtMaterial->SetVectorParameterValue(TEXT("Base"), Colors.Well);
+		DebtMaterial->SetVectorParameterValue(TEXT("Line"), Colors.Danger);
+	}
+	if (UTextBlock* Label = WidgetTree
+		? Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("StaminaLabel")))
+		: nullptr)
+	{
+		MordecaiUITypography::Apply(Label, TEXT("ui_label"));
+		Label->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
+	}
+	MordecaiUITypography::Apply(StaminaTierText, TEXT("num_s"));
+	UpdateDisplay();
 }

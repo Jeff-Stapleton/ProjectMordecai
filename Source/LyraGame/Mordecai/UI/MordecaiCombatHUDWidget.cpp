@@ -26,6 +26,8 @@
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
+#include "Mordecai/UI/MordecaiHUDConstants.h"
 #include "UI/IndicatorSystem/IndicatorLayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCombatHUDWidget)
@@ -51,6 +53,20 @@ void UMordecaiCombatHUDWidget::NativeOnInitialized()
 	{
 		BuildDefaultLayout();
 	}
+}
+
+void UMordecaiCombatHUDWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this, BoundThemeSubsystem, ThemeChangedHandle,
+		this, &UMordecaiCombatHUDWidget::ApplyTheme);
+}
+
+void UMordecaiCombatHUDWidget::NativeDestruct()
+{
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
+	Super::NativeDestruct();
 }
 
 void UMordecaiCombatHUDWidget::NativeOnActivated()
@@ -84,19 +100,7 @@ void UMordecaiCombatHUDWidget::NativeTick(const FGeometry& MyGeometry, float InD
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	(void)InDeltaTime;
-	UBorder* Rim = WidgetTree
-		? Cast<UBorder>(WidgetTree->FindWidget(TEXT("GaugePlate_Rim")))
-		: nullptr;
-	if (!Rim)
-	{
-		return;
-	}
-	const FMordecaiUIThemeColors Colors = FMordecaiUIThemeColors::MakeDiorama();
-	const bool bLowHealth = CachedHUDMaxHealth > 0.f
-		&& CachedHUDHealth / CachedHUDMaxHealth <= 0.25f;
-	const bool bVitalStep = bLowHealth && GetWorld()
-		&& FMath::Fmod(GetWorld()->GetTimeSeconds(), 1.f) < 0.5f;
-	Rim->SetBrushColor(bVitalStep ? Colors.Vital : Colors.Rim);
+	UpdateLowHealthRimForTime(GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f);
 }
 
 void UMordecaiCombatHUDWidget::BuildDefaultLayout()
@@ -218,6 +222,7 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 	// --- Tally rail head (top-right) ---
 	if (!TallyRailHead)
 	{
+		// US-114 owns the tally rail head's complete behavior; US-105 keeps its shipped plate in place.
 		TallyRailHead = FMordecaiUIPrimitiveBuilder::Build(
 			WidgetTree,
 			FMordecaiUIPrimitiveBuilder::Plate(
@@ -329,11 +334,11 @@ void UMordecaiCombatHUDWidget::BuildLowHealthFrame(UCanvasPanel* Root)
 	AddBand(TEXT("LowHealthLeftVital"), Colors.Vital,
 		FAnchors(0.f, 0.f, 0.f, 1.f), FMargin(0.f, 0.f, 8.f, 0.f));
 	AddBand(TEXT("LowHealthLeftInk"), Colors.Ink,
-		FAnchors(0.f, 0.f, 0.f, 1.f), FMargin(8.f, 0.f, 3.f, 0.f));
+		FAnchors(0.f, 0.f, 0.f, 1.f), FMargin(8.f, 8.f, 3.f, -8.f));
 	AddBand(TEXT("LowHealthRightVital"), Colors.Vital,
 		FAnchors(1.f, 0.f, 1.f, 1.f), FMargin(-8.f, 0.f, 8.f, 0.f));
 	AddBand(TEXT("LowHealthRightInk"), Colors.Ink,
-		FAnchors(1.f, 0.f, 1.f, 1.f), FMargin(-11.f, 0.f, 3.f, 0.f));
+		FAnchors(1.f, 0.f, 1.f, 1.f), FMargin(-11.f, 8.f, 3.f, -8.f));
 
 	UCanvasPanelSlot* FrameSlot = Root->AddChildToCanvas(LowHealthFrame);
 	FrameSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
@@ -405,7 +410,8 @@ void UMordecaiCombatHUDWidget::SetHUDMargin(float InMargin)
 
 float UMordecaiCombatHUDWidget::GetTopCenterSafeWidth() const
 {
-	return HUDMargin >= 64.f ? 784.f : 880.f;
+	// TODO(DECISION): BossBar/Banner owns the proposed 784px TV-safe width at the 96px margin.
+	return HUDMargin >= 64.f ? 784.f : 0.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -503,6 +509,7 @@ void UMordecaiCombatHUDWidget::BindSpellCooldownSlots(
 		}
 		const UMordecaiSpellDataAsset* Data =
 			SpellDataAssets.IsValidIndex(SlotIndex) ? SpellDataAssets[SlotIndex].Get() : nullptr;
+		Widget->ConfigureFromSpellData(const_cast<UMordecaiSpellDataAsset*>(Data));
 		Widget->BindToCooldownTag(
 			ASC,
 			Data ? Data->CooldownTag : FGameplayTag(),
@@ -562,7 +569,76 @@ void UMordecaiCombatHUDWidget::UpdateLowHealthFrame()
 		: 1.f;
 	LowHealthFrame->SetRenderOpacity(1.f);
 	LowHealthFrame->SetVisibility(
-		HealthRatio <= 0.25f
+		HealthRatio <= MordecaiHUDConstants::LowHealthThreshold
 			? ESlateVisibility::HitTestInvisible
 			: ESlateVisibility::Collapsed);
+}
+
+void UMordecaiCombatHUDWidget::UpdateLowHealthRimForTime(float TimeSeconds)
+{
+	if (!CachedGaugeRim)
+	{
+		CachedGaugeRim = WidgetTree
+			? Cast<UBorder>(WidgetTree->FindWidget(TEXT("GaugePlate_Rim")))
+			: nullptr;
+	}
+	if (!CachedGaugeRim)
+	{
+		return;
+	}
+	const bool bLowHealth = CachedHUDMaxHealth > 0.f
+		&& CachedHUDHealth / CachedHUDMaxHealth <= MordecaiHUDConstants::LowHealthThreshold;
+	const bool bVitalStep = bLowHealth && FMath::Fmod(FMath::Max(0.f, TimeSeconds), 1.f) < 0.5f;
+	if (!bRimStepInitialized || bVitalStep != bLastRimVitalStep)
+	{
+		FSlateBrush Brush = CachedGaugeRim->Background;
+		Brush.TintColor = FSlateColor(
+			bVitalStep ? CurrentThemeColors.Vital : CurrentThemeColors.Rim);
+		CachedGaugeRim->SetBrush(Brush);
+		CachedGaugeRim->SetBrushColor(FLinearColor::White);
+		bLastRimVitalStep = bVitalStep;
+		bRimStepInitialized = true;
+	}
+}
+
+void UMordecaiCombatHUDWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	CurrentTheme = Theme;
+	CurrentThemeColors = Colors;
+	if (GaugePlate)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			GaugePlate,
+			FMordecaiUIPrimitiveBuilder::Plate(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme));
+	}
+	if (TallyRailHead)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			TallyRailHead,
+			FMordecaiUIPrimitiveBuilder::Plate(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme));
+	}
+	CachedGaugeRim = WidgetTree
+		? Cast<UBorder>(WidgetTree->FindWidget(TEXT("GaugePlate_Rim")))
+		: nullptr;
+	bRimStepInitialized = false;
+	auto RetintBand = [this](const TCHAR* Name, const FLinearColor& Color)
+	{
+		if (UBorder* Band = WidgetTree ? Cast<UBorder>(WidgetTree->FindWidget(FName(Name))) : nullptr)
+		{
+			Band->SetBrushColor(Color);
+		}
+	};
+	RetintBand(TEXT("LowHealthTopVital"), Colors.Vital);
+	RetintBand(TEXT("LowHealthBottomVital"), Colors.Vital);
+	RetintBand(TEXT("LowHealthLeftVital"), Colors.Vital);
+	RetintBand(TEXT("LowHealthRightVital"), Colors.Vital);
+	RetintBand(TEXT("LowHealthTopInk"), Colors.Ink);
+	RetintBand(TEXT("LowHealthBottomInk"), Colors.Ink);
+	RetintBand(TEXT("LowHealthLeftInk"), Colors.Ink);
+	RetintBand(TEXT("LowHealthRightInk"), Colors.Ink);
+	UpdateLowHealthRimForTime(GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f);
 }

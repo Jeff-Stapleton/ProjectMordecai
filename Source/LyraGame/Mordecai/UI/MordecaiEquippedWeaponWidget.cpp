@@ -14,6 +14,8 @@
 #include "Engine/Texture2D.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
+#include "Mordecai/UI/TinTally/MordecaiUITypography.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEquippedWeaponWidget)
 
@@ -28,6 +30,14 @@ void UMordecaiEquippedWeaponWidget::NativeOnInitialized()
 		BuildDefaultContent();
 	}
 	SetDisplayFromWeapon(nullptr);
+}
+
+void UMordecaiEquippedWeaponWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this, BoundThemeSubsystem, ThemeChangedHandle,
+		this, &UMordecaiEquippedWeaponWidget::ApplyTheme);
 }
 
 void UMordecaiEquippedWeaponWidget::BuildDefaultContent()
@@ -125,6 +135,7 @@ void UMordecaiEquippedWeaponWidget::UnbindFromEquipmentComponent()
 void UMordecaiEquippedWeaponWidget::NativeDestruct()
 {
 	UnbindFromEquipmentComponent();
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
 	Super::NativeDestruct();
 }
 
@@ -174,6 +185,11 @@ void UMordecaiEquippedWeaponWidget::SetDisplayFromWeapon(const UMordecaiWeaponDa
 	}
 	DisplayedDamageSubtype = ResolveDamageSubtype(Weapon);
 	UpdateDisplay();
+}
+
+void UMordecaiEquippedWeaponWidget::SetGalleryPreviewWeapon(const UMordecaiWeaponDataAsset* Weapon)
+{
+	SetDisplayFromWeapon(Weapon);
 }
 
 FText UMordecaiEquippedWeaponWidget::ResolveDamageSubtype(const UMordecaiWeaponDataAsset* Weapon)
@@ -253,6 +269,49 @@ void UMordecaiEquippedWeaponWidget::UpdateDisplay()
 			WeaponIcon->SetBrushFromTexture(Texture, true);
 		}
 	}
+}
+
+void UMordecaiEquippedWeaponWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	CurrentTheme = Theme;
+	CurrentThemeColors = Colors;
+	if (UOverlay* Plate = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("LoadoutPlate")))
+		: nullptr)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			Plate,
+			FMordecaiUIPrimitiveBuilder::Plate(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme));
+	}
+	if (UOverlay* Well = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("WeaponWell")))
+		: nullptr)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			Well, FMordecaiUIPrimitiveBuilder::Well(Colors, false));
+	}
+	if (UOverlay* Keycap = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("SwapKeycap")))
+		: nullptr)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			Keycap,
+			FMordecaiUIPrimitiveBuilder::Keycap(
+				Colors, EMordecaiKeycapShape::Pill));
+	}
+	if (WeaponIcon)
+	{
+		WeaponIcon->SetColorAndOpacity(Colors.Text);
+	}
+	MordecaiUITypography::Apply(WeaponNameText, TEXT("ui_title"));
+	MordecaiUITypography::Apply(DamageSubtypeText, TEXT("ui_label"));
+	MordecaiUITypography::Apply(SwapKey, TEXT("ui_label"));
+	if (WeaponNameText) WeaponNameText->SetColorAndOpacity(FSlateColor(Colors.Text));
+	if (DamageSubtypeText) DamageSubtypeText->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
+	if (SwapKey) SwapKey->SetColorAndOpacity(FSlateColor(Colors.Ink));
 }
 
 #undef LOCTEXT_NAMESPACE

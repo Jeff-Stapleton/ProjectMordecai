@@ -14,6 +14,8 @@
 #include "Components/TextBlock.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
+#include "Mordecai/UI/TinTally/MordecaiUITypography.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiSpellPointsBarWidget)
 
@@ -29,6 +31,20 @@ void UMordecaiSpellPointsBarWidget::NativeOnInitialized()
 	{
 		BuildDefaultContent();
 	}
+}
+
+void UMordecaiSpellPointsBarWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this, BoundThemeSubsystem, ThemeChangedHandle,
+		this, &UMordecaiSpellPointsBarWidget::ApplyTheme);
+}
+
+void UMordecaiSpellPointsBarWidget::NativeDestruct()
+{
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
+	Super::NativeDestruct();
 }
 
 void UMordecaiSpellPointsBarWidget::BuildDefaultContent()
@@ -178,13 +194,21 @@ void UMordecaiSpellPointsBarWidget::UpdateDisplay()
 	const int32 Current = FMath::FloorToInt(FMath::Max(0.f, CachedSpellPoints));
 	const int32 Maximum = FMath::FloorToInt(FMath::Max(0.f, CachedMaxSpellPoints));
 	const bool bUseTokens = Maximum > 0 && Maximum <= 16;
+	// TODO(DECISION): US-090 owns the visual budget/fallback for SP maximums above 16.
 	if (SpellPointTokens)
 	{
 		SpellPointTokens->SetVisibility(
 			bUseTokens ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		if (bUseTokens)
 		{
-			RebuildTokens(Current, Maximum);
+			if (BuiltTokenMaximum != Maximum)
+			{
+				RebuildTokens(Current, Maximum);
+			}
+			else
+			{
+				RetintTokens(Current);
+			}
 		}
 	}
 	if (SpellPointsProgressBar)
@@ -202,7 +226,6 @@ void UMordecaiSpellPointsBarWidget::RebuildTokens(int32 Current, int32 Maximum)
 	}
 	SpellPointTokens->ClearChildren();
 	BuiltTokenMaximum = Maximum;
-	const FMordecaiUIThemeColors Colors = FMordecaiUIThemeColors::MakeDiorama();
 	const float TokenSize = Maximum <= 10 ? 22.f : Maximum <= 13 ? 16.f : 14.f;
 	const float Gap = Maximum <= 10 ? 4.f : Maximum <= 13 ? 3.f : 2.f;
 	const float GroupGap = Maximum <= 10 ? 12.f : Maximum <= 13 ? 8.f : 6.f;
@@ -214,10 +237,11 @@ void UMordecaiSpellPointsBarWidget::RebuildTokens(int32 Current, int32 Maximum)
 		FSlateBrush Brush;
 		Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
 		Brush.ImageSize = FVector2D(TokenSize);
-		Brush.TintColor = FSlateColor(Index < Current ? Colors.SpellPoints : Colors.Well);
+		Brush.TintColor = FSlateColor(
+			Index < Current ? CurrentThemeColors.SpellPoints : CurrentThemeColors.Well);
 		Brush.OutlineSettings = FSlateBrushOutlineSettings(
 			FVector4(TokenSize * 0.5f), FSlateColor(
-				Index < Current ? Colors.Ink : Colors.Lip), 2.f);
+				Index < Current ? CurrentThemeColors.Ink : CurrentThemeColors.Lip), 2.f);
 		Token->SetBrush(Brush);
 		Token->SetVisibility(ESlateVisibility::HitTestInvisible);
 		if (UHorizontalBoxSlot* TokenSlot = SpellPointTokens->AddChildToHorizontalBox(Token))
@@ -228,4 +252,56 @@ void UMordecaiSpellPointsBarWidget::RebuildTokens(int32 Current, int32 Maximum)
 			TokenSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		}
 	}
+}
+
+void UMordecaiSpellPointsBarWidget::RetintTokens(int32 Current)
+{
+	if (!SpellPointTokens)
+	{
+		return;
+	}
+	for (int32 Index = 0; Index < SpellPointTokens->GetChildrenCount(); ++Index)
+	{
+		if (UImage* Token = Cast<UImage>(SpellPointTokens->GetChildAt(Index)))
+		{
+			FSlateBrush Brush = Token->GetBrush();
+			Brush.TintColor = FSlateColor(
+				Index < Current ? CurrentThemeColors.SpellPoints : CurrentThemeColors.Well);
+			Brush.OutlineSettings.Color = FSlateColor(
+				Index < Current ? CurrentThemeColors.Ink : CurrentThemeColors.Lip);
+			Token->SetBrush(Brush);
+		}
+	}
+}
+
+void UMordecaiSpellPointsBarWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	CurrentTheme = Theme;
+	CurrentThemeColors = Colors;
+	if (UOverlay* Well = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("SpellPointsWell")))
+		: nullptr)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			Well, FMordecaiUIPrimitiveBuilder::Well(Colors, true));
+	}
+	if (SpellPointsProgressBar)
+	{
+		SpellPointsProgressBar->SetFillColorAndOpacity(Colors.SpellPoints);
+	}
+	if (UTextBlock* Label = WidgetTree
+		? Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("SpellPointsLabel")))
+		: nullptr)
+	{
+		MordecaiUITypography::Apply(Label, TEXT("ui_label"));
+		Label->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
+	}
+	MordecaiUITypography::Apply(SpellPointsText, TEXT("num_m"));
+	if (SpellPointsText)
+	{
+		SpellPointsText->SetColorAndOpacity(FSlateColor(Colors.Text));
+	}
+	RetintTokens(FMath::FloorToInt(FMath::Max(0.f, CachedSpellPoints)));
 }

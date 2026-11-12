@@ -7,11 +7,14 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/TextBlock.h"
 #include "Mordecai/Items/MordecaiItemPickup.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
+#include "Mordecai/UI/TinTally/MordecaiUITypography.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPickupPromptWidget)
 
@@ -46,9 +49,18 @@ void UMordecaiPickupPromptWidget::NativeOnInitialized()
 	RefreshVisuals();
 }
 
+void UMordecaiPickupPromptWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this, BoundThemeSubsystem, ThemeChangedHandle,
+		this, &UMordecaiPickupPromptWidget::ApplyTheme);
+}
+
 void UMordecaiPickupPromptWidget::NativeDestruct()
 {
 	Unbind();
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
 	Super::NativeDestruct();
 }
 
@@ -100,6 +112,7 @@ void UMordecaiPickupPromptWidget::BuildDefaultLayout()
 	WidgetTree->RootWidget = Root;
 	const FMordecaiUIThemeColors Colors = FMordecaiUIThemeColors::MakeDiorama();
 	auto Place = [Root](UWidget* Widget, FVector2D Position, FVector2D Size, int32 ZOrder = 0)
+		-> UCanvasPanelSlot*
 	{
 		if (UCanvasPanelSlot* Slot = Root->AddChildToCanvas(Widget))
 		{
@@ -107,7 +120,9 @@ void UMordecaiPickupPromptWidget::BuildDefaultLayout()
 			Slot->SetSize(Size);
 			Slot->SetAutoSize(false);
 			Slot->SetZOrder(ZOrder);
+			return Slot;
 		}
+		return nullptr;
 	};
 
 	UOverlay* Tag = FMordecaiUIPrimitiveBuilder::Build(
@@ -116,16 +131,26 @@ void UMordecaiPickupPromptWidget::BuildDefaultLayout()
 			Colors, EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::Diorama),
 		TEXT("PromptTag"));
 	PromptTag = Tag;
-	Place(Tag, FVector2D::ZeroVector, FVector2D(540.f, 60.f), 0);
+	if (UCanvasPanelSlot* TagSlot = Place(
+		Tag, FVector2D(-180.f, 0.f), FVector2D(540.f, 60.f), 0))
+	{
+		TagSlot->SetAnchors(FAnchors(1.f, 0.5f));
+		TagSlot->SetAlignment(FVector2D(1.f, 0.5f));
+		TagSlot->SetAutoSize(true);
+	}
 
 	PromptText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PromptText"));
 	PromptText->SetJustification(ETextJustify::Right);
 	PromptText->SetColorAndOpacity(FSlateColor(Colors.Ink));
-	PromptText->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
 	FSlateFontInfo PromptFont = PromptText->GetFont();
 	PromptFont.Size = 17;
 	PromptText->SetFont(PromptFont);
-	Place(PromptText, FVector2D(40.f, 14.f), FVector2D(484.f, 32.f), 1);
+	if (UOverlaySlot* TextSlot = Tag->AddChildToOverlay(PromptText))
+	{
+		TextSlot->SetPadding(FMargin(40.f, 14.f, 16.f, 14.f));
+		TextSlot->SetHorizontalAlignment(HAlign_Right);
+		TextSlot->SetVerticalAlignment(VAlign_Center);
+	}
 
 	PromptSocket = WidgetTree->ConstructWidget<UImage>(
 		UImage::StaticClass(), TEXT("PromptSocket"));
@@ -156,6 +181,13 @@ void UMordecaiPickupPromptWidget::BuildDefaultLayout()
 	Place(HintKey, FVector2D(560.f, 14.f), FVector2D(32.f), 2);
 }
 
+void UMordecaiPickupPromptWidget::SetGalleryPreviewPrompt(const FText& Prompt)
+{
+	CachedPromptText = Prompt;
+	bPromptVisible = !Prompt.IsEmpty();
+	RefreshVisuals();
+}
+
 void UMordecaiPickupPromptWidget::RefreshVisuals()
 {
 	if (PromptText)
@@ -177,6 +209,39 @@ void UMordecaiPickupPromptWidget::RefreshVisuals()
 	{
 		HintPill->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
+}
+
+void UMordecaiPickupPromptWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	CurrentTheme = Theme;
+	CurrentThemeColors = Colors;
+	if (UOverlay* Tag = Cast<UOverlay>(PromptTag))
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			Tag,
+			FMordecaiUIPrimitiveBuilder::Tag(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme));
+	}
+	if (UOverlay* Pill = Cast<UOverlay>(HintPill))
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			Pill,
+			FMordecaiUIPrimitiveBuilder::Pill(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme));
+	}
+	MordecaiUITypography::Apply(PromptText, TEXT("ui_body"));
+	if (PromptText)
+	{
+		PromptText->SetColorAndOpacity(FSlateColor(Colors.Ink));
+	}
+	MordecaiUITypography::Apply(InventoryHintText, TEXT("ui_label"));
+	if (InventoryHintText)
+	{
+		InventoryHintText->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
+	}
+	RefreshVisuals();
 }
 
 #undef LOCTEXT_NAMESPACE

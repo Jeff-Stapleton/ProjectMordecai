@@ -7,12 +7,14 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/Border.h"
 #include "Components/Overlay.h"
 #include "Components/ProgressBar.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPostureBarWidget)
 
@@ -28,6 +30,26 @@ void UMordecaiPostureBarWidget::NativeOnInitialized()
 	{
 		BuildDefaultContent();
 	}
+}
+
+void UMordecaiPostureBarWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this, BoundThemeSubsystem, ThemeChangedHandle,
+		this, &UMordecaiPostureBarWidget::ApplyTheme);
+}
+
+void UMordecaiPostureBarWidget::NativeDestruct()
+{
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
+	Super::NativeDestruct();
+}
+
+void UMordecaiPostureBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	AdvanceVisuals(InDeltaTime);
 }
 
 void UMordecaiPostureBarWidget::BuildDefaultContent()
@@ -130,7 +152,8 @@ void UMordecaiPostureBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 	ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxPostureAttribute())
 		.AddUObject(this, &UMordecaiPostureBarWidget::OnMaxPostureChanged);
 
-	// Listen for posture broken tag (AC-052.4)
+	// TODO(DECISION): the combat owner still must decide the player-posture-break signal and consequences.
+	// Listen for the existing posture broken tag so the HUD is ready for that decision (AC-052.4).
 	ASC->RegisterGameplayTagEvent(MordecaiGameplayTags::State_PostureBroken, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &UMordecaiPostureBarWidget::OnPostureBrokenTagChanged);
 
@@ -168,6 +191,25 @@ void UMordecaiPostureBarWidget::OnPostureBrokenTagChanged(const FGameplayTag Tag
 void UMordecaiPostureBarWidget::UpdateDisplay()
 {
 	const float Percent = GetPosturePercent();
+	UOverlay* PostureWell = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("PostureWell")))
+		: nullptr;
+	const bool bAtFull = !bPostureBroken && Percent >= 1.f;
+	if (!bAtFull)
+	{
+		bWaitingToHide = false;
+		FullPostureDelayRemaining = 0.f;
+		SetVisibility(ESlateVisibility::HitTestInvisible);
+		if (PostureWell)
+		{
+			PostureWell->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+	}
+	else if (!bWaitingToHide && GetVisibility() != ESlateVisibility::Hidden)
+	{
+		bWaitingToHide = true;
+		FullPostureDelayRemaining = 3.f;
+	}
 
 	if (PostureProgressBar)
 	{
@@ -188,8 +230,60 @@ void UMordecaiPostureBarWidget::UpdateDisplay()
 		}
 		Style.SetFillImage(Fill);
 		PostureProgressBar->SetWidgetStyle(Style);
-		PostureProgressBar->SetVisibility(!bPostureBroken && Percent >= 1.f
-			? ESlateVisibility::Hidden
-			: ESlateVisibility::HitTestInvisible);
+		PostureProgressBar->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
+	if (UBorder* WellLayer = WidgetTree
+		? Cast<UBorder>(WidgetTree->FindWidget(TEXT("PostureWell_Well")))
+		: nullptr)
+	{
+		FSlateBrush Brush = WellLayer->Background;
+		Brush.OutlineSettings.Color = FSlateColor(
+			bPostureBroken ? CurrentThemeColors.Rim : CurrentThemeColors.Lip);
+		WellLayer->SetBrush(Brush);
+		WellLayer->SetBrushColor(FLinearColor::White);
+	}
+}
+
+void UMordecaiPostureBarWidget::AdvanceVisuals(float DeltaTime)
+{
+	if (!bWaitingToHide || bPostureBroken || GetPosturePercent() < 1.f)
+	{
+		return;
+	}
+	FullPostureDelayRemaining = FMath::Max(
+		0.f, FullPostureDelayRemaining - FMath::Max(0.f, DeltaTime));
+	if (FullPostureDelayRemaining <= KINDA_SMALL_NUMBER)
+	{
+		bWaitingToHide = false;
+		SetVisibility(ESlateVisibility::Hidden);
+		if (UWidget* PostureWell = WidgetTree
+			? WidgetTree->FindWidget(TEXT("PostureWell"))
+			: nullptr)
+		{
+			PostureWell->SetVisibility(ESlateVisibility::Hidden);
+		}
+	}
+}
+
+void UMordecaiPostureBarWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	CurrentTheme = Theme;
+	CurrentThemeColors = Colors;
+	NormalPostureColor = Colors.Posture;
+	BrokenPostureColor = Colors.Posture;
+	if (UOverlay* Well = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("PostureWell")))
+		: nullptr)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			Well, FMordecaiUIPrimitiveBuilder::Well(Colors, true));
+	}
+	if (BrokenPatternMaterial)
+	{
+		BrokenPatternMaterial->SetVectorParameterValue(TEXT("Base"), Colors.Posture);
+		BrokenPatternMaterial->SetVectorParameterValue(TEXT("Line"), Colors.Ink);
+	}
+	UpdateDisplay();
 }

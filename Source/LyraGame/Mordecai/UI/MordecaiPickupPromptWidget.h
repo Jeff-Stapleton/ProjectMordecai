@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include "MordecaiPickupPromptWidget.generated.h"
 
@@ -11,6 +12,7 @@ class AMordecaiItemPickup;
 class UMordecaiPickupInteractionComponent;
 class UTextBlock;
 class UWidget;
+class UMordecaiUIThemeSubsystem;
 
 /**
  * UMordecaiPickupPromptWidget
@@ -61,8 +63,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|PickupPrompt")
 	bool IsPromptVisible() const { return bPromptVisible; }
 
+	/** Drives the real shipped prompt for deterministic gallery fixtures. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|PickupPrompt")
+	void SetGalleryPreviewPrompt(const FText& Prompt);
+
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 	/** Prompt line ("[F] Pick up ..."), collapsed while nothing is focused. */
@@ -94,8 +101,13 @@ private:
 
 	void BuildDefaultLayout();
 	void RefreshVisuals();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
 
 	TWeakObjectPtr<UMordecaiPickupInteractionComponent> BoundInteraction;
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
+	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
+	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
 	FText CachedPromptText;
 	bool bPromptVisible = false;
 };

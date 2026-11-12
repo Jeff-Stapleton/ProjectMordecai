@@ -8,15 +8,20 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "Engine/Texture2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
+#include "Mordecai/UI/TinTally/MordecaiUITypography.h"
+#include "Mordecai/Magic/MordecaiSpellDataAsset.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiSpellCooldownWidget)
 
@@ -35,9 +40,18 @@ void UMordecaiSpellCooldownWidget::NativeOnInitialized()
 	SetSlotKeyLabel(SlotKeyLabel);
 }
 
+void UMordecaiSpellCooldownWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this, BoundThemeSubsystem, ThemeChangedHandle,
+		this, &UMordecaiSpellCooldownWidget::ApplyTheme);
+}
+
 void UMordecaiSpellCooldownWidget::NativeDestruct()
 {
 	UnbindFromCooldownTag();
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
 	Super::NativeDestruct();
 }
 
@@ -109,6 +123,13 @@ void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 	CooldownProgressBar->SetFillColorAndOpacity(FLinearColor::White);
 	Place(CooldownProgressBar, FVector2D(7.f), FVector2D(64.f), 2);
 
+	CooldownShutterLip = WidgetTree->ConstructWidget<UBorder>(
+		UBorder::StaticClass(), TEXT("CooldownShutterLip"));
+	CooldownShutterLip->SetBrushColor(Colors.Rim);
+	CooldownShutterLip->SetPadding(FMargin(0.f));
+	CooldownShutterLip->SetVisibility(ESlateVisibility::Collapsed);
+	Place(CooldownShutterLip, FVector2D(7.f, 68.f), FVector2D(64.f, 3.f), 3);
+
 	CooldownText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CooldownText"));
 	CooldownText->SetText(FText::GetEmpty());
 	CooldownText->SetColorAndOpacity(FSlateColor(Colors.Text));
@@ -118,13 +139,14 @@ void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 	FontInfo.OutlineSettings.OutlineSize = 2;
 	FontInfo.OutlineSettings.OutlineColor = Colors.Ink.ToFColorSRGB();
 	CooldownText->SetFont(FontInfo);
+	MordecaiUITypography::Apply(CooldownText, TEXT("num_m"));
 	Place(CooldownText, FVector2D(7.f, 24.f), FVector2D(64.f, 30.f), 4);
 
 	SlotKey = FMordecaiUIPrimitiveBuilder::Build(
 		WidgetTree,
 		FMordecaiUIPrimitiveBuilder::Keycap(Colors, EMordecaiKeycapShape::Square),
 		TEXT("SlotKey"));
-	Place(SlotKey, FVector2D(-6.f, 68.f), FVector2D(32.f), 5);
+	Place(SlotKey, FVector2D(-6.f, 56.f), FVector2D(32.f), 5);
 	SlotKeyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SlotKeyText"));
 	SlotKeyText->SetText(SlotKeyLabel);
 	SlotKeyText->SetColorAndOpacity(FSlateColor(Colors.Ink));
@@ -132,7 +154,11 @@ void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 	FontInfo.OutlineSettings.OutlineSize = 0;
 	FontInfo.Size = 15;
 	SlotKeyText->SetFont(FontInfo);
-	Place(SlotKeyText, FVector2D(-6.f, 72.f), FVector2D(32.f, 24.f), 6);
+	MordecaiUITypography::Apply(SlotKeyText, TEXT("num_s"));
+	FSlateFontInfo KeyFont = SlotKeyText->GetFont();
+	KeyFont.TypefaceFontName = TEXT("ExtraBold");
+	SlotKeyText->SetFont(KeyFont);
+	Place(SlotKeyText, FVector2D(-6.f, 60.f), FVector2D(32.f, 24.f), 6);
 
 	CostRivets = WidgetTree->ConstructWidget<UHorizontalBox>(
 		UHorizontalBox::StaticClass(), TEXT("CostRivets"));
@@ -140,11 +166,13 @@ void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 
 	LockChip = FMordecaiUIPrimitiveBuilder::Build(
 		WidgetTree, FMordecaiUIPrimitiveBuilder::Pill(Colors), TEXT("LockChip"));
+	// TODO(DECISION): define the lock-chip state and copy before making this layer live.
 	LockChip->SetVisibility(ESlateVisibility::Collapsed);
 	Place(LockChip, FVector2D(24.f, 27.f), FVector2D(30.f, 24.f), 7);
 
 	MuzzleBadge = WidgetTree->ConstructWidget<UImage>(
 		UImage::StaticClass(), TEXT("MuzzleBadge"));
+	// TODO(DECISION): define the muzzle-badge trigger and glyph before making this layer live.
 	MuzzleBadge->SetVisibility(ESlateVisibility::Collapsed);
 	Place(MuzzleBadge, FVector2D(16.f), FVector2D(46.f), 7);
 }
@@ -181,6 +209,61 @@ void UMordecaiSpellCooldownWidget::SetSlotKeyLabel(const FText& Label)
 	if (SlotKeyText)
 	{
 		SlotKeyText->SetText(SlotKeyLabel);
+	}
+}
+
+void UMordecaiSpellCooldownWidget::ConfigureFromSpellData(UMordecaiSpellDataAsset* SpellData)
+{
+	if (!SpellData || !SpellIcon || !CostRivets)
+	{
+		return;
+	}
+	FString GlyphName = SpellData->SpellId.ToString().ToLower();
+	GlyphName.ReplaceInline(TEXT("_"), TEXT(""));
+	GlyphName.ReplaceInline(TEXT(" "), TEXT(""));
+	const FString TexturePath = FString::Printf(
+		TEXT("/MordecaiCore/UI/TinTally/Textures/Glyphs/T_UI_Glyph_%s.T_UI_Glyph_%s"),
+		*GlyphName,
+		*GlyphName);
+	UTexture2D* GlyphTexture = LoadObject<UTexture2D>(nullptr, *TexturePath);
+	FSlateBrush IconBrush = SpellIcon->GetBrush();
+	IconBrush.DrawAs = GlyphTexture ? ESlateBrushDrawType::Image : ESlateBrushDrawType::NoDrawType;
+	IconBrush.SetResourceObject(GlyphTexture);
+	IconBrush.TintColor = FSlateColor(CurrentThemeColors.Text);
+	SpellIcon->SetBrush(IconBrush);
+
+	CostRivets->ClearChildren();
+	for (int32 Index = 0; Index < FMath::Max(0, SpellData->SpellPointCost); ++Index)
+	{
+		UImage* Rivet = WidgetTree->ConstructWidget<UImage>(
+			UImage::StaticClass(),
+			FName(*FString::Printf(TEXT("CostRivet_%02d"), Index)));
+		FSlateBrush Brush;
+		Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
+		Brush.ImageSize = FVector2D(8.f);
+		Brush.TintColor = FSlateColor(CurrentThemeColors.SpellPoints);
+		Brush.OutlineSettings = FSlateBrushOutlineSettings(
+			FVector4(4.f), FSlateColor(CurrentThemeColors.Ink), 1.f);
+		Rivet->SetBrush(Brush);
+		Rivet->SetVisibility(ESlateVisibility::HitTestInvisible);
+		if (UHorizontalBoxSlot* RivetSlot = CostRivets->AddChildToHorizontalBox(Rivet))
+		{
+			RivetSlot->SetPadding(FMargin(Index > 0 ? 3.f : 0.f, 0.f, 0.f, 0.f));
+			RivetSlot->SetVerticalAlignment(VAlign_Center);
+			RivetSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		}
+	}
+}
+
+void UMordecaiSpellCooldownWidget::SetPreviewCooldownFraction(float Fraction)
+{
+	bIsOnCooldown = Fraction > 0.f;
+	ApplyCooldownFraction(Fraction);
+	if (CooldownText)
+	{
+		CooldownText->SetText(bIsOnCooldown
+			? FText::FromString(TEXT("2.4"))
+			: FText::GetEmpty());
 	}
 }
 
@@ -286,7 +369,7 @@ void UMordecaiSpellCooldownWidget::UpdateDisplay()
 
 		if (CooldownProgressBar)
 		{
-			CooldownProgressBar->SetPercent(Percent);
+			ApplyCooldownFraction(Percent);
 		}
 		if (CooldownText)
 		{
@@ -304,11 +387,112 @@ void UMordecaiSpellCooldownWidget::UpdateDisplay()
 		// Ready state
 		if (CooldownProgressBar)
 		{
-			CooldownProgressBar->SetPercent(0.f);
+			ApplyCooldownFraction(0.f);
 		}
 		if (CooldownText)
 		{
 			CooldownText->SetText(FText::GetEmpty());
+		}
+	}
+}
+
+void UMordecaiSpellCooldownWidget::ApplyCooldownFraction(float Fraction)
+{
+	const float Clamped = FMath::Clamp(Fraction, 0.f, 1.f);
+	if (CooldownProgressBar)
+	{
+		CooldownProgressBar->SetPercent(Clamped);
+	}
+	if (SpellIcon)
+	{
+		FLinearColor Tint = SpellIcon->GetColorAndOpacity();
+		Tint.A = Clamped > 0.f ? 0.4f : 1.f;
+		SpellIcon->SetColorAndOpacity(Tint);
+	}
+	if (CooldownShutterLip)
+	{
+		CooldownShutterLip->SetVisibility(
+			Clamped > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		if (UCanvasPanelSlot* LipSlot = Cast<UCanvasPanelSlot>(CooldownShutterLip->Slot))
+		{
+			LipSlot->SetPosition(FVector2D(7.f, 7.f + 64.f * Clamped - 3.f));
+		}
+	}
+}
+
+void UMordecaiSpellCooldownWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	CurrentTheme = Theme;
+	CurrentThemeColors = Colors;
+	if (UOverlay* Plate = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("SpellSlotPlate")))
+		: nullptr)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			Plate,
+			FMordecaiUIPrimitiveBuilder::Plate(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme));
+	}
+	if (UOverlay* Well = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("SpellSlotWell")))
+		: nullptr)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			Well, FMordecaiUIPrimitiveBuilder::Well(Colors, false));
+	}
+	if (SlotKey)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			SlotKey,
+			FMordecaiUIPrimitiveBuilder::Keycap(Colors, EMordecaiKeycapShape::Square));
+	}
+	if (LockChip)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			LockChip, FMordecaiUIPrimitiveBuilder::Pill(Colors));
+	}
+	if (ShutterMaterial)
+	{
+		ShutterMaterial->SetVectorParameterValue(TEXT("Base"), Colors.PlateRaised);
+		ShutterMaterial->SetVectorParameterValue(TEXT("Line"), Colors.Well);
+	}
+	if (CooldownShutterLip)
+	{
+		CooldownShutterLip->SetBrushColor(Colors.Rim);
+	}
+	if (SpellIcon)
+	{
+		FSlateBrush Brush = SpellIcon->GetBrush();
+		Brush.TintColor = FSlateColor(Colors.Text);
+		SpellIcon->SetBrush(Brush);
+	}
+	MordecaiUITypography::Apply(CooldownText, TEXT("num_m"));
+	if (CooldownText)
+	{
+		FSlateFontInfo Font = CooldownText->GetFont();
+		Font.OutlineSettings.OutlineSize = 2;
+		Font.OutlineSettings.OutlineColor = Colors.Ink.ToFColorSRGB();
+		CooldownText->SetFont(Font);
+		CooldownText->SetColorAndOpacity(FSlateColor(Colors.Text));
+	}
+	MordecaiUITypography::Apply(SlotKeyText, TEXT("num_s"));
+	if (SlotKeyText)
+	{
+		FSlateFontInfo Font = SlotKeyText->GetFont();
+		Font.TypefaceFontName = TEXT("ExtraBold");
+		SlotKeyText->SetFont(Font);
+		SlotKeyText->SetColorAndOpacity(FSlateColor(Colors.Ink));
+	}
+	for (int32 Index = 0; CostRivets && Index < CostRivets->GetChildrenCount(); ++Index)
+	{
+		if (UImage* Rivet = Cast<UImage>(CostRivets->GetChildAt(Index)))
+		{
+			FSlateBrush Brush = Rivet->GetBrush();
+			Brush.TintColor = FSlateColor(Colors.SpellPoints);
+			Brush.OutlineSettings.Color = FSlateColor(Colors.Ink);
+			Rivet->SetBrush(Brush);
 		}
 	}
 }

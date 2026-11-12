@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UI/LyraActivatableWidget.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include "MordecaiCombatHUDWidget.generated.h"
 
@@ -27,6 +28,8 @@ class UMordecaiSpellDataAsset;
 class UIndicatorLayer;
 class UCanvasPanel;
 class UOverlay;
+class UBorder;
+class UMordecaiUIThemeSubsystem;
 struct FOnAttributeChangeData;
 
 /**
@@ -86,8 +89,14 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|HUD")
 	float GetTopCenterSafeWidth() const;
 
+	/** Deterministic low-health rim step used by tick and visual tests. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
+	void UpdateLowHealthRimForTime(float TimeSeconds);
+
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -165,8 +174,16 @@ private:
 	void OnHUDHealthChanged(const FOnAttributeChangeData& Data);
 	void OnHUDMaxHealthChanged(const FOnAttributeChangeData& Data);
 	void UpdateLowHealthFrame();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
+	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
+	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
+	TObjectPtr<UBorder> CachedGaugeRim;
+	bool bRimStepInitialized = false;
+	bool bLastRimVitalStep = false;
 	TWeakObjectPtr<UMordecaiEquipmentComponent> BoundEquipment;
 	TWeakObjectPtr<UMordecaiPickupInteractionComponent> BoundInteraction;
 	float HUDMargin = 32.f;

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Mordecai/Weapons/MordecaiWeaponTypes.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include "MordecaiEquippedWeaponWidget.generated.h"
 
@@ -12,6 +13,7 @@ class UMordecaiEquipmentComponent;
 class UMordecaiWeaponDataAsset;
 class UImage;
 class UTextBlock;
+class UMordecaiUIThemeSubsystem;
 
 /**
  * UMordecaiEquippedWeaponWidget
@@ -42,8 +44,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|Equipment")
 	EMordecaiWeaponType GetDisplayedWeaponType() const { return DisplayedWeaponType; }
 
+	/** Drives the real shipped loadout plate for gallery fixtures. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Equipment")
+	void SetGalleryPreviewWeapon(const UMordecaiWeaponDataAsset* Weapon);
+
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -69,9 +76,14 @@ private:
 	void RefreshFromComponent();
 	void SetDisplayFromWeapon(const UMordecaiWeaponDataAsset* Weapon);
 	void UpdateDisplay();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
 	static FText ResolveDamageSubtype(const UMordecaiWeaponDataAsset* Weapon);
 
 	TWeakObjectPtr<UMordecaiEquipmentComponent> BoundComponent;
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
+	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
+	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
 
 	FText DisplayedWeaponName;
 	FText DisplayedDamageSubtype;

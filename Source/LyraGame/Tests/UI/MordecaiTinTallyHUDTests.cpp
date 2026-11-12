@@ -318,6 +318,9 @@ bool FMordecai_UI_Gauge_HealthStaminaPostureSpellPoints::RunTest(const FString& 
 	TestEqual("health percentage rounds a living value up", HealthPercent
 		? HealthPercent->GetText().ToString() : FString(), FString(TEXT("23%")));
 	ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetHealthAttribute(), 100.f);
+	// SetNumericAttributeBase does not broadcast when restoring this recovery fixture's base/current aggregator.
+	// Re-prime from the real ASC before exercising damage and healing through gameplay effects.
+	Health->BindToASC(ASC);
 	Env.ApplyPlayerHealthDelta(-40.f);
 	TestEqual("damage snaps the live fill", HealthFill ? HealthFill->GetPercent() : -1.f, 0.6f, 0.001f);
 	TestEqual("damage trail begins at the pre-hit value", HealthTrail ? HealthTrail->GetPercent() : -1.f, 1.f, 0.001f);

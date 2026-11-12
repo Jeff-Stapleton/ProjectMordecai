@@ -4,12 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include "MordecaiHealthBarWidget.generated.h"
 
 class UAbilitySystemComponent;
 class UProgressBar;
 class UTextBlock;
+class UMordecaiUIThemeSubsystem;
 struct FOnAttributeChangeData;
 
 /**
@@ -38,8 +40,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void BindToASC(UAbilitySystemComponent* ASC);
 
+	/** Deterministically advances fixed-duration trail/lead motion. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
+	void AdvanceVisuals(float DeltaTime);
+
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -65,12 +73,21 @@ private:
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
 	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
 	void UpdateDisplay();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
+	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
+	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
 	float DisplayedHealthPercent = 1.f;
 	float TrailPercent = 1.f;
 	float LeadPercent = 1.f;
 	float TrailHoldRemaining = 0.f;
+	float TrailStartPercent = 1.f;
+	float TrailEaseElapsed = 0.f;
+	float HealStartPercent = 1.f;
+	float HealEaseElapsed = 0.f;
 	bool bHealing = false;
 	bool bHasDisplayValue = false;
 };

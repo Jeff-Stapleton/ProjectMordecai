@@ -5,12 +5,14 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include "MordecaiPostureBarWidget.generated.h"
 
 class UAbilitySystemComponent;
 class UMaterialInstanceDynamic;
 class UProgressBar;
+class UMordecaiUIThemeSubsystem;
 struct FOnAttributeChangeData;
 struct FGameplayTag;
 
@@ -44,8 +46,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void BindToASC(UAbilitySystemComponent* ASC);
 
+	/** Deterministically advances the post-refill row-hide delay. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
+	void AdvanceVisuals(float DeltaTime);
+
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> PostureProgressBar;
@@ -73,8 +82,15 @@ private:
 	void OnMaxPostureChanged(const FOnAttributeChangeData& Data);
 	void OnPostureBrokenTagChanged(const FGameplayTag Tag, int32 NewCount);
 	void UpdateDisplay();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
+	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
+	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
+	float FullPostureDelayRemaining = 0.f;
+	bool bWaitingToHide = false;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> BrokenPatternMaterial;

@@ -10,8 +10,11 @@
 #include "Components/Overlay.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "Mordecai/UI/MordecaiHUDConstants.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
+#include "Mordecai/UI/TinTally/MordecaiUITypography.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiHealthBarWidget)
 
@@ -27,6 +30,20 @@ void UMordecaiHealthBarWidget::NativeOnInitialized()
 	{
 		BuildDefaultContent();
 	}
+}
+
+void UMordecaiHealthBarWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this, BoundThemeSubsystem, ThemeChangedHandle,
+		this, &UMordecaiHealthBarWidget::ApplyTheme);
+}
+
+void UMordecaiHealthBarWidget::NativeDestruct()
+{
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
+	Super::NativeDestruct();
 }
 
 void UMordecaiHealthBarWidget::BuildDefaultContent()
@@ -179,7 +196,6 @@ void UMordecaiHealthBarWidget::OnMaxHealthChanged(const FOnAttributeChangeData& 
 void UMordecaiHealthBarWidget::UpdateDisplay()
 {
 	const float Percent = GetHealthPercent();
-	const FMordecaiUIThemeColors Colors = FMordecaiUIThemeColors::MakeDiorama();
 	if (!bHasDisplayValue)
 	{
 		DisplayedHealthPercent = Percent;
@@ -193,11 +209,15 @@ void UMordecaiHealthBarWidget::UpdateDisplay()
 		DisplayedHealthPercent = Percent;
 		LeadPercent = Percent;
 		TrailHoldRemaining = 0.35f;
+		TrailStartPercent = TrailPercent;
+		TrailEaseElapsed = 0.f;
 		bHealing = false;
 	}
 	else if (Percent > DisplayedHealthPercent)
 	{
 		LeadPercent = Percent;
+		HealStartPercent = DisplayedHealthPercent;
+		HealEaseElapsed = 0.f;
 		bHealing = true;
 	}
 	if (HealthProgressBar)
@@ -222,19 +242,28 @@ void UMordecaiHealthBarWidget::UpdateDisplay()
 		HealthPercentText->SetText(FText::FromString(
 			FString::Printf(TEXT("%d%%"), PercentNumber)));
 		HealthPercentText->SetColorAndOpacity(FSlateColor(
-			Percent <= 0.25f ? Colors.DangerText : Colors.Text));
+			Percent <= MordecaiHUDConstants::LowHealthThreshold
+				? CurrentThemeColors.DangerText
+				: CurrentThemeColors.Text));
 	}
 }
 
 void UMordecaiHealthBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	AdvanceVisuals(InDeltaTime);
+}
+
+void UMordecaiHealthBarWidget::AdvanceVisuals(float DeltaTime)
+{
 	const float Target = GetHealthPercent();
 	if (bHealing)
 	{
-		DisplayedHealthPercent = FMath::FInterpConstantTo(
-			DisplayedHealthPercent, Target, InDeltaTime, 2.5f);
-		if (FMath::IsNearlyEqual(DisplayedHealthPercent, Target, 0.001f))
+		HealEaseElapsed = FMath::Min(0.4f, HealEaseElapsed + FMath::Max(0.f, DeltaTime));
+		const float T = HealEaseElapsed / 0.4f;
+		const float EaseOut = 1.f - FMath::Square(1.f - T);
+		DisplayedHealthPercent = FMath::Lerp(HealStartPercent, Target, EaseOut);
+		if (HealEaseElapsed >= 0.4f)
 		{
 			DisplayedHealthPercent = Target;
 			LeadPercent = Target;
@@ -253,14 +282,52 @@ void UMordecaiHealthBarWidget::NativeTick(const FGeometry& MyGeometry, float InD
 	}
 	else if (TrailPercent > Target)
 	{
-		TrailHoldRemaining = FMath::Max(0.f, TrailHoldRemaining - InDeltaTime);
+		const float HoldStep = FMath::Min(TrailHoldRemaining, FMath::Max(0.f, DeltaTime));
+		TrailHoldRemaining -= HoldStep;
+		const float EaseStep = FMath::Max(0.f, DeltaTime - HoldStep);
 		if (TrailHoldRemaining <= 0.f)
 		{
-			TrailPercent = FMath::FInterpConstantTo(TrailPercent, Target, InDeltaTime, 2.25f);
+			TrailEaseElapsed = FMath::Min(0.45f, TrailEaseElapsed + EaseStep);
+			const float T = TrailEaseElapsed / 0.45f;
+			const float EaseInOut = T * T * (3.f - 2.f * T);
+			TrailPercent = FMath::Lerp(TrailStartPercent, Target, EaseInOut);
 			if (HealthTrailBar)
 			{
 				HealthTrailBar->SetPercent(TrailPercent);
 			}
 		}
 	}
+}
+
+void UMordecaiHealthBarWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	CurrentTheme = Theme;
+	CurrentThemeColors = Colors;
+	if (UOverlay* Well = WidgetTree
+		? Cast<UOverlay>(WidgetTree->FindWidget(TEXT("HealthWell")))
+		: nullptr)
+	{
+		FMordecaiUIPrimitiveBuilder::Apply(
+			Well, FMordecaiUIPrimitiveBuilder::Well(Colors, true));
+	}
+	if (HealthProgressBar) HealthProgressBar->SetFillColorAndOpacity(Colors.Vital);
+	if (HealthTrailBar) HealthTrailBar->SetFillColorAndOpacity(Colors.VitalTrail);
+	if (HealthLeadBar) HealthLeadBar->SetFillColorAndOpacity(Colors.Heal);
+	if (UBorder* Notch = WidgetTree
+		? Cast<UBorder>(WidgetTree->FindWidget(TEXT("HealthNotch25")))
+		: nullptr)
+	{
+		Notch->SetBrushColor(Colors.Ink);
+	}
+	if (UTextBlock* Label = WidgetTree
+		? Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("HealthLabel")))
+		: nullptr)
+	{
+		MordecaiUITypography::Apply(Label, TEXT("ui_label"));
+		Label->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
+	}
+	MordecaiUITypography::Apply(HealthPercentText, TEXT("num_l"));
+	UpdateDisplay();
 }

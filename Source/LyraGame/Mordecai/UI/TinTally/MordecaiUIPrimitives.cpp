@@ -339,11 +339,21 @@ bool FMordecaiUIPrimitiveBuilder::Apply(
 		return false;
 	}
 
-	if (Overlay->GetChildrenCount() != Spec.Layers.Num())
+	const FString LayerPrefix = Overlay->GetName() + TEXT("_");
+	int32 ExistingPrimitiveLayerCount = 0;
+	for (int32 Index = 0; Index < Overlay->GetChildrenCount(); ++Index)
+	{
+		if (const UWidget* Child = Overlay->GetChildAt(Index);
+			Child && Child->GetName().StartsWith(LayerPrefix))
+		{
+			++ExistingPrimitiveLayerCount;
+		}
+	}
+	if (ExistingPrimitiveLayerCount != Spec.Layers.Num())
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("Tin Tally primitive Apply layer mismatch: overlay has %d layers, spec has %d"),
-			Overlay->GetChildrenCount(), Spec.Layers.Num());
+			TEXT("Tin Tally primitive Apply layer mismatch: overlay has %d primitive layers, spec has %d"),
+			ExistingPrimitiveLayerCount, Spec.Layers.Num());
 		return false;
 	}
 	for (const FMordecaiUIPrimitiveLayer& PrimitiveLayer : Spec.Layers)

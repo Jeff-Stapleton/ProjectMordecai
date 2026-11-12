@@ -10,6 +10,8 @@
 
 #include "MordecaiTinTallyGallerySubsystem.generated.h"
 
+class UAbilitySystemComponent;
+
 /** Deterministic, command-line selected foundation sheet used only by non-Shipping builds. */
 UCLASS()
 class LYRAGAME_API UMordecaiTinTallyGalleryWidget : public UUserWidget
@@ -22,9 +24,20 @@ public:
 	/** Selects a deterministic fixture without mutating the process command line. */
 	void SetFixtureSelectionForTest(const FString& InComponent, const FString& InTheme);
 
+	/** Creates and retains a deterministic ASC used only by the shipped-widget gallery. */
+	UAbilitySystemComponent* CreateFixtureASC(
+		float Health,
+		float Stamina,
+		float Posture,
+		float SpellPoints,
+		float MaxSpellPoints);
+
 private:
 	FString FixtureComponentOverride;
 	FString FixtureThemeOverride;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UAbilitySystemComponent>> FixtureASCs;
 };
 
 /**
