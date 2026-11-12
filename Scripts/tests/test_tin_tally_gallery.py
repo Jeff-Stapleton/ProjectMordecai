@@ -145,6 +145,42 @@ class TestImageComparison(TempImageCase):
         self.assertFalse(result["passed"], result)
         self.assertIn("text", result["reason"].lower())
 
+    def test_round_three_tally_capture_is_rejected_by_final_detail_regions(self):
+        reference = os.path.join(FIXTURES, "tally-reference-top.png")
+        round_three = os.path.join(FIXTURES, "tally-round3.png")
+        result = gallery.compare_images(reference, round_three, self.tmp, "Tally.diorama")
+        self.assertIn("localized_regions", result)
+        self.assertEqual(
+            set(result["localized_regions"]),
+            {"captions", "rarity", "seal_throbber", "anatomy"},
+        )
+        self.assertFalse(result["passed"], result)
+        self.assertIn("localized", result["reason"].lower())
+
+    def test_round_three_keycap_capture_is_rejected_by_final_detail_regions(self):
+        reference = os.path.join(FIXTURES, "keycap-reference-top.png")
+        round_three = os.path.join(FIXTURES, "keycap-round3.png")
+        result = gallery.compare_images(reference, round_three, self.tmp, "Keycap.diorama")
+        self.assertIn("localized_regions", result)
+        self.assertEqual(
+            set(result["localized_regions"]),
+            {"wide_keys", "mouse", "gamepad_spacing", "state_headers"},
+        )
+        self.assertFalse(result["passed"], result)
+        self.assertIn("localized", result["reason"].lower())
+
+    def test_round_three_glyph_capture_is_rejected_by_final_detail_regions(self):
+        reference = os.path.join(FIXTURES, "glyphs-reference-top.png")
+        round_three = os.path.join(FIXTURES, "glyphs-round3.png")
+        result = gallery.compare_images(reference, round_three, self.tmp, "Glyphs.diorama")
+        self.assertIn("localized_regions", result)
+        self.assertEqual(
+            set(result["localized_regions"]),
+            {"tile_chips", "labels"},
+        )
+        self.assertFalse(result["passed"], result)
+        self.assertIn("localized", result["reason"].lower())
+
     def test_comparison_reports_text_region_and_downsampled_edge_metrics(self):
         reference = os.path.join(FIXTURES, "tally-reference-top.png")
         round_two = os.path.join(FIXTURES, "tally-round2.png")
