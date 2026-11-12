@@ -532,6 +532,14 @@ bool FMordecai_UI_Foundation_GalleryRejectsUnknownSelection::RunTest(const FStri
 	TestTrue("known component/theme/sheet selection is valid",
 		UMordecaiTinTallyGallerySubsystem::IsValidSelection(
 			TEXT("Plate"), TEXT("diorama"), TEXT("sheet")));
+	for (const TCHAR* Component : {
+		TEXT("HUDLayout"), TEXT("GaugePlate"), TEXT("Bar"),
+		TEXT("SpellSlot"), TEXT("InteractPrompt"), TEXT("LoadoutPlate") })
+	{
+		TestTrue(*FString::Printf(TEXT("%s HUD gallery selection is valid"), Component),
+			UMordecaiTinTallyGallerySubsystem::IsValidSelection(
+				Component, TEXT("high-contrast"), TEXT("sheet")));
+	}
 	TestFalse("unknown component is rejected",
 		UMordecaiTinTallyGallerySubsystem::IsValidSelection(
 			TEXT("Unknown"), TEXT("diorama"), TEXT("sheet")));

@@ -5,13 +5,15 @@
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
 #include "Blueprint/WidgetTree.h"
-#include "Components/Border.h"
-#include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
-#include "Components/Spacer.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/TextBlock.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
+#include "Engine/Texture2D.h"
+#include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEquippedWeaponWidget)
 
@@ -30,56 +32,72 @@ void UMordecaiEquippedWeaponWidget::NativeOnInitialized()
 
 void UMordecaiEquippedWeaponWidget::BuildDefaultContent()
 {
-	UBorder* Root = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LoadoutPlate"));
-	Root->SetVisibility(ESlateVisibility::HitTestInvisible);
-	Root->SetPadding(FMargin(12.f, 8.f));
-	Root->SetBrushColor(FLinearColor(0.025f, 0.035f, 0.045f, 0.88f));
+	const FMordecaiUIThemeColors Colors = FMordecaiUIThemeColors::MakeDiorama();
+	UOverlay* Root = FMordecaiUIPrimitiveBuilder::Build(
+		WidgetTree,
+		FMordecaiUIPrimitiveBuilder::Plate(
+			Colors, EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::Diorama),
+		TEXT("LoadoutPlate"));
 	WidgetTree->RootWidget = Root;
-
-	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("LoadoutRow"));
-	Root->SetContent(Row);
-
-	UVerticalBox* TextColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TextColumn"));
-	if (UHorizontalBoxSlot* ColumnSlot = Row->AddChildToHorizontalBox(TextColumn))
+	UCanvasPanel* Content = WidgetTree->ConstructWidget<UCanvasPanel>(
+		UCanvasPanel::StaticClass(), TEXT("LoadoutContent"));
+	if (UOverlaySlot* ContentSlot = Root->AddChildToOverlay(Content))
 	{
-		ColumnSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		ColumnSlot->SetVerticalAlignment(VAlign_Center);
+		ContentSlot->SetPadding(FMargin(0.f));
 	}
+	auto Place = [Content](UWidget* Widget, FVector2D Position, FVector2D Size, int32 ZOrder = 0)
+	{
+		if (UCanvasPanelSlot* Slot = Content->AddChildToCanvas(Widget))
+		{
+			Slot->SetPosition(Position);
+			Slot->SetSize(Size);
+			Slot->SetAutoSize(false);
+			Slot->SetZOrder(ZOrder);
+		}
+	};
+
+	UOverlay* WeaponWell = FMordecaiUIPrimitiveBuilder::Build(
+		WidgetTree, FMordecaiUIPrimitiveBuilder::Well(Colors, false), TEXT("WeaponWell"));
+	Place(WeaponWell, FVector2D(8.f, 10.f), FVector2D(64.f), 0);
+	WeaponIcon = WidgetTree->ConstructWidget<UImage>(
+		UImage::StaticClass(), TEXT("WeaponIcon"));
+	WeaponIcon->SetColorAndOpacity(Colors.Text);
+	WeaponIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+	Place(WeaponIcon, FVector2D(16.f, 18.f), FVector2D(48.f), 1);
 
 	WeaponNameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("WeaponNameText"));
 	FSlateFontInfo NameFont = WeaponNameText->GetFont();
-	NameFont.Size = 24;
+	NameFont.Size = 20;
 	WeaponNameText->SetFont(NameFont);
-	if (UVerticalBoxSlot* NameSlot = TextColumn->AddChildToVerticalBox(WeaponNameText))
-	{
-		NameSlot->SetHorizontalAlignment(HAlign_Left);
-	}
+	WeaponNameText->SetColorAndOpacity(FSlateColor(Colors.Text));
+	WeaponNameText->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+	Place(WeaponNameText, FVector2D(84.f, 10.f), FVector2D(166.f, 32.f), 1);
 
 	DamageSubtypeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DamageSubtypeText"));
 	FSlateFontInfo SubtypeFont = DamageSubtypeText->GetFont();
-	SubtypeFont.Size = 18;
+	SubtypeFont.Size = 15;
 	DamageSubtypeText->SetFont(SubtypeFont);
-	DamageSubtypeText->SetColorAndOpacity(FSlateColor(FLinearColor(0.72f, 0.75f, 0.78f, 1.f)));
-	if (UVerticalBoxSlot* SubtypeSlot = TextColumn->AddChildToVerticalBox(DamageSubtypeText))
-	{
-		SubtypeSlot->SetHorizontalAlignment(HAlign_Left);
-	}
+	DamageSubtypeText->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
+	Place(DamageSubtypeText, FVector2D(84.f, 46.f), FVector2D(132.f, 26.f), 1);
 
-	USpacer* Gap = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("KeyGap"));
-	Gap->SetSize(FVector2D(12.f, 1.f));
-	Row->AddChildToHorizontalBox(Gap);
+	ElementIcon = WidgetTree->ConstructWidget<UImage>(
+		UImage::StaticClass(), TEXT("ElementIcon"));
+	ElementIcon->SetColorAndOpacity(Colors.DamageFire);
+	ElementIcon->SetVisibility(ESlateVisibility::Collapsed);
+	Place(ElementIcon, FVector2D(220.f, 48.f), FVector2D(20.f), 1);
 
+	UOverlay* SwapKeycap = FMordecaiUIPrimitiveBuilder::Build(
+		WidgetTree,
+		FMordecaiUIPrimitiveBuilder::Keycap(Colors, EMordecaiKeycapShape::Pill),
+		TEXT("SwapKeycap"));
+	Place(SwapKeycap, FVector2D(268.f, 22.f), FVector2D(62.f, 40.f), 1);
 	SwapKey = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SwapKey"));
 	FSlateFontInfo KeyFont = SwapKey->GetFont();
-	KeyFont.Size = 20;
+	KeyFont.Size = 17;
 	SwapKey->SetFont(KeyFont);
 	SwapKey->SetJustification(ETextJustify::Center);
-	if (UHorizontalBoxSlot* KeySlot = Row->AddChildToHorizontalBox(SwapKey))
-	{
-		KeySlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
-		KeySlot->SetVerticalAlignment(VAlign_Center);
-		KeySlot->SetPadding(FMargin(8.f, 0.f));
-	}
+	SwapKey->SetColorAndOpacity(FSlateColor(Colors.Ink));
+	Place(SwapKey, FVector2D(268.f, 29.f), FVector2D(62.f, 24.f), 2);
 }
 
 void UMordecaiEquippedWeaponWidget::BindToEquipmentComponent(UMordecaiEquipmentComponent* Comp)
@@ -210,6 +228,30 @@ void UMordecaiEquippedWeaponWidget::UpdateDisplay()
 	if (SwapKey)
 	{
 		SwapKey->SetText(LOCTEXT("SwapKey", "Tab"));
+	}
+	if (WeaponIcon)
+	{
+		const TCHAR* Glyph = TEXT("unarmed");
+		switch (DisplayedWeaponType)
+		{
+		case EMordecaiWeaponType::Longsword: Glyph = TEXT("longsword"); break;
+		case EMordecaiWeaponType::Dagger: Glyph = TEXT("dagger"); break;
+		case EMordecaiWeaponType::Greatsword: Glyph = TEXT("greatsword"); break;
+		case EMordecaiWeaponType::Spear: Glyph = TEXT("spear"); break;
+		case EMordecaiWeaponType::Mace: Glyph = TEXT("mace"); break;
+		case EMordecaiWeaponType::Shortsword: Glyph = TEXT("shortsword"); break;
+		case EMordecaiWeaponType::Axe: Glyph = TEXT("axe"); break;
+		case EMordecaiWeaponType::Quarterstaff: Glyph = TEXT("quarterstaff"); break;
+		case EMordecaiWeaponType::Unarmed:
+		default: break;
+		}
+		const FString Path = FString::Printf(
+			TEXT("/MordecaiCore/UI/TinTally/Textures/Glyphs/T_UI_Glyph_%s.T_UI_Glyph_%s"),
+			Glyph, Glyph);
+		if (UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *Path))
+		{
+			WeaponIcon->SetBrushFromTexture(Texture, true);
+		}
 	}
 }
 

@@ -9,7 +9,10 @@
 #include "MordecaiStaminaBarWidget.generated.h"
 
 class UAbilitySystemComponent;
+class UImage;
+class UMaterialInstanceDynamic;
 class UProgressBar;
+class UTextBlock;
 struct FOnAttributeChangeData;
 
 /**
@@ -66,6 +69,15 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> StaminaProgressBar;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> StaminaTierText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UProgressBar> StaminaDebtBar;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> SprintPip;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	float CachedStamina = 100.f;
 
@@ -81,4 +93,10 @@ private:
 	FLinearColor GetColorForTier(EMordecaiStaminaTier Tier) const;
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> RedTierMaterial;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> DebtMaterial;
 };

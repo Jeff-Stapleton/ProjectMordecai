@@ -8,6 +8,7 @@
 #include "MordecaiSpellPointsBarWidget.generated.h"
 
 class UAbilitySystemComponent;
+class UHorizontalBox;
 class UProgressBar;
 class UTextBlock;
 struct FOnAttributeChangeData;
@@ -52,6 +53,9 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> SpellPointsText;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UHorizontalBox> SpellPointTokens;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	float CachedSpellPoints = 10.f;
 
@@ -63,6 +67,8 @@ private:
 	void OnSpellPointsChanged(const FOnAttributeChangeData& Data);
 	void OnMaxSpellPointsChanged(const FOnAttributeChangeData& Data);
 	void UpdateDisplay();
+	void RebuildTokens(int32 Current, int32 Maximum);
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	int32 BuiltTokenMaximum = INDEX_NONE;
 };

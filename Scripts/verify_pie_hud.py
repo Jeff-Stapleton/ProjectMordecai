@@ -13,6 +13,7 @@ import unreal
 def _run():
     pass_count = 0
     fail_count = 0
+    hud_accessor = None
 
     def check(name, condition, detail=""):
         nonlocal pass_count, fail_count
@@ -29,6 +30,11 @@ def _run():
     def named_widget(owner, name):
         if owner is None:
             return None
+        if hud_accessor is not None:
+            try:
+                return hud_accessor.get_named_widget(owner, name)
+            except Exception:
+                pass
         try:
             tree = owner.get_editor_property("widget_tree")
             return tree.find_widget(name) if tree else None
@@ -113,6 +119,7 @@ def _run():
           "PlayerController.CombatHUDWidget is null -- HUD was never created")
 
     if hud_widget:
+        hud_accessor = hud_widget
         # Check visibility
         is_visible = hud_widget.is_visible()
         check("CombatHUDWidget is visible", is_visible)

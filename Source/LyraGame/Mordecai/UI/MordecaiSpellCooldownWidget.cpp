@@ -4,10 +4,19 @@
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
+#include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiSpellCooldownWidget)
 
@@ -34,39 +43,110 @@ void UMordecaiSpellCooldownWidget::NativeDestruct()
 
 void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 {
-	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
+	const FMordecaiUIThemeColors Colors = FMordecaiUIThemeColors::MakeDiorama();
+	UOverlay* Root = FMordecaiUIPrimitiveBuilder::Build(
+		WidgetTree,
+		FMordecaiUIPrimitiveBuilder::Plate(
+			Colors, EMordecaiUIPrintDepth::HUD, EMordecaiUITheme::Diorama),
+		TEXT("SpellSlotPlate"));
 	WidgetTree->RootWidget = Root;
+	UCanvasPanel* Content = WidgetTree->ConstructWidget<UCanvasPanel>(
+		UCanvasPanel::StaticClass(), TEXT("SpellSlotContent"));
+	if (UOverlaySlot* ContentSlot = Root->AddChildToOverlay(Content))
+	{
+		ContentSlot->SetPadding(FMargin(0.f));
+	}
+	auto Place = [Content](UWidget* Widget, FVector2D Position, FVector2D Size, int32 ZOrder = 0)
+	{
+		if (UCanvasPanelSlot* Slot = Content->AddChildToCanvas(Widget))
+		{
+			Slot->SetPosition(Position);
+			Slot->SetSize(Size);
+			Slot->SetAutoSize(false);
+			Slot->SetZOrder(ZOrder);
+		}
+	};
 
-	CooldownProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("CooldownProgressBar"));
-	UCanvasPanelSlot* BarSlot = Root->AddChildToCanvas(CooldownProgressBar);
-	BarSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 0.5f));
-	BarSlot->SetOffsets(FMargin(0.f));
+	UOverlay* Well = FMordecaiUIPrimitiveBuilder::Build(
+		WidgetTree, FMordecaiUIPrimitiveBuilder::Well(Colors, false), TEXT("SpellSlotWell"));
+	Place(Well, FVector2D(7.f), FVector2D(64.f), 0);
 
-	CooldownProgressBar->SetPercent(1.f);
-	CooldownProgressBar->SetFillColorAndOpacity(FLinearColor(0.3f, 0.6f, 1.f)); // Light blue
+	SpellIcon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("SpellIcon"));
+	FSlateBrush IconBrush;
+	IconBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
+	IconBrush.TintColor = FSlateColor(Colors.Text);
+	IconBrush.OutlineSettings = FSlateBrushOutlineSettings(
+		FVector4(8.f), FSlateColor(FLinearColor::Transparent), 0.f);
+	SpellIcon->SetBrush(IconBrush);
+	SpellIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+	Place(SpellIcon, FVector2D(15.f), FVector2D(48.f), 1);
+
+	CooldownProgressBar = WidgetTree->ConstructWidget<UProgressBar>(
+		UProgressBar::StaticClass(), TEXT("CooldownProgressBar"));
+	FProgressBarStyle ProgressStyle = CooldownProgressBar->GetWidgetStyle();
+	FSlateBrush Background;
+	Background.DrawAs = ESlateBrushDrawType::NoDrawType;
+	FSlateBrush Fill;
+	Fill.DrawAs = ESlateBrushDrawType::Image;
+	UMaterialInterface* Pattern = LoadObject<UMaterialInterface>(
+		nullptr,
+		TEXT("/MordecaiCore/UI/TinTally/Materials/M_UI_PatternFill.M_UI_PatternFill"));
+	if (Pattern)
+	{
+		ShutterMaterial = UMaterialInstanceDynamic::Create(Pattern, this);
+		ShutterMaterial->SetVectorParameterValue(TEXT("Base"), Colors.PlateRaised);
+		ShutterMaterial->SetVectorParameterValue(TEXT("Line"), Colors.Well);
+		ShutterMaterial->SetScalarParameterValue(TEXT("Angle"), 0.f);
+		ShutterMaterial->SetScalarParameterValue(TEXT("Period"), 6.f);
+		ShutterMaterial->SetScalarParameterValue(TEXT("LineWidth"), 2.f);
+		Fill.SetResourceObject(ShutterMaterial);
+	}
+	ProgressStyle.SetBackgroundImage(Background);
+	ProgressStyle.SetFillImage(Fill);
+	CooldownProgressBar->SetWidgetStyle(ProgressStyle);
+	CooldownProgressBar->SetBarFillType(EProgressBarFillType::TopToBottom);
+	CooldownProgressBar->SetPercent(0.f);
+	CooldownProgressBar->SetFillColorAndOpacity(FLinearColor::White);
+	Place(CooldownProgressBar, FVector2D(7.f), FVector2D(64.f), 2);
 
 	CooldownText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CooldownText"));
-	UCanvasPanelSlot* TextSlot = Root->AddChildToCanvas(CooldownText);
-	TextSlot->SetAnchors(FAnchors(0.f, 0.5f, 1.f, 0.75f));
-	TextSlot->SetOffsets(FMargin(0.f));
-
 	CooldownText->SetText(FText::GetEmpty());
-	CooldownText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	CooldownText->SetColorAndOpacity(FSlateColor(Colors.Text));
 	CooldownText->SetJustification(ETextJustify::Center);
-
 	FSlateFontInfo FontInfo = CooldownText->GetFont();
-	FontInfo.Size = 9;
+	FontInfo.Size = 18;
+	FontInfo.OutlineSettings.OutlineSize = 2;
+	FontInfo.OutlineSettings.OutlineColor = Colors.Ink.ToFColorSRGB();
 	CooldownText->SetFont(FontInfo);
+	Place(CooldownText, FVector2D(7.f, 24.f), FVector2D(64.f, 30.f), 4);
 
+	SlotKey = FMordecaiUIPrimitiveBuilder::Build(
+		WidgetTree,
+		FMordecaiUIPrimitiveBuilder::Keycap(Colors, EMordecaiKeycapShape::Square),
+		TEXT("SlotKey"));
+	Place(SlotKey, FVector2D(-6.f, 68.f), FVector2D(32.f), 5);
 	SlotKeyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SlotKeyText"));
-	UCanvasPanelSlot* KeySlot = Root->AddChildToCanvas(SlotKeyText);
-	KeySlot->SetAnchors(FAnchors(0.f, 0.75f, 1.f, 1.f));
-	KeySlot->SetOffsets(FMargin(0.f));
-
 	SlotKeyText->SetText(SlotKeyLabel);
-	SlotKeyText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	SlotKeyText->SetColorAndOpacity(FSlateColor(Colors.Ink));
 	SlotKeyText->SetJustification(ETextJustify::Center);
+	FontInfo.OutlineSettings.OutlineSize = 0;
+	FontInfo.Size = 15;
 	SlotKeyText->SetFont(FontInfo);
+	Place(SlotKeyText, FVector2D(-6.f, 72.f), FVector2D(32.f, 24.f), 6);
+
+	CostRivets = WidgetTree->ConstructWidget<UHorizontalBox>(
+		UHorizontalBox::StaticClass(), TEXT("CostRivets"));
+	Place(CostRivets, FVector2D(8.f, -9.f), FVector2D(64.f, 14.f), 6);
+
+	LockChip = FMordecaiUIPrimitiveBuilder::Build(
+		WidgetTree, FMordecaiUIPrimitiveBuilder::Pill(Colors), TEXT("LockChip"));
+	LockChip->SetVisibility(ESlateVisibility::Collapsed);
+	Place(LockChip, FVector2D(24.f, 27.f), FVector2D(30.f, 24.f), 7);
+
+	MuzzleBadge = WidgetTree->ConstructWidget<UImage>(
+		UImage::StaticClass(), TEXT("MuzzleBadge"));
+	MuzzleBadge->SetVisibility(ESlateVisibility::Collapsed);
+	Place(MuzzleBadge, FVector2D(16.f), FVector2D(46.f), 7);
 }
 
 // ---------------------------------------------------------------------------
@@ -77,9 +157,9 @@ float UMordecaiSpellCooldownWidget::CalcCooldownPercent(float ElapsedTime, float
 {
 	if (TotalDuration <= 0.f)
 	{
-		return 1.f; // No cooldown = ready
+		return 0.f; // No cooldown = fully open shutter
 	}
-	return FMath::Clamp(ElapsedTime / TotalDuration, 0.f, 1.f);
+	return 1.f - FMath::Clamp(ElapsedTime / TotalDuration, 0.f, 1.f);
 }
 
 FString UMordecaiSpellCooldownWidget::FormatRemainingTime(float RemainingSeconds)
@@ -224,7 +304,7 @@ void UMordecaiSpellCooldownWidget::UpdateDisplay()
 		// Ready state
 		if (CooldownProgressBar)
 		{
-			CooldownProgressBar->SetPercent(1.f);
+			CooldownProgressBar->SetPercent(0.f);
 		}
 		if (CooldownText)
 		{

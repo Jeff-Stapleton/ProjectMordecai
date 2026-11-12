@@ -9,6 +9,7 @@
 
 class UAbilitySystemComponent;
 class UProgressBar;
+class UTextBlock;
 struct FOnAttributeChangeData;
 
 /**
@@ -39,9 +40,19 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> HealthProgressBar;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UProgressBar> HealthTrailBar;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UProgressBar> HealthLeadBar;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> HealthPercentText;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	float CachedHealth = 100.f;
@@ -56,4 +67,10 @@ private:
 	void UpdateDisplay();
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	float DisplayedHealthPercent = 1.f;
+	float TrailPercent = 1.f;
+	float LeadPercent = 1.f;
+	float TrailHoldRemaining = 0.f;
+	bool bHealing = false;
+	bool bHasDisplayValue = false;
 };

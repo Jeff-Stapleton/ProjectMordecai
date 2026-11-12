@@ -10,6 +10,7 @@
 class AMordecaiItemPickup;
 class UMordecaiPickupInteractionComponent;
 class UTextBlock;
+class UWidget;
 
 /**
  * UMordecaiPickupPromptWidget
@@ -71,6 +72,21 @@ protected:
 	/** Persistent "[I] Inventory" hint. */
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> InventoryHintText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> PromptTag;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> InteractKey;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> PromptSocket;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> HintPill;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> HintKey;
 
 private:
 	UFUNCTION()

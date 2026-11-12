@@ -9,6 +9,10 @@
 #include "MordecaiSpellCooldownWidget.generated.h"
 
 class UAbilitySystemComponent;
+class UHorizontalBox;
+class UImage;
+class UMaterialInstanceDynamic;
+class UOverlay;
 class UProgressBar;
 class UTextBlock;
 
@@ -61,6 +65,21 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> SlotKeyText;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> SpellIcon;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> SlotKey;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UHorizontalBox> CostRivets;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> LockChip;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> MuzzleBadge;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	FGameplayTag BoundCooldownTag;
 
@@ -84,4 +103,7 @@ private:
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 	FDelegateHandle CooldownTagChangedHandle;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> ShutterMaterial;
 };

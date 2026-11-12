@@ -9,6 +9,7 @@
 #include "MordecaiPostureBarWidget.generated.h"
 
 class UAbilitySystemComponent;
+class UMaterialInstanceDynamic;
 class UProgressBar;
 struct FOnAttributeChangeData;
 struct FGameplayTag;
@@ -74,4 +75,7 @@ private:
 	void UpdateDisplay();
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> BrokenPatternMaterial;
 };

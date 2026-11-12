@@ -7,7 +7,12 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/Overlay.h"
 #include "Components/ProgressBar.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
+#include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPostureBarWidget)
 
@@ -29,14 +34,51 @@ void UMordecaiPostureBarWidget::BuildDefaultContent()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
 	WidgetTree->RootWidget = Root;
+	const FMordecaiUIThemeColors Colors = FMordecaiUIThemeColors::MakeDiorama();
+	NormalPostureColor = Colors.Posture;
+	BrokenPostureColor = Colors.Posture;
 
-	PostureProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("PostureProgressBar"));
-	UCanvasPanelSlot* BarSlot = Root->AddChildToCanvas(PostureProgressBar);
-	BarSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
-	BarSlot->SetOffsets(FMargin(0.f));
+	UOverlay* Well = FMordecaiUIPrimitiveBuilder::Build(
+		WidgetTree, FMordecaiUIPrimitiveBuilder::Well(Colors, true), TEXT("PostureWell"));
+	if (UCanvasPanelSlot* WellSlot = Root->AddChildToCanvas(Well))
+	{
+		WellSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+		WellSlot->SetOffsets(FMargin(0.f));
+	}
 
+	PostureProgressBar = WidgetTree->ConstructWidget<UProgressBar>(
+		UProgressBar::StaticClass(), TEXT("PostureProgressBar"));
+	if (UCanvasPanelSlot* BarSlot = Root->AddChildToCanvas(PostureProgressBar))
+	{
+		BarSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+		BarSlot->SetOffsets(FMargin(1.f));
+	}
+	FProgressBarStyle Style = PostureProgressBar->GetWidgetStyle();
+	FSlateBrush Background;
+	Background.DrawAs = ESlateBrushDrawType::NoDrawType;
+	FSlateBrush Fill;
+	Fill.DrawAs = ESlateBrushDrawType::RoundedBox;
+	Fill.OutlineSettings = FSlateBrushOutlineSettings(
+		FVector4(2.f), FSlateColor(FLinearColor::Transparent), 0.f);
+	Style.SetBackgroundImage(Background);
+	Style.SetFillImage(Fill);
+	PostureProgressBar->SetWidgetStyle(Style);
+	PostureProgressBar->SetBarFillType(EProgressBarFillType::LeftToRight);
 	PostureProgressBar->SetPercent(1.f);
 	PostureProgressBar->SetFillColorAndOpacity(NormalPostureColor);
+
+	UMaterialInterface* Pattern = LoadObject<UMaterialInterface>(
+		nullptr,
+		TEXT("/MordecaiCore/UI/TinTally/Materials/M_UI_PatternFill.M_UI_PatternFill"));
+	if (Pattern)
+	{
+		BrokenPatternMaterial = UMaterialInstanceDynamic::Create(Pattern, this);
+		BrokenPatternMaterial->SetVectorParameterValue(TEXT("Base"), Colors.Posture);
+		BrokenPatternMaterial->SetVectorParameterValue(TEXT("Line"), Colors.Ink);
+		BrokenPatternMaterial->SetScalarParameterValue(TEXT("Angle"), 45.f);
+		BrokenPatternMaterial->SetScalarParameterValue(TEXT("Period"), 10.f);
+		BrokenPatternMaterial->SetScalarParameterValue(TEXT("LineWidth"), 3.f);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -129,7 +171,25 @@ void UMordecaiPostureBarWidget::UpdateDisplay()
 
 	if (PostureProgressBar)
 	{
-		PostureProgressBar->SetPercent(Percent);
+		PostureProgressBar->SetPercent(bPostureBroken ? 1.f : Percent);
 		PostureProgressBar->SetFillColorAndOpacity(bPostureBroken ? BrokenPostureColor : NormalPostureColor);
+		FProgressBarStyle Style = PostureProgressBar->GetWidgetStyle();
+		FSlateBrush Fill = Style.FillImage;
+		if (bPostureBroken && BrokenPatternMaterial)
+		{
+			Fill.SetResourceObject(BrokenPatternMaterial);
+			Fill.DrawAs = ESlateBrushDrawType::Image;
+			PostureProgressBar->SetFillColorAndOpacity(FLinearColor::White);
+		}
+		else
+		{
+			Fill.SetResourceObject(nullptr);
+			Fill.DrawAs = ESlateBrushDrawType::RoundedBox;
+		}
+		Style.SetFillImage(Fill);
+		PostureProgressBar->SetWidgetStyle(Style);
+		PostureProgressBar->SetVisibility(!bPostureBroken && Percent >= 1.f
+			? ESlateVisibility::Hidden
+			: ESlateVisibility::HitTestInvisible);
 	}
 }
