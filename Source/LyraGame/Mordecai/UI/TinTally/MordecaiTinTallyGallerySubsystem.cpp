@@ -1483,12 +1483,17 @@ namespace
 		AddText(Tree, Canvas, TEXT("DAMAGE, HEAL LEAD, TIERS, DEBT AND TOKENS"),
 			TEXT("kicker"), Colors.TextMuted, 24.f, 248.f, 912.f, 28.f);
 		BuildGaugeAt(Tree, Canvas, Colors, Theme, 252.f, 292.f, 0.64f, 0.52f, 5, TEXT("×1.0"));
+		AddText(Tree, Canvas, TEXT("FIXTURES · LOW HEALTH AND EXHAUSTED"),
+			TEXT("kicker"), Colors.TextMuted, 24.f, 488.f, 912.f, 28.f);
+		BuildGaugeAt(Tree, Canvas, Colors, Theme, 24.f, 530.f, 0.25f, 0.2f, 0, TEXT("×0.75"));
+		BuildGaugeAt(Tree, Canvas, Colors, Theme, 504.f, 530.f, 0.72f, -0.37f, 14, TEXT("×0.5"));
 	}
 
 	void BuildBarFixture(
 		UWidgetTree* Tree,
 		UCanvasPanel* Canvas,
-		const FMordecaiUIThemeColors& Colors)
+		const FMordecaiUIThemeColors& Colors,
+		EMordecaiUITheme Theme)
 	{
 		AddText(Tree, Canvas, TEXT("BAR · WELL, LIP, FILL, TRAIL, LEAD AND NOTCHES"),
 			TEXT("kicker"), Colors.TextMuted, 24.f, 22.f, 912.f, 28.f);
@@ -1512,6 +1517,27 @@ namespace
 		AddPattern(Tree, Canvas, Colors.Well, Colors.Danger, 84.f, 518.f, 120.f, 24.f);
 		AddText(Tree, Canvas, TEXT("−26 / 134"), TEXT("num_m"), Colors.DangerText,
 			724.f, 514.f, 140.f, 32.f, ETextJustify::Right);
+		AddPrimitive(Tree, Canvas,
+			FMordecaiUIPrimitiveBuilder::Plate(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme),
+			TEXT("GalleryBarScalePanel"), 24.f, 580.f, 912.f, 128.f);
+		AddText(Tree, Canvas, TEXT("PLAYER · ENEMY · BOSS · POSTURE"),
+			TEXT("kicker"), Colors.TextMuted, 44.f, 594.f, 872.f, 28.f);
+		for (int32 Index = 0; Index < 4; ++Index)
+		{
+			const float X = 48.f + Index * 218.f;
+			AddPrimitive(Tree, Canvas, FMordecaiUIPrimitiveBuilder::Well(Colors, true),
+				FString::Printf(TEXT("GalleryBarScale%d"), Index), X, 644.f, 184.f, 22.f);
+			AddBox(Tree, Canvas,
+				Index == 0 ? Colors.Vital : Index == 1 ? Colors.Foe
+				: Index == 2 ? Colors.Good : Colors.Posture,
+				X + 2.f, 646.f, 116.f + Index * 12.f, 18.f, 3.f);
+			AddText(Tree, Canvas,
+				Index == 0 ? TEXT("Health") : Index == 1 ? TEXT("Enemy")
+				: Index == 2 ? TEXT("Boss") : TEXT("Posture"),
+				TEXT("ui_label"), Colors.TextMuted,
+				X, 674.f, 184.f, 26.f, ETextJustify::Center);
+		}
 	}
 
 	void BuildSpellSlotFixture(
@@ -1538,6 +1564,24 @@ namespace
 			BuildSpellSlotAt(Tree, Canvas, Colors, Theme, 80.f + Index * 178.f, 302.f,
 				Keys[Index], Glyphs[Index], Costs[Index], Index == 0 ? 0.f : 0.75f,
 				Index == 0 ? TEXT("") : TEXT("4.8"));
+		}
+		AddPrimitive(Tree, Canvas,
+			FMordecaiUIPrimitiveBuilder::Plate(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme),
+			TEXT("GallerySpellStates"), 24.f, 470.f, 912.f, 230.f);
+		AddText(Tree, Canvas, TEXT("SHUTTER HEIGHT = REMAINING / TOTAL"),
+			TEXT("kicker"), Colors.TextMuted, 44.f, 486.f, 872.f, 28.f);
+		for (int32 Index = 0; Index < 4; ++Index)
+		{
+			BuildSpellSlotAt(Tree, Canvas, Colors, Theme, 92.f + Index * 212.f, 548.f,
+				Keys[Index], Glyphs[Index], Costs[Index],
+				Index == 0 ? 0.f : Index * 0.25f,
+				Index == 0 ? TEXT("") : FString::Printf(TEXT("%.1f"), Index * 3.2f));
+			AddText(Tree, Canvas,
+				Index == 0 ? TEXT("Ready") : Index == 1 ? TEXT("Cooling")
+				: Index == 2 ? TEXT("Low SP") : TEXT("Silenced"),
+				TEXT("ui_label"), Colors.TextMuted,
+				62.f + Index * 212.f, 658.f, 138.f, 28.f, ETextJustify::Center);
 		}
 	}
 
@@ -1586,13 +1630,22 @@ namespace
 	{
 		AddText(Tree, Canvas, TEXT("LOADOUT PLATE · NAME, SUBTYPE AND SWAP KEY"),
 			TEXT("kicker"), Colors.TextMuted, 24.f, 22.f, 912.f, 28.f);
-		const TCHAR* Names[] = { TEXT("Longsword"), TEXT("Quarterstaff"), TEXT("Unarmed") };
-		const TCHAR* Glyphs[] = { TEXT("longsword"), TEXT("quarterstaff"), TEXT("unarmed") };
-		const TCHAR* Types[] = { TEXT("Slash"), TEXT("Blunt"), TEXT("Blunt") };
-		for (int32 Row = 0; Row < 3; ++Row)
+		const TCHAR* Names[] = {
+			TEXT("Longsword"), TEXT("Quarterstaff"), TEXT("Unarmed"),
+			TEXT("Mace"), TEXT("Dagger"), TEXT("Greatsword")
+		};
+		const TCHAR* Glyphs[] = {
+			TEXT("longsword"), TEXT("quarterstaff"), TEXT("unarmed"),
+			TEXT("mace"), TEXT("dagger"), TEXT("greatsword")
+		};
+		const TCHAR* Types[] = {
+			TEXT("Slash"), TEXT("Blunt"), TEXT("Blunt"),
+			TEXT("Blunt"), TEXT("Pierce"), TEXT("Slash")
+		};
+		for (int32 Row = 0; Row < 6; ++Row)
 		{
 			const float X = 70.f + (Row % 2) * 430.f;
-			const float Y = 86.f + (Row / 2) * 190.f;
+			const float Y = 86.f + (Row / 2) * 174.f;
 			AddPrimitive(Tree, Canvas,
 				FMordecaiUIPrimitiveBuilder::Plate(
 					Colors, EMordecaiUIPrintDepth::HUD, Theme),
@@ -1608,6 +1661,14 @@ namespace
 				FString::Printf(TEXT("GalleryLoadoutKey%d"), Row), TEXT("Tab"),
 				X + 268.f, Y + 22.f, 62.f, 40.f, EMordecaiKeycapShape::Pill);
 		}
+		AddPrimitive(Tree, Canvas,
+			FMordecaiUIPrimitiveBuilder::Plate(
+				Colors, EMordecaiUIPrintDepth::HUD, Theme),
+			TEXT("GalleryLoadoutFooter"), 24.f, 610.f, 912.f, 90.f);
+		AddText(Tree, Canvas,
+			TEXT("The loadout plate stays fixed while the weapon name and subtype update."),
+			TEXT("ui_label"), Colors.TextMuted,
+			48.f, 638.f, 864.f, 30.f, ETextJustify::Center);
 	}
 }
 
@@ -1686,7 +1747,7 @@ bool UMordecaiTinTallyGalleryWidget::Initialize()
 	}
 	else if (Component.Equals(TEXT("Bar"), ESearchCase::IgnoreCase))
 	{
-		BuildBarFixture(WidgetTree, Fixture, Colors);
+		BuildBarFixture(WidgetTree, Fixture, Colors, Theme);
 	}
 	else if (Component.Equals(TEXT("SpellSlot"), ESearchCase::IgnoreCase))
 	{

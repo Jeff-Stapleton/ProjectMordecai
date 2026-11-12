@@ -117,7 +117,14 @@ def _run():
           "PlayerController.CombatHUDWidget is null")
 
     if hud_widget:
-        check("CombatHUDWidget visible", hud_widget.is_visible())
+        death_screens = unreal.WidgetLibrary.get_all_widgets_of_class(
+            world, unreal.MordecaiDeathScreenWidget, False)
+        death_visible = any(widget.is_visible() for widget in death_screens)
+        if death_visible:
+            check("CombatHUDWidget hidden under the death screen",
+                  not hud_widget.is_visible())
+        else:
+            check("CombatHUDWidget visible", hud_widget.is_visible())
 
         try:
             child_count = hud_widget.get_bound_child_count()
