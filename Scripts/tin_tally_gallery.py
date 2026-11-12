@@ -185,7 +185,13 @@ def validate_capture(
         reasons.append("capture is black")
     if image.size == CAPTURE_SIZE:
         expected_plate = _theme_plate_rgb(expected_theme)
-        sample = image.getpixel((CAPTURE_SIZE[0] - 490, 120 + 710))
+        component = (expected_component or metadata.get("component", "")).lower()
+        sample_point = (
+            (477, 107)
+            if component == "hudlayout"
+            else (CAPTURE_SIZE[0] - 490, 120 + 710)
+        )
+        sample = image.getpixel(sample_point)
         if max(abs(sample[index] - expected_plate[index]) for index in range(3)) > 12:
             reasons.append(
                 "sheet plate pixel does not match the resolved "

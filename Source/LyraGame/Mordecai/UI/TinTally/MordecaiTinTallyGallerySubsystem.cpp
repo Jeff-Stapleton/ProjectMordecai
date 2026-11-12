@@ -131,9 +131,11 @@ namespace
 		float Height,
 		float Radius = 0.f,
 		const FLinearColor& Outline = FLinearColor::Transparent,
-		float OutlineWidth = 0.f)
+		float OutlineWidth = 0.f,
+		FName Name = NAME_None)
 	{
-		UBorder* Border = Tree->ConstructWidget<UBorder>();
+		UBorder* Border = Tree->ConstructWidget<UBorder>(
+			UBorder::StaticClass(), Name);
 		Border->SetBrush(RoundedBrush(Fill, Radius, Outline, OutlineWidth));
 		Border->SetPadding(FMargin(0.f));
 		Border->SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -1396,125 +1398,6 @@ namespace
 		return HUD;
 	}
 
-	void BuildGaugeAt(
-		UWidgetTree* Tree,
-		UCanvasPanel* Canvas,
-		const FMordecaiUIThemeColors& Colors,
-		EMordecaiUITheme Theme,
-		float X,
-		float Y,
-		float Health,
-		float Stamina,
-		int32 SpellPoints,
-		const FString& Tier)
-	{
-		AddPrimitive(
-			Tree, Canvas,
-			FMordecaiUIPrimitiveBuilder::Plate(
-				Colors, EMordecaiUIPrintDepth::HUD, Theme),
-			TEXT("GalleryGaugePlate"), X, Y, 456.f, 152.f);
-		const float TrackX = X + 52.f;
-		const float ValueX = X + 330.f;
-		AddText(Tree, Canvas, TEXT("HP"), TEXT("num_s"), Colors.TextMuted,
-			X + 14.f, Y + 20.f, 28.f, 24.f);
-		AddPrimitive(Tree, Canvas, FMordecaiUIPrimitiveBuilder::Well(Colors, true),
-			TEXT("GalleryHealthWell"), TrackX, Y + 19.f, 268.f, 24.f);
-		AddBox(Tree, Canvas, Colors.VitalTrail, TrackX + 2.f, Y + 21.f,
-			264.f * FMath::Min(1.f, Health + 0.12f), 20.f, 3.f);
-		AddBox(Tree, Canvas, Colors.Vital, TrackX + 2.f, Y + 21.f,
-			264.f * Health, 20.f, 3.f);
-		AddBox(Tree, Canvas, Colors.Ink, TrackX + 67.f, Y + 19.f, 2.f, 24.f);
-		AddText(Tree, Canvas, FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Health * 100.f)),
-			TEXT("num_l"),
-			Health <= MordecaiHUDConstants::LowHealthThreshold
-				? Colors.DangerText
-				: Colors.Text,
-			ValueX, Y + 14.f, 108.f, 34.f, ETextJustify::Right);
-
-		AddText(Tree, Canvas, TEXT("ST"), TEXT("num_s"), Colors.TextMuted,
-			X + 14.f, Y + 62.f, 28.f, 24.f);
-		AddPrimitive(Tree, Canvas, FMordecaiUIPrimitiveBuilder::Well(Colors, true),
-			TEXT("GalleryStaminaWell"), TrackX, Y + 61.f, 268.f, 18.f);
-		if (Stamina >= 0.f)
-		{
-			const FLinearColor TierColor = Stamina >= 0.66f
-				? Colors.StaminaGreen
-				: Stamina >= 0.33f ? Colors.StaminaYellow : Colors.StaminaRed;
-			AddBox(Tree, Canvas, TierColor, TrackX + 2.f, Y + 63.f,
-				264.f * Stamina, 14.f, 3.f);
-		}
-		else
-		{
-			AddPattern(Tree, Canvas, Colors.Well, Colors.Danger,
-				TrackX + 2.f, Y + 63.f, 264.f * FMath::Abs(Stamina), 14.f);
-		}
-		AddBox(Tree, Canvas, Colors.Ink, TrackX + 88.f, Y + 61.f, 2.f, 18.f);
-		AddBox(Tree, Canvas, Colors.Ink, TrackX + 177.f, Y + 61.f, 2.f, 18.f);
-		AddText(Tree, Canvas, Tier, TEXT("num_s"),
-			Stamina < 0.f ? Colors.DangerText : Colors.Text,
-			ValueX + 24.f, Y + 56.f, 84.f, 28.f, ETextJustify::Center);
-
-		AddPrimitive(Tree, Canvas, FMordecaiUIPrimitiveBuilder::Well(Colors, true),
-			TEXT("GalleryPostureWell"), TrackX, Y + 91.f, 268.f, 8.f);
-		AddBox(Tree, Canvas, Colors.Posture, TrackX + 1.f, Y + 92.f, 190.f, 6.f, 2.f);
-
-		AddText(Tree, Canvas, TEXT("SP"), TEXT("num_s"), Colors.TextMuted,
-			X + 14.f, Y + 112.f, 28.f, 24.f);
-		const float TokenSize = 16.f;
-		for (int32 Index = 0; Index < 13; ++Index)
-		{
-			const float GroupShift = Index >= 10 ? 16.f : Index >= 5 ? 8.f : 0.f;
-			AddBox(Tree, Canvas,
-				Index < SpellPoints ? Colors.SpellPoints : Colors.Well,
-				TrackX + Index * 19.f + GroupShift, Y + 111.f,
-				TokenSize, TokenSize, 8.f,
-				Index < SpellPoints ? Colors.Ink : Colors.Lip, 2.f);
-		}
-		AddText(Tree, Canvas, FString::Printf(TEXT("%d / 13"), SpellPoints),
-			TEXT("num_m"), Colors.Text, ValueX, Y + 106.f, 108.f, 28.f,
-			ETextJustify::Right);
-	}
-
-	void BuildSpellSlotAt(
-		UWidgetTree* Tree,
-		UCanvasPanel* Canvas,
-		const FMordecaiUIThemeColors& Colors,
-		EMordecaiUITheme Theme,
-		float X,
-		float Y,
-		const FString& Key,
-		const FString& Glyph,
-		int32 Cost,
-		float Shutter,
-		const FString& Cooldown)
-	{
-		AddPrimitive(Tree, Canvas,
-			FMordecaiUIPrimitiveBuilder::Plate(
-				Colors, EMordecaiUIPrintDepth::HUD, Theme),
-			FString::Printf(TEXT("GallerySlot%s"), *Key), X, Y, 78.f, 78.f);
-		AddPrimitive(Tree, Canvas, FMordecaiUIPrimitiveBuilder::Well(Colors, false),
-			FString::Printf(TEXT("GallerySlotWell%s"), *Key), X + 7.f, Y + 7.f, 64.f, 64.f);
-		AddGlyph(Tree, Canvas, Glyph, Colors.Text, X + 15.f, Y + 15.f, 48.f);
-		if (Shutter > 0.f)
-		{
-			AddPattern(Tree, Canvas, Colors.PlateRaised, Colors.Well,
-				X + 7.f, Y + 7.f, 64.f, 64.f * Shutter);
-			AddBox(Tree, Canvas, Colors.Rim, X + 7.f,
-				Y + 7.f + 64.f * Shutter - 3.f, 64.f, 3.f);
-			AddText(Tree, Canvas, Cooldown, TEXT("num_m"), Colors.Text,
-				X + 7.f, Y + 24.f, 64.f, 30.f, ETextJustify::Center);
-		}
-		for (int32 Pip = 0; Pip < Cost; ++Pip)
-		{
-			AddBox(Tree, Canvas, Colors.SpellPoints,
-				X + 72.f - Cost * 17.f + Pip * 17.f, Y - 7.f,
-				14.f, 14.f, 7.f, Colors.Ink, 2.f);
-		}
-		AddKeycap(Tree, Canvas, Colors,
-			FString::Printf(TEXT("GallerySlotKey%s"), *Key), Key,
-			X - 6.f, Y + 68.f, 32.f, 32.f);
-	}
-
 	void BuildHUDLayoutFixture(
 		UMordecaiTinTallyGalleryWidget* Owner,
 		UWidgetTree* Tree,
@@ -1572,6 +1455,11 @@ namespace
 		for (int32 Row = 0; Row < 4; ++Row)
 		{
 			const float Y = 72.f + Row * 92.f;
+			AddBox(Tree, Canvas, Colors.WorldBlockout,
+				24.f, Y - 10.f, 912.f, 64.f, 10.f, Colors.Ink, 2.f,
+				FName(*FString::Printf(TEXT("GalleryBarStage%d"), Row)));
+			AddPattern(Tree, Canvas, Colors.WorldBlockout, Colors.WorldBlockoutLine,
+				24.f, Y - 10.f, 912.f, 64.f);
 			UMordecaiHealthBarWidget* Bar = EmbedShippedWidget<UMordecaiHealthBarWidget>(
 				Owner, Tree, Canvas,
 				FName(*FString::Printf(TEXT("GalleryRealHealthBar_%d"), Row)),
@@ -1617,6 +1505,11 @@ namespace
 	{
 		AddText(Tree, Canvas, TEXT("SPELL SLOTS · Q E R 1"), TEXT("kicker"),
 			Colors.TextMuted, 24.f, 22.f, 912.f, 28.f);
+		AddBox(Tree, Canvas, Colors.WorldBlockout,
+			24.f, 62.f, 912.f, 148.f, 10.f, Colors.Ink, 2.f,
+			FName(TEXT("GallerySpellStage0")));
+		AddPattern(Tree, Canvas, Colors.WorldBlockout, Colors.WorldBlockoutLine,
+			24.f, 62.f, 912.f, 148.f);
 		const TCHAR* Keys[] = { TEXT("Q"), TEXT("E"), TEXT("R"), TEXT("1") };
 		const TCHAR* Glyphs[] = { TEXT("fireball"), TEXT("blink"), TEXT("stoneskin"), TEXT("restoration") };
 		const int32 Costs[] = { 3, 2, 4, 3 };
@@ -1636,6 +1529,11 @@ namespace
 		}
 		AddText(Tree, Canvas, TEXT("READY · COOLING · UNAFFORDABLE · BLOCKED"),
 			TEXT("kicker"), Colors.TextMuted, 24.f, 238.f, 912.f, 28.f);
+		AddBox(Tree, Canvas, Colors.WorldBlockout,
+			24.f, 260.f, 912.f, 150.f, 10.f, Colors.Ink, 2.f,
+			FName(TEXT("GallerySpellStage1")));
+		AddPattern(Tree, Canvas, Colors.WorldBlockout, Colors.WorldBlockoutLine,
+			24.f, 260.f, 912.f, 150.f);
 		for (int32 Index = 0; Index < 4; ++Index)
 		{
 			UMordecaiSpellCooldownWidget* Slot =
@@ -1715,48 +1613,37 @@ namespace
 	{
 		AddText(Tree, Canvas, TEXT("LOADOUT PLATE · NAME, SUBTYPE AND SWAP KEY"),
 			TEXT("kicker"), Colors.TextMuted, 24.f, 22.f, 912.f, 28.f);
-		const TCHAR* Names[] = {
-			TEXT("Longsword"), TEXT("Quarterstaff"), TEXT("Unarmed"),
-			TEXT("Mace"), TEXT("Dagger"), TEXT("Greatsword")
-		};
-		const EMordecaiWeaponType WeaponTypes[] = {
-			EMordecaiWeaponType::Longsword,
-			EMordecaiWeaponType::Quarterstaff,
-			EMordecaiWeaponType::Unarmed,
-			EMordecaiWeaponType::Mace,
-			EMordecaiWeaponType::Dagger,
-			EMordecaiWeaponType::Greatsword
-		};
-		for (int32 Row = 0; Row < 6; ++Row)
-		{
-			const float X = 70.f + (Row % 2) * 430.f;
-			const float Y = 86.f + (Row / 2) * 174.f;
-			UMordecaiEquippedWeaponWidget* Loadout =
-				EmbedShippedWidget<UMordecaiEquippedWeaponWidget>(
-					Owner, Tree, Canvas,
-					FName(*FString::Printf(TEXT("GalleryRealLoadout_%d"), Row)),
-					FVector2D(X, Y), FVector2D(340.f, 84.f));
-			if (Row == 2)
-			{
-				Loadout->SetGalleryPreviewWeapon(nullptr);
-			}
-			else
-			{
-				UMordecaiWeaponDataAsset* Weapon =
-					NewObject<UMordecaiWeaponDataAsset>(Owner);
-				Weapon->DisplayName = FText::FromString(Names[Row]);
-				Weapon->WeaponType = WeaponTypes[Row];
-				Loadout->SetGalleryPreviewWeapon(Weapon);
-			}
-		}
-		AddPrimitive(Tree, Canvas,
-			FMordecaiUIPrimitiveBuilder::Plate(
-				Colors, EMordecaiUIPrintDepth::HUD, Theme),
-			TEXT("GalleryLoadoutFooter"), 24.f, 610.f, 912.f, 90.f);
-		AddText(Tree, Canvas,
-			TEXT("The loadout plate stays fixed while the weapon name and subtype update."),
-			TEXT("ui_label"), Colors.TextMuted,
-			48.f, 638.f, 864.f, 30.f, ETextJustify::Center);
+		AddBox(Tree, Canvas, Colors.WorldBlockout,
+			24.f, 62.f, 912.f, 318.f, 10.f, Colors.Ink, 2.f,
+			FName(TEXT("GalleryLoadoutStage")));
+		AddPattern(Tree, Canvas, Colors.WorldBlockout, Colors.WorldBlockoutLine,
+			24.f, 62.f, 912.f, 318.f);
+		UMordecaiEquippedWeaponWidget* Loadout =
+			EmbedShippedWidget<UMordecaiEquippedWeaponWidget>(
+				Owner, Tree, Canvas, TEXT("GalleryRealLoadout_0"),
+				FVector2D(70.f, 86.f), FVector2D(340.f, 84.f));
+		UMordecaiWeaponDataAsset* Weapon =
+			NewObject<UMordecaiWeaponDataAsset>(Owner);
+		Weapon->DisplayName = FText::FromString(TEXT("Longsword"));
+		Weapon->WeaponType = EMordecaiWeaponType::Longsword;
+		Loadout->SetGalleryPreviewWeapon(Weapon);
+
+		AddText(Tree, Canvas, TEXT("STATES"), TEXT("kicker"),
+			Colors.TextMuted, 40.f, 408.f, 180.f, 26.f);
+		AddText(Tree, Canvas, TEXT("AT REST · GLYPH, NAME, SUBTYPE AND SWAP KEY"),
+			TEXT("ui_label"), Colors.Text, 40.f, 448.f, 500.f, 26.f);
+		AddText(Tree, Canvas, TEXT("SWAPPING · THE PLATE DIPS; THE NAME TYPES IN"),
+			TEXT("ui_label"), Colors.TextMuted, 40.f, 478.f, 420.f, 26.f);
+		AddText(Tree, Canvas, TEXT("UNARMED · BLUNT"),
+			TEXT("ui_label"), Colors.Text, 40.f, 518.f, 280.f, 26.f);
+		AddText(Tree, Canvas, TEXT("LONG NAME · QUARTERSTAFF FITS; LONGER NAMES ELLIPSIZE"),
+			TEXT("ui_label"), Colors.TextMuted, 40.f, 558.f, 560.f, 26.f);
+		AddText(Tree, Canvas, TEXT("FOUND WEAPON · RARITY AND ELEMENT DATA STAY DATA-DRIVEN"),
+			TEXT("ui_label"), Colors.TextMuted, 40.f, 588.f, 520.f, 26.f);
+		AddText(Tree, Canvas, TEXT("NO TALLY MARKS OR COMBO COUNT"),
+			TEXT("kicker"), Colors.TextMuted, 60.f, 648.f, 360.f, 26.f);
+		AddText(Tree, Canvas, TEXT("HUD ANCHOR · BOTTOM RIGHT"),
+			TEXT("kicker"), Colors.TextMuted, 60.f, 678.f, 320.f, 26.f);
 	}
 }
 
