@@ -74,15 +74,32 @@ def draw_foundation(output):
 
     atlas = Image.new("RGBA", (384, 128), (0, 0, 0, 0))
     draw = ImageDraw.Draw(atlas)
-    for frame in range(6):
+
+    def rounded_line(points, width, fill="white"):
+        """Pillow's joint curve does not round terminal caps, so add them."""
+        draw.line(points, fill=fill, width=width)
+        radius = width / 2
+        for x, y in (points[0], points[-1]):
+            draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=fill)
+
+    # Frame zero is the dotted capacity layer. Filled frames contain only lit
+    # marks and are composited over frame zero by UMordecaiTallyWidget.
+    upright_x = (12, 24, 36, 48)
+    for x in upright_x:
+        for y in range(14, 115, 10):
+            draw.ellipse((x - 2, y - 2, x + 2, y + 2), fill=(255, 255, 255, 180))
+    for x, y in ((8, 114), (32, 64), (56, 14)):
+        draw.ellipse((x - 2, y - 2, x + 2, y + 2), fill=(255, 255, 255, 180))
+
+    for frame in range(1, 6):
         left = frame * 64
-        for mark in range(5):
-            x = left + 10 + mark * 10
-            draw.ellipse((x - 2, 18, x + 2, 22), fill=(255, 255, 255, 120))
-            if mark < frame:
-                draw.line((x, 12, x, 52), fill="white", width=4)
+        for mark in range(min(frame, 4)):
+            rounded_line(
+                ((left + upright_x[mark], 14), (left + upright_x[mark], 114)),
+                7,
+            )
         if frame == 5:
-            draw.line((left + 8, 48, left + 56, 16), fill="white", width=4)
+            rounded_line(((left + 8, 114), (left + 56, 14)), 9)
     atlas.save(output / "T_UI_TallyAtlas.png")
 
     badges = {

@@ -13,7 +13,7 @@ import os
 import subprocess
 import time
 
-from PIL import Image, ImageChops, ImageFilter, ImageStat
+from PIL import Image, ImageChops, ImageFilter, ImageOps, ImageStat
 
 import playtest_boot
 
@@ -24,10 +24,19 @@ CAPTURE_SIZE = (1920, 1080)
 REFERENCE_CROP_SIZE = (960, 720)
 MIN_FOREGROUND_IOU = 0.08
 MAX_BBOX_EDGE_DELTA = 0.20
+MIN_EDGE_GRID_SIMILARITY = 0.36
+MIN_TEXT_ROW_SIMILARITY = 0.26
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REFERENCE_SHOTS_DIR = os.path.join(
     ROOT, "Design", "TinTally", "ds", "build", "shots"
 )
+TEXT_BANDS = {
+    "plate": ((18, 54), (60, 292), (324, 354), (386, 442), (478, 620)),
+    "tag": ((18, 54), (252, 308), (326, 358), (390, 450), (470, 570), (620, 680)),
+    "keycap": ((18, 54), (68, 108), (182, 250), (288, 326), (388, 418), (478, 508), (526, 558), (582, 620)),
+    "tally": ((18, 54), (70, 112), (124, 238), (270, 304), (314, 510), (536, 570), (586, 692)),
+    "glyphs": ((18, 54), (174, 208), (328, 362), (482, 516), (636, 670), (682, 718)),
+}
 
 
 def make_capture_metadata(component, theme, state, build_info, crop_rect):
@@ -108,6 +117,60 @@ def _mask_pixels(mask):
     return mask.histogram()[255]
 
 
+def _edge_mask(image):
+    edges = ImageOps.grayscale(image).filter(ImageFilter.FIND_EDGES)
+    return edges.point(lambda pixel: 255 if pixel >= 24 else 0)
+
+
+def _density_overlap(reference_values, capture_values):
+    union = sum(max(reference, capture) for reference, capture in zip(reference_values, capture_values))
+    if union <= 1e-9:
+        return 1.0
+    return (
+        sum(min(reference, capture) for reference, capture in zip(reference_values, capture_values))
+        / union
+    )
+
+
+def _grid_density(mask, columns=48, rows=36):
+    width, height = mask.size
+    pixels = mask.load()
+    values = []
+    for row in range(rows):
+        y0, y1 = row * height // rows, (row + 1) * height // rows
+        for column in range(columns):
+            x0, x1 = column * width // columns, (column + 1) * width // columns
+            area = max(1, (x1 - x0) * (y1 - y0))
+            values.append(
+                sum(
+                    pixels[x, y] > 0
+                    for y in range(y0, y1)
+                    for x in range(x0, x1)
+                )
+                / area
+            )
+    return values
+
+
+def _text_row_density(mask, bands):
+    width = mask.width
+    pixels = mask.load()
+    values = []
+    for y0, y1 in bands:
+        for y in range(max(0, y0), min(mask.height, y1)):
+            values.append(sum(pixels[x, y] > 0 for x in range(width)) / width)
+    return values
+
+
+def _comparison_thresholds():
+    return {
+        "min_foreground_iou": MIN_FOREGROUND_IOU,
+        "max_bbox_edge_delta": MAX_BBOX_EDGE_DELTA,
+        "edge_grid": MIN_EDGE_GRID_SIMILARITY,
+        "text_row": MIN_TEXT_ROW_SIMILARITY,
+    }
+
+
 def _bbox_edge_delta(reference_box, capture_box, size):
     if reference_box is None and capture_box is None:
         return 0.0
@@ -153,14 +216,13 @@ def compare_images(reference_path, capture_path, output_dir, stem):
             "reason": f"comparison input is missing or unreadable: {exc}",
             "foreground_iou": 0.0,
             "bbox_edge_delta": 1.0,
+            "edge_grid_similarity": 0.0,
+            "text_row_similarity": 0.0,
             "foreground_pixels": {"reference": 0, "capture": 0},
             "reference_crop": reference_crop_path,
             "side_by_side": side_path,
             "diff": diff_path,
-            "thresholds": {
-                "min_foreground_iou": MIN_FOREGROUND_IOU,
-                "max_bbox_edge_delta": MAX_BBOX_EDGE_DELTA,
-            },
+            "thresholds": _comparison_thresholds(),
         }
 
     if reference.width >= capture.width and reference.height >= capture.height:
@@ -175,14 +237,13 @@ def compare_images(reference_path, capture_path, output_dir, stem):
             ),
             "foreground_iou": 0.0,
             "bbox_edge_delta": 1.0,
+            "edge_grid_similarity": 0.0,
+            "text_row_similarity": 0.0,
             "foreground_pixels": {"reference": 0, "capture": 0},
             "reference_crop": reference_crop_path,
             "side_by_side": side_path,
             "diff": diff_path,
-            "thresholds": {
-                "min_foreground_iou": MIN_FOREGROUND_IOU,
-                "max_bbox_edge_delta": MAX_BBOX_EDGE_DELTA,
-            },
+            "thresholds": _comparison_thresholds(),
         }
 
     reference.save(reference_crop_path)
@@ -198,6 +259,18 @@ def compare_images(reference_path, capture_path, output_dir, stem):
     ref_box = ref_mask.getbbox()
     cap_box = cap_mask.getbbox()
     bbox_delta = _bbox_edge_delta(ref_box, cap_box, reference.size)
+    reference_edges = _edge_mask(reference)
+    capture_edges = _edge_mask(capture)
+    edge_grid_similarity = _density_overlap(
+        _grid_density(reference_edges),
+        _grid_density(capture_edges),
+    )
+    component = safe_stem.lower().replace(".", "-").split("-")[0]
+    text_bands = TEXT_BANDS.get(component, ((0, reference.height),))
+    text_row_similarity = _density_overlap(
+        _text_row_density(reference_edges, text_bands),
+        _text_row_density(capture_edges, text_bands),
+    )
     foreground_pixels = {
         "reference": _mask_pixels(ref_mask),
         "capture": _mask_pixels(cap_mask),
@@ -214,6 +287,8 @@ def compare_images(reference_path, capture_path, output_dir, stem):
     passed = (
         foreground_iou >= MIN_FOREGROUND_IOU
         and bbox_delta <= MAX_BBOX_EDGE_DELTA
+        and edge_grid_similarity >= MIN_EDGE_GRID_SIMILARITY
+        and text_row_similarity >= MIN_TEXT_ROW_SIMILARITY
         and not both_uniform_but_different
     )
 
@@ -227,11 +302,15 @@ def compare_images(reference_path, capture_path, output_dir, stem):
         "foreground geometry is within tolerance"
         if passed
         else (
-            "geometrically divergent "
+            "geometrically or text/edge divergent "
             f"(foreground IoU {foreground_iou:.4f}, "
-            f"bbox edge delta {bbox_delta:.4f}; require IoU >= "
-            f"{MIN_FOREGROUND_IOU:.4f} and bbox delta <= "
-            f"{MAX_BBOX_EDGE_DELTA:.4f})"
+            f"bbox edge delta {bbox_delta:.4f}, "
+            f"edge-grid {edge_grid_similarity:.4f}, "
+            f"text-row {text_row_similarity:.4f}; require IoU >= "
+            f"{MIN_FOREGROUND_IOU:.4f}, bbox delta <= "
+            f"{MAX_BBOX_EDGE_DELTA:.4f}, edge-grid >= "
+            f"{MIN_EDGE_GRID_SIMILARITY:.4f}, and text-row >= "
+            f"{MIN_TEXT_ROW_SIMILARITY:.4f})"
         )
     )
     return {
@@ -240,6 +319,8 @@ def compare_images(reference_path, capture_path, output_dir, stem):
         "geometry_score": geometry_score,
         "foreground_iou": foreground_iou,
         "bbox_edge_delta": bbox_delta,
+        "edge_grid_similarity": edge_grid_similarity,
+        "text_row_similarity": text_row_similarity,
         "foreground_pixels": foreground_pixels,
         "reference_bbox": list(ref_box) if ref_box else None,
         "capture_bbox": list(cap_box) if cap_box else None,
@@ -247,10 +328,7 @@ def compare_images(reference_path, capture_path, output_dir, stem):
         "reference_crop": reference_crop_path,
         "side_by_side": side_path,
         "diff": diff_path,
-        "thresholds": {
-            "min_foreground_iou": MIN_FOREGROUND_IOU,
-            "max_bbox_edge_delta": MAX_BBOX_EDGE_DELTA,
-        },
+        "thresholds": _comparison_thresholds(),
     }
 
 
