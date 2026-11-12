@@ -39,6 +39,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void BindToCooldownTag(UAbilitySystemComponent* ASC, FGameplayTag CooldownTag, float TotalCooldown);
 
+	/** Set the loadout key shown for this slot (Q / E / R / 1). */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
+	void SetSlotKeyLabel(const FText& Label);
+
 	/** Check if the spell is currently on cooldown. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	bool IsOnCooldown() const { return bIsOnCooldown; }
@@ -54,6 +58,9 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> CooldownText;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> SlotKeyText;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	FGameplayTag BoundCooldownTag;
 
@@ -65,6 +72,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	bool bIsOnCooldown = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
+	FText SlotKeyLabel;
 
 private:
 	void BuildDefaultContent();

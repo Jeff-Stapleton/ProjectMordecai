@@ -23,6 +23,7 @@ void UMordecaiSpellCooldownWidget::NativeOnInitialized()
 	{
 		BuildDefaultContent();
 	}
+	SetSlotKeyLabel(SlotKeyLabel);
 }
 
 void UMordecaiSpellCooldownWidget::NativeDestruct()
@@ -38,7 +39,7 @@ void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 
 	CooldownProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("CooldownProgressBar"));
 	UCanvasPanelSlot* BarSlot = Root->AddChildToCanvas(CooldownProgressBar);
-	BarSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 0.7f));
+	BarSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 0.5f));
 	BarSlot->SetOffsets(FMargin(0.f));
 
 	CooldownProgressBar->SetPercent(1.f);
@@ -46,7 +47,7 @@ void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 
 	CooldownText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CooldownText"));
 	UCanvasPanelSlot* TextSlot = Root->AddChildToCanvas(CooldownText);
-	TextSlot->SetAnchors(FAnchors(0.f, 0.7f, 1.f, 1.f));
+	TextSlot->SetAnchors(FAnchors(0.f, 0.5f, 1.f, 0.75f));
 	TextSlot->SetOffsets(FMargin(0.f));
 
 	CooldownText->SetText(FText::GetEmpty());
@@ -56,6 +57,16 @@ void UMordecaiSpellCooldownWidget::BuildDefaultContent()
 	FSlateFontInfo FontInfo = CooldownText->GetFont();
 	FontInfo.Size = 9;
 	CooldownText->SetFont(FontInfo);
+
+	SlotKeyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SlotKeyText"));
+	UCanvasPanelSlot* KeySlot = Root->AddChildToCanvas(SlotKeyText);
+	KeySlot->SetAnchors(FAnchors(0.f, 0.75f, 1.f, 1.f));
+	KeySlot->SetOffsets(FMargin(0.f));
+
+	SlotKeyText->SetText(SlotKeyLabel);
+	SlotKeyText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	SlotKeyText->SetJustification(ETextJustify::Center);
+	SlotKeyText->SetFont(FontInfo);
 }
 
 // ---------------------------------------------------------------------------
@@ -83,6 +94,15 @@ FString UMordecaiSpellCooldownWidget::FormatRemainingTime(float RemainingSeconds
 // ---------------------------------------------------------------------------
 // Binding (AC-055.9)
 // ---------------------------------------------------------------------------
+
+void UMordecaiSpellCooldownWidget::SetSlotKeyLabel(const FText& Label)
+{
+	SlotKeyLabel = Label;
+	if (SlotKeyText)
+	{
+		SlotKeyText->SetText(SlotKeyLabel);
+	}
+}
 
 void UMordecaiSpellCooldownWidget::BindToCooldownTag(UAbilitySystemComponent* ASC, FGameplayTag CooldownTag, float TotalCooldown)
 {

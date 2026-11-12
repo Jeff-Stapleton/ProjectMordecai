@@ -99,12 +99,9 @@ STONE_SKIN_TAG = "Mordecai.Status.StoneSkin"
 RESTORATION_TAG = "Mordecai.Status.Restoration"
 STONE_SKIN_TEXT = "StoneSkin"
 SP_BAR = "SpellPointsBar"         # WBP_SpellPointsBar / MordecaiSpellPointsBarWidget
-COOLDOWN_WIDGET = "SpellCooldown"  # WBP_SpellCooldownA/B / MordecaiSpellCooldownWidget
+COOLDOWN_WIDGET = "SpellCooldown"  # SpellCooldownA-D / MordecaiSpellCooldownWidget
 COOLDOWN_WIDGETS_EXPECTED = 4
-
-KI_N8 = ("N8 (suspected NEW, Known issues backlog of Specs/agent_playtest_plan_v1.md): the HUD "
-         "default layout (UMordecaiCombatHUDWidget) has 2 SpellCooldown widgets "
-         "(SpellCooldownA/B), not 4")
+COOLDOWN_SLOT_LABELS = ("Q", "E", "R", "1")
 
 SCREENSHOTS = {
     "fireball_hit": "CombatTestMap's grid floor, the player about 300 cm -X of the TestDummy (a "
@@ -116,11 +113,10 @@ SCREENSHOTS = {
     "stone_skin": "the Stone Skin buff indicator in the status bar (bottom-left): 'StoneSkin' and "
                   "a decimal countdown, green tint; SP bar '1 / 10'",
     "spell_hud": "the SP bar reading '1 / 10' after the refused Restoration, and the spell "
-                 "cooldown widgets (top-left, under the SP bar)",
+                 "cooldown widgets labelled Q / E / R / 1 (top-left, under the SP bar), with "
+                 "the R slot showing Stone Skin's remaining cooldown",
 }
 KNOWN_ISSUES = (
-    "N8 (suspected NEW, to be filed in the Known issues backlog): the HUD default layout has 2 "
-    "SpellCooldown widgets, not the 4 AC-057.9 asks for; cooldown_widgets is expected to FAIL.",
     "N6 (design question): max SP is 10 and SP does not regenerate, but one cast of each "
     "loadout spell costs 12 (3 + 2 + 4 + 3); this run spends 10 -> 7 -> 5 -> 1 and expects "
     "Restoration to be refused.",
@@ -145,6 +141,7 @@ lit = kit.lit
 _dumps = kit.dumps
 _section = kit.section
 RE_NUMBER_TEXT = re.compile(r"^\s*\d+(?:\.\d+)?\s*s?\s*$")
+RE_COOLDOWN_TEXT = re.compile(r"^\s*\d+\.\d+\s*s?\s*$")
 
 
 def log(msg):
@@ -163,7 +160,8 @@ PLAN = (
          "Blink/Stone Skin/Restoration, granted, sp_cost 3/2/4/3",
          proves=("AC-057.1", "AC-057.2", "AC-057.3", "AC-057.4", "AC-057.6")),
     Step("cooldown_widgets", f"state widgets -> {COOLDOWN_WIDGETS_EXPECTED} {COOLDOWN_WIDGET} "
-         "widgets on the HUD (one per spell)", proves=("AC-057.9",), known_issue=KI_N8),
+         f"widgets on the HUD labelled {' / '.join(COOLDOWN_SLOT_LABELS)} in slot order "
+         "(one per spell)", proves=("AC-057.9",)),
     Step("walk_shot_line", f"walk_to(ex-{SHOT_OFFSET_X:g}, ey) of the {TARGET_ENEMY} (live "
          f"location, actors radius {ACTOR_RADIUS}; label match, else the enemy nearest "
          f"({TARGET_SPAWN[0]:g}, {TARGET_SPAWN[1]:g})) within {SHOT_TOL:g} cm; walk again if "
@@ -189,6 +187,8 @@ PLAN = (
          proves=("AC-057.2", "AC-057.5")),
     Step("stone_skin", f"tap R -> {STONE_SKIN_TAG} in player.tags and spell_points 5 -> 1 within "
          f"{STONE_SKIN_TIMEOUT_S:g}s", proves=("AC-057.3",)),
+    Step("stone_skin_cooldown_hud", f"state widgets -> the R {COOLDOWN_WIDGET} renders a decimal "
+         "remaining cooldown after the real R input", proves=("AC-057.9",)),
     Step("stone_skin_indicator", f"state widgets -> a widget renders {lit(STONE_SKIN_TEXT)} and a "
          f"numeric remaining duration within {INDICATOR_TIMEOUT_S:g}s",
          proves=("US-055:AC-055.4", "US-055:AC-055.5", "US-055:AC-055.6")),
@@ -274,6 +274,18 @@ def _cooldown_widgets(st):
 
 def _numeric_texts(widget):
     return [t for t in _texts(widget) if RE_NUMBER_TEXT.match(t)]
+
+
+def _cooldown_time_texts(widget):
+    return [t for t in _texts(widget) if RE_COOLDOWN_TEXT.match(t)]
+
+
+def _cooldown_widgets_in_slot_order(st):
+    return sorted(_cooldown_widgets(st), key=lambda w: (w.get("rect") or [float("inf")])[0])
+
+
+def _cooldown_widget_for_label(st, label):
+    return next((w for w in _cooldown_widgets(st) if label in _texts(w)), None)
 
 
 def _stone_skin_widgets(st):
@@ -430,11 +442,15 @@ class Us057Run(kit.PlaytestRun):
 
         def cooldown_widgets(b):
             st = b.state(["widgets"])
-            ws = _cooldown_widgets(st)
+            ws = _cooldown_widgets_in_slot_order(st)
             lines = [_widget_line(w) for w in ws]
-            status = "PASS" if len(ws) == COOLDOWN_WIDGETS_EXPECTED else "FAIL"
+            labels = [next((text for text in _texts(w) if text in COOLDOWN_SLOT_LABELS), None)
+                      for w in ws]
+            status = ("PASS" if len(ws) == COOLDOWN_WIDGETS_EXPECTED
+                      and labels == list(COOLDOWN_SLOT_LABELS) else "FAIL")
             return (status, f"{len(ws)} {COOLDOWN_WIDGET} widget(s) on screen (expected "
-                    f"{COOLDOWN_WIDGETS_EXPECTED}): {lines}", ws)
+                    f"{COOLDOWN_WIDGETS_EXPECTED}); slot labels {labels} (expected "
+                    f"{list(COOLDOWN_SLOT_LABELS)}): {lines}", ws)
 
         self.measure("cooldown_widgets", cooldown_widgets)
 
@@ -535,7 +551,7 @@ class Us057Run(kit.PlaytestRun):
                     for text in _texts(w):
                         if text not in obs["cooldown_texts"]:
                             obs["cooldown_texts"].append(text)
-                    nums = _numeric_texts(w)
+                    nums = _cooldown_time_texts(w)
                     if nums and obs["cooldown_hud_at"] is None:
                         obs["cooldown_hud_at"] = round(t, 2)
                         obs["cooldown_hud"] = _widget_line(w)
@@ -715,6 +731,27 @@ class Us057Run(kit.PlaytestRun):
                                   needs_why=f"not run: spell_points is {_fmt(sp0)}, Stone Skin "
                                   f"costs {STONE_SKIN['cost']} (the SP plan broke earlier)")
         self.stone_skin_ok = skin_ok
+
+        def cooldown_describe(st1):
+            widget = _cooldown_widget_for_label(st1, STONE_SKIN["key"])
+            if widget is None:
+                return f"no {COOLDOWN_WIDGET} renders the R slot label"
+            remaining = _cooldown_time_texts(widget)
+            if remaining:
+                return f"{_widget_line(widget)}: R slot remaining cooldown {remaining[0]}"
+            return f"R slot has no decimal remaining cooldown: {_widget_line(widget)}"
+
+        self.observe(
+            "stone_skin_cooldown_hud",
+            ["widgets"],
+            lambda st1: (
+                (widget := _cooldown_widget_for_label(st1, STONE_SKIN["key"])) is not None
+                and bool(_cooldown_time_texts(widget))
+            ),
+            cooldown_describe,
+            timeout_s=INDICATOR_TIMEOUT_S,
+            needs=skin_ok,
+            needs_why="not run: stone_skin failed (no Stone Skin tag)")
 
         def describe(st1):
             w = _stone_skin_indicator(st1)
