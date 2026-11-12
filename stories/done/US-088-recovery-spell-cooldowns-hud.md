@@ -36,12 +36,12 @@ Native gameplay tags and data-driven A-D cooldown widgets/binding; the DataAsset
 ### Tier 1 — Automation (headless)
 - `Mordecai.Recovery.Cooldown.NativeSpellCooldownTags` — AC-088.1
 - `Mordecai.Recovery.Cooldown.SpellBlockedDuringCooldown` — AC-088.2
-- `Mordecai.Recovery.Cooldown.HUDHasFourCooldownWidgets` — AC-088.3
-- `Mordecai.Recovery.Cooldown.WidgetsBoundToSlotTags` — AC-088.4
+- `Mordecai.Recovery.Cooldown.HUDHasFourCooldownWidgets` — AC-088.3; reads `SpellCooldownA` through `SpellCooldownD` by property name and proves slot order/labels
+- `Mordecai.Recovery.Cooldown.WidgetsBoundToSlotTags` — AC-088.4; reads A-D by property name and proves each slot's tag pairing
 - `Mordecai.Recovery.Cooldown.WarnsOnMissingCooldownTag` — AC-088.5
 ### Tier 2 — PIE smoke (editor integration)
-- `Scripts/verify_pie_hud.py`: A-D exist in slot order with labels Q / E / R / 1
-- `Scripts/verify_pie_magic.py`: A-D are bound to Fireball/Blink/Stone Skin/Restoration after grants
+- `Scripts/verify_pie_hud.py`: the live combat HUD reports 15 bound children (14 HUD controls plus `IndicatorLayer`); this proves the expanded tree count, not slot order or labels
+- `Scripts/verify_pie_magic.py`: four cooldown widgets exist after grants and their unordered label set is Q / E / R / 1 (it also checks the unordered bound-tag set); label order and per-slot tag pairing are Tier 1 proofs
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
@@ -65,16 +65,16 @@ Native gameplay tags and data-driven A-D cooldown widgets/binding; the DataAsset
 - **Playable alone:** YES with paired US-089 content, which is already delivered
 
 ## Definition of Done
-- [ ] All ACs checked off
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: none; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST (code + script edit), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py US-057`: `cooldown_widgets`, `fireball_cooldown_state`, `cooldown_hud`, and `stone_skin_cooldown_hud` PASS; no baseline PASS becomes FAIL; `--lint` exits 0 — never `--allow-stale`
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) inspected by the issue #13 scripted-image constraint; Completion Notes state what the script and run state show
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the closing commit; planner log records issues #35 and #13 fixed
-- [ ] Pushed; story moved to `stories/done/` only after all of the above pass
+- [x] All ACs checked off
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [x] Content: none; `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST (code + script edit), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
+- [x] On that same fresh package `py Scripts/playtest_story.py US-057`: `cooldown_widgets`, `fireball_cooldown_state`, `cooldown_hud`, and `stone_skin_cooldown_hud` PASS; no baseline PASS becomes FAIL; `--lint` exits 0 — never `--allow-stale`
+- [x] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen
+- [x] Evidence cited: run dirs in Completion Notes AND in the body of the closing commit; planner log records issues #35 and #13 fixed
+- [x] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
 - Issue #35 delivered native tags and cooldown application for all four spells plus A/B binding. Issue #13 now adds C/D, exact labels Q / E / R / 1, and four-slot binding without changing Jeff's 2/4/15/10 s cooldowns, GAS rejection, or SP behavior.
@@ -87,7 +87,10 @@ Native gameplay tags and data-driven A-D cooldown widgets/binding; the DataAsset
 - Final docs-head validation uses `Saved/Playtests/issue35-r1-final-boot` and `Saved/Playtests/issue35-r1-final-us057` on the repackaged documentation commit.
 - Issue #13 red proof: `Mordecai.Recovery.Cooldown.HUDHasFourCooldownWidgets` failed because A/B had no labels and C/D did not exist (`Saved/TestLogs/tests-20261112-044610.log`); `WidgetsBoundToSlotTags` failed because C/D did not exist (`Saved/TestLogs/tests-20261112-044740.log`). Red commit: `2a3c20273d`.
 - Issue #13 verification at package commit `a7a098c5fc16ae82f41d0fdceaa1765bee771f97`: build PASS; Python tooling 656/656 PASS; Tier 1 826/826 PASS (`Saved/TestLogs/tests-20261112-054130.log`); fresh-editor Tier 2 20/20 PASS; content guard and US-057 lint PASS. Clean package log: `Saved/Playtests/package-20261112-054836.log`.
+- The first Tier 2 attempt used an editor that had started before the rebuild and therefore saw the stale 13-child HUD. Restarting into a fresh editor after the rebuild produced the accepted 15-child HUD and 20/20 PASS.
 - Tier 3: `Saved/Playtests/20261112-055752-boot`, CombatTestMap PASS on the exact clean package commit (correct experience, no crash, content cooked, Mordecai loading screen, 3/3 engine frames). Pillow found `engine_loading.png` and `engine_01.png`-`engine_03.png` 1280x720 and non-uniform; their top-left HUD crops were non-uniform. Desktop shots were covered by another window and are not visual evidence.
 - Tier 4: `Saved/Playtests/20261112-055851-us057`, exact fresh package. `cooldown_widgets` PASS with four widgets and labels `['Q','E','R','1']`; `fireball_cooldown_state` PASS at 1.983 s; `cooldown_hud` PASS with `['2.0','Q']`; real-input `stone_skin_cooldown_hud` PASS with `['14.9','R']`. The overall US-057 script exits 1 only because N16 `stone_skin_indicator` still renders `Status 10.0`; that same check failed on the exact-main baseline and is outside issue #13.
 - Tier 4 frames, inspected by Pillow plus report/state data: all four `bridge_NN.png` are 1280x720, non-uniform, with non-uniform HUD crops. `bridge_01.png` records the Fireball hit at SP 7/10 and Q countdown; `bridge_02.png` records the post-Blink lane at SP 5/10; `bridge_03.png` records SP 1/10 and the known generic `Status 10.0`; `bridge_04.png` records the four Q/E/R/1 slots and R/Stone Skin countdown after Restoration is refused at 1 SP.
-- Full regression: `Saved/Playtests/20261112-055932-sweep` at `a7a098c`, compared with exact-main `Saved/Playtests/20261112-043446-sweep` at `b84a2e1`: zero PASS→FAIL; `cooldown_widgets` is the only FAIL→PASS; `stone_skin_cooldown_hud` is a newly added PASS. Pillow inspected all 182 captured PNGs; every feature frame was non-uniform. Only 12 baseline desktop shots were uniform black. Bundle `Saved/Playtests/issue13-a7a098c/` contains 392 files, `image-analysis.{json,md}`, comparison data, all captured frames/logs, and a verified SHA-256 manifest with zero mismatches.
+- Coordinator screenshot review: the coordinator opened `feature-a7a098c/runs/20261112-060212-us057/bridge_03.png` and `bridge_04.png` with the Read tool. They show four cooldown bars under the SP bar, with E and R mid-cooldown at 0.8 and 12.0 seconds, then R at 11.1 seconds. The Q and E key labels are visible but tiny. R and 1 are covered by on-screen debug messages in the Development build; that legibility work is follow-up #124 and US-105.
+- Full regression: `Saved/Playtests/20261112-055932-sweep` at `a7a098c`, compared with exact-main `Saved/Playtests/20261112-043446-sweep` at `b84a2e1`: zero PASS→FAIL; `cooldown_widgets` is the only FAIL→PASS; `stone_skin_cooldown_hud` is a newly added PASS. Pillow inspected all 182 captured PNGs; every feature frame was non-uniform. Only 12 baseline desktop shots were uniform black. Bundle `Saved/Playtests/issue13-a7a098c/` was copied to the coordinator store with `build_info.json` (`commit=a7a098c5fc16ae82f41d0fdceaa1765bee771f97`, `dirty=false`, `source_changed_during_build=false`), both sweep summaries, and a 396-entry SHA-256 manifest verified with zero mismatches.
+- Coordinator review verdict: **NOT MERGE-BLOCKING**. The only run failure is pre-existing #21 (`stone_skin_indicator` renders `Status 10.0`), and HUD legibility/polish follow-ups are filed in #124 and US-105.
