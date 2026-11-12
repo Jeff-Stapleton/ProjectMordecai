@@ -20,13 +20,13 @@ All surfaces use native C++ fallbacks and foundation assets created by US-103.
 - Existing code: `MordecaiCombatHUDWidget.*` and resource/prompt/loadout widgets
 
 ## Acceptance Criteria
-- [ ] AC-105.1: `GaugePlate` hosts `HealthBar`, `StaminaBar`, `PostureBar`, and `SpellPointsBar` at `(32,32)`, `456x152`; all final map anchors, offsets, alignments, sizes, and exact 32/96 margin behavior match HUDLayout, including its 784 px top-centre width at 96.
-- [ ] AC-105.2: health shows percent, trail, heal lead, 25% notch and danger text; stamina shows tiers, multiplier, stripes/debt; posture hides at max and supports the specified broken fixture; SP renders 10-16 tokens and the approved above-16 fallback.
-- [ ] AC-105.3: US-088's A-D slots render as `78x78` shutters at x 32/120/208/296, y 216, with the existing cooldown tags and exact Q/E/R/1 labels.
-- [ ] AC-105.4: `PickupPrompt` occupies the final prompt/hint boxes, preserves `PromptText`/`InventoryHintText` and shipped strings until US-104, and the hint stays always visible during play.
-- [ ] AC-105.5: `UMordecaiEquippedWeaponWidget` keeps its functional text/binding and final box while gaining Tin Tally plate/glyph polish.
-- [ ] AC-105.6: `LowHealthFrame` is HitTestInvisible, shows at Health <=25%, uses an 8 px vital band plus 3 px inner ink line, and does not pulse; only the gauge rim pulses.
-- [ ] AC-105.7: there remains exactly one combat-HUD push on `UI.Layer.Game`; death and pause layering regressions stay passing.
+- [x] AC-105.1: `GaugePlate` hosts `HealthBar`, `StaminaBar`, `PostureBar`, and `SpellPointsBar` at `(32,32)`, `456x152`; all final map anchors, offsets, alignments, sizes, and exact 32/96 margin behavior match HUDLayout, including its 784 px top-centre width at 96.
+- [x] AC-105.2: health shows percent, trail, heal lead, 25% notch and danger text; stamina shows tiers, multiplier, stripes/debt; posture hides at max and supports the specified broken fixture; SP renders 10-16 tokens and the approved above-16 fallback.
+- [x] AC-105.3: US-088's A-D slots render as `78x78` shutters at x 32/120/208/296, y 216, with the existing cooldown tags and exact Q/E/R/1 labels.
+- [x] AC-105.4: `PickupPrompt` occupies the final prompt/hint boxes, preserves `PromptText`/`InventoryHintText` and shipped strings until US-104, and the hint stays always visible during play.
+- [x] AC-105.5: `UMordecaiEquippedWeaponWidget` keeps its functional text/binding and final box while gaining Tin Tally plate/glyph polish.
+- [x] AC-105.6: `LowHealthFrame` is HitTestInvisible, shows at Health <=25%, uses an 8 px vital band plus 3 px inner ink line, and does not pulse; only the gauge rim pulses.
+- [x] AC-105.7: there remains exactly one combat-HUD push on `UI.Layer.Game`; death and pause layering regressions stay passing.
 
 ## Technical Notes
 - Keep existing optional names and add manifest names exactly: `GaugePlate`, `HealthPercentText`, `HealthTrailBar`, `HealthLeadBar`, `StaminaTierText`, `StaminaDebtBar`, `SpellPointTokens`, `LowHealthFrame`.
@@ -59,16 +59,27 @@ All surfaces use native C++ fallbacks and foundation assets created by US-103.
 - **Playable alone:** YES
 
 ## Definition of Done
-- [ ] All ACs checked off; red tests fail for the intended missing behavior before implementation
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks are labeled LOGIC
-- [ ] Content: every changed asset is saved/committed; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST, then `py Scripts/package_playtest.py` exits 0 for that exact clean commit
-- [ ] Required MovementTestMap, CombatTestMap, and DevTestMap Tier 3 boots exit 0 — never `--allow-stale`
-- [ ] US-057, US-079, US-091 and their `--lint` checks pass on the same package; full sweep has no baseline PASS to FAIL
-- [ ] Both-theme preview comparisons pass; every `engine_NN.png`, `bridge_NN.png`, preview, crop, and diff is opened and described
-- [ ] Evidence run dirs appear in Completion Notes and the closing `[US-105]` commit body; the closing commit touches only `stories/`
-- [ ] Pushed; story moves to `stories/done/` only after all checks pass
+- [x] All ACs checked off; red tests fail for the intended missing behavior before implementation
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks are labeled LOGIC
+- [x] Content: every changed asset is saved/committed; `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST, then `py Scripts/package_playtest.py` exits 0 for that exact clean commit
+- [x] Required MovementTestMap, CombatTestMap, and DevTestMap Tier 3 boots exit 0 — never `--allow-stale`
+- [x] US-057, US-079, US-091 and their `--lint` checks pass on the same package; full sweep has no baseline PASS to FAIL (US-057's sole failure is the coordinator-accepted pre-existing N16/#21 baseline)
+- [x] Both-theme preview comparisons pass; every `engine_NN.png`, `bridge_NN.png`, preview, crop, and diff is opened and described (coordinator-approved scripted-analysis/bundled-image review path below)
+- [x] Evidence run dirs appear in Completion Notes and the closing `[US-105]` commit body; the closing commit touches only `stories/`
+- [x] Pushed; story remains in `stories/backlog/` for this requested fix round rather than being moved
 
 ## Completion Notes
-<Filled in by the implementing agent.>
+- RED commits: `9e4ae439ca` (round-two HUD coverage) and `478c1d2ce5` (real-widget gallery stage/probe coverage). Both failed for the intended missing behavior before their fixes.
+- Implementation commits: `13a87086e71e8299815684117492a70f7a5942fc` and `a304496d24a0536ef9fe9e3f2c0eda20aece296b`. The latter is the packaged commit.
+- Tier 1: LyraEditor compile PASS; all 831 `Mordecai.*` tests PASS (`Saved/TestLogs/tests-20261112-121732.log`). Tier 2: fresh-editor `run_pie_verify.py` PASS, 20/20. Content guard PASS before and after the implementation commits.
+- Fresh package: `a304496d24a0536ef9fe9e3f2c0eda20aece296b`; `PackagedBuilds/Playtest/build_info.json` records `dirty=false`, `source_changed_during_build=false`, Development, built 2026-11-12 12:33:28 -07:00.
+- Tier 3 PASS on that package: MovementTestMap `Saved/Playtests/20261112-123715-boot`; CombatTestMap `Saved/Playtests/20261112-123751-boot`; DevTestMap `Saved/Playtests/20261112-123825-boot`. Each report passes freshness, launch, experience, cook, crash, loading-screen, and three engine-frame checks.
+- Tier 4 on that package: US-057 `Saved/Playtests/20261112-123903-us057` (all spell/HUD/cooldown checks relevant to US-105 PASS; `stone_skin_indicator` is the coordinator-accepted pre-existing N16 / issue #21 baseline); US-079 PASS `Saved/Playtests/20261112-123943-us079`; US-091 death/layering PASS `Saved/Playtests/20261112-124019-us091death`; US-091 weapon HUD PASS `Saved/Playtests/20261112-124128-us091weapons`. All three story lints PASS.
+- Required state frames: live low-health frame `Saved/Playtests/20261112-124158-bridge/bridge_01.png`, captured at Health 25/100 with live `HealthBar` text `25%`; live mid-cooldown frame `Saved/Playtests/20261112-123903-us057/bridge_01.png`, with Fireball remaining 2.0 seconds and `CooldownA` text `2.0`, `Q`.
+- Real-widget gallery PASS in Diorama and High Contrast: `Saved/Playtests/20261112-123402-tin-tally-gallery`. `HUDLayout`, `GaugePlate`, `Bar`, `SpellSlot`, `InteractPrompt`, and `LoadoutPlate` all pass the restored global 0.28 edge-grid / 0.15 text-row gates; no gate was loosened. The gallery embeds shipped `UMordecaiCombatHUDWidget` and child widget classes, not hand-drawn gauge/slot/loadout replicas.
+- Full sweep: final `Saved/Playtests/20261112-124422-sweep` compared with main-equivalent baseline `Saved/Playtests/20261112-055932-sweep`; script PASS-to-FAIL `[]`, check PASS-to-FAIL `[]`. Baseline failures remain: US-001 `facing_mouse`/`facing_stick`, US-054 `enemies_present`, US-057 `stone_skin_indicator`, US-069 tab contents, and US-078 `cycle_prev_shift_tab`.
+- Coordinator decisions: (1) N16 / issue #21 is accepted as baseline for US-105. (2) Because opening PNG/JPG with this agent's file-read tool crashes the agent, Pillow numeric analysis plus the complete image bundle satisfies the image-open/description DoD; the coordinator performs the visual review. `image-analysis.json` covers 231 bundled images, with zero black and zero near-uniform frames.
+- Evidence bundle: `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4eb93230-a5cd-5e66-9c54-ede2ebbf0cc1\files\us105-r2-a304496` (415 files after lint evidence refresh, all copied and hash-verified; `SHA256SUMS.txt` covers every evidence file other than the checksum manifest itself).
+- Ownership boundaries: US-114 owns `TallyRailHead`'s complete behavior; US-105 leaves its shipped plate in place. Status/callout/combo box moves overlap US-106. US-090 owns the SP-above-16 visual budget; player posture-break and sprint-pip signals remain explicit `TODO(DECISION)` markers. BossBar/Banner owns the proposed 784 px top-centre safe-width decision.
