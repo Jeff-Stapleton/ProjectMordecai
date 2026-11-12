@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from PIL import Image
+from PIL import Image, ImageStat
 
 SCRIPTS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if SCRIPTS not in sys.path:
@@ -136,6 +136,22 @@ class TestCaptureValidation(TempImageCase):
 
 
 class TestImageComparison(TempImageCase):
+    @staticmethod
+    def hatch_region_metrics(path):
+        with Image.open(path) as source:
+            region = source.convert("L").crop((28, 66, 74, 290))
+        mean_luminance = ImageStat.Stat(region).mean[0]
+        pixels = region.load()
+        scores = {}
+        for lag in range(12, 21):
+            difference = sum(
+                abs(pixels[x, y] - pixels[x - lag, y])
+                for y in range(region.height)
+                for x in range(lag, region.width)
+            )
+            scores[lag] = difference / ((region.width - lag) * region.height)
+        return mean_luminance, min(scores, key=scores.get)
+
     def test_identical_geometry_passes_and_writes_review_evidence(self):
         reference = self.image("reference.png", size=(96, 64))
         capture = self.image("capture.png", size=(96, 64))
@@ -160,6 +176,29 @@ class TestImageComparison(TempImageCase):
         result = gallery.compare_images(reference, stretched, self.tmp, "Keycap.diorama")
         self.assertFalse(result["passed"], result)
         self.assertIn("geometr", result["reason"].lower())
+
+    def test_round_five_plate_hatch_captures_are_rejected(self):
+        for theme in ("diorama", "high-contrast"):
+            with self.subTest(theme=theme):
+                reference = os.path.join(FIXTURES, f"plate-reference-{theme}.png")
+                round_five = os.path.join(FIXTURES, f"plate-round5-{theme}.png")
+                reference_luminance, _ = self.hatch_region_metrics(reference)
+                capture_luminance, capture_period = self.hatch_region_metrics(round_five)
+                self.assertGreater(
+                    abs(reference_luminance - capture_luminance),
+                    40.0,
+                    "fixture must retain the round-five dark-floor regression",
+                )
+                self.assertNotIn(
+                    capture_period,
+                    range(15, 18),
+                    "fixture must retain the round-five oversized stripe period",
+                )
+                result = gallery.compare_images(
+                    reference, round_five, self.tmp, f"Plate.{theme}"
+                )
+                self.assertFalse(result["passed"], result)
+                self.assertIn("hatch", result["reason"].lower())
 
     def test_round_two_tally_capture_is_rejected_for_text_and_edge_divergence(self):
         reference = os.path.join(FIXTURES, "tally-reference-top.png")
