@@ -14,7 +14,9 @@
 #include "Components/Image.h"
 #include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Layout/Geometry.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Magic/MordecaiSpellDataAsset.h"
 #include "Mordecai/MordecaiGameplayTags.h"
@@ -248,7 +250,9 @@ bool FMordecai_UI_HUDLayout_FinalMapBoxes::RunTest(const FString& Parameters)
 
 	float TopCenterWidth = 0.f;
 	TestTrue("HUD exposes the top-centre safe width", ReadTopCenterSafeWidth(HUD, TopCenterWidth));
-	TestEqual("normal margin leaves boss/banner width to its owning story", TopCenterWidth, 0.f);
+	const float ExpectedNormalSafeWidth = 1920.f - 2.f * (32.f + 456.f + 16.f);
+	TestEqual("normal margin derives a documented boss/banner safe width",
+		TopCenterWidth, ExpectedNormalSafeWidth);
 	TestTrue("HUD exposes the 32/96 margin contract", InvokeMargin(HUD, 96.f));
 	TestTrue("HUD exposes the top-centre safe width", ReadTopCenterSafeWidth(HUD, TopCenterWidth));
 	const float ExpectedTVSafeWidth = 1920.f - 2.f * (96.f + 456.f + 16.f);
@@ -492,6 +496,49 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 			*LiveWidget->GetClass()->GetName()),
 			Themes->OnThemeChangedNative().IsBoundToObject(LiveWidget));
 	}
+	const FMordecaiUIThemeColors HighContrast = Themes->GetActiveColors();
+	TestTrue("health resolves the High Contrast vital token",
+		Find<UProgressBar>(Health, TEXT("HealthProgressBar"))
+		&& Find<UProgressBar>(Health, TEXT("HealthProgressBar"))->GetFillColorAndOpacity().Equals(
+			HighContrast.Vital));
+	TestTrue("stamina resolves the High Contrast green tier token",
+		Find<UBorder>(Stamina, TEXT("StaminaTierPill_Fill"))
+		&& BrushTint(Find<UBorder>(Stamina, TEXT("StaminaTierPill_Fill"))->Background).Equals(
+			HighContrast.StaminaGreen));
+	TestTrue("posture resolves the High Contrast posture token",
+		Find<UProgressBar>(Posture, TEXT("PostureProgressBar"))
+		&& Find<UProgressBar>(Posture, TEXT("PostureProgressBar"))->GetFillColorAndOpacity().Equals(
+			HighContrast.Posture));
+	TestTrue("spell points resolve the High Contrast spell-points token",
+		Find<UProgressBar>(SpellPoints, TEXT("SpellPointsProgressBar"))
+		&& Find<UProgressBar>(
+			SpellPoints, TEXT("SpellPointsProgressBar"))->GetFillColorAndOpacity().Equals(
+				HighContrast.SpellPoints));
+	TestTrue("prompt resolves the High Contrast ink token",
+		Find<UTextBlock>(Prompt, TEXT("PromptText"))
+		&& Find<UTextBlock>(Prompt, TEXT("PromptText"))->GetColorAndOpacity().GetSpecifiedColor().Equals(
+			HighContrast.Ink));
+	TestTrue("loadout resolves the High Contrast text token",
+		Find<UTextBlock>(Loadout, TEXT("WeaponNameText"))
+		&& Find<UTextBlock>(
+			Loadout, TEXT("WeaponNameText"))->GetColorAndOpacity().GetSpecifiedColor().Equals(
+				HighContrast.Text));
+	UBorder* TierRim = Find<UBorder>(Stamina, TEXT("StaminaTierPill_Rim"));
+	UBorder* TierRimShade = Find<UBorder>(Stamina, TEXT("StaminaTierPill_RimShade"));
+	const UOverlaySlot* TierRimShadeSlot = TierRimShade
+		? Cast<UOverlaySlot>(TierRimShade->Slot) : nullptr;
+	TestTrue("High Contrast stamina pill reapplies the rim colour",
+		TierRim && BrushTint(TierRim->Background).Equals(HighContrast.Rim));
+	TestEqual("High Contrast stamina pill reapplies its 4px outline geometry",
+		TierRimShadeSlot ? TierRimShadeSlot->GetPadding().Left : 0.f, 4.f);
+	TestTrue("High Contrast stamina pill keeps the tier fill after primitive application",
+		Find<UBorder>(Stamina, TEXT("StaminaTierPill_Fill"))
+		&& BrushTint(Find<UBorder>(Stamina, TEXT("StaminaTierPill_Fill"))->Background).Equals(
+			HighContrast.StaminaGreen));
+	TestTrue("High Contrast stamina pill keeps its ink outline after primitive application",
+		Find<UBorder>(Stamina, TEXT("StaminaTierPill_Outline"))
+		&& BrushTint(Find<UBorder>(Stamina, TEXT("StaminaTierPill_Outline"))->Background).Equals(
+			HighContrast.Ink));
 
 	UMordecaiSpellCooldownWidget* Slot = Env.MakeWidget<UMordecaiSpellCooldownWidget>();
 	if (!TestNotNull("spell slot", Slot))
@@ -511,10 +558,44 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 	TestTrue("Fireball uses its shipped glyph texture", Glyph
 		&& Glyph->GetBrush().GetResourceObject()
 		&& Glyph->GetBrush().GetResourceObject()->GetName() == TEXT("T_UI_Glyph_fireball"));
+	TestTrue("Fireball glyph uses the damage-fire token",
+		Glyph && BrushTint(Glyph->GetBrush()).Equals(HighContrast.DamageFire));
+	const UCanvasPanelSlot* RivetRowSlot = Rivets ? Cast<UCanvasPanelSlot>(Rivets->Slot) : nullptr;
+	TestEqual("Fireball rivets are centred on the slot top edge",
+		RivetRowSlot ? static_cast<float>(RivetRowSlot->GetPosition().Y) : 0.f, -7.f);
+	TestEqual("Fireball rivet row is exactly its three-disc content width",
+		RivetRowSlot ? static_cast<float>(RivetRowSlot->GetSize().X) : 0.f, 48.f);
+	TestEqual("Fireball rivets end six pixels from the slot right edge",
+		RivetRowSlot
+			? static_cast<float>(RivetRowSlot->GetPosition().X + RivetRowSlot->GetSize().X)
+			: 0.f,
+		72.f);
+	for (int32 RivetIndex = 0; Rivets && RivetIndex < Rivets->GetChildrenCount(); ++RivetIndex)
+	{
+		const UImage* Rivet = Cast<UImage>(Rivets->GetChildAt(RivetIndex));
+		TestTrue(*FString::Printf(TEXT("cost rivet %d remains an image"), RivetIndex), Rivet != nullptr);
+		TestEqual(*FString::Printf(TEXT("cost rivet %d is a 14px disc"), RivetIndex),
+			Rivet ? Rivet->GetBrush().ImageSize : FVector2D::ZeroVector, FVector2D(14.f));
+		TestEqual(*FString::Printf(TEXT("cost rivet %d has a 2px ink ring"), RivetIndex),
+			Rivet ? Rivet->GetBrush().OutlineSettings.Width : 0.f, 2.f);
+		TestTrue(*FString::Printf(TEXT("cost rivet %d ring resolves High Contrast ink"), RivetIndex),
+			Rivet
+			&& Rivet->GetBrush().OutlineSettings.Color.GetSpecifiedColor().Equals(HighContrast.Ink));
+	}
 	const UCanvasPanelSlot* LipSlot = Lip ? Cast<UCanvasPanelSlot>(Lip->Slot) : nullptr;
 	TestEqual("cooldown shutter rim lip is 3px", static_cast<float>(LipSlot ? LipSlot->GetSize().Y : 0.0), 3.f);
+	TSharedRef<SWidget> SlotSlate = Slot->TakeWidget();
 	TestTrue("gallery can set a deterministic mid-cooldown state",
 		InvokeFloat(Slot, TEXT("SetPreviewCooldownFraction"), 0.5f));
+	SlotSlate->Tick(FGeometry(), 1.0, 1.f / 60.f);
+	TestEqual("gallery preview shutter survives a widget tick",
+		Find<UProgressBar>(Slot, TEXT("CooldownProgressBar"))
+			? Find<UProgressBar>(Slot, TEXT("CooldownProgressBar"))->GetPercent() : -1.f,
+		0.5f, 0.001f);
+	TestEqual("gallery preview seconds survive a widget tick",
+		Find<UTextBlock>(Slot, TEXT("CooldownText"))
+			? Find<UTextBlock>(Slot, TEXT("CooldownText"))->GetText().ToString() : FString(),
+		FString(TEXT("2.4")));
 	TestEqual("glyph dims to 0.4 while cooling",
 		Glyph ? Glyph->GetColorAndOpacity().A : 0.f, 0.4f, 0.001f);
 	TestEqual("keycap hangs at in-slot y=56",
@@ -533,9 +614,30 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		Find<UTextBlock>(Slot, TEXT("SlotKeyText"))
 			? Find<UTextBlock>(Slot, TEXT("SlotKeyText"))->GetFont().TypefaceFontName : NAME_None,
 		FName(TEXT("ExtraBold")));
-	LiveSlateWidgets.Add(Slot->TakeWidget());
+	LiveSlateWidgets.Add(SlotSlate);
 	TestTrue("spell slot subscribes once to the owning player's theme",
 		Themes->OnThemeChangedNative().IsBoundToObject(Slot));
+	UMordecaiSpellDataAsset* Restoration = NewObject<UMordecaiSpellDataAsset>();
+	Restoration->SpellId = TEXT("Restoration");
+	Restoration->SpellPointCost = 3;
+	TestTrue("Restoration accepts shipped spell presentation data",
+		InvokeSpellPresentation(Slot, Restoration));
+	TestTrue("Restoration glyph uses the heal token",
+		Glyph && BrushTint(Glyph->GetBrush()).Equals(HighContrast.Heal));
+	UMordecaiSpellDataAsset* Blink = NewObject<UMordecaiSpellDataAsset>();
+	Blink->SpellId = TEXT("Blink");
+	Blink->SpellPointCost = 2;
+	TestTrue("Blink accepts shipped spell presentation data",
+		InvokeSpellPresentation(Slot, Blink));
+	TestTrue("Blink glyph uses the text token",
+		Glyph && BrushTint(Glyph->GetBrush()).Equals(HighContrast.Text));
+	UMordecaiSpellDataAsset* StoneSkin = NewObject<UMordecaiSpellDataAsset>();
+	StoneSkin->SpellId = TEXT("StoneSkin");
+	StoneSkin->SpellPointCost = 4;
+	TestTrue("Stone Skin accepts shipped spell presentation data",
+		InvokeSpellPresentation(Slot, StoneSkin));
+	TestTrue("Stone Skin glyph uses the text token",
+		Glyph && BrushTint(Glyph->GetBrush()).Equals(HighContrast.Text));
 
 	UCanvasPanelSlot* PromptTagSlot = Prompt && Find<UWidget>(Prompt, TEXT("PromptTag"))
 		? Cast<UCanvasPanelSlot>(Find<UWidget>(Prompt, TEXT("PromptTag"))->Slot)
@@ -547,14 +649,48 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		&& PromptTagSlot->GetAlignment() == FVector2D(1.f, 0.5f)
 		&& PromptTagSlot->GetAutoSize());
 	UTextBlock* PromptText = Find<UTextBlock>(Prompt, TEXT("PromptText"));
+	USizeBox* PromptTextBox = Find<USizeBox>(Prompt, TEXT("PromptTextBox"));
+	TestNotNull("prompt wraps its copy in a bounded size box", PromptTextBox);
+	TestEqual("prompt copy has a 484px maximum width",
+		PromptTextBox ? PromptTextBox->GetMaxDesiredWidth() : 0.f, 484.f);
+	TestEqual("prompt copy keeps the 60px tag height",
+		PromptTextBox ? PromptTextBox->GetMinDesiredHeight() : 0.f, 60.f);
+	TestEqual("prompt restores ellipsis overflow",
+		PromptText ? PromptText->GetTextOverflowPolicy() : ETextOverflowPolicy::Clip,
+		ETextOverflowPolicy::Ellipsis);
 	UTextBlock* HealthText = Find<UTextBlock>(Health, TEXT("HealthPercentText"));
 	UTextBlock* WeaponText = Find<UTextBlock>(Loadout, TEXT("WeaponNameText"));
 	TestTrue("prompt uses F_Tally_UI", PromptText && PromptText->GetFont().FontObject
 		&& PromptText->GetFont().FontObject->GetName() == TEXT("F_Tally_UI"));
+	TestEqual("prompt uses weight 700",
+		PromptText ? PromptText->GetFont().TypefaceFontName : NAME_None,
+		FName(TEXT("Bold")));
 	TestTrue("live gauge number uses F_Tally_Mono", HealthText && HealthText->GetFont().FontObject
 		&& HealthText->GetFont().FontObject->GetName() == TEXT("F_Tally_Mono"));
 	TestTrue("loadout name uses F_Tally_UI", WeaponText && WeaponText->GetFont().FontObject
 		&& WeaponText->GetFont().FontObject->GetName() == TEXT("F_Tally_UI"));
+	for (const TPair<UUserWidget*, FName>& LabelCase : {
+		TPair<UUserWidget*, FName>(Health, TEXT("HealthLabel")),
+		TPair<UUserWidget*, FName>(Stamina, TEXT("StaminaLabel")),
+		TPair<UUserWidget*, FName>(SpellPoints, TEXT("SpellPointsLabel")) })
+	{
+		UTextBlock* Label = Find<UTextBlock>(LabelCase.Key, *LabelCase.Value.ToString());
+		TestTrue(*FString::Printf(TEXT("%s uses the num-s Mono style"), *LabelCase.Value.ToString()),
+			Label && Label->GetFont().FontObject
+			&& Label->GetFont().FontObject->GetName() == TEXT("F_Tally_Mono")
+			&& Label->GetFont().Size == 15
+			&& Label->GetFont().TypefaceFontName == TEXT("SemiBold"));
+	}
+	UTextBlock* SwapKey = Find<UTextBlock>(Loadout, TEXT("SwapKey"));
+	TestTrue("Tab keycap uses Mono 800 at 22",
+		SwapKey && SwapKey->GetFont().FontObject
+		&& SwapKey->GetFont().FontObject->GetName() == TEXT("F_Tally_Mono")
+		&& SwapKey->GetFont().TypefaceFontName == TEXT("ExtraBold")
+		&& SwapKey->GetFont().Size == 22);
+	UTextBlock* TierText = Find<UTextBlock>(Stamina, TEXT("StaminaTierText"));
+	TestEqual("tier pill uses weight 700",
+		TierText ? TierText->GetFont().TypefaceFontName : NAME_None,
+		FName(TEXT("Bold")));
 	return true;
 }
 

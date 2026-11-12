@@ -4,6 +4,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/WidgetTree.h"
 #include "CommonTextBlock.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/Overlay.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
@@ -598,6 +599,16 @@ bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString
 			TestTrue(*FString::Printf(TEXT("%s/%s embeds real %s"),
 				Expected.Component, Theme, *Expected.WidgetClass->GetName()),
 				Widget && Widget->IsA(Expected.WidgetClass));
+			if (FCString::Stricmp(Expected.Component, TEXT("InteractPrompt")) == 0)
+			{
+				const UCanvasPanelSlot* PromptSlot =
+					Widget ? Cast<UCanvasPanelSlot>(Widget->Slot) : nullptr;
+				TestEqual(*FString::Printf(
+					TEXT("%s/%s embeds the prompt at its live 720px width"),
+					Expected.Component, Theme),
+					PromptSlot ? static_cast<float>(PromptSlot->GetSize().X) : 0.f,
+					720.f);
+			}
 			if (Expected.StageName)
 			{
 				TestNotNull(*FString::Printf(
