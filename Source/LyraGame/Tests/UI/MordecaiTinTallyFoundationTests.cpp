@@ -574,15 +574,16 @@ bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString
 	{
 		const TCHAR* Component;
 		const TCHAR* WidgetName;
+		const TCHAR* StageName;
 		UClass* WidgetClass;
 	};
 	const FExpectation Expectations[] = {
-		{ TEXT("HUDLayout"), TEXT("GalleryRealCombatHUD"), UMordecaiCombatHUDWidget::StaticClass() },
-		{ TEXT("GaugePlate"), TEXT("GalleryRealGaugeHUD_0"), UMordecaiCombatHUDWidget::StaticClass() },
-		{ TEXT("Bar"), TEXT("GalleryRealHealthBar_0"), UMordecaiHealthBarWidget::StaticClass() },
-		{ TEXT("SpellSlot"), TEXT("GalleryRealSpellSlot_0"), UMordecaiSpellCooldownWidget::StaticClass() },
-		{ TEXT("InteractPrompt"), TEXT("GalleryRealInteractPrompt_0"), UMordecaiPickupPromptWidget::StaticClass() },
-		{ TEXT("LoadoutPlate"), TEXT("GalleryRealLoadout_0"), UMordecaiEquippedWeaponWidget::StaticClass() },
+		{ TEXT("HUDLayout"), TEXT("GalleryRealCombatHUD"), nullptr, UMordecaiCombatHUDWidget::StaticClass() },
+		{ TEXT("GaugePlate"), TEXT("GalleryRealGaugeHUD_0"), nullptr, UMordecaiCombatHUDWidget::StaticClass() },
+		{ TEXT("Bar"), TEXT("GalleryRealHealthBar_0"), TEXT("GalleryBarStage0"), UMordecaiHealthBarWidget::StaticClass() },
+		{ TEXT("SpellSlot"), TEXT("GalleryRealSpellSlot_0"), TEXT("GallerySpellStage0"), UMordecaiSpellCooldownWidget::StaticClass() },
+		{ TEXT("InteractPrompt"), TEXT("GalleryRealInteractPrompt_0"), nullptr, UMordecaiPickupPromptWidget::StaticClass() },
+		{ TEXT("LoadoutPlate"), TEXT("GalleryRealLoadout_0"), TEXT("GalleryLoadoutStage"), UMordecaiEquippedWeaponWidget::StaticClass() },
 	};
 	for (const TCHAR* Theme : { TEXT("diorama"), TEXT("high-contrast") })
 	{
@@ -597,6 +598,13 @@ bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString
 			TestTrue(*FString::Printf(TEXT("%s/%s embeds real %s"),
 				Expected.Component, Theme, *Expected.WidgetClass->GetName()),
 				Widget && Widget->IsA(Expected.WidgetClass));
+			if (Expected.StageName)
+			{
+				TestNotNull(*FString::Printf(
+					TEXT("%s/%s presents the shipped widget on its reference stage"),
+					Expected.Component, Theme),
+					Gallery->WidgetTree->FindWidget(Expected.StageName));
+			}
 		}
 	}
 	return true;
