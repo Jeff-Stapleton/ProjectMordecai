@@ -26,6 +26,49 @@ def _run():
                 msg += f" -- {detail}"
             print(msg)
 
+    def named_widget(owner, name):
+        if owner is None:
+            return None
+        try:
+            tree = owner.get_editor_property("widget_tree")
+            return tree.find_widget(name) if tree else None
+        except Exception:
+            return None
+
+    def canvas_box(widget):
+        if widget is None:
+            return None
+        try:
+            slot = widget.get_editor_property("slot")
+            anchors = slot.get_anchors()
+            return {
+                "anchor_min": (anchors.minimum.x, anchors.minimum.y),
+                "anchor_max": (anchors.maximum.x, anchors.maximum.y),
+                "position": (slot.get_position().x, slot.get_position().y),
+                "size": (slot.get_size().x, slot.get_size().y),
+                "alignment": (slot.get_alignment().x, slot.get_alignment().y),
+                "auto_size": slot.get_auto_size(),
+            }
+        except Exception:
+            return None
+
+    def check_box(owner, widget_name, anchor, position, size, alignment):
+        widget = named_widget(owner, widget_name)
+        box = canvas_box(widget)
+        check(f"{widget_name} exists", widget is not None)
+        check(
+            f"{widget_name} uses its final HUD map box",
+            box is not None
+            and box["anchor_min"] == anchor
+            and box["anchor_max"] == anchor
+            and box["position"] == position
+            and box["size"] == size
+            and box["alignment"] == alignment
+            and not box["auto_size"],
+            f"Got {box}",
+        )
+        return widget
+
     print("=" * 60)
     print("PIE SMOKE TEST: HUD")
     print("=" * 60)
@@ -74,15 +117,98 @@ def _run():
         is_visible = hud_widget.is_visible()
         check("CombatHUDWidget is visible", is_visible)
 
+        hud_roots = unreal.WidgetLibrary.get_all_widgets_of_class(
+            world, unreal.MordecaiCombatHUDWidget, False)
+        check("Exactly one CommonUI combat HUD root", len(hud_roots) == 1,
+              f"Found {len(hud_roots)}")
+
         # Check child widget count via BlueprintCallable accessor
         # (child properties are protected, so we use GetBoundChildCount instead)
         try:
             child_count = hud_widget.get_bound_child_count()
-            check(f"All HUD child widgets present ({child_count}/15)",
-                  child_count == 15,
-                  f"{child_count}/15 -- expected the fourteen HUD controls plus IndicatorLayer")
+            check(f"All HUD child widgets present ({child_count}/18)",
+                  child_count == 18,
+                  f"{child_count}/18 -- expected all final-map children plus IndicatorLayer")
         except Exception as e:
             check("GetBoundChildCount accessible", False, str(e))
+
+        gauge = check_box(
+            hud_widget, "GaugePlate", (0.0, 0.0), (32.0, 32.0),
+            (456.0, 152.0), (0.0, 0.0))
+        for name, position in (
+            ("SpellCooldownA", (32.0, 216.0)),
+            ("SpellCooldownB", (120.0, 216.0)),
+            ("SpellCooldownC", (208.0, 216.0)),
+            ("SpellCooldownD", (296.0, 216.0)),
+        ):
+            check_box(
+                hud_widget, name, (0.0, 0.0), position,
+                (78.0, 78.0), (0.0, 0.0))
+        check_box(
+            hud_widget, "StatusEffectBar", (0.0, 0.0), (32.0, 318.0),
+            (456.0, 112.0), (0.0, 0.0))
+        rail = check_box(
+            hud_widget, "TallyRailHead", (1.0, 0.0), (-32.0, 32.0),
+            (320.0, 56.0), (1.0, 0.0))
+        check_box(
+            hud_widget, "CombatFeedback", (0.5, 0.5), (0.0, 128.0),
+            (520.0, 52.0), (0.5, 0.0))
+        check_box(
+            hud_widget, "ComboCounter", (0.5, 0.5), (0.0, 184.0),
+            (220.0, 36.0), (0.5, 0.0))
+        prompt_widget = check_box(
+            hud_widget, "PickupPrompt", (0.5, 1.0), (90.0, -36.0),
+            (720.0, 60.0), (0.5, 1.0))
+        check_box(
+            hud_widget, "EquippedWeaponWidget", (1.0, 1.0), (-32.0, -32.0),
+            (340.0, 84.0), (1.0, 1.0))
+
+        low_frame = named_widget(hud_widget, "LowHealthFrame")
+        check("LowHealthFrame exists", low_frame is not None)
+        if low_frame:
+            check("LowHealthFrame is HitTestInvisible or hidden",
+                  low_frame.get_visibility() in (
+                      unreal.SlateVisibility.HIT_TEST_INVISIBLE,
+                      unreal.SlateVisibility.HIDDEN,
+                      unreal.SlateVisibility.COLLAPSED,
+                  ))
+
+        for owner, name in (
+            (hud_widget, "HealthBar"),
+            (hud_widget, "StaminaBar"),
+            (hud_widget, "PostureBar"),
+            (hud_widget, "SpellPointsBar"),
+            (hud_widget, "KillCounter"),
+            (prompt_widget, "PromptText"),
+            (prompt_widget, "InventoryHintText"),
+        ):
+            check(f"{name} binding/fallback exists",
+                  named_widget(owner, name) is not None,
+                  f"Missing under {owner.get_name() if owner else None}")
+
+        for class_name, names in (
+            ("MordecaiHealthBarWidget",
+             ("HealthProgressBar", "HealthPercentText", "HealthTrailBar", "HealthLeadBar")),
+            ("MordecaiStaminaBarWidget",
+             ("StaminaProgressBar", "StaminaTierText", "StaminaDebtBar")),
+            ("MordecaiSpellPointsBarWidget",
+             ("SpellPointsProgressBar", "SpellPointsText", "SpellPointTokens")),
+        ):
+            widget_class = getattr(unreal, class_name)
+            widgets = unreal.WidgetLibrary.get_all_widgets_of_class(world, widget_class, False)
+            check(f"One {class_name}", len(widgets) == 1, f"Found {len(widgets)}")
+            if len(widgets) == 1:
+                for name in names:
+                    check(f"{class_name}.{name} binding/fallback exists",
+                          named_widget(widgets[0], name) is not None)
+
+        prompt_text = named_widget(prompt_widget, "PromptText")
+        inventory_hint = named_widget(prompt_widget, "InventoryHintText")
+        check("Inventory hint keeps shipped string",
+              inventory_hint is not None
+              and str(inventory_hint.get_text()) == "[I] Inventory")
+        check("Inventory hint stays visible during play",
+              inventory_hint is not None and inventory_hint.is_visible())
 
         weapon_widget = None
         try:

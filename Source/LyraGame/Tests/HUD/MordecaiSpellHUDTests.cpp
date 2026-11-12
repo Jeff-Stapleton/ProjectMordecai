@@ -119,7 +119,7 @@ bool FMordecai_UI_StatusEffectBar_GetTintForStatus::RunTest(const FString& Param
 
 // ---------------------------------------------------------------------------
 // 7. Mordecai.UI.SpellCooldown.CalcCooldownPercent (AC-055.8)
-// Elapsed/Total -> fraction
+// Tin Tally shutter percent is remaining/total (1 = closed, 0 = ready)
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_SpellCooldown_CalcCooldownPercent,
 	"Mordecai.UI.SpellCooldown.CalcCooldownPercent",
@@ -129,12 +129,12 @@ bool FMordecai_UI_SpellCooldown_CalcCooldownPercent::RunTest(const FString& Para
 {
 	// 2.5s elapsed of 5s total = 0.5
 	TestEqual("2.5/5.0 = 0.5", UMordecaiSpellCooldownWidget::CalcCooldownPercent(2.5f, 5.0f), 0.5f);
-	// 0s elapsed = 0.0 (just started cooldown)
-	TestEqual("0/5.0 = 0.0", UMordecaiSpellCooldownWidget::CalcCooldownPercent(0.f, 5.0f), 0.0f);
-	// 5s elapsed = 1.0 (cooldown finished)
-	TestEqual("5.0/5.0 = 1.0", UMordecaiSpellCooldownWidget::CalcCooldownPercent(5.0f, 5.0f), 1.0f);
+	// 0s elapsed = 1.0 (shutter fully closed)
+	TestEqual("0/5.0 = 1.0", UMordecaiSpellCooldownWidget::CalcCooldownPercent(0.f, 5.0f), 1.0f);
+	// 5s elapsed = 0.0 (cooldown finished, shutter open)
+	TestEqual("5.0/5.0 = 0.0", UMordecaiSpellCooldownWidget::CalcCooldownPercent(5.0f, 5.0f), 0.0f);
 	// Over-elapsed clamped
-	TestEqual("6.0/5.0 = 1.0 (clamped)", UMordecaiSpellCooldownWidget::CalcCooldownPercent(6.0f, 5.0f), 1.0f);
+	TestEqual("6.0/5.0 = 0.0 (clamped)", UMordecaiSpellCooldownWidget::CalcCooldownPercent(6.0f, 5.0f), 0.0f);
 	return true;
 }
 
@@ -148,7 +148,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_SpellCooldown_CalcCooldownPercentZ
 
 bool FMordecai_UI_SpellCooldown_CalcCooldownPercentZeroDuration::RunTest(const FString& Parameters)
 {
-	TestEqual("3.0/0.0 = 1.0 (zero duration = ready)", UMordecaiSpellCooldownWidget::CalcCooldownPercent(3.0f, 0.0f), 1.0f);
+	TestEqual("3.0/0.0 = 0.0 (zero duration = open shutter)", UMordecaiSpellCooldownWidget::CalcCooldownPercent(3.0f, 0.0f), 0.0f);
 	return true;
 }
 

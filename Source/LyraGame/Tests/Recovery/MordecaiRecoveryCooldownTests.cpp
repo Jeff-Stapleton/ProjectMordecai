@@ -8,6 +8,8 @@
 
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "GameplayEffect.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
@@ -312,6 +314,12 @@ bool FMordecai_Recovery_Cooldown_HUDHasFourCooldownWidgets::RunTest(const FStrin
 		TEXT("SpellCooldownD"),
 	};
 	const TCHAR* ExpectedLabels[] = { TEXT("Q"), TEXT("E"), TEXT("R"), TEXT("1") };
+	const FVector2D ExpectedPositions[] = {
+		FVector2D(32.f, 216.f),
+		FVector2D(120.f, 216.f),
+		FVector2D(208.f, 216.f),
+		FVector2D(296.f, 216.f),
+	};
 	for (int32 SlotIndex = 0; SlotIndex < UE_ARRAY_COUNT(PropertyNames); ++SlotIndex)
 	{
 		UMordecaiSpellCooldownWidget* Widget = CooldownWidget(HUD, PropertyNames[SlotIndex]);
@@ -334,7 +342,37 @@ bool FMordecai_Recovery_Cooldown_HUDHasFourCooldownWidgets::RunTest(const FStrin
 				SlotKeyText->GetText().ToString(),
 				FString(ExpectedLabels[SlotIndex]));
 		}
+
+		const UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(Widget->Slot);
+		if (TestNotNull(
+			FString::Printf(TEXT("slot %d root-canvas slot"), SlotIndex),
+			CanvasSlot))
+		{
+			TestEqual(FString::Printf(TEXT("slot %d top-left anchor"), SlotIndex),
+				CanvasSlot->GetAnchors().Minimum, FVector2D::ZeroVector);
+			TestEqual(FString::Printf(TEXT("slot %d exact map position"), SlotIndex),
+				CanvasSlot->GetPosition(), ExpectedPositions[SlotIndex]);
+			TestEqual(FString::Printf(TEXT("slot %d is 78x78"), SlotIndex),
+				CanvasSlot->GetSize(), FVector2D(78.f));
+			TestFalse(FString::Printf(TEXT("slot %d is fixed-size"), SlotIndex),
+				CanvasSlot->GetAutoSize());
+		}
+
+		const UProgressBar* Shutter = Widget->WidgetTree
+			? Cast<UProgressBar>(Widget->WidgetTree->FindWidget(TEXT("CooldownProgressBar")))
+			: nullptr;
+		if (TestNotNull(
+			FString::Printf(TEXT("slot %d shutter progress bar"), SlotIndex),
+			Shutter))
+		{
+			TestEqual(FString::Printf(TEXT("slot %d shutter rolls top to bottom"), SlotIndex),
+				Shutter->GetBarFillType(), EProgressBarFillType::TopToBottom);
+		}
 	}
+	TestEqual("shutter is fully closed when cooldown starts",
+		UMordecaiSpellCooldownWidget::CalcCooldownPercent(0.f, 5.f), 1.f);
+	TestEqual("shutter is fully open when cooldown ends",
+		UMordecaiSpellCooldownWidget::CalcCooldownPercent(5.f, 5.f), 0.f);
 	return true;
 }
 
