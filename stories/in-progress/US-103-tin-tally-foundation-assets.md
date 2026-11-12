@@ -157,5 +157,62 @@ The story creates and configures font, material, texture, style, DataAsset, and 
     zero script-level and zero individual-check PASS-to-FAIL transitions.
 - Evidence bundle (292 files, SHA-256 manifest verified):
   `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4d6a1be8-b372-5492-abbe-334810677171\files\issue-102-us103-5f5bdaa`.
+- Coordinator-correction delivery commits:
+  - Visual-comparison RED and retained rejected fixture: `6515e36`.
+  - Design-size cooked gallery fixtures and foreground/bbox comparison:
+    `3e8ff5a`.
+  - Rowdies/Atkinson composite-font wiring and style token weights:
+    `025f20a`.
+  - Text-tint diagnostic correction: `4332e34`.
+  - Stable `UTextBlock` use of cooked `TS_Tally_*` CDO font and line-height:
+    `655a2e3`.
+- Coordinator-correction verification at `655a2e335c`:
+  - Compile: PASS.
+  - Targeted `Mordecai.UI`: 115 passed, 0 failed.
+  - Full Tier 1: 821 passed, 0 failed.
+  - Full Python tooling: 641 passed, 0 failed, including 13 gallery
+    comparator tests and rejection of the retained stretched Keycap capture.
+  - Tier 2: 20 smoke scripts passed.
+  - `py -I Design/TinTally/tools/render.py check`: `problems: 0`.
+  - Cursor config sync check and content guard: PASS.
+- Corrected exact clean Development package:
+  - Package commit `655a2e335c2f7a3aacec6d21d40f9748be673219`;
+    `dirty=false`, `source_changed_during_build=false`, package log
+    `Saved/Playtests/package-20261111-164554.log`.
+  - MovementTestMap boot PASS:
+    `Saved/Playtests/20261111-165639-boot`; all 10 functional checks passed.
+    Pillow verified every frame as readable, correctly sized, varied, and
+    non-black; images were not opened through the file-read tool per
+    coordinator instruction.
+  - Corrected gallery PASS:
+    `Saved/Playtests/20261111-165712-tin-tally-gallery`. The gallery writes
+    same-size 960x720 reference crops, 1920x720 side-by-sides, and 960x720
+    absolute diffs under `compare/`; it never resizes either input.
+  - Foreground IoU / normalized maximum bbox-edge delta:
+    Plate Diorama `0.2897 / 0.0111`, Plate High Contrast
+    `0.2536 / 0.0250`; Tag Diorama `0.5655 / 0.0194`, Tag High Contrast
+    `0.5036 / 0.0194`; Keycap Diorama `0.1952 / 0.0031`, Keycap High
+    Contrast `0.1739 / 0.0056`; Tally Diorama `0.1296 / 0.0031`, Tally
+    High Contrast `0.0987 / 0.0056`; Glyphs Diorama `0.1556 / 0.0194`,
+    Glyphs High Contrast `0.4597 / 0.0194`. The documented gates are IoU
+    `>= 0.08` and bbox delta `<= 0.20`.
+  - Pillow region inspection
+    (`scripted-visual-inspection.json`) found foreground pixels in every
+    expected text/shape region in both themes: Plate anatomy, labels, inset
+    well, and pattern; Tag anatomy, labels, gauges, and exhausted variant;
+    Keycap keyboard/wide/mouse/gamepad/shoulder/trigger/stick/D-pad rows;
+    Tally use titles, frames/numbers, enlarged anatomy, and rank rows; and
+    Glyph heading/cells. The cooked fixture source sets deterministic
+    Rowdies/Atkinson text in all sheets.
+  - Dynamic `FKey`/device mapping remains owned by US-104. US-103's
+    Development-only fixture statically composes the required shapes from
+    cooked primitives and styles, so no preview element is omitted.
+- Corrected packaged regression:
+  - Baseline `559e28f95f`: 15 scripts, 10 PASS / 5 FAIL.
+  - Final `655a2e335c`: `Saved/Playtests/20261111-165915-sweep`, 15 scripts,
+    10 PASS / 5 FAIL.
+  - Both retain the same failures (`us001`, `us054_arena`, `us057`, `us069`,
+    `us078`); zero script-level and zero individual-check PASS-to-FAIL
+    transitions.
 - Story intentionally remains in progress with ACs unchecked for coordinator
   image review, closure, and merge.
