@@ -15,7 +15,9 @@
 #include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
+#include "Components/SizeBoxSlot.h"
 #include "Components/TextBlock.h"
+#include "Internationalization/Text.h"
 #include "Layout/Geometry.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Magic/MordecaiSpellDataAsset.h"
@@ -469,6 +471,23 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		BrushTint(PlateFill->Background).Equals(FMordecaiUIThemeColors::MakeDiorama().Plate));
 	TestEqual("Diorama outline geometry is 3px",
 		DioramaInset ? DioramaInset->GetPadding().Left : 0.f, 3.f);
+	UMordecaiHealthBarWidget* Health = Env.MakeWidget<UMordecaiHealthBarWidget>();
+	UMordecaiStaminaBarWidget* Stamina = Env.MakeWidget<UMordecaiStaminaBarWidget>();
+	UMordecaiPostureBarWidget* Posture = Env.MakeWidget<UMordecaiPostureBarWidget>();
+	UMordecaiSpellPointsBarWidget* SpellPoints = Env.MakeWidget<UMordecaiSpellPointsBarWidget>();
+	UMordecaiPickupPromptWidget* Prompt = Env.MakeWidget<UMordecaiPickupPromptWidget>();
+	UMordecaiEquippedWeaponWidget* Loadout = Env.MakeWidget<UMordecaiEquippedWeaponWidget>();
+	UMordecaiSpellCooldownWidget* Slot = Env.MakeWidget<UMordecaiSpellCooldownWidget>();
+	if (!TestNotNull("spell slot", Slot))
+	{
+		return true;
+	}
+	TArray<TSharedPtr<SWidget>> LiveSlateWidgets = {
+		Health->TakeWidget(), Stamina->TakeWidget(), Posture->TakeWidget(),
+		SpellPoints->TakeWidget(), Prompt->TakeWidget(), Loadout->TakeWidget(),
+		Slot->TakeWidget()
+	};
+	TSharedRef<SWidget> SlotSlate = LiveSlateWidgets.Last().ToSharedRef();
 	Themes->SetActiveTheme(EMordecaiUITheme::HighContrast);
 	const UOverlaySlot* HighContrastInset = Cast<UOverlaySlot>(PlateRimShade->Slot);
 	TestTrue("live GaugePlate switches to High Contrast black",
@@ -477,20 +496,11 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		HighContrastInset ? HighContrastInset->GetPadding().Left : 0.f, 4.f);
 	TestTrue("CombatHUD subscribes exactly once to theme changes",
 		Themes->OnThemeChangedNative().IsBoundToObject(HUD));
-	UMordecaiHealthBarWidget* Health = Env.MakeWidget<UMordecaiHealthBarWidget>();
-	UMordecaiStaminaBarWidget* Stamina = Env.MakeWidget<UMordecaiStaminaBarWidget>();
-	UMordecaiPostureBarWidget* Posture = Env.MakeWidget<UMordecaiPostureBarWidget>();
-	UMordecaiSpellPointsBarWidget* SpellPoints = Env.MakeWidget<UMordecaiSpellPointsBarWidget>();
-	UMordecaiPickupPromptWidget* Prompt = Env.MakeWidget<UMordecaiPickupPromptWidget>();
-	UMordecaiEquippedWeaponWidget* Loadout = Env.MakeWidget<UMordecaiEquippedWeaponWidget>();
-	TArray<TSharedPtr<SWidget>> LiveSlateWidgets = {
-		Health->TakeWidget(), Stamina->TakeWidget(), Posture->TakeWidget(),
-		SpellPoints->TakeWidget(), Prompt->TakeWidget(), Loadout->TakeWidget()
-	};
 	for (UUserWidget* LiveWidget : {
 		static_cast<UUserWidget*>(Health), static_cast<UUserWidget*>(Stamina),
 		static_cast<UUserWidget*>(Posture), static_cast<UUserWidget*>(SpellPoints),
-		static_cast<UUserWidget*>(Prompt), static_cast<UUserWidget*>(Loadout) })
+		static_cast<UUserWidget*>(Prompt), static_cast<UUserWidget*>(Loadout),
+		static_cast<UUserWidget*>(Slot) })
 	{
 		TestTrue(*FString::Printf(TEXT("%s subscribes once to the owning player's theme"),
 			*LiveWidget->GetClass()->GetName()),
@@ -539,13 +549,15 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		Find<UBorder>(Stamina, TEXT("StaminaTierPill_Outline"))
 		&& BrushTint(Find<UBorder>(Stamina, TEXT("StaminaTierPill_Outline"))->Background).Equals(
 			HighContrast.Ink));
+	UBorder* LockChipRim = Find<UBorder>(Slot, TEXT("LockChip_Rim"));
+	UBorder* LockChipRimShade = Find<UBorder>(Slot, TEXT("LockChip_RimShade"));
+	const UOverlaySlot* LockChipRimShadeSlot = LockChipRimShade
+		? Cast<UOverlaySlot>(LockChipRimShade->Slot) : nullptr;
+	TestTrue("High Contrast lock chip resolves the live rim colour",
+		LockChipRim && BrushTint(LockChipRim->Background).Equals(HighContrast.Rim));
+	TestEqual("High Contrast lock chip resolves the live 4px HUD outline",
+		LockChipRimShadeSlot ? LockChipRimShadeSlot->GetPadding().Left : 0.f, 4.f);
 
-	UMordecaiSpellCooldownWidget* Slot = Env.MakeWidget<UMordecaiSpellCooldownWidget>();
-	if (!TestNotNull("spell slot", Slot))
-	{
-		return true;
-	}
-	TSharedRef<SWidget> SlotSlate = Slot->TakeWidget();
 	UMordecaiSpellDataAsset* Fireball = NewObject<UMordecaiSpellDataAsset>();
 	Fireball->SpellId = TEXT("Fireball");
 	Fireball->SpellPointCost = 3;
@@ -587,30 +599,39 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 	TestEqual("cooldown shutter rim lip is 3px", static_cast<float>(LipSlot ? LipSlot->GetSize().Y : 0.0), 3.f);
 	TestTrue("gallery can set a deterministic mid-cooldown state",
 		InvokeFloat(Slot, TEXT("SetPreviewCooldownFraction"), 0.5f));
+	UTextBlock* CooldownSeconds = Find<UTextBlock>(Slot, TEXT("CooldownText"));
+	const void* PreviewTextDataBeforeTick = CooldownSeconds
+		? FTextInspector::GetSharedDataId(CooldownSeconds->GetText())
+		: nullptr;
 	SlotSlate->Tick(FGeometry(), 1.0, 1.f / 60.f);
 	TestEqual("gallery preview shutter survives a widget tick",
 		Find<UProgressBar>(Slot, TEXT("CooldownProgressBar"))
 			? Find<UProgressBar>(Slot, TEXT("CooldownProgressBar"))->GetPercent() : -1.f,
 		0.5f, 0.001f);
 	TestEqual("gallery preview seconds survive a widget tick",
-		Find<UTextBlock>(Slot, TEXT("CooldownText"))
-			? Find<UTextBlock>(Slot, TEXT("CooldownText"))->GetText().ToString() : FString(),
+		CooldownSeconds ? CooldownSeconds->GetText().ToString() : FString(),
 		FString(TEXT("2.4")));
-	const UCanvasPanelSlot* CooldownTextSlot = Find<UTextBlock>(Slot, TEXT("CooldownText"))
-		? Cast<UCanvasPanelSlot>(Find<UTextBlock>(Slot, TEXT("CooldownText"))->Slot)
+	TestTrue("unchanged gallery preview seconds retain their cached FText data",
+		CooldownSeconds
+		&& PreviewTextDataBeforeTick == FTextInspector::GetSharedDataId(CooldownSeconds->GetText()));
+	UBorder* CooldownTextBacking = Find<UBorder>(Slot, TEXT("CooldownTextBacking"));
+	const UCanvasPanelSlot* CooldownTextSlot = CooldownSeconds
+		? Cast<UCanvasPanelSlot>(CooldownSeconds->Slot)
 		: nullptr;
-	const UCanvasPanelSlot* LockChipSlot = Find<UWidget>(Slot, TEXT("LockChip"))
-		? Cast<UCanvasPanelSlot>(Find<UWidget>(Slot, TEXT("LockChip"))->Slot)
+	const UCanvasPanelSlot* CooldownBackingSlot = CooldownTextBacking
+		? Cast<UCanvasPanelSlot>(CooldownTextBacking->Slot)
 		: nullptr;
-	const UCanvasPanelSlot* MuzzleBadgeSlot = Find<UWidget>(Slot, TEXT("MuzzleBadge"))
-		? Cast<UCanvasPanelSlot>(Find<UWidget>(Slot, TEXT("MuzzleBadge"))->Slot)
-		: nullptr;
-	TestTrue("cooldown seconds render on the slot's top visual layer",
+	TestTrue("cooldown seconds have a solid ink backing above the shutter edge",
+		CooldownTextBacking
+		&& CooldownTextBacking->GetVisibility() == ESlateVisibility::HitTestInvisible
+		&& CooldownBackingSlot
+		&& LipSlot
+		&& CooldownBackingSlot->GetZOrder() > LipSlot->GetZOrder()
+		&& BrushTint(CooldownTextBacking->Background).Equals(HighContrast.Ink));
+	TestTrue("cooldown seconds render above their ink backing",
 		CooldownTextSlot
-		&& LockChipSlot
-		&& MuzzleBadgeSlot
-		&& CooldownTextSlot->GetZOrder() > LockChipSlot->GetZOrder()
-		&& CooldownTextSlot->GetZOrder() > MuzzleBadgeSlot->GetZOrder());
+		&& CooldownBackingSlot
+		&& CooldownTextSlot->GetZOrder() > CooldownBackingSlot->GetZOrder());
 	TestEqual("glyph dims to 0.4 while cooling",
 		Glyph ? Glyph->GetColorAndOpacity().A : 0.f, 0.4f, 0.001f);
 	TestEqual("keycap hangs at in-slot y=56",
@@ -629,7 +650,6 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		Find<UTextBlock>(Slot, TEXT("SlotKeyText"))
 			? Find<UTextBlock>(Slot, TEXT("SlotKeyText"))->GetFont().TypefaceFontName : NAME_None,
 		FName(TEXT("ExtraBold")));
-	LiveSlateWidgets.Add(SlotSlate);
 	TestTrue("spell slot subscribes once to the owning player's theme",
 		Themes->OnThemeChangedNative().IsBoundToObject(Slot));
 	UMordecaiSpellDataAsset* Restoration = NewObject<UMordecaiSpellDataAsset>();
@@ -670,6 +690,11 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		PromptTextBox ? PromptTextBox->GetMaxDesiredWidth() : 0.f, 484.f);
 	TestEqual("prompt copy keeps the 60px tag height",
 		PromptTextBox ? PromptTextBox->GetMinDesiredHeight() : 0.f, 60.f);
+	const USizeBoxSlot* PromptTextSlot = PromptText
+		? Cast<USizeBoxSlot>(PromptText->Slot) : nullptr;
+	TestEqual("prompt copy is vertically centred in its 60px size box",
+		PromptTextSlot ? PromptTextSlot->GetVerticalAlignment() : VAlign_Fill,
+		VAlign_Center);
 	TestEqual("prompt restores ellipsis overflow",
 		PromptText ? PromptText->GetTextOverflowPolicy() : ETextOverflowPolicy::Clip,
 		ETextOverflowPolicy::Ellipsis);
@@ -697,11 +722,11 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 			&& Label->GetFont().TypefaceFontName == TEXT("SemiBold"));
 	}
 	UTextBlock* SwapKey = Find<UTextBlock>(Loadout, TEXT("SwapKey"));
-	TestTrue("Tab keycap uses Mono 800 at 22",
+	TestTrue("Tab keycap uses Mono 800 at 16.5pt (22px)",
 		SwapKey && SwapKey->GetFont().FontObject
 		&& SwapKey->GetFont().FontObject->GetName() == TEXT("F_Tally_Mono")
 		&& SwapKey->GetFont().TypefaceFontName == TEXT("ExtraBold")
-		&& SwapKey->GetFont().Size == 22);
+		&& FMath::IsNearlyEqual(SwapKey->GetFont().Size, 16.5f));
 	Loadout->ForceLayoutPrepass();
 	const UCanvasPanelSlot* SwapKeycapSlot = Find<UWidget>(Loadout, TEXT("SwapKeycap"))
 		? Cast<UCanvasPanelSlot>(Find<UWidget>(Loadout, TEXT("SwapKeycap"))->Slot)
