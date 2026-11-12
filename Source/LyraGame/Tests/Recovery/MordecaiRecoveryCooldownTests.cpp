@@ -8,11 +8,14 @@
 
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/TextBlock.h"
 #include "GameplayEffect.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Magic/MordecaiGA_Blink.h"
 #include "Mordecai/Magic/MordecaiGA_Fireball.h"
+#include "Mordecai/Magic/MordecaiGA_Restoration.h"
 #include "Mordecai/Magic/MordecaiGA_SpellBase.h"
+#include "Mordecai/Magic/MordecaiGA_StoneSkin.h"
 #include "Mordecai/Magic/MordecaiSpellDataAsset.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiPlayerController.h"
@@ -282,6 +285,59 @@ bool FMordecai_Recovery_Cooldown_OverlappingSpellCooldownsAreIndependent::RunTes
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Cooldown_HUDHasFourCooldownWidgets,
+	"Mordecai.Recovery.Cooldown.HUDHasFourCooldownWidgets",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Cooldown_HUDHasFourCooldownWidgets::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryCooldownTest;
+	FRecoveryControlledTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownWithController(); };
+	if (!TestTrue("controlled player environment", Env.SetupWithController()))
+	{
+		return true;
+	}
+
+	UMordecaiCombatHUDWidget* HUD = Env.MakeWidget<UMordecaiCombatHUDWidget>();
+	if (!TestNotNull("default combat HUD", HUD))
+	{
+		return true;
+	}
+
+	const TCHAR* PropertyNames[] = {
+		TEXT("SpellCooldownA"),
+		TEXT("SpellCooldownB"),
+		TEXT("SpellCooldownC"),
+		TEXT("SpellCooldownD"),
+	};
+	const TCHAR* ExpectedLabels[] = { TEXT("Q"), TEXT("E"), TEXT("R"), TEXT("1") };
+	for (int32 SlotIndex = 0; SlotIndex < UE_ARRAY_COUNT(PropertyNames); ++SlotIndex)
+	{
+		UMordecaiSpellCooldownWidget* Widget = CooldownWidget(HUD, PropertyNames[SlotIndex]);
+		if (!TestNotNull(
+			FString::Printf(TEXT("slot %d widget %s"), SlotIndex, PropertyNames[SlotIndex]),
+			Widget))
+		{
+			continue;
+		}
+
+		const UTextBlock* SlotKeyText = Widget->WidgetTree
+			? Cast<UTextBlock>(Widget->WidgetTree->FindWidget(TEXT("SlotKeyText")))
+			: nullptr;
+		if (TestNotNull(
+			FString::Printf(TEXT("slot %d key label widget"), SlotIndex),
+			SlotKeyText))
+		{
+			TestEqual(
+				FString::Printf(TEXT("slot %d key label"), SlotIndex),
+				SlotKeyText->GetText().ToString(),
+				FString(ExpectedLabels[SlotIndex]));
+		}
+	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_Cooldown_WidgetsBoundToSlotTags,
 	"Mordecai.Recovery.Cooldown.WidgetsBoundToSlotTags",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -299,8 +355,12 @@ bool FMordecai_Recovery_Cooldown_WidgetsBoundToSlotTags::RunTest(const FString& 
 	UAbilitySystemComponent* ASC = Env.GetPlayerASC();
 	const FGameplayTag RequestedFireballCooldown = Tag(TEXT("Mordecai.Cooldown.Spell.Fireball"));
 	const FGameplayTag RequestedBlinkCooldown = Tag(TEXT("Mordecai.Cooldown.Spell.Blink"));
+	const FGameplayTag StoneSkinCooldown = Tag(TEXT("Mordecai.Cooldown.Spell.StoneSkin"));
+	const FGameplayTag RestorationCooldown = Tag(TEXT("Mordecai.Cooldown.Spell.Restoration"));
 	TestTrue("Fireball cooldown tag is registered", RequestedFireballCooldown.IsValid());
 	TestTrue("Blink cooldown tag is registered", RequestedBlinkCooldown.IsValid());
+	TestTrue("Stone Skin cooldown tag is registered", StoneSkinCooldown.IsValid());
+	TestTrue("Restoration cooldown tag is registered", RestorationCooldown.IsValid());
 	// Existing ability tags isolate HUD/delegate RED behavior until the cooldown tags are added.
 	const FGameplayTag FireballCooldown = RequestedFireballCooldown.IsValid()
 		? RequestedFireballCooldown : MordecaiGameplayTags::Ability_Spell_Fireball;
@@ -313,11 +373,17 @@ bool FMordecai_Recovery_Cooldown_WidgetsBoundToSlotTags::RunTest(const FString& 
 	GrantController->DefaultSpellAbilities.Reset();
 	GrantController->DefaultSpellAbilities.Add(UMordecaiGA_Fireball::StaticClass());
 	GrantController->DefaultSpellAbilities.Add(UMordecaiGA_Blink::StaticClass());
+	GrantController->DefaultSpellAbilities.Add(UMordecaiGA_StoneSkin::StaticClass());
+	GrantController->DefaultSpellAbilities.Add(UMordecaiGA_Restoration::StaticClass());
 	GrantController->SpellDataAssets.Reset();
 	GrantController->SpellDataAssets.Add(MakeSpellData(
 		GrantController, TEXT("Fireball"), FireballCooldown, 2.f));
 	GrantController->SpellDataAssets.Add(MakeSpellData(
 		GrantController, TEXT("Blink"), BlinkCooldown, 4.f));
+	GrantController->SpellDataAssets.Add(MakeSpellData(
+		GrantController, TEXT("StoneSkin"), StoneSkinCooldown, 15.f));
+	GrantController->SpellDataAssets.Add(MakeSpellData(
+		GrantController, TEXT("Restoration"), RestorationCooldown, 10.f));
 
 	UMordecaiCombatHUDWidget* HUD = Env.MakeWidget<UMordecaiCombatHUDWidget>();
 	SetHUD(GrantController, HUD);
@@ -326,13 +392,20 @@ bool FMordecai_Recovery_Cooldown_WidgetsBoundToSlotTags::RunTest(const FString& 
 
 	UMordecaiSpellCooldownWidget* WidgetA = CooldownWidget(HUD, TEXT("SpellCooldownA"));
 	UMordecaiSpellCooldownWidget* WidgetB = CooldownWidget(HUD, TEXT("SpellCooldownB"));
-	if (!TestNotNull("slot A cooldown widget", WidgetA)
-		|| !TestNotNull("slot B cooldown widget", WidgetB))
+	UMordecaiSpellCooldownWidget* WidgetC = CooldownWidget(HUD, TEXT("SpellCooldownC"));
+	UMordecaiSpellCooldownWidget* WidgetD = CooldownWidget(HUD, TEXT("SpellCooldownD"));
+	const bool bHasA = TestNotNull("slot A cooldown widget", WidgetA);
+	const bool bHasB = TestNotNull("slot B cooldown widget", WidgetB);
+	const bool bHasC = TestNotNull("slot C cooldown widget", WidgetC);
+	const bool bHasD = TestNotNull("slot D cooldown widget", WidgetD);
+	if (!bHasA || !bHasB || !bHasC || !bHasD)
 	{
 		return true;
 	}
 	TestEqual("slot A is bound to slot 0 Fireball", BoundTag(WidgetA), FireballCooldown);
 	TestEqual("slot B is bound to slot 1 Blink", BoundTag(WidgetB), BlinkCooldown);
+	TestEqual("slot C is bound to slot 2 Stone Skin", BoundTag(WidgetC), StoneSkinCooldown);
+	TestEqual("slot D is bound to slot 3 Restoration", BoundTag(WidgetD), RestorationCooldown);
 
 	// Rebinding the same live widget must replace its delegate, not register another callback.
 	WidgetA->BindToCooldownTag(ASC, FireballCooldown, 2.f);
@@ -356,6 +429,8 @@ bool FMordecai_Recovery_Cooldown_WidgetsBoundToSlotTags::RunTest(const FString& 
 	GrantController->GrantCombatAbilities();
 	TestEqual("repeat grant rebinds slot A to Fireball", BoundTag(WidgetA), FireballCooldown);
 	TestEqual("repeat grant keeps slot B bound to Blink", BoundTag(WidgetB), BlinkCooldown);
+	TestEqual("repeat grant keeps slot C bound to Stone Skin", BoundTag(WidgetC), StoneSkinCooldown);
+	TestEqual("repeat grant keeps slot D bound to Restoration", BoundTag(WidgetD), RestorationCooldown);
 	TestEqual("repeat grant does not add duplicate ability specs",
 		ASC->GetActivatableAbilities().Num(), SpecCountAfterInitialGrant);
 	return true;
