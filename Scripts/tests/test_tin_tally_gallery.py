@@ -127,6 +127,20 @@ class TestCaptureValidation(TempImageCase):
         )
         self.assertTrue(any("plate" in reason.lower() for reason in reasons), reasons)
 
+    def test_hud_layout_is_not_exempt_from_resolved_theme_plate_validation(self):
+        capture = self.image("wrong-hud-theme-pixels.png", color=(255, 0, 255, 255))
+        metadata = self.metadata()
+        metadata["component"] = "HUDLayout"
+        metadata["crop_rect"] = [0, 0, 1920, 1080]
+        reasons = gallery.validate_capture(
+            capture,
+            metadata,
+            self.build(),
+            "diorama",
+            expected_component="HUDLayout",
+        )
+        self.assertTrue(any("plate" in reason.lower() for reason in reasons), reasons)
+
     def test_rejects_missing_game_build_stamp(self):
         capture = self.image("capture.png")
         metadata = self.metadata()
@@ -261,6 +275,20 @@ class TestImageComparison(TempImageCase):
         self.assertIn("foreground_pixels", result)
         self.assertIn("reference_crop", result)
         self.assertTrue(os.path.isfile(result["reference_crop"]))
+
+    def test_hud_sheets_use_the_global_text_and_edge_floors(self):
+        for component in ("bar", "spellslot", "loadoutplate"):
+            for theme in gallery.THEMES:
+                with self.subTest(component=component, theme=theme):
+                    thresholds = gallery._comparison_thresholds(component, theme)
+                    self.assertEqual(
+                        thresholds["edge_grid"],
+                        gallery.MIN_EDGE_GRID_SIMILARITY,
+                    )
+                    self.assertEqual(
+                        thresholds["text_row"],
+                        gallery.MIN_TEXT_ROW_SIMILARITY,
+                    )
 
 
 class TestGalleryOrchestration(TempImageCase):

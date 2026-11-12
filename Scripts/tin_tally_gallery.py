@@ -61,15 +61,6 @@ TEXT_EDGE_THRESHOLDS = {
     ("tally", "high-contrast"): (0.28, 0.22),
     ("glyphs", "diorama"): (0.36, 0.16),
     ("glyphs", "high-contrast"): (0.32, 0.15),
-    # HUD component sheets intentionally render live UMG fixtures rather than
-    # every annotation in the taller HTML design cards. These calibrated floors
-    # retain the geometry/IoU gates while accounting for the omitted spec ink.
-    ("bar", "diorama"): (0.25, 0.15),
-    ("bar", "high-contrast"): (0.22, 0.12),
-    ("spellslot", "diorama"): (0.23, 0.15),
-    ("spellslot", "high-contrast"): (0.18, 0.15),
-    ("loadoutplate", "diorama"): (0.20, 0.15),
-    ("loadoutplate", "high-contrast"): (0.18, 0.15),
 }
 LOCALIZED_REGIONS = {
     "tally": {
@@ -192,7 +183,7 @@ def validate_capture(
     extrema = image.getextrema()
     if all(channel[1] <= 2 for channel in extrema):
         reasons.append("capture is black")
-    if image.size == CAPTURE_SIZE and expected_component != "HUDLayout":
+    if image.size == CAPTURE_SIZE:
         expected_plate = _theme_plate_rgb(expected_theme)
         sample = image.getpixel((CAPTURE_SIZE[0] - 490, 120 + 710))
         if max(abs(sample[index] - expected_plate[index]) for index in range(3)) > 12:

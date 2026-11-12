@@ -16,6 +16,11 @@
 #include "Materials/MaterialInterface.h"
 #include "Misc/AutomationTest.h"
 #include "Modules/ModuleManager.h"
+#include "Mordecai/UI/MordecaiCombatHUDWidget.h"
+#include "Mordecai/UI/MordecaiEquippedWeaponWidget.h"
+#include "Mordecai/UI/MordecaiHealthBarWidget.h"
+#include "Mordecai/UI/MordecaiPickupPromptWidget.h"
+#include "Mordecai/UI/MordecaiSpellCooldownWidget.h"
 #include "Mordecai/UI/TinTally/MordecaiTinTallyGallerySubsystem.h"
 #include "Mordecai/UI/TinTally/MordecaiTallyWidget.h"
 #include "Mordecai/UI/TinTally/MordecaiUIFoundation.h"
@@ -556,6 +561,44 @@ bool FMordecai_UI_Foundation_GalleryRejectsUnknownSelection::RunTest(const FStri
 	TestTrue("gallery widget reference is transient",
 		GalleryWidgetProperty
 		&& GalleryWidgetProperty->HasAnyPropertyFlags(CPF_Transient));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets,
+	"Mordecai.UI.Foundation.HUDGalleryUsesShippedWidgets",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString& Parameters)
+{
+	struct FExpectation
+	{
+		const TCHAR* Component;
+		const TCHAR* WidgetName;
+		UClass* WidgetClass;
+	};
+	const FExpectation Expectations[] = {
+		{ TEXT("HUDLayout"), TEXT("GalleryRealCombatHUD"), UMordecaiCombatHUDWidget::StaticClass() },
+		{ TEXT("GaugePlate"), TEXT("GalleryRealGaugeHUD_0"), UMordecaiCombatHUDWidget::StaticClass() },
+		{ TEXT("Bar"), TEXT("GalleryRealHealthBar_0"), UMordecaiHealthBarWidget::StaticClass() },
+		{ TEXT("SpellSlot"), TEXT("GalleryRealSpellSlot_0"), UMordecaiSpellCooldownWidget::StaticClass() },
+		{ TEXT("InteractPrompt"), TEXT("GalleryRealInteractPrompt_0"), UMordecaiPickupPromptWidget::StaticClass() },
+		{ TEXT("LoadoutPlate"), TEXT("GalleryRealLoadout_0"), UMordecaiEquippedWeaponWidget::StaticClass() },
+	};
+	for (const TCHAR* Theme : { TEXT("diorama"), TEXT("high-contrast") })
+	{
+		for (const FExpectation& Expected : Expectations)
+		{
+			UMordecaiTinTallyGalleryWidget* Gallery = NewObject<UMordecaiTinTallyGalleryWidget>();
+			Gallery->SetFixtureSelectionForTest(Expected.Component, Theme);
+			Gallery->Initialize();
+			UWidget* Widget = Gallery->WidgetTree
+				? Gallery->WidgetTree->FindWidget(Expected.WidgetName)
+				: nullptr;
+			TestTrue(*FString::Printf(TEXT("%s/%s embeds real %s"),
+				Expected.Component, Theme, *Expected.WidgetClass->GetName()),
+				Widget && Widget->IsA(Expected.WidgetClass));
+		}
+	}
 	return true;
 }
 
