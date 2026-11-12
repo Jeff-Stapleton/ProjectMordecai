@@ -20,6 +20,13 @@ class LYRAGAME_API UMordecaiTinTallyGalleryWidget : public UUserWidget
 
 public:
 	virtual bool Initialize() override;
+
+	/** Selects a deterministic fixture without mutating the process command line. */
+	void SetFixtureSelectionForTest(const FString& InComponent, const FString& InTheme);
+
+private:
+	FString FixtureComponentOverride;
+	FString FixtureThemeOverride;
 };
 
 /**

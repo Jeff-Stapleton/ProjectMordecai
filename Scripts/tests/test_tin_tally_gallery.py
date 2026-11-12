@@ -138,6 +138,22 @@ class TestImageComparison(TempImageCase):
         self.assertFalse(result["passed"], result)
         self.assertIn("geometr", result["reason"].lower())
 
+    def test_round_two_tally_capture_is_rejected_for_text_and_edge_divergence(self):
+        reference = os.path.join(FIXTURES, "tally-reference-top.png")
+        round_two = os.path.join(FIXTURES, "tally-round2.png")
+        result = gallery.compare_images(reference, round_two, self.tmp, "Tally.diorama")
+        self.assertFalse(result["passed"], result)
+        self.assertIn("text", result["reason"].lower())
+
+    def test_comparison_reports_text_region_and_downsampled_edge_metrics(self):
+        reference = os.path.join(FIXTURES, "tally-reference-top.png")
+        round_two = os.path.join(FIXTURES, "tally-round2.png")
+        result = gallery.compare_images(reference, round_two, self.tmp, "Tally.diorama")
+        self.assertIn("edge_grid_similarity", result)
+        self.assertIn("text_row_similarity", result)
+        self.assertIn("edge_grid", result["thresholds"])
+        self.assertIn("text_row", result["thresholds"])
+
     def test_comparison_reports_foreground_and_bounding_box_metrics(self):
         reference = os.path.join(FIXTURES, "keycap-reference-top.png")
         stretched = os.path.join(FIXTURES, "keycap-stretched.png")

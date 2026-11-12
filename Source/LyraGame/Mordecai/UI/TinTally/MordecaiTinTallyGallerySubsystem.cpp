@@ -897,8 +897,12 @@ bool UMordecaiTinTallyGalleryWidget::Initialize()
 		return bInitializationResult;
 	}
 
-	const FString Component = GalleryValue(TEXT("TinTallyGalleryComponent="), TEXT("Plate"));
-	const FString ThemeName = GalleryValue(TEXT("TinTallyGalleryTheme="), TEXT("diorama"));
+	const FString Component = FixtureComponentOverride.IsEmpty()
+		? GalleryValue(TEXT("TinTallyGalleryComponent="), TEXT("Plate"))
+		: FixtureComponentOverride;
+	const FString ThemeName = FixtureThemeOverride.IsEmpty()
+		? GalleryValue(TEXT("TinTallyGalleryTheme="), TEXT("diorama"))
+		: FixtureThemeOverride;
 	const bool bHighContrast = ThemeName.Equals(TEXT("high-contrast"), ESearchCase::IgnoreCase);
 	const EMordecaiUITheme Theme =
 		bHighContrast ? EMordecaiUITheme::HighContrast : EMordecaiUITheme::Diorama;
@@ -960,6 +964,14 @@ bool UMordecaiTinTallyGalleryWidget::Initialize()
 		BuildPlateFixture(WidgetTree, Fixture, Colors, Theme);
 	}
 	return bInitializationResult;
+}
+
+void UMordecaiTinTallyGalleryWidget::SetFixtureSelectionForTest(
+	const FString& InComponent,
+	const FString& InTheme)
+{
+	FixtureComponentOverride = InComponent;
+	FixtureThemeOverride = InTheme;
 }
 
 bool UMordecaiTinTallyGallerySubsystem::ShouldCreateSubsystem(UObject* Outer) const

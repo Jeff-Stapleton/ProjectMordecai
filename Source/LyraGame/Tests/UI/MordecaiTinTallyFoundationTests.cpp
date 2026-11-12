@@ -6,13 +6,16 @@
 #include "CommonTextBlock.h"
 #include "Components/Overlay.h"
 #include "Components/SizeBox.h"
+#include "Components/TextBlock.h"
 #include "Engine/DataAsset.h"
 #include "Engine/Font.h"
 #include "Engine/FontFace.h"
+#include "Fonts/CompositeFont.h"
 #include "Engine/Texture2D.h"
 #include "Materials/Material.h"
 #include "Misc/AutomationTest.h"
 #include "Modules/ModuleManager.h"
+#include "Mordecai/UI/TinTally/MordecaiTinTallyGallerySubsystem.h"
 #include "Mordecai/UI/TinTally/MordecaiTallyWidget.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
@@ -34,25 +37,46 @@ namespace MordecaiTinTallyFoundationTest
 		int32 PointSize;
 		float LineHeight;
 		const TCHAR* CompositeFont;
+		const TCHAR* Typeface;
+		const TCHAR* FaceAsset;
 	};
 
 	static const FTypeStyleExpectation TypeStyles[] = {
-		{ TEXT("tally_display"), 60, 84.f / 80.f, TEXT("F_Tally_Display") },
-		{ TEXT("tally_title"), 36, 54.f / 48.f, TEXT("F_Tally_Display") },
-		{ TEXT("tally_heading"), 24, 38.f / 32.f, TEXT("F_Tally_Display") },
-		{ TEXT("callout"), 30, 44.f / 40.f, TEXT("F_Tally_Display") },
-		{ TEXT("kicker"), 15, 24.f / 20.f, TEXT("F_Tally_Display") },
-		{ TEXT("pop"), 23, 1.f, TEXT("F_Tally_Display") },
-		{ TEXT("world_title"), 54, 80.f / 72.f, TEXT("F_Tally_UI") },
-		{ TEXT("world_heading"), 30, 48.f / 40.f, TEXT("F_Tally_UI") },
-		{ TEXT("ui_title"), 20, 32.f / 26.f, TEXT("F_Tally_UI") },
-		{ TEXT("ui_body"), 17, 30.f / 22.f, TEXT("F_Tally_UI") },
-		{ TEXT("ui_label"), 15, 26.f / 20.f, TEXT("F_Tally_UI") },
-		{ TEXT("num_xl"), 42, 60.f / 56.f, TEXT("F_Tally_Mono") },
-		{ TEXT("num_l"), 23, 34.f / 30.f, TEXT("F_Tally_Mono") },
-		{ TEXT("num_m"), 18, 28.f / 24.f, TEXT("F_Tally_Mono") },
-		{ TEXT("num_s"), 15, 24.f / 20.f, TEXT("F_Tally_Mono") },
+		{ TEXT("tally_display"), 60, 84.f / 80.f, TEXT("F_Tally_Display"), TEXT("Bold"), TEXT("FF_Rowdies_Bold") },
+		{ TEXT("tally_title"), 36, 54.f / 48.f, TEXT("F_Tally_Display"), TEXT("Bold"), TEXT("FF_Rowdies_Bold") },
+		{ TEXT("tally_heading"), 24, 38.f / 32.f, TEXT("F_Tally_Display"), TEXT("Bold"), TEXT("FF_Rowdies_Bold") },
+		{ TEXT("callout"), 30, 44.f / 40.f, TEXT("F_Tally_Display"), TEXT("Bold"), TEXT("FF_Rowdies_Bold") },
+		{ TEXT("kicker"), 15, 24.f / 20.f, TEXT("F_Tally_Display"), TEXT("Regular"), TEXT("FF_Rowdies_Regular") },
+		{ TEXT("pop"), 23, 1.f, TEXT("F_Tally_Display"), TEXT("Bold"), TEXT("FF_Rowdies_Bold") },
+		{ TEXT("world_title"), 54, 80.f / 72.f, TEXT("F_Tally_UI"), TEXT("ExtraBold"), TEXT("FF_AtkinsonNext_ExtraBold") },
+		{ TEXT("world_heading"), 30, 48.f / 40.f, TEXT("F_Tally_UI"), TEXT("ExtraBold"), TEXT("FF_AtkinsonNext_ExtraBold") },
+		{ TEXT("ui_title"), 20, 32.f / 26.f, TEXT("F_Tally_UI"), TEXT("Bold"), TEXT("FF_AtkinsonNext_Bold") },
+		{ TEXT("ui_body"), 17, 30.f / 22.f, TEXT("F_Tally_UI"), TEXT("Medium"), TEXT("FF_AtkinsonNext_Medium") },
+		{ TEXT("ui_label"), 15, 26.f / 20.f, TEXT("F_Tally_UI"), TEXT("SemiBold"), TEXT("FF_AtkinsonNext_SemiBold") },
+		{ TEXT("num_xl"), 42, 60.f / 56.f, TEXT("F_Tally_Mono"), TEXT("ExtraBold"), TEXT("FF_AtkinsonMono_ExtraBold") },
+		{ TEXT("num_l"), 23, 34.f / 30.f, TEXT("F_Tally_Mono"), TEXT("Bold"), TEXT("FF_AtkinsonMono_Bold") },
+		{ TEXT("num_m"), 18, 28.f / 24.f, TEXT("F_Tally_Mono"), TEXT("Bold"), TEXT("FF_AtkinsonMono_Bold") },
+		{ TEXT("num_s"), 15, 24.f / 20.f, TEXT("F_Tally_Mono"), TEXT("SemiBold"), TEXT("FF_AtkinsonMono_SemiBold") },
 	};
+
+	UTextBlock* FindTextBlock(UWidgetTree* Tree, const FString& Expected)
+	{
+		if (!Tree)
+		{
+			return nullptr;
+		}
+		TArray<UWidget*> Widgets;
+		Tree->GetAllWidgets(Widgets);
+		for (UWidget* Widget : Widgets)
+		{
+			if (UTextBlock* Text = Cast<UTextBlock>(Widget);
+				Text && Text->GetText().ToString().Equals(Expected, ESearchCase::IgnoreCase))
+			{
+				return Text;
+			}
+		}
+		return nullptr;
+	}
 
 	const FMordecaiUIPrimitiveLayer* FindLayer(const FMordecaiUIPrimitiveSpec& Spec, FName Name)
 	{
@@ -202,6 +226,93 @@ bool FMordecai_UI_Foundation_FontStylesMatchTokens::RunTest(const FString& Param
 		const UObject* FontObject = Font.FontObject;
 		TestTrue(*FString::Printf(TEXT("%s uses %s"), Expected.AssetName, Expected.CompositeFont),
 			FontObject && FontObject->GetName() == Expected.CompositeFont);
+		TestEqual(*FString::Printf(TEXT("%s requests the token weight face"), Expected.AssetName),
+			Font.TypefaceFontName, FName(Expected.Typeface));
+
+		const UFont* CompositeFont = Cast<UFont>(Font.FontObject);
+		const FTypefaceEntry* TypefaceEntry = CompositeFont
+			? CompositeFont->CompositeFont.DefaultTypeface.Fonts.FindByPredicate(
+				[&Expected](const FTypefaceEntry& Entry)
+				{
+					return Entry.Name == Expected.Typeface;
+				})
+			: nullptr;
+		TestNotNull(*FString::Printf(TEXT("%s composite contains %s"), Expected.AssetName, Expected.Typeface),
+			TypefaceEntry);
+		const UObject* FaceAsset = TypefaceEntry ? TypefaceEntry->Font.GetFontFaceAsset() : nullptr;
+		TestTrue(*FString::Printf(TEXT("%s resolves to %s"), Expected.AssetName, Expected.FaceAsset),
+			FaceAsset && FaceAsset->GetName() == Expected.FaceAsset);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Foundation_GalleryTextUsesTokenStylesAndCase,
+	"Mordecai.UI.Foundation.GalleryTextUsesTokenStylesAndCase",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_Foundation_GalleryTextUsesTokenStylesAndCase::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiTinTallyFoundationTest;
+
+	struct FGalleryTextExpectation
+	{
+		const TCHAR* Component;
+		const TCHAR* Text;
+		const TCHAR* FontObject;
+		const TCHAR* Typeface;
+		int32 PointSize;
+	};
+	const FGalleryTextExpectation Expectations[] = {
+		{ TEXT("Plate"), TEXT("ANATOMY AT 4X · ONE PLATE ACROSS A LIGHT AND A DARK FLOOR"), TEXT("F_Tally_Display"), TEXT("Regular"), 15 },
+		{ TEXT("Plate"), TEXT("Stored Resources"), TEXT("F_Tally_UI"), TEXT("Bold"), 20 },
+		{ TEXT("Plate"), TEXT("Iron Ore"), TEXT("F_Tally_UI"), TEXT("Medium"), 17 },
+		{ TEXT("Plate"), TEXT("Town Stone"), TEXT("F_Tally_UI"), TEXT("Medium"), 17 },
+		{ TEXT("Plate"), TEXT("Fireball"), TEXT("F_Tally_UI"), TEXT("SemiBold"), 15 },
+		{ TEXT("Plate"), TEXT("Blink"), TEXT("F_Tally_UI"), TEXT("SemiBold"), 15 },
+		{ TEXT("Plate"), TEXT("Stone Skin"), TEXT("F_Tally_UI"), TEXT("SemiBold"), 15 },
+		{ TEXT("Tag"), TEXT("Upgrade Key"), TEXT("F_Tally_UI"), TEXT("Bold"), 20 },
+		{ TEXT("Tag"), TEXT("Health Potion"), TEXT("F_Tally_UI"), TEXT("Medium"), 17 },
+		{ TEXT("Tag"), TEXT("Exhausted: every action at ×0.5"), TEXT("F_Tally_UI"), TEXT("SemiBold"), 15 },
+		{ TEXT("Keycap"), TEXT("Keyboard and mouse · square caps"), TEXT("F_Tally_UI"), TEXT("Bold"), 20 },
+		{ TEXT("Keycap"), TEXT("Face buttons"), TEXT("F_Tally_UI"), TEXT("SemiBold"), 15 },
+		{ TEXT("Keycap"), TEXT("Shoulders"), TEXT("F_Tally_UI"), TEXT("SemiBold"), 15 },
+		{ TEXT("Keycap"), TEXT("Triggers"), TEXT("F_Tally_UI"), TEXT("SemiBold"), 15 },
+		{ TEXT("Keycap"), TEXT("Stick clicks"), TEXT("F_Tally_UI"), TEXT("SemiBold"), 15 },
+		{ TEXT("Tally"), TEXT("Skill ranks"), TEXT("F_Tally_UI"), TEXT("Bold"), 20 },
+		{ TEXT("Tally"), TEXT("Seal, throbber"), TEXT("F_Tally_UI"), TEXT("Bold"), 20 },
+		{ TEXT("Tally"), TEXT("0 / 20"), TEXT("F_Tally_Mono"), TEXT("Bold"), 18 },
+		{ TEXT("Tally"), TEXT("12 / 20"), TEXT("F_Tally_Mono"), TEXT("Bold"), 18 },
+		{ TEXT("Tally"), TEXT("Longswords"), TEXT("F_Tally_UI"), TEXT("Bold"), 20 },
+	};
+
+	TMap<FString, UMordecaiTinTallyGalleryWidget*> Galleries;
+	for (const FGalleryTextExpectation& Expected : Expectations)
+	{
+		UMordecaiTinTallyGalleryWidget*& Gallery = Galleries.FindOrAdd(Expected.Component);
+		if (!Gallery)
+		{
+			Gallery = NewObject<UMordecaiTinTallyGalleryWidget>();
+			Gallery->SetFixtureSelectionForTest(Expected.Component, TEXT("diorama"));
+			Gallery->Initialize();
+		}
+
+		UTextBlock* Text = FindTextBlock(Gallery->WidgetTree, Expected.Text);
+		TestNotNull(*FString::Printf(TEXT("%s fixture contains '%s'"), Expected.Component, Expected.Text), Text);
+		if (!Text)
+		{
+			continue;
+		}
+		TestEqual(*FString::Printf(TEXT("%s preserves preview case"), Expected.Text),
+			Text->GetText().ToString(), FString(Expected.Text));
+		TestFalse(*FString::Printf(TEXT("%s is a single non-wrapping line"), Expected.Text),
+			Text->GetAutoWrapText());
+		const FSlateFontInfo Font = Text->GetFont();
+		TestTrue(*FString::Printf(TEXT("%s uses %s"), Expected.Text, Expected.FontObject),
+			Font.FontObject && Font.FontObject->GetName() == Expected.FontObject);
+		TestEqual(*FString::Printf(TEXT("%s uses the token typeface"), Expected.Text),
+			Font.TypefaceFontName, FName(Expected.Typeface));
+		TestEqual(*FString::Printf(TEXT("%s uses the token point size"), Expected.Text),
+			static_cast<int32>(Font.Size), Expected.PointSize);
 	}
 	return true;
 }
