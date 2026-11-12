@@ -219,3 +219,81 @@ The story creates and configures font, material, texture, style, DataAsset, and 
   `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4d6a1be8-b372-5492-abbe-334810677171\files\issue-102-us103-655a2e3`.
 - Story intentionally remains in progress with ACs unchecked for coordinator
   image review, closure, and merge.
+- Round-three coordinator correction RED (tests unchanged during GREEN):
+  - Commit `cd4cb55` adds actual font-face/typeface/size/case assertions and
+    retains the rejected round-two Tally capture.
+  - `py Scripts/run_tests.py Mordecai.UI.Foundation`: 5 tests ran, 4 passed
+    and `GalleryTextUsesTokenStylesAndCase` failed at assertions for the
+    all-caps/wrapping/style mismatches
+    (`Saved/TestLogs/tests-20261111-173120.log`).
+  - `py Scripts/run_python_tests.py -k tin_tally_gallery -v`: 15 tests ran,
+    13 passed and 2 failed at assertions because the round-two Tally capture
+    still passed and the comparator did not report text/edge metrics.
+- Round-three implementation:
+  - `81bb0ec` rebuilds the cooked sheets with mixed-case TS style text,
+    design-size non-wrapping layouts, numbered anatomy markers, patterned
+    floors, wells/glyphs, drawn mouse/face controls, rarity sockets, and the
+    complete tally grammar. The cooked atlas now has rounded uprights, a
+    corner-to-corner fifth slash, and a separately tinted dotted ghost layer.
+  - `77c2817` records per-sheet edge-grid/text-row floors and fixes
+    `--compare-only` to replace an obsolete comparison failure rather than
+    retaining it.
+  - Interpretation call: `Tag.css` explicitly defines `.tt-tag__line` as
+    Atkinson UI 700 at 26 px, so `Upgrade Key` uses `TS_Tally_ui_title`
+    (Atkinson UI Bold, 20 pt in UE), despite the correction prompt describing
+    that line as Rowdies. The canonical component CSS/tokens win.
+  - Dynamic `FKey`/device mapping remains US-104's responsibility; the
+    Development-only fixture shows every required key shape from cooked
+    US-102 primitives and fonts, with no omitted preview element.
+- Round-three verification at `77c2817f34`:
+  - Compile PASS; targeted foundation 5/5; full Tier 1 822/822
+    (`Saved/TestLogs/tests-20261111-183919.log`).
+  - Full Python tooling 643/643, including rejection of both retained bad
+    captures; Tier 2 20/20 smoke scripts.
+  - `render.py check`: `problems: 0`; both-theme Chrome references were
+    regenerated; Cursor config sync and content guard PASS.
+- Final exact clean Development package:
+  - Commit `77c2817f34bb29a2c5da9569666537ac39f306d6`;
+    `dirty=false`, `source_changed_during_build=false`; package log
+    `Saved/Playtests/package-20261111-191644.log`.
+  - MovementTestMap boot PASS:
+    `Saved/Playtests/20261111-192216-boot`; all 10 functional checks passed.
+    Pillow verified all seven images as readable, varied, and non-black in
+    `scripted-visual-inspection.json`.
+  - Packaged gallery PASS:
+    `Saved/Playtests/20261111-192312-tin-tally-gallery`; all 10 component/theme
+    comparisons wrote 960x720 reference crops and absolute diffs plus
+    1920x720 side-by-sides under `compare/`.
+  - Metrics are foreground IoU / bbox-edge delta / edge-grid / text-row:
+    Plate Diorama `0.4377 / 0.0111 / 0.3283 / 0.3068`, Plate HC
+    `0.3782 / 0.0194 / 0.3110 / 0.3108`; Tag Diorama
+    `0.6199 / 0.0194 / 0.3873 / 0.2859`, Tag HC
+    `0.5164 / 0.0194 / 0.3440 / 0.2744`; Keycap Diorama
+    `0.2024 / 0.0031 / 0.4041 / 0.1955`, Keycap HC
+    `0.1737 / 0.0056 / 0.3183 / 0.1830`; Tally Diorama
+    `0.1290 / 0.0219 / 0.3438 / 0.2598`, Tally HC
+    `0.1017 / 0.0250 / 0.2832 / 0.2308`; Glyphs Diorama
+    `0.1556 / 0.0194 / 0.3666 / 0.1666`, Glyphs HC
+    `0.4597 / 0.0194 / 0.3294 / 0.1536`.
+  - Every sheet requires IoU `>= 0.08` and bbox delta `<= 0.20`. Documented
+    edge/text floors account for Chrome/Slate and theme density:
+    Plate D `.32/.30`, HC `.30/.30`; Tag D `.38/.28`, HC `.33/.27`;
+    Keycap D `.39/.19`, HC `.31/.18`; Tally D `.34/.25`, HC
+    `.28/.22`; Glyphs D `.36/.16`, HC `.32/.15`. The retained round-two
+    Tally scores `.3376/.2362` and is rejected by the Diorama floor.
+  - Pillow region analysis found foreground in every required typography and
+    component region in both themes
+    (`gallery/scripted-visual-inspection.json`). Per coordinator instruction,
+    no PNG was opened with the file-read tool; the bundle preserves all
+    reference/side-by-side/diff files for human review.
+- Round-three packaged regression:
+  - Baseline `559e28f95f`: 15 scripts, 10 PASS / 5 FAIL.
+  - Final `77c2817f34`: `Saved/Playtests/20261111-192511-sweep`, 15 scripts,
+    10 PASS / 5 FAIL, with the same failures (`us001`, `us054_arena`,
+    `us057`, `us069`, `us078`).
+  - Zero script-level and zero individual-check PASS-to-FAIL transitions.
+- Round-three evidence bundle (387 files, all 387 SHA-256 hashes re-read and
+  verified):
+  `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4d6a1be8-b372-5492-abbe-334810677171\files\issue-102-us103-77c2817`.
+- Story intentionally remains in progress with ACs unchecked for coordinator
+  visual review, closure, and merge; PR remains draft.
