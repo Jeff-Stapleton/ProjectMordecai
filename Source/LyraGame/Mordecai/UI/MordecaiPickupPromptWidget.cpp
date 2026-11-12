@@ -148,6 +148,9 @@ void UMordecaiPickupPromptWidget::BuildDefaultLayout()
 	FSlateFontInfo PromptFont = PromptText->GetFont();
 	PromptFont.Size = 17;
 	PromptText->SetFont(PromptFont);
+	// F_Tally_UI's glyph box sits high inside its line metrics; retain centered
+	// layout while optically centering the rendered one-line copy in the tag.
+	PromptText->SetRenderTranslation(FVector2D(0.f, 6.f));
 	USizeBox* PromptTextBox = WidgetTree->ConstructWidget<USizeBox>(
 		USizeBox::StaticClass(), TEXT("PromptTextBox"));
 	PromptTextBox->SetMaxDesiredWidth(484.f);
