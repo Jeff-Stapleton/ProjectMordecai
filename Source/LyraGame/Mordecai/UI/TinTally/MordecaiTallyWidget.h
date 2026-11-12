@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Styling/SlateBrush.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/Weapons/MordecaiWeaponTypes.h"
 
 #include "MordecaiTallyWidget.generated.h"
 
@@ -52,6 +53,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Tally")
 	void SetCountAndMax(int32 NewCount, int32 NewMax);
 
+	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Tally")
+	void SetUsage(EMordecaiTallyUsage NewUsage);
+
+	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Tally")
+	void SetRarityTier(EMordecaiItemRarity NewRarity);
+
+	UFUNCTION(BlueprintCallable, Category = "Tin Tally|Tally")
+	void SetSealOnEnamel(bool bNewSealOnEnamel);
+
+	/** Configure the cooked atlas slices used by native and non-Shipping fixtures. */
+	void SetFrameBrushes(
+		const TArray<FSlateBrush>& NewBundleFrames,
+		const TArray<FSlateBrush>& NewGhostBundleFrames,
+		const FSlateBrush& NewCapDotBrush);
+
 	UFUNCTION(BlueprintPure, Category = "Tin Tally|Tally")
 	int32 GetCount() const { return Count; }
 
@@ -82,9 +98,19 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally")
 	EMordecaiTallyUsage Usage = EMordecaiTallyUsage::SkillRank;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally")
+	EMordecaiItemRarity Rarity = EMordecaiItemRarity::Common;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally")
+	bool bSealOnEnamel = false;
+
 	/** Exactly six brushes: empty, one, two, three, four, full bundle. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally", meta = (EditFixedSize))
 	TArray<FSlateBrush> BundleFrames;
+
+	/** Exactly six dotted capacity brushes, tinted with the active theme's lip token. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally", meta = (EditFixedSize))
+	TArray<FSlateBrush> GhostBundleFrames;
 
 	/** Optional rank-one cap dot; US-103 supplies the cooked brush. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tin Tally|Tally")
@@ -104,7 +130,13 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UImage>> RenderedBundleImages;
 
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> RenderedGhostImages;
+
 	FLinearColor CurrentTint = FLinearColor::White;
+	FLinearColor CurrentGhostTint = FLinearColor::White;
+	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
+	FMordecaiUIThemeColors CurrentThemeColors;
 	FDelegateHandle ThemeChangedHandle;
 	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
 };

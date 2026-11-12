@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
+#include "UObject/SoftObjectPath.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiUIThemeSubsystem)
 
@@ -13,8 +14,18 @@ UMordecaiUIThemeSubsystem::UMordecaiUIThemeSubsystem()
 	: NativeDiorama(FMordecaiUIThemeColors::MakeDiorama())
 	, NativeHighContrast(FMordecaiUIThemeColors::MakeHighContrast())
 {
-	// TODO(US-103): load DA_UITheme_Diorama and DA_UITheme_HighContrast once
-	// those cooked assets exist; native colors remain the code-only fallback.
+}
+
+void UMordecaiUIThemeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+	const TSoftObjectPtr<UMordecaiUIThemeDataAsset> DioramaPath(
+		FSoftObjectPath(TEXT(
+			"/MordecaiCore/UI/TinTally/Themes/DA_UITheme_Diorama.DA_UITheme_Diorama")));
+	const TSoftObjectPtr<UMordecaiUIThemeDataAsset> HighContrastPath(
+		FSoftObjectPath(TEXT(
+			"/MordecaiCore/UI/TinTally/Themes/DA_UITheme_HighContrast.DA_UITheme_HighContrast")));
+	SetThemeAssets(DioramaPath.LoadSynchronous(), HighContrastPath.LoadSynchronous());
 }
 
 void UMordecaiUIThemeSubsystem::SetActiveTheme(EMordecaiUITheme NewTheme)
@@ -49,6 +60,13 @@ void UMordecaiUIThemeSubsystem::SetThemeAssets(
 		? HighContrastAsset
 		: nullptr;
 	BroadcastTheme();
+}
+
+UMordecaiUIThemeDataAsset* UMordecaiUIThemeSubsystem::GetThemeAsset(EMordecaiUITheme Theme) const
+{
+	return Theme == EMordecaiUITheme::HighContrast
+		? HighContrastThemeAsset.Get()
+		: DioramaThemeAsset.Get();
 }
 
 UMordecaiUIThemeSubsystem* UMordecaiUIThemeSubsystem::ResolveForWorld(const UObject* WorldContextObject)

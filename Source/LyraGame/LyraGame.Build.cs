@@ -25,6 +25,7 @@ public class LyraGame : ModuleRules
 				"CoreOnline",
 				"CoreUObject",
 				"ApplicationCore",
+				"AssetRegistry",
 				"Engine",
 				"PhysicsCore",
 				"GameplayTags",

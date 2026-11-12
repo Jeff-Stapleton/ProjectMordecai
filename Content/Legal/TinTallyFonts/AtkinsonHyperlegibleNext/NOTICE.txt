@@ -1,0 +1,4 @@
+Atkinson Hyperlegible Next
+Braille Institute · Applied Design Works · Letters from Sweden
+Copyright 2020-2024 The Atkinson Hyperlegible Next Project Authors (https://github.com/googlefonts/atkinson-hyperlegible-next)
+Licensed under the SIL Open Font License 1.1; see OFL.txt in this directory.
