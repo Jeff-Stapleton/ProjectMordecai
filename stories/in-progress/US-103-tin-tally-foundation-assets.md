@@ -458,3 +458,65 @@ The story creates and configures font, material, texture, style, DataAsset, and 
   - Resolve the print-alpha `0.4` versus `0.55` conflict.
 - Story remains in progress with ACs unchecked for coordinator review,
   closure, and merge; PR remains draft.
+- Round-six hatch-regression RED:
+  - Commit `0e8ec9eac9` retains the exact round-five Plate captures and adds a
+    per-theme light-floor luminance/stripe-period gate.
+  - The focused Python run executed one test with two assertion failures
+    (Diorama and High Contrast): the retained dark, oversized-band captures
+    still passed the old comparator despite a luminance delta above 40 and a
+    dominant period outside `16 +/- 1` px.
+- Round-six implementation:
+  - GREEN commit `ff34832421` fixes the UE 5.7 material pin names, maps
+    viewport UVs through `Period / ViewSize`, samples the native 16 px hatch
+    tile with nearest/no-mip wrapping, applies the real floor/line theme
+    tokens, preserves the accepted round-four Plate geometry, and aligns the
+    design-pixel fixture by one pixel.
+  - Package-compatible test commit `40663c44e6` guards only the editor-only
+    `UTexture2D::MipGenSettings` assertion. The first clean package attempt
+    exposed this Development-game compile error; the filter and wrap
+    assertions still compile in the non-editor target.
+- Round-six final verification at `40663c44e6`:
+  - LyraEditor and LyraGame Development compile PASS.
+  - Targeted `Mordecai.UI.Foundation`: 7/7
+    (`Saved/TestLogs/tests-20261112-015835.log`).
+  - Full Tier 1: 825/825
+    (`Saved/TestLogs/tests-20261112-020002.log`).
+  - Full Python tooling: 656/656; Tier 2: 20/20 smoke scripts.
+  - `render.py check`: `problems: 0`; Cursor config, content, diff, and LFS
+    object checks PASS.
+- Round-six exact clean Development package:
+  - Package commit `40663c44e6a838e3926e42163f31ca1a40a4b67f`;
+    `dirty=false`, `source_changed_during_build=false`; package log
+    `Saved/Playtests/package-20261112-023731.log`.
+  - MovementTestMap boot `Saved/Playtests/20261112-024708-boot` PASS: all ten
+    checks passed; Pillow inspected all seven screenshots as readable,
+    non-black, and non-uniform.
+  - Packaged gallery `Saved/Playtests/20261112-024829-tin-tally-gallery`
+    PASS: all ten component/theme comparisons. Metrics are foreground IoU /
+    bbox-edge delta / edge-grid / text-row:
+    - Plate Diorama `.4502/.0097/.4224/.3974`; HC
+      `.3767/.0181/.4004/.3821`. Hatch luminance deltas are `17.97` and
+      `31.02`, and both dominant stripe periods are exactly `16` px.
+    - Tag Diorama `.6307/.0181/.4574/.2953`; HC
+      `.5248/.0181/.4231/.2719`.
+    - Keycap Diorama `.2198/.0031/.4208/.2300`; HC
+      `.1906/.0042/.3381/.2228`.
+    - Tally Diorama `.2268/.0198/.4644/.3705`; HC
+      `.1731/.0208/.4150/.3824`.
+    - Glyphs Diorama `.5927/.0083/.8102/.5089`; HC
+      `.9214/.0083/.8010/.5001`.
+  - Plate and Tag exceed all requested round-four IoU floors
+    (`.4454/.3738` and `.6279/.5221`). Pillow inspected all 189 referenced
+    boot/gallery/sweep PNGs by script; none was black. No PNG was opened
+    through the file-read tool.
+- Round-six packaged regression:
+  - Baseline `559e28f95f`: 15 scripts, 10 PASS / 5 FAIL.
+  - Final `40663c44e6`: `Saved/Playtests/20261112-025148-sweep`, 15 scripts,
+    10 PASS / 5 FAIL with the same failures as baseline.
+  - Zero script-level and zero individual-check PASS-to-FAIL transitions.
+- Round-six evidence bundle: 331/331 SHA-256 hashes generated and re-read:
+  `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4d6a1be8-b372-5492-abbe-334810677171\files\issue-102-us103-40663c4`.
+- Every previously deferred item remains assigned to follow-up issue
+  [#122](https://github.com/Jeff-Stapleton/ProjectMordecai/issues/122).
+- Story remains in progress with ACs unchecked for coordinator review,
+  closure, and merge; PR remains draft.
