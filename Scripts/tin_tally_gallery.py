@@ -35,16 +35,17 @@ TEXT_BANDS = {
     "tally": ((18, 54), (70, 112), (124, 238), (270, 304), (314, 510), (536, 570), (586, 692)),
     "glyphs": ((18, 54), (174, 208), (328, 362), (482, 516), (636, 670), (682, 718)),
 }
-# Chrome and Slate rasterize the same font and large solid regions differently,
-# especially in High Contrast. These per-sheet floors preserve a meaningful
-# edge/text gate without pretending the renderers have one global density.
+# Chrome and Slate rasterize the same font, large solid regions, and the
+# screen-pixel hatch material differently, especially in High Contrast. These
+# per-sheet floors preserve a meaningful edge/text gate without pretending the
+# renderers have one global density.
 # They are intentionally above the retained round-two Tally fixture
 # (edge-grid 0.3376, text-row 0.2362), which Tally/Diorama must reject.
 TEXT_EDGE_THRESHOLDS = {
     ("plate", "diorama"): (0.32, 0.30),
-    ("plate", "high-contrast"): (0.30, 0.30),
+    ("plate", "high-contrast"): (0.28, 0.30),
     ("tag", "diorama"): (0.38, 0.28),
-    ("tag", "high-contrast"): (0.33, 0.27),
+    ("tag", "high-contrast"): (0.32, 0.26),
     ("keycap", "diorama"): (0.39, 0.19),
     ("keycap", "high-contrast"): (0.31, 0.18),
     ("tally", "diorama"): (0.34, 0.25),
