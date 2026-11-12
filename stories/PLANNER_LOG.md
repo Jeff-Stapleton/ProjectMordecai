@@ -3133,3 +3133,12 @@ Sweep `20261029-175504-sweep` @ `9904cde`. Every remaining failure is a known is
 ### Next Session Recommendation
 - Scope a recovery story for N32 / #53.
 - Then US-085, and us054_combat's `dead_no_move` ordering, as in the entry above.
+
+## 2026-11-12 — Issue #13: US-088 four-slot cooldown HUD
+
+### Completed
+- AC-088.3 and the C/D half of AC-088.4 are proven at package commit `a7a098c`: the default HUD creates A-D labelled Q / E / R / 1 and binds them to Fireball/Blink/Stone Skin/Restoration.
+- Fresh-package CombatTestMap boot: `Saved/Playtests/20261112-055752-boot` PASS.
+- US-057: `cooldown_widgets`, `fireball_cooldown_state`, `cooldown_hud`, and real-input `stone_skin_cooldown_hud` PASS in `Saved/Playtests/20261112-055851-us057`. N16 `stone_skin_indicator` still renders `Status 10.0` and is outside issue #13.
+- Full sweep `Saved/Playtests/20261112-055932-sweep` versus exact-main `Saved/Playtests/20261112-043446-sweep` at `b84a2e1`: zero PASS→FAIL; `cooldown_widgets` is the only FAIL→PASS; `stone_skin_cooldown_hud` is a new PASS.
+- N8 / issue #13 is fixed. US-088 and paired US-089 remain in backlog for the coordinator's closure commit.
