@@ -59,7 +59,7 @@ namespace MordecaiStartingSkillTest
 
 		{ TEXT("Fireball"), EMordecaiSkillCategory::Magic },
 		{ TEXT("Cone of Cold"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Magic Missle"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Magic Missile"), EMordecaiSkillCategory::Magic },
 		{ TEXT("Stone Skin"), EMordecaiSkillCategory::Magic },
 		{ TEXT("Sleep"), EMordecaiSkillCategory::Magic },
 		{ TEXT("Blink"), EMordecaiSkillCategory::Magic },
@@ -87,6 +87,20 @@ namespace MordecaiStartingSkillTest
 			for (const FMordecaiSkillRankInfo& Skill : Component->GetAllSkillsByCategory(Category))
 			{
 				Result.Add(Skill.SkillName, Category);
+			}
+		}
+		return Result;
+	}
+
+	TArray<FName> CollectRegisteredSkillsInSheetOrder(
+		const UMordecaiSkillComponent* Component)
+	{
+		TArray<FName> Result;
+		for (const EMordecaiSkillCategory Category : Categories)
+		{
+			for (const FMordecaiSkillRankInfo& Skill : Component->GetAllSkillsByCategory(Category))
+			{
+				Result.Add(Skill.SkillName);
 			}
 		}
 		return Result;
@@ -132,12 +146,22 @@ bool FMordecai_Recovery_Skills_StartingSetMatchesSheet::RunTest(const FString& P
 		return false;
 	}
 	const TMap<FName, EMordecaiSkillCategory> Actual = CollectRegisteredSkills(Component);
+	const TArray<FName> Ordered = CollectRegisteredSkillsInSheetOrder(Component);
 	TestEqual("registered set count matches all nonblank skill-sheet rows",
 		Actual.Num(), UE_ARRAY_COUNT(ExpectedSkills));
+	TestEqual("ordered catalogue count matches the sheet",
+		Ordered.Num(), UE_ARRAY_COUNT(ExpectedSkills));
 
-	for (const FExpectedSkill& Expected : ExpectedSkills)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(ExpectedSkills); ++Index)
 	{
+		const FExpectedSkill& Expected = ExpectedSkills[Index];
 		const FName Name(Expected.Name);
+		if (Ordered.IsValidIndex(Index))
+		{
+			TestTrue(
+				*FString::Printf(TEXT("catalogue row %d matches sheet spelling and order"), Index),
+				Ordered[Index].ToString().Equals(Expected.Name, ESearchCase::CaseSensitive));
+		}
 		const EMordecaiSkillCategory* Category = Actual.Find(Name);
 		TestNotNull(*FString::Printf(TEXT("%s is registered"), Expected.Name), Category);
 		if (Category)
@@ -148,6 +172,12 @@ bool FMordecai_Recovery_Skills_StartingSetMatchesSheet::RunTest(const FString& P
 
 		const UMordecaiSkillDataAsset* Data = Component->GetRegisteredSkillDataAsset(Name);
 		TestNotNull(*FString::Printf(TEXT("%s uses a skill data asset"), Expected.Name), Data);
+		if (Data)
+		{
+			TestTrue(
+				*FString::Printf(TEXT("%s runtime data is transient"), Expected.Name),
+				Data->HasAnyFlags(RF_Transient));
+		}
 		TestEqual(*FString::Printf(TEXT("%s starts at rank 0"), Expected.Name),
 			Component->GetSkillRank(Name), 0);
 	}
@@ -171,8 +201,7 @@ bool FMordecai_Recovery_Skills_StartingRegistrationHasNoGameplayEffects::RunTest
 	}
 	ON_SCOPE_EXIT { Env.Teardown(); };
 
-	UMordecaiSkillComponent* Component =
-		NewObject<UMordecaiSkillComponent>(Env.PlayerState);
+	UMordecaiSkillComponent* Component = Env.PlayerState->GetSkillComponent();
 	UAbilitySystemComponent* ASC = Env.PlayerState->GetAbilitySystemComponent();
 	const UMordecaiAttributeSet* Attributes = Env.PlayerState->GetMordecaiAttributeSet();
 	if (!TestNotNull("SkillComponent exists", Component)
@@ -182,31 +211,23 @@ bool FMordecai_Recovery_Skills_StartingRegistrationHasNoGameplayEffects::RunTest
 		return false;
 	}
 
-	const int32 AbilitiesBefore = ASC->GetActivatableAbilities().Num();
-	const int32 SkillPointsBefore = Component->GetAvailableSkillPoints();
-	const TMap<FName, float> AttributesBefore = SnapshotAttributes(Attributes);
-
-	Component->RegisterStartingSkillDataAssets();
-
 	TestEqual("the complete starting catalogue is registered",
 		CollectRegisteredSkills(Component).Num(), UE_ARRAY_COUNT(ExpectedSkills));
-	TestEqual("registration grants no abilities",
-		ASC->GetActivatableAbilities().Num(), AbilitiesBefore);
-	TestEqual("registration changes no skill points",
-		Component->GetAvailableSkillPoints(), SkillPointsBefore);
+	TestEqual("production starting registration grants no abilities",
+		ASC->GetActivatableAbilities().Num(), 0);
+	TestEqual("production starting registration grants no skill points",
+		Component->GetAvailableSkillPoints(), 0);
+	TestEqual("production starting registration creates no milestone names",
+		Component->GetActiveMilestoneTagNames().Num(), 0);
 
-	const TMap<FName, float> AttributesAfter = SnapshotAttributes(Attributes);
-	TestEqual("the same attributes exist after registration",
-		AttributesAfter.Num(), AttributesBefore.Num());
-	for (const TPair<FName, float>& Before : AttributesBefore)
+	FGameplayTagContainer OwnedTags;
+	ASC->GetOwnedGameplayTags(OwnedTags);
+	for (const FGameplayTag& Tag : OwnedTags)
 	{
-		const float* After = AttributesAfter.Find(Before.Key);
-		TestNotNull(*FString::Printf(TEXT("%s still exists"), *Before.Key.ToString()), After);
-		if (After)
-		{
-			TestEqual(*FString::Printf(TEXT("%s is unchanged"), *Before.Key.ToString()),
-				*After, Before.Value);
-		}
+		TestFalse(
+			*FString::Printf(TEXT("production starting registration adds no %s gameplay tag"),
+				*Tag.ToString()),
+			Tag.ToString().StartsWith(TEXT("Mordecai.Skill."), ESearchCase::CaseSensitive));
 	}
 
 	for (const FExpectedSkill& Expected : ExpectedSkills)
@@ -218,6 +239,44 @@ bool FMordecai_Recovery_Skills_StartingRegistrationHasNoGameplayEffects::RunTest
 			Component->HasGrantedMilestoneAbility(Name, 1));
 	}
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMordecai_Recovery_Skills_ClientMutatorsAreRejected,
+	"Mordecai.Recovery.Skills.ClientMutatorsAreRejected",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Skills_ClientMutatorsAreRejected::RunTest(
+	const FString& Parameters)
+{
+	FRecoveryTestEnv Env;
+	if (!Env.Setup(FVector::ZeroVector))
+	{
+		AddError(TEXT("Recovery test environment setup failed"));
+		return false;
+	}
+	ON_SCOPE_EXIT { Env.Teardown(); };
+
+	UMordecaiSkillComponent* Component = Env.PlayerState->GetSkillComponent();
+	if (!TestNotNull("PlayerState SkillComponent exists", Component))
+	{
+		return false;
+	}
+
+	Env.PlayerState->SetRole(ROLE_SimulatedProxy);
+	const int32 RankBefore = Component->GetSkillRank(TEXT("Longswords"));
+	const int32 PointsBefore = Component->GetAvailableSkillPoints();
+
+	Component->SetAvailableSkillPoints(12);
+	Component->SetSkillRank(TEXT("Longswords"), 8);
+	const bool bAllocated = Component->TryAllocateSkillPoint(TEXT("Longswords"));
+
+	TestFalse("client TryAllocateSkillPoint returns false", bAllocated);
+	TestEqual("client SetSkillRank leaves rank unchanged",
+		Component->GetSkillRank(TEXT("Longswords")), RankBefore);
+	TestEqual("client SetAvailableSkillPoints leaves points unchanged",
+		Component->GetAvailableSkillPoints(), PointsBefore);
 	return true;
 }
 

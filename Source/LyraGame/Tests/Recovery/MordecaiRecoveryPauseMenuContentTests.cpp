@@ -8,6 +8,8 @@
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/Button.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "HAL/PlatformMisc.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
@@ -20,6 +22,7 @@
 #include "Mordecai/UI/MordecaiFeatDisplayWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuWidget.h"
 #include "Mordecai/UI/MordecaiSkillTreeWidget.h"
+#include "Mordecai/UI/MordecaiTabButton.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 #include "Mordecai/UI/TinTally/MordecaiUIThemeSubsystem.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
@@ -50,6 +53,15 @@ namespace MordecaiRecoveryPauseMenuContentTest
 		const UTextBlock* Text = Find<UTextBlock>(Owner, Name);
 		return Text
 			&& Text->GetColorAndOpacity().GetSpecifiedColor().Equals(Expected);
+	}
+
+	bool HasThemeBrushColor(
+		const UUserWidget* Owner,
+		const TCHAR* Name,
+		const FLinearColor& Expected)
+	{
+		const UBorder* Border = Find<UBorder>(Owner, Name);
+		return Border && Border->GetBrushColor().Equals(Expected);
 	}
 
 	struct FThemedWidgetEnv : FRecoveryControlledTestEnv
@@ -126,6 +138,27 @@ bool FMordecai_Recovery_CharacterSheet_BuildsDefaultContent::RunTest(const FStri
 	Widget->BindToASC(Env.PlayerState->GetAbilitySystemComponent());
 	TSharedRef<SWidget> SlateWidget = Widget->TakeWidget();
 
+	UAbilitySystemComponent* ASC = Env.PlayerState->GetAbilitySystemComponent();
+	const FGameplayAttribute PrimaryAttributes[] = {
+		UMordecaiAttributeSet::GetStrengthAttribute(),
+		UMordecaiAttributeSet::GetDexterityAttribute(),
+		UMordecaiAttributeSet::GetEnduranceAttribute(),
+		UMordecaiAttributeSet::GetConstitutionAttribute(),
+		UMordecaiAttributeSet::GetResistanceAttribute(),
+		UMordecaiAttributeSet::GetDisciplineAttribute(),
+		UMordecaiAttributeSet::GetIntelligenceAttribute(),
+		UMordecaiAttributeSet::GetWisdomAttribute(),
+		UMordecaiAttributeSet::GetCharismaAttribute(),
+	};
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(PrimaryAttributes); ++Index)
+	{
+		const float Current = ASC->GetNumericAttribute(PrimaryAttributes[Index]);
+		ASC->ApplyModToAttribute(
+			PrimaryAttributes[Index],
+			EGameplayModOp::Additive,
+			static_cast<float>(Index + 11) - Current);
+	}
+
 	const TCHAR* GroupHeadings[] = {
 		TEXT("GroupHeading_Physical"),
 		TEXT("GroupHeading_Resilience"),
@@ -150,14 +183,25 @@ bool FMordecai_Recovery_CharacterSheet_BuildsDefaultContent::RunTest(const FStri
 		const FString ValueName = FString::Printf(TEXT("PrimaryValue_%s"), AttributeCodes[Index]);
 		TestTrue(
 			*FString::Printf(TEXT("%s label is rendered"), AttributeCodes[Index]),
-			HasText(Widget, *LabelName, AttributeCodes[Index]));
+			Find<UTextBlock>(Widget, *LabelName)
+				&& Find<UTextBlock>(Widget, *LabelName)->GetText().ToString().Equals(
+					AttributeCodes[Index],
+					ESearchCase::CaseSensitive));
 		TestTrue(
-			*FString::Printf(TEXT("%s live value is rendered"), AttributeCodes[Index]),
+			*FString::Printf(TEXT("%s distinct live value is rendered"), AttributeCodes[Index]),
 			HasText(
 				Widget,
 				*ValueName,
-				FString::FromInt(FMath::RoundToInt(
-					Widget->GetData().PrimaryAttributes[Index].BaseValue))));
+				FString::FromInt(Index + 11)));
+		const FString EffectiveModName =
+			FString::Printf(TEXT("PrimaryEffectiveMod_%s"), AttributeCodes[Index]);
+		TestTrue(
+			*FString::Printf(TEXT("%s effective modifier is rendered"), AttributeCodes[Index]),
+			HasText(
+				Widget,
+				*EffectiveModName,
+				FMordecaiCharacterSheetData::FormatEffectiveModBonus(
+					Widget->GetData().PrimaryAttributes[Index].EffectiveMod)));
 	}
 
 	const TCHAR* ResourceIds[] = {
@@ -177,7 +221,6 @@ bool FMordecai_Recovery_CharacterSheet_BuildsDefaultContent::RunTest(const FStri
 
 	UTextBlock* HealthText = Find<UTextBlock>(Widget, TEXT("ResourceValue_health"));
 	const FString HealthBefore = HealthText ? HealthText->GetText().ToString() : FString();
-	UAbilitySystemComponent* ASC = Env.PlayerState->GetAbilitySystemComponent();
 	ASC->ApplyModToAttribute(
 		UMordecaiAttributeSet::GetHealthAttribute(),
 		EGameplayModOp::Additive,
@@ -200,6 +243,24 @@ bool FMordecai_Recovery_CharacterSheet_BuildsDefaultContent::RunTest(const FStri
 			Widget,
 			TEXT("CharacterTitle"),
 			Themes->GetActiveColors().Text));
+	TestTrue(
+		"Character content plate follows the live High Contrast plate token",
+		HasThemeBrushColor(
+			Widget,
+			TEXT("CharacterContentPlate"),
+			Themes->GetActiveColors().Plate));
+	TestTrue(
+		"Character attribute row follows the live High Contrast raised-plate token",
+		HasThemeBrushColor(
+			Widget,
+			TEXT("AttributeCard_STR"),
+			Themes->GetActiveColors().PlateRaised));
+	TestTrue(
+		"Character muted name follows the live High Contrast muted-text token",
+		HasThemeTextColor(
+			Widget,
+			TEXT("PrimaryName_STR"),
+			Themes->GetActiveColors().TextMuted));
 	return true;
 }
 
@@ -269,9 +330,6 @@ bool FMordecai_Recovery_SkillTree_BuildsDefaultContent::RunTest(const FString& P
 	ON_SCOPE_EXIT { Env.TeardownThemed(); };
 
 	UMordecaiSkillComponent* Skills = Env.PlayerState->GetSkillComponent();
-	UMordecaiSkillDataAsset* Longswords =
-		MakeSkill(Skills, TEXT("Longswords"), EMordecaiSkillCategory::Weapon);
-	Skills->RegisterSkillDataAsset(Longswords);
 	Skills->SetSkillRank(TEXT("Longswords"), 7);
 
 	UMordecaiSkillTreeWidget* Widget = Env.MakeWidget<UMordecaiSkillTreeWidget>();
@@ -287,6 +345,58 @@ bool FMordecai_Recovery_SkillTree_BuildsDefaultContent::RunTest(const FString& P
 	TestTrue(
 		"Longswords row renders rank / 20",
 		HasText(Widget, TEXT("SkillRank_Longswords"), TEXT("7 / 20")));
+	TestTrue(
+		"Skill points label does not auto-wrap",
+		Find<UTextBlock>(Widget, TEXT("SkillPointsText"))
+			&& !Find<UTextBlock>(Widget, TEXT("SkillPointsText"))->GetAutoWrapText());
+	TestTrue(
+		"Rank value does not auto-wrap",
+		Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords"))
+			&& !Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords"))->GetAutoWrapText());
+	TestTrue(
+		"Rank value box has a fixed width override",
+		Find<USizeBox>(Widget, TEXT("SkillRankBox_Longswords"))
+			&& Find<USizeBox>(Widget, TEXT("SkillRankBox_Longswords"))->GetWidthOverride() > 0.f);
+
+	UMordecaiTabButton* MagicButton =
+		Find<UMordecaiTabButton>(Widget, TEXT("CategoryButton_Magic"));
+	TestNotNull("Magic category is a real button", MagicButton);
+	if (MagicButton)
+	{
+		MagicButton->OnClicked.Broadcast();
+	}
+	TestTrue(
+		"Clicking Magic switches the active category",
+		Widget->GetActiveCategory() == EMordecaiSkillCategory::Magic);
+	TestTrue(
+		"Magic category renders its real sheet count",
+		HasText(Widget, TEXT("CategoryMetaText"), TEXT("Magic \u00b7 11 skills")));
+	TestTrue(
+		"Magic category renders Fireball",
+		HasText(Widget, TEXT("SkillName_Fireball"), TEXT("Fireball")));
+
+	Widget->SetActiveCategory(EMordecaiSkillCategory::Weapon);
+	Skills->SetSkillRank(TEXT("Longswords"), 8);
+	Skills->SetAvailableSkillPoints(12);
+	TestTrue(
+		"Non-milestone rank changes refresh the visible row",
+		HasText(Widget, TEXT("SkillRank_Longswords"), TEXT("8 / 20")));
+	TestTrue(
+		"Available skill-point changes refresh the header",
+		HasText(Widget, TEXT("SkillPointsText"), TEXT("Skill Points: 12")));
+
+	UTextBlock* RowBeforeRedundantBind =
+		Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords"));
+	Widget->BindToSkillComponent(Skills);
+	TestTrue(
+		"Binding the same component does not rebuild rows",
+		Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords")) == RowBeforeRedundantBind);
+	UTextBlock* RowBeforeUnbind =
+		Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords"));
+	Widget->UnbindFromSkillComponent();
+	TestTrue(
+		"Unbind only removes subscriptions and does not rebuild rows",
+		Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords")) == RowBeforeUnbind);
 
 	UMordecaiUIThemeSubsystem* Themes =
 		Env.LocalPlayer->GetSubsystem<UMordecaiUIThemeSubsystem>();
@@ -297,6 +407,24 @@ bool FMordecai_Recovery_SkillTree_BuildsDefaultContent::RunTest(const FString& P
 			Widget,
 			TEXT("SkillsTitle"),
 			Themes->GetActiveColors().Text));
+	TestTrue(
+		"Skills content plate follows the live High Contrast plate token",
+		HasThemeBrushColor(
+			Widget,
+			TEXT("SkillContentPlate"),
+			Themes->GetActiveColors().Plate));
+	TestTrue(
+		"Skills row keeps the live High Contrast raised-plate token after category rebuild",
+		HasThemeBrushColor(
+			Widget,
+			TEXT("SkillRow_Longswords"),
+			Themes->GetActiveColors().PlateRaised));
+	TestTrue(
+		"Skills muted rank label keeps the live High Contrast muted-text token after category rebuild",
+		HasThemeTextColor(
+			Widget,
+			TEXT("SkillRankLabel_Longswords"),
+			Themes->GetActiveColors().TextMuted));
 	return true;
 }
 
