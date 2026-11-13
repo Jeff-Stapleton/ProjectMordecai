@@ -13,9 +13,9 @@ tabs and I closes the menu, issues #23 and #32).  About 60 s of play:
   1.  The combat HUD is on screen.
   2.  Escape opens the menu on the Character tab and pauses the game; Menu input mode with the
       mouse cursor, the title 'Paused', the five tabs as tab buttons; W and Q do nothing.
-  3.  The Character tab shows the character sheet (known issue N4: it is blank).
+  3.  The Character tab shows the character sheet.
   4.  Clicking the Skills, Feats and Settings tab buttons switches the tab; Skills and Feats
-      show their content (known issue N5: "Coming Soon"), Settings shows "Coming Soon".
+      show their content; Settings shows "Coming Soon".
   5.  LB (Gamepad_LeftShoulder) selects the previous tab (Settings -> Inventory) and RB
       (Gamepad_RightShoulder) the next (Inventory -> Settings), wrapping (AC-069.4, AC-095.4).
   6.  Escape closes and resumes; Escape reopens on the last tab; B (Gamepad_FaceButton_Right)
@@ -40,8 +40,8 @@ Usage:
   py Scripts/playtests/us069_pause_menu.py --attach-port N [--token T]   diagnostic only
 
 Output: Saved/Playtests/<YYYYmmdd-HHMMSS>-us069/ with report.md, report.json, game.log,
-bridge.jsonl and bridge_NN.png.  Open every screenshot with the Read tool and state what is on
-screen.
+bridge.jsonl and bridge_NN.png. Laptop builders analyze screenshots by script and bundle the
+originals for the coordinator to open and describe before merge.
 
 Exit codes: 0 every check passed (WARN allowed); 1 a gameplay check FAILED; 2 infrastructure.
 """
@@ -73,15 +73,25 @@ EXPECTED_TABS = (("character", "Character"), ("skills", "Skills"), ("feats", "Fe
 TAB_IDS = tuple(i for i, _ in EXPECTED_TABS)
 DEFAULT_TAB = "character"
 # AC-066.3: the 9 primary attributes (short id, display name).
-PRIMARY_ATTRIBUTES = (("STR", "Strength"), ("DEX", "Dexterity"), ("END", "Endurance"),
-                      ("CON", "Constitution"), ("RES", "Resistance"), ("DIS", "Discipline"),
-                      ("INT", "Intelligence"), ("WIS", "Wisdom"), ("CHA", "Charisma"))
+PRIMARY_ATTRIBUTES = (
+    ("strength", "STR", "Strength"), ("dexterity", "DEX", "Dexterity"),
+    ("endurance", "END", "Endurance"), ("constitution", "CON", "Constitution"),
+    ("resistance", "RES", "Resistance"), ("discipline", "DIS", "Discipline"),
+    ("intelligence", "INT", "Intelligence"), ("wisdom", "WIS", "Wisdom"),
+    ("charisma", "CHA", "Charisma"),
+)
 # AC-066.4: default group labels (FMordecaiCharacterSheetData, MordecaiCharacterSheetTypes.cpp).
 ATTRIBUTE_GROUPS = ("Physical", "Resilience", "Magical")
 # AC-066.5: "CurrentValue / MaxValue" (FormatResource: "%d / %d").
-RESOURCE_RE = re.compile(r"^\s*-?\d+\s*/\s*\d+\s*$")
+ATTRIBUTE_VALUE_RE = re.compile(r"^-?\d+$")
+EFFECTIVE_MOD_RE = re.compile(r"^\+\d+(?:\.\d+)?%$")
+RESOURCE_RE = re.compile(r"^-?\d+\s*/\s*\d+$")
+RESOURCE_ROWS = (("health", "Health"), ("stamina", "Stamina"),
+                 ("spellpoints", "Spell Points"), ("posture", "Posture"))
 SKILL_CATEGORY = "Weapon"     # AC-067.3: the first EMordecaiSkillCategory section
 SKILL_MAX_RANK = "/ 20"       # AC-067.4: rank / max rank 20
+MAGIC_CATEGORY_META = "Magic · 11 skills"
+MAGIC_SKILL = "Fireball"
 FEATS_SUMMARY_PREFIX = "Feats:"  # AC-068.8: "Feats: N unlocked -- ..."
 
 HUD_TIMEOUT_S = 5.0
@@ -96,21 +106,19 @@ BLOCKED_SETTLE_S = 1.0
 BLOCKED_W_HOLD_S = 0.3
 MAX_DRIFT_CM = 5.0
 
-KNOWN_N4 = ("N4 The Character tab of the pause menu is blank: UMordecaiCharacterSheetWidget "
-            "builds no widget tree (Known issues backlog, Specs/agent_playtest_plan_v1.md)")
-KNOWN_N5 = ("N5 The Skills and Feats tabs show \"Coming Soon\": MordecaiPauseMenuWidget registers "
-            "only Character and Inventory (Known issues backlog, Specs/agent_playtest_plan_v1.md)")
-KNOWN_ISSUES = (KNOWN_N4, KNOWN_N5)
+KNOWN_ISSUES = ()
 
 SCREENSHOTS = {
     "menu_character": "the pause menu ('Paused', tab bar Character/Skills/Feats/Inventory/"
                       "Settings) on the Character tab: the 9 primary attributes in Physical / "
                       "Resilience / Magical groups and the Health / Stamina / Spell Points / "
-                      "Posture 'x / y' lines (known issue N4: the content area is blank)",
+                      "Posture 'x / y' lines",
     "menu_skills": "the pause menu on the Skills tab: skill categories (Weapon, ...) and skill "
-                   "rows with 'rank / 20' (known issue N5: 'Coming Soon')",
+                   "rows with 'rank / 20'",
+    "menu_skills_magic": "the pause menu on the Skills tab after the real Magic category button "
+                         "was clicked: 'Magic · 11 skills' and the Fireball row",
     "menu_feats": "the pause menu on the Feats tab: the 'Feats: N unlocked' summary header "
-                  "(known issue N5: 'Coming Soon')",
+                  "and empty-state copy when no feats are registered",
     "menu_lb": "the pause menu after LB on the Settings tab: the Inventory tab highlighted in the "
                "tab bar and the inventory list ('Inventory is empty.') in the content area",
     "menu_rb": "the pause menu after RB on the Inventory tab: the Settings tab highlighted in the "
@@ -143,21 +151,24 @@ PLAN = (
          f"{BLOCKED_SETTLE_S:g}s -> player.location moved < {MAX_DRIFT_CM:g} cm and "
          "spell_points unchanged, menu still open", proves=("AC-069.1",)),
     Step("character_tab_content", "state pause_menu, widgets -> on the character tab a visible "
-         "MordecaiCharacterSheetWidget with all 9 primary attributes (STR..CHA), the groups "
-         "Physical/Resilience/Magical and an 'x / y' resource line",
-         proves=("US-066:AC-066.1", "US-066:AC-066.3", "US-066:AC-066.4", "US-066:AC-066.5"),
-         known_issue=KNOWN_N4),
+         "MordecaiCharacterSheetWidget with exact-case STR..CHA codes, all 9 numeric values and "
+         "'+X%' effective modifiers, the Physical/Resilience/Magical groups, and all four named "
+         "Health/Stamina/Spell Points/Posture 'x / y' resource lines",
+         proves=("US-066:AC-066.1", "US-066:AC-066.3", "US-066:AC-066.4", "US-066:AC-066.5")),
     Step("click_skills_tab", 'click_button(button_id="skills") -> wait_until '
          'pause_menu.active_tab=="skills"', proves=("AC-069.4",)),
     Step("skills_tab_content", f"state pause_menu, widgets -> a visible "
          f"MordecaiSkillTreeWidget with texts including {lit(SKILL_CATEGORY)} and "
          f"{lit(SKILL_MAX_RANK)}",
-         proves=("US-067:AC-067.1", "US-067:AC-067.3", "US-067:AC-067.4"), known_issue=KNOWN_N5),
+         proves=("US-067:AC-067.1", "US-067:AC-067.4")),
+    Step("click_magic_category", 'click_button(button_id="magic") -> wait for exact texts '
+         f'{MAGIC_CATEGORY_META!r} and {MAGIC_SKILL!r}',
+         proves=("US-067:AC-067.3",)),
     Step("click_feats_tab", 'click_button(button_id="feats") -> wait_until '
          'pause_menu.active_tab=="feats"', proves=("AC-069.4",)),
     Step("feats_tab_content", f"state pause_menu, widgets -> a visible MordecaiFeatDisplayWidget "
          f"with a text starting {lit(FEATS_SUMMARY_PREFIX)}",
-         proves=("US-068:AC-068.1", "US-068:AC-068.8"), known_issue=KNOWN_N5),
+         proves=("US-068:AC-068.1", "US-068:AC-068.8")),
     Step("settings_placeholder", 'click_button(button_id="settings") -> active_tab=="settings" '
          f"and a visible widget shows {lit(PLACEHOLDER_TEXT)}", proves=("AC-069.3",)),
     Step("shoulder_switches_tab", "tap Gamepad_LeftShoulder -> wait_until pause_menu.open==true "
@@ -222,15 +233,14 @@ def _menu(st):
     return _section(st, "pause_menu")
 
 
-def _has_word(texts, word):
-    pat = re.compile(r"\b" + re.escape(word) + r"\b", re.IGNORECASE)
-    return any(pat.search(t) for t in texts)
-
-
 def _has_label(texts, label):
     """A text that IS the label (a group heading), not one that merely contains it."""
     want = label.casefold()
     return any(t.strip().casefold() == want for t in texts)
+
+
+def _has_exact_text(texts, expected):
+    return any(t.strip() == expected for t in texts)
 
 
 def _num(v):
@@ -405,9 +415,26 @@ class Us069Run(kit.PlaytestRun):
                 return False
             for w in _widgets_of(st, "charactersheet"):
                 texts = _texts(w)
-                if (all(_has_word(texts, s) or _has_word(texts, n) for s, n in PRIMARY_ATTRIBUTES)
-                        and all(_has_label(texts, g) for g in ATTRIBUTE_GROUPS)
-                        and any(RESOURCE_RE.match(t) for t in texts)):
+                rows = {row.get("id"): row for row in w.get("character_rows", [])
+                        if isinstance(row, dict) and isinstance(row.get("id"), str)}
+                resources = {row.get("id"): row for row in w.get("resource_rows", [])
+                             if isinstance(row, dict) and isinstance(row.get("id"), str)}
+                attributes_ok = all(
+                    isinstance(rows.get(row_id), dict)
+                    and rows[row_id].get("code") == code
+                    and rows[row_id].get("name") == name
+                    and ATTRIBUTE_VALUE_RE.fullmatch(str(rows[row_id].get("value", "")))
+                    and EFFECTIVE_MOD_RE.fullmatch(str(rows[row_id].get("modifier", "")))
+                    and rows[row_id].get("visible") is True
+                    for row_id, code, name in PRIMARY_ATTRIBUTES)
+                resources_ok = all(
+                    isinstance(resources.get(row_id), dict)
+                    and resources[row_id].get("label") == label
+                    and RESOURCE_RE.fullmatch(str(resources[row_id].get("value", "")).strip())
+                    and resources[row_id].get("visible") is True
+                    for row_id, label in RESOURCE_ROWS)
+                if (attributes_ok and resources_ok
+                        and all(_has_label(texts, g) for g in ATTRIBUTE_GROUPS)):
                     return True
             return False
 
@@ -416,14 +443,39 @@ class Us069Run(kit.PlaytestRun):
             if not sheets:
                 return (f"active_tab={_menu(st).get('active_tab')!r}; no visible "
                         f"CharacterSheet widget; visible widgets: {_describe_widgets(st)}")
-            texts = [t for w in sheets for t in _texts(w)]
-            missing = [s for s, n in PRIMARY_ATTRIBUTES
-                       if not (_has_word(texts, s) or _has_word(texts, n))]
+            sheet = sheets[0]
+            texts = _texts(sheet)
+            rows = {row.get("id"): row for row in sheet.get("character_rows", [])
+                    if isinstance(row, dict) and isinstance(row.get("id"), str)}
+            resources = {row.get("id"): row for row in sheet.get("resource_rows", [])
+                         if isinstance(row, dict) and isinstance(row.get("id"), str)}
+            malformed = [
+                row_id for row_id, code, name in PRIMARY_ATTRIBUTES
+                if not (
+                    isinstance(rows.get(row_id), dict)
+                    and rows[row_id].get("code") == code
+                    and rows[row_id].get("name") == name
+                    and ATTRIBUTE_VALUE_RE.fullmatch(str(rows[row_id].get("value", "")))
+                    and EFFECTIVE_MOD_RE.fullmatch(str(rows[row_id].get("modifier", "")))
+                    and rows[row_id].get("visible") is True)
+            ]
             groups = [g for g in ATTRIBUTE_GROUPS if not _has_label(texts, g)]
-            res = [t for t in texts if RESOURCE_RE.match(t)]
-            return (f"{sheets[0].get('class')} visible with {len(texts)} text(s); missing "
-                    f"attributes {missing}, missing groups {groups}, resource lines {res[:4]}; "
-                    f"texts {_dumps(texts[:16], 400)}")
+            malformed_resources = [
+                f"{row_id}/{label}" for row_id, label in RESOURCE_ROWS
+                if not (
+                    isinstance(resources.get(row_id), dict)
+                    and resources[row_id].get("label") == label
+                    and RESOURCE_RE.fullmatch(str(resources[row_id].get("value", "")).strip())
+                    and resources[row_id].get("visible") is True)
+            ]
+            missing = [f"{code}/{name}" for row_id, code, name in PRIMARY_ATTRIBUTES
+                       if row_id in malformed]
+            return (f"{sheets[0].get('class')} visible with {len(texts)} text(s); "
+                    f"missing exact-case attributes {missing}, missing groups {groups}; "
+                    f"malformed or clipped structured attribute row ids {malformed}, "
+                    f"missing or malformed resource rows {malformed_resources}; "
+                    f"rows {_dumps(list(rows.values()), 900)}, resources "
+                    f"{_dumps(list(resources.values()), 500)}")
 
         self.observe("character_tab_content", ["pause_menu", "widgets"], sheet_ok,
                      describe_sheet, timeout_s=CONTENT_TIMEOUT_S, needs=opened, needs_why=why)
@@ -469,6 +521,55 @@ class Us069Run(kit.PlaytestRun):
             lambda texts: (any(SKILL_CATEGORY in t for t in texts)
                            and any(SKILL_MAX_RANK in t for t in texts)),
             f"texts including '{SKILL_CATEGORY}' and '{SKILL_MAX_RANK}'", "menu_skills")
+
+        def magic_category(b):
+            response = b.click_button(button_id="magic")
+            target = response.get("target") or {}
+
+            def shown(st):
+                if _menu(st).get("active_tab") != "skills":
+                    return False
+                return any(
+                    _has_exact_text(_texts(w), MAGIC_CATEGORY_META)
+                    and _has_exact_text(_texts(w), MAGIC_SKILL)
+                    for w in _widgets_of(st, "skilltree")
+                )
+
+            try:
+                state = b.wait_for(
+                    shown,
+                    timeout_s=CONTENT_TIMEOUT_S,
+                    sections=["pause_menu", "widgets"],
+                )
+            except ab.BridgeError as e:
+                if e.code != "wait_for_timeout":
+                    raise
+                state = e.response or {}
+                return (
+                    "FAIL",
+                    f"clicked category button {target!r}; within {CONTENT_TIMEOUT_S:g}s "
+                    f"the Skills widget did not show exact texts {MAGIC_CATEGORY_META!r} "
+                    f"and {MAGIC_SKILL!r}; widgets: {_describe_widgets(state)}",
+                    None,
+                )
+            return (
+                "PASS",
+                f"clicked category button id='magic' ({target.get('label')!r}); "
+                f"Skills shows exact texts {MAGIC_CATEGORY_META!r} and {MAGIC_SKILL!r}",
+                None,
+            )
+
+        magic_ok, _ = self.measure(
+            "click_magic_category",
+            magic_category,
+            needs=self.menu_state() == (True, "skills"),
+            needs_why="not run: the menu is not open on the skills tab",
+        )
+        self.shot(
+            "menu_skills_magic",
+            needs=magic_ok,
+            needs_why="not taken: the Magic category did not render",
+        )
         self._click_tab("click_feats_tab", "feats")
         self._tab_content(
             "feats_tab_content", "feats", "featdisplay",

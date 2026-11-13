@@ -25,6 +25,8 @@ class LYRAGAME_API AMordecaiPlayerState : public ALyraPlayerState
 public:
 	AMordecaiPlayerState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	virtual void PostInitializeComponents() override;
+
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|PlayerState")
 	UMordecaiAttributeSet* GetMordecaiAttributeSet() const { return MordecaiAttributeSet; }
 

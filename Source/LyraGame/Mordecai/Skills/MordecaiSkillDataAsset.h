@@ -12,7 +12,7 @@ class UGameplayAbility;
 /**
  * UMordecaiSkillDataAsset
  *
- *	Static data for a single skill. One asset per skill (50 total).
+ *	Static data for a single skill. One data object per registered skill.
  *	Contains category, milestone descriptions, and milestone ability mappings.
  */
 UCLASS(BlueprintType)
@@ -24,6 +24,10 @@ public:
 	/** Unique skill identifier (e.g. "Longswords", "Dodging"). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Skills")
 	FName SkillName;
+
+	/** Localized player-facing skill name. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Skills")
+	FText DisplayName;
 
 	/** Which of the 5 skill categories this belongs to. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Skills")

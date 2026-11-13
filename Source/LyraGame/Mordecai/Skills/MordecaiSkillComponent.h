@@ -14,6 +14,7 @@ class UAbilitySystemComponent;
 
 /** Native C++ delegate fired when a skill reaches a milestone rank. */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMordecaiSkillMilestoneReached, FName /*SkillName*/, int32 /*MilestoneRank*/);
+DECLARE_MULTICAST_DELEGATE(FOnMordecaiSkillStateChanged);
 
 /** Blueprint-exposed delegate for skill milestone events. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMordecaiSkillMilestoneReachedBP, FName, SkillName, int32, MilestoneRank);
@@ -38,6 +39,9 @@ public:
 	/** Register a skill data asset so the component can validate and grant milestones. */
 	void RegisterSkillDataAsset(UMordecaiSkillDataAsset* SkillData);
 
+	/** Register the rank-0 starting skill catalogue from skill_sheet_v1.1.md. */
+	void RegisterStartingSkillDataAssets();
+
 	/** Lookup a previously registered skill data asset by skill name (null if not registered). */
 	UMordecaiSkillDataAsset* GetRegisteredSkillDataAsset(FName SkillName) const;
 
@@ -59,7 +63,7 @@ public:
 
 	/** Directly set a skill's rank (debug/admin). Handles milestone grant/revoke. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Skills")
-	void SetSkillRank(FName SkillName, int32 NewRank);
+	bool SetSkillRank(FName SkillName, int32 NewRank);
 
 	// --- Skill Points ---
 
@@ -67,7 +71,7 @@ public:
 	int32 GetAvailableSkillPoints() const { return AvailableSkillPoints; }
 
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Skills")
-	void SetAvailableSkillPoints(int32 NewPoints);
+	bool SetAvailableSkillPoints(int32 NewPoints);
 
 	// --- Milestone Queries ---
 
@@ -87,6 +91,9 @@ public:
 
 	/** Native C++ delegate — fires when any skill reaches a milestone rank. */
 	FOnMordecaiSkillMilestoneReached OnSkillMilestoneReached;
+
+	/** Native C++ delegate — fires whenever ranks or available points change. */
+	FOnMordecaiSkillStateChanged OnSkillStateChanged;
 
 	/** Blueprint delegate — fires when any skill reaches a milestone rank. */
 	UPROPERTY(BlueprintAssignable, Category = "Mordecai|Skills")
@@ -121,12 +128,18 @@ private:
 	/** Set a rank in the replicated array (adds entry if absent). */
 	void SetRankInternal(FName SkillName, int32 NewRank);
 
+	UFUNCTION()
+	void OnRep_SkillRanks();
+
+	UFUNCTION()
+	void OnRep_AvailableSkillPoints();
+
 	// --- Replicated State ---
 
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_SkillRanks)
 	TArray<FMordecaiSkillRankEntry> SkillRanks;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_AvailableSkillPoints)
 	int32 AvailableSkillPoints = 0;
 
 	// --- Non-Replicated (derived from SkillRanks on each side) ---

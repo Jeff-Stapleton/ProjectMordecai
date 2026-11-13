@@ -40,7 +40,7 @@
 | First Aid | Utility & Interaction |  |  |  |  | Staunch Bleed |  |  |  |  | Revive Faster |  |  |  |  | Field Surgery |  |  |  |  | Miracle Worker (big save) |
 | Fireball | Magic |  |  |  |  | Ignite Spread |  |  |  |  | Fire Wall |  |  |  |  | Overheat (risk/reward) |  |  |  |  | Inferno Core (signature) |
 | Frost Nova | Magic |  |  |  |  | Slow/Frostbite |  |  |  |  | Ice Lance |  |  |  |  | Shatter (vs frozen) |  |  |  |  | Absolute Zero |
-| Magic Missle | Magic |  |  |  |  | Chain Spark |  |  |  |  | Stun Threshold |  |  |  |  | Storm Field |  |  |  |  | Thunder God |
+| Magic Missile | Magic |  |  |  |  | Chain Spark |  |  |  |  | Stun Threshold |  |  |  |  | Storm Field |  |  |  |  | Thunder God |
 | Stone Skin | Magic |  |  |  |  | Stone Skin |  |  |  |  | Pillar |  |  |  |  | Quake |  |  |  |  | Titan Form |
 | Sleep | Magic |  |  |  |  | Gust |  |  |  |  | Pull/Push |  |  |  |  | Levitate Field |  |  |  |  | Singularity |
 | Blink | Magic |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |

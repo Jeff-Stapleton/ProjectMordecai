@@ -19,10 +19,13 @@
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
 #include "Mordecai/Items/MordecaiResourceLedger.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/MordecaiPlayerState.h"
 #include "Mordecai/UI/MordecaiCharacterSheetWidget.h"
+#include "Mordecai/UI/MordecaiFeatDisplayWidget.h"
 #include "Mordecai/UI/MordecaiInventoryWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuPlaceholderWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuSubsystem.h"
+#include "Mordecai/UI/MordecaiSkillTreeWidget.h"
 #include "Mordecai/UI/MordecaiTabButton.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPauseMenuWidget)
@@ -74,6 +77,10 @@ void UMordecaiPauseMenuWidget::InitializeTabs()
 	// Replace placeholders with real content widgets:
 	// "character" tab — character sheet (US-066)
 	UMordecaiCharacterSheetWidget::RegisterWithPauseMenu(this);
+	// "skills" tab — live ranks from the PlayerState SkillComponent (US-067)
+	UMordecaiSkillTreeWidget::RegisterWithPauseMenu(this);
+	// "feats" tab — unlocked/locked rows from the PlayerState FeatComponent (US-068)
+	UMordecaiFeatDisplayWidget::RegisterWithPauseMenu(this);
 	// "inventory" tab — inventory flat list + ledger (US-071/US-079)
 	UMordecaiInventoryWidget::RegisterWithPauseMenu(this);
 }
@@ -378,6 +385,20 @@ void UMordecaiPauseMenuWidget::BindTabContent(UUserWidget* ContentWidget)
 		}
 		CharacterSheet->BindToASC(ASC);
 	}
+	else if (UMordecaiSkillTreeWidget* SkillTree = Cast<UMordecaiSkillTreeWidget>(ContentWidget))
+	{
+		const AMordecaiPlayerState* MordecaiPS =
+			Cast<AMordecaiPlayerState>(OwningPC ? OwningPC->PlayerState : nullptr);
+		SkillTree->BindToSkillComponent(
+			MordecaiPS ? MordecaiPS->GetSkillComponent() : nullptr);
+	}
+	else if (UMordecaiFeatDisplayWidget* FeatDisplay = Cast<UMordecaiFeatDisplayWidget>(ContentWidget))
+	{
+		const AMordecaiPlayerState* MordecaiPS =
+			Cast<AMordecaiPlayerState>(OwningPC ? OwningPC->PlayerState : nullptr);
+		FeatDisplay->BindToFeatComponent(
+			MordecaiPS ? MordecaiPS->GetFeatComponent() : nullptr);
+	}
 }
 
 void UMordecaiPauseMenuWidget::UnbindTabContent(UUserWidget* ContentWidget)
@@ -389,6 +410,14 @@ void UMordecaiPauseMenuWidget::UnbindTabContent(UUserWidget* ContentWidget)
 	else if (UMordecaiCharacterSheetWidget* CharacterSheet = Cast<UMordecaiCharacterSheetWidget>(ContentWidget))
 	{
 		CharacterSheet->UnbindFromASC();
+	}
+	else if (UMordecaiSkillTreeWidget* SkillTree = Cast<UMordecaiSkillTreeWidget>(ContentWidget))
+	{
+		SkillTree->UnbindFromSkillComponent();
+	}
+	else if (UMordecaiFeatDisplayWidget* FeatDisplay = Cast<UMordecaiFeatDisplayWidget>(ContentWidget))
+	{
+		FeatDisplay->UnbindFromFeatComponent();
 	}
 }
 

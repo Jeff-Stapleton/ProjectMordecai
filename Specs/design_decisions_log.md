@@ -228,3 +228,29 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Large and XL increase the callout slot height upward from that fixed edge.
 - The combo remains fixed immediately below it at centre `+184`; the two regions do not overlap at any supported text size.
 - Source: Jeff via the US-106 fix-round-2 coordinator decision (2026-11-12).
+
+---
+
+## 2026-11-13 — Starting skill registrations (US-093 round 2)
+
+- Zero registered skills is a real content gap, not an acceptable empty state for AC-093.4.
+- Register every nonblank row of `Specs/skill_sheet_v1.1.md` with its exact skill name and mapped existing `EMordecaiSkillCategory`. Do not add a category enum for an unmatched sheet category.
+- All starting skills begin at rank 0 with max rank 20. Registration itself grants no abilities and changes no attributes or skill points.
+- Keep registration data-driven through `UMordecaiSkillDataAsset` and `UMordecaiSkillComponent::RegisterSkillDataAsset`; a compiled native table sourced from the sheet is acceptable and must work in a packaged build.
+- Settings remains the accepted `Coming Soon` placeholder; a Tin Tally restyle remains outside US-093.
+- Source: US-093 round-2 coordinator decisions for Jeff (2026-11-13).
+
+---
+
+## 2026-11-13 — US-093 round-3 review decisions
+
+### Magic Missile spelling
+- **Final decision:** correct the skill-sheet typo `Magic Missle` to `Magic Missile` everywhere: stable skill ID, localized display name, Markdown sheets, the editable v1.1 workbook, and downstream design research.
+- This matches the existing ability and glyph spelling.
+- Source: US-093 round-3 coordinator decision for Jeff (2026-11-13).
+
+### Laptop-builder screenshot review
+- For laptop-agent runs, builders never open PNG/image files with the file-read tool because doing so crashes the agent.
+- Builders validate captures with PIL/scripted image analysis, preserve the original images in the checksummed evidence bundle, and do not claim that a person viewed them.
+- Mordecai Bot opens and describes the bundled captures before merge. This coordinator rule overrides the builder image-opening steps in `CLAUDE.md` 4c.4 and 4d.4; all other Tier 3/Tier 4 evidence rules remain in force.
+- Source: US-093 round-3 coordinator decision for Jeff (2026-11-13).

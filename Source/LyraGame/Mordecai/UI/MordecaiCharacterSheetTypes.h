@@ -40,8 +40,11 @@ enum class EMordecaiAttributeGroup : uint8
  */
 struct FMordecaiPrimaryAttributeDisplay
 {
-	/** Attribute short code ("STR", "DEX", ...). */
-	FName Code;
+	/** Case-insensitive identifier used only for lookups and widget names. */
+	FName LookupKey;
+
+	/** Localized short code rendered in UI ("STR", "DEX", ...). */
+	FText Code;
 
 	/** Localized display name shown in UI. */
 	FText DisplayName;

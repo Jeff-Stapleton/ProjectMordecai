@@ -66,6 +66,7 @@
 #include "Mordecai/MordecaiGameMode.h"
 #include "Mordecai/MordecaiPlayerController.h"
 #include "Mordecai/Playtest/MordecaiAgentBridgeProtocol.h"
+#include "Mordecai/UI/MordecaiCharacterSheetWidget.h"
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
 #include "Mordecai/UI/MordecaiInventoryWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuSubsystem.h"
@@ -627,6 +628,112 @@ namespace MordecaiAgentBridge::State
 				}
 				Entry->SetArrayField(TEXT("texts"), Texts);
 				Entry->SetArrayField(TEXT("buttons"), Buttons);
+				if (const UMordecaiCharacterSheetWidget* CharacterSheet =
+					Cast<UMordecaiCharacterSheetWidget>(Widget))
+				{
+					const UWidget* Scroll =
+						CharacterSheet->WidgetTree->FindWidget(TEXT("CharacterScrollBox"));
+					auto IsFullyVisibleWithin = [](const UWidget* Child, const UWidget* Clip)
+					{
+						if (!IsWidgetOnScreen(Child) || !IsWidgetOnScreen(Clip))
+						{
+							return false;
+						}
+						const FGeometry& ChildGeometry = Child->GetCachedGeometry();
+						const FGeometry& ClipGeometry = Clip->GetCachedGeometry();
+						const FVector2D ChildPosition(ChildGeometry.GetAbsolutePosition());
+						const FVector2D ChildSize(ChildGeometry.GetAbsoluteSize());
+						const FVector2D ClipPosition(ClipGeometry.GetAbsolutePosition());
+						const FVector2D ClipSize(ClipGeometry.GetAbsoluteSize());
+						if (ChildSize.X <= 0.f || ChildSize.Y <= 0.f
+							|| ClipSize.X <= 0.f || ClipSize.Y <= 0.f)
+						{
+							return false;
+						}
+						const FSlateRect ChildRect =
+							FSlateRect::FromPointAndExtent(ChildPosition, ChildSize);
+						const FSlateRect ClipRect =
+							FSlateRect::FromPointAndExtent(ClipPosition, ClipSize);
+						bool bOverlapping = false;
+						const FSlateRect Intersection =
+							ChildRect.IntersectionWith(ClipRect, bOverlapping);
+						return bOverlapping
+							&& Intersection.GetArea() + 1.f >= ChildRect.GetArea();
+					};
+					auto TextValue = [CharacterSheet](const FString& Name)
+					{
+						const UTextBlock* Text =
+							CharacterSheet->WidgetTree->FindWidget<UTextBlock>(FName(*Name));
+						return Text ? Text->GetText().ToString() : FString();
+					};
+					auto TextWidget = [CharacterSheet](const FString& Name)
+					{
+						return CharacterSheet->WidgetTree->FindWidget<UTextBlock>(FName(*Name));
+					};
+
+					const TCHAR* AttributeIds[] = {
+						TEXT("strength"), TEXT("dexterity"), TEXT("endurance"),
+						TEXT("constitution"), TEXT("resistance"), TEXT("discipline"),
+						TEXT("intelligence"), TEXT("wisdom"), TEXT("charisma")
+					};
+					TArray<TSharedPtr<FJsonValue>> CharacterRows;
+					for (const TCHAR* AttributeId : AttributeIds)
+					{
+						const FString Id(AttributeId);
+						const FString CodeName = FString::Printf(TEXT("PrimaryLabel_%s"), AttributeId);
+						const FString DisplayName = FString::Printf(TEXT("PrimaryName_%s"), AttributeId);
+						const FString ValueName = FString::Printf(TEXT("PrimaryValue_%s"), AttributeId);
+						const FString ModifierName =
+							FString::Printf(TEXT("PrimaryEffectiveMod_%s"), AttributeId);
+						const UTextBlock* CodeWidget = TextWidget(CodeName);
+						const UTextBlock* NameWidget = TextWidget(DisplayName);
+						const UTextBlock* ValueWidget = TextWidget(ValueName);
+						const UTextBlock* ModifierWidget = TextWidget(ModifierName);
+						const TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+						Row->SetStringField(TEXT("id"), Id);
+						Row->SetStringField(TEXT("code"), TextValue(CodeName));
+						Row->SetStringField(TEXT("name"), TextValue(DisplayName));
+						Row->SetStringField(TEXT("value"), TextValue(ValueName));
+						Row->SetStringField(TEXT("modifier"), TextValue(ModifierName));
+						Row->SetBoolField(
+							TEXT("visible"),
+							IsFullyVisibleWithin(CodeWidget, Scroll)
+								&& IsFullyVisibleWithin(NameWidget, Scroll)
+								&& IsFullyVisibleWithin(ValueWidget, Scroll)
+								&& IsFullyVisibleWithin(ModifierWidget, Scroll));
+						CharacterRows.Add(MakeShared<FJsonValueObject>(Row));
+					}
+					Entry->SetArrayField(TEXT("character_rows"), CharacterRows);
+
+					struct FResourcePresentation
+					{
+						const TCHAR* Id;
+						const TCHAR* LabelName;
+						const TCHAR* ValueName;
+					};
+					const FResourcePresentation Resources[] = {
+						{ TEXT("health"), TEXT("ResourceLabel_health"), TEXT("ResourceValue_health") },
+						{ TEXT("stamina"), TEXT("ResourceLabel_stamina"), TEXT("ResourceValue_stamina") },
+						{ TEXT("spellpoints"), TEXT("ResourceLabel_spellpoints"), TEXT("ResourceValue_spellpoints") },
+						{ TEXT("posture"), TEXT("ResourceLabel_posture"), TEXT("ResourceValue_posture") }
+					};
+					TArray<TSharedPtr<FJsonValue>> ResourceRows;
+					for (const FResourcePresentation& Resource : Resources)
+					{
+						const UTextBlock* LabelWidget = TextWidget(Resource.LabelName);
+						const UTextBlock* ValueWidget = TextWidget(Resource.ValueName);
+						const TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+						Row->SetStringField(TEXT("id"), Resource.Id);
+						Row->SetStringField(TEXT("label"), TextValue(Resource.LabelName));
+						Row->SetStringField(TEXT("value"), TextValue(Resource.ValueName));
+						Row->SetBoolField(
+							TEXT("visible"),
+							IsFullyVisibleWithin(LabelWidget, Scroll)
+								&& IsFullyVisibleWithin(ValueWidget, Scroll));
+						ResourceRows.Add(MakeShared<FJsonValueObject>(Row));
+					}
+					Entry->SetArrayField(TEXT("resource_rows"), ResourceRows);
+				}
 				Widgets.Add(MakeShared<FJsonValueObject>(Entry));
 			}
 			return MakeShared<FJsonValueArray>(Widgets);

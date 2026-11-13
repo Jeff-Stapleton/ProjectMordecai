@@ -18,15 +18,15 @@ void FMordecaiCharacterSheetData::InitDefaults()
 
 	// --- Primary attributes: STR, DEX, END, CON, RES, DIS, INT, WIS, CHA ---
 	PrimaryAttributes.Reset();
-	PrimaryAttributes.Add({ FName("STR"), LOCTEXT("AttrStrength",     "Strength"),     0.f, 0.f, false });
-	PrimaryAttributes.Add({ FName("DEX"), LOCTEXT("AttrDexterity",    "Dexterity"),    0.f, 0.f, false });
-	PrimaryAttributes.Add({ FName("END"), LOCTEXT("AttrEndurance",    "Endurance"),    0.f, 0.f, false });
-	PrimaryAttributes.Add({ FName("CON"), LOCTEXT("AttrConstitution", "Constitution"), 0.f, 0.f, false });
-	PrimaryAttributes.Add({ FName("RES"), LOCTEXT("AttrResistance",   "Resistance"),   0.f, 0.f, false });
-	PrimaryAttributes.Add({ FName("DIS"), LOCTEXT("AttrDiscipline",   "Discipline"),   0.f, 0.f, false });
-	PrimaryAttributes.Add({ FName("INT"), LOCTEXT("AttrIntelligence", "Intelligence"), 0.f, 0.f, false });
-	PrimaryAttributes.Add({ FName("WIS"), LOCTEXT("AttrWisdom",       "Wisdom"),       0.f, 0.f, false });
-	PrimaryAttributes.Add({ FName("CHA"), LOCTEXT("AttrCharisma",     "Charisma"),     0.f, 0.f, false });
+	PrimaryAttributes.Add({ FName("strength"),     LOCTEXT("CodeStrength",     "STR"), LOCTEXT("AttrStrength",     "Strength"),     0.f, 0.f, false });
+	PrimaryAttributes.Add({ FName("dexterity"),    LOCTEXT("CodeDexterity",    "DEX"), LOCTEXT("AttrDexterity",    "Dexterity"),    0.f, 0.f, false });
+	PrimaryAttributes.Add({ FName("endurance"),    LOCTEXT("CodeEndurance",    "END"), LOCTEXT("AttrEndurance",    "Endurance"),    0.f, 0.f, false });
+	PrimaryAttributes.Add({ FName("constitution"), LOCTEXT("CodeConstitution", "CON"), LOCTEXT("AttrConstitution", "Constitution"), 0.f, 0.f, false });
+	PrimaryAttributes.Add({ FName("resistance"),   LOCTEXT("CodeResistance",   "RES"), LOCTEXT("AttrResistance",   "Resistance"),   0.f, 0.f, false });
+	PrimaryAttributes.Add({ FName("discipline"),   LOCTEXT("CodeDiscipline",   "DIS"), LOCTEXT("AttrDiscipline",   "Discipline"),   0.f, 0.f, false });
+	PrimaryAttributes.Add({ FName("intelligence"), LOCTEXT("CodeIntelligence", "INT"), LOCTEXT("AttrIntelligence", "Intelligence"), 0.f, 0.f, false });
+	PrimaryAttributes.Add({ FName("wisdom"),       LOCTEXT("CodeWisdom",       "WIS"), LOCTEXT("AttrWisdom",       "Wisdom"),       0.f, 0.f, false });
+	PrimaryAttributes.Add({ FName("charisma"),     LOCTEXT("CodeCharisma",     "CHA"), LOCTEXT("AttrCharisma",     "Charisma"),     0.f, 0.f, false });
 
 	// --- Primary-derived multipliers (default 1.0) ---
 	PrimaryDerivedStats.Reset();

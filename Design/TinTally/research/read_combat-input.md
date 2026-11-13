@@ -289,7 +289,7 @@ The specs list three core resources: "Health (0--100%) Stamina (tiered resource)
 **Every spell named in the sources, with damage type** (from code where implemented, otherwise from the docs):
 - **Fireball:** Fire (`Damage.Fire`, CanCrit). Skill sheet text (copy-paste) reads "Channelled spell. Fires {x}*{rank} magic projectiles … force dmg". R20 "Charged casts now create a much larger explosion".
 - **Cone of Cold** (code `Ability.Spell.ConeOfCold`; "Frost Nova" in the proposal's existing list): **Frost**. Cone arc and range come from data. Skill sheet R10: "slowed … can now be briefly frozen".
-- **Magic Missile** ("Magic Missle" in the skill sheet): **Arcane** ("Arcane/Force"), homing, CanCrit false. Missiles are channelled over the cast time; per-missile damage = power / count.
+- **Magic Missile**: **Arcane** ("Arcane/Force"), homing, CanCrit false. Missiles are channelled over the cast time; per-missile damage = power / count.
 - **Stone Skin:** buff (flat DamageReduction). No damage type.
 - **Sleep** ("Sleep (Wind/Gravity)" in the proposal): `Status.Sleeping` plus `State.Rooted`. Wakes on damage.
 - **Blink:** mobility with i-frames. Proposal R20 "Rift Walk — Blink gains **2 charges**"; skill sheet R20 "stores a second charge".

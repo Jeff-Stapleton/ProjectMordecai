@@ -17,3 +17,13 @@ AMordecaiPlayerState::AMordecaiPlayerState(const FObjectInitializer& ObjectIniti
 	SkillComponent = CreateDefaultSubobject<UMordecaiSkillComponent>(TEXT("MordecaiSkillComponent"));
 	FeatComponent = CreateDefaultSubobject<UMordecaiFeatComponent>(TEXT("MordecaiFeatComponent"));
 }
+
+void AMordecaiPlayerState::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	if (SkillComponent)
+	{
+		SkillComponent->RegisterStartingSkillDataAssets();
+	}
+}

@@ -11,6 +11,14 @@
 class UMordecaiPauseMenuWidget;
 class UMordecaiSkillComponent;
 class UMordecaiSkillDataAsset;
+class UMordecaiTabButton;
+class UMordecaiUIThemeSubsystem;
+class UBorder;
+class USizeBox;
+class UTextBlock;
+class UVerticalBox;
+enum class EMordecaiUITheme : uint8;
+struct FMordecaiUIThemeColors;
 
 /**
  * FMordecaiSkillTreeRow
@@ -184,22 +192,90 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|SkillTree")
 	int32 GetLastObservedMilestoneRank() const { return LastObservedMilestoneRank; }
 
+	UTextBlock* FindSkillNameText(FName SkillName) const;
+	UTextBlock* FindSkillRankText(FName SkillName) const;
+	USizeBox* FindSkillRankBox(FName SkillName) const;
+	UBorder* FindSkillRowPanel(FName SkillName) const;
+	int32 GetContentRebuildCount() const { return ContentRebuildCount; }
+
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 private:
+	void BuildDefaultContent();
+	void RefreshContent();
+	void RefreshValues();
+	void ApplyCurrentTheme();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
+	void HandleSkillStateChanged();
+
 	UFUNCTION()
 	void HandleMilestoneReached(FName SkillName, int32 MilestoneRank);
+
+	UFUNCTION()
+	void HandleCategoryClicked(FName CategoryId);
 
 	/** Resolve the DataAsset for SkillName from the bound component (may be null). */
 	UMordecaiSkillDataAsset* FindSkillDataAsset(FName SkillName) const;
 
 	TWeakObjectPtr<UMordecaiSkillComponent> BoundComponent;
+	TWeakObjectPtr<UMordecaiSkillComponent> LastBoundComponent;
 
 	EMordecaiSkillCategory ActiveCategory = EMordecaiSkillCategory::Weapon;
 	FName SelectedSkill = NAME_None;
 
 	FName LastObservedMilestoneSkill = NAME_None;
 	int32 LastObservedMilestoneRank = 0;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> ContentPlate;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> SkillsTitle;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> SkillPointsText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CategoryMetaText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> SkillList;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> StaticMainTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> StaticMutedTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> DynamicMainTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> DynamicMutedTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> DynamicRowPanels;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMordecaiTabButton>> CategoryButtons;
+
+	UPROPERTY(Transient)
+	TMap<FName, TObjectPtr<UTextBlock>> SkillNameTextById;
+
+	UPROPERTY(Transient)
+	TMap<FName, TObjectPtr<UTextBlock>> SkillRankTextById;
+
+	UPROPERTY(Transient)
+	TMap<FName, TObjectPtr<USizeBox>> SkillRankBoxById;
+
+	UPROPERTY(Transient)
+	TMap<FName, TObjectPtr<UBorder>> SkillRowPanelById;
+
+	int32 ContentRebuildCount = 0;
+
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
 };

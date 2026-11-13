@@ -52,9 +52,9 @@ NO_SHOULDERS = {}                                                     # the game
 class PauseMenuWorld(fb.FakeWorld):
     """FakeWorld plus the pause menu's tab contents and its gamepad bindings.
 
-    Defaults model today's game: the Character tab's UMordecaiCharacterSheetWidget is blank
-    (N4), Skills and Feats show the "Coming Soon" placeholder (N5), Settings shows the
-    placeholder, B (Gamepad_FaceButton_Right) closes the menu (CommonUI DefaultBack), Start
+    Defaults model the US-093 game: Character, Skills and Feats have their real content,
+    Settings shows the placeholder, B (Gamepad_FaceButton_Right) closes the menu (CommonUI
+    DefaultBack), Start
     (Gamepad_Special_Right) toggles it, and since US-095 LB/RB select the previous/next tab
     (wrapping) and I closes the menu (CommonUI UI action bindings) on the key-up of an I press
     made in the open menu.  shoulder_steps maps a shoulder key to the tab step it makes
@@ -64,9 +64,12 @@ class PauseMenuWorld(fb.FakeWorld):
     menu closed during the hold).
     """
 
-    def __init__(self, *, character_sheet=False, skills_tab=False, feats_tab=False,
+    def __init__(self, *, character_sheet=True, skills_tab=True, feats_tab=True,
                  shoulder_steps=SHOULDERS, gamepad_back_closes=True, start_toggles=True,
-                 menu_blocks_input=True, i_close_on="release", **kwargs):
+                 menu_blocks_input=True, i_close_on="release",
+                 lowercase_attribute_codes=False, resource_line_count=4,
+                 attribute_missing_value=False, attribute_missing_modifier=False,
+                 attribute_clipped=False, **kwargs):
         kwargs.setdefault("i_closes_menu", True)
         super().__init__(**kwargs)
         self.character_sheet = character_sheet
@@ -78,6 +81,12 @@ class PauseMenuWorld(fb.FakeWorld):
         self.gamepad_back_closes = gamepad_back_closes
         self.start_toggles = start_toggles
         self.menu_blocks_input = menu_blocks_input
+        self.lowercase_attribute_codes = lowercase_attribute_codes
+        self.resource_line_count = resource_line_count
+        self.attribute_missing_value = attribute_missing_value
+        self.attribute_missing_modifier = attribute_missing_modifier
+        self.attribute_clipped = attribute_clipped
+        self.skill_category = "Weapon"
 
     @property
     def game_input_allowed(self):
@@ -130,22 +139,71 @@ class PauseMenuWorld(fb.FakeWorld):
                        "rect": [160, 150, 960, 520], "texts": ["Coming Soon"], "buttons": []}
         if tab == "character":
             texts = []
+            character_rows = []
+            resource_rows = []
             if self.character_sheet:
-                texts = ["Physical", "STR", "10", "+0.0%", "DEX", "10", "+0.0%", "END", "10",
-                         "+0.0%", "Resilience", "CON", "10", "+0.0%", "RES", "10", "+0.0%",
-                         "DIS", "10", "+0.0%", "Magical", "INT", "10", "+0.0%", "WIS", "10",
-                         "+0.0%", "CHA", "10", "+0.0%", "Health", "100 / 100", "Stamina",
-                         "100 / 100", "Spell Points",
-                         f"{self.spell_points:.0f} / {self.max_spell_points:.0f}", "Posture",
-                         "0 / 100", "Physical Damage: +0.0%"]
+                codes = ["STR", "DEX", "END", "CON", "RES", "DIS", "INT", "WIS", "CHA"]
+                names = ["Strength", "Dexterity", "Endurance", "Constitution", "Resistance",
+                         "Discipline", "Intelligence", "Wisdom", "Charisma"]
+                lookup_keys = [name.lower() for name in names]
+                if self.lowercase_attribute_codes:
+                    codes = [code.lower() for code in codes]
+                groups = (("Physical", range(0, 3)),
+                          ("Resilience", range(3, 6)),
+                          ("Magical", range(6, 9)))
+                for group, indexes in groups:
+                    texts.append(group)
+                    for index in indexes:
+                        value = "--" if self.attribute_missing_value and index == 0 else str(11 + index)
+                        modifier = ("--" if self.attribute_missing_modifier and index == 0
+                                    else "+8.5%")
+                        visible = not (self.attribute_clipped and index == 0)
+                        texts += [codes[index], names[index], value, modifier]
+                        character_rows.append({
+                            "id": lookup_keys[index],
+                            "code": codes[index],
+                            "name": names[index],
+                            "value": value,
+                            "modifier": modifier,
+                            "visible": visible,
+                        })
+                # Preserve the old aggregate counts so a checker that does not pair fields to
+                # rows false-passes these mutations.
+                if self.attribute_missing_value:
+                    texts.append("999")
+                if self.attribute_missing_modifier:
+                    texts.append("+1.0%")
+                resources = [("Health", "100 / 100"), ("Stamina", "100 / 100"),
+                             ("Spell Points",
+                              f"{self.spell_points:.0f} / {self.max_spell_points:.0f}"),
+                             ("Posture", "0 / 100")]
+                for index, (label, value) in enumerate(resources[:self.resource_line_count]):
+                    texts += [label, value]
+                    resource_rows.append({
+                        "id": ("health", "stamina", "spellpoints", "posture")[index],
+                        "label": label,
+                        "value": value,
+                        "visible": True,
+                    })
+                texts.append("Physical Damage: +0.0%")
             return {"class": "MordecaiCharacterSheetWidget", "name": "CharacterSheet_0",
-                    "rect": [160, 150, 960, 520], "texts": texts, "buttons": []}
+                    "rect": [160, 150, 960, 520], "texts": texts, "buttons": [],
+                    "character_rows": character_rows, "resource_rows": resource_rows}
         if tab == "skills" and self.skills_tab:
+            category_buttons = [
+                {"id": category.lower().replace(" & ", "").replace(" ", ""),
+                 "label": category, "center": [240, 210 + 58 * i], "enabled": True}
+                for i, category in enumerate(("Weapon", "Defense & Armor",
+                                              "Movement & Exploration",
+                                              "Utility & Interaction", "Magic"))
+            ]
+            if self.skill_category == "Magic":
+                texts = ["Skill Points: 0", "Magic · 11 skills", "Fireball", "0 / 20"]
+            else:
+                texts = ["Skill Points: 0", "Weapon · 13 skills", "Longswords", "0 / 20"]
             return {"class": "MordecaiSkillTreeWidget", "name": "SkillTree_0",
                     "rect": [160, 150, 960, 520],
-                    "texts": ["Weapon", "Defense & Armor", "Movement & Exploration",
-                              "Utility & Interaction", "Magic", "Skill Points: 0", "Swords",
-                              "0 / 20"], "buttons": []}
+                    "texts": texts, "buttons": category_buttons}
         if tab == "feats" and self.feats_tab:
             return {"class": "MordecaiFeatDisplayWidget", "name": "FeatDisplay_0",
                     "rect": [160, 150, 960, 520],
@@ -154,6 +212,25 @@ class PauseMenuWorld(fb.FakeWorld):
         if tab in ("skills", "feats", "settings"):
             return placeholder
         return None
+
+    def buttons(self):
+        out = super().buttons()
+        if self.menu_painted and self.active_tab == "skills" and self.skills_tab:
+            labels = ("Weapon", "Defense & Armor", "Movement & Exploration",
+                      "Utility & Interaction", "Magic")
+            ids = ("weapon", "defensearmor", "movementexploration",
+                   "utilityinteraction", "magic")
+            for i, (button_id, label) in enumerate(zip(ids, labels)):
+                out.append({"id": button_id, "label": label, "center": [240, 210 + 58 * i],
+                            "size": [180, 48], "enabled": True,
+                            "action": ("filter", label), "widget": "skills"})
+        return out
+
+    def mouse_up(self, conn_id, x, y, button):
+        hit = super().mouse_up(conn_id, x, y, button)
+        if self.active_tab == "skills" and self.inventory_filter in ("Weapon", "Magic"):
+            self.skill_category = self.inventory_filter
+        return hit
 
     def _s_widgets(self):
         out = super()._s_widgets()
@@ -206,25 +283,27 @@ class PlaytestCase(unittest.TestCase):
         return [c["name"] for c in report["checks"] if c["status"] == status]
 
 
-KNOWN_FAILS = ["character_tab_content", "skills_tab_content", "feats_tab_content"]
+CONTENT_CHECKS = ["character_tab_content", "skills_tab_content", "click_magic_category",
+                  "feats_tab_content"]
 US095_CHECKS = ["shoulder_switches_tab", "shoulder_rb_switches_tab", "i_closes"]
 
 
-class TestUs069TodaysGame(PlaytestCase):
-    def test_todays_game_fails_exactly_the_known_issues(self):
+class TestUs069CurrentGame(PlaytestCase):
+    def test_current_game_passes_all_content_checks(self):
         world, server = self.serve()
         code, rep = self.play(server)
-        self.assertEqual(code, 1, self.log.getvalue()[-3000:])
-        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(KNOWN_FAILS))
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        self.assertEqual(self.statuses(rep, "FAIL"), [])
         # I closed the menu, so final_close has nothing to do
         self.assertEqual(self.statuses(rep, "SKIP"), ["final_close"])
-        self.assertEqual(sorted(rep["known_failures"]), sorted(KNOWN_FAILS))
+        self.assertEqual(rep["known_failures"], [])
         self.assertEqual(rep["new_failures"], [])
+        self.assertEqual(rep["fixed_candidates"], [])
         self.assertEqual(rep["undeclared_checks"], [])
         checks = self.by_name(rep)
         for name in ("experience", "map", "hud_visible", "escape_opens", "menu_input_mode",
                      "tabs_listed",
-                     "game_input_blocked", "click_skills_tab", "click_feats_tab",
+                     "game_input_blocked", *CONTENT_CHECKS, "click_skills_tab", "click_feats_tab",
                      "settings_placeholder", "shoulder_switches_tab", "shoulder_rb_switches_tab",
                      "escape_closes", "reopen_restores_tab",
                      "gamepad_back_closes", "start_button_opens", "escape_closes_again",
@@ -237,9 +316,11 @@ class TestUs069TodaysGame(PlaytestCase):
         self.assertEqual(world.enemies, [])
         self.assertIn("Gamepad_LeftShoulder", checks["shoulder_switches_tab"]["detail"])
         self.assertIn("Gamepad_RightShoulder", checks["shoulder_rb_switches_tab"]["detail"])
-        self.assertIn("Coming Soon", checks["skills_tab_content"]["detail"])
-        self.assertIn("Coming Soon", checks["feats_tab_content"]["detail"])
-        self.assertIn("missing attributes", checks["character_tab_content"]["detail"])
+        self.assertIn("Weapon", checks["skills_tab_content"]["detail"])
+        self.assertIn("0 / 20", checks["skills_tab_content"]["detail"])
+        self.assertIn("Feats: 0 unlocked", checks["feats_tab_content"]["detail"])
+        self.assertIn("missing exact-case attributes [], missing groups []",
+                      checks["character_tab_content"]["detail"])
         self.assertIn("moved 0.0 cm", checks["game_input_blocked"]["detail"])
         # LB went settings -> inventory and RB back to settings, so Escape closed on settings
         # and reopened there.
@@ -252,14 +333,14 @@ class TestUs069TodaysGame(PlaytestCase):
         self.assertFalse(world.paused)
         self.assertEqual(world.casts, [], "LB/RB in the open menu must not cast spells")
         self.assertEqual([s["label"] for s in rep["screenshots"]],
-                         ["menu_character", "menu_skills", "menu_feats", "menu_lb", "menu_rb",
-                          "menu_closed", "menu_closed_by_i"])
+                         ["menu_character", "menu_skills", "menu_skills_magic", "menu_feats",
+                          "menu_lb", "menu_rb", "menu_closed", "menu_closed_by_i"])
         self.assertIn("DIAGNOSTIC ONLY", rep["evidence"])
 
     def test_the_acs_in_the_report(self):
         _, server = self.serve()
         code, rep = self.play(server)
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 0)
         acs = {(a["story"], a["id"]): a for a in rep["acs"]}
         self.assertEqual(acs[("US-069", "AC-069.4")]["status"], "PASS")
         self.assertEqual(acs[("US-069", "AC-069.4")]["checks"],
@@ -276,14 +357,18 @@ class TestUs069TodaysGame(PlaytestCase):
                     ("US-069", "AC-069.6"), ("US-069", "AC-069.7"), ("US-069", "AC-069.10"),
                     ("US-069", "AC-069.11")):
             self.assertEqual(acs[key]["status"], "PASS", key)
-        for key in (("US-066", "AC-066.3"), ("US-067", "AC-067.4"), ("US-068", "AC-068.8")):
-            self.assertEqual(acs[key]["status"], "FAIL", key)
-            self.assertTrue(acs[key]["known_issue"], key)
+        for key in (("US-066", "AC-066.3"), ("US-067", "AC-067.3"),
+                    ("US-067", "AC-067.4"), ("US-068", "AC-068.8")):
+            self.assertEqual(acs[key]["status"], "PASS", key)
+            self.assertFalse(acs[key]["known_issue"], key)
+        self.assertEqual(
+            acs[("US-067", "AC-067.4")]["checks"],
+            ["skills_tab_content"],
+        )
         self.assertFalse([a for a in rep["acs"] if a["accepted"]],
                          "an attached run never accepts an AC")
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
-        self.assertNotIn("| FAIL (NEW) |", md)
-        self.assertIn("| FAIL (known) |", md)
+        self.assertNotIn("| FAIL", md)
         self.assertIn("## Pause menu tabs", md)
 
     def test_only_real_input_and_reads_are_sent(self):
@@ -303,18 +388,62 @@ class TestUs069TodaysGame(PlaytestCase):
         self.assertEqual(actions, ["tap", "tap", "tap", "press", "release"])
         self.assertFalse([r for r in server.received if r.get("route") == "viewport"])
         self.assertFalse([r for r in server.received if r.get("unsafe")])
-        self.assertEqual(len([r for r in server.received if r.get("cmd") == "click"]), 3)
+        self.assertEqual(len([r for r in server.received if r.get("cmd") == "click"]), 4)
 
 
-class TestUs069FixedGame(PlaytestCase):
-    def test_a_fixed_game_passes_and_flags_the_known_issues_as_fixed(self):
-        world, server = self.serve(character_sheet=True, skills_tab=True, feats_tab=True)
+class TestUs069MissingContentMutations(PlaytestCase):
+    def test_lowercase_codes_and_only_one_resource_line_fail_character_content(self):
+        _, server = self.serve(lowercase_attribute_codes=True, resource_line_count=1)
         code, rep = self.play(server)
-        self.assertEqual(code, 0, json.dumps([c for c in rep["checks"]
-                                              if c["status"] in ("FAIL", "SKIP")]))
-        self.assertEqual(self.statuses(rep, "FAIL"), [])
-        self.assertEqual(self.statuses(rep, "SKIP"), ["final_close"])
-        self.assertEqual(sorted(rep["fixed_candidates"]), sorted(KNOWN_FAILS))
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["character_tab_content"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("STR", check["detail"])
+        self.assertIn("Stamina", check["detail"])
+
+    def test_placeholder_value_with_unrelated_number_fails_character_content(self):
+        _, server = self.serve(attribute_missing_value=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["character_tab_content"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("strength", check["detail"])
+        self.assertIn("--", check["detail"])
+
+    def test_placeholder_modifier_with_unrelated_modifier_fails_character_content(self):
+        _, server = self.serve(attribute_missing_modifier=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["character_tab_content"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("strength", check["detail"])
+        self.assertIn("--", check["detail"])
+
+    def test_clipped_attribute_row_fails_character_content(self):
+        _, server = self.serve(attribute_clipped=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["character_tab_content"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("strength", check["detail"])
+        self.assertIn("visible", check["detail"])
+
+    def test_missing_content_fails_exactly_the_content_checks(self):
+        world, server = self.serve(character_sheet=False, skills_tab=False, feats_tab=False)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(CONTENT_CHECKS))
+        self.assertEqual(
+            self.statuses(rep, "SKIP"),
+            ["screenshot_menu_skills_magic", "final_close"],
+        )
+        self.assertEqual(sorted(rep["new_failures"]), sorted(CONTENT_CHECKS))
+        self.assertEqual(rep["known_failures"], [])
+        self.assertEqual(rep["fixed_candidates"], [])
+        checks = self.by_name(rep)
+        self.assertIn("Coming Soon", checks["skills_tab_content"]["detail"])
+        self.assertIn("Coming Soon", checks["feats_tab_content"]["detail"])
+        self.assertIn("missing exact-case attributes", checks["character_tab_content"]["detail"])
         self.assertEqual(rep["tab_before_close"], "settings")
         self.assertEqual(self.by_name(rep)["reopen_restores_tab"]["status"], "PASS")
         self.assertFalse(world.menu_open)
@@ -329,7 +458,7 @@ class TestUs069BeforeUs095(PlaytestCase):
         world, server = self.serve(shoulder_steps=NO_SHOULDERS, i_closes_menu=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
-        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(KNOWN_FAILS + US095_CHECKS))
+        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(US095_CHECKS))
         self.assertEqual(sorted(rep["new_failures"]), sorted(US095_CHECKS))
         checks = self.by_name(rep)
         self.assertIn('active_tab=="inventory"', checks["shoulder_switches_tab"]["detail"])
@@ -428,7 +557,8 @@ class TestUs069Failures(PlaytestCase):
         self.assertEqual(checks["escape_opens"]["status"], "FAIL")
         for name in ("menu_input_mode", "tabs_listed", "game_input_blocked",
                      "character_tab_content", "click_skills_tab", "skills_tab_content",
-                     "settings_placeholder", "shoulder_switches_tab", "shoulder_rb_switches_tab",
+                     "click_magic_category", "settings_placeholder", "shoulder_switches_tab",
+                     "shoulder_rb_switches_tab",
                      "screenshot_menu_lb", "escape_closes", "reopen_restores_tab",
                      "screenshot_menu_character"):
             self.assertEqual(checks[name]["status"], "SKIP", name)
@@ -443,7 +573,7 @@ class TestUs069Failures(PlaytestCase):
     def test_a_lost_connection_is_infra(self):
         _, server = self.serve(faults=fb.Faults(drop_on_cmd="click"))
         code, rep = self.play(server)
-        self.assertEqual(code, 1)  # the known content FAILs before it are gameplay
+        self.assertEqual(code, 2)  # no gameplay failure precedes the lost bridge now
         checks = self.by_name(rep)
         self.assertEqual(checks["click_skills_tab"]["status"], "FAIL")
         self.assertEqual(checks["click_skills_tab"]["kind"], "infra")
@@ -474,12 +604,12 @@ class TestUs069Plan(unittest.TestCase):
                 story, ac_id = kit.split_ac(ac, "US-069")
                 self.assertIn(ac_id, self.story_ac_ids(story), f"{step.check}: {ac}")
         names = [s.check for s in us069.PLAN]
-        self.assertEqual(len(names), 22)
+        self.assertEqual(len(names), 23)
         self.assertEqual(names.index("shoulder_rb_switches_tab"),
                          names.index("shoulder_switches_tab") + 1)
         self.assertEqual(names[-3:], ["i_closes", "i_held_closes_on_key_up", "final_close"])
         known = {s.check for s in us069.PLAN if s.known_issue}
-        self.assertEqual(known, set(KNOWN_FAILS))
+        self.assertEqual(known, set())
         run = us069.Us069Run(us069.parse_args([]))
         for check in US095_CHECKS + ["i_held_closes_on_key_up"]:
             self.assertIsNone(run.plan_step(check).known_issue, check)
@@ -496,9 +626,9 @@ class TestUs069Plan(unittest.TestCase):
         self.assertEqual(us069.main(["--plan"]), 0)
         rows = [line for line in out.getvalue().splitlines() if line.startswith("| ")]
         self.assertEqual(len(rows), 1 + len(us069.PLAN))
-        self.assertTrue(any(r.startswith("| 15 | `reopen_restores_tab` |")
+        self.assertTrue(any(r.startswith("| 16 | `reopen_restores_tab` |")
                             and r.endswith("| AC-069.11 |") for r in rows))
-        self.assertTrue(any(r.startswith("| 13 | `shoulder_rb_switches_tab` |")
+        self.assertTrue(any(r.startswith("| 14 | `shoulder_rb_switches_tab` |")
                             and r.endswith("| AC-069.4, US-095:AC-095.4 |") for r in rows), rows)
 
     def test_expected_tabs_match_the_fake_and_the_story(self):
