@@ -158,8 +158,8 @@ def _run():
             hud_widget, "TallyRailHead", (1.0, 0.0), (-32.0, 32.0),
             (320.0, 56.0), (1.0, 0.0))
         callout_widget = check_box(
-            hud_widget, "CombatFeedback", (0.5, 0.5), (0.0, 128.0),
-            (520.0, 52.0), (0.5, 0.0))
+            hud_widget, "CombatFeedback", (0.5, 0.5), (0.0, 180.0),
+            (520.0, 52.0), (0.5, 1.0))
         combo_widget = check_box(
             hud_widget, "ComboCounter", (0.5, 0.5), (0.0, 184.0),
             (220.0, 36.0), (0.5, 0.0))

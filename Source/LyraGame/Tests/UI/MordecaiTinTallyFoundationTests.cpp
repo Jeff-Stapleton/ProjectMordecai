@@ -17,11 +17,13 @@
 #include "Materials/MaterialInterface.h"
 #include "Misc/AutomationTest.h"
 #include "Modules/ModuleManager.h"
+#include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
 #include "Mordecai/UI/MordecaiEquippedWeaponWidget.h"
 #include "Mordecai/UI/MordecaiHealthBarWidget.h"
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Mordecai/UI/MordecaiSpellCooldownWidget.h"
+#include "Mordecai/UI/MordecaiStatusEffectIndicatorWidget.h"
 #include "Mordecai/UI/TinTally/MordecaiTinTallyGallerySubsystem.h"
 #include "Mordecai/UI/TinTally/MordecaiTallyWidget.h"
 #include "Mordecai/UI/TinTally/MordecaiUIFoundation.h"
@@ -540,7 +542,8 @@ bool FMordecai_UI_Foundation_GalleryRejectsUnknownSelection::RunTest(const FStri
 			TEXT("Plate"), TEXT("diorama"), TEXT("sheet")));
 	for (const TCHAR* Component : {
 		TEXT("HUDLayout"), TEXT("GaugePlate"), TEXT("Bar"),
-		TEXT("SpellSlot"), TEXT("InteractPrompt"), TEXT("LoadoutPlate") })
+		TEXT("SpellSlot"), TEXT("InteractPrompt"), TEXT("LoadoutPlate"),
+		TEXT("StatusChip"), TEXT("CombatCallout") })
 	{
 		TestTrue(*FString::Printf(TEXT("%s HUD gallery selection is valid"), Component),
 			UMordecaiTinTallyGallerySubsystem::IsValidSelection(
@@ -585,6 +588,8 @@ bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString
 		{ TEXT("SpellSlot"), TEXT("GalleryRealSpellSlot_0"), TEXT("GallerySpellStage0"), UMordecaiSpellCooldownWidget::StaticClass() },
 		{ TEXT("InteractPrompt"), TEXT("GalleryRealInteractPrompt_0"), nullptr, UMordecaiPickupPromptWidget::StaticClass() },
 		{ TEXT("LoadoutPlate"), TEXT("GalleryRealLoadout_0"), TEXT("GalleryLoadoutStage"), UMordecaiEquippedWeaponWidget::StaticClass() },
+		{ TEXT("StatusChip"), TEXT("GalleryRealStatusChip_0"), nullptr, UMordecaiStatusEffectIndicatorWidget::StaticClass() },
+		{ TEXT("CombatCallout"), TEXT("GalleryRealCombatCallout_0"), nullptr, UMordecaiCombatFeedbackWidget::StaticClass() },
 	};
 	for (const TCHAR* Theme : { TEXT("diorama"), TEXT("high-contrast") })
 	{

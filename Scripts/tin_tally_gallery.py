@@ -21,6 +21,8 @@ HUD_COMPONENTS = (
     "SpellSlot",
     "InteractPrompt",
     "LoadoutPlate",
+    "StatusChip",
+    "CombatCallout",
 )
 GALLERY_COMPONENTS = FOUNDATION_COMPONENTS + HUD_COMPONENTS
 THEMES = ("diorama", "high-contrast")

@@ -231,7 +231,7 @@ bool FMordecai_UI_HUDLayout_FinalMapBoxes::RunTest(const FString& Parameters)
 	ExpectCanvasBox(*this, RailHead, TEXT("TallyRailHead"), FAnchors(1.f, 0.f),
 		FVector2D(-32.f, 32.f), FVector2D(320.f, 56.f), FVector2D(1.f, 0.f));
 	ExpectCanvasBox(*this, Callout, TEXT("CombatFeedback"), FAnchors(0.5f, 0.5f),
-		FVector2D(0.f, 128.f), FVector2D(520.f, 52.f), FVector2D(0.5f, 0.f));
+		FVector2D(0.f, 180.f), FVector2D(520.f, 52.f), FVector2D(0.5f, 1.f));
 	ExpectCanvasBox(*this, Combo, TEXT("ComboCounter"), FAnchors(0.5f, 0.5f),
 		FVector2D(0.f, 184.f), FVector2D(220.f, 36.f), FVector2D(0.5f, 0.f));
 	ExpectCanvasBox(*this, Prompt, TEXT("PickupPrompt unit"), FAnchors(0.5f, 1.f),
@@ -271,7 +271,13 @@ bool FMordecai_UI_HUDLayout_FinalMapBoxes::RunTest(const FString& Parameters)
 	ExpectCanvasBox(*this, Loadout, TEXT("EquippedWeaponWidget at 96"), FAnchors(1.f, 1.f),
 		FVector2D(-96.f, -96.f), FVector2D(340.f, 84.f), FVector2D(1.f, 1.f));
 	ExpectCanvasBox(*this, Callout, TEXT("CombatFeedback stays centred"), FAnchors(0.5f, 0.5f),
-		FVector2D(0.f, 128.f), FVector2D(520.f, 52.f), FVector2D(0.5f, 0.f));
+		FVector2D(0.f, 180.f), FVector2D(520.f, 52.f), FVector2D(0.5f, 1.f));
+	HUD->SetCombatTextSize(2);
+	ExpectCanvasBox(*this, Callout, TEXT("XL callout grows upward from fixed bottom"),
+		FAnchors(0.5f, 0.5f), FVector2D(0.f, 180.f),
+		FVector2D(520.f, 68.f), FVector2D(0.5f, 1.f));
+	ExpectCanvasBox(*this, Combo, TEXT("XL leaves combo fixed"), FAnchors(0.5f, 0.5f),
+		FVector2D(0.f, 184.f), FVector2D(220.f, 36.f), FVector2D(0.5f, 0.f));
 	return true;
 }
 

@@ -89,6 +89,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Mordecai|HUD")
 	float GetTopCenterSafeWidth() const;
 
+	/** Applies Normal (0), Large (1), or XL (2) callout text without moving the combo lane. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
+	void SetCombatTextSize(int32 TextSizeIndex);
+
 	/** Deterministic low-health rim step used by tick and visual tests. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void UpdateLowHealthRimForTime(float TimeSeconds);

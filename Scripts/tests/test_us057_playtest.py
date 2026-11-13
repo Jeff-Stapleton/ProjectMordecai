@@ -186,11 +186,15 @@ class MagicWorld(fb.FakeWorld):
                     "rect": [20, 620, 400, 40], "texts": [], "buttons": []})
         if self.indicators:
             now = self.real_time()
+            display_names = {
+                STONE_SKIN_TAG: "Stone Skin",
+                RESTORATION_TAG: "Restoration",
+            }
             for tag, until in sorted(self.status.items()):
                 left = 99.0 if until is None else max(0.0, until - now)
                 out.append({"class": "MordecaiStatusEffectIndicatorWidget",
                             "name": f"Indicator_{tag.split('.')[-1]}", "rect": [20, 620, 80, 40],
-                            "texts": [tag.split(".")[-1], f"{left:.1f}"], "buttons": []})
+                            "texts": [display_names[tag], f"{left:.1f}"], "buttons": []})
         return out
 
     def _actors(self, radius, include_all):
@@ -457,7 +461,7 @@ class TestUs057Failures(PlaytestCase):
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(self.fail_set(rep), ["stone_skin_indicator"])
-        self.assertIn("no widget renders 'StoneSkin'",
+        self.assertIn("no widget renders 'Stone Skin'",
                       self.by_name(rep)["stone_skin_indicator"]["detail"])
         # With no indicator ever drawn, the expiry is judged on the tag alone (and passes).
         self.assertEqual(self.by_name(rep)["stone_skin_expires"]["status"], "PASS")
