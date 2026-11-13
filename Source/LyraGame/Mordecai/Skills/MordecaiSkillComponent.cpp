@@ -36,6 +36,11 @@ void UMordecaiSkillComponent::RegisterSkillDataAsset(UMordecaiSkillDataAsset* Sk
 	RegisteredSkills.Add(SkillData->SkillName, SkillData);
 }
 
+void UMordecaiSkillComponent::RegisterStartingSkillDataAssets()
+{
+	// RED scaffold: the design-sheet catalogue is intentionally not registered yet.
+}
+
 UMordecaiSkillDataAsset* UMordecaiSkillComponent::GetRegisteredSkillDataAsset(FName SkillName) const
 {
 	const TObjectPtr<UMordecaiSkillDataAsset>* Found = RegisteredSkills.Find(SkillName);

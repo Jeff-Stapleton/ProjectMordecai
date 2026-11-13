@@ -38,6 +38,9 @@ public:
 	/** Register a skill data asset so the component can validate and grant milestones. */
 	void RegisterSkillDataAsset(UMordecaiSkillDataAsset* SkillData);
 
+	/** Register the rank-0 starting skill catalogue from skill_sheet_v1.1.md. */
+	void RegisterStartingSkillDataAssets();
+
 	/** Lookup a previously registered skill data asset by skill name (null if not registered). */
 	UMordecaiSkillDataAsset* GetRegisteredSkillDataAsset(FName SkillName) const;
 
