@@ -18,6 +18,13 @@ enum class EMordecaiStatusEffectCategory : uint8
 	Environmental UMETA(DisplayName = "Environmental"),
 };
 
+/** UI polarity is deliberately separate from gameplay cleanse categories. */
+enum class EMordecaiStatusDisplayPolarity : uint8
+{
+	Debuff,
+	Buff,
+};
+
 /**
  * TODO(DECISION): Stacking policy per agent_rules_v2.md Open Item #2.
  * Default: Refresh. Final stacking behavior TBD.
@@ -41,10 +48,14 @@ struct LYRAGAME_API FMordecaiStatusDisplayData
 	FText DisplayName;
 	FName GlyphName;
 	FName GlyphColorToken;
-	EMordecaiStatusEffectCategory Category = EMordecaiStatusEffectCategory::Debuff;
+	EMordecaiStatusEffectCategory DisplaySortCategory =
+		EMordecaiStatusEffectCategory::Debuff;
+	EMordecaiStatusDisplayPolarity DisplayPolarity =
+		EMordecaiStatusDisplayPolarity::Debuff;
 	float DefaultDuration = 0.f;
 	int32 MaxVisibleStacks = 0;
-	bool bIsBuff = false;
+	/** Non-timer copy for statuses whose active tag already implies this value. */
+	FText FixedValueText;
 };
 
 /** All player-facing status rows in stable design order. */

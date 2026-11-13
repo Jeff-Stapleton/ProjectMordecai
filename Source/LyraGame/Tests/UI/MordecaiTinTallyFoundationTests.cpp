@@ -17,6 +17,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/ScopeExit.h"
 #include "Modules/ModuleManager.h"
 #include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
@@ -32,6 +33,7 @@
 #include "Mordecai/UI/TinTally/MordecaiUIFoundation.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
 #include "UObject/UnrealType.h"
 
 namespace MordecaiTinTallyFoundationTest
@@ -577,6 +579,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Foundation_HUDGalleryUsesShippedWi
 
 bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiRecoveryTest;
+	FRecoveryControlledTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownWithController(); };
+	if (!TestTrue("controlled player world", Env.SetupWithController()))
+	{
+		return true;
+	}
 	struct FExpectation
 	{
 		const TCHAR* Component;
@@ -599,7 +608,9 @@ bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString
 	{
 		for (const FExpectation& Expected : Expectations)
 		{
-			UMordecaiTinTallyGalleryWidget* Gallery = NewObject<UMordecaiTinTallyGalleryWidget>();
+			UMordecaiTinTallyGalleryWidget* Gallery =
+				NewObject<UMordecaiTinTallyGalleryWidget>(Env.World);
+			Gallery->SetPlayerContext(FLocalPlayerContext(Env.LocalPlayer, Env.World));
 			Gallery->SetFixtureSelectionForTest(Expected.Component, Theme);
 			Gallery->Initialize();
 			UWidget* Widget = Gallery->WidgetTree
@@ -628,7 +639,8 @@ bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString
 		}
 
 		UMordecaiTinTallyGalleryWidget* HUDGallery =
-			NewObject<UMordecaiTinTallyGalleryWidget>();
+			NewObject<UMordecaiTinTallyGalleryWidget>(Env.World);
+		HUDGallery->SetPlayerContext(FLocalPlayerContext(Env.LocalPlayer, Env.World));
 		HUDGallery->SetFixtureSelectionForTest(TEXT("HUDLayout"), Theme);
 		HUDGallery->Initialize();
 		UMordecaiCombatHUDWidget* HUD = HUDGallery->WidgetTree

@@ -122,7 +122,14 @@ void UMordecaiStatusEffectBarWidget::BuildDefaultContent()
 	Wrap->SetWrapSize(456.f);
 	Wrap->SetInnerSlotPadding(FVector2D(10.f, 20.f));
 	IndicatorContainer = Wrap;
-	WidgetTree->RootWidget = IndicatorContainer;
+	UBorder* WrapPadding = WidgetTree->ConstructWidget<UBorder>(
+		UBorder::StaticClass(), TEXT("StatusWrapPadding"));
+	WrapPadding->SetPadding(FMargin(0.f, 12.f, 0.f, 8.f));
+	FSlateBrush NoDraw;
+	NoDraw.DrawAs = ESlateBrushDrawType::NoDrawType;
+	WrapPadding->SetBrush(NoDraw);
+	WrapPadding->SetContent(Wrap);
+	WidgetTree->RootWidget = WrapPadding;
 	OverflowChip = WidgetTree->ConstructWidget<UTextBlock>(
 		UTextBlock::StaticClass(), TEXT("OverflowChip"));
 	OverflowChip->SetJustification(ETextJustify::Center);
@@ -151,7 +158,8 @@ bool UMordecaiStatusEffectBarWidget::IsBuffTag(const FGameplayTag& StatusTag)
 {
 	const FMordecaiStatusDisplayData* Row =
 		FindStatusEffectDisplayData(StatusTag);
-	return Row && Row->bIsBuff;
+	return Row
+		&& Row->DisplayPolarity == EMordecaiStatusDisplayPolarity::Buff;
 }
 
 FLinearColor UMordecaiStatusEffectBarWidget::GetTintForStatusTag(const FGameplayTag& StatusTag)
@@ -179,25 +187,30 @@ void UMordecaiStatusEffectBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 			Previous->RegisterGameplayTagEvent(
 				Row.Tag, EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
 		}
-		if (Previous != ASC)
+	}
+	for (const TPair<FGameplayTag, TObjectPtr<UMordecaiStatusEffectIndicatorWidget>>& Pair
+		: ActiveIndicators)
+	{
+		if (Pair.Value)
 		{
-			for (const TPair<FGameplayTag, TObjectPtr<UMordecaiStatusEffectIndicatorWidget>>& Pair : ActiveIndicators)
-			{
-				if (Pair.Value)
-				{
-					Pair.Value->RemoveFromParent();
-				}
-			}
-			ActiveIndicators.Reset();
-			ActiveTagOrder.Reset();
+			Pair.Value->RemoveFromParent();
 		}
 	}
+	ActiveIndicators.Reset();
+	ActiveTagOrder.Reset();
 	BoundASC = ASC;
 
 	// Register every approved child tag directly. A parent-tag callback reports the
 	// parent, not the child that changed, and cannot key one indicator per status.
 	for (const FMordecaiStatusDisplayData& Row : GetAllStatusEffectDisplayData())
 	{
+		if (!EffectQueries.Contains(Row.Tag))
+		{
+			FGameplayEffectQuery Query;
+			Query.OwningTagQuery = FGameplayTagQuery::MakeQuery_MatchAnyTags(
+				FGameplayTagContainer(Row.Tag));
+			EffectQueries.Add(Row.Tag, MoveTemp(Query));
+		}
 		ASC->RegisterGameplayTagEvent(Row.Tag, EGameplayTagEventType::NewOrRemoved)
 			.AddUObject(this, &ThisClass::OnStatusTagChanged);
 		if (ASC->HasMatchingGameplayTag(Row.Tag))
@@ -220,6 +233,15 @@ void UMordecaiStatusEffectBarWidget::SetGalleryPreviewStatuses(
 		}
 	}
 	BoundASC.Reset();
+	for (const TPair<FGameplayTag, TObjectPtr<UMordecaiStatusEffectIndicatorWidget>>& Pair
+		: ActiveIndicators)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->RemoveFromParent();
+		}
+	}
+	ActiveIndicators.Reset();
 	ActiveTagOrder.Reset();
 	for (const FGameplayTag& Tag : StatusTags)
 	{
@@ -278,11 +300,13 @@ void UMordecaiStatusEffectBarWidget::RebuildIndicators()
 	{
 		return;
 	}
-	IndicatorContainer->ClearChildren();
 	if (OverflowSize)
 	{
-		OverflowSize->RemoveFromParent();
 		OverflowSize->SetVisibility(ESlateVisibility::Collapsed);
+		if (OverflowSize->GetParent() != IndicatorContainer)
+		{
+			IndicatorContainer->AddChild(OverflowSize);
+		}
 	}
 
 	TArray<FGameplayTag> Ordered = ActiveTagOrder;
@@ -293,9 +317,13 @@ void UMordecaiStatusEffectBarWidget::RebuildIndicators()
 		const FMordecaiStatusDisplayData* RightRow =
 			FindStatusEffectDisplayData(Right);
 		return CategoryPriority(
-			LeftRow ? LeftRow->Category : EMordecaiStatusEffectCategory::Debuff)
+			LeftRow
+				? LeftRow->DisplaySortCategory
+				: EMordecaiStatusEffectCategory::Debuff)
 			< CategoryPriority(
-				RightRow ? RightRow->Category : EMordecaiStatusEffectCategory::Debuff);
+				RightRow
+					? RightRow->DisplaySortCategory
+					: EMordecaiStatusEffectCategory::Debuff);
 	});
 
 	TArray<UMordecaiStatusEffectIndicatorWidget*> Indicators;
@@ -313,52 +341,67 @@ void UMordecaiStatusEffectBarWidget::RebuildIndicators()
 				const FMordecaiStatusDisplayData* Row =
 					FindStatusEffectDisplayData(Tag);
 				Indicator->InitializeIndicator(
-					Tag, Row && Row->bIsBuff, Row ? Row->DefaultDuration : 0.f);
+					Tag,
+					Row && Row->DisplayPolarity
+						== EMordecaiStatusDisplayPolarity::Buff,
+					Row ? Row->DefaultDuration : 0.f);
 				ActiveIndicators.Add(Tag, Indicator);
 			}
 		}
 		if (Indicator)
 		{
+			if (Indicator->GetParent() != IndicatorContainer)
+			{
+				IndicatorContainer->AddChild(Indicator);
+			}
 			Indicators.Add(Indicator);
 		}
 	}
 
-	const int32 FullCandidateCount =
+	const int32 CandidateCount =
 		FMath::Min(Indicators.Num(), MaxVisibleIndicators);
 	const bool bCompact = !FitsTwoRows(
-		Indicators, FullCandidateCount, false, false);
-	int32 VisibleCount = FullCandidateCount;
-	bool bHasOverflow = Indicators.Num() > MaxVisibleIndicators;
-	if (bHasOverflow)
+		Indicators, CandidateCount, false, false);
+	int32 VisibleCount = CandidateCount;
+	const bool bNeedsOverflowChip =
+		bCompact && !FitsTwoRows(Indicators, CandidateCount, true, false);
+	if (bNeedsOverflowChip)
 	{
 		VisibleCount = FMath::Min(VisibleCount, MaxVisibleIndicators - 1);
-	}
-	while (VisibleCount > 0
-		&& !FitsTwoRows(Indicators, VisibleCount, bCompact, bHasOverflow))
-	{
-		bHasOverflow = true;
-		VisibleCount = FMath::Min(VisibleCount - 1, MaxVisibleIndicators - 1);
+		while (VisibleCount > 0
+			&& !FitsTwoRows(Indicators, VisibleCount, true, true))
+		{
+			--VisibleCount;
+		}
 	}
 
-	for (int32 Index = 0; Index < VisibleCount; ++Index)
+	for (UMordecaiStatusEffectIndicatorWidget* Indicator : Indicators)
 	{
-		Indicators[Index]->SetCompact(bCompact);
-		IndicatorContainer->AddChild(Indicators[Index]);
+		Indicator->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	for (int32 Index = 0; Index < Indicators.Num(); ++Index)
+	{
+		UMordecaiStatusEffectIndicatorWidget* Indicator = Indicators[Index];
+		Indicator->SetCompact(bCompact);
+		if (Index < VisibleCount)
+		{
+			Indicator->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+		IndicatorContainer->ShiftChild(Index, Indicator);
+	}
+
 	const int32 HiddenCount = Indicators.Num() - VisibleCount;
-	if (HiddenCount > 0 && OverflowChip && OverflowSize)
+	if (bNeedsOverflowChip && HiddenCount > 0 && OverflowChip && OverflowSize)
 	{
 		OverflowChip->SetText(FText::Format(
 			NSLOCTEXT("MordecaiStatusEffects", "Overflow", "+{0}"),
 			FText::AsNumber(HiddenCount)));
 		OverflowSize->SetVisibility(ESlateVisibility::HitTestInvisible);
-		IndicatorContainer->AddChild(OverflowSize);
 	}
-	else if (Indicators.IsEmpty() && OverflowSize)
+	if (OverflowSize)
 	{
-		// Keep the named fallback discoverable to integration diagnostics while
-		// preserving zero visible chips and no extra child in populated rows.
-		IndicatorContainer->AddChild(OverflowSize);
+		IndicatorContainer->ShiftChild(
+			IndicatorContainer->GetChildrenCount() - 1, OverflowSize);
 	}
 	SetVisibility(
 		Indicators.IsEmpty()
@@ -377,22 +420,26 @@ void UMordecaiStatusEffectBarWidget::RefreshDurationsAndStacks()
 	for (const TPair<FGameplayTag, TObjectPtr<UMordecaiStatusEffectIndicatorWidget>>& Pair
 		: ActiveIndicators)
 	{
-		if (!Pair.Value)
+		if (!Pair.Value
+			|| Pair.Value->GetVisibility() == ESlateVisibility::Collapsed
+			|| Pair.Value->GetVisibility() == ESlateVisibility::Hidden)
 		{
 			continue;
 		}
-		FGameplayEffectQuery Query;
-		Query.OwningTagQuery =
-			FGameplayTagQuery::MakeQuery_MatchAnyTags(FGameplayTagContainer(Pair.Key));
+		const FGameplayEffectQuery* Query = EffectQueries.Find(Pair.Key);
+		if (!Query)
+		{
+			continue;
+		}
 		const TArray<TPair<float, float>> Times =
-			ASC->GetActiveEffectsTimeRemainingAndDuration(Query);
+			ASC->GetActiveEffectsTimeRemainingAndDuration(*Query);
 		float Remaining = 0.f;
 		for (const TPair<float, float>& Time : Times)
 		{
 			Remaining = FMath::Max(Remaining, Time.Key);
 		}
 		Pair.Value->UpdateDuration(Remaining);
-		Pair.Value->SetStackCount(ASC->GetAggregatedStackCount(Query));
+		Pair.Value->SetStackCount(ASC->GetAggregatedStackCount(*Query));
 	}
 }
 

@@ -12,9 +12,12 @@
 #include "Components/SizeBoxSlot.h"
 #include "Components/TextBlock.h"
 #include "Engine/Texture2D.h"
+#include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Mordecai/StatusEffects/MordecaiStatusEffectTypes.h"
 #include "Mordecai/UI/TinTally/MordecaiUITypography.h"
 #include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
+#include "Styling/CoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiStatusEffectIndicatorWidget)
 
@@ -186,17 +189,23 @@ float UMordecaiStatusEffectIndicatorWidget::CalcDurationRemaining(float StartTim
 void UMordecaiStatusEffectIndicatorWidget::InitializeIndicator(FGameplayTag InStatusTag, bool bIsBuff, float InDuration)
 {
 	StatusTag = InStatusTag;
+	// InStatusTag's display row owns polarity. The bool remains only as the
+	// backwards-compatible fallback for an unknown/internal status.
 	bIsBuffIndicator = bIsBuff;
 	TotalDuration = InDuration;
+	DurationBoxWidth = TotalDuration >= 10.f ? 51.f : 38.f;
+	FixedValueText = FText::GetEmpty();
 	LastDurationTenths = INDEX_NONE;
 
 	const FMordecaiStatusDisplayData* DisplayData =
 		FindStatusEffectDisplayData(StatusTag);
 	if (DisplayData)
 	{
-		bIsBuffIndicator = DisplayData->bIsBuff;
+		bIsBuffIndicator =
+			DisplayData->DisplayPolarity == EMordecaiStatusDisplayPolarity::Buff;
 		GlyphColorToken = DisplayData->GlyphColorToken;
 		MaxVisibleStacks = DisplayData->MaxVisibleStacks;
+		FixedValueText = DisplayData->FixedValueText;
 		if (StatusNameText)
 		{
 			StatusNameText->SetText(DisplayData->DisplayName);
@@ -210,15 +219,23 @@ void UMordecaiStatusEffectIndicatorWidget::InitializeIndicator(FGameplayTag InSt
 			StatusGlyph->SetBrushFromTexture(
 				LoadObject<UTexture2D>(nullptr, *GlyphPath), true);
 		}
+		const TSharedRef<FSlateFontMeasure> FontMeasure =
+			FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+		const FSlateFontInfo MeasureFont =
+			FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 15);
 		const float NameWidth = FMath::Clamp(
-			static_cast<float>(DisplayData->DisplayName.ToString().Len()) * 10.f,
-			50.f,
-			130.f);
+			FMath::CeilToFloat(FontMeasure->Measure(
+				DisplayData->DisplayName, MeasureFont).X),
+			50.f, 130.f);
 		const float PipsWidth = MaxVisibleStacks > 0
 			? MaxVisibleStacks * 14.f + (MaxVisibleStacks - 1) * 6.f
 			: 0.f;
-		FullChipWidth = 84.f + NameWidth + PipsWidth;
-		CompactChipWidth = 86.f + PipsWidth;
+		const float PipsAndGap = PipsWidth > 0.f ? PipsWidth + 6.f : 0.f;
+		const float DurationWidthDelta = DurationBoxWidth - 38.f;
+		FullChipWidth =
+			84.f + NameWidth + PipsAndGap + DurationWidthDelta;
+		CompactChipWidth =
+			90.f + PipsAndGap + DurationWidthDelta;
 	}
 
 	RebuildPips();
@@ -241,8 +258,9 @@ void UMordecaiStatusEffectIndicatorWidget::UpdateDuration(float RemainingSeconds
 		: 0;
 	if (DurationText && Tenths != LastDurationTenths)
 	{
-		DurationText->SetText(
-			Tenths > 0 ? CachedDurationText(Tenths) : FText::GetEmpty());
+		DurationText->SetText(!FixedValueText.IsEmpty()
+			? FixedValueText
+			: Tenths > 0 ? CachedDurationText(Tenths) : FText::GetEmpty());
 		LastDurationTenths = Tenths;
 	}
 }
@@ -298,7 +316,7 @@ void UMordecaiStatusEffectIndicatorWidget::RebuildPips()
 	{
 		UImage* Pip = WidgetTree->ConstructWidget<UImage>(
 			UImage::StaticClass(),
-			FName(*FString::Printf(TEXT("StackPip%d"), Index)));
+			NAME_None);
 		FSlateBrush Brush;
 		Brush.ImageSize = FVector2D(14.f);
 		Pip->SetBrush(Brush);
@@ -328,21 +346,22 @@ void UMordecaiStatusEffectIndicatorWidget::RefreshChipWidth()
 	};
 	Resize(TintImage, FVector2D::ZeroVector, FVector2D(Width, 36.f));
 	Resize(DebuffTeeth, FVector2D(4.f, 36.f), FVector2D(Width - 8.f, 7.f));
-	Resize(
-		StatusNameText ? StatusNameText->GetParent() : nullptr,
-		FVector2D(38.f, 0.f),
-		FVector2D(FMath::Max(0.f, Width - 84.f), 36.f));
 	const float PipsWidth = MaxVisibleStacks > 0
 		? MaxVisibleStacks * 14.f + (MaxVisibleStacks - 1) * 6.f
 		: 0.f;
+	const float PipsAndGap = PipsWidth > 0.f ? PipsWidth + 6.f : 0.f;
+	const float NameWidth = FMath::Max(0.f, Width - 84.f - PipsAndGap);
+	const float DurationX = Width - 8.f - DurationBoxWidth;
+	const float PipsX = DurationX - 6.f - PipsWidth;
 	Resize(
-		StackPips,
-		FVector2D(bCompact ? 38.f : Width - 46.f - PipsWidth - 6.f, 11.f),
-		FVector2D(PipsWidth, 14.f));
+		StatusNameText ? StatusNameText->GetParent() : nullptr,
+		FVector2D(32.f, 0.f),
+		FVector2D(NameWidth, 36.f));
+	Resize(StackPips, FVector2D(PipsX, 11.f), FVector2D(PipsWidth, 14.f));
 	Resize(
 		DurationText ? DurationText->GetParent() : nullptr,
-		FVector2D(Width - 46.f, 0.f),
-		FVector2D(38.f, 36.f));
+		FVector2D(DurationX, 0.f),
+		FVector2D(DurationBoxWidth, 36.f));
 }
 
 void UMordecaiStatusEffectIndicatorWidget::ApplyTheme(
@@ -355,8 +374,8 @@ void UMordecaiStatusEffectIndicatorWidget::ApplyTheme(
 	{
 		TintImage->SetBrush(RoundedBrush(
 			bIsBuffIndicator ? Colors.Enamel : Colors.Plate,
-			bIsBuffIndicator ? Colors.Buff : Colors.Debuff,
-			2.f,
+			Colors.Ink,
+			Outline,
 			bIsBuffIndicator ? FVector4(10.f) : FVector4(10.f, 10.f, 3.f, 3.f)));
 		TintImage->SetColorAndOpacity(FLinearColor::White);
 	}

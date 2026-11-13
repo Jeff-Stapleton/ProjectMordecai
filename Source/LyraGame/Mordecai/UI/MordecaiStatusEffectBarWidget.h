@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "GameplayEffect.h"
 #include "GameplayTagContainer.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
@@ -45,7 +46,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void BindToASC(UAbilitySystemComponent* ASC);
 
-	/** Deterministic shipped-widget fixture state; does not bind or mutate gameplay. */
+	/** Gallery-only deterministic fixture state; does not bind or mutate gameplay. */
 	void SetGalleryPreviewStatuses(const TArray<FGameplayTag>& StatusTags);
 
 	/** Maximum number of visible status indicators. */
@@ -87,6 +88,7 @@ private:
 	TMap<FGameplayTag, TObjectPtr<UMordecaiStatusEffectIndicatorWidget>> ActiveIndicators;
 
 	TArray<FGameplayTag> ActiveTagOrder;
+	TMap<FGameplayTag, FGameplayEffectQuery> EffectQueries;
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
 	FDelegateHandle ThemeChangedHandle;

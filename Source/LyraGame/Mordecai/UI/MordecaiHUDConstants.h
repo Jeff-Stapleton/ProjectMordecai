@@ -15,9 +15,8 @@ namespace MordecaiHUDConstants
 	};
 
 	/**
-	 * Provisional AC-106.4 policy. The callout grows upward from a fixed bottom
-	 * while the combo remains fixed below it. Keep the decision centralized so
-	 * moving the combo instead is one cheap change after coordinator review.
+	 * Approved AC-106.4 policy: the callout grows upward from a fixed +180
+	 * bottom while the combo remains fixed below it at +184.
 	 */
 	inline constexpr FCombatCalloutLayout GetCombatCalloutLayout(int32 TextSizeIndex)
 	{

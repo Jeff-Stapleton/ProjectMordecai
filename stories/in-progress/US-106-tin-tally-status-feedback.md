@@ -22,8 +22,8 @@ Native fallback widget/layout and tests use US-103's cooked foundation assets.
 ## Acceptance Criteria
 - [ ] AC-106.1: `IndicatorContainer` is panel-compatible and the fallback uses a WrapBox at `(32,318)`, `456x112`, maximum eight visible chips in two rows.
 - [ ] AC-106.2: every chip carries display name, glyph, duration/stacks and non-color polarity shape; `"Stone Skin"` replaces `"StoneSkin"` in UI and Tier 4 assertions in the same commit.
-- [ ] AC-106.3: callouts occupy centre `+128`, use exact shipped copy `"Perfect Dodge!"`, `"Perfect Block!"`, `"Parried!"`, `"Parry Failed!"`, and `"Posture Broken!"`, latest replaces previous, and hide after 1.0 s; High Contrast adds the specified plate.
-- [ ] AC-106.4: after Jeff confirms the recommended callout-size rule, Normal/Large/XL grow upward with a fixed bottom edge and never overlap the combo at `+184`.
+- [ ] AC-106.3: callouts use exact shipped copy `"Perfect Dodge!"`, `"Perfect Block!"`, `"Parried!"`, `"Parry Failed!"`, and `"Posture Broken!"`, latest replaces previous, and hide after 1.0 s; High Contrast adds the specified plate.
+- [ ] AC-106.4: Normal/Large/XL grow upward from the Jeff-approved fixed bottom at centre `+180` and never overlap the combo fixed at `+184`.
 - [ ] AC-106.5: combo reads `"Hit N"`, remains visible through a HUD activation/rebuild during an active window, and hides when the window closes.
 - [ ] AC-106.6: both themes pass component-preview comparison and no existing playtest PASS becomes FAIL.
 
@@ -33,7 +33,6 @@ Native fallback widget/layout and tests use US-103's cooked foundation assets.
 - Use one approved status display-data source for chip and later tooltip; do not derive shipping copy from tag segments after this story.
 - Keep caps as transforms and strings as real TextBlocks.
 - TODO(DECISION): if more than four hidden chip names must remain bridge-visible, add accessible-name reporting rather than weakening the visible max-eight rule.
-- TODO(DECISION): callout Large/XL growth direction must be confirmed; the plan recommends fixed bottom/grow upward.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
 ## Tests Required
@@ -66,9 +65,15 @@ Native fallback widget/layout and tests use US-103's cooked foundation assets.
 - [ ] Work committed FIRST, then `py Scripts/package_playtest.py` exits 0 for that exact clean commit
 - [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
 - [ ] Updated US-057/combat stories and their `--lint` checks pass on that package; full sweep has no baseline PASS to FAIL
-- [ ] #21 is evidenced fixed and #79's existing source fix is evidenced by targeted regression, without issue mutation; both-theme previews/diffs and every gameplay screenshot are opened/described
+- [ ] #21 is evidenced fixed and #79's existing source fix is evidenced by targeted regression, without issue mutation; both-theme previews/diffs and every gameplay screenshot are bundled for coordinator review
 - [ ] Evidence run dirs appear in Completion Notes and closing `[US-106]` commit body; closing commit touches only `stories/`
 - [ ] Pushed; story moves to `stories/done/` only after all checks pass
 
 ## Completion Notes
-<Filled in by the implementing agent.>
+- **Coordinator decisions (2026-11-12):**
+  - Image review belongs to the coordinator. The builder PIL-checks and bundles every image but does not open PNG files; the coordinator's review satisfies the visual-review step.
+  - Gameplay categories remain byte-for-byte equivalent to main `3d9f08b4`: `MicroStunned` is Control, `Sleeping` takes the unknown/default Debuff category, and gameplay Buff contains only `Focused`. UI display sort and polarity are separate fields.
+  - Jeff approved the fixed-bottom callout rule recorded in `Specs/design_decisions_log.md`: bottom `+180`, upward growth, combo `+184`.
+  - AC-106.5 keeps the logic test as the issue #79 regression. Tier 4 combo proof remains blocked by known baseline N24.
+  - The status-chip fallback uses flat-strip teeth because the specified 9-slice textures do not exist. This is approved for US-106; chip bodies still carry the required 3 px ink outline (4 px in High Contrast).
+  - `Focused` can render `3/3` whenever its active tag exists because the tag is granted only at `FocusedStreakThreshold == 3`; `Exposed` can render `1 hit` because its active tag is consumed by the next hit. No unavailable ASC value is invented.

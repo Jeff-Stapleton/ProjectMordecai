@@ -12,21 +12,57 @@ namespace
 		const FText& DisplayName,
 		const TCHAR* Glyph,
 		const TCHAR* GlyphColorToken,
-		const EMordecaiStatusEffectCategory Category,
+		const EMordecaiStatusEffectCategory DisplaySortCategory,
 		const float DefaultDuration,
 		const int32 MaxVisibleStacks = 0,
-		const bool bIsBuff = false)
+		const EMordecaiStatusDisplayPolarity DisplayPolarity =
+			EMordecaiStatusDisplayPolarity::Debuff,
+		const FText& FixedValueText = FText::GetEmpty())
 	{
 		FMordecaiStatusDisplayData Row;
 		Row.Tag = Tag;
 		Row.DisplayName = DisplayName;
 		Row.GlyphName = FName(Glyph);
 		Row.GlyphColorToken = FName(GlyphColorToken);
-		Row.Category = Category;
+		Row.DisplaySortCategory = DisplaySortCategory;
+		Row.DisplayPolarity = DisplayPolarity;
 		Row.DefaultDuration = DefaultDuration;
 		Row.MaxVisibleStacks = MaxVisibleStacks;
-		Row.bIsBuff = bIsBuff;
+		Row.FixedValueText = FixedValueText;
 		return Row;
+	}
+
+	struct FStatusCategoryEntry
+	{
+		FGameplayTag Tag;
+		EMordecaiStatusEffectCategory Category;
+	};
+
+	/** Exact gameplay map from main 3d9f08b4. UI display rows must not change it. */
+	const TArray<FStatusCategoryEntry>& GetGameplayCategoryMap()
+	{
+		using namespace MordecaiGameplayTags;
+		static const TArray<FStatusCategoryEntry> Map = {
+			{ Status_Burning, EMordecaiStatusEffectCategory::DoT },
+			{ Status_Bleeding, EMordecaiStatusEffectCategory::DoT },
+			{ Status_Poisoned, EMordecaiStatusEffectCategory::DoT },
+			{ Status_Frostbitten, EMordecaiStatusEffectCategory::Debuff },
+			{ Status_Weakened, EMordecaiStatusEffectCategory::Debuff },
+			{ Status_Brittle, EMordecaiStatusEffectCategory::Debuff },
+			{ Status_Cursed, EMordecaiStatusEffectCategory::Debuff },
+			{ Status_Corroded, EMordecaiStatusEffectCategory::Debuff },
+			{ Status_Exposed, EMordecaiStatusEffectCategory::Debuff },
+			{ Status_Shocked, EMordecaiStatusEffectCategory::Control },
+			{ Status_Silenced, EMordecaiStatusEffectCategory::Control },
+			{ Status_Rooted, EMordecaiStatusEffectCategory::Control },
+			{ Status_Blinded, EMordecaiStatusEffectCategory::Control },
+			{ Status_Fear, EMordecaiStatusEffectCategory::Control },
+			{ Status_Frozen, EMordecaiStatusEffectCategory::Control },
+			{ Status_MicroStunned, EMordecaiStatusEffectCategory::Control },
+			{ Status_Focused, EMordecaiStatusEffectCategory::Buff },
+			{ Status_Drenched, EMordecaiStatusEffectCategory::Environmental },
+		};
+		return Map;
 	}
 }
 
@@ -57,11 +93,12 @@ const TArray<FMordecaiStatusDisplayData>& GetAllStatusEffectDisplayData()
 		StatusRow(Status_Blinded, LOCTEXT("Blinded", "Blinded"), TEXT("blinded"),
 			TEXT("text"), EMordecaiStatusEffectCategory::Control, 4.f),
 		StatusRow(Status_Fear, LOCTEXT("Fear", "Fear"), TEXT("fear"),
-			TEXT("text"), EMordecaiStatusEffectCategory::Control, 5.f),
+			TEXT("dmg-shadow-edge"), EMordecaiStatusEffectCategory::Control, 5.f),
 		StatusRow(Status_Cursed, LOCTEXT("Cursed", "Cursed"), TEXT("cursed"),
 			TEXT("dmg-shadow-edge"), EMordecaiStatusEffectCategory::Debuff, 10.f),
 		StatusRow(Status_Exposed, LOCTEXT("Exposed", "Exposed"), TEXT("exposed"),
-			TEXT("danger-text"), EMordecaiStatusEffectCategory::Debuff, 5.f),
+			TEXT("danger-text"), EMordecaiStatusEffectCategory::Debuff, 5.f, 0,
+			EMordecaiStatusDisplayPolarity::Debuff, LOCTEXT("ExposedValue", "1 hit")),
 		StatusRow(Status_Corroded, LOCTEXT("Corroded", "Corroded"), TEXT("corroded"),
 			TEXT("dmg-corrosive"), EMordecaiStatusEffectCategory::Debuff, 10.f),
 		StatusRow(Status_Drenched, LOCTEXT("Drenched", "Drenched"), TEXT("drenched"),
@@ -69,21 +106,29 @@ const TArray<FMordecaiStatusDisplayData>& GetAllStatusEffectDisplayData()
 		StatusRow(Status_Sleeping, LOCTEXT("Sleeping", "Sleeping"), TEXT("sleeping"),
 			TEXT("text"), EMordecaiStatusEffectCategory::Control, 0.f),
 		StatusRow(Status_Focused, LOCTEXT("Focused", "Focused"), TEXT("focused"),
-			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0, true),
+			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0,
+			EMordecaiStatusDisplayPolarity::Buff, LOCTEXT("FocusedValue", "3/3")),
 		StatusRow(Status_StoneSkin, LOCTEXT("StoneSkin", "Stone Skin"), TEXT("stoneskin"),
-			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 10.f, 0, true),
+			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 10.f, 0,
+			EMordecaiStatusDisplayPolarity::Buff),
 		StatusRow(Status_FireWard, LOCTEXT("FireWard", "Fire Ward"), TEXT("fireward"),
-			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0, true),
+			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0,
+			EMordecaiStatusDisplayPolarity::Buff),
 		StatusRow(Status_Blessed, LOCTEXT("Blessed", "Blessed"), TEXT("blessed"),
-			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0, true),
+			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0,
+			EMordecaiStatusDisplayPolarity::Buff),
 		StatusRow(Status_Restoration, LOCTEXT("Restoration", "Restoration"), TEXT("restoration"),
-			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 5.f, 0, true),
+			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 5.f, 0,
+			EMordecaiStatusDisplayPolarity::Buff),
 		StatusRow(Status_EnchantedWeapon, LOCTEXT("EnchantedWeapon", "Enchanted Weapon"), TEXT("enchanted"),
-			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0, true),
+			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0,
+			EMordecaiStatusDisplayPolarity::Buff),
 		StatusRow(Status_Blurred, LOCTEXT("Blurred", "Blurred"), TEXT("blurred"),
-			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0, true),
+			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0,
+			EMordecaiStatusDisplayPolarity::Buff),
 		StatusRow(Status_Resolved, LOCTEXT("Resolved", "Resolved"), TEXT("resolved"),
-			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0, true),
+			TEXT("ink"), EMordecaiStatusEffectCategory::Buff, 0.f, 0,
+			EMordecaiStatusDisplayPolarity::Buff),
 	};
 	return Rows;
 }
@@ -99,9 +144,12 @@ const FMordecaiStatusDisplayData* FindStatusEffectDisplayData(const FGameplayTag
 
 EMordecaiStatusEffectCategory GetStatusEffectCategory(FGameplayTag StatusTag)
 {
-	if (const FMordecaiStatusDisplayData* Row = FindStatusEffectDisplayData(StatusTag))
+	for (const FStatusCategoryEntry& Entry : GetGameplayCategoryMap())
 	{
-		return Row->Category;
+		if (Entry.Tag == StatusTag)
+		{
+			return Entry.Category;
+		}
 	}
 
 	// Default to Debuff for unknown tags
@@ -111,11 +159,11 @@ EMordecaiStatusEffectCategory GetStatusEffectCategory(FGameplayTag StatusTag)
 TArray<FGameplayTag> GetStatusTagsForCategory(EMordecaiStatusEffectCategory Category)
 {
 	TArray<FGameplayTag> Result;
-	for (const FMordecaiStatusDisplayData& Row : GetAllStatusEffectDisplayData())
+	for (const FStatusCategoryEntry& Entry : GetGameplayCategoryMap())
 	{
-		if (Row.Category == Category)
+		if (Entry.Category == Category)
 		{
-			Result.Add(Row.Tag);
+			Result.Add(Entry.Tag);
 		}
 	}
 	return Result;

@@ -1330,7 +1330,8 @@ namespace
 		const FVector2D Position,
 		const FVector2D Size)
 	{
-		WidgetType* Widget = Tree->ConstructWidget<WidgetType>(WidgetType::StaticClass(), Name);
+		WidgetType* Widget = Tree->ConstructWidget<WidgetType>(
+			WidgetType::StaticClass(), Name);
 		if (Owner->GetPlayerContext().IsValid())
 		{
 			Widget->SetPlayerContext(Owner->GetPlayerContext());
@@ -1420,6 +1421,30 @@ namespace
 			Owner->CreateFixtureASC(0.64f, 0.52f, 0.7f, 5.f, 13.f);
 		HUD->BindToASC(ASC);
 		SeedGallerySpells(Owner, HUD, ASC);
+		if (UMordecaiStatusEffectBarWidget* StatusBar =
+			Cast<UMordecaiStatusEffectBarWidget>(
+				HUD->GetNamedWidget(HUD, TEXT("StatusEffectBar"))))
+		{
+			StatusBar->SetGalleryPreviewStatuses({
+				MordecaiGameplayTags::Status_Frostbitten,
+				MordecaiGameplayTags::Status_Focused,
+				MordecaiGameplayTags::Status_Burning,
+				MordecaiGameplayTags::Status_StoneSkin });
+		}
+		if (UMordecaiCombatFeedbackWidget* Callout =
+			Cast<UMordecaiCombatFeedbackWidget>(
+				HUD->GetNamedWidget(HUD, TEXT("CombatFeedback"))))
+		{
+			Callout->FeedbackDisplayDuration = 30.f;
+			Callout->ShowFeedback(TEXT("Parried!"), Colors.Good);
+		}
+		if (UMordecaiComboCounterWidget* Combo =
+			Cast<UMordecaiComboCounterWidget>(
+				HUD->GetNamedWidget(HUD, TEXT("ComboCounter"))))
+		{
+			Combo->SetComboIndex(4);
+			Combo->SetComboVisible(true);
+		}
 	}
 
 	void BuildGaugePlateFixture(
@@ -1679,7 +1704,7 @@ namespace
 			{ MordecaiGameplayTags::Status_Focused, true, 0.f, 3, false },
 			{ MordecaiGameplayTags::Status_Burning, false, 5.f, 1, false },
 			{ MordecaiGameplayTags::Status_Frostbitten, false, 6.f, 3, false },
-			{ MordecaiGameplayTags::Status_Restoration, true, 5.f, 1, true },
+			{ MordecaiGameplayTags::Status_Focused, true, 0.f, 3, true },
 			{ MordecaiGameplayTags::Status_Shocked, false, 5.f, 2, true },
 		};
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Fixtures); ++Index)
@@ -1705,24 +1730,23 @@ namespace
 			TEXT("ui_label"), Colors.Text, 40.f, 420.f, 840.f, 28.f);
 		AddText(Tree, Canvas, TEXT("BUFF TAB AND DEBUFF TEETH CARRY POLARITY WITHOUT COLOUR"),
 			TEXT("ui_label"), Colors.Text, 40.f, 458.f, 840.f, 28.f);
-		AddText(Tree, Canvas, TEXT("MAX EIGHT · THE NINTH FOLDS INTO +N"),
+		AddText(Tree, Canvas, TEXT("MAX EIGHT · +N ONLY IF COMPACT STILL NEEDS A THIRD ROW"),
 			TEXT("ui_label"), Colors.Text, 40.f, 496.f, 840.f, 28.f);
-		AddText(Tree, Canvas, TEXT("LIVE TWO-ROW STRIP · NINE STATUSES PRODUCE AN OVERFLOW CHIP"),
+		AddText(Tree, Canvas, TEXT("LIVE TWO-ROW STRIP · WIDE PIP CHIPS PRODUCE +N"),
 			TEXT("kicker"), Colors.TextMuted, 40.f, 542.f, 840.f, 28.f);
 		UMordecaiStatusEffectBarWidget* StatusBar =
 			EmbedShippedWidget<UMordecaiStatusEffectBarWidget>(
 				Owner, Tree, Canvas, TEXT("GalleryRealStatusBar"),
 				FVector2D(252.f, 582.f), FVector2D(456.f, 112.f));
 		const TArray<FGameplayTag> GalleryStatuses = {
+			MordecaiGameplayTags::Status_Frostbitten.GetTag(),
+			MordecaiGameplayTags::Status_Shocked.GetTag(),
 			MordecaiGameplayTags::Status_Rooted.GetTag(),
+			MordecaiGameplayTags::Status_Silenced.GetTag(),
 			MordecaiGameplayTags::Status_Burning.GetTag(),
+			MordecaiGameplayTags::Status_Bleeding.GetTag(),
 			MordecaiGameplayTags::Status_Poisoned.GetTag(),
 			MordecaiGameplayTags::Status_Weakened.GetTag(),
-			MordecaiGameplayTags::Status_Drenched.GetTag(),
-			MordecaiGameplayTags::Status_Focused.GetTag(),
-			MordecaiGameplayTags::Status_StoneSkin.GetTag(),
-			MordecaiGameplayTags::Status_Blessed.GetTag(),
-			MordecaiGameplayTags::Status_Restoration.GetTag()
 		};
 		StatusBar->SetGalleryPreviewStatuses(GalleryStatuses);
 	}

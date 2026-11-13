@@ -255,7 +255,9 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 		ComboCounter = CreateWidget<UMordecaiComboCounterWidget>(
 			this, UMordecaiComboCounterWidget::StaticClass(), TEXT("ComboCounter"));
 	}
-	AddChild(ComboCounter, Center, FVector2D(0.f, 184.f),
+	const MordecaiHUDConstants::FCombatCalloutLayout CalloutLayout =
+		MordecaiHUDConstants::GetCombatCalloutLayout(0);
+	AddChild(ComboCounter, Center, FVector2D(0.f, CalloutLayout.ComboTopFromCenterPx),
 		FVector2D(220.f, 36.f), FVector2D(0.5f, 0.f));
 
 	if (!CombatFeedback)
@@ -263,8 +265,6 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 		CombatFeedback = CreateWidget<UMordecaiCombatFeedbackWidget>(
 			this, UMordecaiCombatFeedbackWidget::StaticClass(), TEXT("CombatFeedback"));
 	}
-	const MordecaiHUDConstants::FCombatCalloutLayout CalloutLayout =
-		MordecaiHUDConstants::GetCombatCalloutLayout(0);
 	AddChild(CombatFeedback, Center, FVector2D(0.f, CalloutLayout.BottomFromCenterPx),
 		FVector2D(520.f, CalloutLayout.SlotHeightPx), FVector2D(0.5f, 1.f));
 	CombatFeedback->SetCalloutFontSize(CalloutLayout.FontSizePt);

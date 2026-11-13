@@ -210,6 +210,7 @@ void UMordecaiCombatFeedbackWidget::OnFeedbackTagChanged(const FGameplayTag Tag,
 
 void UMordecaiCombatFeedbackWidget::ShowFeedback(const FString& Text, const FLinearColor& Color)
 {
+	bCurrentFeedbackNegative = Color.Equals(CurrentThemeColors.DangerText);
 	ShowFeedbackText(FText::FromString(Text), Color);
 }
 

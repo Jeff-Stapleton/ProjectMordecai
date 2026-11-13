@@ -104,9 +104,11 @@ private:
 	FDelegateHandle ThemeChangedHandle;
 	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
 	FName GlyphColorToken = TEXT("text");
+	FText FixedValueText;
 	int32 MaxVisibleStacks = 0;
 	int32 CurrentStackCount = 0;
 	int32 LastDurationTenths = INDEX_NONE;
+	float DurationBoxWidth = 38.f;
 	float FullChipWidth = 132.f;
 	float CompactChipWidth = 86.f;
 	bool bCompact = false;

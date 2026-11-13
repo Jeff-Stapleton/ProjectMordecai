@@ -219,3 +219,12 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
   This change keeps replication out of scope, repairs only the five existing weapon type tags,
   and adds no stat modifiers to game assets.
 - Source: Jeff via Cursor session (2026-11-09).
+
+---
+
+## 2026-11-12 — Combat callout grows upward from a fixed bottom (US-106)
+
+- **Final decision:** the combat callout's bottom edge remains fixed at centre `+180` for Normal, Large and XL text.
+- Large and XL increase the callout slot height upward from that fixed edge.
+- The combo remains fixed immediately below it at centre `+184`; the two regions do not overlap at any supported text size.
+- Source: Jeff via the US-106 fix-round-2 coordinator decision (2026-11-12).

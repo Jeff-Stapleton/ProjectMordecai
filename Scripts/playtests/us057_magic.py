@@ -34,8 +34,9 @@ Usage (the kit's common options):
   py Scripts/playtests/us057_magic.py --attach-port N [--token T]   always diagnostic
 
 Output: Saved/Playtests/<YYYYmmdd-HHMMSS>-us057/ (report.md, report.json, game.log,
-bridge.jsonl, bridge_NN.png).  Open every screenshot and say what is on screen: the damage
-number near the TestDummy's health bar (fireball_hit) is the only damage-number evidence.
+bridge.jsonl, bridge_NN.png).  US-106 fix-round-2 bundles every screenshot for the coordinator's
+image review; the damage number near the TestDummy's health bar (fireball_hit) is the only
+damage-number evidence.
 
 Exit codes: 0 every check passed (WARN allowed), 1 a gameplay FAIL, 2 infrastructure.
 """
