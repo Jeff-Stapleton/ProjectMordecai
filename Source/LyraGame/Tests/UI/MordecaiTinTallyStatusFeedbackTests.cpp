@@ -7,15 +7,22 @@
 
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/Image.h"
 #include "Components/PanelWidget.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/WrapBox.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/StatusEffects/MordecaiStatusEffectTypes.h"
 #include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
 #include "Mordecai/UI/MordecaiComboCounterWidget.h"
 #include "Mordecai/UI/MordecaiStatusEffectBarWidget.h"
 #include "Mordecai/UI/MordecaiStatusEffectIndicatorWidget.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeSubsystem.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
 #include "UObject/UnrealType.h"
 
@@ -29,6 +36,36 @@ namespace MordecaiTinTallyStatusFeedbackTest
 		return Owner && Owner->WidgetTree
 			? Cast<T>(Owner->WidgetTree->FindWidget(FName(Name)))
 			: nullptr;
+	}
+
+	bool IsShown(const UWidget* Widget)
+	{
+		return Widget
+			&& Widget->GetVisibility() != ESlateVisibility::Collapsed
+			&& Widget->GetVisibility() != ESlateVisibility::Hidden;
+	}
+
+	int32 CountShownChildren(const UPanelWidget* Panel)
+	{
+		int32 Count = 0;
+		for (int32 Index = 0; Panel && Index < Panel->GetChildrenCount(); ++Index)
+		{
+			Count += IsShown(Panel->GetChildAt(Index)) ? 1 : 0;
+		}
+		return Count;
+	}
+
+	UMordecaiStatusEffectIndicatorWidget* FirstIndicator(const UPanelWidget* Panel)
+	{
+		for (int32 Index = 0; Panel && Index < Panel->GetChildrenCount(); ++Index)
+		{
+			if (UMordecaiStatusEffectIndicatorWidget* Indicator =
+				Cast<UMordecaiStatusEffectIndicatorWidget>(Panel->GetChildAt(Index)))
+			{
+				return Indicator;
+			}
+		}
+		return nullptr;
 	}
 }
 
@@ -46,22 +83,6 @@ bool FMordecai_UI_StatusChip_WrapsAndCapsAtEight::RunTest(const FString& Paramet
 		return true;
 	}
 	UAbilitySystemComponent* ASC = Env.GetPlayerASC();
-	const FGameplayTag Statuses[] = {
-		MordecaiGameplayTags::Status_Burning,
-		MordecaiGameplayTags::Status_Bleeding,
-		MordecaiGameplayTags::Status_Poisoned,
-		MordecaiGameplayTags::Status_Frostbitten,
-		MordecaiGameplayTags::Status_Shocked,
-		MordecaiGameplayTags::Status_Weakened,
-		MordecaiGameplayTags::Status_Brittle,
-		MordecaiGameplayTags::Status_Silenced,
-		MordecaiGameplayTags::Status_Rooted,
-	};
-	for (const FGameplayTag& Status : Statuses)
-	{
-		ASC->AddLooseGameplayTag(Status);
-	}
-
 	UMordecaiStatusEffectBarWidget* Bar =
 		Env.MakeWidget<UMordecaiStatusEffectBarWidget>();
 	Bar->BindToASC(ASC);
@@ -71,14 +92,96 @@ bool FMordecai_UI_StatusChip_WrapsAndCapsAtEight::RunTest(const FString& Paramet
 	TestNotNull("fallback IndicatorContainer is a WrapBox", Wrap);
 	TestEqual("WrapBox uses the 456px strip width",
 		Wrap ? Wrap->GetWrapSize() : 0.f, 456.f);
+	TestNotNull("status strip reserves 12px above and 8px below the WrapBox",
+		Find<UBorder>(Bar, TEXT("StatusWrapPadding")));
+
+	// Bind first: live AddLooseGameplayTag callbacks must incrementally add chips.
+	ASC->AddLooseGameplayTag(MordecaiGameplayTags::Status_Burning);
+	UMordecaiStatusEffectIndicatorWidget* FirstLive = FirstIndicator(Container);
+	UPanelSlot* FirstLiveSlot = FirstLive ? FirstLive->Slot : nullptr;
+	ASC->AddLooseGameplayTag(MordecaiGameplayTags::Status_Rooted);
+	TestNotNull("a live tag added after BindToASC creates its chip", FirstLive);
+	TestTrue("adding another live tag preserves an existing chip slot",
+		FirstLive && FirstLive->Slot == FirstLiveSlot);
+	ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::Status_Burning);
+	ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::Status_Rooted);
+
+	// Eight narrow compact chips fit in two rows. The ninth is capped silently:
+	// +N belongs only to the case where compact geometry would need a third row.
+	const FGameplayTag NarrowStatuses[] = {
+		MordecaiGameplayTags::Status_Burning,
+		MordecaiGameplayTags::Status_Bleeding,
+		MordecaiGameplayTags::Status_Poisoned,
+		MordecaiGameplayTags::Status_Rooted,
+		MordecaiGameplayTags::Status_Silenced,
+		MordecaiGameplayTags::Status_Blinded,
+		MordecaiGameplayTags::Status_Fear,
+		MordecaiGameplayTags::Status_Weakened,
+		MordecaiGameplayTags::Status_Focused,
+	};
+	for (const FGameplayTag& Status : NarrowStatuses)
+	{
+		ASC->AddLooseGameplayTag(Status);
+	}
+	UTextBlock* Overflow = Find<UTextBlock>(Bar, TEXT("OverflowChip"));
+	UWidget* OverflowSize = Find<UWidget>(Bar, TEXT("OverflowSize"));
+	TestNotNull("OverflowChip native fallback exists", Overflow);
+	TestNotNull("permanent overflow child exists", OverflowSize);
 	TestTrue("visible children never exceed eight",
-		Container && Container->GetChildrenCount()
+		CountShownChildren(Container)
 			<= UMordecaiStatusEffectBarWidget::MaxVisibleIndicators);
-	TestEqual("nine statuses still materialize exactly eight visible chip slots",
-		Container ? Container->GetChildrenCount() : 0,
+	TestEqual("nine narrow statuses still show eight compact chips",
+		CountShownChildren(Container),
 		UMordecaiStatusEffectBarWidget::MaxVisibleIndicators);
-	TestNotNull("OverflowChip native fallback exists",
-		Find<UWidget>(Bar, TEXT("OverflowChip")));
+	TestEqual("+N stays collapsed when eight compact chips fit two rows",
+		OverflowSize ? OverflowSize->GetVisibility() : ESlateVisibility::Visible,
+		ESlateVisibility::Collapsed);
+	TestTrue("overflow remains the permanent last child while collapsed",
+		Container && Container->GetChildrenCount() > 0
+		&& Container->GetChildAt(Container->GetChildrenCount() - 1) == OverflowSize);
+	UMordecaiStatusEffectIndicatorWidget* First = FirstIndicator(Container);
+	TestNotNull("first visible child is a status indicator", First);
+	TestTrue("display sort puts a Control chip first",
+		First && (
+			First->GetStatusTag() == MordecaiGameplayTags::Status_Rooted
+			|| First->GetStatusTag() == MordecaiGameplayTags::Status_Silenced
+			|| First->GetStatusTag() == MordecaiGameplayTags::Status_Blinded
+			|| First->GetStatusTag() == MordecaiGameplayTags::Status_Fear));
+	TestEqual("compact mode collapses every status name",
+		First ? Find<UTextBlock>(First, TEXT("StatusNameText"))->GetVisibility()
+			: ESlateVisibility::Visible,
+		ESlateVisibility::Collapsed);
+	Bar->ForceLayoutPrepass();
+	TestTrue("two-row status strip desired height stays within 112px",
+		Bar->GetDesiredSize().Y <= 112.f);
+
+	for (const FGameplayTag& Status : NarrowStatuses)
+	{
+		ASC->RemoveLooseGameplayTag(Status);
+	}
+	const FGameplayTag WideStatuses[] = {
+		MordecaiGameplayTags::Status_Frostbitten,
+		MordecaiGameplayTags::Status_Shocked,
+		MordecaiGameplayTags::Status_Rooted,
+		MordecaiGameplayTags::Status_Silenced,
+		MordecaiGameplayTags::Status_Burning,
+		MordecaiGameplayTags::Status_Bleeding,
+		MordecaiGameplayTags::Status_Poisoned,
+		MordecaiGameplayTags::Status_Weakened,
+	};
+	for (const FGameplayTag& Status : WideStatuses)
+	{
+		ASC->AddLooseGameplayTag(Status);
+	}
+	TestEqual("+N is HitTestInvisible when compact chips would need a third row",
+		OverflowSize ? OverflowSize->GetVisibility() : ESlateVisibility::Collapsed,
+		ESlateVisibility::HitTestInvisible);
+	TestTrue("overflow text is a real +N value",
+		Overflow && Overflow->GetText().ToString().StartsWith(TEXT("+"))
+		&& Overflow->GetText().ToString() != TEXT("+0"));
+	TestTrue("overflow remains the permanent last child while visible",
+		Container && Container->GetChildrenCount() > 0
+		&& Container->GetChildAt(Container->GetChildrenCount() - 1) == OverflowSize);
 
 	const FObjectPropertyBase* ContainerProperty =
 		FindFProperty<FObjectPropertyBase>(
@@ -86,6 +189,20 @@ bool FMordecai_UI_StatusChip_WrapsAndCapsAtEight::RunTest(const FString& Paramet
 	TestTrue("IndicatorContainer UPROPERTY accepts any panel implementation",
 		ContainerProperty
 		&& ContainerProperty->PropertyClass == UPanelWidget::StaticClass());
+
+	// A gameplay bind must discard gallery-only order rather than leaking preview chips.
+	for (const FGameplayTag& Status : WideStatuses)
+	{
+		ASC->RemoveLooseGameplayTag(Status);
+	}
+	UMordecaiStatusEffectBarWidget* Rebound =
+		Env.MakeWidget<UMordecaiStatusEffectBarWidget>();
+	Rebound->SetGalleryPreviewStatuses({
+		MordecaiGameplayTags::Status_Focused,
+		MordecaiGameplayTags::Status_Burning });
+	Rebound->BindToASC(ASC);
+	TestEqual("BindToASC prunes gallery/stale ActiveTagOrder on rebind",
+		Rebound->GetVisibility(), ESlateVisibility::Collapsed);
 	return true;
 }
 
@@ -107,8 +224,20 @@ bool FMordecai_UI_StatusChip_DisplayNameAndPolarity::RunTest(const FString& Para
 		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
 	UMordecaiStatusEffectIndicatorWidget* Debuff =
 		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
+	UMordecaiStatusEffectIndicatorWidget* Frost =
+		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
+	UMordecaiStatusEffectIndicatorWidget* Focused =
+		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
+	UMordecaiStatusEffectIndicatorWidget* Exposed =
+		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
+	UMordecaiStatusEffectIndicatorWidget* Fear =
+		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
 	Buff->InitializeIndicator(MordecaiGameplayTags::Status_StoneSkin, true, 10.f);
 	Debuff->InitializeIndicator(MordecaiGameplayTags::Status_Burning, false, 5.f);
+	Frost->InitializeIndicator(MordecaiGameplayTags::Status_Frostbitten, false, 6.f);
+	Focused->InitializeIndicator(MordecaiGameplayTags::Status_Focused, true, 0.f);
+	Exposed->InitializeIndicator(MordecaiGameplayTags::Status_Exposed, false, 5.f);
+	Fear->InitializeIndicator(MordecaiGameplayTags::Status_Fear, false, 5.f);
 
 	const UTextBlock* BuffName = Find<UTextBlock>(Buff, TEXT("StatusNameText"));
 	const UTextBlock* DebuffName = Find<UTextBlock>(Debuff, TEXT("StatusNameText"));
@@ -133,6 +262,102 @@ bool FMordecai_UI_StatusChip_DisplayNameAndPolarity::RunTest(const FString& Para
 		Find<UWidget>(Buff, TEXT("BuffTab")));
 	TestNotNull("debuff polarity has a toothed hem independent of colour",
 		Find<UWidget>(Debuff, TEXT("DebuffTeeth")));
+	TestEqual("buff tab is visible",
+		Find<UWidget>(Buff, TEXT("BuffTab"))->GetVisibility(),
+		ESlateVisibility::HitTestInvisible);
+	TestEqual("buff hides debuff teeth",
+		Find<UWidget>(Buff, TEXT("DebuffTeeth"))->GetVisibility(),
+		ESlateVisibility::Collapsed);
+	TestEqual("debuff hides buff tab",
+		Find<UWidget>(Debuff, TEXT("BuffTab"))->GetVisibility(),
+		ESlateVisibility::Collapsed);
+	TestEqual("debuff teeth are visible",
+		Find<UWidget>(Debuff, TEXT("DebuffTeeth"))->GetVisibility(),
+		ESlateVisibility::HitTestInvisible);
+
+	const FMordecaiUIThemeColors Diorama = FMordecaiUIThemeColors::MakeDiorama();
+	const UImage* BuffBody = Find<UImage>(Buff, TEXT("TintImage"));
+	const UImage* DebuffBody = Find<UImage>(Debuff, TEXT("TintImage"));
+	TestTrue("buff body uses enamel fill",
+		BuffBody && BuffBody->GetBrush().TintColor.GetSpecifiedColor().Equals(Diorama.Enamel));
+	TestTrue("debuff body uses plate fill",
+		DebuffBody && DebuffBody->GetBrush().TintColor.GetSpecifiedColor().Equals(Diorama.Plate));
+	TestTrue("chip body has the 3px ink outline",
+		BuffBody
+		&& BuffBody->GetBrush().OutlineSettings.Width == 3.f
+		&& BuffBody->GetBrush().OutlineSettings.Color.GetSpecifiedColor().Equals(Diorama.Ink));
+
+	const UTextBlock* BuffDuration = Find<UTextBlock>(Buff, TEXT("DurationText"));
+	const UTextBlock* DebuffDuration = Find<UTextBlock>(Debuff, TEXT("DurationText"));
+	TestEqual("10 second chip renders the complete 10.0 value",
+		BuffDuration ? BuffDuration->GetText().ToString() : FString(), FString(TEXT("10.0")));
+	TestEqual("5 second chip renders 5.0",
+		DebuffDuration ? DebuffDuration->GetText().ToString() : FString(), FString(TEXT("5.0")));
+	const UCanvasPanelSlot* BuffDurationSlot = BuffDuration
+		? Cast<UCanvasPanelSlot>(BuffDuration->GetParent()->Slot) : nullptr;
+	const UCanvasPanelSlot* DebuffDurationSlot = DebuffDuration
+		? Cast<UCanvasPanelSlot>(DebuffDuration->GetParent()->Slot) : nullptr;
+	TestEqual("duration box is 51px from 10 seconds",
+		BuffDurationSlot ? static_cast<float>(BuffDurationSlot->GetSize().X) : 0.f, 51.f);
+	TestEqual("duration box is 38px under 10 seconds",
+		DebuffDurationSlot ? static_cast<float>(DebuffDurationSlot->GetSize().X) : 0.f, 38.f);
+	TestEqual("Frostbitten owns four pips",
+		Find<UHorizontalBox>(Frost, TEXT("StackPips"))->GetChildrenCount(), 4);
+	TestEqual("Focused uses the approved per-row value",
+		Find<UTextBlock>(Focused, TEXT("DurationText"))->GetText().ToString(),
+		FString(TEXT("3/3")));
+	TestEqual("Exposed uses the approved per-row value",
+		Find<UTextBlock>(Exposed, TEXT("DurationText"))->GetText().ToString(),
+		FString(TEXT("1 hit")));
+	Focused->SetCompact(true);
+	const UImage* FocusedGlyph = Find<UImage>(Focused, TEXT("StatusGlyph"));
+	TestTrue("compact Focused retains a visible loaded glyph",
+		IsShown(FocusedGlyph)
+		&& FocusedGlyph->GetBrush().GetResourceObject() != nullptr);
+	const UImage* FearGlyph = Find<UImage>(Fear, TEXT("StatusGlyph"));
+	TestTrue("Fear resolves dmg-shadow-edge",
+		FearGlyph && FearGlyph->GetColorAndOpacity().Equals(Diorama.DamageShadowEdge));
+
+	const float FrostWidth = Frost->GetChipWidth(false);
+	const UCanvasPanelSlot* NameSlot = Cast<UCanvasPanelSlot>(
+		Find<UTextBlock>(Frost, TEXT("StatusNameText"))->GetParent()->Slot);
+	const UCanvasPanelSlot* PipsSlot = Cast<UCanvasPanelSlot>(
+		Find<UHorizontalBox>(Frost, TEXT("StackPips"))->Slot);
+	const UCanvasPanelSlot* DurationSlot = Cast<UCanvasPanelSlot>(
+		Find<UTextBlock>(Frost, TEXT("DurationText"))->GetParent()->Slot);
+	TestTrue("name and pips have a 6px gap",
+		NameSlot && PipsSlot
+		&& NameSlot->GetPosition().X + NameSlot->GetSize().X + 6.f
+			<= PipsSlot->GetPosition().X);
+	TestTrue("pips and duration have a 6px gap",
+		PipsSlot && DurationSlot
+		&& PipsSlot->GetPosition().X + PipsSlot->GetSize().X + 6.f
+			<= DurationSlot->GetPosition().X);
+	TestTrue("duration and all chip geometry stay inside the chip edge",
+		DurationSlot
+		&& DurationSlot->GetPosition().X + DurationSlot->GetSize().X + 8.f
+			<= FrostWidth);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_StatusChip_GameplayCategoriesStayExact,
+	"Mordecai.UI.StatusChip.GameplayCategoriesStayExact",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_StatusChip_GameplayCategoriesStayExact::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiGameplayTags;
+	TestEqual("MicroStunned remains gameplay Control",
+		GetStatusEffectCategory(Status_MicroStunned),
+		EMordecaiStatusEffectCategory::Control);
+	TestEqual("Sleeping keeps the base gameplay default Debuff category",
+		GetStatusEffectCategory(Status_Sleeping),
+		EMordecaiStatusEffectCategory::Debuff);
+	const TArray<FGameplayTag> Buffs =
+		GetStatusTagsForCategory(EMordecaiStatusEffectCategory::Buff);
+	TestEqual("gameplay Buff has exactly one member", Buffs.Num(), 1);
+	TestTrue("Focused is the exact gameplay Buff membership",
+		Buffs.Num() == 1 && Buffs[0] == Status_Focused);
 	return true;
 }
 
@@ -149,6 +374,8 @@ bool FMordecai_UI_CombatCallout_ReplacesAndExpires::RunTest(const FString& Param
 	{
 		return true;
 	}
+	Env.LocalPlayer->PlayerAdded(nullptr, FPlatformMisc::GetPlatformUserForUserIndex(0));
+	ON_SCOPE_EXIT { Env.LocalPlayer->PlayerRemoved(); };
 	UMordecaiCombatFeedbackWidget* Callout =
 		Env.MakeWidget<UMordecaiCombatFeedbackWidget>();
 	TSharedRef<SWidget> Slate = Callout->TakeWidget();
@@ -159,15 +386,43 @@ bool FMordecai_UI_CombatCallout_ReplacesAndExpires::RunTest(const FString& Param
 		Callout->FeedbackDisplayDuration, 1.f);
 
 	Callout->ShowFeedback(TEXT("Perfect Dodge!"), FLinearColor::Green);
+	Slate->Tick(FGeometry(), 0.99, 0.99f);
+	TestEqual("callout is still visible at 0.99 seconds",
+		Callout->GetVisibility(), ESlateVisibility::HitTestInvisible);
 	Callout->ShowFeedback(TEXT("Parry Failed!"), FLinearColor::Red);
 	TestEqual("latest callout replaces the previous one immediately",
 		FeedbackText ? FeedbackText->GetText().ToString() : FString(),
 		FString(TEXT("Parry Failed!")));
 	TestEqual("replacement remains visible",
 		Callout->GetVisibility(), ESlateVisibility::HitTestInvisible);
-	Slate->Tick(FGeometry(), 1.01, 1.01f);
-	TestEqual("callout collapses after one second",
+	Slate->Tick(FGeometry(), 1.59, 0.6f);
+	Callout->ShowFeedback(TEXT("Perfect Block!"), FLinearColor::Green);
+	Slate->Tick(FGeometry(), 2.19, 0.6f);
+	TestEqual("replacement owns a fresh timer after 0.6 seconds",
+		Callout->GetVisibility(), ESlateVisibility::HitTestInvisible);
+	Slate->Tick(FGeometry(), 2.60, 0.41f);
+	TestEqual("replacement collapses after its own one second",
 		Callout->GetVisibility(), ESlateVisibility::Collapsed);
+
+	UMordecaiUIThemeSubsystem* Themes =
+		Env.LocalPlayer->GetSubsystem<UMordecaiUIThemeSubsystem>();
+	TestNotNull("local theme subsystem", Themes);
+	Callout->ShowFeedback(
+		TEXT("Parry Failed!"), Themes->GetActiveColors().DangerText);
+	Themes->SetActiveTheme(EMordecaiUITheme::HighContrast);
+	TestTrue("direct negative callout survives a live theme switch",
+		FeedbackText->GetColorAndOpacity().GetSpecifiedColor().Equals(
+			Themes->GetActiveColors().DangerText));
+
+	UAbilitySystemComponent* ASC = Env.GetPlayerASC();
+	Callout->BindToASC(ASC);
+	ASC->AddLooseGameplayTag(MordecaiGameplayTags::State_ParryWhiff);
+	TestEqual("ParryWhiff tag drives exact negative copy",
+		FeedbackText->GetText().ToString(), FString(TEXT("Parry Failed!")));
+	Themes->SetActiveTheme(EMordecaiUITheme::Diorama);
+	TestTrue("tag-driven danger colour survives another theme switch",
+		FeedbackText->GetColorAndOpacity().GetSpecifiedColor().Equals(
+			Themes->GetActiveColors().DangerText));
 	return true;
 }
 
