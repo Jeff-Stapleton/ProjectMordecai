@@ -1,4 +1,4 @@
-# PIE Smoke Test: Pause Menu Subsystem
+# PIE Smoke Test: Pause Menu Subsystem and tab content
 # Run during PIE via ue_remote_exec.py to verify pause menu subsystem exists
 # and responds to open/close.
 #
@@ -114,6 +114,61 @@ def _run():
                 for tag, count in EXPECTED_UI_ACTIONS.items():
                     check(f"UI action registered with the CommonUI router {count}x (no duplicates): {tag}",
                           names.count(tag) == count, f"Got {names}")
+
+                def named_text(content, widget_name):
+                    widget = None
+                    if content:
+                        try:
+                            tree = content.get_editor_property("widget_tree")
+                            widget = tree.find_widget(widget_name) if tree else None
+                        except Exception:
+                            pass
+                    return str(widget.get_text()) if widget else None
+
+                def tab_content(tab_id, class_name):
+                    menu.set_active_tab(tab_id)
+                    logic(f"{tab_id}: selected", str(menu.get_active_tab_id()).lower() == tab_id)
+                    content = menu.get_current_content_widget()
+                    actual = content.get_class().get_name() if content else "None"
+                    logic(f"{tab_id}: real {class_name} content", actual == class_name,
+                          f"Got '{actual}'")
+                    return content if actual == class_name else None
+
+                character = tab_content("character", "MordecaiCharacterSheetWidget")
+                if character:
+                    for heading in ("Physical", "Resilience", "Magical"):
+                        logic(f"character: {heading} heading",
+                              named_text(character, f"GroupHeading_{heading}") == heading)
+                    for code in ("STR", "DEX", "END", "CON", "RES", "DIS", "INT", "WIS", "CHA"):
+                        value = named_text(character, f"PrimaryValue_{code}")
+                        logic(f"character: {code} live value",
+                              named_text(character, f"PrimaryLabel_{code}") == code
+                              and value not in (None, "", "--"),
+                              f"Got '{value}'")
+                    for resource in ("health", "stamina", "spellpoints", "posture"):
+                        value = named_text(character, f"ResourceValue_{resource}")
+                        logic(f"character: {resource} current / max",
+                              value is not None and " / " in value and "--" not in value,
+                              f"Got '{value}'")
+
+                skills = tab_content("skills", "MordecaiSkillTreeWidget")
+                if skills:
+                    logic("skills: bound to PlayerState SkillComponent",
+                          skills.is_bound_to_component())
+                    logic("skills: Weapon category rendered",
+                          named_text(skills, "Category_Weapon") == "Weapon")
+                    empty_text = named_text(skills, "SkillEmptyText")
+                    logic("skills: honest empty state when gameplay registered no skills",
+                          empty_text == "No skills registered in this category.",
+                          f"Got '{empty_text}'")
+
+                feats = tab_content("feats", "MordecaiFeatDisplayWidget")
+                if feats:
+                    logic("feats: bound to PlayerState FeatComponent",
+                          feats.is_bound_to_component())
+                    logic("feats: summary matches the empty gameplay component",
+                          named_text(feats, "FeatSummaryText") == "Feats: 0 unlocked",
+                          f"Got '{named_text(feats, 'FeatSummaryText')}'")
 
                 start = str(menu.get_active_tab_id()).lower()
                 if start in TAB_ORDER:
