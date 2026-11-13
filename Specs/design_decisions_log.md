@@ -254,3 +254,13 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Builders validate captures with PIL/scripted image analysis, preserve the original images in the checksummed evidence bundle, and do not claim that a person viewed them.
 - Mordecai Bot opens and describes the bundled captures before merge. This coordinator rule overrides the builder image-opening steps in `CLAUDE.md` 4c.4 and 4d.4; all other Tier 3/Tier 4 evidence rules remain in force.
 - Source: US-093 round-3 coordinator decision for Jeff (2026-11-13).
+
+---
+
+## 2026-11-13 — Verdant Wilds v3 tile footprints and fixture orientation (US-120)
+
+- For 1x1 cliff, pit, and pond edge pieces, the local origin is the midpoint of the authored grid edge between tiles. The body/high-or-land side is local +Y, and collision uses the high/land-side tile footprint: X -100..100, Y 0..200, with Z from the piece.
+- Corners use the high/land-side tile quadrant or quadrants implied by their bounds. Ramps use the catalog ramp pivot and `run_tiles`/`width_cm`.
+- Measure every piece's visual overhang past the face into local -Y. An overhang above 15 cm is a per-piece art defect to report with its measured value; it does not stop the import and must not be fixed by editing the mesh.
+- `L_VW_TileTest` uses camera yaw 0: screen-up/north is Unreal +X and screen-right/east is Unreal +Y. Report the imported FBX face/downhill local axis for a straight cliff and the 2T ramp.
+- Source: US-120 coordinator clarification for Jeff (2026-11-13).
