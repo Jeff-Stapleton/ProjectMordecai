@@ -21,16 +21,16 @@ Native widget trees and tab registration/binding in C++; no editor assets.
 - Existing code: `Source/LyraGame/Mordecai/UI/MordecaiCharacterSheetWidget.cpp:36-40` (no tree), `Source/LyraGame/Mordecai/UI/MordecaiPauseMenuWidget.cpp:60-69` (`InitializeTabs` registers only character + inventory), `:252-276` (`BindTabContent` binds only inventory and character), `MordecaiSkillTreeWidget.*`, `MordecaiFeatDisplayWidget.*`
 
 ## Acceptance Criteria
-- [x] AC-093.1: `UMordecaiCharacterSheetWidget` builds a default tree when none is provided: the 9 primary attributes (STR, DEX, END, CON, RES, DIS, INT, WIS, CHA) in Physical / Resilience / Magical groups with values, and Health / Stamina / Spell Points / Posture "x / y" lines bound to the ASC — verified by `Mordecai.Recovery.CharacterSheet.BuildsDefaultContent`
-- [x] AC-093.2: The pause menu registers the skill tree widget for "skills" and the feat display for "feats", and `BindTabContent` binds them to the pawn's skill and feat components; both build default trees — verified by `Mordecai.Recovery.PauseMenu.SkillsAndFeatsTabsRegisteredAndBound`, `Mordecai.Recovery.SkillTree.BuildsDefaultContent`, `Mordecai.Recovery.FeatDisplay.BuildsDefaultContent`
-- [x] AC-093.3: In the packaged build, the player presses Escape and sees the Character tab with all 9 attributes, the three group headings and the resource lines — verified by check `character_tab_content` of `Scripts/playtests/us069_pause_menu.py` (Tier 4)
-- [x] AC-093.4: The player clicks the Skills tab and sees skill categories including "Weapon" and "rank / 20" rows — verified by check `skills_tab_content` of `Scripts/playtests/us069_pause_menu.py` (Tier 4)
-- [x] AC-093.5: The player clicks the Feats tab and sees a "Feats: N unlocked" header — verified by check `feats_tab_content` of `Scripts/playtests/us069_pause_menu.py` (Tier 4)
+- [ ] AC-093.1: `UMordecaiCharacterSheetWidget` builds a scrollable default tree when none is provided: the exact-case localized codes STR, DEX, END, CON, RES, DIS, INT, WIS, CHA in Physical / Resilience / Magical groups with distinct values and `+X%` effective modifiers, and Health / Stamina / Spell Points / Posture "x / y" lines bound to the ASC — verified by `Mordecai.Recovery.CharacterSheet.BuildsDefaultContent`
+- [ ] AC-093.2: The pause menu registers the skill tree widget for "skills" and the feat display for "feats", and `BindTabContent` binds them to the Skill and Feat components that live on the PlayerState; both build default trees — verified by `Mordecai.Recovery.PauseMenu.SkillsAndFeatsTabsRegisteredAndBound`, `Mordecai.Recovery.SkillTree.BuildsDefaultContent`, `Mordecai.Recovery.FeatDisplay.BuildsDefaultContent`
+- [ ] AC-093.3: In the packaged build, the player presses Escape and sees the Character tab with all 9 exact-case codes, values and effective modifiers, the three group headings and all four named resource lines — verified by check `character_tab_content` of `Scripts/playtests/us069_pause_menu.py` (Tier 4)
+- [ ] AC-093.4: The player clicks the Skills tab and sees the real ordered 42-skill catalogue with "rank / 20" rows, then clicks the real Magic category button and sees `Magic · 11 skills` and `Fireball`; visible ranks and Skill Points refresh when the PlayerState component changes — verified by Tier 1 catalogue/category/refresh coverage and checks `skills_tab_content` and `click_magic_category` of `Scripts/playtests/us069_pause_menu.py` (Tier 4)
+- [ ] AC-093.5: The player clicks the Feats tab and sees a "Feats: N unlocked" header — verified by check `feats_tab_content` of `Scripts/playtests/us069_pause_menu.py` (Tier 4)
 
 ## Technical Notes
 - Follow the `BuildDefaultContent` pattern (build only when `WidgetTree->RootWidget` is null) used by `UMordecaiStatusEffectIndicatorWidget`; these widgets are created with `CreateWidget` from native classes, so their trees must be built in `NativeOnInitialized`.
 - Fit the 1000×640 content area (`MordecaiPauseMenuWidget.cpp:160`); scroll box for long skill lists.
-- Settings stays a "Coming Soon" placeholder (AC-069.3 accepts it; `settings_placeholder` PASS). TODO(DECISION) (Jeff): is a real Settings tab wanted in the recovery epic? Not scoped here.
+- Settings stays a "Coming Soon" placeholder (AC-069.3 accepts it; `settings_placeholder` PASS). A real Settings tab is split to needs-decision issue #129 and is not scoped here.
 - Script bookkeeping (before packaging): remove the N4 `known_issue` from `character_tab_content` and the N5 `known_issue` from `skills_tab_content` and `feats_tab_content` in `us069_pause_menu.py`.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
@@ -38,18 +38,22 @@ Native widget trees and tab registration/binding in C++; no editor assets.
 ### Tier 1 — Automation (headless)
 - `Mordecai.Recovery.CharacterSheet.BuildsDefaultContent` — AC-093.1
 - `Mordecai.Recovery.PauseMenu.SkillsAndFeatsTabsRegisteredAndBound`, `Mordecai.Recovery.SkillTree.BuildsDefaultContent`, `Mordecai.Recovery.FeatDisplay.BuildsDefaultContent` — AC-093.2
+- `Mordecai.Recovery.Skills.StartingSetMatchesSheet` — all 42 names and localized display names match case-sensitively and in explicit sheet order; catalogue objects are transient
+- `Mordecai.Recovery.Skills.StartingRegistrationHasNoGameplayEffects` — the spawned production PlayerState path adds no milestone names, `Mordecai.Skill.*` ASC tags or activatable abilities
+- `Mordecai.Recovery.Skills.ClientMutatorsAreRejected` — rank, points and allocation mutators reject non-authority owners
+- `Mordecai.Recovery.SkillTree.BuildsDefaultContent` — real category-button switching, exact category counts, live rank/points refresh, selected fill, wrapping/width constraints and rebuild-churn guards
 ### Tier 2 — PIE smoke (editor integration)
 - `Scripts/verify_pie_pause_menu.py` (new or extended): `[LOGIC]` open the menu via the subsystem and switch tabs; each tab's content widget has visible text children (diagnostic only)
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- `Scripts/playtests/us069_pause_menu.py` checks `character_tab_content`, `skills_tab_content`, `feats_tab_content`
+- `Scripts/playtests/us069_pause_menu.py` checks `character_tab_content`, `skills_tab_content`, `click_magic_category`, `feats_tab_content`
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → B_MordecaiArenaExperience; us069's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-069` on the same package
-- **Player steps:** press Escape (menu opens on Character); click "Skills"; click "Feats"; press Escape
-- **Visible on screen:** us069 `bridge_01.png` the Character tab with STR..CHA under Physical/Resilience/Magical and "x / y" resource lines; `bridge_02.png` the Skills tab with "Weapon" and "/ 20" rows; `bridge_03.png` the Feats tab with "Feats: N unlocked"
-- **Proof:** Tier 4 checks `character_tab_content`, `skills_tab_content`, `feats_tab_content` of `Scripts/playtests/us069_pause_menu.py`
+- **Player steps:** press Escape (menu opens on Character); click "Skills"; click the "Magic" category; click "Feats"; press Escape
+- **Visible on screen:** us069 Character capture with exact-case STR..CHA, numeric values, `+X%` modifiers and four named "x / y" resources; Skills Weapon capture with "/ 20" rows; Skills Magic capture with `Magic · 11 skills` and `Fireball`; Feats capture with "Feats: N unlocked"
+- **Proof:** Tier 4 checks `character_tab_content`, `skills_tab_content`, `click_magic_category`, `feats_tab_content` of `Scripts/playtests/us069_pause_menu.py`
 - **Tier 4 script:** `Scripts/playtests/us069_pause_menu.py` — run: `py Scripts/playtest_story.py US-069`
 - **Steps:**
 
@@ -57,6 +61,7 @@ Native widget trees and tab registration/binding in C++; no editor assets.
 |---|---|---|---|
 | us069 | `character_tab_content` | state pause_menu, widgets -> on the character tab a visible MordecaiCharacterSheetWidget with all 9 primary attributes (STR..CHA), the groups Physical/Resilience/Magical and an 'x / y' resource line | PASS |
 | us069 | `skills_tab_content` | state pause_menu, widgets -> a visible MordecaiSkillTreeWidget with texts including "Weapon" and "/ 20" | PASS |
+| us069 | `click_magic_category` | click_button(button_id="magic") -> Magic category shows exact texts "Magic · 11 skills" and "Fireball" | PENDING ROUND 3 |
 | us069 | `feats_tab_content` | state pause_menu, widgets -> a visible MordecaiFeatDisplayWidget with a text starting "Feats:" | PASS |
 
 - **Playable alone:** YES
@@ -69,13 +74,13 @@ Native widget trees and tab registration/binding in C++; no editor assets.
 - [x] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` exits 0 — never `--allow-stale`
 - [x] On that same fresh package `py Scripts/playtest_story.py US-069`: the three checks go from FAIL to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
-- [x] Known issues N4 and N5 marked FIXED in `Specs/agent_playtest_plan_v1.md`
-- [x] Every screenshot (`engine_NN.png`, `bridge_NN.png`) inspected by the coordinator-required Pillow script; Completion Notes state what is actually on screen vs. "Visible on screen" (no image was opened with the file reader)
+- [x] Known issues N4 and N5 accurately marked PARTIAL in `Specs/agent_playtest_plan_v1.md`: Character base/resources/effective modifiers and Skills/Feats/category switching are implemented; AC-066.6/.7 derived stats and AC-067.9 Allocate remain tracked, with the server RPC deferred to #130
+- [x] Every screenshot (`engine_NN.png`, `bridge_NN.png`) analyzed by the coordinator-required Pillow script and preserved in the checksummed bundle; no laptop builder opens an image with the file reader or claims human visual inspection. Mordecai Bot opens and describes the bundled captures before merge.
 - [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-093]` closing commit
 - [x] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
-- Round-2 RED commit: `d226e48e`. `Mordecai.Recovery.Skills.Starting.SetMatchesSkillSheet` and `.RegistrationHasNoGameplaySideEffects` failed 0/2 for the intended reason: the runtime registered zero of the 42 skill-sheet rows.
+- Round-2 RED commit: `d226e48e`. `Mordecai.Recovery.Skills.StartingSetMatchesSheet` and `.StartingRegistrationHasNoGameplayEffects` failed 0/2 for the intended reason: the runtime registered zero of the 42 skill-sheet rows.
 - Delivered/package commit: `b974e52f40e7da2914445790d6d974eb87b69464`. `PackagedBuilds/Playtest/build_info.json` records `dirty=false` and `source_changed_during_build=false`.
 - Starting registrations: all 42 nonblank rows of `Specs/skill_sheet_v1.1.md`, preserving exact names and mapped categories (Weapon 13, DefenseArmor 8, MovementExploration 6, UtilityInteraction 4, Magic 11); unmatched categories: none. Every skill starts at rank 0, max 20. Registration grants zero abilities and changes no attributes, SP or skill points.
 - Tier 1: compile PASS; focused starting-skill tests 2/2 PASS; full `Mordecai.*` suite 842/842 PASS (`Saved/TestLogs/tests-20261113-061406.log`). Python tooling: 665/665 PASS. Tier 2: `py Scripts/run_pie_verify.py` 20/20 PASS. Content guard and `py Scripts/playtest_story.py US-069 --lint` PASS.

@@ -86,20 +86,21 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 3 | `menu_input_mode` | state focus, widgets -> focus.commonui_input_mode=="Menu" && focus.mouse_cursor_shown==true and the pause menu widget shows "Paused" | AC-069.1 |
 | 4 | `tabs_listed` | state pause_menu, widgets -> pause_menu.tabs is exactly character/Character, skills/Skills, feats/Feats, inventory/Inventory, settings/Settings and 5 enabled tab buttons with those ids are on screen | AC-069.2 |
 | 5 | `game_input_blocked` | tap W (0.3s), tap Q, wait 1s -> player.location moved < 5 cm and spell_points unchanged, menu still open | AC-069.1 |
-| 6 | `character_tab_content` | state pause_menu, widgets -> on the character tab a visible MordecaiCharacterSheetWidget with all 9 primary attributes (STR..CHA), the groups Physical/Resilience/Magical and an 'x / y' resource line _(known issue: N4 The Character tab of the pause menu is blank: UMordecaiCharacterSheetWidget builds no widget tree (Known issues backlog, Specs/agent_playtest_plan_v1.md))_ | US-066:AC-066.1, US-066:AC-066.3, US-066:AC-066.4, US-066:AC-066.5 |
+| 6 | `character_tab_content` | state pause_menu, widgets -> on the character tab a visible MordecaiCharacterSheetWidget with exact-case STR..CHA codes, all 9 numeric values and '+X%' effective modifiers, the Physical/Resilience/Magical groups, and all four named Health/Stamina/Spell Points/Posture 'x / y' resource lines | US-066:AC-066.1, US-066:AC-066.3, US-066:AC-066.4, US-066:AC-066.5 |
 | 7 | `click_skills_tab` | click_button(button_id="skills") -> wait_until pause_menu.active_tab=="skills" | AC-069.4 |
-| 8 | `skills_tab_content` | state pause_menu, widgets -> a visible MordecaiSkillTreeWidget with texts including "Weapon" and "/ 20" _(known issue: N5 The Skills and Feats tabs show "Coming Soon": MordecaiPauseMenuWidget registers only Character and Inventory (Known issues backlog, Specs/agent_playtest_plan_v1.md))_ | US-067:AC-067.1, US-067:AC-067.3, US-067:AC-067.4 |
-| 9 | `click_feats_tab` | click_button(button_id="feats") -> wait_until pause_menu.active_tab=="feats" | AC-069.4 |
-| 10 | `feats_tab_content` | state pause_menu, widgets -> a visible MordecaiFeatDisplayWidget with a text starting "Feats:" _(known issue: N5 The Skills and Feats tabs show "Coming Soon": MordecaiPauseMenuWidget registers only Character and Inventory (Known issues backlog, Specs/agent_playtest_plan_v1.md))_ | US-068:AC-068.1, US-068:AC-068.8 |
-| 11 | `settings_placeholder` | click_button(button_id="settings") -> active_tab=="settings" and a visible widget shows "Coming Soon" | AC-069.3 |
-| 12 | `shoulder_switches_tab` | tap Gamepad_LeftShoulder -> wait_until pause_menu.open==true && pause_menu.active_tab == the previous tab in tab-bar order, wrapping (settings -> inventory) | AC-069.4, US-095:AC-095.4 |
-| 13 | `shoulder_rb_switches_tab` | tap Gamepad_RightShoulder -> wait_until pause_menu.open==true && pause_menu.active_tab == the next tab in tab-bar order, wrapping (inventory -> settings) | AC-069.4, US-095:AC-095.4 |
-| 14 | `escape_closes` | tap Escape -> wait_until pause_menu.open==false && game.paused==false | AC-069.10, AC-069.6 |
-| 15 | `reopen_restores_tab` | tap Escape -> wait_until pause_menu.open==true && pause_menu.active_tab == the tab active before escape_closes | AC-069.11 |
-| 16 | `gamepad_back_closes` | tap Gamepad_FaceButton_Right -> wait_until pause_menu.open==false && game.paused==false | AC-069.10 |
-| 17 | `start_button_opens` | tap Gamepad_Special_Right -> wait_until pause_menu.open==true && game.paused==true | AC-069.7 |
-| 18 | `escape_closes_again` | tap Escape -> wait_until pause_menu.open==false | - |
-| 19 | `i_opens_inventory` | tap I -> wait_until pause_menu.open==true && pause_menu.active_tab=="inventory" | US-095:AC-095.2 |
-| 20 | `i_closes` | tap I (the menu closes on its key-up) -> wait_until pause_menu.open==false && game.paused==false within 3s | US-095:AC-095.2 |
-| 21 | `i_held_closes_on_key_up` | tap I -> wait_until pause_menu.open==true; press I, wait 1.2s (key repeats from 0.5s) -> pause_menu.open==true while held; release I -> wait_until pause_menu.open==false && game.paused==false; wait 1s -> still closed (a held I never reopens the menu) | US-095:AC-095.5 |
-| 22 | `final_close` | if the menu is still open: tap Escape -> wait_until pause_menu.open==false (runs even when i_closes or i_held_closes_on_key_up failed) | - |
+| 8 | `skills_tab_content` | state pause_menu, widgets -> a visible MordecaiSkillTreeWidget with texts including "Weapon" and "/ 20" | US-067:AC-067.1 |
+| 9 | `click_magic_category` | click_button(button_id="magic") -> wait for exact texts 'Magic · 11 skills' and 'Fireball' | US-067:AC-067.3 |
+| 10 | `click_feats_tab` | click_button(button_id="feats") -> wait_until pause_menu.active_tab=="feats" | AC-069.4 |
+| 11 | `feats_tab_content` | state pause_menu, widgets -> a visible MordecaiFeatDisplayWidget with a text starting "Feats:" | US-068:AC-068.1, US-068:AC-068.8 |
+| 12 | `settings_placeholder` | click_button(button_id="settings") -> active_tab=="settings" and a visible widget shows "Coming Soon" | AC-069.3 |
+| 13 | `shoulder_switches_tab` | tap Gamepad_LeftShoulder -> wait_until pause_menu.open==true && pause_menu.active_tab == the previous tab in tab-bar order, wrapping (settings -> inventory) | AC-069.4, US-095:AC-095.4 |
+| 14 | `shoulder_rb_switches_tab` | tap Gamepad_RightShoulder -> wait_until pause_menu.open==true && pause_menu.active_tab == the next tab in tab-bar order, wrapping (inventory -> settings) | AC-069.4, US-095:AC-095.4 |
+| 15 | `escape_closes` | tap Escape -> wait_until pause_menu.open==false && game.paused==false | AC-069.10, AC-069.6 |
+| 16 | `reopen_restores_tab` | tap Escape -> wait_until pause_menu.open==true && pause_menu.active_tab == the tab active before escape_closes | AC-069.11 |
+| 17 | `gamepad_back_closes` | tap Gamepad_FaceButton_Right -> wait_until pause_menu.open==false && game.paused==false | AC-069.10 |
+| 18 | `start_button_opens` | tap Gamepad_Special_Right -> wait_until pause_menu.open==true && game.paused==true | AC-069.7 |
+| 19 | `escape_closes_again` | tap Escape -> wait_until pause_menu.open==false | - |
+| 20 | `i_opens_inventory` | tap I -> wait_until pause_menu.open==true && pause_menu.active_tab=="inventory" | US-095:AC-095.2 |
+| 21 | `i_closes` | tap I (the menu closes on its key-up) -> wait_until pause_menu.open==false && game.paused==false within 3s | US-095:AC-095.2 |
+| 22 | `i_held_closes_on_key_up` | tap I -> wait_until pause_menu.open==true; press I, wait 1.2s (key repeats from 0.5s) -> pause_menu.open==true while held; release I -> wait_until pause_menu.open==false && game.paused==false; wait 1s -> still closed (a held I never reopens the menu) | US-095:AC-095.5 |
+| 23 | `final_close` | if the menu is still open: tap Escape -> wait_until pause_menu.open==false (runs even when i_closes or i_held_closes_on_key_up failed) | - |

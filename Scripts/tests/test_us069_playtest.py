@@ -136,14 +136,17 @@ class PauseMenuWorld(fb.FakeWorld):
             texts = []
             if self.character_sheet:
                 codes = ["STR", "DEX", "END", "CON", "RES", "DIS", "INT", "WIS", "CHA"]
+                names = ["Strength", "Dexterity", "Endurance", "Constitution", "Resistance",
+                         "Discipline", "Intelligence", "Wisdom", "Charisma"]
                 if self.lowercase_attribute_codes:
                     codes = [code.lower() for code in codes]
-                groups = (("Physical", codes[:3]), ("Resilience", codes[3:6]),
-                          ("Magical", codes[6:]))
-                for group, group_codes in groups:
+                groups = (("Physical", codes[:3], names[:3]),
+                          ("Resilience", codes[3:6], names[3:6]),
+                          ("Magical", codes[6:], names[6:]))
+                for group, group_codes, group_names in groups:
                     texts.append(group)
-                    for offset, code in enumerate(group_codes):
-                        texts += [code, str(11 + len(texts) + offset), "+8.5%"]
+                    for offset, (code, name) in enumerate(zip(group_codes, group_names)):
+                        texts += [code, name, str(11 + len(texts) + offset), "+8.5%"]
                 resources = [("Health", "100 / 100"), ("Stamina", "100 / 100"),
                              ("Spell Points",
                               f"{self.spell_points:.0f} / {self.max_spell_points:.0f}"),
@@ -247,7 +250,8 @@ class PlaytestCase(unittest.TestCase):
         return [c["name"] for c in report["checks"] if c["status"] == status]
 
 
-CONTENT_CHECKS = ["character_tab_content", "skills_tab_content", "feats_tab_content"]
+CONTENT_CHECKS = ["character_tab_content", "skills_tab_content", "click_magic_category",
+                  "feats_tab_content"]
 US095_CHECKS = ["shoulder_switches_tab", "shoulder_rb_switches_tab", "i_closes"]
 
 
@@ -282,7 +286,7 @@ class TestUs069CurrentGame(PlaytestCase):
         self.assertIn("Weapon", checks["skills_tab_content"]["detail"])
         self.assertIn("0 / 20", checks["skills_tab_content"]["detail"])
         self.assertIn("Feats: 0 unlocked", checks["feats_tab_content"]["detail"])
-        self.assertIn("missing attributes [], missing groups []",
+        self.assertIn("missing exact-case attributes [], missing groups []",
                       checks["character_tab_content"]["detail"])
         self.assertIn("moved 0.0 cm", checks["game_input_blocked"]["detail"])
         # LB went settings -> inventory and RB back to settings, so Escape closed on settings
@@ -296,8 +300,8 @@ class TestUs069CurrentGame(PlaytestCase):
         self.assertFalse(world.paused)
         self.assertEqual(world.casts, [], "LB/RB in the open menu must not cast spells")
         self.assertEqual([s["label"] for s in rep["screenshots"]],
-                         ["menu_character", "menu_skills", "menu_feats", "menu_lb", "menu_rb",
-                          "menu_closed", "menu_closed_by_i"])
+                         ["menu_character", "menu_skills", "menu_skills_magic", "menu_feats",
+                          "menu_lb", "menu_rb", "menu_closed", "menu_closed_by_i"])
         self.assertIn("DIAGNOSTIC ONLY", rep["evidence"])
 
     def test_the_acs_in_the_report(self):
@@ -320,7 +324,8 @@ class TestUs069CurrentGame(PlaytestCase):
                     ("US-069", "AC-069.6"), ("US-069", "AC-069.7"), ("US-069", "AC-069.10"),
                     ("US-069", "AC-069.11")):
             self.assertEqual(acs[key]["status"], "PASS", key)
-        for key in (("US-066", "AC-066.3"), ("US-067", "AC-067.4"), ("US-068", "AC-068.8")):
+        for key in (("US-066", "AC-066.3"), ("US-067", "AC-067.3"),
+                    ("US-068", "AC-068.8")):
             self.assertEqual(acs[key]["status"], "PASS", key)
             self.assertFalse(acs[key]["known_issue"], key)
         self.assertFalse([a for a in rep["acs"] if a["accepted"]],
@@ -346,7 +351,7 @@ class TestUs069CurrentGame(PlaytestCase):
         self.assertEqual(actions, ["tap", "tap", "tap", "press", "release"])
         self.assertFalse([r for r in server.received if r.get("route") == "viewport"])
         self.assertFalse([r for r in server.received if r.get("unsafe")])
-        self.assertEqual(len([r for r in server.received if r.get("cmd") == "click"]), 3)
+        self.assertEqual(len([r for r in server.received if r.get("cmd") == "click"]), 4)
 
 
 class TestUs069MissingContentMutations(PlaytestCase):
@@ -359,19 +364,22 @@ class TestUs069MissingContentMutations(PlaytestCase):
         self.assertIn("STR", check["detail"])
         self.assertIn("Stamina", check["detail"])
 
-    def test_missing_content_fails_exactly_the_three_content_checks(self):
+    def test_missing_content_fails_exactly_the_content_checks(self):
         world, server = self.serve(character_sheet=False, skills_tab=False, feats_tab=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(CONTENT_CHECKS))
-        self.assertEqual(self.statuses(rep, "SKIP"), ["final_close"])
+        self.assertEqual(
+            self.statuses(rep, "SKIP"),
+            ["screenshot_menu_skills_magic", "final_close"],
+        )
         self.assertEqual(sorted(rep["new_failures"]), sorted(CONTENT_CHECKS))
         self.assertEqual(rep["known_failures"], [])
         self.assertEqual(rep["fixed_candidates"], [])
         checks = self.by_name(rep)
         self.assertIn("Coming Soon", checks["skills_tab_content"]["detail"])
         self.assertIn("Coming Soon", checks["feats_tab_content"]["detail"])
-        self.assertIn("missing attributes", checks["character_tab_content"]["detail"])
+        self.assertIn("missing exact-case attributes", checks["character_tab_content"]["detail"])
         self.assertEqual(rep["tab_before_close"], "settings")
         self.assertEqual(self.by_name(rep)["reopen_restores_tab"]["status"], "PASS")
         self.assertFalse(world.menu_open)
@@ -485,7 +493,8 @@ class TestUs069Failures(PlaytestCase):
         self.assertEqual(checks["escape_opens"]["status"], "FAIL")
         for name in ("menu_input_mode", "tabs_listed", "game_input_blocked",
                      "character_tab_content", "click_skills_tab", "skills_tab_content",
-                     "settings_placeholder", "shoulder_switches_tab", "shoulder_rb_switches_tab",
+                     "click_magic_category", "settings_placeholder", "shoulder_switches_tab",
+                     "shoulder_rb_switches_tab",
                      "screenshot_menu_lb", "escape_closes", "reopen_restores_tab",
                      "screenshot_menu_character"):
             self.assertEqual(checks[name]["status"], "SKIP", name)
@@ -531,7 +540,7 @@ class TestUs069Plan(unittest.TestCase):
                 story, ac_id = kit.split_ac(ac, "US-069")
                 self.assertIn(ac_id, self.story_ac_ids(story), f"{step.check}: {ac}")
         names = [s.check for s in us069.PLAN]
-        self.assertEqual(len(names), 22)
+        self.assertEqual(len(names), 23)
         self.assertEqual(names.index("shoulder_rb_switches_tab"),
                          names.index("shoulder_switches_tab") + 1)
         self.assertEqual(names[-3:], ["i_closes", "i_held_closes_on_key_up", "final_close"])
@@ -553,9 +562,9 @@ class TestUs069Plan(unittest.TestCase):
         self.assertEqual(us069.main(["--plan"]), 0)
         rows = [line for line in out.getvalue().splitlines() if line.startswith("| ")]
         self.assertEqual(len(rows), 1 + len(us069.PLAN))
-        self.assertTrue(any(r.startswith("| 15 | `reopen_restores_tab` |")
+        self.assertTrue(any(r.startswith("| 16 | `reopen_restores_tab` |")
                             and r.endswith("| AC-069.11 |") for r in rows))
-        self.assertTrue(any(r.startswith("| 13 | `shoulder_rb_switches_tab` |")
+        self.assertTrue(any(r.startswith("| 14 | `shoulder_rb_switches_tab` |")
                             and r.endswith("| AC-069.4, US-095:AC-095.4 |") for r in rows), rows)
 
     def test_expected_tabs_match_the_fake_and_the_story(self):

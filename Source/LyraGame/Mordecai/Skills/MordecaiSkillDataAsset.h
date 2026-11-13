@@ -25,6 +25,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Skills")
 	FName SkillName;
 
+	/** Localized player-facing skill name. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Skills")
+	FText DisplayName;
+
 	/** Which of the 5 skill categories this belongs to. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Skills")
 	EMordecaiSkillCategory Category = EMordecaiSkillCategory::Weapon;

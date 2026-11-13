@@ -104,6 +104,9 @@ private:
 	TArray<TObjectPtr<UTextBlock>> PrimaryValueTexts;
 
 	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> PrimaryEffectiveModTexts;
+
+	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> ResourceValueTexts;
 
 	UPROPERTY(Transient)

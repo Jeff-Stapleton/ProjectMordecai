@@ -90,6 +90,7 @@ namespace MordecaiRecoveryPauseMenuContentTest
 	{
 		UMordecaiSkillDataAsset* Skill = NewObject<UMordecaiSkillDataAsset>(Outer);
 		Skill->SkillName = SkillName;
+		Skill->DisplayName = FText::FromName(SkillName);
 		Skill->Category = Category;
 		return Skill;
 	}
@@ -341,22 +342,28 @@ bool FMordecai_Recovery_SkillTree_BuildsDefaultContent::RunTest(const FString& P
 		HasText(Widget, TEXT("Category_Weapon"), TEXT("Weapon")));
 	TestTrue(
 		"Longswords row is built from the bound SkillComponent",
-		HasText(Widget, TEXT("SkillName_Longswords"), TEXT("Longswords")));
+		Widget->FindSkillNameText(TEXT("Longswords"))
+			&& Widget->FindSkillNameText(TEXT("Longswords"))
+				->GetText().ToString().Equals(
+					TEXT("Longswords"),
+					ESearchCase::CaseSensitive));
 	TestTrue(
 		"Longswords row renders rank / 20",
-		HasText(Widget, TEXT("SkillRank_Longswords"), TEXT("7 / 20")));
+		Widget->FindSkillRankText(TEXT("Longswords"))
+			&& Widget->FindSkillRankText(TEXT("Longswords"))
+				->GetText().ToString() == TEXT("7 / 20"));
 	TestTrue(
 		"Skill points label does not auto-wrap",
 		Find<UTextBlock>(Widget, TEXT("SkillPointsText"))
 			&& !Find<UTextBlock>(Widget, TEXT("SkillPointsText"))->GetAutoWrapText());
 	TestTrue(
 		"Rank value does not auto-wrap",
-		Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords"))
-			&& !Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords"))->GetAutoWrapText());
+		Widget->FindSkillRankText(TEXT("Longswords"))
+			&& !Widget->FindSkillRankText(TEXT("Longswords"))->GetAutoWrapText());
 	TestTrue(
 		"Rank value box has a fixed width override",
-		Find<USizeBox>(Widget, TEXT("SkillRankBox_Longswords"))
-			&& Find<USizeBox>(Widget, TEXT("SkillRankBox_Longswords"))->GetWidthOverride() > 0.f);
+		Widget->FindSkillRankBox(TEXT("Longswords"))
+			&& Widget->FindSkillRankBox(TEXT("Longswords"))->GetWidthOverride() > 0.f);
 
 	UMordecaiTabButton* MagicButton =
 		Find<UMordecaiTabButton>(Widget, TEXT("CategoryButton_Magic"));
@@ -373,34 +380,51 @@ bool FMordecai_Recovery_SkillTree_BuildsDefaultContent::RunTest(const FString& P
 		HasText(Widget, TEXT("CategoryMetaText"), TEXT("Magic \u00b7 11 skills")));
 	TestTrue(
 		"Magic category renders Fireball",
-		HasText(Widget, TEXT("SkillName_Fireball"), TEXT("Fireball")));
+		Widget->FindSkillNameText(TEXT("Fireball"))
+			&& Widget->FindSkillNameText(TEXT("Fireball"))
+				->GetText().ToString().Equals(
+					TEXT("Fireball"),
+					ESearchCase::CaseSensitive));
 
 	Widget->SetActiveCategory(EMordecaiSkillCategory::Weapon);
 	Skills->SetSkillRank(TEXT("Longswords"), 8);
 	Skills->SetAvailableSkillPoints(12);
 	TestTrue(
 		"Non-milestone rank changes refresh the visible row",
-		HasText(Widget, TEXT("SkillRank_Longswords"), TEXT("8 / 20")));
+		Widget->FindSkillRankText(TEXT("Longswords"))
+			&& Widget->FindSkillRankText(TEXT("Longswords"))
+				->GetText().ToString() == TEXT("8 / 20"));
 	TestTrue(
 		"Available skill-point changes refresh the header",
 		HasText(Widget, TEXT("SkillPointsText"), TEXT("Skill Points: 12")));
 
 	UTextBlock* RowBeforeRedundantBind =
-		Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords"));
+		Widget->FindSkillRankText(TEXT("Longswords"));
+	const int32 RebuildsBeforeRedundantBind = Widget->GetContentRebuildCount();
 	Widget->BindToSkillComponent(Skills);
 	TestTrue(
 		"Binding the same component does not rebuild rows",
-		Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords")) == RowBeforeRedundantBind);
+		Widget->FindSkillRankText(TEXT("Longswords")) == RowBeforeRedundantBind
+			&& Widget->GetContentRebuildCount() == RebuildsBeforeRedundantBind);
 	UTextBlock* RowBeforeUnbind =
-		Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords"));
+		Widget->FindSkillRankText(TEXT("Longswords"));
+	const int32 RebuildsBeforeUnbind = Widget->GetContentRebuildCount();
 	Widget->UnbindFromSkillComponent();
 	TestTrue(
 		"Unbind only removes subscriptions and does not rebuild rows",
-		Find<UTextBlock>(Widget, TEXT("SkillRank_Longswords")) == RowBeforeUnbind);
+		Widget->FindSkillRankText(TEXT("Longswords")) == RowBeforeUnbind
+			&& Widget->GetContentRebuildCount() == RebuildsBeforeUnbind);
 
 	UMordecaiUIThemeSubsystem* Themes =
 		Env.LocalPlayer->GetSubsystem<UMordecaiUIThemeSubsystem>();
+	Widget->BindToSkillComponent(Skills);
+	TestTrue(
+		"Reopening and rebinding the same PlayerState component reuses rows",
+		Widget->FindSkillRankText(TEXT("Longswords")) == RowBeforeUnbind
+			&& Widget->GetContentRebuildCount() == RebuildsBeforeUnbind);
 	Themes->SetActiveTheme(EMordecaiUITheme::HighContrast);
+	Widget->SetActiveCategory(EMordecaiSkillCategory::Magic);
+	Widget->SetActiveCategory(EMordecaiSkillCategory::Weapon);
 	TestTrue(
 		"Skills title follows the live High Contrast text token",
 		HasThemeTextColor(
@@ -414,16 +438,22 @@ bool FMordecai_Recovery_SkillTree_BuildsDefaultContent::RunTest(const FString& P
 			TEXT("SkillContentPlate"),
 			Themes->GetActiveColors().Plate));
 	TestTrue(
-		"Skills row keeps the live High Contrast raised-plate token after category rebuild",
-		HasThemeBrushColor(
-			Widget,
-			TEXT("SkillRow_Longswords"),
-			Themes->GetActiveColors().PlateRaised));
+		"Selected category uses the cream enamel fill token",
+		Find<UMordecaiTabButton>(Widget, TEXT("CategoryButton_Weapon"))
+			&& Find<UMordecaiTabButton>(Widget, TEXT("CategoryButton_Weapon"))
+				->GetBackgroundColor().Equals(
+					Themes->GetActiveColors().Enamel));
 	TestTrue(
-		"Skills muted rank label keeps the live High Contrast muted-text token after category rebuild",
+		"Skills row keeps the live High Contrast raised-plate token after category rebuild",
+		Widget->FindSkillRowPanel(TEXT("Longswords"))
+			&& Widget->FindSkillRowPanel(TEXT("Longswords"))
+				->GetBrushColor().Equals(
+					Themes->GetActiveColors().PlateRaised));
+	TestTrue(
+		"Skills muted category metadata keeps the live High Contrast muted-text token after category rebuild",
 		HasThemeTextColor(
 			Widget,
-			TEXT("SkillRankLabel_Longswords"),
+			TEXT("CategoryMetaText"),
 			Themes->GetActiveColors().TextMuted));
 	return true;
 }
@@ -477,6 +507,30 @@ bool FMordecai_Recovery_FeatDisplay_BuildsDefaultContent::RunTest(const FString&
 			Widget,
 			TEXT("FeatsTitle"),
 			Themes->GetActiveColors().Text));
+	TestTrue(
+		"Feats content plate follows the live High Contrast plate token",
+		HasThemeBrushColor(
+			Widget,
+			TEXT("FeatContentPlate"),
+			Themes->GetActiveColors().Plate));
+	TestTrue(
+		"Feat row follows the live High Contrast raised-plate token",
+		HasThemeBrushColor(
+			Widget,
+			TEXT("FeatRow_IronWill"),
+			Themes->GetActiveColors().PlateRaised));
+	TestTrue(
+		"Feat description follows the live High Contrast muted-text token",
+		HasThemeTextColor(
+			Widget,
+			TEXT("FeatDescription_IronWill"),
+			Themes->GetActiveColors().TextMuted));
+	TestTrue(
+		"Feat tier follows the live High Contrast common-tier token",
+		HasThemeTextColor(
+			Widget,
+			TEXT("FeatTier_IronWill"),
+			Themes->GetActiveColors().FeatCommon));
 	return true;
 }
 

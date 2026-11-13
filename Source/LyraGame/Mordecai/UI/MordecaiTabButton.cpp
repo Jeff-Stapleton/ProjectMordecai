@@ -7,6 +7,7 @@
 void UMordecaiTabButton::InitButton(FName InButtonId)
 {
 	ButtonId = InButtonId;
+	InitIsFocusable(true);
 	if (!bClickRelayBound)
 	{
 		OnClicked.AddDynamic(this, &UMordecaiTabButton::HandleClicked);

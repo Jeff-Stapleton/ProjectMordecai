@@ -23,6 +23,8 @@ namespace MordecaiSkillTreeTestHelpers
 	{
 		UMordecaiSkillDataAsset* Asset = NewObject<UMordecaiSkillDataAsset>();
 		Asset->SkillName = SkillName;
+		Asset->DisplayName = FText::FromString(
+			SkillName.ToString() + TEXT(" Display"));
 		Asset->Category = Category;
 
 		Asset->RankDescriptions.Add(1,  FText::FromString(FString::Printf(TEXT("%s rank 1"),  *SkillName.ToString())));
@@ -89,6 +91,10 @@ bool FMordecai_UI_SkillTree_DisplaysSkillsByCategory::RunTest(const FString& Par
 	TArray<FMordecaiSkillTreeRow> MagicRows = Widget->GetVisibleSkills();
 	TestEqual("1 magic skill visible", MagicRows.Num(), 1);
 	TestEqual("Magic skill is Fireball", MagicRows[0].SkillName, FName(TEXT("Fireball")));
+	TestEqual(
+		"Magic row uses the DataAsset display name rather than its lookup id",
+		MagicRows[0].DisplayName.ToString(),
+		FString(TEXT("Fireball Display")));
 
 	// Empty category
 	Widget->SetActiveCategory(EMordecaiSkillCategory::UtilityInteraction);
@@ -120,7 +126,10 @@ bool FMordecai_UI_SkillTree_ShowsRankAndMaxRank::RunTest(const FString& Paramete
 		if (Row.SkillName == FName(TEXT("Longswords")))
 		{
 			TestEqual("Longswords rank 7", Row.CurrentRank, 7);
-			TestFalse("Row has display name", Row.DisplayName.IsEmpty());
+			TestEqual(
+				"Row has its DataAsset display name",
+				Row.DisplayName.ToString(),
+				FString(TEXT("Longswords Display")));
 			bFoundLongswords = true;
 		}
 	}

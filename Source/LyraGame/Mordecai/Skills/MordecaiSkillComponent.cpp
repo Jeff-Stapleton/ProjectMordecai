@@ -60,7 +60,7 @@ namespace MordecaiSkillConstants
 
 		{ TEXT("Fireball"), EMordecaiSkillCategory::Magic },
 		{ TEXT("Cone of Cold"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Magic Missle"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Magic Missile"), EMordecaiSkillCategory::Magic },
 		{ TEXT("Stone Skin"), EMordecaiSkillCategory::Magic },
 		{ TEXT("Sleep"), EMordecaiSkillCategory::Magic },
 		{ TEXT("Blink"), EMordecaiSkillCategory::Magic },
@@ -103,8 +103,12 @@ void UMordecaiSkillComponent::RegisterStartingSkillDataAssets()
 			continue;
 		}
 
-		UMordecaiSkillDataAsset* SkillData = NewObject<UMordecaiSkillDataAsset>(this);
+		UMordecaiSkillDataAsset* SkillData = NewObject<UMordecaiSkillDataAsset>(
+			this,
+			NAME_None,
+			RF_Transient);
 		SkillData->SkillName = SkillName;
+		SkillData->DisplayName = FText::FromString(Definition.Name);
 		SkillData->Category = Definition.Category;
 		RegisterSkillDataAsset(SkillData);
 	}
@@ -166,15 +170,44 @@ int32 UMordecaiSkillComponent::GetSkillRank(FName SkillName) const
 TArray<FMordecaiSkillRankInfo> UMordecaiSkillComponent::GetAllSkillsByCategory(EMordecaiSkillCategory Category) const
 {
 	TArray<FMordecaiSkillRankInfo> Result;
+	TSet<FName> AddedSkills;
+	for (const MordecaiSkillConstants::FStartingSkillDefinition& Definition :
+		MordecaiSkillConstants::StartingSkills)
+	{
+		if (Definition.Category != Category)
+		{
+			continue;
+		}
+
+		const FName SkillName(Definition.Name);
+		if (RegisteredSkills.Contains(SkillName))
+		{
+			FMordecaiSkillRankInfo& Info = Result.AddDefaulted_GetRef();
+			Info.SkillName = SkillName;
+			Info.CurrentRank = GetSkillRank(SkillName);
+			AddedSkills.Add(SkillName);
+		}
+	}
+
+	TArray<FName> AdditionalSkills;
 	for (const auto& Pair : RegisteredSkills)
 	{
-		if (Pair.Value && Pair.Value->Category == Category)
+		if (Pair.Value
+			&& Pair.Value->Category == Category
+			&& !AddedSkills.Contains(Pair.Key))
 		{
-			FMordecaiSkillRankInfo Info;
-			Info.SkillName = Pair.Key;
-			Info.CurrentRank = GetSkillRank(Pair.Key);
-			Result.Add(Info);
+			AdditionalSkills.Add(Pair.Key);
 		}
+	}
+	AdditionalSkills.Sort([](const FName A, const FName B)
+	{
+		return A.LexicalLess(B);
+	});
+	for (const FName SkillName : AdditionalSkills)
+	{
+		FMordecaiSkillRankInfo& Info = Result.AddDefaulted_GetRef();
+		Info.SkillName = SkillName;
+		Info.CurrentRank = GetSkillRank(SkillName);
 	}
 	return Result;
 }
@@ -185,6 +218,11 @@ TArray<FMordecaiSkillRankInfo> UMordecaiSkillComponent::GetAllSkillsByCategory(E
 
 bool UMordecaiSkillComponent::TryAllocateSkillPoint(FName SkillName)
 {
+	if (const AActor* Owner = GetOwner(); Owner && !Owner->HasAuthority())
+	{
+		return false;
+	}
+
 	if (!RegisteredSkills.Contains(SkillName))
 	{
 		return false;
@@ -206,18 +244,28 @@ bool UMordecaiSkillComponent::TryAllocateSkillPoint(FName SkillName)
 	AvailableSkillPoints = FMath::Max(0, AvailableSkillPoints - 1);
 
 	RefreshMilestoneState(SkillName, CurrentRank, NewRank);
+	OnSkillStateChanged.Broadcast();
 	return true;
 }
 
-void UMordecaiSkillComponent::SetSkillRank(FName SkillName, int32 NewRank)
+bool UMordecaiSkillComponent::SetSkillRank(FName SkillName, int32 NewRank)
 {
+	if (const AActor* Owner = GetOwner(); Owner && !Owner->HasAuthority())
+	{
+		return false;
+	}
+
 	if (!RegisteredSkills.Contains(SkillName))
 	{
-		return;
+		return false;
 	}
 
 	NewRank = FMath::Clamp(NewRank, MinSkillRank, MaxSkillRank);
 	const int32 OldRank = GetSkillRank(SkillName);
+	if (OldRank == NewRank)
+	{
+		return true;
+	}
 
 	if (NewRank == 0)
 	{
@@ -229,15 +277,28 @@ void UMordecaiSkillComponent::SetSkillRank(FName SkillName, int32 NewRank)
 	}
 
 	RefreshMilestoneState(SkillName, OldRank, NewRank);
+	OnSkillStateChanged.Broadcast();
+	return true;
 }
 
 // ---------------------------------------------------------------------------
 // Skill Points
 // ---------------------------------------------------------------------------
 
-void UMordecaiSkillComponent::SetAvailableSkillPoints(int32 NewPoints)
+bool UMordecaiSkillComponent::SetAvailableSkillPoints(int32 NewPoints)
 {
-	AvailableSkillPoints = FMath::Max(0, NewPoints);
+	if (const AActor* Owner = GetOwner(); Owner && !Owner->HasAuthority())
+	{
+		return false;
+	}
+
+	const int32 ClampedPoints = FMath::Max(0, NewPoints);
+	if (AvailableSkillPoints != ClampedPoints)
+	{
+		AvailableSkillPoints = ClampedPoints;
+		OnSkillStateChanged.Broadcast();
+	}
+	return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -393,6 +454,16 @@ UAbilitySystemComponent* UMordecaiSkillComponent::FindAbilitySystemComponent() c
 // ---------------------------------------------------------------------------
 // Replication
 // ---------------------------------------------------------------------------
+
+void UMordecaiSkillComponent::OnRep_SkillRanks()
+{
+	OnSkillStateChanged.Broadcast();
+}
+
+void UMordecaiSkillComponent::OnRep_AvailableSkillPoints()
+{
+	OnSkillStateChanged.Broadcast();
+}
 
 void UMordecaiSkillComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {

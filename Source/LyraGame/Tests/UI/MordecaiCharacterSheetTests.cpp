@@ -85,9 +85,14 @@ bool FMordecai_UI_CharacterSheet_DisplaysPrimaryAttributes::RunTest(const FStrin
 	for (int32 i = 0; i < ExpectedCodes.Num(); ++i)
 	{
 		TestEqual(
-			FString::Printf(TEXT("Primary[%d] code"), i),
-			Data.PrimaryAttributes[i].Code,
-			ExpectedCodes[i]);
+			FString::Printf(TEXT("Primary[%d] lookup key"), i),
+			Data.PrimaryAttributes[i].LookupKey,
+			FName(Data.PrimaryAttributes[i].DisplayName.ToString()));
+		TestTrue(
+			FString::Printf(TEXT("Primary[%d] display code exact case"), i),
+			Data.PrimaryAttributes[i].Code.ToString().Equals(
+				ExpectedCodes[i].ToString(),
+				ESearchCase::CaseSensitive));
 		TestFalse(
 			FString::Printf(TEXT("Primary[%d] bHasValue=false before bind"), i),
 			Data.PrimaryAttributes[i].bHasValue);

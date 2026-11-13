@@ -361,7 +361,7 @@ Format: R1 base / R5 / R10 / R15 / R20.
 **Magic (11)**
 - **Fireball** — "Channelled spell. Fires {x} magic projectiles … force {z} dmg"; burning ground at R10
 - **Cone of Cold** — R1 text is a copy of Stone Skin's; R10 "Targets slowed … can now be briefly frozen"
-- **Magic Missle** (spelled this way in the sheet) — channelled projectiles
+- **Magic Missile** — channelled projectiles
 - **Stone Skin** — armor {x} for {y} s
 - **Sleep** — target sleeps {x} s
 - **Blink** — teleport {x} m; R20 second charge
@@ -383,8 +383,8 @@ Format: R1 base / R5 / R10 / R15 / R20.
 - **Moved:** Traps and Lockpicking went from Movement & Exploration to Utility & Interaction.
 - **Data defects in v1.1:**
   - Cone of Cold R1 duplicates Stone Skin's text.
-  - Fireball R1 reuses the Magic Missle "force dmg" text.
-  - The Shortbow and Magic Missle R1 cells contain CSV artifacts ("Shortbow,\"Wielder…").
+  - Fireball R1 reuses the Magic Missile "force dmg" text.
+  - The Shortbow and Magic Missile R1 cells contain CSV artifacts ("Shortbow,\"Wielder…").
   - Several cells have stray trailing quotes.
 
 ---
@@ -524,7 +524,7 @@ Use these exactly as the sources do:
 - "**Everything you do is a skill**" (the DCC pillar)
 - "**Feats are earned, not picked**"
 - "**not icon soup**"
-- Spec spellings that are probably typos but appear verbatim: "Magic Missle", "Resistance Peneration".
+- Spec spelling that is probably a typo but appears verbatim: "Resistance Peneration".
 
 
 ## UI INVENTORY
@@ -602,7 +602,7 @@ Use these exactly as the sources do:
 - Douse — Drenched removes Burning
 - Break free — 25-stamina action that ends Rooted early
 - Clarity window — 1000 ms of relief from Blinded after a perfect dodge
-- Magic Missle — the spell name as spelled in the skill sheet
+- Magic Missile
 - Resistance Peneration — the stat name as misspelled in character_attributes_v1 (code: Resistance Penetration)
 
 ## OPEN QUESTIONS
@@ -624,4 +624,4 @@ Use these exactly as the sources do:
 - Magic: keep each spell as its own skill, or group 'by school' vs 'spell type' (open decision in game_design_v2 §12)?
 - Feat content does not exist (only the Pyromaniac sample in tests). How should drawbacks be described in UI (the detail panel only counts them), and should there be an unlock toast/announcement (DCC-style achievement)?
 - Feat tier colors (Common gray, Rare blue, Legendary gold) overlap with loot rarity colors (Green/Blue/Purple/Red(Gold)). Should the two systems share or separate palettes?
-- skill_sheet_v1.1 data defects: Cone of Cold R1 copies Stone Skin; Fireball R1 copies Magic Missle's 'force' text; CSV artifacts in Shortbow and Magic Missle. The v1 named techniques (e.g. 'Master Riposte', 'Metroid Key Sense') were dropped. Should named techniques return for milestone UI?
+- skill_sheet_v1.1 data defects: Cone of Cold R1 copies Stone Skin; Fireball R1 copies Magic Missile's 'force' text; CSV artifacts in Shortbow and Magic Missile. The v1 named techniques (e.g. 'Master Riposte', 'Metroid Key Sense') were dropped. Should named techniques return for milestone UI?

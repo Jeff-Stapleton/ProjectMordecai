@@ -121,17 +121,24 @@ def _run():
 
                 def named_text(content, widget_name):
                     widget = None
+                    errors = []
                     if hud_accessor:
                         try:
                             widget = hud_accessor.get_named_widget(content, widget_name)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            errors.append(f"HUD accessor: {e}")
                     if content:
                         try:
                             tree = content.get_editor_property("widget_tree")
                             widget = widget or (tree.find_widget(widget_name) if tree else None)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            errors.append(f"Widget tree: {e}")
+                    if widget is None and errors:
+                        check(
+                            f"{widget_name}: widget lookup",
+                            False,
+                            "; ".join(errors),
+                        )
                     return str(widget.get_text()) if widget else None
 
                 def tab_content(tab_id, class_name):
@@ -169,11 +176,13 @@ def _run():
                     logic("skills: all 13 Weapon skills registered",
                           named_text(skills, "CategoryMetaText") == "Weapon · 13 skills",
                           f"Got '{named_text(skills, 'CategoryMetaText')}'")
+                    visible = {
+                        str(row.skill_name): row.current_rank
+                        for row in skills.get_visible_skills()
+                    }
                     logic("skills: Longswords starts at rank 0 / 20",
-                          named_text(skills, "SkillName_Longswords") == "Longswords"
-                          and named_text(skills, "SkillRank_Longswords") == "0 / 20",
-                          f"Got name '{named_text(skills, 'SkillName_Longswords')}', "
-                          f"rank '{named_text(skills, 'SkillRank_Longswords')}'")
+                          visible.get("Longswords") == 0,
+                          f"Got {visible.get('Longswords')!r} / 20")
 
                 feats = tab_content("feats", "MordecaiFeatDisplayWidget")
                 if feats:

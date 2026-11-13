@@ -177,6 +177,11 @@ bool FMordecai_Recovery_Skills_StartingSetMatchesSheet::RunTest(const FString& P
 			TestTrue(
 				*FString::Printf(TEXT("%s runtime data is transient"), Expected.Name),
 				Data->HasAnyFlags(RF_Transient));
+			TestTrue(
+				*FString::Printf(TEXT("%s localized display name matches exactly"), Expected.Name),
+				Data->DisplayName.ToString().Equals(
+					Expected.Name,
+					ESearchCase::CaseSensitive));
 		}
 		TestEqual(*FString::Printf(TEXT("%s starts at rank 0"), Expected.Name),
 			Component->GetSkillRank(Name), 0);
@@ -268,10 +273,12 @@ bool FMordecai_Recovery_Skills_ClientMutatorsAreRejected::RunTest(
 	const int32 RankBefore = Component->GetSkillRank(TEXT("Longswords"));
 	const int32 PointsBefore = Component->GetAvailableSkillPoints();
 
-	Component->SetAvailableSkillPoints(12);
-	Component->SetSkillRank(TEXT("Longswords"), 8);
+	const bool bSetPoints = Component->SetAvailableSkillPoints(12);
+	const bool bSetRank = Component->SetSkillRank(TEXT("Longswords"), 8);
 	const bool bAllocated = Component->TryAllocateSkillPoint(TEXT("Longswords"));
 
+	TestFalse("client SetAvailableSkillPoints returns false", bSetPoints);
+	TestFalse("client SetSkillRank returns false", bSetRank);
 	TestFalse("client TryAllocateSkillPoint returns false", bAllocated);
 	TestEqual("client SetSkillRank leaves rank unchanged",
 		Component->GetSkillRank(TEXT("Longswords")), RankBefore);
