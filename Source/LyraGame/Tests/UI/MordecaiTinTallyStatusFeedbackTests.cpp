@@ -203,10 +203,10 @@ bool FMordecai_UI_StatusChip_WrapsAndCapsAtEight::RunTest(const FString& Paramet
 		MordecaiGameplayTags::Status_Shocked,
 		MordecaiGameplayTags::Status_Rooted,
 		MordecaiGameplayTags::Status_Silenced,
-		MordecaiGameplayTags::Status_Burning,
-		MordecaiGameplayTags::Status_Bleeding,
-		MordecaiGameplayTags::Status_Poisoned,
-		MordecaiGameplayTags::Status_Weakened,
+		MordecaiGameplayTags::Status_Cursed,
+		MordecaiGameplayTags::Status_Corroded,
+		MordecaiGameplayTags::Status_Drenched,
+		MordecaiGameplayTags::Status_StoneSkin,
 	};
 	for (const FGameplayTag& Status : WideStatuses)
 	{
