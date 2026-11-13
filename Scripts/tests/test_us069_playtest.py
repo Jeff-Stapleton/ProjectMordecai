@@ -66,7 +66,8 @@ class PauseMenuWorld(fb.FakeWorld):
 
     def __init__(self, *, character_sheet=True, skills_tab=True, feats_tab=True,
                  shoulder_steps=SHOULDERS, gamepad_back_closes=True, start_toggles=True,
-                 menu_blocks_input=True, i_close_on="release", **kwargs):
+                 menu_blocks_input=True, i_close_on="release",
+                 lowercase_attribute_codes=False, resource_line_count=4, **kwargs):
         kwargs.setdefault("i_closes_menu", True)
         super().__init__(**kwargs)
         self.character_sheet = character_sheet
@@ -78,6 +79,9 @@ class PauseMenuWorld(fb.FakeWorld):
         self.gamepad_back_closes = gamepad_back_closes
         self.start_toggles = start_toggles
         self.menu_blocks_input = menu_blocks_input
+        self.lowercase_attribute_codes = lowercase_attribute_codes
+        self.resource_line_count = resource_line_count
+        self.skill_category = "Weapon"
 
     @property
     def game_input_allowed(self):
@@ -131,21 +135,39 @@ class PauseMenuWorld(fb.FakeWorld):
         if tab == "character":
             texts = []
             if self.character_sheet:
-                texts = ["Physical", "STR", "10", "+0.0%", "DEX", "10", "+0.0%", "END", "10",
-                         "+0.0%", "Resilience", "CON", "10", "+0.0%", "RES", "10", "+0.0%",
-                         "DIS", "10", "+0.0%", "Magical", "INT", "10", "+0.0%", "WIS", "10",
-                         "+0.0%", "CHA", "10", "+0.0%", "Health", "100 / 100", "Stamina",
-                         "100 / 100", "Spell Points",
-                         f"{self.spell_points:.0f} / {self.max_spell_points:.0f}", "Posture",
-                         "0 / 100", "Physical Damage: +0.0%"]
+                codes = ["STR", "DEX", "END", "CON", "RES", "DIS", "INT", "WIS", "CHA"]
+                if self.lowercase_attribute_codes:
+                    codes = [code.lower() for code in codes]
+                groups = (("Physical", codes[:3]), ("Resilience", codes[3:6]),
+                          ("Magical", codes[6:]))
+                for group, group_codes in groups:
+                    texts.append(group)
+                    for offset, code in enumerate(group_codes):
+                        texts += [code, str(11 + len(texts) + offset), "+8.5%"]
+                resources = [("Health", "100 / 100"), ("Stamina", "100 / 100"),
+                             ("Spell Points",
+                              f"{self.spell_points:.0f} / {self.max_spell_points:.0f}"),
+                             ("Posture", "0 / 100")]
+                for label, value in resources[:self.resource_line_count]:
+                    texts += [label, value]
+                texts.append("Physical Damage: +0.0%")
             return {"class": "MordecaiCharacterSheetWidget", "name": "CharacterSheet_0",
                     "rect": [160, 150, 960, 520], "texts": texts, "buttons": []}
         if tab == "skills" and self.skills_tab:
+            category_buttons = [
+                {"id": category.lower().replace(" & ", "").replace(" ", ""),
+                 "label": category, "center": [240, 210 + 58 * i], "enabled": True}
+                for i, category in enumerate(("Weapon", "Defense & Armor",
+                                              "Movement & Exploration",
+                                              "Utility & Interaction", "Magic"))
+            ]
+            if self.skill_category == "Magic":
+                texts = ["Skill Points: 0", "Magic · 11 skills", "Fireball", "0 / 20"]
+            else:
+                texts = ["Skill Points: 0", "Weapon · 13 skills", "Longswords", "0 / 20"]
             return {"class": "MordecaiSkillTreeWidget", "name": "SkillTree_0",
                     "rect": [160, 150, 960, 520],
-                    "texts": ["Weapon", "Defense & Armor", "Movement & Exploration",
-                              "Utility & Interaction", "Magic", "Skill Points: 0", "Swords",
-                              "0 / 20"], "buttons": []}
+                    "texts": texts, "buttons": category_buttons}
         if tab == "feats" and self.feats_tab:
             return {"class": "MordecaiFeatDisplayWidget", "name": "FeatDisplay_0",
                     "rect": [160, 150, 960, 520],
@@ -154,6 +176,25 @@ class PauseMenuWorld(fb.FakeWorld):
         if tab in ("skills", "feats", "settings"):
             return placeholder
         return None
+
+    def buttons(self):
+        out = super().buttons()
+        if self.menu_painted and self.active_tab == "skills" and self.skills_tab:
+            labels = ("Weapon", "Defense & Armor", "Movement & Exploration",
+                      "Utility & Interaction", "Magic")
+            ids = ("weapon", "defensearmor", "movementexploration",
+                   "utilityinteraction", "magic")
+            for i, (button_id, label) in enumerate(zip(ids, labels)):
+                out.append({"id": button_id, "label": label, "center": [240, 210 + 58 * i],
+                            "size": [180, 48], "enabled": True,
+                            "action": ("filter", label), "widget": "skills"})
+        return out
+
+    def mouse_up(self, conn_id, x, y, button):
+        hit = super().mouse_up(conn_id, x, y, button)
+        if self.active_tab == "skills" and self.inventory_filter in ("Weapon", "Magic"):
+            self.skill_category = self.inventory_filter
+        return hit
 
     def _s_widgets(self):
         out = super()._s_widgets()
@@ -309,6 +350,15 @@ class TestUs069CurrentGame(PlaytestCase):
 
 
 class TestUs069MissingContentMutations(PlaytestCase):
+    def test_lowercase_codes_and_only_one_resource_line_fail_character_content(self):
+        _, server = self.serve(lowercase_attribute_codes=True, resource_line_count=1)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["character_tab_content"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("STR", check["detail"])
+        self.assertIn("Stamina", check["detail"])
+
     def test_missing_content_fails_exactly_the_three_content_checks(self):
         world, server = self.serve(character_sheet=False, skills_tab=False, feats_tab=False)
         code, rep = self.play(server)
