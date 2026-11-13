@@ -67,7 +67,9 @@ class PauseMenuWorld(fb.FakeWorld):
     def __init__(self, *, character_sheet=True, skills_tab=True, feats_tab=True,
                  shoulder_steps=SHOULDERS, gamepad_back_closes=True, start_toggles=True,
                  menu_blocks_input=True, i_close_on="release",
-                 lowercase_attribute_codes=False, resource_line_count=4, **kwargs):
+                 lowercase_attribute_codes=False, resource_line_count=4,
+                 attribute_missing_value=False, attribute_missing_modifier=False,
+                 attribute_clipped=False, **kwargs):
         kwargs.setdefault("i_closes_menu", True)
         super().__init__(**kwargs)
         self.character_sheet = character_sheet
@@ -81,6 +83,9 @@ class PauseMenuWorld(fb.FakeWorld):
         self.menu_blocks_input = menu_blocks_input
         self.lowercase_attribute_codes = lowercase_attribute_codes
         self.resource_line_count = resource_line_count
+        self.attribute_missing_value = attribute_missing_value
+        self.attribute_missing_modifier = attribute_missing_modifier
+        self.attribute_clipped = attribute_clipped
         self.skill_category = "Weapon"
 
     @property
@@ -134,28 +139,56 @@ class PauseMenuWorld(fb.FakeWorld):
                        "rect": [160, 150, 960, 520], "texts": ["Coming Soon"], "buttons": []}
         if tab == "character":
             texts = []
+            character_rows = []
+            resource_rows = []
             if self.character_sheet:
                 codes = ["STR", "DEX", "END", "CON", "RES", "DIS", "INT", "WIS", "CHA"]
                 names = ["Strength", "Dexterity", "Endurance", "Constitution", "Resistance",
                          "Discipline", "Intelligence", "Wisdom", "Charisma"]
+                lookup_keys = [name.lower() for name in names]
                 if self.lowercase_attribute_codes:
                     codes = [code.lower() for code in codes]
-                groups = (("Physical", codes[:3], names[:3]),
-                          ("Resilience", codes[3:6], names[3:6]),
-                          ("Magical", codes[6:], names[6:]))
-                for group, group_codes, group_names in groups:
+                groups = (("Physical", range(0, 3)),
+                          ("Resilience", range(3, 6)),
+                          ("Magical", range(6, 9)))
+                for group, indexes in groups:
                     texts.append(group)
-                    for offset, (code, name) in enumerate(zip(group_codes, group_names)):
-                        texts += [code, name, str(11 + len(texts) + offset), "+8.5%"]
+                    for index in indexes:
+                        value = "--" if self.attribute_missing_value and index == 0 else str(11 + index)
+                        modifier = ("--" if self.attribute_missing_modifier and index == 0
+                                    else "+8.5%")
+                        visible = not (self.attribute_clipped and index == 0)
+                        texts += [codes[index], names[index], value, modifier]
+                        character_rows.append({
+                            "id": lookup_keys[index],
+                            "code": codes[index],
+                            "name": names[index],
+                            "value": value,
+                            "modifier": modifier,
+                            "visible": visible,
+                        })
+                # Preserve the old aggregate counts so a checker that does not pair fields to
+                # rows false-passes these mutations.
+                if self.attribute_missing_value:
+                    texts.append("999")
+                if self.attribute_missing_modifier:
+                    texts.append("+1.0%")
                 resources = [("Health", "100 / 100"), ("Stamina", "100 / 100"),
                              ("Spell Points",
                               f"{self.spell_points:.0f} / {self.max_spell_points:.0f}"),
                              ("Posture", "0 / 100")]
-                for label, value in resources[:self.resource_line_count]:
+                for index, (label, value) in enumerate(resources[:self.resource_line_count]):
                     texts += [label, value]
+                    resource_rows.append({
+                        "id": ("health", "stamina", "spellpoints", "posture")[index],
+                        "label": label,
+                        "value": value,
+                        "visible": True,
+                    })
                 texts.append("Physical Damage: +0.0%")
             return {"class": "MordecaiCharacterSheetWidget", "name": "CharacterSheet_0",
-                    "rect": [160, 150, 960, 520], "texts": texts, "buttons": []}
+                    "rect": [160, 150, 960, 520], "texts": texts, "buttons": [],
+                    "character_rows": character_rows, "resource_rows": resource_rows}
         if tab == "skills" and self.skills_tab:
             category_buttons = [
                 {"id": category.lower().replace(" & ", "").replace(" ", ""),
@@ -325,9 +358,13 @@ class TestUs069CurrentGame(PlaytestCase):
                     ("US-069", "AC-069.11")):
             self.assertEqual(acs[key]["status"], "PASS", key)
         for key in (("US-066", "AC-066.3"), ("US-067", "AC-067.3"),
-                    ("US-068", "AC-068.8")):
+                    ("US-067", "AC-067.4"), ("US-068", "AC-068.8")):
             self.assertEqual(acs[key]["status"], "PASS", key)
             self.assertFalse(acs[key]["known_issue"], key)
+        self.assertEqual(
+            acs[("US-067", "AC-067.4")]["checks"],
+            ["skills_tab_content"],
+        )
         self.assertFalse([a for a in rep["acs"] if a["accepted"]],
                          "an attached run never accepts an AC")
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
@@ -363,6 +400,33 @@ class TestUs069MissingContentMutations(PlaytestCase):
         self.assertEqual(check["status"], "FAIL")
         self.assertIn("STR", check["detail"])
         self.assertIn("Stamina", check["detail"])
+
+    def test_placeholder_value_with_unrelated_number_fails_character_content(self):
+        _, server = self.serve(attribute_missing_value=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["character_tab_content"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("strength", check["detail"])
+        self.assertIn("--", check["detail"])
+
+    def test_placeholder_modifier_with_unrelated_modifier_fails_character_content(self):
+        _, server = self.serve(attribute_missing_modifier=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["character_tab_content"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("strength", check["detail"])
+        self.assertIn("--", check["detail"])
+
+    def test_clipped_attribute_row_fails_character_content(self):
+        _, server = self.serve(attribute_clipped=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["character_tab_content"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("strength", check["detail"])
+        self.assertIn("visible", check["detail"])
 
     def test_missing_content_fails_exactly_the_content_checks(self):
         world, server = self.serve(character_sheet=False, skills_tab=False, feats_tab=False)

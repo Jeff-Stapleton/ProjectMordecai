@@ -82,12 +82,17 @@ bool FMordecai_UI_CharacterSheet_DisplaysPrimaryAttributes::RunTest(const FStrin
 		FName("CON"), FName("RES"), FName("DIS"),
 		FName("INT"), FName("WIS"), FName("CHA")
 	};
+	const TArray<FName> ExpectedLookupKeys = {
+		FName("strength"), FName("dexterity"), FName("endurance"),
+		FName("constitution"), FName("resistance"), FName("discipline"),
+		FName("intelligence"), FName("wisdom"), FName("charisma")
+	};
 	for (int32 i = 0; i < ExpectedCodes.Num(); ++i)
 	{
 		TestEqual(
 			FString::Printf(TEXT("Primary[%d] lookup key"), i),
 			Data.PrimaryAttributes[i].LookupKey,
-			FName(Data.PrimaryAttributes[i].DisplayName.ToString()));
+			ExpectedLookupKeys[i]);
 		TestTrue(
 			FString::Printf(TEXT("Primary[%d] display code exact case"), i),
 			Data.PrimaryAttributes[i].Code.ToString().Equals(

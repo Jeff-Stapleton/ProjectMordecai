@@ -7,6 +7,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AttributeSet.h"
+#include "Internationalization/Text.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Skills/MordecaiSkillComponent.h"
 #include "Mordecai/Skills/MordecaiSkillDataAsset.h"
@@ -182,6 +183,12 @@ bool FMordecai_Recovery_Skills_StartingSetMatchesSheet::RunTest(const FString& P
 				Data->DisplayName.ToString().Equals(
 					Expected.Name,
 					ESearchCase::CaseSensitive));
+			TestTrue(
+				*FString::Printf(TEXT("%s display name carries a localization namespace"), Expected.Name),
+				FTextInspector::GetNamespace(Data->DisplayName).IsSet());
+			TestTrue(
+				*FString::Printf(TEXT("%s display name carries a localization key"), Expected.Name),
+				FTextInspector::GetKey(Data->DisplayName).IsSet());
 		}
 		TestEqual(*FString::Printf(TEXT("%s starts at rank 0"), Expected.Name),
 			Component->GetSkillRank(Name), 0);

@@ -11,7 +11,9 @@
 #include "Components/Button.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
 #include "HAL/PlatformMisc.h"
+#include "Internationalization/Text.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Feats/MordecaiFeatComponent.h"
 #include "Mordecai/Feats/MordecaiFeatDataAsset.h"
@@ -178,16 +180,28 @@ bool FMordecai_Recovery_CharacterSheet_BuildsDefaultContent::RunTest(const FStri
 		TEXT("CON"), TEXT("RES"), TEXT("DIS"),
 		TEXT("INT"), TEXT("WIS"), TEXT("CHA")
 	};
+	const TCHAR* AttributeLookupKeys[] = {
+		TEXT("strength"), TEXT("dexterity"), TEXT("endurance"),
+		TEXT("constitution"), TEXT("resistance"), TEXT("discipline"),
+		TEXT("intelligence"), TEXT("wisdom"), TEXT("charisma")
+	};
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(AttributeCodes); ++Index)
 	{
-		const FString LabelName = FString::Printf(TEXT("PrimaryLabel_%s"), AttributeCodes[Index]);
-		const FString ValueName = FString::Printf(TEXT("PrimaryValue_%s"), AttributeCodes[Index]);
+		const FString LabelName = FString::Printf(
+			TEXT("PrimaryLabel_%s"), AttributeLookupKeys[Index]);
+		const FString ValueName = FString::Printf(
+			TEXT("PrimaryValue_%s"), AttributeLookupKeys[Index]);
 		TestTrue(
-			*FString::Printf(TEXT("%s label is rendered"), AttributeCodes[Index]),
+			*FString::Printf(TEXT("%s label uses the stable lookup key"), AttributeCodes[Index]),
 			Find<UTextBlock>(Widget, *LabelName)
 				&& Find<UTextBlock>(Widget, *LabelName)->GetText().ToString().Equals(
 					AttributeCodes[Index],
 					ESearchCase::CaseSensitive));
+		TestNull(
+			*FString::Printf(TEXT("%s localized code is not a widget identifier"), AttributeCodes[Index]),
+			Find<UTextBlock>(
+				Widget,
+				*FString::Printf(TEXT("PrimaryLabel_%s"), AttributeCodes[Index])));
 		TestTrue(
 			*FString::Printf(TEXT("%s distinct live value is rendered"), AttributeCodes[Index]),
 			HasText(
@@ -195,7 +209,7 @@ bool FMordecai_Recovery_CharacterSheet_BuildsDefaultContent::RunTest(const FStri
 				*ValueName,
 				FString::FromInt(Index + 11)));
 		const FString EffectiveModName =
-			FString::Printf(TEXT("PrimaryEffectiveMod_%s"), AttributeCodes[Index]);
+			FString::Printf(TEXT("PrimaryEffectiveMod_%s"), AttributeLookupKeys[Index]);
 		TestTrue(
 			*FString::Printf(TEXT("%s effective modifier is rendered"), AttributeCodes[Index]),
 			HasText(
@@ -254,13 +268,13 @@ bool FMordecai_Recovery_CharacterSheet_BuildsDefaultContent::RunTest(const FStri
 		"Character attribute row follows the live High Contrast raised-plate token",
 		HasThemeBrushColor(
 			Widget,
-			TEXT("AttributeCard_STR"),
+			TEXT("AttributeCard_strength"),
 			Themes->GetActiveColors().PlateRaised));
 	TestTrue(
 		"Character muted name follows the live High Contrast muted-text token",
 		HasThemeTextColor(
 			Widget,
-			TEXT("PrimaryName_STR"),
+			TEXT("PrimaryName_strength"),
 			Themes->GetActiveColors().TextMuted));
 	return true;
 }
@@ -364,6 +378,39 @@ bool FMordecai_Recovery_SkillTree_BuildsDefaultContent::RunTest(const FString& P
 		"Rank value box has a fixed width override",
 		Widget->FindSkillRankBox(TEXT("Longswords"))
 			&& Widget->FindSkillRankBox(TEXT("Longswords"))->GetWidthOverride() > 0.f);
+	USizeBox* CategoryRailBox = Find<USizeBox>(Widget, TEXT("CategoryRailBox"));
+	UVerticalBox* CategoryRail = Find<UVerticalBox>(Widget, TEXT("CategoryRail"));
+	TestTrue(
+		"Category rail is the specified 198px vertical rail",
+		CategoryRailBox
+			&& CategoryRailBox->GetWidthOverride() == 198.f
+			&& CategoryRail
+			&& CategoryRail->GetChildrenCount() == 5);
+	const TCHAR* CategoryNames[] = {
+		TEXT("Weapon"),
+		TEXT("DefenseArmor"),
+		TEXT("MovementExploration"),
+		TEXT("UtilityInteraction"),
+		TEXT("Magic")
+	};
+	for (const TCHAR* CategoryName : CategoryNames)
+	{
+		const FString SizeName = FString::Printf(TEXT("CategorySize_%s"), CategoryName);
+		const FString TextName = FString::Printf(TEXT("Category_%s"), CategoryName);
+		const USizeBox* CategorySize = Find<USizeBox>(Widget, *SizeName);
+		const UTextBlock* CategoryText = Find<UTextBlock>(Widget, *TextName);
+		TestTrue(
+			*FString::Printf(TEXT("%s category has equal 68px height"), CategoryName),
+			CategorySize && CategorySize->GetHeightOverride() == 68.f);
+		TestTrue(
+			*FString::Printf(TEXT("%s category label deliberately wraps"), CategoryName),
+			CategoryText && CategoryText->GetAutoWrapText());
+		TestTrue(
+			*FString::Printf(TEXT("%s category label carries localization metadata"), CategoryName),
+			CategoryText
+				&& FTextInspector::GetNamespace(CategoryText->GetText()).IsSet()
+				&& FTextInspector::GetKey(CategoryText->GetText()).IsSet());
+	}
 
 	UMordecaiTabButton* MagicButton =
 		Find<UMordecaiTabButton>(Widget, TEXT("CategoryButton_Magic"));
@@ -441,7 +488,13 @@ bool FMordecai_Recovery_SkillTree_BuildsDefaultContent::RunTest(const FString& P
 		"Selected category uses the cream enamel fill token",
 		Find<UMordecaiTabButton>(Widget, TEXT("CategoryButton_Weapon"))
 			&& Find<UMordecaiTabButton>(Widget, TEXT("CategoryButton_Weapon"))
-				->GetBackgroundColor().Equals(
+				->GetStyle().Normal.TintColor.GetSpecifiedColor().Equals(
+					Themes->GetActiveColors().Enamel)
+			&& Find<UMordecaiTabButton>(Widget, TEXT("CategoryButton_Weapon"))
+				->GetStyle().Hovered.TintColor.GetSpecifiedColor().Equals(
+					Themes->GetActiveColors().Enamel)
+			&& Find<UMordecaiTabButton>(Widget, TEXT("CategoryButton_Weapon"))
+				->GetStyle().Pressed.TintColor.GetSpecifiedColor().Equals(
 					Themes->GetActiveColors().Enamel));
 	TestTrue(
 		"Skills row keeps the live High Contrast raised-plate token after category rebuild",
