@@ -45,6 +45,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void BindToASC(UAbilitySystemComponent* ASC);
 
+	/** Deterministic shipped-widget fixture state; does not bind or mutate gameplay. */
+	void SetGalleryPreviewStatuses(const TArray<FGameplayTag>& StatusTags);
+
 	/** Maximum number of visible status indicators. */
 	static constexpr int32 MaxVisibleIndicators = 8;
 

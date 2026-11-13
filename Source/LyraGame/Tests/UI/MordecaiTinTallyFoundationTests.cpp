@@ -23,6 +23,7 @@
 #include "Mordecai/UI/MordecaiHealthBarWidget.h"
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Mordecai/UI/MordecaiSpellCooldownWidget.h"
+#include "Mordecai/UI/MordecaiStatusEffectBarWidget.h"
 #include "Mordecai/UI/MordecaiStatusEffectIndicatorWidget.h"
 #include "Mordecai/UI/TinTally/MordecaiTinTallyGallerySubsystem.h"
 #include "Mordecai/UI/TinTally/MordecaiTallyWidget.h"
@@ -589,6 +590,7 @@ bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString
 		{ TEXT("InteractPrompt"), TEXT("GalleryRealInteractPrompt_0"), nullptr, UMordecaiPickupPromptWidget::StaticClass() },
 		{ TEXT("LoadoutPlate"), TEXT("GalleryRealLoadout_0"), TEXT("GalleryLoadoutStage"), UMordecaiEquippedWeaponWidget::StaticClass() },
 		{ TEXT("StatusChip"), TEXT("GalleryRealStatusChip_0"), nullptr, UMordecaiStatusEffectIndicatorWidget::StaticClass() },
+		{ TEXT("StatusChip"), TEXT("GalleryRealStatusBar"), nullptr, UMordecaiStatusEffectBarWidget::StaticClass() },
 		{ TEXT("CombatCallout"), TEXT("GalleryRealCombatCallout_0"), nullptr, UMordecaiCombatFeedbackWidget::StaticClass() },
 	};
 	for (const TCHAR* Theme : { TEXT("diorama"), TEXT("high-contrast") })

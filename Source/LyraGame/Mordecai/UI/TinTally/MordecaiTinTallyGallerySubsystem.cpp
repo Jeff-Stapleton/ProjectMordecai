@@ -1713,10 +1713,7 @@ namespace
 			EmbedShippedWidget<UMordecaiStatusEffectBarWidget>(
 				Owner, Tree, Canvas, TEXT("GalleryRealStatusBar"),
 				FVector2D(252.f, 582.f), FVector2D(456.f, 112.f));
-		UAbilitySystemComponent* StatusASC =
-			Owner->CreateFixtureASC(1.f, 1.f, 0.7f, 5.f, 13.f);
-		StatusBar->BindToASC(StatusASC);
-		const FGameplayTag GalleryStatuses[] = {
+		const TArray<FGameplayTag> GalleryStatuses = {
 			MordecaiGameplayTags::Status_Rooted.GetTag(),
 			MordecaiGameplayTags::Status_Burning.GetTag(),
 			MordecaiGameplayTags::Status_Poisoned.GetTag(),
@@ -1727,10 +1724,7 @@ namespace
 			MordecaiGameplayTags::Status_Blessed.GetTag(),
 			MordecaiGameplayTags::Status_Restoration.GetTag()
 		};
-		for (const FGameplayTag Tag : GalleryStatuses)
-		{
-			StatusASC->AddLooseGameplayTag(Tag);
-		}
+		StatusBar->SetGalleryPreviewStatuses(GalleryStatuses);
 	}
 
 	void BuildCombatCalloutFixture(

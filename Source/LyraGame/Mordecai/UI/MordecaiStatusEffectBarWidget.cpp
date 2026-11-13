@@ -208,6 +208,29 @@ void UMordecaiStatusEffectBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 	RebuildIndicators();
 }
 
+void UMordecaiStatusEffectBarWidget::SetGalleryPreviewStatuses(
+	const TArray<FGameplayTag>& StatusTags)
+{
+	if (UAbilitySystemComponent* Previous = BoundASC.Get())
+	{
+		for (const FMordecaiStatusDisplayData& Row : GetAllStatusEffectDisplayData())
+		{
+			Previous->RegisterGameplayTagEvent(
+				Row.Tag, EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
+		}
+	}
+	BoundASC.Reset();
+	ActiveTagOrder.Reset();
+	for (const FGameplayTag& Tag : StatusTags)
+	{
+		if (FindStatusEffectDisplayData(Tag))
+		{
+			ActiveTagOrder.AddUnique(Tag);
+		}
+	}
+	RebuildIndicators();
+}
+
 // ---------------------------------------------------------------------------
 // Tag Change Callback (AC-055.5, AC-055.6)
 // ---------------------------------------------------------------------------
