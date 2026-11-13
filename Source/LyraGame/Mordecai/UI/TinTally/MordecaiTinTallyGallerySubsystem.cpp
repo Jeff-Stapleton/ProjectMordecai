@@ -40,6 +40,7 @@
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Mordecai/UI/MordecaiSpellCooldownWidget.h"
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
+#include "Mordecai/UI/MordecaiStatusEffectBarWidget.h"
 #include "Mordecai/UI/MordecaiStatusEffectIndicatorWidget.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
@@ -1706,6 +1707,30 @@ namespace
 			TEXT("ui_label"), Colors.Text, 40.f, 458.f, 840.f, 28.f);
 		AddText(Tree, Canvas, TEXT("MAX EIGHT · THE NINTH FOLDS INTO +N"),
 			TEXT("ui_label"), Colors.Text, 40.f, 496.f, 840.f, 28.f);
+		AddText(Tree, Canvas, TEXT("LIVE TWO-ROW STRIP · NINE STATUSES PRODUCE AN OVERFLOW CHIP"),
+			TEXT("kicker"), Colors.TextMuted, 40.f, 542.f, 840.f, 28.f);
+		UMordecaiStatusEffectBarWidget* StatusBar =
+			EmbedShippedWidget<UMordecaiStatusEffectBarWidget>(
+				Owner, Tree, Canvas, TEXT("GalleryRealStatusBar"),
+				FVector2D(252.f, 582.f), FVector2D(456.f, 112.f));
+		UAbilitySystemComponent* StatusASC =
+			Owner->CreateFixtureASC(1.f, 1.f, 0.7f, 5.f, 13.f);
+		StatusBar->BindToASC(StatusASC);
+		const FGameplayTag GalleryStatuses[] = {
+			MordecaiGameplayTags::Status_Rooted.GetTag(),
+			MordecaiGameplayTags::Status_Burning.GetTag(),
+			MordecaiGameplayTags::Status_Poisoned.GetTag(),
+			MordecaiGameplayTags::Status_Weakened.GetTag(),
+			MordecaiGameplayTags::Status_Drenched.GetTag(),
+			MordecaiGameplayTags::Status_Focused.GetTag(),
+			MordecaiGameplayTags::Status_StoneSkin.GetTag(),
+			MordecaiGameplayTags::Status_Blessed.GetTag(),
+			MordecaiGameplayTags::Status_Restoration.GetTag()
+		};
+		for (const FGameplayTag Tag : GalleryStatuses)
+		{
+			StatusASC->AddLooseGameplayTag(Tag);
+		}
 	}
 
 	void BuildCombatCalloutFixture(
