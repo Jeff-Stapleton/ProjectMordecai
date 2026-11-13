@@ -255,7 +255,9 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 		ComboCounter = CreateWidget<UMordecaiComboCounterWidget>(
 			this, UMordecaiComboCounterWidget::StaticClass(), TEXT("ComboCounter"));
 	}
-	AddChild(ComboCounter, Center, FVector2D(0.f, 184.f),
+	const MordecaiHUDConstants::FCombatCalloutLayout CalloutLayout =
+		MordecaiHUDConstants::GetCombatCalloutLayout(0);
+	AddChild(ComboCounter, Center, FVector2D(0.f, CalloutLayout.ComboTopFromCenterPx),
 		FVector2D(220.f, 36.f), FVector2D(0.5f, 0.f));
 
 	if (!CombatFeedback)
@@ -263,8 +265,9 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 		CombatFeedback = CreateWidget<UMordecaiCombatFeedbackWidget>(
 			this, UMordecaiCombatFeedbackWidget::StaticClass(), TEXT("CombatFeedback"));
 	}
-	AddChild(CombatFeedback, Center, FVector2D(0.f, 128.f),
-		FVector2D(520.f, 52.f), FVector2D(0.5f, 0.f));
+	AddChild(CombatFeedback, Center, FVector2D(0.f, CalloutLayout.BottomFromCenterPx),
+		FVector2D(520.f, CalloutLayout.SlotHeightPx), FVector2D(0.5f, 1.f));
+	CombatFeedback->SetCalloutFontSize(CalloutLayout.FontSizePt);
 
 	// --- Status effects (left column) ---
 	if (!StatusEffectBar)
@@ -414,6 +417,30 @@ float UMordecaiCombatHUDWidget::GetTopCenterSafeWidth() const
 	// after reserving the 456px gauge, the active edge margin and a 16px gutter on both sides:
 	// 912px at the normal 32px margin and 784px at the TV-safe 96px margin.
 	return FMath::Max(0.f, 1920.f - 2.f * (HUDMargin + 456.f + 16.f));
+}
+
+void UMordecaiCombatHUDWidget::SetCombatTextSize(const int32 TextSizeIndex)
+{
+	const MordecaiHUDConstants::FCombatCalloutLayout Layout =
+		MordecaiHUDConstants::GetCombatCalloutLayout(
+			FMath::Clamp(TextSizeIndex, 0, 2));
+	if (CombatFeedback)
+	{
+		CombatFeedback->SetCalloutFontSize(Layout.FontSizePt);
+		if (UCanvasPanelSlot* CalloutSlot =
+			Cast<UCanvasPanelSlot>(CombatFeedback->Slot))
+		{
+			CalloutSlot->SetPosition(FVector2D(0.f, Layout.BottomFromCenterPx));
+			CalloutSlot->SetSize(FVector2D(520.f, Layout.SlotHeightPx));
+			CalloutSlot->SetAlignment(FVector2D(0.5f, 1.f));
+		}
+	}
+	if (UCanvasPanelSlot* ComboSlot = ComboCounter
+		? Cast<UCanvasPanelSlot>(ComboCounter->Slot)
+		: nullptr)
+	{
+		ComboSlot->SetPosition(FVector2D(0.f, Layout.ComboTopFromCenterPx));
+	}
 }
 
 // ---------------------------------------------------------------------------

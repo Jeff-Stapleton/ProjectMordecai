@@ -5,11 +5,14 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include "MordecaiComboCounterWidget.generated.h"
 
 class UAbilitySystemComponent;
+class UOverlay;
 class UTextBlock;
+class UMordecaiUIThemeSubsystem;
 
 /**
  * UMordecaiComboCounterWidget
@@ -42,9 +45,14 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> ComboText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> ComboPlate;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	int32 CachedComboIndex = -1;
@@ -53,6 +61,11 @@ private:
 	void BuildDefaultContent();
 	void OnComboWindowTagChanged(const FGameplayTag Tag, int32 NewCount);
 	void UpdateDisplay();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
+	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
+	TArray<FText> ComboDisplayTextCache;
 };

@@ -6,6 +6,7 @@
 #include "CommonTextBlock.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Overlay.h"
+#include "Components/PanelWidget.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Engine/DataAsset.h"
@@ -16,17 +17,23 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/ScopeExit.h"
 #include "Modules/ModuleManager.h"
+#include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
+#include "Mordecai/UI/MordecaiComboCounterWidget.h"
 #include "Mordecai/UI/MordecaiEquippedWeaponWidget.h"
 #include "Mordecai/UI/MordecaiHealthBarWidget.h"
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Mordecai/UI/MordecaiSpellCooldownWidget.h"
+#include "Mordecai/UI/MordecaiStatusEffectBarWidget.h"
+#include "Mordecai/UI/MordecaiStatusEffectIndicatorWidget.h"
 #include "Mordecai/UI/TinTally/MordecaiTinTallyGallerySubsystem.h"
 #include "Mordecai/UI/TinTally/MordecaiTallyWidget.h"
 #include "Mordecai/UI/TinTally/MordecaiUIFoundation.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
 #include "UObject/UnrealType.h"
 
 namespace MordecaiTinTallyFoundationTest
@@ -540,7 +547,8 @@ bool FMordecai_UI_Foundation_GalleryRejectsUnknownSelection::RunTest(const FStri
 			TEXT("Plate"), TEXT("diorama"), TEXT("sheet")));
 	for (const TCHAR* Component : {
 		TEXT("HUDLayout"), TEXT("GaugePlate"), TEXT("Bar"),
-		TEXT("SpellSlot"), TEXT("InteractPrompt"), TEXT("LoadoutPlate") })
+		TEXT("SpellSlot"), TEXT("InteractPrompt"), TEXT("LoadoutPlate"),
+		TEXT("StatusChip"), TEXT("CombatCallout") })
 	{
 		TestTrue(*FString::Printf(TEXT("%s HUD gallery selection is valid"), Component),
 			UMordecaiTinTallyGallerySubsystem::IsValidSelection(
@@ -571,6 +579,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Foundation_HUDGalleryUsesShippedWi
 
 bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString& Parameters)
 {
+	using namespace MordecaiRecoveryTest;
+	FRecoveryControlledTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownWithController(); };
+	if (!TestTrue("controlled player world", Env.SetupWithController()))
+	{
+		return true;
+	}
 	struct FExpectation
 	{
 		const TCHAR* Component;
@@ -585,12 +600,17 @@ bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString
 		{ TEXT("SpellSlot"), TEXT("GalleryRealSpellSlot_0"), TEXT("GallerySpellStage0"), UMordecaiSpellCooldownWidget::StaticClass() },
 		{ TEXT("InteractPrompt"), TEXT("GalleryRealInteractPrompt_0"), nullptr, UMordecaiPickupPromptWidget::StaticClass() },
 		{ TEXT("LoadoutPlate"), TEXT("GalleryRealLoadout_0"), TEXT("GalleryLoadoutStage"), UMordecaiEquippedWeaponWidget::StaticClass() },
+		{ TEXT("StatusChip"), TEXT("GalleryRealStatusChip_0"), nullptr, UMordecaiStatusEffectIndicatorWidget::StaticClass() },
+		{ TEXT("StatusChip"), TEXT("GalleryRealStatusBar"), nullptr, UMordecaiStatusEffectBarWidget::StaticClass() },
+		{ TEXT("CombatCallout"), TEXT("GalleryRealCombatCallout_0"), nullptr, UMordecaiCombatFeedbackWidget::StaticClass() },
 	};
 	for (const TCHAR* Theme : { TEXT("diorama"), TEXT("high-contrast") })
 	{
 		for (const FExpectation& Expected : Expectations)
 		{
-			UMordecaiTinTallyGalleryWidget* Gallery = NewObject<UMordecaiTinTallyGalleryWidget>();
+			UMordecaiTinTallyGalleryWidget* Gallery =
+				NewObject<UMordecaiTinTallyGalleryWidget>(Env.World);
+			Gallery->SetPlayerContext(FLocalPlayerContext(Env.LocalPlayer, Env.World));
 			Gallery->SetFixtureSelectionForTest(Expected.Component, Theme);
 			Gallery->Initialize();
 			UWidget* Widget = Gallery->WidgetTree
@@ -617,6 +637,85 @@ bool FMordecai_UI_Foundation_HUDGalleryUsesShippedWidgets::RunTest(const FString
 					Gallery->WidgetTree->FindWidget(Expected.StageName));
 			}
 		}
+
+		UMordecaiTinTallyGalleryWidget* HUDGallery =
+			NewObject<UMordecaiTinTallyGalleryWidget>(Env.World);
+		HUDGallery->SetPlayerContext(FLocalPlayerContext(Env.LocalPlayer, Env.World));
+		HUDGallery->SetFixtureSelectionForTest(TEXT("HUDLayout"), Theme);
+		HUDGallery->Initialize();
+		UMordecaiCombatHUDWidget* HUD = HUDGallery->WidgetTree
+			? Cast<UMordecaiCombatHUDWidget>(
+				HUDGallery->WidgetTree->FindWidget(TEXT("GalleryRealCombatHUD")))
+			: nullptr;
+		if (!TestNotNull(*FString::Printf(
+			TEXT("HUDLayout/%s exposes its shipped HUD fixture"), Theme), HUD))
+		{
+			continue;
+		}
+		TSharedRef<SWidget> HUDSlate = HUD->TakeWidget();
+		UMordecaiStatusEffectBarWidget* StatusBar =
+			Cast<UMordecaiStatusEffectBarWidget>(
+				HUD->GetNamedWidget(HUD, TEXT("StatusEffectBar")));
+		UPanelWidget* StatusContainer = StatusBar
+			? Cast<UPanelWidget>(
+				StatusBar->WidgetTree->FindWidget(TEXT("IndicatorContainer")))
+			: nullptr;
+		TSet<FString> StatusNames;
+		for (int32 Index = 0; StatusContainer && Index < StatusContainer->GetChildrenCount(); ++Index)
+		{
+			if (UMordecaiStatusEffectIndicatorWidget* Indicator =
+				Cast<UMordecaiStatusEffectIndicatorWidget>(
+					StatusContainer->GetChildAt(Index)))
+			{
+				TArray<UWidget*> Widgets;
+				Indicator->WidgetTree->GetAllWidgets(Widgets);
+				for (const UWidget* Widget : Widgets)
+				{
+					if (const UTextBlock* Text = Cast<UTextBlock>(Widget);
+						Text && !Text->GetText().IsEmpty())
+					{
+						StatusNames.Add(Text->GetText().ToString());
+					}
+				}
+			}
+		}
+		for (const TCHAR* ExpectedStatus : {
+			TEXT("Frostbitten"), TEXT("Focused"), TEXT("Burning"), TEXT("Stone Skin") })
+		{
+			TestTrue(*FString::Printf(
+				TEXT("HUDLayout/%s seeds card frame status '%s'"),
+				Theme, ExpectedStatus),
+				StatusNames.Contains(ExpectedStatus));
+		}
+		UMordecaiCombatFeedbackWidget* Callout =
+			Cast<UMordecaiCombatFeedbackWidget>(
+				HUD->GetNamedWidget(HUD, TEXT("CombatFeedback")));
+		UMordecaiComboCounterWidget* Combo =
+			Cast<UMordecaiComboCounterWidget>(
+				HUD->GetNamedWidget(HUD, TEXT("ComboCounter")));
+		TestNotNull(*FString::Printf(TEXT("HUDLayout/%s callout"), Theme), Callout);
+		TestNotNull(*FString::Printf(TEXT("HUDLayout/%s combo"), Theme), Combo);
+		TestNotNull(*FString::Printf(TEXT("HUDLayout/%s seeds frame 3 callout"), Theme),
+			MordecaiTinTallyFoundationTest::FindTextBlock(
+				Callout ? Callout->WidgetTree : nullptr, TEXT("Parried!")));
+		TestNotNull(*FString::Printf(TEXT("HUDLayout/%s seeds max authored combo"), Theme),
+			MordecaiTinTallyFoundationTest::FindTextBlock(
+				Combo ? Combo->WidgetTree : nullptr, TEXT("Hit 5")));
+		const UCanvasPanelSlot* StatusSlot = StatusBar
+			? Cast<UCanvasPanelSlot>(StatusBar->Slot) : nullptr;
+		const UCanvasPanelSlot* CalloutSlot = Callout
+			? Cast<UCanvasPanelSlot>(Callout->Slot) : nullptr;
+		const UCanvasPanelSlot* ComboSlot = Combo
+			? Cast<UCanvasPanelSlot>(Combo->Slot) : nullptr;
+		TestEqual(*FString::Printf(TEXT("HUDLayout/%s status uses real offset"), Theme),
+			StatusSlot ? StatusSlot->GetPosition() : FVector2D::ZeroVector,
+			FVector2D(32.f, 318.f));
+		TestEqual(*FString::Printf(TEXT("HUDLayout/%s callout uses real bottom"), Theme),
+			CalloutSlot ? CalloutSlot->GetPosition() : FVector2D::ZeroVector,
+			FVector2D(0.f, 180.f));
+		TestEqual(*FString::Printf(TEXT("HUDLayout/%s combo uses real top"), Theme),
+			ComboSlot ? ComboSlot->GetPosition() : FVector2D::ZeroVector,
+			FVector2D(0.f, 184.f));
 	}
 	return true;
 }

@@ -22,14 +22,19 @@
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Magic/MordecaiSpellDataAsset.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
+#include "Mordecai/UI/MordecaiComboCounterWidget.h"
 #include "Mordecai/UI/MordecaiEquippedWeaponWidget.h"
 #include "Mordecai/UI/MordecaiHealthBarWidget.h"
+#include "Mordecai/UI/MordecaiHUDConstants.h"
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Mordecai/UI/MordecaiPostureBarWidget.h"
 #include "Mordecai/UI/MordecaiSpellCooldownWidget.h"
 #include "Mordecai/UI/MordecaiSpellPointsBarWidget.h"
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
+#include "Mordecai/UI/MordecaiStatusEffectBarWidget.h"
+#include "Mordecai/UI/MordecaiStatusEffectIndicatorWidget.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 #include "Mordecai/UI/TinTally/MordecaiUIThemeSubsystem.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
@@ -231,7 +236,7 @@ bool FMordecai_UI_HUDLayout_FinalMapBoxes::RunTest(const FString& Parameters)
 	ExpectCanvasBox(*this, RailHead, TEXT("TallyRailHead"), FAnchors(1.f, 0.f),
 		FVector2D(-32.f, 32.f), FVector2D(320.f, 56.f), FVector2D(1.f, 0.f));
 	ExpectCanvasBox(*this, Callout, TEXT("CombatFeedback"), FAnchors(0.5f, 0.5f),
-		FVector2D(0.f, 128.f), FVector2D(520.f, 52.f), FVector2D(0.5f, 0.f));
+		FVector2D(0.f, 180.f), FVector2D(520.f, 52.f), FVector2D(0.5f, 1.f));
 	ExpectCanvasBox(*this, Combo, TEXT("ComboCounter"), FAnchors(0.5f, 0.5f),
 		FVector2D(0.f, 184.f), FVector2D(220.f, 36.f), FVector2D(0.5f, 0.f));
 	ExpectCanvasBox(*this, Prompt, TEXT("PickupPrompt unit"), FAnchors(0.5f, 1.f),
@@ -271,7 +276,28 @@ bool FMordecai_UI_HUDLayout_FinalMapBoxes::RunTest(const FString& Parameters)
 	ExpectCanvasBox(*this, Loadout, TEXT("EquippedWeaponWidget at 96"), FAnchors(1.f, 1.f),
 		FVector2D(-96.f, -96.f), FVector2D(340.f, 84.f), FVector2D(1.f, 1.f));
 	ExpectCanvasBox(*this, Callout, TEXT("CombatFeedback stays centred"), FAnchors(0.5f, 0.5f),
-		FVector2D(0.f, 128.f), FVector2D(520.f, 52.f), FVector2D(0.5f, 0.f));
+		FVector2D(0.f, 180.f), FVector2D(520.f, 52.f), FVector2D(0.5f, 1.f));
+	for (int32 SizeIndex = 0; SizeIndex < 3; ++SizeIndex)
+	{
+		HUD->SetCombatTextSize(SizeIndex);
+		const MordecaiHUDConstants::FCombatCalloutLayout Layout =
+			MordecaiHUDConstants::GetCombatCalloutLayout(SizeIndex);
+		const FString SizeLabel = FString::Printf(TEXT("callout size %d"), SizeIndex);
+		ExpectCanvasBox(*this, Callout, *SizeLabel,
+			FAnchors(0.5f, 0.5f),
+			FVector2D(0.f, Layout.BottomFromCenterPx),
+			FVector2D(520.f, Layout.SlotHeightPx),
+			FVector2D(0.5f, 1.f));
+		ExpectCanvasBox(*this, Combo, *FString::Printf(TEXT("combo size %d"), SizeIndex),
+			FAnchors(0.5f, 0.5f),
+			FVector2D(0.f, Layout.ComboTopFromCenterPx),
+			FVector2D(220.f, 36.f),
+			FVector2D(0.5f, 0.f));
+		const float CalloutBottom = Layout.BottomFromCenterPx;
+		const float ComboTop = Layout.ComboTopFromCenterPx;
+		TestTrue(*FString::Printf(TEXT("%s never overlaps combo"), *SizeLabel),
+			CalloutBottom <= ComboTop);
+	}
 	return true;
 }
 
@@ -478,16 +504,37 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 	UMordecaiPickupPromptWidget* Prompt = Env.MakeWidget<UMordecaiPickupPromptWidget>();
 	UMordecaiEquippedWeaponWidget* Loadout = Env.MakeWidget<UMordecaiEquippedWeaponWidget>();
 	UMordecaiSpellCooldownWidget* Slot = Env.MakeWidget<UMordecaiSpellCooldownWidget>();
+	UMordecaiStatusEffectIndicatorWidget* StatusIndicator =
+		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
+	UMordecaiStatusEffectIndicatorWidget* CompactDebuff =
+		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
+	UMordecaiStatusEffectBarWidget* StatusBar =
+		Env.MakeWidget<UMordecaiStatusEffectBarWidget>();
+	UMordecaiCombatFeedbackWidget* Callout =
+		Env.MakeWidget<UMordecaiCombatFeedbackWidget>();
+	UMordecaiComboCounterWidget* Combo =
+		Env.MakeWidget<UMordecaiComboCounterWidget>();
 	if (!TestNotNull("spell slot", Slot))
 	{
 		return true;
 	}
+	StatusIndicator->InitializeIndicator(
+		MordecaiGameplayTags::Status_StoneSkin, true, 10.f);
+	CompactDebuff->InitializeIndicator(
+		MordecaiGameplayTags::Status_Shocked, false, 5.f);
+	CompactDebuff->SetCompact(true);
+	Callout->ShowFeedback(
+		TEXT("Parry Failed!"), Themes->GetActiveColors().DangerText);
+	Combo->SetComboIndex(4);
+	Combo->SetComboVisible(true);
 	TArray<TSharedPtr<SWidget>> LiveSlateWidgets = {
 		Health->TakeWidget(), Stamina->TakeWidget(), Posture->TakeWidget(),
 		SpellPoints->TakeWidget(), Prompt->TakeWidget(), Loadout->TakeWidget(),
-		Slot->TakeWidget()
+		Slot->TakeWidget(), StatusIndicator->TakeWidget(),
+		CompactDebuff->TakeWidget(), StatusBar->TakeWidget(),
+		Callout->TakeWidget(), Combo->TakeWidget()
 	};
-	TSharedRef<SWidget> SlotSlate = LiveSlateWidgets.Last().ToSharedRef();
+	TSharedRef<SWidget> SlotSlate = LiveSlateWidgets[6].ToSharedRef();
 	Themes->SetActiveTheme(EMordecaiUITheme::HighContrast);
 	const UOverlaySlot* HighContrastInset = Cast<UOverlaySlot>(PlateRimShade->Slot);
 	TestTrue("live GaugePlate switches to High Contrast black",
@@ -500,13 +547,50 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		static_cast<UUserWidget*>(Health), static_cast<UUserWidget*>(Stamina),
 		static_cast<UUserWidget*>(Posture), static_cast<UUserWidget*>(SpellPoints),
 		static_cast<UUserWidget*>(Prompt), static_cast<UUserWidget*>(Loadout),
-		static_cast<UUserWidget*>(Slot) })
+		static_cast<UUserWidget*>(Slot), static_cast<UUserWidget*>(StatusIndicator),
+		static_cast<UUserWidget*>(CompactDebuff),
+		static_cast<UUserWidget*>(StatusBar),
+		static_cast<UUserWidget*>(Callout), static_cast<UUserWidget*>(Combo) })
 	{
 		TestTrue(*FString::Printf(TEXT("%s subscribes once to the owning player's theme"),
 			*LiveWidget->GetClass()->GetName()),
 			Themes->OnThemeChangedNative().IsBoundToObject(LiveWidget));
 	}
 	const FMordecaiUIThemeColors HighContrast = Themes->GetActiveColors();
+	UImage* StatusBody = Find<UImage>(StatusIndicator, TEXT("TintImage"));
+	TestTrue("status indicator resolves live High Contrast enamel",
+		StatusBody
+		&& BrushTint(StatusBody->GetBrush()).Equals(HighContrast.Enamel));
+	TestTrue("status indicator resolves the live 4px High Contrast ink outline",
+		StatusBody
+		&& StatusBody->GetBrush().OutlineSettings.Width == 4.f
+		&& StatusBody->GetBrush().OutlineSettings.Color.GetSpecifiedColor().Equals(
+			HighContrast.Ink));
+	UImage* CompactDebuffBody = Find<UImage>(CompactDebuff, TEXT("TintImage"));
+	TestTrue("compact debuff resolves a visible 4px High Contrast outline",
+		CompactDebuffBody
+		&& BrushTint(CompactDebuffBody->GetBrush()).Equals(HighContrast.Plate)
+		&& CompactDebuffBody->GetBrush().OutlineSettings.Width == 4.f
+		&& CompactDebuffBody->GetBrush().OutlineSettings.Color.GetSpecifiedColor().Equals(
+			HighContrast.Lip));
+	UBorder* OverflowPlate = Find<UBorder>(StatusBar, TEXT("OverflowPlate"));
+	TestTrue("status bar resolves live High Contrast plate and lip tokens",
+		OverflowPlate
+		&& BrushTint(OverflowPlate->Background).Equals(HighContrast.Plate)
+		&& OverflowPlate->Background.OutlineSettings.Color.GetSpecifiedColor().Equals(
+			HighContrast.Lip));
+	TestTrue("negative callout resolves live High Contrast danger-text",
+		Find<UTextBlock>(Callout, TEXT("FeedbackText"))
+		&& Find<UTextBlock>(Callout, TEXT("FeedbackText"))
+			->GetColorAndOpacity().GetSpecifiedColor().Equals(HighContrast.DangerText));
+	TestTrue("combo resolves live High Contrast good",
+		Find<UTextBlock>(Combo, TEXT("ComboText"))
+		&& Find<UTextBlock>(Combo, TEXT("ComboText"))
+			->GetColorAndOpacity().GetSpecifiedColor().Equals(HighContrast.Good));
+	TestTrue("combo plate resolves live High Contrast plate",
+		Find<UBorder>(Combo, TEXT("ComboPlate_Fill"))
+		&& BrushTint(Find<UBorder>(Combo, TEXT("ComboPlate_Fill"))->Background).Equals(
+			HighContrast.Plate));
 	TestTrue("health resolves the High Contrast vital token",
 		Find<UProgressBar>(Health, TEXT("HealthProgressBar"))
 		&& Find<UProgressBar>(Health, TEXT("HealthProgressBar"))->GetFillColorAndOpacity().Equals(

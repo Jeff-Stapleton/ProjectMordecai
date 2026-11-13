@@ -870,6 +870,26 @@ Content counts only when saved AND committed: `py Scripts/check_content_committe
 - `playtest_boot.py`'s `content_cooked` check now FAILs (exit 1) on any `SkipPackage` / `Failed to find object` for a `/MordecaiCore` path.
 - **Rule for new code:** content referenced only from C++ must either live under a cooked directory (all of `/MordecaiCore` is now), or be referenced through a `UPROPERTY` soft/hard pointer on an asset the cooker already includes (a data asset, a Blueprint CDO, experience/pawn data). Never assume "it loads in PIE" means "it ships".
 
+### Tin Tally typography token names are not all runtime style asset names
+
+**Problem:** A native widget called `MordecaiUITypography::Apply(Text, TEXT("meta"))`.
+PIE and Tier 1 still drew readable fallback text, but the packaged boot failed
+`content_cooked` after requesting the nonexistent package
+`/MordecaiCore/UI/TinTally/Fonts/Styles/TS_Tally_meta`.
+
+**Root cause:** `MordecaiUITypography::Apply` builds a class path directly from its string and
+returns false when `LoadClass` fails; it does not validate a design-token name or log the failure.
+The design vocabulary includes prose names that are not authored `TS_Tally_*` assets. The shipped
+runtime styles are the actual files under `Fonts/Styles` (for example `num_m`, not `meta`).
+Overriding size and typeface after a failed call made the fallback look plausible and let the
+headless presentation test pass without the intended composite font.
+
+**Fix:** Pass an authored runtime style name that matches the component contract (`num_m` for the
+combo counter), then override only the documented properties. Presentation tests must assert the
+loaded `FontObject` as well as size/typeface, so a failed style load cannot be a false green.
+`playtest_boot.py` remains the cook gate: any `/MordecaiCore` package request missing from the build
+is a failure even when the fallback is visibly readable.
+
 ### Writing a loaded asset into a native CDO crashes packaged builds (GC "Disregard for GC" fatal)
 
 **Problem:** After all of `/MordecaiCore` was cooked, the packaged game crashed about 6s after load: `Fatal error: [GarbageCollectionVerification.cpp] Encountered 4 object(s) breaking Disregard for GC assumptions`, preceded by `LogGarbage: Warning: Disregard for GC object MordecaiGA_Blink /Script/LyraGame.Default__MordecaiGA_Blink referencing MordecaiSpellDataAsset /MordecaiCore/Spells/DA_Spell_Blink... which is not part of root set` (x4 spells). PIE never crashed. Before cooking was fixed, the assets were missing, so the pointers were null and the spells were silently absent instead.

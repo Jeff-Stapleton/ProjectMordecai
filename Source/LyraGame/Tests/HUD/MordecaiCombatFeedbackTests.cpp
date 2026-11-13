@@ -3,6 +3,7 @@
 #include "Misc/AutomationTest.h"
 #include "Mordecai/UI/MordecaiComboCounterWidget.h"
 #include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 // ---------------------------------------------------------------------------
 // 1. Mordecai.UI.ComboCounter.FormatComboHit (AC-061.1)
@@ -74,9 +75,9 @@ bool FMordecai_UI_CombatFeedback_GetFeedbackColorForTag::RunTest(const FString& 
 	const FLinearColor PositiveColor = UMordecaiCombatFeedbackWidget::GetFeedbackColorForTag(PerfectDodge);
 	const FLinearColor NegativeColor = UMordecaiCombatFeedbackWidget::GetFeedbackColorForTag(ParryWhiff);
 
-	// Positive actions get gold/yellow, negative get red
-	TestEqual("PerfectDodge = gold", PositiveColor, FLinearColor(1.f, 0.84f, 0.f, 1.f));
-	TestEqual("ParryWhiff = red", NegativeColor, FLinearColor(1.f, 0.2f, 0.2f, 1.f));
+	const FMordecaiUIThemeColors Colors = FMordecaiUIThemeColors::MakeDiorama();
+	TestEqual("PerfectDodge uses the live-theme good token", PositiveColor, Colors.Good);
+	TestEqual("ParryWhiff uses the live-theme danger-text token", NegativeColor, Colors.DangerText);
 	return true;
 }
 

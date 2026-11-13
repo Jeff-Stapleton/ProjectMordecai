@@ -34,8 +34,9 @@ Usage (the kit's common options):
   py Scripts/playtests/us057_magic.py --attach-port N [--token T]   always diagnostic
 
 Output: Saved/Playtests/<YYYYmmdd-HHMMSS>-us057/ (report.md, report.json, game.log,
-bridge.jsonl, bridge_NN.png).  Open every screenshot and say what is on screen: the damage
-number near the TestDummy's health bar (fireball_hit) is the only damage-number evidence.
+bridge.jsonl, bridge_NN.png).  US-106 fix-round-2 bundles every screenshot for the coordinator's
+image review; the damage number near the TestDummy's health bar (fireball_hit) is the only
+damage-number evidence.
 
 Exit codes: 0 every check passed (WARN allowed), 1 a gameplay FAIL, 2 infrastructure.
 """
@@ -97,7 +98,7 @@ BLINK_MAX_DY = 50.0
 
 STONE_SKIN_TAG = "Mordecai.Status.StoneSkin"
 RESTORATION_TAG = "Mordecai.Status.Restoration"
-STONE_SKIN_TEXT = "StoneSkin"
+STONE_SKIN_TEXT = "Stone Skin"
 SP_BAR = "SpellPointsBar"         # WBP_SpellPointsBar / MordecaiSpellPointsBarWidget
 COOLDOWN_WIDGET = "SpellCooldown"  # SpellCooldownA-D / MordecaiSpellCooldownWidget
 COOLDOWN_WIDGETS_EXPECTED = 4
@@ -110,7 +111,7 @@ SCREENSHOTS = {
                     "of the run",
     "after_blink": "the player on the Blink lane (y = -600, left of the PlayerStart) about 500 cm "
                    "further +X than before the Blink, on open grid floor; SP bar '5 / 10'",
-    "stone_skin": "the Stone Skin buff indicator in the status bar (bottom-left): 'StoneSkin' and "
+    "stone_skin": "the Stone Skin buff indicator in the status bar (bottom-left): 'Stone Skin' and "
                   "a decimal countdown, green tint; SP bar '1 / 10'",
     "spell_hud": "the SP bar reading '1 / 10' after the refused Restoration, and the spell "
                  "cooldown widgets labelled Q / E / R / 1 (top-left, under the SP bar), with "
@@ -289,12 +290,12 @@ def _cooldown_widget_for_label(st, label):
 
 
 def _stone_skin_widgets(st):
-    """Widgets that render a text containing 'StoneSkin'."""
+    """Widgets that render the approved player-facing text 'Stone Skin'."""
     return [w for w in _widgets(st) if any(STONE_SKIN_TEXT in t for t in _texts(w))]
 
 
 def _stone_skin_indicator(st):
-    """A widget rendering 'StoneSkin' AND a numeric remaining duration, or None."""
+    """A widget rendering 'Stone Skin' AND a numeric remaining duration, or None."""
     for w in _stone_skin_widgets(st):
         if _numeric_texts(w):
             return w

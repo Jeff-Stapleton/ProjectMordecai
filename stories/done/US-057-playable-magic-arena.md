@@ -87,6 +87,6 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 12 | `blink` | tap E -> player.location.x rises > 400 and spell_points 7 -> 5 within 2s, \|dy\| < 50 | AC-057.2, AC-057.5 |
 | 13 | `stone_skin` | tap R -> Mordecai.Status.StoneSkin in player.tags and spell_points 5 -> 1 within 2s | AC-057.3 |
 | 14 | `stone_skin_cooldown_hud` | state widgets -> the R SpellCooldown renders a decimal remaining cooldown after the real R input | AC-057.9 |
-| 15 | `stone_skin_indicator` | state widgets -> a widget renders "StoneSkin" and a numeric remaining duration within 2s | US-055:AC-055.4, US-055:AC-055.5, US-055:AC-055.6 |
+| 15 | `stone_skin_indicator` | state widgets -> a widget renders "Stone Skin" and a numeric remaining duration within 2s | US-055:AC-055.4, US-055:AC-055.5, US-055:AC-055.6 |
 | 16 | `restoration_refused_low_sp` | tap One at 1 SP -> for 1.5s spell_points stays 1, no Mordecai.Status.Restoration, player.spells[3].can_afford==false | - |
-| 17 | `stone_skin_expires` | state player, widgets -> within 12s Mordecai.Status.StoneSkin leaves player.tags and no widget renders "StoneSkin" | US-055:AC-055.6 |
+| 17 | `stone_skin_expires` | state player, widgets -> within 12s Mordecai.Status.StoneSkin leaves player.tags and no widget renders "Stone Skin" | US-055:AC-055.6 |

@@ -3,13 +3,70 @@
 #include "Mordecai/UI/MordecaiStatusEffectBarWidget.h"
 #include "Mordecai/UI/MordecaiStatusEffectIndicatorWidget.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/StatusEffects/MordecaiStatusEffectTypes.h"
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
+#include "Components/PanelWidget.h"
 #include "GameplayEffect.h"
-#include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
+#include "Components/SizeBox.h"
+#include "Components/TextBlock.h"
+#include "Components/WrapBox.h"
+#include "Mordecai/UI/TinTally/MordecaiUITypography.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiStatusEffectBarWidget)
+
+namespace
+{
+	int32 CategoryPriority(const EMordecaiStatusEffectCategory Category)
+	{
+		switch (Category)
+		{
+		case EMordecaiStatusEffectCategory::Control: return 0;
+		case EMordecaiStatusEffectCategory::DoT: return 1;
+		case EMordecaiStatusEffectCategory::Debuff: return 2;
+		case EMordecaiStatusEffectCategory::Environmental: return 3;
+		case EMordecaiStatusEffectCategory::Buff: return 4;
+		default: return 2;
+		}
+	}
+
+	bool FitsTwoRows(
+		const TArray<UMordecaiStatusEffectIndicatorWidget*>& Indicators,
+		const int32 Count,
+		const bool bCompact,
+		const bool bIncludeOverflow)
+	{
+		constexpr float StripWidth = 456.f;
+		constexpr float HorizontalGap = 10.f;
+		constexpr float OverflowWidth = 58.f;
+		int32 Rows = 1;
+		float RowWidth = 0.f;
+		auto AddWidth = [&Rows, &RowWidth](const float Width)
+		{
+			const float Added = RowWidth > 0.f ? HorizontalGap + Width : Width;
+			if (RowWidth > 0.f && RowWidth + Added > StripWidth)
+			{
+				++Rows;
+				RowWidth = Width;
+			}
+			else
+			{
+				RowWidth += Added;
+			}
+		};
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			AddWidth(Indicators[Index]->GetChipWidth(bCompact));
+		}
+		if (bIncludeOverflow)
+		{
+			AddWidth(OverflowWidth);
+		}
+		return Rows <= 2;
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Programmatic Fallback (empty Blueprint support)
@@ -31,30 +88,66 @@ void UMordecaiStatusEffectBarWidget::NativeOnInitialized()
 	}
 }
 
-void UMordecaiStatusEffectBarWidget::BuildDefaultContent()
+void UMordecaiStatusEffectBarWidget::NativeConstruct()
 {
-	IndicatorContainer = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("IndicatorContainer"));
-	WidgetTree->RootWidget = IndicatorContainer;
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this, BoundThemeSubsystem, ThemeChangedHandle,
+		this, &ThisClass::ApplyTheme);
 }
 
-// ---------------------------------------------------------------------------
-// Buff Tag Set (AC-055.7)
-// ---------------------------------------------------------------------------
-
-const FGameplayTagContainer& UMordecaiStatusEffectBarWidget::GetBuffTagContainer()
+void UMordecaiStatusEffectBarWidget::NativeDestruct()
 {
-	static FGameplayTagContainer BuffTags;
-	static bool bBuffTagsInitialized = false;
-	if (!bBuffTagsInitialized)
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
+	Super::NativeDestruct();
+}
+
+void UMordecaiStatusEffectBarWidget::NativeTick(
+	const FGeometry& MyGeometry,
+	const float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	DurationRefreshAccumulator += InDeltaTime;
+	if (DurationRefreshAccumulator >= 0.1f)
 	{
-		BuffTags.AddTag(MordecaiGameplayTags::Status_Focused);
-		BuffTags.AddTag(MordecaiGameplayTags::Status_Blessed);
-		BuffTags.AddTag(MordecaiGameplayTags::Status_StoneSkin);
-		BuffTags.AddTag(MordecaiGameplayTags::Status_FireWard);
-		BuffTags.AddTag(MordecaiGameplayTags::Status_Restoration);
-		bBuffTagsInitialized = true;
+		DurationRefreshAccumulator = FMath::Fmod(DurationRefreshAccumulator, 0.1f);
+		RefreshDurationsAndStacks();
 	}
-	return BuffTags;
+}
+
+void UMordecaiStatusEffectBarWidget::BuildDefaultContent()
+{
+	UWrapBox* Wrap = WidgetTree->ConstructWidget<UWrapBox>(
+		UWrapBox::StaticClass(), TEXT("IndicatorContainer"));
+	Wrap->SetWrapSize(456.f);
+	Wrap->SetInnerSlotPadding(FVector2D(10.f, 20.f));
+	IndicatorContainer = Wrap;
+	UBorder* WrapPadding = WidgetTree->ConstructWidget<UBorder>(
+		UBorder::StaticClass(), TEXT("StatusWrapPadding"));
+	WrapPadding->SetPadding(FMargin(0.f, 12.f, 0.f, 8.f));
+	FSlateBrush NoDraw;
+	NoDraw.DrawAs = ESlateBrushDrawType::NoDrawType;
+	WrapPadding->SetBrush(NoDraw);
+	WrapPadding->SetContent(Wrap);
+	WidgetTree->RootWidget = WrapPadding;
+	OverflowChip = WidgetTree->ConstructWidget<UTextBlock>(
+		UTextBlock::StaticClass(), TEXT("OverflowChip"));
+	OverflowChip->SetJustification(ETextJustify::Center);
+	MordecaiUITypography::Apply(OverflowChip, TEXT("num_s"));
+	OverflowPlate = WidgetTree->ConstructWidget<UBorder>(
+		UBorder::StaticClass(), TEXT("OverflowPlate"));
+	OverflowPlate->SetPadding(FMargin(8.f, 2.f));
+	OverflowPlate->SetHorizontalAlignment(HAlign_Center);
+	OverflowPlate->SetVerticalAlignment(VAlign_Center);
+	OverflowPlate->SetContent(OverflowChip);
+	OverflowSize = WidgetTree->ConstructWidget<USizeBox>(
+		USizeBox::StaticClass(), TEXT("OverflowSize"));
+	OverflowSize->SetWidthOverride(58.f);
+	OverflowSize->SetHeightOverride(36.f);
+	OverflowSize->SetContent(OverflowPlate);
+	OverflowSize->SetVisibility(ESlateVisibility::Collapsed);
+	IndicatorContainer->AddChild(OverflowSize);
+	ApplyTheme(EMordecaiUITheme::Diorama, FMordecaiUIThemeColors::MakeDiorama());
 }
 
 // ---------------------------------------------------------------------------
@@ -63,7 +156,10 @@ const FGameplayTagContainer& UMordecaiStatusEffectBarWidget::GetBuffTagContainer
 
 bool UMordecaiStatusEffectBarWidget::IsBuffTag(const FGameplayTag& StatusTag)
 {
-	return GetBuffTagContainer().HasTagExact(StatusTag);
+	const FMordecaiStatusDisplayData* Row =
+		FindStatusEffectDisplayData(StatusTag);
+	return Row
+		&& Row->DisplayPolarity == EMordecaiStatusDisplayPolarity::Buff;
 }
 
 FLinearColor UMordecaiStatusEffectBarWidget::GetTintForStatusTag(const FGameplayTag& StatusTag)
@@ -84,38 +180,77 @@ void UMordecaiStatusEffectBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 		return;
 	}
 
-	const FGameplayTag StatusRootTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Mordecai.Status")));
 	if (UAbilitySystemComponent* Previous = BoundASC.Get())
 	{
-		Previous->RegisterGameplayTagEvent(StatusRootTag, EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
-		if (Previous != ASC)
+		for (const FMordecaiStatusDisplayData& Row : GetAllStatusEffectDisplayData())
 		{
-			for (const TPair<FGameplayTag, TObjectPtr<UMordecaiStatusEffectIndicatorWidget>>& Pair : ActiveIndicators)
-			{
-				if (Pair.Value)
-				{
-					Pair.Value->RemoveFromParent();
-				}
-			}
-			ActiveIndicators.Reset();
+			Previous->RegisterGameplayTagEvent(
+				Row.Tag, EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
 		}
 	}
+	for (const TPair<FGameplayTag, TObjectPtr<UMordecaiStatusEffectIndicatorWidget>>& Pair
+		: ActiveIndicators)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->RemoveFromParent();
+		}
+	}
+	ActiveIndicators.Reset();
+	ActiveTagOrder.Reset();
 	BoundASC = ASC;
 
-	// Register for any child tag change under Mordecai.Status
-	ASC->RegisterGameplayTagEvent(StatusRootTag, EGameplayTagEventType::NewOrRemoved)
-		.AddUObject(this, &UMordecaiStatusEffectBarWidget::OnStatusTagChanged);
-
-	// Check for any already-active status tags and create indicators
-	FGameplayTagContainer OwnedTags;
-	ASC->GetOwnedGameplayTags(OwnedTags);
-	for (const FGameplayTag& Tag : OwnedTags)
+	// Register every approved child tag directly. A parent-tag callback reports the
+	// parent, not the child that changed, and cannot key one indicator per status.
+	for (const FMordecaiStatusDisplayData& Row : GetAllStatusEffectDisplayData())
 	{
-		if (Tag.MatchesTag(StatusRootTag) && !Tag.MatchesTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Mordecai.Status.Category")))))
+		if (!EffectQueries.Contains(Row.Tag))
 		{
-			AddIndicator(Tag);
+			FGameplayEffectQuery Query;
+			Query.OwningTagQuery = FGameplayTagQuery::MakeQuery_MatchAnyTags(
+				FGameplayTagContainer(Row.Tag));
+			EffectQueries.Add(Row.Tag, MoveTemp(Query));
+		}
+		ASC->RegisterGameplayTagEvent(Row.Tag, EGameplayTagEventType::NewOrRemoved)
+			.AddUObject(this, &ThisClass::OnStatusTagChanged);
+		if (ASC->HasMatchingGameplayTag(Row.Tag))
+		{
+			ActiveTagOrder.AddUnique(Row.Tag);
 		}
 	}
+	RebuildIndicators();
+}
+
+void UMordecaiStatusEffectBarWidget::SetGalleryPreviewStatuses(
+	const TArray<FGameplayTag>& StatusTags)
+{
+	if (UAbilitySystemComponent* Previous = BoundASC.Get())
+	{
+		for (const FMordecaiStatusDisplayData& Row : GetAllStatusEffectDisplayData())
+		{
+			Previous->RegisterGameplayTagEvent(
+				Row.Tag, EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
+		}
+	}
+	BoundASC.Reset();
+	for (const TPair<FGameplayTag, TObjectPtr<UMordecaiStatusEffectIndicatorWidget>>& Pair
+		: ActiveIndicators)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->RemoveFromParent();
+		}
+	}
+	ActiveIndicators.Reset();
+	ActiveTagOrder.Reset();
+	for (const FGameplayTag& Tag : StatusTags)
+	{
+		if (FindStatusEffectDisplayData(Tag))
+		{
+			ActiveTagOrder.AddUnique(Tag);
+		}
+	}
+	RebuildIndicators();
 }
 
 // ---------------------------------------------------------------------------
@@ -124,12 +259,6 @@ void UMordecaiStatusEffectBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 
 void UMordecaiStatusEffectBarWidget::OnStatusTagChanged(const FGameplayTag Tag, int32 NewCount)
 {
-	// Skip category tags (Mordecai.Status.Category.*)
-	if (Tag.MatchesTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Mordecai.Status.Category")))))
-	{
-		return;
-	}
-
 	if (NewCount > 0)
 	{
 		AddIndicator(Tag);
@@ -142,68 +271,198 @@ void UMordecaiStatusEffectBarWidget::OnStatusTagChanged(const FGameplayTag Tag, 
 
 void UMordecaiStatusEffectBarWidget::AddIndicator(const FGameplayTag& StatusTag)
 {
-	// Don't duplicate
-	if (ActiveIndicators.Contains(StatusTag))
+	if (!FindStatusEffectDisplayData(StatusTag))
 	{
 		return;
 	}
-
-	// Enforce max visible limit
-	if (ActiveIndicators.Num() >= MaxVisibleIndicators)
-	{
-		return;
-	}
-
-	if (!IndicatorWidgetClass)
-	{
-		return;
-	}
-
-	UMordecaiStatusEffectIndicatorWidget* Indicator = CreateWidget<UMordecaiStatusEffectIndicatorWidget>(this, IndicatorWidgetClass);
-	if (!Indicator)
-	{
-		return;
-	}
-
-	const bool bIsBuff = IsBuffTag(StatusTag);
-
-	// Query remaining duration from ASC if available
-	float Duration = 0.f;
-	if (UAbilitySystemComponent* ASC = BoundASC.Get())
-	{
-		// Query for active GEs that grant this specific status tag
-		FGameplayEffectQuery Query;
-		Query.OwningTagQuery = FGameplayTagQuery::MakeQuery_MatchAnyTags(FGameplayTagContainer(StatusTag));
-		TArray<FActiveGameplayEffectHandle> MatchingEffects = ASC->GetActiveEffects(Query);
-		for (const FActiveGameplayEffectHandle& Handle : MatchingEffects)
-		{
-			const FActiveGameplayEffect* ActiveGE = ASC->GetActiveGameplayEffect(Handle);
-			if (ActiveGE)
-			{
-				Duration = ActiveGE->GetDuration();
-				break;
-			}
-		}
-	}
-
-	Indicator->InitializeIndicator(StatusTag, bIsBuff, Duration);
-
-	if (IndicatorContainer)
-	{
-		IndicatorContainer->AddChildToHorizontalBox(Indicator);
-	}
-
-	ActiveIndicators.Add(StatusTag, Indicator);
+	ActiveTagOrder.AddUnique(StatusTag);
+	RebuildIndicators();
 }
 
 void UMordecaiStatusEffectBarWidget::RemoveIndicator(const FGameplayTag& StatusTag)
 {
-	TObjectPtr<UMordecaiStatusEffectIndicatorWidget>* Found = ActiveIndicators.Find(StatusTag);
-	if (!Found || !(*Found))
+	ActiveTagOrder.Remove(StatusTag);
+	if (TObjectPtr<UMordecaiStatusEffectIndicatorWidget>* Found =
+		ActiveIndicators.Find(StatusTag))
+	{
+		if (*Found)
+		{
+			(*Found)->RemoveFromParent();
+		}
+	}
+	ActiveIndicators.Remove(StatusTag);
+	RebuildIndicators();
+}
+
+void UMordecaiStatusEffectBarWidget::RebuildIndicators()
+{
+	if (!IndicatorContainer || !IndicatorWidgetClass)
 	{
 		return;
 	}
+	if (OverflowSize)
+	{
+		OverflowSize->SetVisibility(ESlateVisibility::Collapsed);
+		if (OverflowSize->GetParent() != IndicatorContainer)
+		{
+			IndicatorContainer->AddChild(OverflowSize);
+		}
+	}
 
-	(*Found)->RemoveFromParent();
-	ActiveIndicators.Remove(StatusTag);
+	TArray<FGameplayTag> Ordered = ActiveTagOrder;
+	Ordered.StableSort([](const FGameplayTag& Left, const FGameplayTag& Right)
+	{
+		const FMordecaiStatusDisplayData* LeftRow =
+			FindStatusEffectDisplayData(Left);
+		const FMordecaiStatusDisplayData* RightRow =
+			FindStatusEffectDisplayData(Right);
+		return CategoryPriority(
+			LeftRow
+				? LeftRow->DisplaySortCategory
+				: EMordecaiStatusEffectCategory::Debuff)
+			< CategoryPriority(
+				RightRow
+					? RightRow->DisplaySortCategory
+					: EMordecaiStatusEffectCategory::Debuff);
+	});
+
+	TArray<UMordecaiStatusEffectIndicatorWidget*> Indicators;
+	Indicators.Reserve(Ordered.Num());
+	for (const FGameplayTag& Tag : Ordered)
+	{
+		UMordecaiStatusEffectIndicatorWidget* Indicator =
+			ActiveIndicators.FindRef(Tag);
+		if (!Indicator)
+		{
+			Indicator = CreateWidget<UMordecaiStatusEffectIndicatorWidget>(
+				this, IndicatorWidgetClass);
+			if (Indicator)
+			{
+				const FMordecaiStatusDisplayData* Row =
+					FindStatusEffectDisplayData(Tag);
+				Indicator->InitializeIndicator(
+					Tag,
+					Row && Row->DisplayPolarity
+						== EMordecaiStatusDisplayPolarity::Buff,
+					Row ? Row->DefaultDuration : 0.f);
+				ActiveIndicators.Add(Tag, Indicator);
+			}
+		}
+		if (Indicator)
+		{
+			if (Indicator->GetParent() != IndicatorContainer)
+			{
+				IndicatorContainer->AddChild(Indicator);
+			}
+			Indicators.Add(Indicator);
+		}
+	}
+
+	const int32 CandidateCount =
+		FMath::Min(Indicators.Num(), MaxVisibleIndicators);
+	const bool bCompact = !FitsTwoRows(
+		Indicators, CandidateCount, false, false);
+	int32 VisibleCount = CandidateCount;
+	const bool bNeedsOverflowChip =
+		bCompact && !FitsTwoRows(Indicators, CandidateCount, true, false);
+	if (bNeedsOverflowChip)
+	{
+		VisibleCount = FMath::Min(VisibleCount, MaxVisibleIndicators - 1);
+		while (VisibleCount > 0
+			&& !FitsTwoRows(Indicators, VisibleCount, true, true))
+		{
+			--VisibleCount;
+		}
+	}
+
+	for (UMordecaiStatusEffectIndicatorWidget* Indicator : Indicators)
+	{
+		Indicator->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	for (int32 Index = 0; Index < Indicators.Num(); ++Index)
+	{
+		UMordecaiStatusEffectIndicatorWidget* Indicator = Indicators[Index];
+		Indicator->SetCompact(bCompact);
+		if (Index < VisibleCount)
+		{
+			Indicator->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+		IndicatorContainer->ShiftChild(Index, Indicator);
+	}
+
+	const int32 HiddenCount = Indicators.Num() - VisibleCount;
+	if (bNeedsOverflowChip && HiddenCount > 0 && OverflowChip && OverflowSize)
+	{
+		OverflowChip->SetText(FText::Format(
+			NSLOCTEXT("MordecaiStatusEffects", "Overflow", "+{0}"),
+			FText::AsNumber(HiddenCount)));
+		OverflowSize->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	if (OverflowSize)
+	{
+		IndicatorContainer->ShiftChild(
+			IndicatorContainer->GetChildrenCount() - 1, OverflowSize);
+	}
+	SetVisibility(
+		Indicators.IsEmpty()
+			? ESlateVisibility::Collapsed
+			: ESlateVisibility::HitTestInvisible);
+	RefreshDurationsAndStacks();
+}
+
+void UMordecaiStatusEffectBarWidget::RefreshDurationsAndStacks()
+{
+	UAbilitySystemComponent* ASC = BoundASC.Get();
+	if (!ASC)
+	{
+		return;
+	}
+	for (const TPair<FGameplayTag, TObjectPtr<UMordecaiStatusEffectIndicatorWidget>>& Pair
+		: ActiveIndicators)
+	{
+		if (!Pair.Value
+			|| Pair.Value->GetVisibility() == ESlateVisibility::Collapsed
+			|| Pair.Value->GetVisibility() == ESlateVisibility::Hidden)
+		{
+			continue;
+		}
+		const FGameplayEffectQuery* Query = EffectQueries.Find(Pair.Key);
+		if (!Query)
+		{
+			continue;
+		}
+		const TArray<TPair<float, float>> Times =
+			ASC->GetActiveEffectsTimeRemainingAndDuration(*Query);
+		float Remaining = 0.f;
+		for (const TPair<float, float>& Time : Times)
+		{
+			Remaining = FMath::Max(Remaining, Time.Key);
+		}
+		Pair.Value->UpdateDuration(Remaining);
+		Pair.Value->SetStackCount(ASC->GetAggregatedStackCount(*Query));
+	}
+}
+
+void UMordecaiStatusEffectBarWidget::ApplyTheme(
+	const EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	if (OverflowPlate)
+	{
+		FSlateBrush Brush;
+		Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
+		Brush.TintColor = FSlateColor(Colors.Plate);
+		Brush.OutlineSettings = FSlateBrushOutlineSettings(
+			FVector4(10.f), FSlateColor(Colors.Lip),
+			Theme == EMordecaiUITheme::HighContrast ? 4.f : 2.f);
+		OverflowPlate->SetBrush(Brush);
+	}
+	if (OverflowChip)
+	{
+		OverflowChip->SetColorAndOpacity(FSlateColor(Colors.Text));
+		FSlateFontInfo Font = OverflowChip->GetFont();
+		Font.TypefaceFontName = TEXT("Bold");
+		Font.Size = 15;
+		OverflowChip->SetFont(Font);
+	}
 }

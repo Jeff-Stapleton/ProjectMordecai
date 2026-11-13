@@ -43,7 +43,6 @@ Tin Tally takes a position wherever the specs are silent, so the screens can be 
 - **Keyboard tab cycling.** Previous / Next Tab are bound to LB / RB only. Proposal: Q / E (they sit where LB / RB do; Menu input mode blocks casting). Drawn nowhere as bound until it is decided.
 - **Player posture break.** Only enemies break today. The player's broken look (`posture` under `ink`) is specified but unreachable, and so is a "Down" variant.
 - **More than 16 Spell Points.** The token row holds 10 to 16. Above 16 the gauge falls back to a bar, which breaks "Spell Points are tokens" (US-090).
-- **Callout size and the combo slot.** At Large (48 px) and XL (56 px) the callout slot grows to 60 and 68 px and reaches the combo at (0, +184). Move the combo down, or open the gap in the HUD map.
 - **World map form** (US-073). The tin tile board is a proposal. A screen-grid map or a room-graph map are the alternatives.
 - **Settings tab.** A real Settings tab (the Options sections) or the "Coming Soon" placeholder. Every accessibility setting needs it, and a save slot, before it ships.
 - **Device-aware glyphs.** Use CommonInput controller data with Mordecai keycap art for KBM, Xbox and PlayStation. This needs the playtests updated in the same change.

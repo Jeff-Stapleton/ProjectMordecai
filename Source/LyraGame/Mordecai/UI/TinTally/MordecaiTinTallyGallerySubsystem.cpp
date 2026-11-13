@@ -32,12 +32,17 @@
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Magic/MordecaiSpellDataAsset.h"
 #include "Mordecai/UI/MordecaiCombatHUDWidget.h"
+#include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
+#include "Mordecai/UI/MordecaiComboCounterWidget.h"
 #include "Mordecai/UI/MordecaiHUDConstants.h"
 #include "Mordecai/UI/MordecaiEquippedWeaponWidget.h"
 #include "Mordecai/UI/MordecaiHealthBarWidget.h"
 #include "Mordecai/UI/MordecaiPickupPromptWidget.h"
 #include "Mordecai/UI/MordecaiSpellCooldownWidget.h"
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
+#include "Mordecai/UI/MordecaiStatusEffectBarWidget.h"
+#include "Mordecai/UI/MordecaiStatusEffectIndicatorWidget.h"
+#include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
 #include "Serialization/JsonSerializer.h"
 #include "UnrealClient.h"
@@ -1325,7 +1330,8 @@ namespace
 		const FVector2D Position,
 		const FVector2D Size)
 	{
-		WidgetType* Widget = Tree->ConstructWidget<WidgetType>(WidgetType::StaticClass(), Name);
+		WidgetType* Widget = Tree->ConstructWidget<WidgetType>(
+			WidgetType::StaticClass(), Name);
 		if (Owner->GetPlayerContext().IsValid())
 		{
 			Widget->SetPlayerContext(Owner->GetPlayerContext());
@@ -1415,6 +1421,30 @@ namespace
 			Owner->CreateFixtureASC(0.64f, 0.52f, 0.7f, 5.f, 13.f);
 		HUD->BindToASC(ASC);
 		SeedGallerySpells(Owner, HUD, ASC);
+		if (UMordecaiStatusEffectBarWidget* StatusBar =
+			Cast<UMordecaiStatusEffectBarWidget>(
+				HUD->GetNamedWidget(HUD, TEXT("StatusEffectBar"))))
+		{
+			StatusBar->SetGalleryPreviewStatuses({
+				MordecaiGameplayTags::Status_Frostbitten,
+				MordecaiGameplayTags::Status_Focused,
+				MordecaiGameplayTags::Status_Burning,
+				MordecaiGameplayTags::Status_StoneSkin });
+		}
+		if (UMordecaiCombatFeedbackWidget* Callout =
+			Cast<UMordecaiCombatFeedbackWidget>(
+				HUD->GetNamedWidget(HUD, TEXT("CombatFeedback"))))
+		{
+			Callout->FeedbackDisplayDuration = 30.f;
+			Callout->ShowFeedback(TEXT("Parried!"), Colors.Good);
+		}
+		if (UMordecaiComboCounterWidget* Combo =
+			Cast<UMordecaiComboCounterWidget>(
+				HUD->GetNamedWidget(HUD, TEXT("ComboCounter"))))
+		{
+			Combo->SetComboIndex(4);
+			Combo->SetComboVisible(true);
+		}
 	}
 
 	void BuildGaugePlateFixture(
@@ -1645,6 +1675,136 @@ namespace
 		AddText(Tree, Canvas, TEXT("HUD ANCHOR · BOTTOM RIGHT"),
 			TEXT("kicker"), Colors.TextMuted, 60.f, 678.f, 320.f, 26.f);
 	}
+
+	void BuildStatusChipFixture(
+		UMordecaiTinTallyGalleryWidget* Owner,
+		UWidgetTree* Tree,
+		UCanvasPanel* Canvas,
+		const FMordecaiUIThemeColors& Colors,
+		EMordecaiUITheme Theme)
+	{
+		(void)Theme;
+		AddText(Tree, Canvas, TEXT("STATUS CHIPS · SHIPPED BUFF AND DEBUFF WIDGETS"),
+			TEXT("kicker"), Colors.TextMuted, 24.f, 22.f, 912.f, 28.f);
+		AddBox(Tree, Canvas, Colors.WorldBlockout,
+			24.f, 62.f, 912.f, 290.f, 10.f, Colors.Ink, 2.f);
+		AddPattern(Tree, Canvas, Colors.WorldBlockout, Colors.WorldBlockoutLine,
+			24.f, 62.f, 912.f, 290.f);
+
+		struct FStatusFixture
+		{
+			FGameplayTag Tag;
+			bool bBuff;
+			float Duration;
+			int32 StackCount;
+			bool bCompact;
+		};
+		const FStatusFixture Fixtures[] = {
+			{ MordecaiGameplayTags::Status_StoneSkin, true, 10.f, 1, false },
+			{ MordecaiGameplayTags::Status_Focused, true, 0.f, 3, false },
+			{ MordecaiGameplayTags::Status_Burning, false, 5.f, 1, false },
+			{ MordecaiGameplayTags::Status_Frostbitten, false, 6.f, 3, false },
+			{ MordecaiGameplayTags::Status_Focused, true, 0.f, 3, true },
+			{ MordecaiGameplayTags::Status_Shocked, false, 5.f, 2, true },
+		};
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Fixtures); ++Index)
+		{
+			const int32 Column = Index % 2;
+			const int32 Row = Index / 2;
+			UMordecaiStatusEffectIndicatorWidget* Chip =
+				EmbedShippedWidget<UMordecaiStatusEffectIndicatorWidget>(
+					Owner, Tree, Canvas,
+					FName(*FString::Printf(TEXT("GalleryRealStatusChip_%d"), Index)),
+					FVector2D(72.f + Column * 426.f, 96.f + Row * 82.f),
+					FVector2D(360.f, 52.f));
+			Chip->InitializeIndicator(
+				Fixtures[Index].Tag,
+				Fixtures[Index].bBuff,
+				Fixtures[Index].Duration);
+			Chip->SetStackCount(Fixtures[Index].StackCount);
+			Chip->SetCompact(Fixtures[Index].bCompact);
+		}
+		AddText(Tree, Canvas, TEXT("FULL · GLYPH, APPROVED NAME, PIPS, FIXED-WIDTH TIME"),
+			TEXT("kicker"), Colors.TextMuted, 40.f, 378.f, 840.f, 28.f);
+		AddText(Tree, Canvas, TEXT("COMPACT · ONE MODE FOR THE WHOLE TWO-ROW STRIP"),
+			TEXT("ui_label"), Colors.Text, 40.f, 420.f, 840.f, 28.f);
+		AddText(Tree, Canvas, TEXT("BUFF TAB AND DEBUFF TEETH CARRY POLARITY WITHOUT COLOUR"),
+			TEXT("ui_label"), Colors.Text, 40.f, 458.f, 840.f, 28.f);
+		AddText(Tree, Canvas, TEXT("MAX EIGHT · +N ONLY IF COMPACT STILL NEEDS A THIRD ROW"),
+			TEXT("ui_label"), Colors.Text, 40.f, 496.f, 840.f, 28.f);
+		AddText(Tree, Canvas, TEXT("LIVE TWO-ROW STRIP · WIDE PIP CHIPS PRODUCE +N"),
+			TEXT("kicker"), Colors.TextMuted, 40.f, 542.f, 840.f, 28.f);
+		UMordecaiStatusEffectBarWidget* StatusBar =
+			EmbedShippedWidget<UMordecaiStatusEffectBarWidget>(
+				Owner, Tree, Canvas, TEXT("GalleryRealStatusBar"),
+				FVector2D(252.f, 582.f), FVector2D(456.f, 112.f));
+		const TArray<FGameplayTag> GalleryStatuses = {
+			MordecaiGameplayTags::Status_Frostbitten.GetTag(),
+			MordecaiGameplayTags::Status_Shocked.GetTag(),
+			MordecaiGameplayTags::Status_Rooted.GetTag(),
+			MordecaiGameplayTags::Status_Silenced.GetTag(),
+			MordecaiGameplayTags::Status_Burning.GetTag(),
+			MordecaiGameplayTags::Status_Bleeding.GetTag(),
+			MordecaiGameplayTags::Status_Poisoned.GetTag(),
+			MordecaiGameplayTags::Status_Weakened.GetTag(),
+		};
+		StatusBar->SetGalleryPreviewStatuses(GalleryStatuses);
+	}
+
+	void BuildCombatCalloutFixture(
+		UMordecaiTinTallyGalleryWidget* Owner,
+		UWidgetTree* Tree,
+		UCanvasPanel* Canvas,
+		const FMordecaiUIThemeColors& Colors,
+		EMordecaiUITheme Theme)
+	{
+		(void)Theme;
+		AddText(Tree, Canvas, TEXT("COMBAT CALLOUT · FIXED BOTTOM, GROWS UPWARD"),
+			TEXT("kicker"), Colors.TextMuted, 24.f, 22.f, 912.f, 28.f);
+		AddBox(Tree, Canvas, Colors.WorldBlockout,
+			24.f, 62.f, 912.f, 430.f, 10.f, Colors.Ink, 2.f);
+		AddPattern(Tree, Canvas, Colors.WorldBlockout, Colors.WorldBlockoutLine,
+			24.f, 62.f, 912.f, 430.f);
+		const TCHAR* Copy[] = {
+			TEXT("Perfect Dodge!"),
+			TEXT("Parry Failed!"),
+			TEXT("Posture Broken!")
+		};
+		for (int32 SizeIndex = 0; SizeIndex < 3; ++SizeIndex)
+		{
+			const MordecaiHUDConstants::FCombatCalloutLayout Layout =
+				MordecaiHUDConstants::GetCombatCalloutLayout(SizeIndex);
+			const float BottomY = 178.f + SizeIndex * 124.f;
+			UMordecaiCombatFeedbackWidget* Callout =
+				EmbedShippedWidget<UMordecaiCombatFeedbackWidget>(
+					Owner, Tree, Canvas,
+					FName(*FString::Printf(TEXT("GalleryRealCombatCallout_%d"), SizeIndex)),
+					FVector2D(220.f, BottomY - Layout.SlotHeightPx),
+					FVector2D(520.f, Layout.SlotHeightPx));
+			Callout->FeedbackDisplayDuration = 30.f;
+			Callout->SetCalloutFontSize(Layout.FontSizePt);
+			Callout->ShowFeedback(
+				Copy[SizeIndex],
+				SizeIndex == 1 ? Colors.DangerText : Colors.Good);
+			AddText(
+				Tree, Canvas,
+				SizeIndex == 0 ? TEXT("NORMAL · 40 PX")
+					: SizeIndex == 1 ? TEXT("LARGE · 48 PX")
+					: TEXT("XL · 56 PX"),
+				TEXT("ui_label"), Colors.TextMuted,
+				44.f, BottomY - 30.f, 160.f, 28.f);
+		}
+
+		UMordecaiComboCounterWidget* Combo =
+			EmbedShippedWidget<UMordecaiComboCounterWidget>(
+				Owner, Tree, Canvas, TEXT("GalleryRealComboCounter"),
+				FVector2D(370.f, 516.f), FVector2D(220.f, 36.f));
+		Combo->SetComboIndex(6);
+		Combo->SetComboVisible(true);
+		AddText(Tree, Canvas, TEXT("COMBO · FIXED 108 × 36 PLATE AT CENTRE +184"),
+			TEXT("kicker"), Colors.TextMuted, 220.f, 570.f, 520.f, 28.f,
+			ETextJustify::Center);
+	}
 }
 
 bool UMordecaiTinTallyGalleryWidget::Initialize()
@@ -1736,6 +1896,14 @@ bool UMordecaiTinTallyGalleryWidget::Initialize()
 	{
 		BuildLoadoutPlateFixture(this, WidgetTree, Fixture, Colors, Theme);
 	}
+	else if (Component.Equals(TEXT("StatusChip"), ESearchCase::IgnoreCase))
+	{
+		BuildStatusChipFixture(this, WidgetTree, Fixture, Colors, Theme);
+	}
+	else if (Component.Equals(TEXT("CombatCallout"), ESearchCase::IgnoreCase))
+	{
+		BuildCombatCalloutFixture(this, WidgetTree, Fixture, Colors, Theme);
+	}
 	else if (Component.Equals(TEXT("Tag"), ESearchCase::IgnoreCase))
 	{
 		BuildTagFixture(WidgetTree, Fixture, Colors, Theme);
@@ -1814,7 +1982,9 @@ bool UMordecaiTinTallyGallerySubsystem::IsValidSelection(
 		|| Component.Equals(TEXT("Bar"), ESearchCase::IgnoreCase)
 		|| Component.Equals(TEXT("SpellSlot"), ESearchCase::IgnoreCase)
 		|| Component.Equals(TEXT("InteractPrompt"), ESearchCase::IgnoreCase)
-		|| Component.Equals(TEXT("LoadoutPlate"), ESearchCase::IgnoreCase);
+		|| Component.Equals(TEXT("LoadoutPlate"), ESearchCase::IgnoreCase)
+		|| Component.Equals(TEXT("StatusChip"), ESearchCase::IgnoreCase)
+		|| Component.Equals(TEXT("CombatCallout"), ESearchCase::IgnoreCase);
 	const bool bKnownTheme =
 		Theme.Equals(TEXT("diorama"), ESearchCase::IgnoreCase)
 		|| Theme.Equals(TEXT("high-contrast"), ESearchCase::IgnoreCase);

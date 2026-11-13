@@ -5,11 +5,16 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
 #include "MordecaiStatusEffectIndicatorWidget.generated.h"
 
 class UTextBlock;
 class UImage;
+class UHorizontalBox;
+class UBorder;
+class USizeBox;
+class UMordecaiUIThemeSubsystem;
 
 /**
  * UMordecaiStatusEffectIndicatorWidget
@@ -34,6 +39,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void UpdateDuration(float RemainingSeconds);
 
+	/** Update reached stack pips without rebuilding their brushes every refresh. */
+	void SetStackCount(int32 StackCount);
+
+	/** All chips switch between full and compact together. */
+	void SetCompact(bool bInCompact);
+
+	/** Deterministic desired width used by the two-row bar layout. */
+	float GetChipWidth(bool bCompact) const;
+
 	/** Get the status tag this indicator represents. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	FGameplayTag GetStatusTag() const { return StatusTag; }
@@ -44,6 +58,8 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> StatusNameText;
@@ -53,6 +69,12 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UImage> TintImage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> StatusGlyph;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UHorizontalBox> StackPips;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|HUD")
 	FGameplayTag StatusTag;
@@ -65,4 +87,30 @@ protected:
 
 private:
 	void BuildDefaultContent();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
+	void RebuildPips();
+	void RefreshChipWidth();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> BuffTab;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> DebuffTeeth;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USizeBox> ChipSizeBox;
+
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
+	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
+	FName GlyphColorToken = TEXT("text");
+	FText FixedValueText;
+	int32 MaxVisibleStacks = 0;
+	int32 CurrentStackCount = 0;
+	int32 LastDurationTenths = INDEX_NONE;
+	float DurationBoxWidth = 38.f;
+	float MeasuredNameWidth = 50.f;
+	float FullChipWidth = 132.f;
+	float CompactChipWidth = 86.f;
+	bool bCompact = false;
 };
