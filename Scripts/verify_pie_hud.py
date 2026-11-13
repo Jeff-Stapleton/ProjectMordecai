@@ -151,16 +151,16 @@ def _run():
             check_box(
                 hud_widget, name, (0.0, 0.0), position,
                 (78.0, 78.0), (0.0, 0.0))
-        check_box(
+        status_bar = check_box(
             hud_widget, "StatusEffectBar", (0.0, 0.0), (32.0, 318.0),
             (456.0, 112.0), (0.0, 0.0))
         rail = check_box(
             hud_widget, "TallyRailHead", (1.0, 0.0), (-32.0, 32.0),
             (320.0, 56.0), (1.0, 0.0))
-        check_box(
+        callout_widget = check_box(
             hud_widget, "CombatFeedback", (0.5, 0.5), (0.0, 128.0),
             (520.0, 52.0), (0.5, 0.0))
-        check_box(
+        combo_widget = check_box(
             hud_widget, "ComboCounter", (0.5, 0.5), (0.0, 184.0),
             (220.0, 36.0), (0.5, 0.0))
         prompt_widget = check_box(
@@ -192,6 +192,29 @@ def _run():
             check(f"{name} binding/fallback exists",
                   named_widget(owner, name) is not None,
                   f"Missing under {owner.get_name() if owner else None}")
+
+        indicator_container = named_widget(status_bar, "IndicatorContainer")
+        check("Status row IndicatorContainer exists", indicator_container is not None)
+        check(
+            "Status row IndicatorContainer is a WrapBox",
+            isinstance(indicator_container, unreal.WrapBox),
+            f"Got {indicator_container.get_class().get_name() if indicator_container else None}",
+        )
+        check(
+            "Status row owns an OverflowChip fallback",
+            named_widget(status_bar, "OverflowChip") is not None,
+        )
+        for owner, name in (
+            (callout_widget, "FeedbackText"),
+            (callout_widget, "CalloutPlate"),
+            (combo_widget, "ComboText"),
+            (combo_widget, "ComboPlate"),
+        ):
+            check(
+                f"Centre lane {name} binding/fallback exists",
+                named_widget(owner, name) is not None,
+                f"Missing under {owner.get_name() if owner else None}",
+            )
 
         for class_name, names in (
             ("MordecaiHealthBarWidget",
