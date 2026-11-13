@@ -202,6 +202,15 @@ bool FMordecai_UI_Combo_SurvivesHUDReactivation::RunTest(const FString& Paramete
 	HUD->ActivateWidget();
 
 	const UTextBlock* ComboText = Find<UTextBlock>(Combo, TEXT("ComboText"));
+	TestTrue("combo uses the shipped num-m Mono font",
+		ComboText && ComboText->GetFont().FontObject
+		&& ComboText->GetFont().FontObject->GetName() == TEXT("F_Tally_Mono"));
+	TestEqual("combo uses Mono Bold",
+		ComboText ? ComboText->GetFont().TypefaceFontName : NAME_None,
+		FName(TEXT("Bold")));
+	TestEqual("24 design px converts to 18 pt",
+		ComboText ? static_cast<float>(ComboText->GetFont().Size) : 0.f,
+		18.f);
 	TestEqual("active combo keeps Hit N through HUD reactivation",
 		ComboText ? ComboText->GetText().ToString() : FString(),
 		FString(TEXT("Hit 2")));

@@ -79,7 +79,7 @@ void UMordecaiComboCounterWidget::BuildDefaultContent()
 	ComboText->SetText(FText::GetEmpty());
 	ComboText->SetJustification(ETextJustify::Center);
 	ComboText->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
-	MordecaiUITypography::Apply(ComboText, TEXT("meta"));
+	MordecaiUITypography::Apply(ComboText, TEXT("num_m"));
 	FSlateFontInfo FontInfo = ComboText->GetFont();
 	FontInfo.TypefaceFontName = TEXT("Bold");
 	FontInfo.Size = 18;
