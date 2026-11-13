@@ -18,58 +18,62 @@ namespace MordecaiSkillConstants
 	struct FStartingSkillDefinition
 	{
 		const TCHAR* Name;
+		FText DisplayName;
 		EMordecaiSkillCategory Category;
 	};
 
 	// Every nonblank row in Specs/skill_sheet_v1.1.md, in sheet order.
+#define MORDECAI_STARTING_SKILL(Key, Label, Category) \
+	{ TEXT(Label), NSLOCTEXT("MordecaiStartingSkills", Key, Label), Category }
 	static const FStartingSkillDefinition StartingSkills[] = {
-		{ TEXT("Longswords"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Greatswords"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Shortswords"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Daggers"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Axes"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Maces"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Spears"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Quarterstaff"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Unarmed"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Longbow"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Shortbow"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Crossbows"), EMordecaiSkillCategory::Weapon },
-		{ TEXT("Two-Weapon Fighting"), EMordecaiSkillCategory::Weapon },
+		MORDECAI_STARTING_SKILL("Longswords", "Longswords", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("Greatswords", "Greatswords", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("Shortswords", "Shortswords", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("Daggers", "Daggers", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("Axes", "Axes", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("Maces", "Maces", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("Spears", "Spears", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("Quarterstaff", "Quarterstaff", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("Unarmed", "Unarmed", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("Longbow", "Longbow", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("Shortbow", "Shortbow", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("Crossbows", "Crossbows", EMordecaiSkillCategory::Weapon),
+		MORDECAI_STARTING_SKILL("TwoWeaponFighting", "Two-Weapon Fighting", EMordecaiSkillCategory::Weapon),
 
-		{ TEXT("Dodging"), EMordecaiSkillCategory::DefenseArmor },
-		{ TEXT("Parrying"), EMordecaiSkillCategory::DefenseArmor },
-		{ TEXT("Buckler Shield"), EMordecaiSkillCategory::DefenseArmor },
-		{ TEXT("Scutum Shield"), EMordecaiSkillCategory::DefenseArmor },
-		{ TEXT("Heater Shield"), EMordecaiSkillCategory::DefenseArmor },
-		{ TEXT("Leather Armor"), EMordecaiSkillCategory::DefenseArmor },
-		{ TEXT("Chainmail Armor"), EMordecaiSkillCategory::DefenseArmor },
-		{ TEXT("Plate Armor"), EMordecaiSkillCategory::DefenseArmor },
+		MORDECAI_STARTING_SKILL("Dodging", "Dodging", EMordecaiSkillCategory::DefenseArmor),
+		MORDECAI_STARTING_SKILL("Parrying", "Parrying", EMordecaiSkillCategory::DefenseArmor),
+		MORDECAI_STARTING_SKILL("BucklerShield", "Buckler Shield", EMordecaiSkillCategory::DefenseArmor),
+		MORDECAI_STARTING_SKILL("ScutumShield", "Scutum Shield", EMordecaiSkillCategory::DefenseArmor),
+		MORDECAI_STARTING_SKILL("HeaterShield", "Heater Shield", EMordecaiSkillCategory::DefenseArmor),
+		MORDECAI_STARTING_SKILL("LeatherArmor", "Leather Armor", EMordecaiSkillCategory::DefenseArmor),
+		MORDECAI_STARTING_SKILL("ChainmailArmor", "Chainmail Armor", EMordecaiSkillCategory::DefenseArmor),
+		MORDECAI_STARTING_SKILL("PlateArmor", "Plate Armor", EMordecaiSkillCategory::DefenseArmor),
 
-		{ TEXT("Sneaking"), EMordecaiSkillCategory::MovementExploration },
-		{ TEXT("Climbing"), EMordecaiSkillCategory::MovementExploration },
-		{ TEXT("Swimming"), EMordecaiSkillCategory::MovementExploration },
-		{ TEXT("Perception"), EMordecaiSkillCategory::MovementExploration },
-		{ TEXT("Tracking"), EMordecaiSkillCategory::MovementExploration },
-		{ TEXT("Cartography"), EMordecaiSkillCategory::MovementExploration },
+		MORDECAI_STARTING_SKILL("Sneaking", "Sneaking", EMordecaiSkillCategory::MovementExploration),
+		MORDECAI_STARTING_SKILL("Climbing", "Climbing", EMordecaiSkillCategory::MovementExploration),
+		MORDECAI_STARTING_SKILL("Swimming", "Swimming", EMordecaiSkillCategory::MovementExploration),
+		MORDECAI_STARTING_SKILL("Perception", "Perception", EMordecaiSkillCategory::MovementExploration),
+		MORDECAI_STARTING_SKILL("Tracking", "Tracking", EMordecaiSkillCategory::MovementExploration),
+		MORDECAI_STARTING_SKILL("Cartography", "Cartography", EMordecaiSkillCategory::MovementExploration),
 
-		{ TEXT("Traps"), EMordecaiSkillCategory::UtilityInteraction },
-		{ TEXT("Lockpicking"), EMordecaiSkillCategory::UtilityInteraction },
-		{ TEXT("Pickpocket"), EMordecaiSkillCategory::UtilityInteraction },
-		{ TEXT("First Aid"), EMordecaiSkillCategory::UtilityInteraction },
+		MORDECAI_STARTING_SKILL("Traps", "Traps", EMordecaiSkillCategory::UtilityInteraction),
+		MORDECAI_STARTING_SKILL("Lockpicking", "Lockpicking", EMordecaiSkillCategory::UtilityInteraction),
+		MORDECAI_STARTING_SKILL("Pickpocket", "Pickpocket", EMordecaiSkillCategory::UtilityInteraction),
+		MORDECAI_STARTING_SKILL("FirstAid", "First Aid", EMordecaiSkillCategory::UtilityInteraction),
 
-		{ TEXT("Fireball"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Cone of Cold"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Magic Missile"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Stone Skin"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Sleep"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Blink"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Illusion"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Fire Ward"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Frost Ward"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Float"), EMordecaiSkillCategory::Magic },
-		{ TEXT("Counter Spell"), EMordecaiSkillCategory::Magic },
+		MORDECAI_STARTING_SKILL("Fireball", "Fireball", EMordecaiSkillCategory::Magic),
+		MORDECAI_STARTING_SKILL("ConeOfCold", "Cone of Cold", EMordecaiSkillCategory::Magic),
+		MORDECAI_STARTING_SKILL("MagicMissile", "Magic Missile", EMordecaiSkillCategory::Magic),
+		MORDECAI_STARTING_SKILL("StoneSkin", "Stone Skin", EMordecaiSkillCategory::Magic),
+		MORDECAI_STARTING_SKILL("Sleep", "Sleep", EMordecaiSkillCategory::Magic),
+		MORDECAI_STARTING_SKILL("Blink", "Blink", EMordecaiSkillCategory::Magic),
+		MORDECAI_STARTING_SKILL("Illusion", "Illusion", EMordecaiSkillCategory::Magic),
+		MORDECAI_STARTING_SKILL("FireWard", "Fire Ward", EMordecaiSkillCategory::Magic),
+		MORDECAI_STARTING_SKILL("FrostWard", "Frost Ward", EMordecaiSkillCategory::Magic),
+		MORDECAI_STARTING_SKILL("Float", "Float", EMordecaiSkillCategory::Magic),
+		MORDECAI_STARTING_SKILL("CounterSpell", "Counter Spell", EMordecaiSkillCategory::Magic),
 	};
+#undef MORDECAI_STARTING_SKILL
 }
 
 // ---------------------------------------------------------------------------
@@ -108,7 +112,7 @@ void UMordecaiSkillComponent::RegisterStartingSkillDataAssets()
 			NAME_None,
 			RF_Transient);
 		SkillData->SkillName = SkillName;
-		SkillData->DisplayName = FText::FromString(Definition.Name);
+		SkillData->DisplayName = Definition.DisplayName;
 		SkillData->Category = Definition.Category;
 		RegisterSkillDataAsset(SkillData);
 	}

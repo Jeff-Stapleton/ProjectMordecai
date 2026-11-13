@@ -155,10 +155,17 @@ def _run():
                     for heading in ("Physical", "Resilience", "Magical"):
                         logic(f"character: {heading} heading",
                               named_text(character, f"GroupHeading_{heading}") == heading)
-                    for code in ("STR", "DEX", "END", "CON", "RES", "DIS", "INT", "WIS", "CHA"):
-                        value = named_text(character, f"PrimaryValue_{code}")
+                    attributes = (
+                        ("strength", "STR"), ("dexterity", "DEX"),
+                        ("endurance", "END"), ("constitution", "CON"),
+                        ("resistance", "RES"), ("discipline", "DIS"),
+                        ("intelligence", "INT"), ("wisdom", "WIS"),
+                        ("charisma", "CHA"),
+                    )
+                    for lookup_key, code in attributes:
+                        value = named_text(character, f"PrimaryValue_{lookup_key}")
                         logic(f"character: {code} live value",
-                              named_text(character, f"PrimaryLabel_{code}") == code
+                              named_text(character, f"PrimaryLabel_{lookup_key}") == code
                               and value not in (None, "", "--"),
                               f"Got '{value}'")
                     for resource in ("health", "stamina", "spellpoints", "posture"):

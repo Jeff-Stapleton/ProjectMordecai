@@ -234,14 +234,15 @@ void UMordecaiCharacterSheetWidget::BuildDefaultContent()
 	{
 		const FMordecaiPrimaryAttributeDisplay& Attribute =
 			Data.PrimaryAttributes[AttributeIndex];
-		const FString Code = Attribute.Code.ToString();
+		FString StableId = Attribute.LookupKey.ToString();
+		StableId.ToLowerInline();
 		const int32 GroupIndex = static_cast<int32>(
 			FMordecaiCharacterSheetData::GetGroupForAttribute(AttributeIndex));
 		UVerticalBox* Group = GroupBoxes[GroupIndex];
 
 		UBorder* Card = WidgetTree->ConstructWidget<UBorder>(
 			UBorder::StaticClass(),
-			FName(*FString::Printf(TEXT("AttributeCard_%s"), *Code)));
+			FName(*FString::Printf(TEXT("AttributeCard_%s"), *StableId)));
 		Card->SetPadding(FMargin(10.f, 6.f));
 		RaisedPanels.Add(Card);
 		if (UVerticalBoxSlot* CardSlot = Group->AddChildToVerticalBox(Card))
@@ -262,12 +263,12 @@ void UMordecaiCharacterSheetWidget::BuildDefaultContent()
 			LabelsSlot->SetVerticalAlignment(VAlign_Center);
 		}
 		UTextBlock* CodeText = MakeText(
-			FName(*FString::Printf(TEXT("PrimaryLabel_%s"), *Code)),
+			FName(*FString::Printf(TEXT("PrimaryLabel_%s"), *StableId)),
 			Attribute.Code,
 			TEXT("ui_title"));
 		Labels->AddChildToVerticalBox(CodeText);
 		UTextBlock* NameText = MakeText(
-			FName(*FString::Printf(TEXT("PrimaryName_%s"), *Code)),
+			FName(*FString::Printf(TEXT("PrimaryName_%s"), *StableId)),
 			Attribute.DisplayName,
 			TEXT("ui_label"),
 			true);
@@ -275,7 +276,7 @@ void UMordecaiCharacterSheetWidget::BuildDefaultContent()
 
 		USizeBox* ValueBox = WidgetTree->ConstructWidget<USizeBox>(
 			USizeBox::StaticClass(),
-			FName(*FString::Printf(TEXT("PrimaryValueBox_%s"), *Code)));
+			FName(*FString::Printf(TEXT("PrimaryValueBox_%s"), *StableId)));
 		ValueBox->SetWidthOverride(AttributeValueWidth);
 		ValueBox->SetMinDesiredHeight(RowMinHeight);
 		if (UHorizontalBoxSlot* ValueBoxSlot = CardRow->AddChildToHorizontalBox(ValueBox))
@@ -286,14 +287,14 @@ void UMordecaiCharacterSheetWidget::BuildDefaultContent()
 			UVerticalBox::StaticClass());
 		ValueBox->SetContent(Values);
 		UTextBlock* Value = MakeText(
-			FName(*FString::Printf(TEXT("PrimaryValue_%s"), *Code)),
+			FName(*FString::Printf(TEXT("PrimaryValue_%s"), *StableId)),
 			FText::FromString(FMordecaiCharacterSheetData::PlaceholderText()),
 			TEXT("num_l"));
 		Value->SetJustification(ETextJustify::Right);
 		PrimaryValueTexts[AttributeIndex] = Value;
 		Values->AddChildToVerticalBox(Value);
 		UTextBlock* EffectiveMod = MakeText(
-			FName(*FString::Printf(TEXT("PrimaryEffectiveMod_%s"), *Code)),
+			FName(*FString::Printf(TEXT("PrimaryEffectiveMod_%s"), *StableId)),
 			FText::FromString(FMordecaiCharacterSheetData::PlaceholderText()),
 			TEXT("num_s"),
 			true);

@@ -4,11 +4,14 @@
 
 #include "CommonTextBlock.h"
 #include "Components/TextBlock.h"
+#include "UObject/StrongObjectPtr.h"
 
 namespace MordecaiUITypography
 {
 	struct FCachedStyle
 	{
+		/** Keeps the style CDO and its UObject-backed font/material references alive. */
+		TStrongObjectPtr<UClass> StyleClass;
 		FSlateFontInfo Font;
 		float LineHeightPercentage = 1.f;
 		bool bFound = false;
@@ -31,11 +34,12 @@ namespace MordecaiUITypography
 				TEXT("/MordecaiCore/UI/TinTally/Fonts/Styles/TS_Tally_%s.TS_Tally_%s_C"),
 				StyleName,
 				StyleName);
-			if (UClass* StyleClass =
+			if (UClass* LoadedStyleClass =
 				LoadClass<UCommonTextStyle>(nullptr, *ClassPath))
 			{
+				Resolved.StyleClass.Reset(LoadedStyleClass);
 				const UCommonTextStyle* Style =
-					GetDefault<UCommonTextStyle>(StyleClass);
+					GetDefault<UCommonTextStyle>(LoadedStyleClass);
 				Style->GetFont(Resolved.Font);
 				Resolved.LineHeightPercentage =
 					Style->GetLineHeightPercentage();

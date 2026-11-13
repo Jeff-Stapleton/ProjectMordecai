@@ -73,16 +73,21 @@ EXPECTED_TABS = (("character", "Character"), ("skills", "Skills"), ("feats", "Fe
 TAB_IDS = tuple(i for i, _ in EXPECTED_TABS)
 DEFAULT_TAB = "character"
 # AC-066.3: the 9 primary attributes (short id, display name).
-PRIMARY_ATTRIBUTES = (("STR", "Strength"), ("DEX", "Dexterity"), ("END", "Endurance"),
-                      ("CON", "Constitution"), ("RES", "Resistance"), ("DIS", "Discipline"),
-                      ("INT", "Intelligence"), ("WIS", "Wisdom"), ("CHA", "Charisma"))
+PRIMARY_ATTRIBUTES = (
+    ("strength", "STR", "Strength"), ("dexterity", "DEX", "Dexterity"),
+    ("endurance", "END", "Endurance"), ("constitution", "CON", "Constitution"),
+    ("resistance", "RES", "Resistance"), ("discipline", "DIS", "Discipline"),
+    ("intelligence", "INT", "Intelligence"), ("wisdom", "WIS", "Wisdom"),
+    ("charisma", "CHA", "Charisma"),
+)
 # AC-066.4: default group labels (FMordecaiCharacterSheetData, MordecaiCharacterSheetTypes.cpp).
 ATTRIBUTE_GROUPS = ("Physical", "Resilience", "Magical")
 # AC-066.5: "CurrentValue / MaxValue" (FormatResource: "%d / %d").
 ATTRIBUTE_VALUE_RE = re.compile(r"^-?\d+$")
 EFFECTIVE_MOD_RE = re.compile(r"^\+\d+(?:\.\d+)?%$")
 RESOURCE_RE = re.compile(r"^-?\d+\s*/\s*\d+$")
-RESOURCE_LABELS = ("Health", "Stamina", "Spell Points", "Posture")
+RESOURCE_ROWS = (("health", "Health"), ("stamina", "Stamina"),
+                 ("spellpoints", "Spell Points"), ("posture", "Posture"))
 SKILL_CATEGORY = "Weapon"     # AC-067.3: the first EMordecaiSkillCategory section
 SKILL_MAX_RANK = "/ 20"       # AC-067.4: rank / max rank 20
 MAGIC_CATEGORY_META = "Magic · 11 skills"
@@ -155,7 +160,7 @@ PLAN = (
     Step("skills_tab_content", f"state pause_menu, widgets -> a visible "
          f"MordecaiSkillTreeWidget with texts including {lit(SKILL_CATEGORY)} and "
          f"{lit(SKILL_MAX_RANK)}",
-         proves=("US-067:AC-067.1",)),
+         proves=("US-067:AC-067.1", "US-067:AC-067.4")),
     Step("click_magic_category", 'click_button(button_id="magic") -> wait for exact texts '
          f'{MAGIC_CATEGORY_META!r} and {MAGIC_SKILL!r}',
          proves=("US-067:AC-067.3",)),
@@ -410,16 +415,26 @@ class Us069Run(kit.PlaytestRun):
                 return False
             for w in _widgets_of(st, "charactersheet"):
                 texts = _texts(w)
-                values = [t for t in texts if ATTRIBUTE_VALUE_RE.fullmatch(t.strip())]
-                mods = [t for t in texts if EFFECTIVE_MOD_RE.fullmatch(t.strip())]
-                resources = [t for t in texts if RESOURCE_RE.fullmatch(t.strip())]
-                if (all(_has_exact_text(texts, s) and _has_exact_text(texts, n)
-                        for s, n in PRIMARY_ATTRIBUTES)
-                        and all(_has_label(texts, g) for g in ATTRIBUTE_GROUPS)
-                        and len(values) >= len(PRIMARY_ATTRIBUTES)
-                        and len(mods) >= len(PRIMARY_ATTRIBUTES)
-                        and all(_has_exact_text(texts, label) for label in RESOURCE_LABELS)
-                        and len(resources) >= len(RESOURCE_LABELS)):
+                rows = {row.get("id"): row for row in w.get("character_rows", [])
+                        if isinstance(row, dict) and isinstance(row.get("id"), str)}
+                resources = {row.get("id"): row for row in w.get("resource_rows", [])
+                             if isinstance(row, dict) and isinstance(row.get("id"), str)}
+                attributes_ok = all(
+                    isinstance(rows.get(row_id), dict)
+                    and rows[row_id].get("code") == code
+                    and rows[row_id].get("name") == name
+                    and ATTRIBUTE_VALUE_RE.fullmatch(str(rows[row_id].get("value", "")))
+                    and EFFECTIVE_MOD_RE.fullmatch(str(rows[row_id].get("modifier", "")))
+                    and rows[row_id].get("visible") is True
+                    for row_id, code, name in PRIMARY_ATTRIBUTES)
+                resources_ok = all(
+                    isinstance(resources.get(row_id), dict)
+                    and resources[row_id].get("label") == label
+                    and RESOURCE_RE.fullmatch(str(resources[row_id].get("value", "")).strip())
+                    and resources[row_id].get("visible") is True
+                    for row_id, label in RESOURCE_ROWS)
+                if (attributes_ok and resources_ok
+                        and all(_has_label(texts, g) for g in ATTRIBUTE_GROUPS)):
                     return True
             return False
 
@@ -428,22 +443,39 @@ class Us069Run(kit.PlaytestRun):
             if not sheets:
                 return (f"active_tab={_menu(st).get('active_tab')!r}; no visible "
                         f"CharacterSheet widget; visible widgets: {_describe_widgets(st)}")
-            texts = [t for w in sheets for t in _texts(w)]
-            missing = [f"{s}/{n}" for s, n in PRIMARY_ATTRIBUTES
-                       if not (_has_exact_text(texts, s) and _has_exact_text(texts, n))]
-            groups = [g for g in ATTRIBUTE_GROUPS if not _has_label(texts, g)]
-            values = [t for t in texts if ATTRIBUTE_VALUE_RE.fullmatch(t.strip())]
-            mods = [t for t in texts if EFFECTIVE_MOD_RE.fullmatch(t.strip())]
-            missing_resource_labels = [
-                label for label in RESOURCE_LABELS if not _has_exact_text(texts, label)
+            sheet = sheets[0]
+            texts = _texts(sheet)
+            rows = {row.get("id"): row for row in sheet.get("character_rows", [])
+                    if isinstance(row, dict) and isinstance(row.get("id"), str)}
+            resources = {row.get("id"): row for row in sheet.get("resource_rows", [])
+                         if isinstance(row, dict) and isinstance(row.get("id"), str)}
+            malformed = [
+                row_id for row_id, code, name in PRIMARY_ATTRIBUTES
+                if not (
+                    isinstance(rows.get(row_id), dict)
+                    and rows[row_id].get("code") == code
+                    and rows[row_id].get("name") == name
+                    and ATTRIBUTE_VALUE_RE.fullmatch(str(rows[row_id].get("value", "")))
+                    and EFFECTIVE_MOD_RE.fullmatch(str(rows[row_id].get("modifier", "")))
+                    and rows[row_id].get("visible") is True)
             ]
-            res = [t for t in texts if RESOURCE_RE.fullmatch(t.strip())]
-            return (f"{sheets[0].get('class')} visible with {len(texts)} text(s); missing "
-                    f"exact-case attributes {missing}, missing groups {groups}, "
-                    f"attribute values {values[:9]}, effective modifiers {mods[:9]}, "
-                    f"missing resource labels {missing_resource_labels}, resource lines "
-                    f"{res[:4]}; "
-                    f"texts {_dumps(texts[:16], 400)}")
+            groups = [g for g in ATTRIBUTE_GROUPS if not _has_label(texts, g)]
+            malformed_resources = [
+                f"{row_id}/{label}" for row_id, label in RESOURCE_ROWS
+                if not (
+                    isinstance(resources.get(row_id), dict)
+                    and resources[row_id].get("label") == label
+                    and RESOURCE_RE.fullmatch(str(resources[row_id].get("value", "")).strip())
+                    and resources[row_id].get("visible") is True)
+            ]
+            missing = [f"{code}/{name}" for row_id, code, name in PRIMARY_ATTRIBUTES
+                       if row_id in malformed]
+            return (f"{sheets[0].get('class')} visible with {len(texts)} text(s); "
+                    f"missing exact-case attributes {missing}, missing groups {groups}; "
+                    f"malformed or clipped structured attribute row ids {malformed}, "
+                    f"missing or malformed resource rows {malformed_resources}; "
+                    f"rows {_dumps(list(rows.values()), 900)}, resources "
+                    f"{_dumps(list(resources.values()), 500)}")
 
         self.observe("character_tab_content", ["pause_menu", "widgets"], sheet_ok,
                      describe_sheet, timeout_s=CONTENT_TIMEOUT_S, needs=opened, needs_why=why)

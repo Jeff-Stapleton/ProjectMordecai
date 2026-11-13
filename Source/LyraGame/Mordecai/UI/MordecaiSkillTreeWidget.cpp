@@ -28,8 +28,10 @@ namespace MordecaiSkillTreeLayout
 {
 	constexpr float OuterPadding = 10.f;
 	constexpr float SectionGap = 8.f;
-	constexpr float CategoryGap = 4.f;
-	constexpr float CategoryWidth = 190.f;
+	constexpr float CategoryGap = 10.f;
+	constexpr float CategoryRailWidth = 198.f;
+	constexpr float CategoryHeight = 68.f;
+	constexpr float BodyGap = 12.f;
 	constexpr float RowGap = 4.f;
 	constexpr float RankWidth = 112.f;
 	constexpr float SkillPointsWidth = 180.f;
@@ -39,15 +41,15 @@ namespace MordecaiSkillTreeLayout
 	{
 		EMordecaiSkillCategory Category;
 		const TCHAR* Name;
-		const TCHAR* Label;
+		FText Label;
 	};
 
 	const FCategoryPresentation Categories[] = {
-		{ EMordecaiSkillCategory::Weapon, TEXT("Weapon"), TEXT("Weapon") },
-		{ EMordecaiSkillCategory::DefenseArmor, TEXT("DefenseArmor"), TEXT("Defense & Armor") },
-		{ EMordecaiSkillCategory::MovementExploration, TEXT("MovementExploration"), TEXT("Movement & Exploration") },
-		{ EMordecaiSkillCategory::UtilityInteraction, TEXT("UtilityInteraction"), TEXT("Utility & Interaction") },
-		{ EMordecaiSkillCategory::Magic, TEXT("Magic"), TEXT("Magic") }
+		{ EMordecaiSkillCategory::Weapon, TEXT("Weapon"), LOCTEXT("CategoryWeapon", "Weapon") },
+		{ EMordecaiSkillCategory::DefenseArmor, TEXT("DefenseArmor"), LOCTEXT("CategoryDefenseArmor", "Defense & Armor") },
+		{ EMordecaiSkillCategory::MovementExploration, TEXT("MovementExploration"), LOCTEXT("CategoryMovementExploration", "Movement & Exploration") },
+		{ EMordecaiSkillCategory::UtilityInteraction, TEXT("UtilityInteraction"), LOCTEXT("CategoryUtilityInteraction", "Utility & Interaction") },
+		{ EMordecaiSkillCategory::Magic, TEXT("Magic"), LOCTEXT("CategoryMagic", "Magic") }
 	};
 
 	const FCategoryPresentation& GetCategoryPresentation(const EMordecaiSkillCategory Category)
@@ -182,13 +184,27 @@ void UMordecaiSkillTreeWidget::BuildDefaultContent()
 		PointsSlot->SetVerticalAlignment(VAlign_Center);
 	}
 
-	UHorizontalBox* CategoriesBox = WidgetTree->ConstructWidget<UHorizontalBox>(
-		UHorizontalBox::StaticClass(), TEXT("CategoryRail"));
-	if (UVerticalBoxSlot* CategoriesSlot = Root->AddChildToVerticalBox(CategoriesBox))
+	UHorizontalBox* Body = WidgetTree->ConstructWidget<UHorizontalBox>(
+		UHorizontalBox::StaticClass(), TEXT("SkillBody"));
+	if (UVerticalBoxSlot* BodySlot = Root->AddChildToVerticalBox(Body))
 	{
-		CategoriesSlot->SetHorizontalAlignment(HAlign_Fill);
-		CategoriesSlot->SetPadding(FMargin(0.f, 0.f, 0.f, SectionGap));
+		BodySlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		BodySlot->SetHorizontalAlignment(HAlign_Fill);
+		BodySlot->SetVerticalAlignment(VAlign_Fill);
 	}
+
+	USizeBox* CategoryRailBox = WidgetTree->ConstructWidget<USizeBox>(
+		USizeBox::StaticClass(), TEXT("CategoryRailBox"));
+	CategoryRailBox->SetWidthOverride(CategoryRailWidth);
+	if (UHorizontalBoxSlot* CategoryRailSlot = Body->AddChildToHorizontalBox(CategoryRailBox))
+	{
+		CategoryRailSlot->SetVerticalAlignment(VAlign_Top);
+		CategoryRailSlot->SetPadding(FMargin(0.f, 0.f, BodyGap, 0.f));
+	}
+	UVerticalBox* CategoriesBox = WidgetTree->ConstructWidget<UVerticalBox>(
+		UVerticalBox::StaticClass(), TEXT("CategoryRail"));
+	CategoryRailBox->SetContent(CategoriesBox);
+
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Categories); ++Index)
 	{
 		const FCategoryPresentation& Presentation = Categories[Index];
@@ -206,26 +222,36 @@ void UMordecaiSkillTreeWidget::BuildDefaultContent()
 
 		UTextBlock* CategoryText = MakeStaticText(
 			FName(*FString::Printf(TEXT("Category_%s"), Presentation.Name)),
-			FText::FromString(Presentation.Label),
+			Presentation.Label,
 			TEXT("ui_label"),
-			Presentation.Category != ActiveCategory);
+			Presentation.Category != ActiveCategory,
+			true);
 		CategoryText->SetJustification(ETextJustify::Center);
 		CategoryButton->AddChild(CategoryText);
 		USizeBox* CategorySize = WidgetTree->ConstructWidget<USizeBox>(
-			USizeBox::StaticClass());
-		CategorySize->SetMinDesiredWidth(CategoryWidth);
+			USizeBox::StaticClass(),
+			FName(*FString::Printf(TEXT("CategorySize_%s"), Presentation.Name)));
+		CategorySize->SetWidthOverride(CategoryRailWidth);
+		CategorySize->SetHeightOverride(CategoryHeight);
 		CategorySize->SetContent(CategoryButton);
-		if (UHorizontalBoxSlot* CategorySlot =
-			CategoriesBox->AddChildToHorizontalBox(CategorySize))
+		if (UVerticalBoxSlot* CategorySlot =
+			CategoriesBox->AddChildToVerticalBox(CategorySize))
 		{
-			CategorySlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			CategorySlot->SetVerticalAlignment(VAlign_Center);
+			CategorySlot->SetHorizontalAlignment(HAlign_Fill);
 			CategorySlot->SetPadding(FMargin(
+				0.f,
 				Index > 0 ? CategoryGap * 0.5f : 0.f,
 				0.f,
-				Index + 1 < UE_ARRAY_COUNT(Categories) ? CategoryGap * 0.5f : 0.f,
-				0.f));
+				Index + 1 < UE_ARRAY_COUNT(Categories) ? CategoryGap * 0.5f : 0.f));
 		}
+	}
+
+	UVerticalBox* SkillColumn = WidgetTree->ConstructWidget<UVerticalBox>(
+		UVerticalBox::StaticClass(), TEXT("SkillColumn"));
+	if (UHorizontalBoxSlot* SkillColumnSlot = Body->AddChildToHorizontalBox(SkillColumn))
+	{
+		SkillColumnSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		SkillColumnSlot->SetVerticalAlignment(VAlign_Fill);
 	}
 
 	CategoryMetaText = MakeStaticText(
@@ -233,7 +259,7 @@ void UMordecaiSkillTreeWidget::BuildDefaultContent()
 		FText::GetEmpty(),
 		TEXT("ui_label"),
 		true);
-	if (UVerticalBoxSlot* MetaSlot = Root->AddChildToVerticalBox(CategoryMetaText))
+	if (UVerticalBoxSlot* MetaSlot = SkillColumn->AddChildToVerticalBox(CategoryMetaText))
 	{
 		MetaSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
 	}
@@ -241,7 +267,7 @@ void UMordecaiSkillTreeWidget::BuildDefaultContent()
 	UScrollBox* Scroll = WidgetTree->ConstructWidget<UScrollBox>(
 		UScrollBox::StaticClass(), TEXT("SkillListBox"));
 	Scroll->SetScrollBarVisibility(ESlateVisibility::Visible);
-	if (UVerticalBoxSlot* ScrollSlot = Root->AddChildToVerticalBox(Scroll))
+	if (UVerticalBoxSlot* ScrollSlot = SkillColumn->AddChildToVerticalBox(Scroll))
 	{
 		ScrollSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		ScrollSlot->SetHorizontalAlignment(HAlign_Fill);
@@ -286,7 +312,7 @@ void UMordecaiSkillTreeWidget::RefreshContent()
 	{
 		CategoryMetaText->SetText(FText::Format(
 			LOCTEXT("CategoryCountFormat", "{0} \u00b7 {1} skills"),
-			FText::FromString(Category.Label),
+			Category.Label,
 			FText::AsNumber(Rows.Num())));
 	}
 
@@ -493,8 +519,17 @@ void UMordecaiSkillTreeWidget::ApplyTheme(
 		{
 			const bool bActive =
 				MordecaiSkillTreeLayout::Categories[Index].Category == ActiveCategory;
-			CategoryButton->SetBackgroundColor(
-				bActive ? Colors.Enamel : Colors.PlateRaised);
+			const FLinearColor FillColor =
+				bActive ? Colors.Enamel : Colors.PlateRaised;
+			FButtonStyle ButtonStyle = CategoryButton->GetStyle();
+			ButtonStyle.Normal.TintColor = FSlateColor(FillColor);
+			ButtonStyle.Hovered.TintColor = FSlateColor(
+				bActive ? Colors.Enamel : Colors.Rim);
+			ButtonStyle.Pressed.TintColor = FSlateColor(
+				bActive ? Colors.Enamel : Colors.Well);
+			ButtonStyle.Disabled.TintColor = FSlateColor(FillColor);
+			CategoryButton->SetStyle(ButtonStyle);
+			CategoryButton->SetBackgroundColor(FLinearColor::White);
 			if (UTextBlock* CategoryText =
 				Cast<UTextBlock>(CategoryButton->GetContent()))
 			{
