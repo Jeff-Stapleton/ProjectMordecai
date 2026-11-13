@@ -195,11 +195,11 @@ bool FMordecai_Recovery_CharacterSheet_BuildsDefaultContent::RunTest(const FStri
 		Env.LocalPlayer->GetSubsystem<UMordecaiUIThemeSubsystem>();
 	Themes->SetActiveTheme(EMordecaiUITheme::HighContrast);
 	TestTrue(
-		"Character title follows the live High Contrast ink token",
+		"Character title follows the live High Contrast text token",
 		HasThemeTextColor(
 			Widget,
 			TEXT("CharacterTitle"),
-			Themes->GetActiveColors().Ink));
+			Themes->GetActiveColors().Text));
 	return true;
 }
 
@@ -292,11 +292,11 @@ bool FMordecai_Recovery_SkillTree_BuildsDefaultContent::RunTest(const FString& P
 		Env.LocalPlayer->GetSubsystem<UMordecaiUIThemeSubsystem>();
 	Themes->SetActiveTheme(EMordecaiUITheme::HighContrast);
 	TestTrue(
-		"Skills title follows the live High Contrast ink token",
+		"Skills title follows the live High Contrast text token",
 		HasThemeTextColor(
 			Widget,
 			TEXT("SkillsTitle"),
-			Themes->GetActiveColors().Ink));
+			Themes->GetActiveColors().Text));
 	return true;
 }
 
@@ -321,7 +321,10 @@ bool FMordecai_Recovery_FeatDisplay_BuildsDefaultContent::RunTest(const FString&
 	TSharedRef<SWidget> SlateWidget = Widget->TakeWidget();
 	TestTrue(
 		"Initial summary matches the component's unlocked count",
-		HasText(Widget, TEXT("FeatSummaryText"), TEXT("Feats: 0 unlocked")));
+		HasText(
+			Widget,
+			TEXT("FeatSummaryText"),
+			TEXT("Feats: 0 unlocked \u2014 0 Common, 0 Rare, 0 Legendary")));
 
 	UMordecaiFeatDataAsset* IronWill = MakeFeat(Feats, TEXT("IronWill"));
 	Feats->RegisterFeatDataAsset(IronWill);
@@ -329,7 +332,10 @@ bool FMordecai_Recovery_FeatDisplay_BuildsDefaultContent::RunTest(const FString&
 	TestEqual("Component unlocked count is one", Feats->GetUnlockedFeats().Num(), 1);
 	TestTrue(
 		"Delegate refreshes summary to the component's unlocked count",
-		HasText(Widget, TEXT("FeatSummaryText"), TEXT("Feats: 1 unlocked")));
+		HasText(
+			Widget,
+			TEXT("FeatSummaryText"),
+			TEXT("Feats: 1 unlocked \u2014 1 Common, 0 Rare, 0 Legendary")));
 	TestTrue(
 		"Unlocked feat row is rendered",
 		HasText(Widget, TEXT("FeatName_IronWill"), TEXT("IronWill")));
@@ -338,11 +344,11 @@ bool FMordecai_Recovery_FeatDisplay_BuildsDefaultContent::RunTest(const FString&
 		Env.LocalPlayer->GetSubsystem<UMordecaiUIThemeSubsystem>();
 	Themes->SetActiveTheme(EMordecaiUITheme::HighContrast);
 	TestTrue(
-		"Feats title follows the live High Contrast ink token",
+		"Feats title follows the live High Contrast text token",
 		HasThemeTextColor(
 			Widget,
 			TEXT("FeatsTitle"),
-			Themes->GetActiveColors().Ink));
+			Themes->GetActiveColors().Text));
 	return true;
 }
 

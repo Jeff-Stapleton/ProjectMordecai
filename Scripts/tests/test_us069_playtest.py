@@ -52,9 +52,9 @@ NO_SHOULDERS = {}                                                     # the game
 class PauseMenuWorld(fb.FakeWorld):
     """FakeWorld plus the pause menu's tab contents and its gamepad bindings.
 
-    Defaults model today's game: the Character tab's UMordecaiCharacterSheetWidget is blank
-    (N4), Skills and Feats show the "Coming Soon" placeholder (N5), Settings shows the
-    placeholder, B (Gamepad_FaceButton_Right) closes the menu (CommonUI DefaultBack), Start
+    Defaults model the US-093 game: Character, Skills and Feats have their real content,
+    Settings shows the placeholder, B (Gamepad_FaceButton_Right) closes the menu (CommonUI
+    DefaultBack), Start
     (Gamepad_Special_Right) toggles it, and since US-095 LB/RB select the previous/next tab
     (wrapping) and I closes the menu (CommonUI UI action bindings) on the key-up of an I press
     made in the open menu.  shoulder_steps maps a shoulder key to the tab step it makes
@@ -64,7 +64,7 @@ class PauseMenuWorld(fb.FakeWorld):
     menu closed during the hold).
     """
 
-    def __init__(self, *, character_sheet=False, skills_tab=False, feats_tab=False,
+    def __init__(self, *, character_sheet=True, skills_tab=True, feats_tab=True,
                  shoulder_steps=SHOULDERS, gamepad_back_closes=True, start_toggles=True,
                  menu_blocks_input=True, i_close_on="release", **kwargs):
         kwargs.setdefault("i_closes_menu", True)
@@ -206,25 +206,26 @@ class PlaytestCase(unittest.TestCase):
         return [c["name"] for c in report["checks"] if c["status"] == status]
 
 
-KNOWN_FAILS = ["character_tab_content", "skills_tab_content", "feats_tab_content"]
+CONTENT_CHECKS = ["character_tab_content", "skills_tab_content", "feats_tab_content"]
 US095_CHECKS = ["shoulder_switches_tab", "shoulder_rb_switches_tab", "i_closes"]
 
 
-class TestUs069TodaysGame(PlaytestCase):
-    def test_todays_game_fails_exactly_the_known_issues(self):
+class TestUs069CurrentGame(PlaytestCase):
+    def test_current_game_passes_all_content_checks(self):
         world, server = self.serve()
         code, rep = self.play(server)
-        self.assertEqual(code, 1, self.log.getvalue()[-3000:])
-        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(KNOWN_FAILS))
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        self.assertEqual(self.statuses(rep, "FAIL"), [])
         # I closed the menu, so final_close has nothing to do
         self.assertEqual(self.statuses(rep, "SKIP"), ["final_close"])
-        self.assertEqual(sorted(rep["known_failures"]), sorted(KNOWN_FAILS))
+        self.assertEqual(rep["known_failures"], [])
         self.assertEqual(rep["new_failures"], [])
+        self.assertEqual(rep["fixed_candidates"], [])
         self.assertEqual(rep["undeclared_checks"], [])
         checks = self.by_name(rep)
         for name in ("experience", "map", "hud_visible", "escape_opens", "menu_input_mode",
                      "tabs_listed",
-                     "game_input_blocked", "click_skills_tab", "click_feats_tab",
+                     "game_input_blocked", *CONTENT_CHECKS, "click_skills_tab", "click_feats_tab",
                      "settings_placeholder", "shoulder_switches_tab", "shoulder_rb_switches_tab",
                      "escape_closes", "reopen_restores_tab",
                      "gamepad_back_closes", "start_button_opens", "escape_closes_again",
@@ -237,9 +238,11 @@ class TestUs069TodaysGame(PlaytestCase):
         self.assertEqual(world.enemies, [])
         self.assertIn("Gamepad_LeftShoulder", checks["shoulder_switches_tab"]["detail"])
         self.assertIn("Gamepad_RightShoulder", checks["shoulder_rb_switches_tab"]["detail"])
-        self.assertIn("Coming Soon", checks["skills_tab_content"]["detail"])
-        self.assertIn("Coming Soon", checks["feats_tab_content"]["detail"])
-        self.assertIn("missing attributes", checks["character_tab_content"]["detail"])
+        self.assertIn("Weapon", checks["skills_tab_content"]["detail"])
+        self.assertIn("0 / 20", checks["skills_tab_content"]["detail"])
+        self.assertIn("Feats: 0 unlocked", checks["feats_tab_content"]["detail"])
+        self.assertIn("missing attributes [], missing groups []",
+                      checks["character_tab_content"]["detail"])
         self.assertIn("moved 0.0 cm", checks["game_input_blocked"]["detail"])
         # LB went settings -> inventory and RB back to settings, so Escape closed on settings
         # and reopened there.
@@ -259,7 +262,7 @@ class TestUs069TodaysGame(PlaytestCase):
     def test_the_acs_in_the_report(self):
         _, server = self.serve()
         code, rep = self.play(server)
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 0)
         acs = {(a["story"], a["id"]): a for a in rep["acs"]}
         self.assertEqual(acs[("US-069", "AC-069.4")]["status"], "PASS")
         self.assertEqual(acs[("US-069", "AC-069.4")]["checks"],
@@ -277,13 +280,12 @@ class TestUs069TodaysGame(PlaytestCase):
                     ("US-069", "AC-069.11")):
             self.assertEqual(acs[key]["status"], "PASS", key)
         for key in (("US-066", "AC-066.3"), ("US-067", "AC-067.4"), ("US-068", "AC-068.8")):
-            self.assertEqual(acs[key]["status"], "FAIL", key)
-            self.assertTrue(acs[key]["known_issue"], key)
+            self.assertEqual(acs[key]["status"], "PASS", key)
+            self.assertFalse(acs[key]["known_issue"], key)
         self.assertFalse([a for a in rep["acs"] if a["accepted"]],
                          "an attached run never accepts an AC")
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
-        self.assertNotIn("| FAIL (NEW) |", md)
-        self.assertIn("| FAIL (known) |", md)
+        self.assertNotIn("| FAIL", md)
         self.assertIn("## Pause menu tabs", md)
 
     def test_only_real_input_and_reads_are_sent(self):
@@ -306,15 +308,20 @@ class TestUs069TodaysGame(PlaytestCase):
         self.assertEqual(len([r for r in server.received if r.get("cmd") == "click"]), 3)
 
 
-class TestUs069FixedGame(PlaytestCase):
-    def test_a_fixed_game_passes_and_flags_the_known_issues_as_fixed(self):
-        world, server = self.serve(character_sheet=True, skills_tab=True, feats_tab=True)
+class TestUs069MissingContentMutations(PlaytestCase):
+    def test_missing_content_fails_exactly_the_three_content_checks(self):
+        world, server = self.serve(character_sheet=False, skills_tab=False, feats_tab=False)
         code, rep = self.play(server)
-        self.assertEqual(code, 0, json.dumps([c for c in rep["checks"]
-                                              if c["status"] in ("FAIL", "SKIP")]))
-        self.assertEqual(self.statuses(rep, "FAIL"), [])
+        self.assertEqual(code, 1)
+        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(CONTENT_CHECKS))
         self.assertEqual(self.statuses(rep, "SKIP"), ["final_close"])
-        self.assertEqual(sorted(rep["fixed_candidates"]), sorted(KNOWN_FAILS))
+        self.assertEqual(sorted(rep["new_failures"]), sorted(CONTENT_CHECKS))
+        self.assertEqual(rep["known_failures"], [])
+        self.assertEqual(rep["fixed_candidates"], [])
+        checks = self.by_name(rep)
+        self.assertIn("Coming Soon", checks["skills_tab_content"]["detail"])
+        self.assertIn("Coming Soon", checks["feats_tab_content"]["detail"])
+        self.assertIn("missing attributes", checks["character_tab_content"]["detail"])
         self.assertEqual(rep["tab_before_close"], "settings")
         self.assertEqual(self.by_name(rep)["reopen_restores_tab"]["status"], "PASS")
         self.assertFalse(world.menu_open)
@@ -329,7 +336,7 @@ class TestUs069BeforeUs095(PlaytestCase):
         world, server = self.serve(shoulder_steps=NO_SHOULDERS, i_closes_menu=False)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
-        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(KNOWN_FAILS + US095_CHECKS))
+        self.assertEqual(sorted(self.statuses(rep, "FAIL")), sorted(US095_CHECKS))
         self.assertEqual(sorted(rep["new_failures"]), sorted(US095_CHECKS))
         checks = self.by_name(rep)
         self.assertIn('active_tab=="inventory"', checks["shoulder_switches_tab"]["detail"])
@@ -443,7 +450,7 @@ class TestUs069Failures(PlaytestCase):
     def test_a_lost_connection_is_infra(self):
         _, server = self.serve(faults=fb.Faults(drop_on_cmd="click"))
         code, rep = self.play(server)
-        self.assertEqual(code, 1)  # the known content FAILs before it are gameplay
+        self.assertEqual(code, 2)  # no gameplay failure precedes the lost bridge now
         checks = self.by_name(rep)
         self.assertEqual(checks["click_skills_tab"]["status"], "FAIL")
         self.assertEqual(checks["click_skills_tab"]["kind"], "infra")
@@ -479,7 +486,7 @@ class TestUs069Plan(unittest.TestCase):
                          names.index("shoulder_switches_tab") + 1)
         self.assertEqual(names[-3:], ["i_closes", "i_held_closes_on_key_up", "final_close"])
         known = {s.check for s in us069.PLAN if s.known_issue}
-        self.assertEqual(known, set(KNOWN_FAILS))
+        self.assertEqual(known, set())
         run = us069.Us069Run(us069.parse_args([]))
         for check in US095_CHECKS + ["i_held_closes_on_key_up"]:
             self.assertIsNone(run.plan_step(check).known_issue, check)

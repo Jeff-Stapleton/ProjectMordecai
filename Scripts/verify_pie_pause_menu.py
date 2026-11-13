@@ -115,12 +115,21 @@ def _run():
                     check(f"UI action registered with the CommonUI router {count}x (no duplicates): {tag}",
                           names.count(tag) == count, f"Got {names}")
 
+                huds = unreal.WidgetLibrary.get_all_widgets_of_class(
+                    world, unreal.MordecaiCombatHUDWidget, False)
+                hud_accessor = huds[0] if huds else None
+
                 def named_text(content, widget_name):
                     widget = None
+                    if hud_accessor:
+                        try:
+                            widget = hud_accessor.get_named_widget(content, widget_name)
+                        except Exception:
+                            pass
                     if content:
                         try:
                             tree = content.get_editor_property("widget_tree")
-                            widget = tree.find_widget(widget_name) if tree else None
+                            widget = widget or (tree.find_widget(widget_name) if tree else None)
                         except Exception:
                             pass
                     return str(widget.get_text()) if widget else None
@@ -159,7 +168,7 @@ def _run():
                           named_text(skills, "Category_Weapon") == "Weapon")
                     empty_text = named_text(skills, "SkillEmptyText")
                     logic("skills: honest empty state when gameplay registered no skills",
-                          empty_text == "No skills registered in this category.",
+                          empty_text == "No skills in this category yet.",
                           f"Got '{empty_text}'")
 
                 feats = tab_content("feats", "MordecaiFeatDisplayWidget")
@@ -167,7 +176,8 @@ def _run():
                     logic("feats: bound to PlayerState FeatComponent",
                           feats.is_bound_to_component())
                     logic("feats: summary matches the empty gameplay component",
-                          named_text(feats, "FeatSummaryText") == "Feats: 0 unlocked",
+                          named_text(feats, "FeatSummaryText")
+                          == "Feats: 0 unlocked — 0 Common, 0 Rare, 0 Legendary",
                           f"Got '{named_text(feats, 'FeatSummaryText')}'")
 
                 start = str(menu.get_active_tab_id()).lower()

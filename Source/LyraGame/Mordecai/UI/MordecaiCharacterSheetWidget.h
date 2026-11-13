@@ -10,7 +10,12 @@
 #include "MordecaiCharacterSheetWidget.generated.h"
 
 class UAbilitySystemComponent;
+class UBorder;
+class UTextBlock;
 class UMordecaiPauseMenuWidget;
+class UMordecaiUIThemeSubsystem;
+enum class EMordecaiUITheme : uint8;
+struct FMordecaiUIThemeColors;
 
 /**
  * UMordecaiCharacterSheetWidget
@@ -66,12 +71,18 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 	/** Model populated by InitDefaults() and refreshed from the bound ASC. */
 	FMordecaiCharacterSheetData Data;
 
 private:
+	void BuildDefaultContent();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
+	void RefreshAllText();
+	void RefreshPrimaryText(int32 PrimaryIndex);
+	void RefreshResourceText(int32 ResourceIndex);
 	void RefreshAllFromASC();
 	void OnPrimaryAttributeChanged(const FOnAttributeChangeData& ChangeData, int32 PrimaryIndex);
 	void OnPrimaryDerivedChanged(const FOnAttributeChangeData& ChangeData, int32 DerivedIndex);
@@ -82,4 +93,28 @@ private:
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 	TArray<TPair<FGameplayAttribute, FDelegateHandle>> DelegateHandles;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> ContentPlate;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CharacterTitle;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> PrimaryValueTexts;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> ResourceValueTexts;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> MainTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> MutedTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> RaisedPanels;
+
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
 };

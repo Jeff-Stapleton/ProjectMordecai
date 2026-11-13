@@ -1,13 +1,72 @@
 // Project Mordecai — Skill Tree Widget (US-067)
 
 #include "Mordecai/UI/MordecaiSkillTreeWidget.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/ScrollBox.h"
+#include "Components/SizeBox.h"
+#include "Components/SizeBoxSlot.h"
+#include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Mordecai/Skills/MordecaiSkillComponent.h"
 #include "Mordecai/Skills/MordecaiSkillDataAsset.h"
 #include "Mordecai/UI/MordecaiPauseMenuWidget.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeSubsystem.h"
+#include "Mordecai/UI/TinTally/MordecaiUITypography.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiSkillTreeWidget)
 
 #define LOCTEXT_NAMESPACE "MordecaiSkillTree"
+
+namespace MordecaiSkillTreeLayout
+{
+	constexpr float OuterPadding = 16.f;
+	constexpr float SectionGap = 12.f;
+	constexpr float CategoryGap = 6.f;
+	constexpr float RowGap = 8.f;
+	constexpr float RankWidth = 112.f;
+	constexpr float RowMinHeight = 76.f;
+
+	struct FCategoryPresentation
+	{
+		EMordecaiSkillCategory Category;
+		const TCHAR* Name;
+		const TCHAR* Label;
+	};
+
+	const FCategoryPresentation Categories[] = {
+		{ EMordecaiSkillCategory::Weapon, TEXT("Weapon"), TEXT("Weapon") },
+		{ EMordecaiSkillCategory::DefenseArmor, TEXT("DefenseArmor"), TEXT("Defense & Armor") },
+		{ EMordecaiSkillCategory::MovementExploration, TEXT("MovementExploration"), TEXT("Movement & Exploration") },
+		{ EMordecaiSkillCategory::UtilityInteraction, TEXT("UtilityInteraction"), TEXT("Utility & Interaction") },
+		{ EMordecaiSkillCategory::Magic, TEXT("Magic"), TEXT("Magic") }
+	};
+
+	const FCategoryPresentation& GetCategoryPresentation(const EMordecaiSkillCategory Category)
+	{
+		for (const FCategoryPresentation& Presentation : Categories)
+		{
+			if (Presentation.Category == Category)
+			{
+				return Presentation;
+			}
+		}
+		return Categories[0];
+	}
+
+	FString WidgetSafeName(const FName Name)
+	{
+		FString Result = Name.ToString();
+		Result.ReplaceInline(TEXT(" "), TEXT("_"));
+		Result.ReplaceInline(TEXT("-"), TEXT("_"));
+		return Result;
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Static helpers
@@ -46,12 +105,349 @@ bool UMordecaiSkillTreeWidget::IsMilestoneRank(int32 Rank)
 void UMordecaiSkillTreeWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
+	if (WidgetTree && !WidgetTree->RootWidget)
+	{
+		BuildDefaultContent();
+	}
+	RefreshContent();
+}
+
+void UMordecaiSkillTreeWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this,
+		BoundThemeSubsystem,
+		ThemeChangedHandle,
+		this,
+		&ThisClass::ApplyTheme);
 }
 
 void UMordecaiSkillTreeWidget::NativeDestruct()
 {
 	UnbindFromSkillComponent();
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
 	Super::NativeDestruct();
+}
+
+void UMordecaiSkillTreeWidget::BuildDefaultContent()
+{
+	using namespace MordecaiSkillTreeLayout;
+
+	ContentPlate = WidgetTree->ConstructWidget<UBorder>(
+		UBorder::StaticClass(), TEXT("SkillContentPlate"));
+	ContentPlate->SetPadding(FMargin(OuterPadding));
+	WidgetTree->RootWidget = ContentPlate;
+
+	UVerticalBox* Root = WidgetTree->ConstructWidget<UVerticalBox>(
+		UVerticalBox::StaticClass(), TEXT("SkillContent"));
+	ContentPlate->SetContent(Root);
+
+	auto MakeStaticText = [this](
+		const FName Name,
+		const FText& Text,
+		const TCHAR* Style,
+		const bool bMuted = false) -> UTextBlock*
+	{
+		UTextBlock* Result = WidgetTree->ConstructWidget<UTextBlock>(
+			UTextBlock::StaticClass(), Name);
+		Result->SetText(Text);
+		Result->SetAutoWrapText(true);
+		MordecaiUITypography::Apply(Result, Style);
+		(bMuted ? StaticMutedTextWidgets : StaticMainTextWidgets).Add(Result);
+		return Result;
+	};
+
+	UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>(
+		UHorizontalBox::StaticClass(), TEXT("SkillHeader"));
+	if (UVerticalBoxSlot* HeaderSlot = Root->AddChildToVerticalBox(Header))
+	{
+		HeaderSlot->SetHorizontalAlignment(HAlign_Fill);
+		HeaderSlot->SetPadding(FMargin(0.f, 0.f, 0.f, SectionGap));
+	}
+	SkillsTitle = MakeStaticText(
+		TEXT("SkillsTitle"), LOCTEXT("SkillsTitle", "Skills"), TEXT("ui_title"));
+	if (UHorizontalBoxSlot* TitleSlot = Header->AddChildToHorizontalBox(SkillsTitle))
+	{
+		TitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		TitleSlot->SetVerticalAlignment(VAlign_Center);
+	}
+	SkillPointsText = MakeStaticText(
+		TEXT("SkillPointsText"),
+		LOCTEXT("SkillPointsInitial", "Skill Points: 0"),
+		TEXT("num_m"));
+	if (UHorizontalBoxSlot* PointsSlot = Header->AddChildToHorizontalBox(SkillPointsText))
+	{
+		PointsSlot->SetVerticalAlignment(VAlign_Center);
+	}
+
+	UHorizontalBox* CategoriesBox = WidgetTree->ConstructWidget<UHorizontalBox>(
+		UHorizontalBox::StaticClass(), TEXT("CategoryRail"));
+	if (UVerticalBoxSlot* CategoriesSlot = Root->AddChildToVerticalBox(CategoriesBox))
+	{
+		CategoriesSlot->SetHorizontalAlignment(HAlign_Fill);
+		CategoriesSlot->SetPadding(FMargin(0.f, 0.f, 0.f, SectionGap));
+	}
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Categories); ++Index)
+	{
+		const FCategoryPresentation& Presentation = Categories[Index];
+		UTextBlock* CategoryText = MakeStaticText(
+			FName(*FString::Printf(TEXT("Category_%s"), Presentation.Name)),
+			FText::FromString(Presentation.Label),
+			TEXT("ui_label"),
+			Presentation.Category != ActiveCategory);
+		CategoryTextWidgets.Add(CategoryText);
+		CategoryText->SetJustification(ETextJustify::Center);
+		if (UHorizontalBoxSlot* CategorySlot =
+			CategoriesBox->AddChildToHorizontalBox(CategoryText))
+		{
+			CategorySlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			CategorySlot->SetVerticalAlignment(VAlign_Center);
+			CategorySlot->SetPadding(FMargin(
+				Index > 0 ? CategoryGap * 0.5f : 0.f,
+				0.f,
+				Index + 1 < UE_ARRAY_COUNT(Categories) ? CategoryGap * 0.5f : 0.f,
+				0.f));
+		}
+	}
+
+	CategoryMetaText = MakeStaticText(
+		TEXT("CategoryMetaText"),
+		FText::GetEmpty(),
+		TEXT("ui_label"),
+		true);
+	if (UVerticalBoxSlot* MetaSlot = Root->AddChildToVerticalBox(CategoryMetaText))
+	{
+		MetaSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+	}
+
+	UScrollBox* Scroll = WidgetTree->ConstructWidget<UScrollBox>(
+		UScrollBox::StaticClass(), TEXT("SkillListBox"));
+	Scroll->SetScrollBarVisibility(ESlateVisibility::Visible);
+	if (UVerticalBoxSlot* ScrollSlot = Root->AddChildToVerticalBox(Scroll))
+	{
+		ScrollSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		ScrollSlot->SetHorizontalAlignment(HAlign_Fill);
+		ScrollSlot->SetVerticalAlignment(VAlign_Fill);
+	}
+	SkillList = WidgetTree->ConstructWidget<UVerticalBox>(
+		UVerticalBox::StaticClass(), TEXT("SkillList"));
+	Scroll->AddChild(SkillList);
+
+	ApplyCurrentTheme();
+}
+
+void UMordecaiSkillTreeWidget::RefreshContent()
+{
+	using namespace MordecaiSkillTreeLayout;
+	if (!SkillList)
+	{
+		return;
+	}
+
+	SkillList->ClearChildren();
+	DynamicMainTextWidgets.Reset();
+	DynamicMutedTextWidgets.Reset();
+	DynamicRowPanels.Reset();
+
+	const int32 AvailablePoints = GetAvailableSkillPoints();
+	if (SkillPointsText)
+	{
+		SkillPointsText->SetText(FText::Format(
+			LOCTEXT("SkillPointsFormat", "Skill Points: {0}"),
+			FText::AsNumber(AvailablePoints)));
+	}
+
+	const TArray<FMordecaiSkillTreeRow> Rows = GetVisibleSkills();
+	const FCategoryPresentation& Category = GetCategoryPresentation(ActiveCategory);
+	if (CategoryMetaText)
+	{
+		CategoryMetaText->SetText(FText::Format(
+			LOCTEXT("CategoryCountFormat", "{0} \u00b7 {1} skills"),
+			FText::FromString(Category.Label),
+			FText::AsNumber(Rows.Num())));
+	}
+
+	auto MakeDynamicText = [this](
+		const FName Name,
+		const FText& Text,
+		const TCHAR* Style,
+		const bool bMuted = false) -> UTextBlock*
+	{
+		UTextBlock* Result = WidgetTree->ConstructWidget<UTextBlock>(
+			UTextBlock::StaticClass(), Name);
+		Result->SetText(Text);
+		Result->SetAutoWrapText(true);
+		MordecaiUITypography::Apply(Result, Style);
+		(bMuted ? DynamicMutedTextWidgets : DynamicMainTextWidgets).Add(Result);
+		return Result;
+	};
+
+	if (Rows.IsEmpty())
+	{
+		UTextBlock* Empty = MakeDynamicText(
+			TEXT("SkillEmptyText"),
+			LOCTEXT("SkillEmpty", "No skills in this category yet."),
+			TEXT("ui_body"),
+			true);
+		if (UVerticalBoxSlot* EmptySlot = SkillList->AddChildToVerticalBox(Empty))
+		{
+			EmptySlot->SetPadding(FMargin(12.f));
+			EmptySlot->SetHorizontalAlignment(HAlign_Center);
+			EmptySlot->SetVerticalAlignment(VAlign_Center);
+		}
+		ApplyCurrentTheme();
+		return;
+	}
+
+	for (int32 Index = 0; Index < Rows.Num(); ++Index)
+	{
+		const FMordecaiSkillTreeRow& Row = Rows[Index];
+		const FString SafeName = WidgetSafeName(Row.SkillName);
+
+		USizeBox* RowSize = WidgetTree->ConstructWidget<USizeBox>(
+			USizeBox::StaticClass(),
+			FName(*FString::Printf(TEXT("SkillRowBox_%s"), *SafeName)));
+		RowSize->SetMinDesiredHeight(RowMinHeight);
+		UBorder* RowPanel = WidgetTree->ConstructWidget<UBorder>(
+			UBorder::StaticClass(),
+			FName(*FString::Printf(TEXT("SkillRow_%s"), *SafeName)));
+		RowPanel->SetPadding(FMargin(14.f, 10.f));
+		RowSize->SetContent(RowPanel);
+		DynamicRowPanels.Add(RowPanel);
+
+		UHorizontalBox* RowBox = WidgetTree->ConstructWidget<UHorizontalBox>(
+			UHorizontalBox::StaticClass());
+		RowPanel->SetContent(RowBox);
+
+		UTextBlock* NameText = MakeDynamicText(
+			FName(*FString::Printf(TEXT("SkillName_%s"), *SafeName)),
+			Row.DisplayName,
+			TEXT("ui_title"));
+		if (UHorizontalBoxSlot* NameSlot = RowBox->AddChildToHorizontalBox(NameText))
+		{
+			NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			NameSlot->SetVerticalAlignment(VAlign_Center);
+		}
+
+		UTextBlock* RankLabel = MakeDynamicText(
+			FName(*FString::Printf(TEXT("SkillRankLabel_%s"), *SafeName)),
+			LOCTEXT("RankLabel", "Rank"),
+			TEXT("ui_label"),
+			true);
+		if (UHorizontalBoxSlot* RankLabelSlot =
+			RowBox->AddChildToHorizontalBox(RankLabel))
+		{
+			RankLabelSlot->SetVerticalAlignment(VAlign_Center);
+			RankLabelSlot->SetPadding(FMargin(8.f, 0.f));
+		}
+
+		USizeBox* RankBox = WidgetTree->ConstructWidget<USizeBox>(
+			USizeBox::StaticClass(),
+			FName(*FString::Printf(TEXT("SkillRankBox_%s"), *SafeName)));
+		RankBox->SetMinDesiredWidth(RankWidth);
+		UTextBlock* RankText = MakeDynamicText(
+			FName(*FString::Printf(TEXT("SkillRank_%s"), *SafeName)),
+			FText::FromString(FString::Printf(
+				TEXT("%d / %d"), Row.CurrentRank, Row.MaxRank)),
+			TEXT("num_m"));
+		RankText->SetJustification(ETextJustify::Right);
+		if (USizeBoxSlot* RankTextSlot =
+			Cast<USizeBoxSlot>(RankBox->AddChild(RankText)))
+		{
+			RankTextSlot->SetHorizontalAlignment(HAlign_Fill);
+			RankTextSlot->SetVerticalAlignment(VAlign_Center);
+		}
+		if (UHorizontalBoxSlot* RankBoxSlot = RowBox->AddChildToHorizontalBox(RankBox))
+		{
+			RankBoxSlot->SetVerticalAlignment(VAlign_Center);
+		}
+
+		if (UVerticalBoxSlot* RowSlot = SkillList->AddChildToVerticalBox(RowSize))
+		{
+			RowSlot->SetPadding(FMargin(
+				0.f,
+				Index > 0 ? RowGap * 0.5f : 0.f,
+				0.f,
+				Index + 1 < Rows.Num() ? RowGap * 0.5f : 0.f));
+		}
+	}
+
+	ApplyCurrentTheme();
+}
+
+void UMordecaiSkillTreeWidget::ApplyCurrentTheme()
+{
+	if (UMordecaiUIThemeSubsystem* ThemeSubsystem =
+		UMordecaiUIThemeSubsystem::ResolveForWidget(this))
+	{
+		ApplyTheme(
+			ThemeSubsystem->GetActiveTheme(),
+			ThemeSubsystem->GetActiveColors());
+	}
+	else
+	{
+		ApplyTheme(
+			EMordecaiUITheme::Diorama,
+			FMordecaiUIThemeColors::MakeDiorama());
+	}
+}
+
+void UMordecaiSkillTreeWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	if (ContentPlate)
+	{
+		ContentPlate->SetBrushColor(Colors.Plate);
+	}
+	for (UBorder* Panel : DynamicRowPanels)
+	{
+		if (Panel)
+		{
+			Panel->SetBrushColor(Colors.PlateRaised);
+		}
+	}
+	for (UTextBlock* Text : StaticMainTextWidgets)
+	{
+		if (Text)
+		{
+			Text->SetColorAndOpacity(FSlateColor(Colors.Text));
+		}
+	}
+	for (UTextBlock* Text : StaticMutedTextWidgets)
+	{
+		if (Text)
+		{
+			Text->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
+		}
+	}
+	for (UTextBlock* Text : DynamicMainTextWidgets)
+	{
+		if (Text)
+		{
+			Text->SetColorAndOpacity(FSlateColor(Colors.Text));
+		}
+	}
+	for (UTextBlock* Text : DynamicMutedTextWidgets)
+	{
+		if (Text)
+		{
+			Text->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
+		}
+	}
+	for (int32 Index = 0;
+		Index < CategoryTextWidgets.Num() && Index < UE_ARRAY_COUNT(MordecaiSkillTreeLayout::Categories);
+		++Index)
+	{
+		if (UTextBlock* CategoryText = CategoryTextWidgets[Index])
+		{
+			const bool bActive =
+				MordecaiSkillTreeLayout::Categories[Index].Category == ActiveCategory;
+			CategoryText->SetColorAndOpacity(FSlateColor(
+				bActive ? Colors.Text : Colors.TextMuted));
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +464,7 @@ void UMordecaiSkillTreeWidget::BindToSkillComponent(UMordecaiSkillComponent* InC
 
 	BoundComponent = InComponent;
 	InComponent->OnSkillMilestoneReachedBP.AddDynamic(this, &UMordecaiSkillTreeWidget::HandleMilestoneReached);
+	RefreshContent();
 }
 
 void UMordecaiSkillTreeWidget::UnbindFromSkillComponent()
@@ -77,12 +474,14 @@ void UMordecaiSkillTreeWidget::UnbindFromSkillComponent()
 		Comp->OnSkillMilestoneReachedBP.RemoveDynamic(this, &UMordecaiSkillTreeWidget::HandleMilestoneReached);
 	}
 	BoundComponent.Reset();
+	RefreshContent();
 }
 
 void UMordecaiSkillTreeWidget::HandleMilestoneReached(FName SkillName, int32 MilestoneRank)
 {
 	LastObservedMilestoneSkill = SkillName;
 	LastObservedMilestoneRank = MilestoneRank;
+	RefreshContent();
 }
 
 // ---------------------------------------------------------------------------
@@ -92,6 +491,7 @@ void UMordecaiSkillTreeWidget::HandleMilestoneReached(FName SkillName, int32 Mil
 void UMordecaiSkillTreeWidget::SetActiveCategory(EMordecaiSkillCategory Category)
 {
 	ActiveCategory = Category;
+	RefreshContent();
 }
 
 TArray<FMordecaiSkillTreeRow> UMordecaiSkillTreeWidget::GetVisibleSkills() const
@@ -165,7 +565,12 @@ bool UMordecaiSkillTreeWidget::RequestAllocateSkillPoint(FName SkillName)
 	{
 		return false;
 	}
-	return Comp->TryAllocateSkillPoint(SkillName);
+	const bool bAllocated = Comp->TryAllocateSkillPoint(SkillName);
+	if (bAllocated)
+	{
+		RefreshContent();
+	}
+	return bAllocated;
 }
 
 // ---------------------------------------------------------------------------

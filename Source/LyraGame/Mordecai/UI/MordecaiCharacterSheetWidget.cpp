@@ -1,14 +1,36 @@
 // Project Mordecai — Character Sheet Widget (US-066)
 
 #include "Mordecai/UI/MordecaiCharacterSheetWidget.h"
+#include "AbilitySystemComponent.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/SizeBox.h"
+#include "Components/SizeBoxSlot.h"
+#include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeScaling.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/UI/MordecaiPauseMenuWidget.h"
-#include "AbilitySystemComponent.h"
+#include "Mordecai/UI/TinTally/MordecaiUITheme.h"
+#include "Mordecai/UI/TinTally/MordecaiUIThemeBinding.h"
+#include "Mordecai/UI/TinTally/MordecaiUITypography.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCharacterSheetWidget)
 
 #define LOCTEXT_NAMESPACE "MordecaiCharacterSheet"
+
+namespace MordecaiCharacterSheetLayout
+{
+	constexpr float OuterPadding = 16.f;
+	constexpr float SectionGap = 12.f;
+	constexpr float ColumnGap = 8.f;
+	constexpr float ResourceValueWidth = 176.f;
+	constexpr float AttributeValueWidth = 72.f;
+	constexpr float RowMinHeight = 48.f;
+}
 
 // ---------------------------------------------------------------------------
 // Static helpers
@@ -37,12 +59,306 @@ void UMordecaiCharacterSheetWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 	Data.InitDefaults();
+	if (WidgetTree && !WidgetTree->RootWidget)
+	{
+		BuildDefaultContent();
+	}
+	RefreshAllText();
+}
+
+void UMordecaiCharacterSheetWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	MordecaiUIThemeBinding::Bind(
+		this,
+		BoundThemeSubsystem,
+		ThemeChangedHandle,
+		this,
+		&ThisClass::ApplyTheme);
 }
 
 void UMordecaiCharacterSheetWidget::NativeDestruct()
 {
 	UnbindFromASC();
+	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
 	Super::NativeDestruct();
+}
+
+void UMordecaiCharacterSheetWidget::BuildDefaultContent()
+{
+	using namespace MordecaiCharacterSheetLayout;
+
+	ContentPlate = WidgetTree->ConstructWidget<UBorder>(
+		UBorder::StaticClass(), TEXT("CharacterContentPlate"));
+	ContentPlate->SetPadding(FMargin(OuterPadding));
+	WidgetTree->RootWidget = ContentPlate;
+
+	UVerticalBox* Root = WidgetTree->ConstructWidget<UVerticalBox>(
+		UVerticalBox::StaticClass(), TEXT("CharacterContent"));
+	ContentPlate->SetContent(Root);
+
+	auto MakeText = [this](
+		const FName Name,
+		const FText& Text,
+		const TCHAR* Style,
+		const bool bMuted = false) -> UTextBlock*
+	{
+		UTextBlock* Result = WidgetTree->ConstructWidget<UTextBlock>(
+			UTextBlock::StaticClass(), Name);
+		Result->SetText(Text);
+		Result->SetAutoWrapText(true);
+		MordecaiUITypography::Apply(Result, Style);
+		(bMuted ? MutedTextWidgets : MainTextWidgets).Add(Result);
+		return Result;
+	};
+
+	CharacterTitle = MakeText(
+		TEXT("CharacterTitle"),
+		LOCTEXT("CharacterTitle", "Character"),
+		TEXT("ui_title"));
+	if (UVerticalBoxSlot* TitleSlot = Root->AddChildToVerticalBox(CharacterTitle))
+	{
+		TitleSlot->SetHorizontalAlignment(HAlign_Left);
+		TitleSlot->SetVerticalAlignment(VAlign_Center);
+		TitleSlot->SetPadding(FMargin(0.f, 0.f, 0.f, SectionGap));
+	}
+
+	UHorizontalBox* Resources = WidgetTree->ConstructWidget<UHorizontalBox>(
+		UHorizontalBox::StaticClass(), TEXT("ResourceRow"));
+	if (UVerticalBoxSlot* ResourcesSlot = Root->AddChildToVerticalBox(Resources))
+	{
+		ResourcesSlot->SetHorizontalAlignment(HAlign_Fill);
+		ResourcesSlot->SetPadding(FMargin(0.f, 0.f, 0.f, SectionGap));
+	}
+	ResourceValueTexts.SetNum(Data.CoreResources.Num());
+	for (int32 Index = 0; Index < Data.CoreResources.Num(); ++Index)
+	{
+		const FMordecaiResourceDisplay& Resource = Data.CoreResources[Index];
+		USizeBox* CellSize = WidgetTree->ConstructWidget<USizeBox>(
+			USizeBox::StaticClass(),
+			FName(*FString::Printf(TEXT("ResourceCell_%s"), *Resource.Id.ToString())));
+		CellSize->SetMinDesiredWidth(ResourceValueWidth);
+		CellSize->SetMinDesiredHeight(72.f);
+		UBorder* Cell = WidgetTree->ConstructWidget<UBorder>(
+			UBorder::StaticClass(),
+			FName(*FString::Printf(TEXT("ResourcePanel_%s"), *Resource.Id.ToString())));
+		Cell->SetPadding(FMargin(12.f, 6.f));
+		RaisedPanels.Add(Cell);
+		CellSize->SetContent(Cell);
+		UVerticalBox* CellColumn = WidgetTree->ConstructWidget<UVerticalBox>(
+			UVerticalBox::StaticClass());
+		Cell->SetContent(CellColumn);
+
+		UTextBlock* Label = MakeText(
+			FName(*FString::Printf(TEXT("ResourceLabel_%s"), *Resource.Id.ToString())),
+			Resource.DisplayName,
+			TEXT("ui_label"),
+			true);
+		CellColumn->AddChildToVerticalBox(Label);
+
+		UTextBlock* Value = MakeText(
+			FName(*FString::Printf(TEXT("ResourceValue_%s"), *Resource.Id.ToString())),
+			FText::FromString(FMordecaiCharacterSheetData::PlaceholderText()),
+			TEXT("num_m"));
+		Value->SetJustification(ETextJustify::Left);
+		ResourceValueTexts[Index] = Value;
+		if (UVerticalBoxSlot* ValueSlot = CellColumn->AddChildToVerticalBox(Value))
+		{
+			ValueSlot->SetVerticalAlignment(VAlign_Center);
+		}
+		if (UHorizontalBoxSlot* CellSlot = Resources->AddChildToHorizontalBox(CellSize))
+		{
+			CellSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			CellSlot->SetPadding(FMargin(
+				Index > 0 ? ColumnGap * 0.5f : 0.f,
+				0.f,
+				Index + 1 < Data.CoreResources.Num() ? ColumnGap * 0.5f : 0.f,
+				0.f));
+		}
+	}
+
+	UHorizontalBox* Groups = WidgetTree->ConstructWidget<UHorizontalBox>(
+		UHorizontalBox::StaticClass(), TEXT("AttributeGroups"));
+	if (UVerticalBoxSlot* GroupsSlot = Root->AddChildToVerticalBox(Groups))
+	{
+		GroupsSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		GroupsSlot->SetHorizontalAlignment(HAlign_Fill);
+		GroupsSlot->SetVerticalAlignment(VAlign_Fill);
+	}
+
+	PrimaryValueTexts.SetNum(Data.PrimaryAttributes.Num());
+	const FText GroupLabels[] = {
+		Data.PhysicalGroupLabel,
+		Data.ResilienceGroupLabel,
+		Data.MagicalGroupLabel
+	};
+	const TCHAR* GroupNames[] = { TEXT("Physical"), TEXT("Resilience"), TEXT("Magical") };
+	for (int32 GroupIndex = 0; GroupIndex < 3; ++GroupIndex)
+	{
+		UVerticalBox* Group = WidgetTree->ConstructWidget<UVerticalBox>(
+			UVerticalBox::StaticClass(),
+			FName(*FString::Printf(TEXT("%sGroup"), GroupNames[GroupIndex])));
+		UTextBlock* Heading = MakeText(
+			FName(*FString::Printf(TEXT("GroupHeading_%s"), GroupNames[GroupIndex])),
+			GroupLabels[GroupIndex],
+			TEXT("ui_label"),
+			true);
+		if (UVerticalBoxSlot* HeadingSlot = Group->AddChildToVerticalBox(Heading))
+		{
+			HeadingSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+			HeadingSlot->SetVerticalAlignment(VAlign_Center);
+		}
+
+		for (int32 LocalIndex = 0; LocalIndex < 3; ++LocalIndex)
+		{
+			const int32 AttributeIndex = GroupIndex * 3 + LocalIndex;
+			const FMordecaiPrimaryAttributeDisplay& Attribute =
+				Data.PrimaryAttributes[AttributeIndex];
+			const FString Code = Attribute.Code.ToString();
+
+			UBorder* Card = WidgetTree->ConstructWidget<UBorder>(
+				UBorder::StaticClass(),
+				FName(*FString::Printf(TEXT("AttributeCard_%s"), *Code)));
+			Card->SetPadding(FMargin(12.f, 8.f));
+			RaisedPanels.Add(Card);
+			if (UVerticalBoxSlot* CardSlot = Group->AddChildToVerticalBox(Card))
+			{
+				CardSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+				CardSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			}
+
+			UHorizontalBox* CardRow = WidgetTree->ConstructWidget<UHorizontalBox>(
+				UHorizontalBox::StaticClass());
+			Card->SetContent(CardRow);
+
+			UVerticalBox* Labels = WidgetTree->ConstructWidget<UVerticalBox>(
+				UVerticalBox::StaticClass());
+			if (UHorizontalBoxSlot* LabelsSlot = CardRow->AddChildToHorizontalBox(Labels))
+			{
+				LabelsSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+				LabelsSlot->SetVerticalAlignment(VAlign_Center);
+			}
+			UTextBlock* CodeText = MakeText(
+				FName(*FString::Printf(TEXT("PrimaryLabel_%s"), *Code)),
+				FText::FromName(Attribute.Code),
+				TEXT("ui_title"));
+			Labels->AddChildToVerticalBox(CodeText);
+			UTextBlock* NameText = MakeText(
+				FName(*FString::Printf(TEXT("PrimaryName_%s"), *Code)),
+				Attribute.DisplayName,
+				TEXT("ui_label"),
+				true);
+			Labels->AddChildToVerticalBox(NameText);
+
+			USizeBox* ValueBox = WidgetTree->ConstructWidget<USizeBox>(
+				USizeBox::StaticClass(),
+				FName(*FString::Printf(TEXT("PrimaryValueBox_%s"), *Code)));
+			ValueBox->SetMinDesiredWidth(AttributeValueWidth);
+			ValueBox->SetMinDesiredHeight(RowMinHeight);
+			if (UHorizontalBoxSlot* ValueBoxSlot = CardRow->AddChildToHorizontalBox(ValueBox))
+			{
+				ValueBoxSlot->SetVerticalAlignment(VAlign_Center);
+			}
+			UTextBlock* Value = MakeText(
+				FName(*FString::Printf(TEXT("PrimaryValue_%s"), *Code)),
+				FText::FromString(FMordecaiCharacterSheetData::PlaceholderText()),
+				TEXT("num_l"));
+			Value->SetJustification(ETextJustify::Right);
+			PrimaryValueTexts[AttributeIndex] = Value;
+			if (USizeBoxSlot* ValueSlot = Cast<USizeBoxSlot>(ValueBox->AddChild(Value)))
+			{
+				ValueSlot->SetHorizontalAlignment(HAlign_Fill);
+				ValueSlot->SetVerticalAlignment(VAlign_Center);
+			}
+		}
+
+		if (UHorizontalBoxSlot* GroupSlot = Groups->AddChildToHorizontalBox(Group))
+		{
+			GroupSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			GroupSlot->SetPadding(FMargin(
+				GroupIndex > 0 ? ColumnGap * 0.5f : 0.f,
+				0.f,
+				GroupIndex < 2 ? ColumnGap * 0.5f : 0.f,
+				0.f));
+		}
+	}
+
+	ApplyTheme(
+		EMordecaiUITheme::Diorama,
+		FMordecaiUIThemeColors::MakeDiorama());
+}
+
+void UMordecaiCharacterSheetWidget::ApplyTheme(
+	EMordecaiUITheme Theme,
+	const FMordecaiUIThemeColors& Colors)
+{
+	if (ContentPlate)
+	{
+		ContentPlate->SetBrushColor(Colors.Plate);
+	}
+	for (UBorder* Panel : RaisedPanels)
+	{
+		if (Panel)
+		{
+			Panel->SetBrushColor(Colors.PlateRaised);
+		}
+	}
+	for (UTextBlock* Text : MainTextWidgets)
+	{
+		if (Text)
+		{
+			Text->SetColorAndOpacity(FSlateColor(Colors.Text));
+		}
+	}
+	for (UTextBlock* Text : MutedTextWidgets)
+	{
+		if (Text)
+		{
+			Text->SetColorAndOpacity(FSlateColor(Colors.TextMuted));
+		}
+	}
+}
+
+void UMordecaiCharacterSheetWidget::RefreshAllText()
+{
+	for (int32 Index = 0; Index < PrimaryValueTexts.Num(); ++Index)
+	{
+		RefreshPrimaryText(Index);
+	}
+	for (int32 Index = 0; Index < ResourceValueTexts.Num(); ++Index)
+	{
+		RefreshResourceText(Index);
+	}
+}
+
+void UMordecaiCharacterSheetWidget::RefreshPrimaryText(const int32 PrimaryIndex)
+{
+	if (!Data.PrimaryAttributes.IsValidIndex(PrimaryIndex)
+		|| !PrimaryValueTexts.IsValidIndex(PrimaryIndex)
+		|| !PrimaryValueTexts[PrimaryIndex])
+	{
+		return;
+	}
+	const FMordecaiPrimaryAttributeDisplay& Row = Data.PrimaryAttributes[PrimaryIndex];
+	PrimaryValueTexts[PrimaryIndex]->SetText(FText::FromString(
+		Row.bHasValue
+			? FString::FromInt(FMath::RoundToInt(Row.BaseValue))
+			: FMordecaiCharacterSheetData::PlaceholderText()));
+}
+
+void UMordecaiCharacterSheetWidget::RefreshResourceText(const int32 ResourceIndex)
+{
+	if (!Data.CoreResources.IsValidIndex(ResourceIndex)
+		|| !ResourceValueTexts.IsValidIndex(ResourceIndex)
+		|| !ResourceValueTexts[ResourceIndex])
+	{
+		return;
+	}
+	const FMordecaiResourceDisplay& Row = Data.CoreResources[ResourceIndex];
+	ResourceValueTexts[ResourceIndex]->SetText(FText::FromString(
+		Row.bHasValue
+			? FMordecaiCharacterSheetData::FormatResource(Row.Current, Row.Max)
+			: FMordecaiCharacterSheetData::PlaceholderText()));
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +476,7 @@ void UMordecaiCharacterSheetWidget::BindToASC(UAbilitySystemComponent* ASC)
 
 	Data.bIsBound = true;
 	RefreshAllFromASC();
+	RefreshAllText();
 }
 
 void UMordecaiCharacterSheetWidget::UnbindFromASC()
@@ -180,6 +497,7 @@ void UMordecaiCharacterSheetWidget::UnbindFromASC()
 	for (FMordecaiDerivedStatDisplay&      Row : Data.PrimaryDerivedStats) { Row.bHasValue = false; }
 	for (FMordecaiDerivedStatDisplay&      Row : Data.SecondaryDerivedStats) { Row.bHasValue = false; }
 	for (FMordecaiResourceDisplay&         Row : Data.CoreResources) { Row.bHasValue = false; }
+	RefreshAllText();
 }
 
 // ---------------------------------------------------------------------------
@@ -283,6 +601,7 @@ void UMordecaiCharacterSheetWidget::OnPrimaryAttributeChanged(const FOnAttribute
 	Row.BaseValue    = ChangeData.NewValue;
 	Row.EffectiveMod = FMordecaiAttributeScaling::CalculateEffectiveMod(ChangeData.NewValue);
 	Row.bHasValue    = true;
+	RefreshPrimaryText(PrimaryIndex);
 }
 
 void UMordecaiCharacterSheetWidget::OnPrimaryDerivedChanged(const FOnAttributeChangeData& ChangeData, int32 DerivedIndex)
@@ -320,6 +639,7 @@ void UMordecaiCharacterSheetWidget::OnResourceChanged(const FOnAttributeChangeDa
 		Data.CoreResources[ResourceIndex].Current = ChangeData.NewValue;
 	}
 	Data.CoreResources[ResourceIndex].bHasValue = true;
+	RefreshResourceText(ResourceIndex);
 }
 
 #undef LOCTEXT_NAMESPACE

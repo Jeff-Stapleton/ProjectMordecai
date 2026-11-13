@@ -13,9 +13,9 @@ tabs and I closes the menu, issues #23 and #32).  About 60 s of play:
   1.  The combat HUD is on screen.
   2.  Escape opens the menu on the Character tab and pauses the game; Menu input mode with the
       mouse cursor, the title 'Paused', the five tabs as tab buttons; W and Q do nothing.
-  3.  The Character tab shows the character sheet (known issue N4: it is blank).
+  3.  The Character tab shows the character sheet.
   4.  Clicking the Skills, Feats and Settings tab buttons switches the tab; Skills and Feats
-      show their content (known issue N5: "Coming Soon"), Settings shows "Coming Soon".
+      show their content; Settings shows "Coming Soon".
   5.  LB (Gamepad_LeftShoulder) selects the previous tab (Settings -> Inventory) and RB
       (Gamepad_RightShoulder) the next (Inventory -> Settings), wrapping (AC-069.4, AC-095.4).
   6.  Escape closes and resumes; Escape reopens on the last tab; B (Gamepad_FaceButton_Right)
@@ -96,11 +96,7 @@ BLOCKED_SETTLE_S = 1.0
 BLOCKED_W_HOLD_S = 0.3
 MAX_DRIFT_CM = 5.0
 
-KNOWN_N4 = ("N4 The Character tab of the pause menu is blank: UMordecaiCharacterSheetWidget "
-            "builds no widget tree (Known issues backlog, Specs/agent_playtest_plan_v1.md)")
-KNOWN_N5 = ("N5 The Skills and Feats tabs show \"Coming Soon\": MordecaiPauseMenuWidget registers "
-            "only Character and Inventory (Known issues backlog, Specs/agent_playtest_plan_v1.md)")
-KNOWN_ISSUES = (KNOWN_N4, KNOWN_N5)
+KNOWN_ISSUES = ()
 
 SCREENSHOTS = {
     "menu_character": "the pause menu ('Paused', tab bar Character/Skills/Feats/Inventory/"
@@ -145,19 +141,18 @@ PLAN = (
     Step("character_tab_content", "state pause_menu, widgets -> on the character tab a visible "
          "MordecaiCharacterSheetWidget with all 9 primary attributes (STR..CHA), the groups "
          "Physical/Resilience/Magical and an 'x / y' resource line",
-         proves=("US-066:AC-066.1", "US-066:AC-066.3", "US-066:AC-066.4", "US-066:AC-066.5"),
-         known_issue=KNOWN_N4),
+         proves=("US-066:AC-066.1", "US-066:AC-066.3", "US-066:AC-066.4", "US-066:AC-066.5")),
     Step("click_skills_tab", 'click_button(button_id="skills") -> wait_until '
          'pause_menu.active_tab=="skills"', proves=("AC-069.4",)),
     Step("skills_tab_content", f"state pause_menu, widgets -> a visible "
          f"MordecaiSkillTreeWidget with texts including {lit(SKILL_CATEGORY)} and "
          f"{lit(SKILL_MAX_RANK)}",
-         proves=("US-067:AC-067.1", "US-067:AC-067.3", "US-067:AC-067.4"), known_issue=KNOWN_N5),
+         proves=("US-067:AC-067.1", "US-067:AC-067.3", "US-067:AC-067.4")),
     Step("click_feats_tab", 'click_button(button_id="feats") -> wait_until '
          'pause_menu.active_tab=="feats"', proves=("AC-069.4",)),
     Step("feats_tab_content", f"state pause_menu, widgets -> a visible MordecaiFeatDisplayWidget "
          f"with a text starting {lit(FEATS_SUMMARY_PREFIX)}",
-         proves=("US-068:AC-068.1", "US-068:AC-068.8"), known_issue=KNOWN_N5),
+         proves=("US-068:AC-068.1", "US-068:AC-068.8")),
     Step("settings_placeholder", 'click_button(button_id="settings") -> active_tab=="settings" '
          f"and a visible widget shows {lit(PLACEHOLDER_TEXT)}", proves=("AC-069.3",)),
     Step("shoulder_switches_tab", "tap Gamepad_LeftShoulder -> wait_until pause_menu.open==true "

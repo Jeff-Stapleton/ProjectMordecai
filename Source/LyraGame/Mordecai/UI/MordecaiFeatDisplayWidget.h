@@ -11,6 +11,12 @@
 class UMordecaiFeatComponent;
 class UMordecaiPauseMenuWidget;
 class UMordecaiSkillComponent;
+class UMordecaiUIThemeSubsystem;
+class UBorder;
+class UTextBlock;
+class UVerticalBox;
+enum class EMordecaiUITheme : uint8;
+struct FMordecaiUIThemeColors;
 
 /**
  * FMordecaiFeatConditionProgress
@@ -196,6 +202,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 	/** Tier color map — designer-overridable via Blueprint. */
@@ -203,6 +210,11 @@ protected:
 	TMap<EMordecaiFeatTier, FLinearColor> TierColors;
 
 private:
+	void BuildDefaultContent();
+	void RefreshContent();
+	void ApplyCurrentTheme();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
+
 	UFUNCTION()
 	void HandleFeatUnlocked(FName FeatName);
 
@@ -215,4 +227,43 @@ private:
 	TWeakObjectPtr<UMordecaiFeatComponent> BoundComponent;
 	FName SelectedFeat = NAME_None;
 	FName LastUnlockedFeatName = NAME_None;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> ContentPlate;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> FeatsTitle;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> FeatSummaryText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> FeatList;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> StaticMainTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> StaticMutedTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> DynamicMainTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> DynamicMutedTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> DynamicRowPanels;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> CommonTierTexts;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> RareTierTexts;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> LegendaryTierTexts;
+
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
 };

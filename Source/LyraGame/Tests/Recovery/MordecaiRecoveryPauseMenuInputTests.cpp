@@ -19,10 +19,12 @@
 #include "InputCoreTypes.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/UI/MordecaiCharacterSheetWidget.h"
+#include "Mordecai/UI/MordecaiFeatDisplayWidget.h"
 #include "Mordecai/UI/MordecaiInventoryWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuPlaceholderWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuSubsystem.h"
 #include "Mordecai/UI/MordecaiPauseMenuWidget.h"
+#include "Mordecai/UI/MordecaiSkillTreeWidget.h"
 #include "Mordecai/UI/MordecaiTabButton.h"
 #include "Tests/AutomationCommon.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
@@ -176,7 +178,7 @@ namespace MordecaiRecoveryPauseMenuInputTest
 		return Highlighted;
 	}
 
-	/** The content class a tab draws (US-066 character sheet, US-079 inventory, placeholders for the rest). */
+	/** The content class a tab draws (US-093 real character/skills/feats, US-079 inventory, Settings placeholder). */
 	const UClass* ExpectedContentClass(FName TabId)
 	{
 		if (TabId == UMordecaiCharacterSheetWidget::GetCharacterTabId())
@@ -186,6 +188,14 @@ namespace MordecaiRecoveryPauseMenuInputTest
 		if (TabId == UMordecaiInventoryWidget::GetInventoryTabId())
 		{
 			return UMordecaiInventoryWidget::StaticClass();
+		}
+		if (TabId == UMordecaiSkillTreeWidget::GetSkillsTabId())
+		{
+			return UMordecaiSkillTreeWidget::StaticClass();
+		}
+		if (TabId == UMordecaiFeatDisplayWidget::GetFeatsTabId())
+		{
+			return UMordecaiFeatDisplayWidget::StaticClass();
 		}
 		return UMordecaiPauseMenuPlaceholderWidget::StaticClass();
 	}

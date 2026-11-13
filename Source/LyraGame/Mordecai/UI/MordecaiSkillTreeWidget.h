@@ -11,6 +11,12 @@
 class UMordecaiPauseMenuWidget;
 class UMordecaiSkillComponent;
 class UMordecaiSkillDataAsset;
+class UMordecaiUIThemeSubsystem;
+class UBorder;
+class UTextBlock;
+class UVerticalBox;
+enum class EMordecaiUITheme : uint8;
+struct FMordecaiUIThemeColors;
 
 /**
  * FMordecaiSkillTreeRow
@@ -186,9 +192,15 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 private:
+	void BuildDefaultContent();
+	void RefreshContent();
+	void ApplyCurrentTheme();
+	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
+
 	UFUNCTION()
 	void HandleMilestoneReached(FName SkillName, int32 MilestoneRank);
 
@@ -202,4 +214,40 @@ private:
 
 	FName LastObservedMilestoneSkill = NAME_None;
 	int32 LastObservedMilestoneRank = 0;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> ContentPlate;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> SkillsTitle;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> SkillPointsText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CategoryMetaText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> SkillList;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> StaticMainTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> StaticMutedTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> CategoryTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> DynamicMainTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> DynamicMutedTextWidgets;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> DynamicRowPanels;
+
+	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
+	FDelegateHandle ThemeChangedHandle;
 };
