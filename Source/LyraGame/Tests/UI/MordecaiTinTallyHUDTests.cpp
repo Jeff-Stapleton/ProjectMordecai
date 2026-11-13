@@ -506,6 +506,8 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 	UMordecaiSpellCooldownWidget* Slot = Env.MakeWidget<UMordecaiSpellCooldownWidget>();
 	UMordecaiStatusEffectIndicatorWidget* StatusIndicator =
 		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
+	UMordecaiStatusEffectIndicatorWidget* CompactDebuff =
+		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
 	UMordecaiStatusEffectBarWidget* StatusBar =
 		Env.MakeWidget<UMordecaiStatusEffectBarWidget>();
 	UMordecaiCombatFeedbackWidget* Callout =
@@ -518,6 +520,9 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 	}
 	StatusIndicator->InitializeIndicator(
 		MordecaiGameplayTags::Status_StoneSkin, true, 10.f);
+	CompactDebuff->InitializeIndicator(
+		MordecaiGameplayTags::Status_Shocked, false, 5.f);
+	CompactDebuff->SetCompact(true);
 	Callout->ShowFeedback(
 		TEXT("Parry Failed!"), Themes->GetActiveColors().DangerText);
 	Combo->SetComboIndex(4);
@@ -525,7 +530,8 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 	TArray<TSharedPtr<SWidget>> LiveSlateWidgets = {
 		Health->TakeWidget(), Stamina->TakeWidget(), Posture->TakeWidget(),
 		SpellPoints->TakeWidget(), Prompt->TakeWidget(), Loadout->TakeWidget(),
-		Slot->TakeWidget(), StatusIndicator->TakeWidget(), StatusBar->TakeWidget(),
+		Slot->TakeWidget(), StatusIndicator->TakeWidget(),
+		CompactDebuff->TakeWidget(), StatusBar->TakeWidget(),
 		Callout->TakeWidget(), Combo->TakeWidget()
 	};
 	TSharedRef<SWidget> SlotSlate = LiveSlateWidgets[6].ToSharedRef();
@@ -542,8 +548,9 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		static_cast<UUserWidget*>(Posture), static_cast<UUserWidget*>(SpellPoints),
 		static_cast<UUserWidget*>(Prompt), static_cast<UUserWidget*>(Loadout),
 		static_cast<UUserWidget*>(Slot), static_cast<UUserWidget*>(StatusIndicator),
-		static_cast<UUserWidget*>(StatusBar), static_cast<UUserWidget*>(Callout),
-		static_cast<UUserWidget*>(Combo) })
+		static_cast<UUserWidget*>(CompactDebuff),
+		static_cast<UUserWidget*>(StatusBar),
+		static_cast<UUserWidget*>(Callout), static_cast<UUserWidget*>(Combo) })
 	{
 		TestTrue(*FString::Printf(TEXT("%s subscribes once to the owning player's theme"),
 			*LiveWidget->GetClass()->GetName()),
@@ -559,6 +566,13 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 		&& StatusBody->GetBrush().OutlineSettings.Width == 4.f
 		&& StatusBody->GetBrush().OutlineSettings.Color.GetSpecifiedColor().Equals(
 			HighContrast.Ink));
+	UImage* CompactDebuffBody = Find<UImage>(CompactDebuff, TEXT("TintImage"));
+	TestTrue("compact debuff resolves a visible 4px High Contrast outline",
+		CompactDebuffBody
+		&& BrushTint(CompactDebuffBody->GetBrush()).Equals(HighContrast.Plate)
+		&& CompactDebuffBody->GetBrush().OutlineSettings.Width == 4.f
+		&& CompactDebuffBody->GetBrush().OutlineSettings.Color.GetSpecifiedColor().Equals(
+			HighContrast.Lip));
 	UBorder* OverflowPlate = Find<UBorder>(StatusBar, TEXT("OverflowPlate"));
 	TestTrue("status bar resolves live High Contrast plate and lip tokens",
 		OverflowPlate

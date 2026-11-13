@@ -178,6 +178,35 @@ class TestCaptureValidation(TempImageCase):
 
 
 class TestImageComparison(TempImageCase):
+    def status_chip_fixture(self, name, with_intrusion):
+        path = os.path.join(self.tmp, name)
+        image = Image.new("RGB", (960, 720), (180, 90, 160))
+        plate = gallery._theme_token_rgb("plate", "diorama")
+        frost = gallery._theme_token_rgb("dmg-frost", "diorama")
+        lightning = gallery._theme_token_rgb("dmg-lightning", "diorama")
+        for origin, width in (((498, 178), 250), ((498, 260), 166)):
+            for y in range(origin[1], origin[1] + 36):
+                for x in range(origin[0], origin[0] + width):
+                    image.putpixel((x, y), plate)
+        if with_intrusion:
+            image.putpixel((498 + 250 - 8 - 20, 178 + 18), frost)
+            image.putpixel((498 + 166 - 8 - 20, 260 + 18), lightning)
+        image.save(path)
+        return path
+
+    def test_status_chip_analysis_rejects_pip_pixels_in_duration_boxes(self):
+        result = gallery.analyze_status_chip_pip_intrusion(
+            self.status_chip_fixture("intruding.png", True), "diorama"
+        )
+        self.assertFalse(result["passed"], result)
+        self.assertTrue(all(not fixture["passed"] for fixture in result["fixtures"]))
+
+    def test_status_chip_analysis_accepts_clean_duration_boxes(self):
+        result = gallery.analyze_status_chip_pip_intrusion(
+            self.status_chip_fixture("clean.png", False), "diorama"
+        )
+        self.assertTrue(result["passed"], result)
+
     @staticmethod
     def hatch_region_metrics(path):
         with Image.open(path) as source:

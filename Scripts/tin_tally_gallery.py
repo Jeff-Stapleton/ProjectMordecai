@@ -203,13 +203,17 @@ def validate_capture(
 
 
 def _theme_plate_rgb(theme):
+    return _theme_token_rgb("plate", theme)
+
+
+def _theme_token_rgb(name, theme):
     data = _load_json(TOKENS_PATH)
-    plate = next(
+    token_value = next(
         token["value"]
         for token in data["color"]["tokens"]
-        if token["name"] == "plate"
+        if token["name"] == name
     )
-    value = plate[theme] if isinstance(plate, dict) else plate
+    value = token_value[theme] if isinstance(token_value, dict) else token_value
     value = value.lstrip("#")
     return tuple(int(value[index:index + 2], 16) for index in (0, 2, 4))
 
@@ -623,6 +627,94 @@ def compare_sweeps(baseline_summary, final_summary):
     }
 
 
+def analyze_status_chip_pip_intrusion(crop_path, theme):
+    """Reject pip-coloured pixels inside known fixture duration boxes."""
+    fixtures = (
+        {
+            "name": "Frostbitten",
+            "origin": (498, 178),
+            "pip_token": "dmg-frost",
+            "duration_width": 38,
+        },
+        {
+            "name": "Shocked compact",
+            "origin": (498, 260),
+            "pip_token": "dmg-lightning",
+            "duration_width": 38,
+        },
+    )
+    try:
+        with Image.open(crop_path) as source:
+            image = source.convert("RGB")
+    except (OSError, ValueError) as exc:
+        return {
+            "passed": False,
+            "reason": f"status-chip pip analysis input is unreadable: {exc}",
+            "fixtures": [],
+        }
+
+    plate = _theme_token_rgb("plate", theme)
+    ink = _theme_token_rgb("ink", theme)
+    lip = _theme_token_rgb("lip", theme)
+
+    def close_to(pixel, color, tolerance=12):
+        return max(abs(pixel[index] - color[index]) for index in range(3)) <= tolerance
+
+    results = []
+    for fixture in fixtures:
+        origin_x, origin_y = fixture["origin"]
+        body_right = None
+        # The fixture gives every chip a 360px host. Find the rendered body's
+        # right edge from columns containing its plate/outline, not from C++
+        # width constants, so this analysis follows the actual gallery pixels.
+        for x in range(origin_x, min(image.width, origin_x + 360)):
+            body_pixels = sum(
+                close_to(image.getpixel((x, y)), plate)
+                or close_to(image.getpixel((x, y)), ink)
+                or close_to(image.getpixel((x, y)), lip)
+                for y in range(origin_y, min(image.height, origin_y + 36))
+            )
+            if body_pixels >= 3:
+                body_right = x + 1
+        if body_right is None:
+            results.append({
+                "name": fixture["name"],
+                "passed": False,
+                "reason": "could not locate chip body right edge",
+            })
+            continue
+
+        duration_right = body_right - 8
+        duration_left = duration_right - fixture["duration_width"]
+        pip_color = _theme_token_rgb(fixture["pip_token"], theme)
+        pip_pixels = []
+        for y in range(origin_y + 4, min(image.height, origin_y + 32)):
+            for x in range(max(0, duration_left), min(image.width, duration_right)):
+                if close_to(image.getpixel((x, y)), pip_color, tolerance=24):
+                    pip_pixels.append((x, y))
+        results.append({
+            "name": fixture["name"],
+            "passed": not pip_pixels,
+            "body_right": body_right,
+            "duration_box": [
+                duration_left, origin_y + 4, duration_right, origin_y + 32
+            ],
+            "pip_coloured_pixel_count": len(pip_pixels),
+            "first_pip_coloured_pixel": list(pip_pixels[0]) if pip_pixels else None,
+        })
+
+    passed = all(result["passed"] for result in results)
+    return {
+        "passed": passed,
+        "reason": (
+            "no pip-coloured pixels enter either duration text box"
+            if passed
+            else "pip-coloured pixels enter a duration text box"
+        ),
+        "fixtures": results,
+    }
+
+
 def _load_json(path):
     with open(path, "r", encoding="utf-8-sig") as source:
         return json.load(source)
@@ -773,6 +865,14 @@ def main(argv=None):
         if not comparison["passed"]:
             result["passed"] = False
             result["compare_failures"].append(comparison["reason"])
+        if result["component"] == "StatusChip":
+            pip_analysis = analyze_status_chip_pip_intrusion(
+                result["crop"], result["theme"]
+            )
+            result["pip_duration_analysis"] = pip_analysis
+            if not pip_analysis["passed"]:
+                result["passed"] = False
+                result["compare_failures"].append(pip_analysis["reason"])
     report = {
         "schema": 1,
         "commit": build_info.get("commit"),

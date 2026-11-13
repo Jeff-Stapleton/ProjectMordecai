@@ -3,6 +3,7 @@
 #if WITH_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Misc/App.h"
 #include "Misc/ScopeExit.h"
 
 #include "AbilitySystemComponent.h"
@@ -23,8 +24,12 @@
 #include "Mordecai/UI/MordecaiStatusEffectBarWidget.h"
 #include "Mordecai/UI/MordecaiStatusEffectIndicatorWidget.h"
 #include "Mordecai/UI/TinTally/MordecaiUIThemeSubsystem.h"
+#include "Input/HittestGrid.h"
+#include "Rendering/DrawElements.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
+#include "Types/PaintArgs.h"
 #include "UObject/UnrealType.h"
+#include "Widgets/SVirtualWindow.h"
 
 namespace MordecaiTinTallyStatusFeedbackTest
 {
@@ -66,6 +71,40 @@ namespace MordecaiTinTallyStatusFeedbackTest
 			}
 		}
 		return nullptr;
+	}
+
+	void PaintForCachedGeometry(UUserWidget* Widget, const FVector2D& DrawSize)
+	{
+		Widget->TakeWidget();
+		TSharedRef<SWidget> SlateWidget =
+			Widget->WidgetTree->RootWidget->TakeWidget();
+		TSharedRef<SVirtualWindow> Window = SNew(SVirtualWindow).Size(DrawSize);
+		Window->SetContent(SlateWidget);
+		Window->Resize(DrawSize);
+		Widget->ForceLayoutPrepass();
+		SlateWidget->SlatePrepass(1.f);
+
+		const FGeometry RootGeometry = FGeometry::MakeRoot(
+			DrawSize, FSlateLayoutTransform(1.f));
+		const FSlateRect CullingRect = RootGeometry.GetLayoutBoundingRect();
+		FHittestGrid HitTestGrid;
+		HitTestGrid.SetHittestArea(CullingRect.GetTopLeft(), CullingRect.GetSize());
+		FSlateWindowElementList DrawElements(Window);
+		const FPaintArgs PaintArgs(
+			nullptr, HitTestGrid, FVector2D::ZeroVector,
+			FApp::GetCurrentTime(), 0.f);
+		SlateWidget->Paint(
+			PaintArgs, RootGeometry, CullingRect, DrawElements, 0,
+			FWidgetStyle(), true);
+	}
+
+	FSlateRect CachedRect(const UWidget* Widget)
+	{
+		const FGeometry Geometry = Widget->GetCachedGeometry();
+		const FVector2D Position = Geometry.GetAbsolutePosition();
+		const FVector2D Size = Geometry.GetLocalSize();
+		return FSlateRect(
+			Position.X, Position.Y, Position.X + Size.X, Position.Y + Size.Y);
 	}
 }
 
@@ -226,6 +265,8 @@ bool FMordecai_UI_StatusChip_DisplayNameAndPolarity::RunTest(const FString& Para
 		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
 	UMordecaiStatusEffectIndicatorWidget* Frost =
 		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
+	UMordecaiStatusEffectIndicatorWidget* Shocked =
+		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
 	UMordecaiStatusEffectIndicatorWidget* Focused =
 		Env.MakeWidget<UMordecaiStatusEffectIndicatorWidget>();
 	UMordecaiStatusEffectIndicatorWidget* Exposed =
@@ -235,6 +276,8 @@ bool FMordecai_UI_StatusChip_DisplayNameAndPolarity::RunTest(const FString& Para
 	Buff->InitializeIndicator(MordecaiGameplayTags::Status_StoneSkin, true, 10.f);
 	Debuff->InitializeIndicator(MordecaiGameplayTags::Status_Burning, false, 5.f);
 	Frost->InitializeIndicator(MordecaiGameplayTags::Status_Frostbitten, false, 6.f);
+	Shocked->InitializeIndicator(MordecaiGameplayTags::Status_Shocked, false, 5.f);
+	Shocked->SetCompact(true);
 	Focused->InitializeIndicator(MordecaiGameplayTags::Status_Focused, true, 0.f);
 	Exposed->InitializeIndicator(MordecaiGameplayTags::Status_Exposed, false, 5.f);
 	Fear->InitializeIndicator(MordecaiGameplayTags::Status_Fear, false, 5.f);
@@ -318,25 +361,100 @@ bool FMordecai_UI_StatusChip_DisplayNameAndPolarity::RunTest(const FString& Para
 	TestTrue("Fear resolves dmg-shadow-edge",
 		FearGlyph && FearGlyph->GetColorAndOpacity().Equals(Diorama.DamageShadowEdge));
 
-	const float FrostWidth = Frost->GetChipWidth(false);
-	const UCanvasPanelSlot* NameSlot = Cast<UCanvasPanelSlot>(
-		Find<UTextBlock>(Frost, TEXT("StatusNameText"))->GetParent()->Slot);
-	const UCanvasPanelSlot* PipsSlot = Cast<UCanvasPanelSlot>(
-		Find<UHorizontalBox>(Frost, TEXT("StackPips"))->Slot);
-	const UCanvasPanelSlot* DurationSlot = Cast<UCanvasPanelSlot>(
-		Find<UTextBlock>(Frost, TEXT("DurationText"))->GetParent()->Slot);
-	TestTrue("name and pips have a 6px gap",
-		NameSlot && PipsSlot
-		&& NameSlot->GetPosition().X + NameSlot->GetSize().X + 6.f
-			<= PipsSlot->GetPosition().X);
-	TestTrue("pips and duration have a 6px gap",
-		PipsSlot && DurationSlot
-		&& PipsSlot->GetPosition().X + PipsSlot->GetSize().X + 6.f
-			<= DurationSlot->GetPosition().X);
-	TestTrue("duration and all chip geometry stay inside the chip edge",
-		DurationSlot
-		&& DurationSlot->GetPosition().X + DurationSlot->GetSize().X + 8.f
-			<= FrostWidth);
+	PaintForCachedGeometry(Frost, FVector2D(Frost->GetChipWidth(false), 52.f));
+	const UImage* FrostBody = Find<UImage>(Frost, TEXT("TintImage"));
+	const UImage* FrostGlyph = Find<UImage>(Frost, TEXT("StatusGlyph"));
+	const UTextBlock* FrostName = Find<UTextBlock>(Frost, TEXT("StatusNameText"));
+	const UHorizontalBox* FrostPips = Find<UHorizontalBox>(Frost, TEXT("StackPips"));
+	const UTextBlock* FrostDuration =
+		Find<UTextBlock>(Frost, TEXT("DurationText"));
+	const FSlateRect BodyRect = CachedRect(FrostBody);
+	const FSlateRect GlyphRect = CachedRect(FrostGlyph);
+	const FSlateRect NameRect = CachedRect(FrostName);
+	const FSlateRect DurationRect = CachedRect(FrostDuration);
+	TestTrue("real arranged body geometry is non-zero",
+		BodyRect.Right > BodyRect.Left && BodyRect.Bottom > BodyRect.Top);
+	TestTrue("real arranged glyph stays inside the body",
+		GlyphRect.Left >= BodyRect.Left && GlyphRect.Right <= BodyRect.Right
+		&& GlyphRect.Top >= BodyRect.Top && GlyphRect.Bottom <= BodyRect.Bottom);
+	TestTrue("real arranged name stays inside the body",
+		NameRect.Left >= BodyRect.Left && NameRect.Right <= BodyRect.Right
+		&& NameRect.Top >= BodyRect.Top && NameRect.Bottom <= BodyRect.Bottom);
+	TestTrue("real arranged duration stays inside the body",
+		DurationRect.Left >= BodyRect.Left
+		&& DurationRect.Right <= BodyRect.Right
+		&& DurationRect.Top >= BodyRect.Top
+		&& DurationRect.Bottom <= BodyRect.Bottom);
+	TestTrue("real arranged name and duration vertical centres match within 1px",
+		FMath::Abs(
+			(NameRect.Top + NameRect.Bottom)
+			- (DurationRect.Top + DurationRect.Bottom)) <= 2.f);
+
+	FSlateRect PreviousPipRect;
+	for (int32 Index = 0; FrostPips && Index < FrostPips->GetChildrenCount(); ++Index)
+	{
+		const FSlateRect PipRect = CachedRect(FrostPips->GetChildAt(Index));
+		TestTrue(*FString::Printf(TEXT("real arranged pip %d stays inside the body"), Index),
+			PipRect.Left >= BodyRect.Left && PipRect.Right <= BodyRect.Right
+			&& PipRect.Top >= BodyRect.Top && PipRect.Bottom <= BodyRect.Bottom);
+		if (Index > 0)
+		{
+			TestTrue(*FString::Printf(
+				TEXT("real arranged pip %d has the specified 6px gap"), Index),
+				PipRect.Left - PreviousPipRect.Right >= 6.f);
+		}
+		PreviousPipRect = PipRect;
+	}
+	const FSlateRect FirstPipRect = FrostPips && FrostPips->GetChildrenCount() > 0
+		? CachedRect(FrostPips->GetChildAt(0)) : FSlateRect();
+	const FSlateRect LastPipRect = FrostPips && FrostPips->GetChildrenCount() > 0
+		? CachedRect(FrostPips->GetChildAt(FrostPips->GetChildrenCount() - 1))
+		: FSlateRect();
+	TestTrue("real arranged name-to-pips gap is at least 6px",
+		FirstPipRect.Left - NameRect.Right >= 6.f);
+	TestTrue("real arranged pips do not overlap duration and keep a 6px gap",
+		DurationRect.Left - LastPipRect.Right >= 6.f);
+
+	PaintForCachedGeometry(Buff, FVector2D(Buff->GetChipWidth(false), 52.f));
+	const FSlateRect BuffBodyRect =
+		CachedRect(Find<UImage>(Buff, TEXT("TintImage")));
+	const FSlateRect BuffNameRect =
+		CachedRect(Find<UTextBlock>(Buff, TEXT("StatusNameText")));
+	const FSlateRect BuffDurationRect =
+		CachedRect(Find<UTextBlock>(Buff, TEXT("DurationText")));
+	TestTrue("real Stone Skin name-to-duration gap is at least 6px",
+		BuffDurationRect.Left - BuffNameRect.Right >= 6.f);
+	TestTrue("real Stone Skin name and duration stay inside the body",
+		BuffNameRect.Left >= BuffBodyRect.Left
+		&& BuffNameRect.Right <= BuffBodyRect.Right
+		&& BuffDurationRect.Left >= BuffBodyRect.Left
+		&& BuffDurationRect.Right <= BuffBodyRect.Right);
+	TestTrue("real Stone Skin name and duration vertical centres match within 1px",
+		FMath::Abs(
+			(BuffNameRect.Top + BuffNameRect.Bottom)
+			- (BuffDurationRect.Top + BuffDurationRect.Bottom)) <= 2.f);
+
+	PaintForCachedGeometry(
+		Shocked, FVector2D(Shocked->GetChipWidth(true), 52.f));
+	const FSlateRect ShockedBodyRect =
+		CachedRect(Find<UImage>(Shocked, TEXT("TintImage")));
+	const FSlateRect ShockedDurationRect =
+		CachedRect(Find<UTextBlock>(Shocked, TEXT("DurationText")));
+	const UHorizontalBox* ShockedPips =
+		Find<UHorizontalBox>(Shocked, TEXT("StackPips"));
+	FSlateRect ShockedLastPipRect(0.f, 0.f, 0.f, 0.f);
+	for (int32 Index = 0;
+		ShockedPips && Index < ShockedPips->GetChildrenCount(); ++Index)
+	{
+		const FSlateRect PipRect = CachedRect(ShockedPips->GetChildAt(Index));
+		TestTrue(*FString::Printf(
+			TEXT("real compact Shocked pip %d stays inside the body"), Index),
+			PipRect.Left >= ShockedBodyRect.Left
+			&& PipRect.Right <= ShockedBodyRect.Right);
+		ShockedLastPipRect = PipRect;
+	}
+	TestTrue("real compact Shocked pips keep 6px clear of duration",
+		ShockedDurationRect.Left - ShockedLastPipRect.Right >= 6.f);
 	return true;
 }
 
