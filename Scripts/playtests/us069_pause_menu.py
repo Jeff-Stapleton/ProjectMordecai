@@ -102,11 +102,11 @@ SCREENSHOTS = {
     "menu_character": "the pause menu ('Paused', tab bar Character/Skills/Feats/Inventory/"
                       "Settings) on the Character tab: the 9 primary attributes in Physical / "
                       "Resilience / Magical groups and the Health / Stamina / Spell Points / "
-                      "Posture 'x / y' lines (known issue N4: the content area is blank)",
+                      "Posture 'x / y' lines",
     "menu_skills": "the pause menu on the Skills tab: skill categories (Weapon, ...) and skill "
-                   "rows with 'rank / 20' (known issue N5: 'Coming Soon')",
+                   "rows with 'rank / 20'",
     "menu_feats": "the pause menu on the Feats tab: the 'Feats: N unlocked' summary header "
-                  "(known issue N5: 'Coming Soon')",
+                  "and empty-state copy when no feats are registered",
     "menu_lb": "the pause menu after LB on the Settings tab: the Inventory tab highlighted in the "
                "tab bar and the inventory list ('Inventory is empty.') in the content area",
     "menu_rb": "the pause menu after RB on the Inventory tab: the Settings tab highlighted in the "

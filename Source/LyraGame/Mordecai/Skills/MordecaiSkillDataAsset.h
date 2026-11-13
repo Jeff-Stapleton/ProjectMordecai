@@ -12,7 +12,7 @@ class UGameplayAbility;
 /**
  * UMordecaiSkillDataAsset
  *
- *	Static data for a single skill. One asset per skill (50 total).
+ *	Static data for a single skill. One data object per registered skill.
  *	Contains category, milestone descriptions, and milestone ability mappings.
  */
 UCLASS(BlueprintType)

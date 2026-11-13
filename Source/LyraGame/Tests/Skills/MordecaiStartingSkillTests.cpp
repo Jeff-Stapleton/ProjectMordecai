@@ -118,9 +118,19 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FMordecai_Recovery_Skills_StartingSetMatchesSheet::RunTest(const FString& Parameters)
 {
-	UMordecaiSkillComponent* Component = NewObject<UMordecaiSkillComponent>();
-	Component->RegisterStartingSkillDataAssets();
+	FRecoveryTestEnv Env;
+	if (!Env.Setup(FVector::ZeroVector))
+	{
+		AddError(TEXT("Recovery test environment setup failed"));
+		return false;
+	}
+	ON_SCOPE_EXIT { Env.Teardown(); };
 
+	const UMordecaiSkillComponent* Component = Env.PlayerState->GetSkillComponent();
+	if (!TestNotNull("PlayerState SkillComponent exists", Component))
+	{
+		return false;
+	}
 	const TMap<FName, EMordecaiSkillCategory> Actual = CollectRegisteredSkills(Component);
 	TestEqual("registered set count matches all nonblank skill-sheet rows",
 		Actual.Num(), UE_ARRAY_COUNT(ExpectedSkills));
@@ -161,7 +171,8 @@ bool FMordecai_Recovery_Skills_StartingRegistrationHasNoGameplayEffects::RunTest
 	}
 	ON_SCOPE_EXIT { Env.Teardown(); };
 
-	UMordecaiSkillComponent* Component = Env.PlayerState->GetSkillComponent();
+	UMordecaiSkillComponent* Component =
+		NewObject<UMordecaiSkillComponent>(Env.PlayerState);
 	UAbilitySystemComponent* ASC = Env.PlayerState->GetAbilitySystemComponent();
 	const UMordecaiAttributeSet* Attributes = Env.PlayerState->GetMordecaiAttributeSet();
 	if (!TestNotNull("SkillComponent exists", Component)

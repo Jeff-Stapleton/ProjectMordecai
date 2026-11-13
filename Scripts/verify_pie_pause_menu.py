@@ -166,10 +166,14 @@ def _run():
                           skills.is_bound_to_component())
                     logic("skills: Weapon category rendered",
                           named_text(skills, "Category_Weapon") == "Weapon")
-                    empty_text = named_text(skills, "SkillEmptyText")
-                    logic("skills: honest empty state when gameplay registered no skills",
-                          empty_text == "No skills in this category yet.",
-                          f"Got '{empty_text}'")
+                    logic("skills: all 13 Weapon skills registered",
+                          named_text(skills, "CategoryMetaText") == "Weapon · 13 skills",
+                          f"Got '{named_text(skills, 'CategoryMetaText')}'")
+                    logic("skills: Longswords starts at rank 0 / 20",
+                          named_text(skills, "SkillName_Longswords") == "Longswords"
+                          and named_text(skills, "SkillRank_Longswords") == "0 / 20",
+                          f"Got name '{named_text(skills, 'SkillName_Longswords')}', "
+                          f"rank '{named_text(skills, 'SkillRank_Longswords')}'")
 
                 feats = tab_content("feats", "MordecaiFeatDisplayWidget")
                 if feats:

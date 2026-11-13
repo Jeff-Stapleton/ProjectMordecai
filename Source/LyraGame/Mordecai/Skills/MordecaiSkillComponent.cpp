@@ -14,6 +14,62 @@ namespace MordecaiSkillConstants
 {
 	static const int32 MilestoneRanks[] = { 1, 5, 10, 15, 20 };
 	static constexpr int32 NumMilestoneRanks = 5;
+
+	struct FStartingSkillDefinition
+	{
+		const TCHAR* Name;
+		EMordecaiSkillCategory Category;
+	};
+
+	// Every nonblank row in Specs/skill_sheet_v1.1.md, in sheet order.
+	static const FStartingSkillDefinition StartingSkills[] = {
+		{ TEXT("Longswords"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Greatswords"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Shortswords"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Daggers"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Axes"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Maces"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Spears"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Quarterstaff"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Unarmed"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Longbow"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Shortbow"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Crossbows"), EMordecaiSkillCategory::Weapon },
+		{ TEXT("Two-Weapon Fighting"), EMordecaiSkillCategory::Weapon },
+
+		{ TEXT("Dodging"), EMordecaiSkillCategory::DefenseArmor },
+		{ TEXT("Parrying"), EMordecaiSkillCategory::DefenseArmor },
+		{ TEXT("Buckler Shield"), EMordecaiSkillCategory::DefenseArmor },
+		{ TEXT("Scutum Shield"), EMordecaiSkillCategory::DefenseArmor },
+		{ TEXT("Heater Shield"), EMordecaiSkillCategory::DefenseArmor },
+		{ TEXT("Leather Armor"), EMordecaiSkillCategory::DefenseArmor },
+		{ TEXT("Chainmail Armor"), EMordecaiSkillCategory::DefenseArmor },
+		{ TEXT("Plate Armor"), EMordecaiSkillCategory::DefenseArmor },
+
+		{ TEXT("Sneaking"), EMordecaiSkillCategory::MovementExploration },
+		{ TEXT("Climbing"), EMordecaiSkillCategory::MovementExploration },
+		{ TEXT("Swimming"), EMordecaiSkillCategory::MovementExploration },
+		{ TEXT("Perception"), EMordecaiSkillCategory::MovementExploration },
+		{ TEXT("Tracking"), EMordecaiSkillCategory::MovementExploration },
+		{ TEXT("Cartography"), EMordecaiSkillCategory::MovementExploration },
+
+		{ TEXT("Traps"), EMordecaiSkillCategory::UtilityInteraction },
+		{ TEXT("Lockpicking"), EMordecaiSkillCategory::UtilityInteraction },
+		{ TEXT("Pickpocket"), EMordecaiSkillCategory::UtilityInteraction },
+		{ TEXT("First Aid"), EMordecaiSkillCategory::UtilityInteraction },
+
+		{ TEXT("Fireball"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Cone of Cold"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Magic Missle"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Stone Skin"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Sleep"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Blink"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Illusion"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Fire Ward"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Frost Ward"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Float"), EMordecaiSkillCategory::Magic },
+		{ TEXT("Counter Spell"), EMordecaiSkillCategory::Magic },
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -38,7 +94,20 @@ void UMordecaiSkillComponent::RegisterSkillDataAsset(UMordecaiSkillDataAsset* Sk
 
 void UMordecaiSkillComponent::RegisterStartingSkillDataAssets()
 {
-	// RED scaffold: the design-sheet catalogue is intentionally not registered yet.
+	for (const MordecaiSkillConstants::FStartingSkillDefinition& Definition :
+		MordecaiSkillConstants::StartingSkills)
+	{
+		const FName SkillName(Definition.Name);
+		if (RegisteredSkills.Contains(SkillName))
+		{
+			continue;
+		}
+
+		UMordecaiSkillDataAsset* SkillData = NewObject<UMordecaiSkillDataAsset>(this);
+		SkillData->SkillName = SkillName;
+		SkillData->Category = Definition.Category;
+		RegisterSkillDataAsset(SkillData);
+	}
 }
 
 UMordecaiSkillDataAsset* UMordecaiSkillComponent::GetRegisteredSkillDataAsset(FName SkillName) const
