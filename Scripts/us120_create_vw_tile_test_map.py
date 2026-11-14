@@ -29,10 +29,23 @@ IMPORT_REPORT = (
 )
 CUBE = "/Engine/BasicShapes/Cube"
 GRID = "/Engine/EngineMaterials/WorldGridMaterial"
+BASIC_SHAPE_MATERIAL = "/Engine/BasicShapes/BasicShapeMaterial"
+WATER_MATERIAL = "/MordecaiCore/Game/Maps/Fixtures/MI_VW_TestWater"
 
 PLAYER_START = (-1200.0, 0.0, 100.0)
 FLOOR_XY = (-1700.0, 4400.0, -2800.0, 3200.0)
 FLOOR_Z = (-100.0, 0.0)
+SHALLOW_HOLE = (2200.0, 2800.0, -300.0, 300.0)
+DEEP_FIXTURES = (
+    ("DeepEdge", -1000.0),
+    ("DeepOuterCorner", 0.0),
+    ("DeepInnerCorner", 1000.0),
+)
+POND_HOLES = (
+    SHALLOW_HOLE,
+    *((3500.0, 4100.0, centre_y - 300.0, centre_y + 300.0)
+      for _, centre_y in DEEP_FIXTURES),
+)
 
 # Screen north is world +X and screen east is world +Y at camera yaw 0.
 GALLERY_LOCATIONS = (
@@ -45,12 +58,14 @@ GALLERY_LOCATIONS = (
     (0.0, 2400.0, 0.0),
     (0.0, 2600.0, 0.0),
     (800.0, 1400.0, 0.0),
-    (800.0, 1600.0, 0.0),
-    (800.0, 2400.0, 0.0),
-    (800.0, 2600.0, 0.0),
-    (1600.0, 1200.0, 0.0),
-    (1600.0, 1400.0, 0.0),
-    (1600.0, 1600.0, 0.0),
+    # Pond gallery pieces are raised so their catalog beds are not buried by
+    # the display floor. The traversable pond fixtures remain at Z=0 below.
+    (800.0, 1600.0, 160.0),
+    (800.0, 2400.0, 160.0),
+    (800.0, 2600.0, 160.0),
+    (1600.0, 1200.0, 160.0),
+    (1600.0, 1400.0, 160.0),
+    (1600.0, 1600.0, 160.0),
     (1600.0, 2400.0, 0.0),
     (1600.0, 2600.0, 0.0),
 )
@@ -90,7 +105,7 @@ LANES = (
     (
         "VW_Lane_DeepEdge",
         "SM_VW_Pond_Edge_Deep_01",
-        (3800.0, -800.0, 0.0),
+        (3800.0, -1000.0, 0.0),
         -90.0,
     ),
     (
@@ -102,7 +117,7 @@ LANES = (
     (
         "VW_Lane_DeepInnerCorner",
         "SM_VW_Pond_InnerCorner_Deep_01",
-        (3800.0, 800.0, 0.0),
+        (3800.0, 1000.0, 0.0),
         -90.0,
     ),
 )
@@ -181,7 +196,7 @@ def finalize_orientation(manifest, meshes):
             -expected_min[1],
             expected_max[2],
         )
-        needs_reflection = all(
+        needs_reflection = not already_final and all(
             abs(actual - expected) <= 1.0
             for actual, expected in zip(
                 actual_min + actual_max, mirrored_min + mirrored_max
@@ -352,7 +367,7 @@ def spawn_mesh(label, mesh, location, yaw=0.0):
     return actor
 
 
-def spawn_box(label, box, cube, material):
+def spawn_box(label, box, cube, material, collision=True):
     x0, x1, y0, y1, z0, z1 = box
     bounds = cube.get_bounds()
     extent = bounds.box_extent
@@ -370,7 +385,156 @@ def spawn_box(label, box, cube, material):
     actor = spawn_mesh(label, cube, (centre.x, centre.y, centre.z))
     actor.set_actor_scale3d(scale)
     actor.static_mesh_component.set_material(0, material)
+    if collision:
+        actor.static_mesh_component.set_collision_profile_name("BlockAll")
+        actor.static_mesh_component.set_collision_enabled(
+            unreal.CollisionEnabled.QUERY_AND_PHYSICS
+        )
+    else:
+        actor.static_mesh_component.set_collision_profile_name("NoCollision")
+        actor.static_mesh_component.set_collision_enabled(
+            unreal.CollisionEnabled.NO_COLLISION
+        )
     return actor
+
+
+def ensure_water_material():
+    material = unreal.load_asset(WATER_MATERIAL)
+    if material is None:
+        asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
+        material = asset_tools.create_asset(
+            "MI_VW_TestWater",
+            "/MordecaiCore/Game/Maps/Fixtures",
+            unreal.MaterialInstanceConstant,
+            unreal.MaterialInstanceConstantFactoryNew(),
+        )
+        if material is None:
+            fail(f"could not create {WATER_MATERIAL}")
+    parent = unreal.load_asset(BASIC_SHAPE_MATERIAL)
+    if parent is None:
+        fail(f"could not load {BASIC_SHAPE_MATERIAL}")
+    material.set_editor_property("parent", parent)
+    unreal.MaterialEditingLibrary.set_material_instance_vector_parameter_value(
+        material,
+        "Color",
+        unreal.LinearColor(0.015, 0.18, 0.42, 1.0),
+    )
+    if not EAL.save_loaded_asset(material, only_if_is_dirty=False):
+        fail(f"could not save {WATER_MATERIAL}")
+    return material
+
+
+def spawn_segmented_floor(cube, material):
+    x0, x1, y0, y1 = FLOOR_XY
+    x_cuts = sorted({x0, x1, *(value for hole in POND_HOLES for value in hole[:2])})
+    y_cuts = sorted({y0, y1, *(value for hole in POND_HOLES for value in hole[2:])})
+    count = 0
+    for min_x, max_x in zip(x_cuts, x_cuts[1:]):
+        for min_y, max_y in zip(y_cuts, y_cuts[1:]):
+            centre_x = (min_x + max_x) * 0.5
+            centre_y = (min_y + max_y) * 0.5
+            inside_hole = any(
+                hole[0] < centre_x < hole[1] and hole[2] < centre_y < hole[3]
+                for hole in POND_HOLES
+            )
+            if inside_hole:
+                continue
+            spawn_box(
+                f"VW_Floor_{count:02d}",
+                (min_x, max_x, min_y, max_y, *FLOOR_Z),
+                cube,
+                material,
+            )
+            count += 1
+    unreal.log(
+        f"[US-120 map] segmented floor: {count} pieces around {len(POND_HOLES)} pond holes"
+    )
+
+
+def spawn_pond_fixtures(meshes, cube, ground_material, water_material):
+    # Real 3x3 shallow pond: collision bed at catalog Z=-38, an inset
+    # non-colliding water plane at Z=-8, and a closed bank ring. The inset
+    # leaves a visible bed border in evidence captures.
+    spawn_box(
+        "VW_Shallow_Bed",
+        (*SHALLOW_HOLE, -100.0, -38.0),
+        cube,
+        ground_material,
+    )
+    spawn_box(
+        "VW_Shallow_Water",
+        (2230.0, 2770.0, -270.0, 270.0, -10.0, -8.0),
+        cube,
+        water_material,
+        collision=False,
+    )
+    edge = meshes["SM_VW_Pond_Edge_01"]
+    # The centre west/east pieces are the labelled LANES actors below.
+    for index, y in enumerate((-200.0, 200.0)):
+        spawn_mesh(f"VW_Shallow_Bank_W_{index}", edge, (2200.0, y, 0.0), 90.0)
+        spawn_mesh(f"VW_Shallow_Bank_E_{index}", edge, (2800.0, y, 0.0), -90.0)
+    for index, x in enumerate((2300.0, 2500.0, 2700.0)):
+        spawn_mesh(f"VW_Shallow_Bank_S_{index}", edge, (x, -300.0, 0.0), 180.0)
+        spawn_mesh(f"VW_Shallow_Bank_N_{index}", edge, (x, 300.0, 0.0), 0.0)
+    inner = meshes["SM_VW_Pond_InnerCorner_01"]
+    for suffix, location, yaw in (
+        ("SW", (2200.0, -300.0, 0.0), 180.0),
+        ("NW", (2200.0, 300.0, 0.0), 90.0),
+        ("NE", (2800.0, 300.0, 0.0), 0.0),
+        ("SE", (2800.0, -300.0, 0.0), -90.0),
+    ):
+        spawn_mesh(f"VW_Shallow_Bank_Corner_{suffix}", inner, location, yaw)
+
+    # Three independent deep 3x3 ponds isolate the representative bank
+    # pieces. Bed and water occupy the open water side; collision support
+    # exists only in each piece's authored land-side region.
+    for prefix, centre_y in DEEP_FIXTURES:
+        hole = (3500.0, 4100.0, centre_y - 300.0, centre_y + 300.0)
+        spawn_box(
+            f"VW_{prefix}_Bed",
+            (*hole, -200.0, -141.0),
+            cube,
+            ground_material,
+        )
+        spawn_box(
+            f"VW_{prefix}_Water",
+            (
+                hole[0] + 30.0,
+                hole[1] - 30.0,
+                hole[2] + 30.0,
+                hole[3] - 30.0,
+                -10.0,
+                -8.0,
+            ),
+            cube,
+            water_material,
+            collision=False,
+        )
+
+    spawn_box(
+        "VW_DeepEdge_Land",
+        (3800.0, 4100.0, -1300.0, -700.0, -100.0, 0.0),
+        cube,
+        ground_material,
+    )
+    spawn_box(
+        "VW_DeepOuterCorner_Land",
+        (3800.0, 4100.0, -300.0, 0.0, -100.0, 0.0),
+        cube,
+        ground_material,
+    )
+    spawn_box(
+        "VW_DeepInnerCorner_LandEast",
+        (3800.0, 4100.0, 700.0, 1300.0, -100.0, 0.0),
+        cube,
+        ground_material,
+    )
+    spawn_box(
+        "VW_DeepInnerCorner_LandSouth",
+        (3500.0, 3800.0, 700.0, 1000.0, -100.0, 0.0),
+        cube,
+        ground_material,
+    )
 
 
 def spawn_text(label, text, location):
@@ -451,12 +615,8 @@ def build_map():
     grid = unreal.load_asset(GRID)
     if cube is None or grid is None:
         fail("engine cube or grid material did not load")
-    spawn_box(
-        "VW_Floor",
-        (*FLOOR_XY, *FLOOR_Z),
-        cube,
-        grid,
-    )
+    water = ensure_water_material()
+    spawn_segmented_floor(cube, grid)
     # Boundary walls keep scripted navigation inside the fixture.
     spawn_box("VW_Wall_W", (-1750.0, -1700.0, -2850.0, 3250.0, 0.0, 300.0), cube, grid)
     spawn_box("VW_Wall_E", (4400.0, 4450.0, -2850.0, 3250.0, 0.0, 300.0), cube, grid)
@@ -468,8 +628,7 @@ def build_map():
     spawn_box("VW_Ramp3T_Tier1", (200.0, 700.0, 300.0, 900.0, 0.0, 200.0), cube, grid)
     spawn_box("VW_Cliff_Tier1", (1400.0, 1800.0, -300.0, 300.0, 0.0, 200.0), cube, grid)
 
-    # A shallow visual basin; the imported banks remain the only bank geometry.
-    spawn_box("VW_Shallow_Basin", (2200.0, 2800.0, -300.0, 300.0, -20.0, 0.0), cube, grid)
+    spawn_pond_fixtures(meshes, cube, grid, water)
 
     for entry, location in zip(manifest["meshes"], GALLERY_LOCATIONS):
         mesh_id = entry["id"]

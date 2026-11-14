@@ -169,6 +169,77 @@ def _run():
             f"({scale.x:g}, {scale.y:g}, {scale.z:g})",
         )
 
+    check(
+        "old basin-covering monolithic floor is absent",
+        "VW_Floor" not in by_label,
+    )
+    expected_surfaces = {
+        "VW_Shallow_Bed": (-38.0, False),
+        "VW_Shallow_Water": (-8.0, True),
+        "VW_DeepEdge_Bed": (-141.0, False),
+        "VW_DeepEdge_Water": (-8.0, True),
+        "VW_DeepOuterCorner_Bed": (-141.0, False),
+        "VW_DeepOuterCorner_Water": (-8.0, True),
+        "VW_DeepInnerCorner_Bed": (-141.0, False),
+        "VW_DeepInnerCorner_Water": (-8.0, True),
+    }
+    for label, (top_z, no_collision) in expected_surfaces.items():
+        actor = by_label.get(label)
+        check(f"pond surface {label} exists", actor is not None)
+        if actor is None:
+            continue
+        component = actor.get_editor_property("static_mesh_component")
+        bounds_origin, bounds_extent = actor.get_actor_bounds(False)
+        actual_top = bounds_origin.z + bounds_extent.z
+        check(
+            f"{label} top Z matches catalog fixture",
+            math.isclose(actual_top, top_z, abs_tol=0.1),
+            f"{actual_top:.1f} / expected {top_z:.1f}",
+        )
+        collision = component.get_collision_enabled()
+        expected_collision = (
+            unreal.CollisionEnabled.NO_COLLISION
+            if no_collision
+            else unreal.CollisionEnabled.QUERY_AND_PHYSICS
+        )
+        check(
+            f"{label} collision matches fixture contract",
+            collision == expected_collision,
+            str(collision),
+        )
+
+    for label in (
+        "VW_DeepEdge_Land",
+        "VW_DeepOuterCorner_Land",
+        "VW_DeepInnerCorner_LandEast",
+        "VW_DeepInnerCorner_LandSouth",
+    ):
+        check(f"intended land support {label} exists", label in by_label)
+
+    pond_holes = (
+        (2200.0, 2800.0, -300.0, 300.0),
+        (3500.0, 4100.0, -1300.0, -700.0),
+        (3500.0, 4100.0, -300.0, 300.0),
+        (3500.0, 4100.0, 700.0, 1300.0),
+    )
+    floor_segments = [
+        actor for label, actor in by_label.items() if label.startswith("VW_Floor_")
+    ]
+    check("floor is segmented around pond holes", len(floor_segments) > 1)
+    for actor in floor_segments:
+        bounds_origin, bounds_extent = actor.get_actor_bounds(False)
+        min_x = bounds_origin.x - bounds_extent.x
+        max_x = bounds_origin.x + bounds_extent.x
+        min_y = bounds_origin.y - bounds_extent.y
+        max_y = bounds_origin.y + bounds_extent.y
+        for index, hole in enumerate(pond_holes):
+            overlap_x = min(max_x, hole[1]) - max(min_x, hole[0])
+            overlap_y = min(max_y, hole[3]) - max(min_y, hole[2])
+            check(
+                f"{actor.get_actor_label()} does not cover pond hole {index}",
+                not (overlap_x > 0.1 and overlap_y > 0.1),
+            )
+
     blockers = list(
         unreal.GameplayStatics.get_all_actors_of_class(
             world, unreal.BlockingVolume

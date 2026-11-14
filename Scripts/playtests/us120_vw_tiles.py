@@ -37,15 +37,49 @@ CLIFF_MAX_X = 1370.0
 SHALLOW_START = (1900.0, 0.0)
 SHALLOW_END = (3100.0, 0.0)
 SHALLOW_APPROACH = ((1500.0, -500.0), (1900.0, -500.0), SHALLOW_START)
+SHALLOW_BED_Z = -38.0
+SHALLOW_WATER_Z = -8.0
+SHALLOW_DIP_Z = 54.0
+SHALLOW_DIP_TOL = 22.0
+SHALLOW_DIP_X = (2250.0, 2750.0)
+SHALLOW_CROSS_TIMEOUT_S = 15.0
+DEEP_BED_Z = -141.0
+DEEP_WATER_Z = -8.0
+CAPSULE_RADIUS_CM = 40.0
+BANK_TOLERANCE_CM = 15.0
+DEEP_ALLOWED_PAST_FACE = CAPSULE_RADIUS_CM + BANK_TOLERANCE_CM
+DIAGONAL = math.sqrt(0.5)
 DEEP_BANKS = (
-    ("edge", (4100.0, -800.0)),
-    # Offset from each corner pivot so the downhill probe intersects a curved
-    # blocking-wall hull rather than the corner's intentionally open quadrant.
-    ("outer_corner", (4100.0, -70.0)),
-    ("inner_corner", (4100.0, 860.0)),
+    {
+        "label": "edge",
+        "pivot": (3800.0, -1000.0),
+        "start": (4070.0, -1000.0),
+        "keys": ("S",),
+        "direction": (-1.0, 0.0),
+        "face_progress": 0.0,
+        "route": ((4200.0, -1400.0), (4200.0, -1000.0), (4070.0, -1000.0)),
+    },
+    {
+        "label": "outer_corner",
+        "pivot": (3800.0, 0.0),
+        "start": (3970.0, -170.0),
+        "keys": ("S", "D"),
+        "direction": (-DIAGONAL, DIAGONAL),
+        "face_progress": 0.0,
+        "route": ((4200.0, -1000.0), (4200.0, -300.0), (3970.0, -170.0)),
+    },
+    {
+        "label": "inner_corner",
+        "pivot": (3800.0, 1000.0),
+        "start": (3970.0, 830.0),
+        "keys": ("S", "D"),
+        "direction": (-DIAGONAL, DIAGONAL),
+        # The concave bank's authored quarter-circle face is 100 cm into the
+        # local -X/-Y water quadrant along this radial probe.
+        "face_progress": 100.0,
+        "route": ((4200.0, -300.0), (4200.0, 700.0), (3970.0, 830.0)),
+    },
 )
-DEEP_FACE_X = 3800.0
-DEEP_MIN_X = 3810.0
 DEEP_SAFE_X = 4200.0
 DEEP_ENTRY_ROUTE = ((3400.0, -1400.0), (DEEP_SAFE_X, -1400.0))
 
@@ -57,7 +91,7 @@ SCREENSHOTS = {
     "ramp_2t_top": "the player standing on the 200 cm Tier 1 platform above Ramp 2T",
     "ramp_3t_top": "the player standing on the 200 cm Tier 1 platform above Ramp 3T",
     "cliff_rejection": "the player below and on the near side of the 200 cm straight cliff after walking and jumping",
-    "shallow_crossing": "the player on the far side of the shallow pond lane",
+    "shallow_crossing": "the player wading in the visible shallow pond below land height, with bank, bed and blue water surface visible",
     "deep_edge_rejection": "the player on the near/land side of the deep pond Edge bank",
     "deep_outer_rejection": "the player on the near/land side of the deep pond OuterCorner bank",
     "deep_inner_rejection": "the player on the near/land side of the deep pond InnerCorner bank",
@@ -101,12 +135,12 @@ PLAN = (
     ),
     Step(
         "shallow_pond_crosses",
-        "walk_to the far side of the shallow pond lane -> reaches the far waypoint",
+        "hold W from land through the real shallow basin -> Z dips toward bed+capsule, then exits on far land",
         proves=("AC-120.7",),
     ),
     Step(
         "deep_bank_blocks",
-        "hold S downhill from the land side into deep Edge, OuterCorner and InnerCorner banks -> each remains on land",
+        "approach deep Edge and both corners perpendicular to each authored face using real keys -> remain on land within bank tolerance",
         proves=("AC-120.7",),
     ),
 )
@@ -259,60 +293,126 @@ class Us120Run(kit.PlaytestRun):
     def step_shallow(self):
         def cross():
             self._walk_sequence(SHALLOW_APPROACH, timeout_s=25.0)
-            response = self.bridge.walk_to(
-                *SHALLOW_END, tol=self.WALK_TOL, timeout_s=30.0
-            )
-            location = _player(self.bridge)
-            ok = math.dist(location[:2], SHALLOW_END) <= self.WALK_TOL + 5.0
+            bridge = self.bridge
+            min_z = math.inf
+            min_location = None
+            captured = False
+            deadline = time.monotonic() + SHALLOW_CROSS_TIMEOUT_S
+            bridge.press("W")
+            try:
+                while time.monotonic() < deadline:
+                    location = _player(bridge)
+                    if location[2] < min_z:
+                        min_z = location[2]
+                        min_location = location
+                    if (
+                        not captured
+                        and abs(location[2] - SHALLOW_DIP_Z) <= SHALLOW_DIP_TOL
+                    ):
+                        self.shot("shallow_crossing")
+                        captured = True
+                    if location[0] >= SHALLOW_END[0] - 5.0:
+                        break
+                    time.sleep(0.05)
+            finally:
+                bridge.release("W")
+            location = _player(bridge)
+            reached_far_land = location[0] >= SHALLOW_END[0] - 5.0
+            dipped = abs(min_z - SHALLOW_DIP_Z) <= SHALLOW_DIP_TOL
+            exited = _near(location[2], TIER0_Z, tolerance=20.0)
+            ok = reached_far_land and dipped and exited and captured
+            if not dipped:
+                outcome = (
+                    f"did not dip toward bed+capsule Z {SHALLOW_DIP_Z:.0f}; "
+                    f"min Z {min_z:.1f}"
+                )
+            elif not exited:
+                outcome = f"did not exit onto land; exit Z {location[2]:.1f}"
+            elif not reached_far_land:
+                outcome = f"did not reach far land; exit X {location[0]:.1f}"
+            else:
+                outcome = "real basin dip and far-land exit observed"
             detail = (
-                f"far waypoint response {response.get('final')}; final "
-                f"({location[0]:.1f}, {location[1]:.1f}, {location[2]:.1f})"
+                f"{outcome}; min Z {min_z:.1f} at {min_location}; "
+                f"exit Z {location[2]:.1f} at "
+                f"({location[0]:.1f}, {location[1]:.1f})"
             )
-            return ("PASS" if ok else "FAIL"), detail, {"location": location}
+            return ("PASS" if ok else "FAIL"), detail, {
+                "minimum_location": min_location,
+                "exit_location": location,
+                "bed_z": SHALLOW_BED_Z,
+                "water_z": SHALLOW_WATER_Z,
+            }
 
-        crossed, _ = self.attempt("shallow_pond_crosses", cross)
-        self.shot(
-            "shallow_crossing",
-            needs=crossed,
-            needs_why="not captured: the shallow lane was not crossed",
-        )
+        self.attempt("shallow_pond_crosses", cross)
 
     def step_deep(self):
         results = []
 
         def probe_all():
             self._walk_sequence(DEEP_ENTRY_ROUTE, timeout_s=25.0)
-            for label, start in DEEP_BANKS:
-                self._walk_sequence(
-                    ((DEEP_SAFE_X, start[1]), start), timeout_s=25.0
-                )
-                response = self.bridge.hold("S", BLOCK_HOLD_S)
+            for spec in DEEP_BANKS:
+                self._walk_sequence(spec["route"], timeout_s=25.0)
+                max_progress = -math.inf
+                min_z = math.inf
                 location = _player(self.bridge)
+                for key in spec["keys"]:
+                    self.bridge.press(key)
+                try:
+                    deadline = time.monotonic() + BLOCK_HOLD_S
+                    while time.monotonic() < deadline:
+                        location = _player(self.bridge)
+                        offset_x = location[0] - spec["pivot"][0]
+                        offset_y = location[1] - spec["pivot"][1]
+                        progress = (
+                            offset_x * spec["direction"][0]
+                            + offset_y * spec["direction"][1]
+                        )
+                        max_progress = max(max_progress, progress)
+                        min_z = min(min_z, location[2])
+                        time.sleep(0.05)
+                finally:
+                    for key in reversed(spec["keys"]):
+                        self.bridge.release(key)
+                max_allowed = spec["face_progress"] + DEEP_ALLOWED_PAST_FACE
                 blocked = (
-                    location[0] >= DEEP_MIN_X
-                    and location[2] >= TIER0_Z - Z_TOL
+                    max_progress <= max_allowed
+                    and min_z >= TIER0_Z - 20.0
                 )
                 results.append({
-                    "representative": label,
-                    "held_s": response.get("held_s"),
+                    "representative": spec["label"],
+                    "keys": spec["keys"],
                     "location": location,
+                    "max_progress": max_progress,
+                    "max_allowed": max_allowed,
+                    "minimum_z": min_z,
                     "blocked": blocked,
                 })
-                self.shot(f"deep_{label.replace('_corner', '')}_rejection")
+                self.shot(
+                    f"deep_{spec['label'].replace('_corner', '')}_rejection"
+                )
                 self.bridge.walk_to(
-                    DEEP_SAFE_X, start[1], tol=self.WALK_TOL, timeout_s=25.0
+                    DEEP_SAFE_X,
+                    spec["start"][1],
+                    tol=self.WALK_TOL,
+                    timeout_s=25.0,
                 )
             bad = [result for result in results if not result["blocked"]]
             detail = "; ".join(
-                f"{result['representative']} X/Z "
-                f"{result['location'][0]:.1f}/{result['location'][2]:.1f} "
+                f"{result['representative']} progress/Z "
+                f"{result['max_progress']:.1f}/{result['minimum_z']:.1f} "
+                f"(limit {result['max_allowed']:.1f}) "
                 f"({'blocked' if result['blocked'] else 'CROSSED'})"
                 for result in results
             )
             return ("FAIL" if bad else "PASS"), (
-                detail + f"; every X must remain >= {DEEP_MIN_X:.0f} "
-                f"and Z >= {TIER0_Z - Z_TOL:.0f}"
-            ), {"representatives": results}
+                detail + "; each probe must remain within face + "
+                f"{DEEP_ALLOWED_PAST_FACE:.0f} cm and near land Z"
+            ), {
+                "representatives": results,
+                "bed_z": DEEP_BED_Z,
+                "water_z": DEEP_WATER_Z,
+            }
 
         self.attempt("deep_bank_blocks", probe_all)
 

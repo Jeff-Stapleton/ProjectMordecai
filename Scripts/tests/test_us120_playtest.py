@@ -99,10 +99,12 @@ class Us120FakeCase(unittest.TestCase):
             ),
             mock.patch.object(us120, "CLIFF_START", (260.0, 0.0)),
             mock.patch.object(us120, "CLIFF_MAX_X", 10000.0),
-            mock.patch.object(us120, "SHALLOW_START", (300.0, 0.0)),
+            mock.patch.object(us120, "SHALLOW_START", (200.0, 0.0)),
             mock.patch.object(us120, "SHALLOW_END", (340.0, 0.0)),
-            mock.patch.object(us120, "SHALLOW_APPROACH", ((300.0, 0.0),)),
-            mock.patch.object(us120, "SHALLOW_DIP_X", (310.0, 330.0)),
+            mock.patch.object(us120, "SHALLOW_APPROACH", ((200.0, 0.0),)),
+            # The approach begins well behind this interval even when the
+            # preceding fake cliff probe ends at X=300..350.
+            mock.patch.object(us120, "SHALLOW_DIP_X", (245.0, 320.0)),
             mock.patch.object(
                 us120,
                 "DEEP_BANKS",
