@@ -33,9 +33,10 @@ RAMPS = {
 }
 CLIFF_START = (1100.0, 0.0)
 CLIFF_FACE_X = 1400.0
-CLIFF_MAX_X = 1330.0
+CLIFF_MAX_X = 1370.0
 SHALLOW_START = (1900.0, 0.0)
 SHALLOW_END = (3100.0, 0.0)
+SHALLOW_APPROACH = ((1500.0, -500.0), (1900.0, -500.0), SHALLOW_START)
 DEEP_BANKS = (
     ("edge", (4100.0, -800.0)),
     ("outer_corner", (4100.0, 0.0)),
@@ -43,6 +44,8 @@ DEEP_BANKS = (
 )
 DEEP_FACE_X = 3800.0
 DEEP_MIN_X = 3870.0
+DEEP_SAFE_X = 4200.0
+DEEP_ENTRY_ROUTE = ((3400.0, -1400.0), (DEEP_SAFE_X, -1400.0))
 
 SCREENSHOTS = {
     "gallery_1": "the first labelled Verdant Wilds gallery group, with approved meshes and felt materials",
@@ -253,9 +256,7 @@ class Us120Run(kit.PlaytestRun):
 
     def step_shallow(self):
         def cross():
-            self.bridge.walk_to(
-                *SHALLOW_START, tol=self.WALK_TOL, timeout_s=25.0
-            )
+            self._walk_sequence(SHALLOW_APPROACH, timeout_s=25.0)
             response = self.bridge.walk_to(
                 *SHALLOW_END, tol=self.WALK_TOL, timeout_s=30.0
             )
@@ -278,9 +279,10 @@ class Us120Run(kit.PlaytestRun):
         results = []
 
         def probe_all():
+            self._walk_sequence(DEEP_ENTRY_ROUTE, timeout_s=25.0)
             for label, start in DEEP_BANKS:
-                self.bridge.walk_to(
-                    *start, tol=self.WALK_TOL, timeout_s=25.0
+                self._walk_sequence(
+                    ((DEEP_SAFE_X, start[1]), start), timeout_s=25.0
                 )
                 response = self.bridge.hold("S", BLOCK_HOLD_S)
                 location = _player(self.bridge)
@@ -292,6 +294,9 @@ class Us120Run(kit.PlaytestRun):
                     "blocked": blocked,
                 })
                 self.shot(f"deep_{label.replace('_corner', '')}_rejection")
+                self.bridge.walk_to(
+                    DEEP_SAFE_X, start[1], tol=self.WALK_TOL, timeout_s=25.0
+                )
             bad = [result for result in results if not result["blocked"]]
             detail = "; ".join(
                 f"{result['representative']} X {result['location'][0]:.1f} "

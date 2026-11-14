@@ -85,6 +85,7 @@ class Us120FakeCase(unittest.TestCase):
             mock.patch.object(us120, "CLIFF_MAX_X", 10000.0),
             mock.patch.object(us120, "SHALLOW_START", (300.0, 0.0)),
             mock.patch.object(us120, "SHALLOW_END", (340.0, 0.0)),
+            mock.patch.object(us120, "SHALLOW_APPROACH", ((300.0, 0.0),)),
             mock.patch.object(
                 us120,
                 "DEEP_BANKS",
@@ -95,6 +96,8 @@ class Us120FakeCase(unittest.TestCase):
                 ),
             ),
             mock.patch.object(us120, "DEEP_MIN_X", -10000.0),
+            mock.patch.object(us120, "DEEP_SAFE_X", 400.0),
+            mock.patch.object(us120, "DEEP_ENTRY_ROUTE", ((360.0, -40.0), (400.0, -40.0))),
             mock.patch.object(us120, "_near", lambda value, target, tolerance=None: True),
             mock.patch.object(us120, "BLOCK_HOLD_S", 0.02),
             mock.patch.object(us120, "JUMP_SAMPLE_S", 0.03),
