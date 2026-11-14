@@ -316,6 +316,77 @@ class TestUs120Plan(unittest.TestCase):
         )
         self.assertLess(us120.CLIFF_MIN_X, us120.CLIFF_MAX_X)
 
+    def test_inner_corner_probe_is_derived_from_measured_wall_hulls_and_lane_yaw(self):
+        lane = {
+            "mesh": "SM_VW_Pond_InnerCorner_Deep_01",
+            "location_cm": [3800.0, 1000.0, 0.0],
+            "yaw_deg": 0.0,
+        }
+        fixture = {
+            "water_regions_xy_cm": [[3500.0, 3800.0, 1000.0, 1300.0]],
+            "clear_route_xy_cm": [[4200.0, 500.0], [4200.0, 880.0]],
+        }
+        measurement = {
+            "collision_hulls": [
+                {"min": [-100.0, -100.0, -30.0], "max": [100.0, 0.0, 0.0]},
+                {"min": [0.0, 0.0, -30.0], "max": [100.0, 100.0, 0.0]},
+                {"min": [-100.0, 24.0, -40.0], "max": [-78.0, 39.0, 250.0]},
+                {"min": [-65.0, 37.0, -40.0], "max": [-39.0, 62.0, 250.0]},
+                {"min": [-40.0, 74.0, -40.0], "max": [-24.0, 100.0, 250.0]},
+            ],
+        }
+        probe = us120.derive_inner_corner_probe(lane, fixture, measurement)
+        self.assertAlmostEqual(math.hypot(*probe["direction"]), 1.0, places=5)
+        self.assertLess(probe["direction"][0], 0.0)
+        self.assertGreater(probe["direction"][1], 0.0)
+        start_offset = (
+            probe["start"][0] - lane["location_cm"][0],
+            probe["start"][1] - lane["location_cm"][1],
+        )
+        self.assertLess(
+            start_offset[0] * probe["direction"][0]
+            + start_offset[1] * probe["direction"][1],
+            0.0,
+        )
+        self.assertEqual(probe["route"][:-1], ((4200.0, 500.0), (4200.0, 880.0)))
+        self.assertEqual(probe["route"][-1], probe["start"])
+        self.assertEqual(probe["water_regions_xy_cm"], fixture["water_regions_xy_cm"])
+        self.assertGreater(probe["wall_radial_max_cm"], 90.0)
+
+    def test_deep_probe_classification_distinguishes_defect_from_fixture_error(self):
+        blocked = us120.classify_deep_probe(
+            max_progress=20.0,
+            minimum_contact=-20.0,
+            max_allowed=55.0,
+            minimum_z=92.0,
+            entered_basin=False,
+        )
+        dropped = us120.classify_deep_probe(
+            max_progress=80.0,
+            minimum_contact=-20.0,
+            max_allowed=55.0,
+            minimum_z=20.0,
+            entered_basin=False,
+        )
+        traced = us120.classify_deep_probe(
+            max_progress=80.0,
+            minimum_contact=-20.0,
+            max_allowed=55.0,
+            minimum_z=92.0,
+            entered_basin=True,
+        )
+        fixture_error = us120.classify_deep_probe(
+            max_progress=80.0,
+            minimum_contact=-20.0,
+            max_allowed=55.0,
+            minimum_z=92.0,
+            entered_basin=False,
+        )
+        self.assertEqual(blocked, "BLOCKED")
+        self.assertEqual(dropped, "COLLISION DEFECT")
+        self.assertEqual(traced, "COLLISION DEFECT")
+        self.assertEqual(fixture_error, "FIXTURE ERROR")
+
 
 class TestUs120AgainstFake(Us120FakeCase):
     def test_compact_fake_route_passes_and_captures_each_location_immediately(self):
@@ -340,6 +411,15 @@ class TestUs120AgainstFake(Us120FakeCase):
         self.assertLessEqual(set(sent), INPUT_AND_READ_COMMANDS)
         self.assertFalse([command for command in sent if command.startswith("debug_")])
         self.assertTrue([request for request in server.received if request.get("cmd") == "key"])
+        path_log = os.path.join(self.run_dir, "deep_probe_paths.json")
+        self.assertTrue(os.path.isfile(path_log), path_log)
+        with open(path_log, encoding="utf-8") as stream:
+            paths = json.load(stream)
+        self.assertEqual(
+            {entry["label"] for entry in paths["probes"]},
+            {"edge", "outer_corner", "inner_corner"},
+        )
+        self.assertTrue(paths["probes"][-1]["path_points"])
 
         shallow = checks["shallow_pond_crosses"]
         self.assertIn("min Z 54.0", shallow["detail"])
@@ -373,7 +453,9 @@ class TestUs120AgainstFake(Us120FakeCase):
         server = self.serve(world_options={"cross_deep": True})
         code, report = self.play(server)
         self.assertEqual(code, 1)
-        self.assertEqual(self.checks(report)["deep_bank_blocks"]["status"], "FAIL")
+        check = self.checks(report)["deep_bank_blocks"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("FIXTURE ERROR", check["detail"])
 
     def test_ignored_keys_cannot_false_pass(self):
         server = self.serve(world_options={"ignore_keys": True})

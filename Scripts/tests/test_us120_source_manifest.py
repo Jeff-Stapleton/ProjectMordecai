@@ -342,6 +342,53 @@ class TestUs120SourceManifest(unittest.TestCase):
         self.assertTrue(all(location[1] == 300.0 for label, location in compass.items()
                             if "_Bank_E_" in label))
 
+    def test_deep_lane_fixture_contract_keeps_every_water_side_open(self):
+        fixture = self.data["test_fixture"]
+        self.assertIn("deep_lanes", fixture)
+        deep_lanes = fixture["deep_lanes"]
+        self.assertEqual(
+            {lane["label"] for lane in deep_lanes},
+            {"edge", "outer_corner", "inner_corner"},
+        )
+        by_label = {lane["label"]: lane for lane in deep_lanes}
+        self.assertEqual(
+            by_label["inner_corner"]["basin_bounds_cm"],
+            [3500.0, 4100.0, 700.0, 1300.0, -141.0, 0.0],
+        )
+        self.assertEqual(
+            by_label["inner_corner"]["water_regions_xy_cm"],
+            [[3500.0, 3800.0, 1000.0, 1300.0]],
+        )
+        self.assertEqual(
+            by_label["inner_corner"]["land_supports"],
+            [
+                {
+                    "label": "VW_DeepInnerCorner_LandEast",
+                    "bounds_cm": [3800.0, 4100.0, 700.0, 1300.0, -100.0, 0.0],
+                },
+                {
+                    "label": "VW_DeepInnerCorner_LandSouth",
+                    "bounds_cm": [3500.0, 3800.0, 700.0, 1000.0, -100.0, 0.0],
+                },
+            ],
+        )
+        for lane in deep_lanes:
+            self.assertEqual(lane["bed_top_z_cm"], -141.0)
+            self.assertTrue(lane["water_regions_xy_cm"])
+            for support in lane["land_supports"]:
+                support_xy = support["bounds_cm"][:4]
+                for water_xy in lane["water_regions_xy_cm"]:
+                    overlap_x = min(support_xy[1], water_xy[1]) - max(
+                        support_xy[0], water_xy[0]
+                    )
+                    overlap_y = min(support_xy[3], water_xy[3]) - max(
+                        support_xy[2], water_xy[2]
+                    )
+                    self.assertFalse(
+                        overlap_x > 0.1 and overlap_y > 0.1,
+                        f"{support['label']} overlaps {lane['label']} water side",
+                    )
+
     def test_imported_facing_and_yaw_offset_are_measured_contract_fields(self):
         self.assertIn("orientation_contract", self.data)
         if "orientation_contract" not in self.data:

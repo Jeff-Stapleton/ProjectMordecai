@@ -857,6 +857,117 @@ bool FMordecai_VW_TileTestMapContract::RunTest(const FString& Parameters)
 	TestNull(TEXT("tile map removes the old basin-covering monolithic floor"),
 		FindActorByLabel(World, TEXT("VW_Floor")));
 
+	const TArray<TSharedPtr<FJsonValue>>* DeepLanes =
+		ArrayField(*this, Fixture, TEXT("deep_lanes"));
+	if (DeepLanes)
+	{
+		auto ReadBounds = [this](const TSharedPtr<FJsonObject>& Object,
+			const TCHAR* Field, FBox& OutBounds)
+		{
+			const TArray<TSharedPtr<FJsonValue>>* Values =
+				ArrayField(*this, Object, Field);
+			if (!Values || Values->Num() != 6)
+			{
+				AddError(FString::Printf(TEXT("%s must contain six bounds values"), Field));
+				return false;
+			}
+			OutBounds = FBox(
+				FVector((*Values)[0]->AsNumber(), (*Values)[2]->AsNumber(), (*Values)[4]->AsNumber()),
+				FVector((*Values)[1]->AsNumber(), (*Values)[3]->AsNumber(), (*Values)[5]->AsNumber()));
+			return true;
+		};
+		for (const TSharedPtr<FJsonValue>& LaneValue : *DeepLanes)
+		{
+			const TSharedPtr<FJsonObject> Lane = LaneValue->AsObject();
+			const FString Label = StringField(Lane, TEXT("label"));
+			const FString ActorLabel = StringField(Lane, TEXT("actor_label"));
+			const FString BedLabel = StringField(Lane, TEXT("bed_label"));
+			const double BedTopZ = Lane->GetNumberField(TEXT("bed_top_z_cm"));
+			const TArray<TSharedPtr<FJsonValue>>* Supports =
+				ArrayField(*this, Lane, TEXT("land_supports"));
+			const TArray<TSharedPtr<FJsonValue>>* WaterRegions =
+				ArrayField(*this, Lane, TEXT("water_regions_xy_cm"));
+			if (!Supports || !WaterRegions)
+			{
+				continue;
+			}
+			for (const TSharedPtr<FJsonValue>& SupportValue : *Supports)
+			{
+				const TSharedPtr<FJsonObject> Support = SupportValue->AsObject();
+				const FString SupportLabel = StringField(Support, TEXT("label"));
+				const AActor* SupportActor = FindActorByLabel(World, SupportLabel);
+				if (!TestNotNull(FString::Printf(TEXT("%s land support %s exists"),
+					*Label, *SupportLabel), SupportActor))
+				{
+					continue;
+				}
+				const UStaticMeshComponent* Component =
+					SupportActor->FindComponentByClass<UStaticMeshComponent>();
+				if (!TestNotNull(FString::Printf(TEXT("%s has a StaticMeshComponent"),
+					*SupportLabel), Component))
+				{
+					continue;
+				}
+				FBox ExpectedBounds;
+				if (ReadBounds(Support, TEXT("bounds_cm"), ExpectedBounds))
+				{
+					const FBox ActualBounds =
+						Component->CalcBounds(SavedWorldTransform(Component)).GetBox();
+					TestTrue(FString::Printf(
+						TEXT("%s stops exactly at its authored land-side face"),
+						*SupportLabel),
+						ActualBounds.Min.Equals(ExpectedBounds.Min, GridToleranceCm)
+						&& ActualBounds.Max.Equals(ExpectedBounds.Max, GridToleranceCm));
+				}
+			}
+			for (int32 RegionIndex = 0; RegionIndex < WaterRegions->Num(); ++RegionIndex)
+			{
+				const TArray<TSharedPtr<FJsonValue>> Region =
+					(*WaterRegions)[RegionIndex]->AsArray();
+				if (!TestEqual(FString::Printf(TEXT("%s water region %d has four values"),
+					*Label, RegionIndex), Region.Num(), 4))
+				{
+					continue;
+				}
+				const FBox WaterBounds(
+					FVector(Region[0]->AsNumber(), Region[2]->AsNumber(), BedTopZ + 1.0),
+					FVector(Region[1]->AsNumber(), Region[3]->AsNumber(), 300.0));
+				for (AActor* Actor : LevelActors(World))
+				{
+					const UStaticMeshComponent* Component =
+						Actor->FindComponentByClass<UStaticMeshComponent>();
+					if (!Component
+						|| Component->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+					{
+						continue;
+					}
+					const FString CandidateLabel = Actor->GetActorNameOrLabel();
+					if (CandidateLabel == ActorLabel || CandidateLabel == BedLabel)
+					{
+						continue;
+					}
+					const FBox CandidateBounds =
+						Component->CalcBounds(SavedWorldTransform(Component)).GetBox();
+					const double OverlapX =
+						FMath::Min(CandidateBounds.Max.X, WaterBounds.Max.X)
+						- FMath::Max(CandidateBounds.Min.X, WaterBounds.Min.X);
+					const double OverlapY =
+						FMath::Min(CandidateBounds.Max.Y, WaterBounds.Max.Y)
+						- FMath::Max(CandidateBounds.Min.Y, WaterBounds.Min.Y);
+					const double OverlapZ =
+						FMath::Min(CandidateBounds.Max.Z, WaterBounds.Max.Z)
+						- FMath::Max(CandidateBounds.Min.Z, WaterBounds.Min.Z);
+					TestFalse(FString::Printf(
+						TEXT("%s water region %d has no collision from %s"),
+						*Label, RegionIndex, *CandidateLabel),
+						OverlapX > GridToleranceCm
+						&& OverlapY > GridToleranceCm
+						&& OverlapZ > GridToleranceCm);
+				}
+			}
+		}
+	}
+
 	struct FExpectedPondSurface
 	{
 		const TCHAR* Label;
