@@ -646,5 +646,98 @@ bool FMordecai_VW_TileTestMapContract::RunTest(const FString& Parameters)
 		TestNotNull(FString::Printf(TEXT("tile map has dedicated lane actor %s"), Label),
 			FindActorByLabel(World, Label));
 	}
+
+	TestNull(TEXT("tile map removes the old basin-covering monolithic floor"),
+		FindActorByLabel(World, TEXT("VW_Floor")));
+
+	struct FExpectedPondSurface
+	{
+		const TCHAR* Label;
+		double TopZ;
+		bool bNoCollision;
+	};
+	const FExpectedPondSurface ExpectedSurfaces[] = {
+		{ TEXT("VW_Shallow_Bed"), -38.0, false },
+		{ TEXT("VW_Shallow_Water"), -8.0, true },
+		{ TEXT("VW_DeepEdge_Bed"), -141.0, false },
+		{ TEXT("VW_DeepEdge_Water"), -8.0, true },
+		{ TEXT("VW_DeepOuterCorner_Bed"), -141.0, false },
+		{ TEXT("VW_DeepOuterCorner_Water"), -8.0, true },
+		{ TEXT("VW_DeepInnerCorner_Bed"), -141.0, false },
+		{ TEXT("VW_DeepInnerCorner_Water"), -8.0, true },
+	};
+	for (const FExpectedPondSurface& Expected : ExpectedSurfaces)
+	{
+		const AActor* Actor = FindActorByLabel(World, Expected.Label);
+		if (!TestNotNull(FString::Printf(TEXT("tile map has pond surface %s"), Expected.Label), Actor))
+		{
+			continue;
+		}
+		const UStaticMeshComponent* Component = Actor->FindComponentByClass<UStaticMeshComponent>();
+		if (!TestNotNull(FString::Printf(TEXT("%s has a StaticMeshComponent"), Expected.Label), Component))
+		{
+			continue;
+		}
+		const FBox Bounds = Component->CalcBounds(SavedWorldTransform(Component)).GetBox();
+		TestTrue(FString::Printf(TEXT("%s top Z is %.0f cm"), Expected.Label, Expected.TopZ),
+			FMath::IsNearlyEqual(Bounds.Max.Z, Expected.TopZ, GridToleranceCm));
+		TestEqual(FString::Printf(TEXT("%s collision matches fixture contract"), Expected.Label),
+			Component->GetCollisionEnabled(),
+			Expected.bNoCollision ? ECollisionEnabled::NoCollision : ECollisionEnabled::QueryAndPhysics);
+	}
+
+	const TCHAR* RequiredLandSupports[] = {
+		TEXT("VW_DeepEdge_Land"),
+		TEXT("VW_DeepOuterCorner_Land"),
+		TEXT("VW_DeepInnerCorner_LandEast"),
+		TEXT("VW_DeepInnerCorner_LandSouth"),
+	};
+	for (const TCHAR* Label : RequiredLandSupports)
+	{
+		TestNotNull(FString::Printf(TEXT("tile map has intended land support %s"), Label),
+			FindActorByLabel(World, Label));
+	}
+
+	struct FPondHole
+	{
+		double MinX;
+		double MaxX;
+		double MinY;
+		double MaxY;
+	};
+	const FPondHole PondHoles[] = {
+		{ 2200.0, 2800.0, -300.0, 300.0 },
+		{ 3500.0, 4100.0, -1300.0, -700.0 },
+		{ 3500.0, 4100.0, -300.0, 300.0 },
+		{ 3500.0, 4100.0, 700.0, 1300.0 },
+	};
+	int32 FloorSegmentCount = 0;
+	for (AActor* Actor : LevelActors(World))
+	{
+		if (!Actor->GetActorNameOrLabel().StartsWith(TEXT("VW_Floor_")))
+		{
+			continue;
+		}
+		++FloorSegmentCount;
+		const UStaticMeshComponent* Component = Actor->FindComponentByClass<UStaticMeshComponent>();
+		if (!TestNotNull(FString::Printf(TEXT("%s has a StaticMeshComponent"),
+			*Actor->GetActorNameOrLabel()), Component))
+		{
+			continue;
+		}
+		const FBox Bounds = Component->CalcBounds(SavedWorldTransform(Component)).GetBox();
+		for (int32 HoleIndex = 0; HoleIndex < UE_ARRAY_COUNT(PondHoles); ++HoleIndex)
+		{
+			const FPondHole& Hole = PondHoles[HoleIndex];
+			const double OverlapX = FMath::Min(Bounds.Max.X, Hole.MaxX)
+				- FMath::Max(Bounds.Min.X, Hole.MinX);
+			const double OverlapY = FMath::Min(Bounds.Max.Y, Hole.MaxY)
+				- FMath::Max(Bounds.Min.Y, Hole.MinY);
+			TestFalse(FString::Printf(TEXT("%s does not cover pond hole %d"),
+				*Actor->GetActorNameOrLabel(), HoleIndex),
+				OverlapX > GridToleranceCm && OverlapY > GridToleranceCm);
+		}
+	}
+	TestTrue(TEXT("tile map floor is segmented around pond holes"), FloorSegmentCount > 1);
 	return true;
 }

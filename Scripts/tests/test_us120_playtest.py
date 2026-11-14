@@ -7,6 +7,7 @@ failure reporting, and the rule that the script only uses input/read bridge comm
 import contextlib
 import importlib.util
 import json
+import math
 import os
 import sys
 import tempfile
@@ -37,6 +38,20 @@ def load_playtest():
 us120 = load_playtest()
 
 
+class PondDipWorld(fb.FakeWorld):
+    """Fake-only Z profile for testing the shallow traversal assertion."""
+
+    def _s_player(self):
+        state = super()._s_player()
+        low_x, high_x = us120.SHALLOW_DIP_X
+        state["location"][2] = (
+            us120.SHALLOW_DIP_Z
+            if low_x <= self.pos[0] <= high_x
+            else us120.TIER0_Z
+        )
+        return state
+
+
 def read_jsonl(path):
     with open(path, encoding="utf-8") as stream:
         return [json.loads(line) for line in stream if line.strip()]
@@ -49,8 +64,9 @@ class Us120FakeCase(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.run_dir = os.path.join(self.tmp, "run")
 
-    def serve(self, faults=None):
-        world = fb.FakeWorld(
+    def serve(self, faults=None, pond_dip=False):
+        world_class = PondDipWorld if pond_dip else fb.FakeWorld
+        world = world_class(
             map=us120.Us120Run.MAP,
             experience=us120.Us120Run.EXPERIENCE,
             start=(0.0, 0.0),
@@ -86,18 +102,42 @@ class Us120FakeCase(unittest.TestCase):
             mock.patch.object(us120, "SHALLOW_START", (300.0, 0.0)),
             mock.patch.object(us120, "SHALLOW_END", (340.0, 0.0)),
             mock.patch.object(us120, "SHALLOW_APPROACH", ((300.0, 0.0),)),
+            mock.patch.object(us120, "SHALLOW_DIP_X", (310.0, 330.0)),
             mock.patch.object(
                 us120,
                 "DEEP_BANKS",
                 (
-                    ("edge", (380.0, -20.0)),
-                    ("outer_corner", (380.0, 0.0)),
-                    ("inner_corner", (380.0, 20.0)),
+                    {
+                        "label": "edge",
+                        "pivot": (380.0, -20.0),
+                        "start": (400.0, -20.0),
+                        "keys": ("S",),
+                        "direction": (-1.0, 0.0),
+                        "face_progress": 0.0,
+                        "route": ((400.0, -20.0),),
+                    },
+                    {
+                        "label": "outer_corner",
+                        "pivot": (380.0, 0.0),
+                        "start": (400.0, -20.0),
+                        "keys": ("S", "D"),
+                        "direction": (-0.707107, 0.707107),
+                        "face_progress": 0.0,
+                        "route": ((400.0, -20.0),),
+                    },
+                    {
+                        "label": "inner_corner",
+                        "pivot": (380.0, 20.0),
+                        "start": (400.0, 0.0),
+                        "keys": ("S", "D"),
+                        "direction": (-0.707107, 0.707107),
+                        "face_progress": 100.0,
+                        "route": ((400.0, 0.0),),
+                    },
                 ),
             ),
-            mock.patch.object(us120, "DEEP_MIN_X", -10000.0),
-            mock.patch.object(us120, "DEEP_SAFE_X", 400.0),
             mock.patch.object(us120, "DEEP_ENTRY_ROUTE", ((360.0, -40.0), (400.0, -40.0))),
+            mock.patch.object(us120, "DEEP_ALLOWED_PAST_FACE", 10000.0),
             mock.patch.object(us120, "_near", lambda value, target, tolerance=None: True),
             mock.patch.object(us120, "BLOCK_HOLD_S", 0.02),
             mock.patch.object(us120, "JUMP_SAMPLE_S", 0.03),
@@ -170,10 +210,29 @@ class TestUs120Plan(unittest.TestCase):
         )
         self.assertTrue(all(us120.SCREENSHOTS.values()))
 
+    def test_pond_checks_require_a_real_basin_and_radial_corner_probes(self):
+        self.assertAlmostEqual(us120.SHALLOW_BED_Z, -38.0)
+        self.assertAlmostEqual(us120.SHALLOW_WATER_Z, -8.0)
+        self.assertAlmostEqual(us120.SHALLOW_DIP_Z, 54.0)
+        self.assertAlmostEqual(us120.DEEP_BED_Z, -141.0)
+        self.assertAlmostEqual(us120.DEEP_WATER_Z, -8.0)
+        self.assertAlmostEqual(
+            us120.DEEP_ALLOWED_PAST_FACE,
+            us120.BANK_TOLERANCE_CM + us120.CAPSULE_RADIUS_CM,
+        )
+        by_label = {spec["label"]: spec for spec in us120.DEEP_BANKS}
+        self.assertEqual(by_label["edge"]["keys"], ("S",))
+        for label in ("outer_corner", "inner_corner"):
+            spec = by_label[label]
+            self.assertEqual(spec["keys"], ("S", "D"))
+            self.assertAlmostEqual(math.hypot(*spec["direction"]), 1.0, places=5)
+            self.assertLess(spec["direction"][0], 0.0)
+            self.assertGreater(spec["direction"][1], 0.0)
+
 
 class TestUs120AgainstFake(Us120FakeCase):
     def test_compact_fake_route_passes_and_captures_each_location_immediately(self):
-        server = self.serve()
+        server = self.serve(pond_dip=True)
         code, report = self.play(server)
         self.assertEqual(code, 0, json.dumps(report["checks"], indent=2)[-5000:])
         checks = self.checks(report)
@@ -194,6 +253,18 @@ class TestUs120AgainstFake(Us120FakeCase):
         self.assertLessEqual(set(sent), INPUT_AND_READ_COMMANDS)
         self.assertFalse([command for command in sent if command.startswith("debug_")])
         self.assertTrue([request for request in server.received if request.get("cmd") == "key"])
+
+        shallow = checks["shallow_pond_crosses"]
+        self.assertIn("min Z 54.0", shallow["detail"])
+        self.assertIn("exit Z 92.0", shallow["detail"])
+
+    def test_flat_floor_cannot_false_pass_the_shallow_pond(self):
+        server = self.serve(pond_dip=False)
+        code, report = self.play(server)
+        self.assertEqual(code, 1)
+        shallow = self.checks(report)["shallow_pond_crosses"]
+        self.assertEqual(shallow["status"], "FAIL")
+        self.assertIn("did not dip", shallow["detail"])
 
     def test_bridge_timeout_is_a_gameplay_failure_not_a_false_pass(self):
         server = self.serve(
