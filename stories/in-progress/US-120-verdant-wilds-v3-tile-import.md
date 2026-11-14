@@ -24,16 +24,16 @@ This story imports static meshes and textures, creates materials and material in
 - Cook-list contract: `Scripts/package_playtest.py:104-119`; `Scripts/tests/test_package_playtest.py:47-94`
 
 ## Acceptance Criteria
-- [ ] AC-120.1: Exactly the 17 catalog entries whose status is `ready` are imported as `UStaticMesh` assets under `/MordecaiCore/World/Terrain/VerdantWilds/Meshes`; no non-ready or unexpected catalog mesh is imported. Verified by `Mordecai.World.Terrain.VerdantWilds.AllReadyMeshesLoad` and the committed source manifest.
-- [ ] AC-120.2: Every mesh imports at catalog scale and orientation with its catalog pivot and bounds: imported bounds match manifest bounds within 1 cm, actors require scale `(1,1,1)`, normal tile origins occupy the declared bottom-centre grid point, and ramp origins follow the declared cliff-row/grid-line contract. Verified by `Mordecai.World.Terrain.VerdantWilds.ImportContract`.
-- [ ] AC-120.3: Every mesh has Nanite enabled and its catalog UCX simple collision preserved; complex-as-simple is forbidden and hull counts match the catalog. Every convex collision vertex stays inside the manifest gameplay footprint. Pond footprints include the adjacent water tile/basin: edge XY is X -100..100 and Y -200..200 (plus 15 cm tolerance), corner XY is within the 2x2 tiles around the grid vertex, and pond Z is -200..+15 except intentional deep-bank blocking walls may reach Z 250. A deep blocking wall may not intrude more than 15 cm into the land side. Visual overhangs beyond 15 cm remain reported art defects. Verified by `Mordecai.World.Terrain.VerdantWilds.NaniteAndSimpleCollision` and `.CollisionInsideFootprint`.
-- [ ] AC-120.4: The ready shared textures, one saved master material, and all manifest-required `MI_VW_*` material instances exist at the approved terrain paths. D/DA maps use sRGB; N/ORM/H maps are linear with their intended compression; every mesh slot resolves by exact catalog slot name. Verified by `Mordecai.World.Terrain.VerdantWilds.MaterialsAndTexturesLoad`.
-- [ ] AC-120.5: `/MordecaiCore/Game/Maps/L_VW_TileTest` is a saved non-world-graph test fixture using `AMordecaiGameMode`. It contains all 17 meshes as labelled, unit-scale actors on the 200 cm grid and dedicated lanes for Ramp 2T, Ramp 3T, a 200 cm cliff, shallow pond crossing, and deep pond blocking. No supplemental collision volume may mask the collision being tested. Verified by `Mordecai.World.Terrain.VerdantWilds.TileTestMapContract` and `Scripts/verify_pie_vw_tiles.py`.
+- [x] AC-120.1: Exactly the 17 catalog entries whose status is `ready` are imported as `UStaticMesh` assets under `/MordecaiCore/World/Terrain/VerdantWilds/Meshes`; no non-ready or unexpected catalog mesh is imported. Verified by `Mordecai.World.Terrain.VerdantWilds.AllReadyMeshesLoad` and the committed source manifest.
+- [x] AC-120.2: Every mesh imports at catalog scale and orientation with its catalog pivot and bounds: imported bounds match manifest bounds within 1 cm, actors require scale `(1,1,1)`, normal tile origins occupy the declared bottom-centre grid point, and ramp origins follow the declared cliff-row/grid-line contract. Verified by `Mordecai.World.Terrain.VerdantWilds.ImportContract`.
+- [x] AC-120.3: Every mesh has Nanite enabled and its catalog UCX simple collision preserved; complex-as-simple is forbidden and hull counts match the catalog. Every convex collision vertex stays inside the manifest gameplay footprint. Pond footprints include the adjacent water tile/basin: edge XY is X -100..100 and Y -200..200 (plus 15 cm tolerance), corner XY is within the 2x2 tiles around the grid vertex, and pond Z is -200..+15 except intentional deep-bank blocking walls may reach Z 250. A deep blocking wall may not intrude more than 15 cm into the land side. Visual overhangs beyond 15 cm remain reported art defects. Verified by `Mordecai.World.Terrain.VerdantWilds.NaniteAndSimpleCollision` and `.CollisionInsideFootprint`.
+- [x] AC-120.4: The ready shared textures, one saved master material, and all manifest-required `MI_VW_*` material instances exist at the approved terrain paths. D/DA maps use sRGB; N/ORM/H maps are linear with their intended compression; every mesh slot resolves by exact catalog slot name. Verified by `Mordecai.World.Terrain.VerdantWilds.MaterialsAndTexturesLoad`.
+- [x] AC-120.5: `/MordecaiCore/Game/Maps/L_VW_TileTest` is a saved non-world-graph test fixture using `AMordecaiGameMode`. It contains all 17 meshes as labelled, unit-scale actors on the 200 cm grid and dedicated lanes for Ramp 2T, Ramp 3T, a 200 cm cliff, shallow pond crossing, and deep pond blocking. No supplemental collision volume may mask the collision being tested. Verified by `Mordecai.World.Terrain.VerdantWilds.TileTestMapContract` and `Scripts/verify_pie_vw_tiles.py`.
 - [ ] AC-120.6: In a fresh packaged build, real WASD input walks the player from Tier 0 to Tier 1 over both ramps and back down; each successful ascent raises the player approximately 200 cm without jumping or becoming stuck. Verified by Tier 4 checks `ramp_2t_up`, `ramp_2t_down`, `ramp_3t_up`, and `ramp_3t_down` in `Scripts/playtests/us120_vw_tiles.py`.
 - [ ] AC-120.7: In that same package, walking into and jumping toward the 200 cm cliff never places the player on Tier 1; the shallow pond lane is traversable end to end; and repeated walking into each deep-bank representative does not cross its bank. Verified by Tier 4 checks `cliff_walk_blocked`, `cliff_jump_blocked`, `shallow_pond_crosses`, and `deep_bank_blocks`.
 - [ ] AC-120.8: The new map is in `Config/DefaultGame.ini` `+MapsToCook` and `Scripts/package_playtest.py` `DEFAULT_MAPS`; `py Scripts/playtest_story.py US-120` passes Tier 3 and Tier 4 on one fresh clean package, every screenshot is checked by script (PIL/analyze_image, never the file-read tool) and bundled for coordinator review, and the full `py Scripts/playtest_story.py --all` sweep has zero baseline PASS→FAIL.
-- [ ] AC-120.9: Raw FBX and texture source files and credentials are absent from Git; the committed manifest contains the logical B2 keys, ready status, hashes, bounds, footprints, hull counts, slots, and texture references needed for deterministic reimport. Imported `.uasset`/`.umap` files are saved and committed through Git LFS, and `py Scripts/check_content_committed.py` exits 0.
-- [ ] AC-120.10: Completion Notes record the pre/post packaged `.pak` byte totals, cooked terrain-folder size, mesh/texture/material counts, and delta. No size threshold is inferred without a coordinator decision.
+- [x] AC-120.9: Raw FBX and texture source files and credentials are absent from Git; the committed manifest contains the logical B2 keys, ready status, hashes, bounds, footprints, hull counts, slots, and texture references needed for deterministic reimport. Imported `.uasset`/`.umap` files are saved and committed through Git LFS, and `py Scripts/check_content_committed.py` exits 0.
+- [x] AC-120.10: Completion Notes record the pre/post packaged `.pak` byte totals, cooked terrain-folder size, mesh/texture/material counts, and delta. No size threshold is inferred without a coordinator decision.
 
 ## Technical Notes
 - Canonical paths:
@@ -150,19 +150,102 @@ This story imports static meshes and textures, creates materials and material in
 - Keep commits focused: RED tests/scaffold, GREEN imported content/scripts, then story-only evidence closure.
 
 ## Definition of Done
-- [ ] Decisions D1-D5 applied
-- [ ] Tests are written first and fail for the expected missing-content/cook-list reasons
+- [x] Decisions D1-D5 applied
+- [x] Tests are written first and fail for the expected missing-content/cook-list reasons
 - [ ] All ACs checked off
-- [ ] Tier 1: project compiles and all `Mordecai.*` tests pass
-- [ ] Python tooling tests pass
-- [ ] Tier 2 PIE smoke passes on `L_VW_TileTest`
-- [ ] Every imported `.uasset`/`.umap` is saved and committed; no raw source/token is committed; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work is committed before packaging; `py Scripts/package_playtest.py` exits 0 on that exact clean commit
+- [x] Tier 1: project compiles and all `Mordecai.*` tests pass
+- [x] Python tooling tests pass
+- [x] Tier 2 PIE smoke passes on `L_VW_TileTest`
+- [x] Every imported `.uasset`/`.umap` is saved and committed; no raw source/token is committed; `py Scripts/check_content_committed.py` exits 0
+- [x] Work is committed before packaging; `py Scripts/package_playtest.py` exits 0 on that exact clean commit
 - [ ] `py Scripts/playtest_story.py US-120` exits 0 without `--allow-stale`
-- [ ] Every Tier 3 and Tier 4 screenshot is checked by script (PIL/analyze_image only; never open PNGs with the file-read tool) against the Playtest expectations and placed in the evidence bundle for coordinator visual review
-- [ ] Full `py Scripts/playtest_story.py --all` sweep has zero baseline PASS→FAIL
-- [ ] Completion Notes record run dirs, scripted screenshot checks, imported counts, and package-size deltas
-- [ ] Closing commit touches only `stories/`; story moves to done only after all evidence passes
+- [x] Every Tier 3 and Tier 4 screenshot is checked by script (PIL/analyze_image only; never open PNGs with the file-read tool) against the Playtest expectations and placed in the evidence bundle for coordinator visual review
+- [x] Full `py Scripts/playtest_story.py --all` sweep has zero baseline PASS→FAIL
+- [x] Completion Notes record run dirs, scripted screenshot checks, imported counts, and package-size deltas
+- [x] Closing commit touches only `stories/`; story moves to done only after all evidence passes
 
 ## Completion Notes
-To be filled by the builder with RED evidence, import report, exact asset counts, Tier 1/Python/Tier 2 results, fresh package metadata, Tier 3/Tier 4 run directories, scripted screenshot checks, sweep comparison, and package-size deltas.
+### Result and package
+- Story remains **in progress**. Playable status: movement — NOT PLAYABLE (`deep_bank_blocks`
+  failed on the authored deep OuterCorner and InnerCorner collision; focused Tier 4
+  `Saved/Playtests/20261114-000253-us120` at package commit
+  `74af3643b3d2c5e71840b040b84214834cbdbb48`).
+- RED commit: `a2659daa` (missing content/cook-list failures were observed before GREEN).
+- Import report: `Saved/Playtests/us120-vw-import-report.json`, result PASS; staged-source
+  verification checked SHA-1 and SHA-256 for all 51 allowlisted files.
+- Imported and committed through Git LFS: 17 static meshes, 34 textures, one
+  `M_Terrain_Master`, four `MI_VW_*` instances, and `L_VW_TileTest`.
+- Imported facing is local `-Y` for both `SM_VW_FeltCliff_Straight_01`'s face and
+  `SM_VW_FeltCliff_Ramp_2T_01`'s downhill direction. Actors and mesh build scale are
+  `(1,1,1)`. Screen north/east are Unreal `+X`/`+Y`.
+- Fresh package metadata: `PackagedBuilds/Playtest/build_info.json`; commit
+  `74af3643b3`, `dirty=false`, `source_changed_during_build=false`. The corrected
+  package has zero material/shader-map errors (the first package's uncooked
+  `M_Terrain_Master` shader defect was fixed before this evidence).
+
+### Verification
+- Tier 1 build PASS; `py Scripts/run_tests.py`: **849/849 PASS**, including
+  `AllReadyMeshesLoad`, `ImportContract`, `NaniteAndSimpleCollision`,
+  `CollisionInsideFootprint`, `MaterialsAndTexturesLoad`, and `TileTestMapContract`.
+- Python tooling: **683/683 PASS**. Tier 2 PIE on `L_VW_TileTest`: **139/139 PASS**
+  across `spawn`, `hud`, and `vw_tiles`.
+- Content guard PASS after commit; Git LFS hydration check printed no pointer-only
+  entries. No raw source or B2 authorization string was committed or copied to evidence.
+- Tier 3 focused run `Saved/Playtests/20261114-000229-boot`: PASS on the fresh
+  package (correct map/experience, 3/3 engine frames, content cooked, zero log errors).
+- Tier 4 focused run `Saved/Playtests/20261114-000253-us120`: FAIL, 26 PASS / 1 FAIL.
+  `tile_gallery_visible`, `ramp_2t_up`, `ramp_2t_down`, `ramp_3t_up`,
+  `ramp_3t_down`, `cliff_walk_blocked`, `cliff_jump_blocked`, and
+  `shallow_pond_crosses` all PASS. `deep_bank_blocks` FAIL: straight Edge stopped at
+  X=3816.1/Z=92.2, but OuterCorner crossed to X=3529.5 and InnerCorner crossed to
+  X=3354.9 (required X >= 3810).
+- Final full sweep: `Saved/Playtests/20261114-001457-sweep`. It is expected overall
+  FAIL because of existing/known failures plus US-120, but comparison with baseline
+  `Saved/Playtests/20261113-163428-sweep` at `5bce1a16` found **0 script, 0 check,
+  and 0 Tier-3 PASS→FAIL transitions** across 15 shared scripts and 395 shared checks.
+  The prior sweep attempt's timing-only `us054_combat:respawn_moves` failure passed an
+  isolated rerun and this final complete sweep.
+
+### Scripted image review and evidence
+- Per the issue constraint, no PNG was opened with the file-read tool. PIL inspected
+  all **213** copied baseline/final/focused images for dimensions, entropy, channel
+  variation, near-black coverage, edges, dominant colours, and uniformity:
+  **213 PASS, 0 blank/uniform FAIL**. Semantic traversal results come from the audited
+  bridge state/checks; the original frames are bundled for coordinator visual review.
+- Focused Tier 3: `engine_loading.png` is a valid non-uniform loading frame and the
+  report identifies `MordecaiLoadingScreenWidget`; `engine_01..03.png` are valid
+  non-uniform `L_VW_TileTest` game frames. Desktop `shot_01..03.png` retain the
+  report's overlap warnings and are not used as primary evidence.
+- Focused Tier 4: `bridge_01..04.png` are valid gallery frames;
+  `bridge_05.png`/`bridge_06.png` correspond to the passing 2T/3T top checks;
+  `bridge_07.png` to the passing cliff rejection; `bridge_08.png` to the passing
+  shallow crossing; and `bridge_09.png` to the passing straight deep-edge rejection.
+  `bridge_10.png` and `bridge_11.png` are valid captures of the curved-bank attempts,
+  but bridge state proves the player crossed the OuterCorner and InnerCorner, so they
+  do **not** satisfy the expected near-side result.
+- Evidence bundle:
+  `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-2587667d-8302-5d0e-97b8-9cb6a5b288fc\files\us120-r1-74af3643`.
+  It contains baseline/final sweep reports and images, focused US-120 images, named
+  captures, import report, manifest, build metadata, package sizes, sweep comparison,
+  logs, image analysis, secret scan, and `SHA256SUMS.txt` (362 entries, all reverified).
+
+### Size and art/collision findings
+- Baseline packaged `.pak` total at `5bce1a16`: **74,828,470 bytes**. US-120 package
+  total at `74af3643`: **74,789,556 bytes**. Delta: **-38,914 bytes**. UE IoStore
+  payloads are separate, so this requested `.pak` measurement is not the asset payload
+  size. Cooked `MordecaiCore/Content/World/Terrain` is **79,885,788 bytes** across
+  163 files.
+- D3 visual overhang measurements beyond 15 cm are recorded without mesh edits:
+  Cliff Straight 01 24.9, Straight 02 26.3, Straight 03 25.0, Cliff OuterCorner 22.0,
+  Cliff InnerCorner 100.0, EndCap 22.9, Pit Edge 23.3, Pit OuterCorner 20.6,
+  Pit InnerCorner 100.0, Ramp 2T 18.0, Ramp 3T 18.0 cm. Pond basin measurements
+  (allowed into the water tile by the amended contract) are Edge 79.6,
+  OuterCorner 78.0, InnerCorner 103.5, Deep Edge 79.8, Deep OuterCorner 78.0, and
+  Deep InnerCorner 103.5 cm. Every pond hull's actual XYZ extents are in the import
+  report.
+- **Art/collision defect for Art Bot:** the deep straight Edge blocks correctly, but
+  the authored blocking-wall UCX on both curved representatives has traversable gaps:
+  `SM_VW_Pond_OuterCorner_Deep_01` and
+  `SM_VW_Pond_InnerCorner_Deep_01` permit a real-input character to cross onto the
+  water side. No movement, capsule, step height, jump, walkable angle, mesh, or UCX
+  value was changed to hide this failure.
