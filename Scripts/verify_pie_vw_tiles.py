@@ -21,18 +21,6 @@ MANIFEST = (
     / "Scripts"
     / "us120_vw_source_manifest.json"
 )
-LANES = {
-    "VW_Lane_Ramp2T": "SM_VW_FeltCliff_Ramp_2T_01",
-    "VW_Lane_Ramp3T": "SM_VW_FeltCliff_Ramp_3T_01",
-    "VW_Lane_Cliff": "SM_VW_FeltCliff_Straight_01",
-    "VW_Lane_ShallowPond": "SM_VW_Pond_Edge_01",
-    "VW_Lane_ShallowPond_Far": "SM_VW_Pond_Edge_01",
-    "VW_Lane_DeepEdge": "SM_VW_Pond_Edge_Deep_01",
-    "VW_Lane_DeepOuterCorner": "SM_VW_Pond_OuterCorner_Deep_01",
-    "VW_Lane_DeepInnerCorner": "SM_VW_Pond_InnerCorner_Deep_01",
-}
-
-
 def _run():
     passed = 0
     failed = 0
@@ -75,6 +63,7 @@ def _run():
 
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     entries = {entry["id"]: entry for entry in manifest["meshes"]}
+    fixture = manifest["test_fixture"]
     check("committed manifest has exactly 17 meshes", len(entries) == 17)
 
     game_mode = unreal.GameplayStatics.get_game_mode(world)
@@ -144,30 +133,72 @@ def _run():
             str(slot.get_editor_property("material_slot_name"))
             for slot in mesh.get_editor_property("static_materials")
         ]
+        imported_slots = [
+            str(slot.get_editor_property("imported_material_slot_name"))
+            for slot in mesh.get_editor_property("static_materials")
+        ]
         check(
-            f"{mesh_id} material slots match catalog",
+            f"{mesh_id} material slots match FBX ground truth",
             slots == entry["material_slots"],
             f"{slots}",
         )
-
-    for label, mesh_id in LANES.items():
-        actor = by_label.get(label)
-        check(f"dedicated lane {label} exists", actor is not None)
-        if actor is None:
-            continue
-        component = actor.get_editor_property("static_mesh_component")
-        mesh = component.get_editor_property("static_mesh") if component else None
-        scale = actor.get_actor_scale3d()
         check(
-            f"{label} has exact unit-scale mesh assignment",
-            mesh is not None
-            and mesh.get_name() == mesh_id
-            and math.isclose(scale.x, 1.0)
-            and math.isclose(scale.y, 1.0)
-            and math.isclose(scale.z, 1.0),
-            f"{mesh.get_name() if mesh else 'none'} at scale "
-            f"({scale.x:g}, {scale.y:g}, {scale.z:g})",
+            f"{mesh_id} imported and assigned slot names remain identical",
+            imported_slots == slots,
+            f"imported={imported_slots}, assigned={slots}",
         )
+
+    for table_name in ("gallery", "lanes", "shallow_bank_ring"):
+        for expected in fixture[table_name]:
+            label = expected["label"]
+            actor = by_label.get(label)
+            check(f"{table_name} exact actor {label} exists", actor is not None)
+            if actor is None:
+                continue
+            component = actor.get_editor_property("static_mesh_component")
+            mesh = component.get_editor_property("static_mesh") if component else None
+            scale = actor.get_actor_scale3d()
+            location = actor.get_actor_location()
+            yaw = actor.get_actor_rotation().yaw
+            expected_location = expected["location_cm"]
+            expected_scale = expected["scale"]
+            check(
+                f"{label} exact mesh",
+                mesh is not None and mesh.get_name() == expected["mesh"],
+                mesh.get_name() if mesh else "none",
+            )
+            check(
+                f"{label} exact unit scale",
+                all(
+                    math.isclose(actual, wanted, abs_tol=0.001)
+                    for actual, wanted in zip(
+                        (scale.x, scale.y, scale.z), expected_scale
+                    )
+                ),
+                f"({scale.x:g}, {scale.y:g}, {scale.z:g})",
+            )
+            check(
+                f"{label} exact location",
+                all(
+                    math.isclose(actual, wanted, abs_tol=0.1)
+                    for actual, wanted in zip(
+                        (location.x, location.y, location.z), expected_location
+                    )
+                ),
+                f"({location.x:.1f}, {location.y:.1f}, {location.z:.1f})",
+            )
+            check(
+                f"{label} exact yaw",
+                math.isclose(
+                    unreal.MathLibrary.normalized_delta_rotator(
+                        unreal.Rotator(yaw=yaw),
+                        unreal.Rotator(yaw=expected["yaw_deg"]),
+                    ).yaw,
+                    0.0,
+                    abs_tol=0.1,
+                ),
+                f"{yaw:.1f} / expected {expected['yaw_deg']:.1f}",
+            )
 
     check(
         "old basin-covering monolithic floor is absent",
@@ -250,6 +281,45 @@ def _run():
         not blockers,
         f"{[actor.get_actor_label() for actor in blockers]}",
     )
+
+    cliff_band = (1300.0, 1500.0, -100.0, 100.0, 1.0, 250.0)
+    for label, actor in by_label.items():
+        component = actor.get_editor_property("static_mesh_component")
+        if (
+            component is None
+            or component.get_collision_enabled()
+            == unreal.CollisionEnabled.NO_COLLISION
+        ):
+            continue
+        mesh = component.get_editor_property("static_mesh")
+        mesh_path = mesh.get_path_name().split(".")[0] if mesh else ""
+        if mesh_path.startswith(MESH_ROOT + "/"):
+            continue
+        origin, extent = actor.get_actor_bounds(False)
+        actor_bounds = (
+            origin.x - extent.x,
+            origin.x + extent.x,
+            origin.y - extent.y,
+            origin.y + extent.y,
+            origin.z - extent.z,
+            origin.z + extent.z,
+        )
+        overlap = (
+            min(actor_bounds[1], cliff_band[1])
+            - max(actor_bounds[0], cliff_band[0])
+            > 0.1
+            and min(actor_bounds[3], cliff_band[3])
+            - max(actor_bounds[2], cliff_band[2])
+            > 0.1
+            and min(actor_bounds[5], cliff_band[5])
+            - max(actor_bounds[4], cliff_band[4])
+            > 0.1
+        )
+        check(
+            f"non-tile collision actor {label} stays out of cliff collision band",
+            not overlap,
+            f"bounds={actor_bounds}",
+        )
 
     finish()
 

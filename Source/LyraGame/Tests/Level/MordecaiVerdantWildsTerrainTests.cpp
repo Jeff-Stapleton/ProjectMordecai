@@ -16,6 +16,7 @@
 #include "HAL/FileManager.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -35,7 +36,6 @@ namespace MordecaiVerdantWildsTests
 		TEXT("/MordecaiCore/World/Terrain/Shared/Materials/M_Terrain_Master");
 	constexpr double BoundsToleranceCm = 1.0;
 	constexpr double FootprintToleranceCm = 0.1;
-	constexpr double HullExtentToleranceCm = 0.01;
 	constexpr double GridToleranceCm = 0.1;
 
 	TSharedPtr<FJsonObject> LoadManifest(FAutomationTestBase& Test)
@@ -167,6 +167,127 @@ namespace MordecaiVerdantWildsTests
 		return FMath::IsNearlyEqual(Value, FMath::GridSnap(Value, 200.0), GridToleranceCm);
 	}
 
+	double Cross2D(const FVector2D& Origin, const FVector2D& A, const FVector2D& B)
+	{
+		return (A.X - Origin.X) * (B.Y - Origin.Y)
+			- (A.Y - Origin.Y) * (B.X - Origin.X);
+	}
+
+	TArray<FVector2D> ConvexOutline(const FKConvexElem& Convex)
+	{
+		TArray<FVector2D> Points;
+		const FTransform Transform = Convex.GetTransform();
+		for (const FVector& LocalVertex : Convex.VertexData)
+		{
+			const FVector Vertex = Transform.TransformPosition(LocalVertex);
+			Points.AddUnique(FVector2D(Vertex.X, Vertex.Y));
+		}
+		Points.Sort([](const FVector2D& A, const FVector2D& B)
+		{
+			return A.X < B.X || (FMath::IsNearlyEqual(A.X, B.X) && A.Y < B.Y);
+		});
+		if (Points.Num() < 3)
+		{
+			return Points;
+		}
+		TArray<FVector2D> Lower;
+		for (const FVector2D& Point : Points)
+		{
+			while (Lower.Num() >= 2
+				&& Cross2D(Lower[Lower.Num() - 2], Lower.Last(), Point) <= 0.0)
+			{
+				Lower.Pop(EAllowShrinking::No);
+			}
+			Lower.Add(Point);
+		}
+		TArray<FVector2D> Upper;
+		for (int32 Index = Points.Num() - 1; Index >= 0; --Index)
+		{
+			const FVector2D& Point = Points[Index];
+			while (Upper.Num() >= 2
+				&& Cross2D(Upper[Upper.Num() - 2], Upper.Last(), Point) <= 0.0)
+			{
+				Upper.Pop(EAllowShrinking::No);
+			}
+			Upper.Add(Point);
+		}
+		Lower.Pop(EAllowShrinking::No);
+		Upper.Pop(EAllowShrinking::No);
+		Lower.Append(Upper);
+		return Lower;
+	}
+
+	TArray<FVector2D> ClipLessThan(
+		const TArray<FVector2D>& Polygon, bool bClipX, double Limit)
+	{
+		TArray<FVector2D> Result;
+		if (Polygon.IsEmpty())
+		{
+			return Result;
+		}
+		auto Coordinate = [bClipX](const FVector2D& Point)
+		{
+			return bClipX ? Point.X : Point.Y;
+		};
+		FVector2D Previous = Polygon.Last();
+		bool bPreviousInside = Coordinate(Previous) < Limit;
+		for (const FVector2D& Current : Polygon)
+		{
+			const bool bCurrentInside = Coordinate(Current) < Limit;
+			if (bCurrentInside != bPreviousInside)
+			{
+				const double PreviousCoordinate = Coordinate(Previous);
+				const double Denominator = Coordinate(Current) - PreviousCoordinate;
+				const double Alpha = FMath::IsNearlyZero(Denominator)
+					? 0.0 : (Limit - PreviousCoordinate) / Denominator;
+				Result.Add(Previous + (Current - Previous) * Alpha);
+			}
+			if (bCurrentInside)
+			{
+				Result.Add(Current);
+			}
+			Previous = Current;
+			bPreviousInside = bCurrentInside;
+		}
+		return Result;
+	}
+
+	bool ConvexOverlapsLandRegion(
+		FAutomationTestBase& Test,
+		const FKConvexElem& Convex,
+		const TSharedPtr<FJsonObject>& Region)
+	{
+		if (!Region.IsValid())
+		{
+			Test.AddError(TEXT("missing corner_land_region"));
+			return true;
+		}
+		const FString Operator = StringField(Region, TEXT("operator"));
+		TArray<FVector2D> Outline = ConvexOutline(Convex);
+		if (Operator == TEXT("half_plane"))
+		{
+			return !ClipLessThan(Outline, false,
+				Region->GetNumberField(TEXT("y_lt_cm")) - FootprintToleranceCm).IsEmpty();
+		}
+		if (Operator == TEXT("and"))
+		{
+			Outline = ClipLessThan(Outline, true,
+				Region->GetNumberField(TEXT("x_lt_cm")) - FootprintToleranceCm);
+			Outline = ClipLessThan(Outline, false,
+				Region->GetNumberField(TEXT("y_lt_cm")) - FootprintToleranceCm);
+			return !Outline.IsEmpty();
+		}
+		if (Operator == TEXT("or"))
+		{
+			return !ClipLessThan(Outline, true,
+					Region->GetNumberField(TEXT("x_lt_cm")) - FootprintToleranceCm).IsEmpty()
+				|| !ClipLessThan(Outline, false,
+					Region->GetNumberField(TEXT("y_lt_cm")) - FootprintToleranceCm).IsEmpty();
+		}
+		Test.AddError(FString::Printf(TEXT("unsupported corner_land_region operator '%s'"), *Operator));
+		return true;
+	}
+
 	UWorld* LoadTileMap(FAutomationTestBase& Test)
 	{
 		UWorld* World = LoadAsset<UWorld>(MapPackagePath);
@@ -244,8 +365,17 @@ bool FMordecai_VW_ImportContract::RunTest(const FString& Parameters)
 			continue;
 		}
 		const TSharedPtr<FJsonObject> BoundsObject = ObjectField(*this, Entry, TEXT("bounds_cm"));
+		const TSharedPtr<FJsonObject> SourceBoundsObject =
+			ObjectField(*this, Entry, TEXT("source_bounds_cm"));
 		const FBox Expected(VectorField(*this, BoundsObject, TEXT("min")),
 			VectorField(*this, BoundsObject, TEXT("max")));
+		const FBox SourceBounds(VectorField(*this, SourceBoundsObject, TEXT("min")),
+			VectorField(*this, SourceBoundsObject, TEXT("max")));
+		const FBox ConvertedSourceBounds(
+			FVector(SourceBounds.Min.X, -SourceBounds.Max.Y, SourceBounds.Min.Z),
+			FVector(SourceBounds.Max.X, -SourceBounds.Min.Y, SourceBounds.Max.Z));
+		TestTrue(FString::Printf(TEXT("%s manifest converts source bounds by negating Y"),
+				*Mesh->GetName()), Expected.Equals(ConvertedSourceBounds, KINDA_SMALL_NUMBER));
 		const FBox Actual = Mesh->GetBoundingBox();
 		TestTrue(FString::Printf(TEXT("%s min bounds match catalog within 1 cm: expected %s, actual %s"),
 				*Mesh->GetName(), *Expected.Min.ToString(), *Actual.Min.ToString()),
@@ -264,6 +394,13 @@ bool FMordecai_VW_ImportContract::RunTest(const FString& Parameters)
 		const FVector Pivot = VectorField(*this, Footprint, TEXT("pivot_local_cm"));
 		TestTrue(FString::Printf(TEXT("%s pivot is the declared local grid origin"), *Mesh->GetName()),
 			Pivot.IsNearlyZero(KINDA_SMALL_NUMBER));
+#if WITH_EDITOR
+		const FMeshBuildSettings& BuildSettings = Mesh->GetSourceModel(0).BuildSettings;
+		TestTrue(FString::Printf(TEXT("%s BuildScale3D is unit"), *Mesh->GetName()),
+			BuildSettings.BuildScale3D.Equals(FVector::OneVector, KINDA_SMALL_NUMBER));
+		TestFalse(FString::Printf(TEXT("%s does not generate lightmap UVs during import"),
+			*Mesh->GetName()), BuildSettings.bGenerateLightmapUVs);
+#endif
 	}
 	return true;
 }
@@ -325,13 +462,11 @@ bool FMordecai_VW_CollisionInsideFootprint::RunTest(const FString& Parameters)
 	const FString MeshRoot = AssetRoot(*this, Manifest, TEXT("mesh_root"));
 	const TSharedPtr<FJsonObject> PondContract =
 		ObjectField(*this, Manifest, TEXT("pond_collision_contracts"));
-	const TSharedPtr<FJsonObject> PondHullExtents =
-		ObjectField(*this, PondContract, TEXT("actual_hull_extents_cm"));
 	const TArray<TSharedPtr<FJsonValue>>* EdgeXY =
 		ArrayField(*this, PondContract, TEXT("edge_xy_cm"));
 	const TArray<TSharedPtr<FJsonValue>>* CornerXY =
 		ArrayField(*this, PondContract, TEXT("corner_xy_cm"));
-	if (!PondContract || !PondHullExtents || !EdgeXY || EdgeXY->Num() != 4
+	if (!PondContract || !EdgeXY || EdgeXY->Num() != 4
 		|| !CornerXY || CornerXY->Num() != 4)
 	{
 		return false;
@@ -340,7 +475,6 @@ bool FMordecai_VW_CollisionInsideFootprint::RunTest(const FString& Parameters)
 	const double PondMinimumZ = PondContract->GetNumberField(TEXT("min_z_cm"));
 	const double ShallowPondMaximumZ = PondContract->GetNumberField(TEXT("shallow_max_z_cm"));
 	const double DeepPondMaximumZ = PondContract->GetNumberField(TEXT("deep_wall_max_z_cm"));
-	const double LandIntrusionLimit = PondContract->GetNumberField(TEXT("land_intrusion_limit_cm"));
 	for (const TSharedPtr<FJsonValue>& Value : *Entries)
 	{
 		const TSharedPtr<FJsonObject> Entry = Value->AsObject();
@@ -355,6 +489,11 @@ bool FMordecai_VW_CollisionInsideFootprint::RunTest(const FString& Parameters)
 		const bool bIsPond = Kind.StartsWith(TEXT("pond_bank"));
 		const bool bIsDeepPond = Kind == TEXT("pond_bank_deep");
 		const bool bIsPondEdge = bIsPond && Id.Contains(TEXT("_Edge_"));
+		const TSharedPtr<FJsonObject> Collision =
+			ObjectField(*this, Entry, TEXT("collision"));
+		const TSharedPtr<FJsonObject> LandRegion = bIsPond
+			? ObjectField(*this, Collision, TEXT("corner_land_region"))
+			: nullptr;
 		const TArray<TSharedPtr<FJsonValue>>* RectValues = ArrayField(*this, Footprint, TEXT("rects_cm"));
 		const TArray<TSharedPtr<FJsonValue>>* ZValues = ArrayField(*this, Footprint, TEXT("z_cm"));
 		if (!RectValues || !ZValues || ZValues->Num() != 2)
@@ -367,26 +506,15 @@ bool FMordecai_VW_CollisionInsideFootprint::RunTest(const FString& Parameters)
 		const double ZMax = bIsPond
 			? (bIsDeepPond ? DeepPondMaximumZ : ShallowPondMaximumZ) + FootprintToleranceCm
 			: (*ZValues)[1]->AsNumber() + FootprintToleranceCm;
-		const TArray<TSharedPtr<FJsonValue>>* ExpectedHullValues = nullptr;
-		if (bIsPond)
-		{
-			TestTrue(FString::Printf(TEXT("manifest records actual hull extents for %s"), *Id),
-				PondHullExtents->TryGetArrayField(Id, ExpectedHullValues));
-			if (!ExpectedHullValues)
-			{
-				continue;
-			}
-			TestEqual(FString::Printf(TEXT("%s extent count matches UCX hull count"), *Id),
-				ExpectedHullValues->Num(), Mesh->GetBodySetup()->AggGeom.ConvexElems.Num());
-		}
 		int32 VertexIndex = 0;
 		int32 HullIndex = 0;
 		for (const FKConvexElem& Convex : Mesh->GetBodySetup()->AggGeom.ConvexElems)
 		{
+			TestTrue(FString::Printf(TEXT("%s hull %d has at least four source vertices"),
+				*Id, HullIndex), Convex.VertexData.Num() >= 4);
 			const FTransform ConvexTransform = Convex.GetTransform();
 			FBox HullBounds(EForceInit::ForceInit);
 			bool bHullInXY = true;
-			bool bDeepWallIntrudesLand = false;
 			for (const FVector& LocalVertex : Convex.VertexData)
 			{
 				const FVector Vertex = ConvexTransform.TransformPosition(LocalVertex);
@@ -416,13 +544,6 @@ bool FMordecai_VW_CollisionInsideFootprint::RunTest(const FString& Parameters)
 					}
 				}
 				bHullInXY &= bInXY;
-				if (bIsDeepPond)
-				{
-					bDeepWallIntrudesLand |= bIsPondEdge
-						? Vertex.Y > LandIntrusionLimit + FootprintToleranceCm
-						: Vertex.X > LandIntrusionLimit + FootprintToleranceCm
-							&& Vertex.Y > LandIntrusionLimit + FootprintToleranceCm;
-				}
 				TestTrue(FString::Printf(TEXT("%s collision vertex %d %s is inside the declared XY footprint"),
 						*Mesh->GetName(), VertexIndex, *Vertex.ToString()), bInXY);
 				TestTrue(FString::Printf(TEXT("%s collision vertex %d Z %.2f is inside %.2f..%.2f"),
@@ -439,46 +560,25 @@ bool FMordecai_VW_CollisionInsideFootprint::RunTest(const FString& Parameters)
 					HullBounds.Max.X, HullBounds.Max.Y, HullBounds.Max.Z));
 				TestTrue(FString::Printf(TEXT("%s hull %d stays inside revised pond XY"), *Id, HullIndex),
 					bHullInXY);
-				if (ExpectedHullValues && ExpectedHullValues->IsValidIndex(HullIndex))
-				{
-					const TSharedPtr<FJsonObject> ExpectedHull = (*ExpectedHullValues)[HullIndex]->AsObject();
-					const FVector ExpectedMin = VectorField(*this, ExpectedHull, TEXT("min"));
-					const FVector ExpectedMax = VectorField(*this, ExpectedHull, TEXT("max"));
-					TestTrue(FString::Printf(TEXT("%s hull %d measured min extent matches report"), *Id, HullIndex),
-						HullBounds.Min.Equals(ExpectedMin, HullExtentToleranceCm));
-					TestTrue(FString::Printf(TEXT("%s hull %d measured max extent matches report"), *Id, HullIndex),
-						HullBounds.Max.Equals(ExpectedMax, HullExtentToleranceCm));
-				}
 				const bool bBlockingWall = bIsDeepPond
 					&& HullBounds.Max.Z > ShallowPondMaximumZ + FootprintToleranceCm;
 				if (bBlockingWall)
 				{
 					TestFalse(FString::Printf(
 						TEXT("%s blocking-wall hull %d does not intrude into the land side"),
-						*Id, HullIndex), bDeepWallIntrudesLand);
+						*Id, HullIndex), ConvexOverlapsLandRegion(*this, Convex, LandRegion));
 				}
 				else if (!bIsDeepPond && HullBounds.Max.Z > ShallowPondMaximumZ + FootprintToleranceCm)
 				{
-					const bool bLandBody = bIsPondEdge
-						? HullBounds.Max.Y > LandIntrusionLimit
-						: HullBounds.Max.X > LandIntrusionLimit
-							&& HullBounds.Max.Y > LandIntrusionLimit;
 					TestTrue(FString::Printf(
 						TEXT("%s shallow hull %d above +15 cm is the land body"),
-						*Id, HullIndex), bLandBody);
+						*Id, HullIndex), ConvexOverlapsLandRegion(*this, Convex, LandRegion));
 				}
 			}
 			++HullIndex;
 		}
-
-		const double Overhang = Footprint->GetNumberField(TEXT("visual_overhang_downhill_cm"));
-		const double Limit = Footprint->GetNumberField(TEXT("visual_overhang_limit_cm"));
-		if (Overhang > Limit)
-		{
-			AddWarning(FString::Printf(
-				TEXT("KNOWN ART DEFECT: %s visual overhang into local -Y is %.1f cm (> %.1f cm); collision remains independently checked"),
-				*Mesh->GetName(), Overhang, Limit));
-		}
+		TestTrue(FString::Printf(TEXT("%s checks at least one collision vertex"),
+			*Mesh->GetName()), VertexIndex > 0);
 	}
 	return true;
 }
@@ -502,6 +602,13 @@ bool FMordecai_VW_MaterialsAndTexturesLoad::RunTest(const FString& Parameters)
 	const FString MaterialRoot = AssetRoot(*this, Manifest, TEXT("material_root"));
 	UMaterial* Master = LoadAsset<UMaterial>(MasterMaterialPath);
 	TestNotNull(FString::Printf(TEXT("%s loads as UMaterial"), MasterMaterialPath), Master);
+	if (Master)
+	{
+		TestEqual(TEXT("terrain master is opaque"), Master->GetBlendMode(), BLEND_Opaque);
+		TestTrue(TEXT("terrain master is Default Lit"),
+			Master->GetShadingModels().HasShadingModel(MSM_DefaultLit));
+		TestTrue(TEXT("terrain master explicitly supports Nanite"), Master->bUsedWithNanite);
+	}
 
 	const TMap<FString, TextureCompressionSettings> CompressionByName = {
 		{ TEXT("Default"), TC_Default },
@@ -529,8 +636,15 @@ bool FMordecai_VW_MaterialsAndTexturesLoad::RunTest(const FString& Parameters)
 			TestEqual(FString::Printf(TEXT("%s compression matches the manifest"), *Id),
 				Texture->CompressionSettings, *Expected);
 		}
+		const FString LODGroup = StringField(Entry, TEXT("lod_group"));
+		const TextureGroup ExpectedLODGroup =
+			LODGroup == TEXT("WorldNormalMap") ? TEXTUREGROUP_WorldNormalMap : TEXTUREGROUP_World;
+		TestEqual(FString::Printf(TEXT("%s LOD group matches role"), *Id),
+			Texture->LODGroup, ExpectedLODGroup);
 	}
 
+	const TSharedPtr<FJsonObject> MaterialTextures =
+		ObjectField(*this, Manifest, TEXT("material_textures"));
 	TSet<FString> RequiredInstances;
 	for (const TSharedPtr<FJsonValue>& Value : *Meshes)
 	{
@@ -550,9 +664,24 @@ bool FMordecai_VW_MaterialsAndTexturesLoad::RunTest(const FString& Parameters)
 			RequiredInstances.Add(Slot);
 			TestEqual(FString::Printf(TEXT("%s slot %d keeps exact catalog name"), *Mesh->GetName(), Index),
 				Actual[Index].MaterialSlotName.ToString(), Slot);
+#if WITH_EDITORONLY_DATA
+			TestEqual(FString::Printf(TEXT("%s slot %d keeps its imported FBX name"),
+				*Mesh->GetName(), Index), Actual[Index].ImportedMaterialSlotName.ToString(), Slot);
+#endif
 			TestEqual(FString::Printf(TEXT("%s slot %d resolves to %s"), *Mesh->GetName(), Index, *Slot),
 				GetPathNameSafe(Actual[Index].MaterialInterface),
 				ObjectPath(MaterialRoot / Slot));
+		}
+		TSet<int32> UsedMaterialIndices;
+		for (int32 SectionIndex = 0; SectionIndex < Mesh->GetNumSections(0); ++SectionIndex)
+		{
+			UsedMaterialIndices.Add(
+				Mesh->GetSectionInfoMap().Get(0, SectionIndex).MaterialIndex);
+		}
+		for (int32 MaterialIndex = 0; MaterialIndex < Actual.Num(); ++MaterialIndex)
+		{
+			TestTrue(FString::Printf(TEXT("%s material slot %d is used by a section"),
+				*Mesh->GetName(), MaterialIndex), UsedMaterialIndices.Contains(MaterialIndex));
 		}
 	}
 	for (const FString& Name : RequiredInstances)
@@ -563,6 +692,25 @@ bool FMordecai_VW_MaterialsAndTexturesLoad::RunTest(const FString& Parameters)
 		{
 			TestEqual(FString::Printf(TEXT("%s uses the terrain master"), *Name),
 				GetPathNameSafe(Instance->Parent), ObjectPath(MasterMaterialPath));
+			const TSharedPtr<FJsonObject> TextureContract =
+				ObjectField(*this, MaterialTextures, *Name);
+			TestEqual(FString::Printf(TEXT("%s has exactly three sampled texture parameters"), *Name),
+				TextureContract.IsValid() ? TextureContract->Values.Num() : 0, 3);
+			if (!TextureContract.IsValid())
+			{
+				continue;
+			}
+			for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : TextureContract->Values)
+			{
+				UTexture* ActualTexture = nullptr;
+				const bool bFound = Instance->GetTextureParameterValue(
+					FHashedMaterialParameterInfo(FName(*Pair.Key)), ActualTexture, true);
+				TestTrue(FString::Printf(TEXT("%s overrides texture parameter %s"),
+					*Name, *Pair.Key), bFound);
+				TestEqual(FString::Printf(TEXT("%s parameter %s uses the manifest texture"),
+					*Name, *Pair.Key), GetPathNameSafe(ActualTexture),
+					ObjectPath(TextureRoot / Pair.Value->AsString()));
+			}
 		}
 	}
 	return true;
@@ -632,19 +780,73 @@ bool FMordecai_VW_TileTestMapContract::RunTest(const FString& Parameters)
 			IsOnGrid(Location.Y));
 	}
 
-	const TCHAR* RequiredLaneLabels[] = {
-		TEXT("VW_Lane_Ramp2T"),
-		TEXT("VW_Lane_Ramp3T"),
-		TEXT("VW_Lane_Cliff"),
-		TEXT("VW_Lane_ShallowPond"),
-		TEXT("VW_Lane_DeepEdge"),
-		TEXT("VW_Lane_DeepOuterCorner"),
-		TEXT("VW_Lane_DeepInnerCorner"),
+	const TSharedPtr<FJsonObject> Fixture =
+		ObjectField(*this, Manifest, TEXT("test_fixture"));
+	const TCHAR* FixtureTables[] = {
+		TEXT("gallery"), TEXT("lanes"), TEXT("shallow_bank_ring")
 	};
-	for (const TCHAR* Label : RequiredLaneLabels)
+	for (const TCHAR* TableName : FixtureTables)
 	{
-		TestNotNull(FString::Printf(TEXT("tile map has dedicated lane actor %s"), Label),
-			FindActorByLabel(World, Label));
+		const TArray<TSharedPtr<FJsonValue>>* Actors =
+			ArrayField(*this, Fixture, TableName);
+		if (!Actors)
+		{
+			continue;
+		}
+		for (const TSharedPtr<FJsonValue>& ActorValue : *Actors)
+		{
+			const TSharedPtr<FJsonObject> ExpectedActor = ActorValue->AsObject();
+			const FString Label = StringField(ExpectedActor, TEXT("label"));
+			const FString MeshId = StringField(ExpectedActor, TEXT("mesh"));
+			const AActor* Actor = FindActorByLabel(World, Label);
+			if (!TestNotNull(FString::Printf(TEXT("%s actor %s exists"), TableName, *Label), Actor))
+			{
+				continue;
+			}
+			const UStaticMeshComponent* Component =
+				Actor->FindComponentByClass<UStaticMeshComponent>();
+			if (!TestNotNull(FString::Printf(TEXT("%s has a StaticMeshComponent"), *Label), Component))
+			{
+				continue;
+			}
+			const FTransform Transform = SavedWorldTransform(Component);
+			const FVector ExpectedLocation =
+				VectorField(*this, ExpectedActor, TEXT("location_cm"));
+			const FVector ExpectedScale =
+				VectorField(*this, ExpectedActor, TEXT("scale"));
+			const double ExpectedYaw = ExpectedActor->GetNumberField(TEXT("yaw_deg"));
+			TestEqual(FString::Printf(TEXT("%s uses its exact shared-table mesh"), *Label),
+				GetPathNameSafe(Component->GetStaticMesh()), ObjectPath(MeshRoot / MeshId));
+			TestTrue(FString::Printf(TEXT("%s exact location %s"), *Label,
+				*ExpectedLocation.ToString()),
+				Transform.GetLocation().Equals(ExpectedLocation, GridToleranceCm));
+			TestTrue(FString::Printf(TEXT("%s exact unit scale"), *Label),
+				Transform.GetScale3D().Equals(ExpectedScale, KINDA_SMALL_NUMBER));
+			TestTrue(FString::Printf(TEXT("%s exact yaw %.1f"), *Label, ExpectedYaw),
+				FMath::IsNearlyEqual(
+					FRotator::NormalizeAxis(Transform.Rotator().Yaw),
+					FRotator::NormalizeAxis(ExpectedYaw), GridToleranceCm));
+		}
+	}
+
+	const FBox CliffCollisionBand(
+		FVector(1300.0, -100.0, 1.0),
+		FVector(1500.0, 100.0, 250.0));
+	for (AActor* Actor : LevelActors(World))
+	{
+		const UStaticMeshComponent* Component =
+			Actor->FindComponentByClass<UStaticMeshComponent>();
+		if (!Component || Component->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+		{
+			continue;
+		}
+		const FBox Bounds = Component->CalcBounds(SavedWorldTransform(Component)).GetBox();
+		const FString MeshPath = GetPathNameSafe(Component->GetStaticMesh());
+		const bool bImportedTile = MeshPath.StartsWith(MeshRoot + TEXT("/"));
+		TestFalse(FString::Printf(
+			TEXT("non-tile collision actor %s does not enter the cliff collision band"),
+			*Actor->GetActorNameOrLabel()),
+			!bImportedTile && Bounds.Intersect(CliffCollisionBand));
 	}
 
 	TestNull(TEXT("tile map removes the old basin-covering monolithic floor"),

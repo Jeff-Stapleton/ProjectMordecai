@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "bucket": "fixture-private-bucket",
+  "updated_at": "2026-11-12T17:35:42-07:00",
+  "kits": [
+    {
+      "id": "VW_tiles_v3",
+      "prefix": "biomes/verdant_wilds/tiles/v3/",
+      "asset_ids": [
+        "SM_VW_FeltCliff_Straight_01",
+        "SM_VW_ReviewOnly"
+      ],
+      "files": [
+        {
+          "path": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_Grass_D.png",
+          "role": "texture_d",
+          "size": 11,
+          "sha1": "1111111111111111111111111111111111111111",
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "path": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_Grass_N.png",
+          "role": "texture_n",
+          "size": 12,
+          "sha1": "2222222222222222222222222222222222222222",
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        {
+          "path": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_Grass_ORM.png",
+          "role": "texture_orm",
+          "size": 13,
+          "sha1": "3333333333333333333333333333333333333333",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "id": "SM_VW_FeltCliff_Straight_01",
+      "name": "Cliff Straight 01",
+      "biome": "verdant_wilds",
+      "category": "tile",
+      "kind": "cliff",
+      "version": "v3",
+      "status": "ready",
+      "prefix": "biomes/verdant_wilds/tiles/v3/SM_VW_FeltCliff_Straight_01/",
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": ["UCX_SM_VW_FeltCliff_Straight_01_00"],
+        "count": 1
+      },
+      "pivot": "bottom centre of the 1x1 footprint",
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "footprint_tiles": "1x1",
+      "bounds_cm": {
+        "min": [-100.0, -24.9, -4.0],
+        "max": [100.0, 100.0, 205.6]
+      },
+      "materials": ["MI_VW_Grass"],
+      "texture_set": {
+        "shared": true,
+        "prefix": "biomes/verdant_wilds/tiles/v3/_shared/textures/",
+        "maps": ["T_VW_Grass_D/N/ORM/H"]
+      },
+      "height_cm": 200.0,
+      "files": [
+        {
+          "path": "biomes/verdant_wilds/tiles/v3/SM_VW_FeltCliff_Straight_01/SM_VW_FeltCliff_Straight_01.fbx",
+          "role": "mesh",
+          "size": 101,
+          "sha1": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "id": "SM_VW_ReviewOnly",
+      "name": "Review Only",
+      "biome": "verdant_wilds",
+      "category": "tile",
+      "kind": "cliff",
+      "version": "v3",
+      "status": "review",
+      "prefix": "biomes/verdant_wilds/tiles/v3/SM_VW_ReviewOnly/",
+      "files": [
+        {
+          "path": "biomes/verdant_wilds/tiles/v3/SM_VW_ReviewOnly/SM_VW_ReviewOnly.fbx",
+          "role": "mesh",
+          "size": 102,
+          "sha1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ]
+    }
+  ]
+}

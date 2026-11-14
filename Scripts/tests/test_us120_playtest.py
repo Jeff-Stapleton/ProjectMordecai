@@ -11,6 +11,7 @@ import math
 import os
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -38,17 +39,69 @@ def load_playtest():
 us120 = load_playtest()
 
 
-class PondDipWorld(fb.FakeWorld):
-    """Fake-only Z profile for testing the shallow traversal assertion."""
+class CompliantTileWorld(fb.FakeWorld):
+    """Fake-only tile profile; never acceptance evidence."""
+
+    def __init__(
+        self,
+        *args,
+        cross_cliff=False,
+        cross_deep=False,
+        flat_ramps=False,
+        flat_pond=False,
+        ignore_keys=False,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.cross_cliff = cross_cliff
+        self.cross_deep = cross_deep
+        self.flat_ramps = flat_ramps
+        self.flat_pond = flat_pond
+        self.ignore_keys = ignore_keys
+        self.jump_until = 0.0
+
+    def _on_key_pressed(self, key):
+        super()._on_key_pressed(key)
+        if key == "SpaceBar" and not self.ignore_keys:
+            self.jump_until = time.monotonic() + 0.6
+
+    def _move(self, dt):
+        if self.ignore_keys:
+            self.vel = [0.0, 0.0]
+            return
+        super()._move(dt)
+        x, y = self.pos
+        if not self.cross_cliff and 240.0 <= x <= 340.0 and abs(y) <= 10.0:
+            self.pos[0] = min(x, 270.0)
+        if not self.cross_deep and x >= 350.0:
+            for spec in us120.DEEP_BANKS:
+                if abs(y - spec["pivot"][1]) > 35.0:
+                    continue
+                offset_x = x - spec["pivot"][0]
+                offset_y = y - spec["pivot"][1]
+                progress = (
+                    offset_x * spec["direction"][0]
+                    + offset_y * spec["direction"][1]
+                )
+                if progress > 20.0:
+                    excess = progress - 20.0
+                    self.pos[0] -= excess * spec["direction"][0]
+                    self.pos[1] -= excess * spec["direction"][1]
 
     def _s_player(self):
         state = super()._s_player()
         low_x, high_x = us120.SHALLOW_DIP_X
-        state["location"][2] = (
-            us120.SHALLOW_DIP_Z
-            if low_x <= self.pos[0] <= high_x
-            else us120.TIER0_Z
-        )
+        z = us120.TIER0_Z
+        if not self.flat_ramps:
+            if 175.0 <= self.pos[0] <= 190.0 and self.pos[1] < 0.0:
+                z = us120.TIER1_Z
+            elif 235.0 <= self.pos[0] <= 250.0 and self.pos[1] > 0.0:
+                z = us120.TIER1_Z
+        if not self.flat_pond and low_x <= self.pos[0] <= high_x:
+            z = us120.SHALLOW_DIP_Z
+        if time.monotonic() <= self.jump_until:
+            z = max(z, us120.TIER0_Z + 80.0)
+        state["location"][2] = z
         return state
 
 
@@ -64,9 +117,8 @@ class Us120FakeCase(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.run_dir = os.path.join(self.tmp, "run")
 
-    def serve(self, faults=None, pond_dip=False):
-        world_class = PondDipWorld if pond_dip else fb.FakeWorld
-        world = world_class(
+    def serve(self, faults=None, world_options=None):
+        world = CompliantTileWorld(
             map=us120.Us120Run.MAP,
             experience=us120.Us120Run.EXPERIENCE,
             start=(0.0, 0.0),
@@ -74,6 +126,7 @@ class Us120FakeCase(unittest.TestCase):
             obstacles=(),
             pickups=[],
             enemies=False,
+            **(world_options or {}),
         )
         server = fb.FakeBridgeServer(
             world, token=TOKEN, shot_dir=self.tmp, faults=faults
@@ -82,7 +135,7 @@ class Us120FakeCase(unittest.TestCase):
         return server
 
     def compact_route(self):
-        """Keep the fake run fast; flat fake Z is deliberately treated as both tiers."""
+        """Keep the fake run fast without weakening any gameplay threshold."""
         patches = (
             mock.patch.object(
                 us120,
@@ -98,7 +151,9 @@ class Us120FakeCase(unittest.TestCase):
                 },
             ),
             mock.patch.object(us120, "CLIFF_START", (260.0, 0.0)),
-            mock.patch.object(us120, "CLIFF_MAX_X", 10000.0),
+            mock.patch.object(us120, "CLIFF_FACE_X", 300.0),
+            mock.patch.object(us120, "CLIFF_MIN_X", 250.0, create=True),
+            mock.patch.object(us120, "CLIFF_MAX_X", 290.0),
             mock.patch.object(us120, "SHALLOW_START", (200.0, 0.0)),
             mock.patch.object(us120, "SHALLOW_END", (340.0, 0.0)),
             mock.patch.object(us120, "SHALLOW_APPROACH", ((200.0, 0.0),)),
@@ -116,6 +171,7 @@ class Us120FakeCase(unittest.TestCase):
                         "keys": ("S",),
                         "direction": (-1.0, 0.0),
                         "face_progress": 0.0,
+                        "minimum_contact_progress": -60.0,
                         "route": ((400.0, -20.0),),
                     },
                     {
@@ -125,6 +181,7 @@ class Us120FakeCase(unittest.TestCase):
                         "keys": ("S", "D"),
                         "direction": (-0.707107, 0.707107),
                         "face_progress": 0.0,
+                        "minimum_contact_progress": -60.0,
                         "route": ((400.0, -20.0),),
                     },
                     {
@@ -133,14 +190,13 @@ class Us120FakeCase(unittest.TestCase):
                         "start": (400.0, 0.0),
                         "keys": ("S", "D"),
                         "direction": (-0.707107, 0.707107),
-                        "face_progress": 100.0,
+                        "face_progress": 0.0,
+                        "minimum_contact_progress": -60.0,
                         "route": ((400.0, 0.0),),
                     },
                 ),
             ),
             mock.patch.object(us120, "DEEP_ENTRY_ROUTE", ((360.0, -40.0), (400.0, -40.0))),
-            mock.patch.object(us120, "DEEP_ALLOWED_PAST_FACE", 10000.0),
-            mock.patch.object(us120, "_near", lambda value, target, tolerance=None: True),
             mock.patch.object(us120, "BLOCK_HOLD_S", 0.02),
             mock.patch.object(us120, "JUMP_SAMPLE_S", 0.03),
         )
@@ -192,6 +248,7 @@ class TestUs120Plan(unittest.TestCase):
         self.assertEqual(
             proved, {"AC-120.1", "AC-120.4", "AC-120.5", "AC-120.6", "AC-120.7"}
         )
+        self.assertEqual(us120.PLAN[0].proves, ())
 
     def test_every_required_screenshot_has_a_nonempty_expectation(self):
         self.assertEqual(
@@ -230,11 +287,17 @@ class TestUs120Plan(unittest.TestCase):
             self.assertAlmostEqual(math.hypot(*spec["direction"]), 1.0, places=5)
             self.assertLess(spec["direction"][0], 0.0)
             self.assertGreater(spec["direction"][1], 0.0)
+        self.assertEqual(by_label["inner_corner"]["face_progress"], 0.0)
+        self.assertEqual(us120.DEEP_PUSHES, 3)
+        self.assertTrue(
+            all("minimum_contact_progress" in spec for spec in us120.DEEP_BANKS)
+        )
+        self.assertLess(us120.CLIFF_MIN_X, us120.CLIFF_MAX_X)
 
 
 class TestUs120AgainstFake(Us120FakeCase):
     def test_compact_fake_route_passes_and_captures_each_location_immediately(self):
-        server = self.serve(pond_dip=True)
+        server = self.serve()
         code, report = self.play(server)
         self.assertEqual(code, 0, json.dumps(report["checks"], indent=2)[-5000:])
         checks = self.checks(report)
@@ -260,13 +323,46 @@ class TestUs120AgainstFake(Us120FakeCase):
         self.assertIn("min Z 54.0", shallow["detail"])
         self.assertIn("exit Z 92.0", shallow["detail"])
 
+    def test_ramp_that_leaves_the_player_at_tier_zero_is_a_failure(self):
+        server = self.serve(world_options={"flat_ramps": True})
+        code, report = self.play(server)
+        self.assertEqual(code, 1)
+        checks = self.checks(report)
+        self.assertEqual(checks["ramp_2t_up"]["status"], "FAIL")
+        self.assertEqual(checks["ramp_3t_up"]["status"], "FAIL")
+
     def test_flat_floor_cannot_false_pass_the_shallow_pond(self):
-        server = self.serve(pond_dip=False)
+        server = self.serve(world_options={"flat_pond": True})
         code, report = self.play(server)
         self.assertEqual(code, 1)
         shallow = self.checks(report)["shallow_pond_crosses"]
         self.assertEqual(shallow["status"], "FAIL")
         self.assertIn("did not dip", shallow["detail"])
+
+    def test_crossing_the_cliff_is_a_failure(self):
+        server = self.serve(world_options={"cross_cliff": True})
+        code, report = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(
+            self.checks(report)["cliff_walk_blocked"]["status"], "FAIL"
+        )
+
+    def test_crossing_a_deep_bank_is_a_failure(self):
+        server = self.serve(world_options={"cross_deep": True})
+        code, report = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.checks(report)["deep_bank_blocks"]["status"], "FAIL")
+
+    def test_ignored_keys_cannot_false_pass(self):
+        server = self.serve(world_options={"ignore_keys": True})
+        with mock.patch.object(us120.Us120Run, "WALK_TOL", 10000.0), \
+                mock.patch.object(us120, "SHALLOW_CROSS_TIMEOUT_S", 0.03):
+            code, report = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertTrue(
+            any(check["status"] == "FAIL" for check in report["checks"]),
+            report["checks"],
+        )
 
     def test_bridge_timeout_is_a_gameplay_failure_not_a_false_pass(self):
         server = self.serve(
