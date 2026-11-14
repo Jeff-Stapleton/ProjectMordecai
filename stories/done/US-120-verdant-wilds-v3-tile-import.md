@@ -27,7 +27,7 @@ This story imports static meshes and textures, creates materials and material in
 - [x] AC-120.1: Exactly the 17 catalog entries whose status is `ready` are imported as `UStaticMesh` assets under `/MordecaiCore/World/Terrain/VerdantWilds/Meshes`; no non-ready or unexpected catalog mesh is imported. Verified by `Mordecai.World.Terrain.VerdantWilds.AllReadyMeshesLoad` and the committed source manifest.
 - [x] AC-120.2: Every mesh imports at catalog scale and orientation with its catalog pivot and bounds: source-space catalog bounds are preserved, manifest UE-space bounds apply the FBX handedness conversion (Y negated), imported bounds match those UE-space bounds within 1 cm, actors and mesh build scale are `(1,1,1)`, normal tile origins occupy the declared bottom-centre grid point, and ramp origins follow the declared cliff-row/grid-line contract. Verified by `Mordecai.World.Terrain.VerdantWilds.ImportContract`.
 - [x] AC-120.3: Every mesh has Nanite enabled and its catalog UCX simple collision preserved; complex-as-simple is forbidden and hull counts match the catalog. Every convex collision vertex stays inside the manifest gameplay footprint. Pond footprints include the adjacent water tile/basin: edge XY is X -100..100 and Y -200..200 (plus 15 cm tolerance), corner XY is within the 2x2 tiles around the grid vertex, and pond Z is -200..+15 except intentional deep-bank blocking walls may reach Z 250. A deep blocking wall may not intrude more than 15 cm into the land side. Visual overhangs beyond 15 cm remain reported art defects. Verified by `Mordecai.World.Terrain.VerdantWilds.NaniteAndSimpleCollision` and `.CollisionInsideFootprint`.
-- [x] AC-120.4: The sampled shared textures, one saved master material, and all manifest-required `MI_VW_*` material instances exist at the approved terrain paths. D/DA maps use sRGB; N/ORM maps are linear with their intended compression and LOD groups; unsampled Height, alternate cliff, moss, wood-slat, pond-normal, and stitch-seam textures remain outside Git. Every mesh uses exact FBX imported slot names, every slot is used by a section, and the six documented pond catalog-slot mismatches are reported. Verified by `Mordecai.World.Terrain.VerdantWilds.MaterialsAndTexturesLoad`.
+- [x] AC-120.4: The sampled shared textures, one saved master material, and all manifest-required `MI_VW_*` material instances exist at the approved terrain paths. D maps use sRGB; N/ORM maps are linear with their intended compression and LOD groups; unsampled Height, alternate cliff, moss, wood-slat, pond-normal, and stitch-seam textures remain outside Git. Every mesh uses exact FBX imported slot names, every slot is used by a section, and the six documented pond catalog-slot mismatches are reported. Verified by `Mordecai.World.Terrain.VerdantWilds.MaterialsAndTexturesLoad`.
 - [x] AC-120.5: `/MordecaiCore/Game/Maps/L_VW_TileTest` is a saved non-world-graph test fixture using `AMordecaiGameMode`. It contains all 17 meshes as labelled, unit-scale actors on the 200 cm grid and dedicated lanes for Ramp 2T, Ramp 3T, a 200 cm cliff, shallow pond crossing, and deep pond blocking. No supplemental collision volume may mask the collision being tested. Verified by `Mordecai.World.Terrain.VerdantWilds.TileTestMapContract` and `Scripts/verify_pie_vw_tiles.py`.
 - [x] AC-120.6: In a fresh packaged build, real WASD input walks the player from Tier 0 to Tier 1 over both ramps and back down; each successful ascent raises the player approximately 200 cm without jumping or becoming stuck. Verified by Tier 4 checks `ramp_2t_up`, `ramp_2t_down`, `ramp_3t_up`, and `ramp_3t_down` in `Scripts/playtests/us120_vw_tiles.py`.
 - [x] AC-120.7: In that same package, walking into and jumping toward the 200 cm cliff never places the player on Tier 1; the shallow pond lane is traversable end to end; and repeated walking into each deep-bank representative does not cross its bank. Verified by `cliff_walk_blocked`, `cliff_jump_blocked`, `shallow_pond_crosses`, and `deep_bank_blocks`; the final deep Edge, OuterCorner, and InnerCorner probes each block three independently released, settled pushes.
@@ -111,7 +111,7 @@ This story imports static meshes and textures, creates materials and material in
 
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| 1 | `tile_gallery_visible` | walk through the catalogue viewpoints and capture each tile group | AC-120.1, AC-120.4, AC-120.5 |
+| 1 | `tile_gallery_visible` | walk through the catalogue viewpoints and capture each tile group | Evidence capture only (proves no AC) |
 | 2 | `ramp_2t_up` | walk from the 2T base to its top without Space → Z rises about 200 cm | AC-120.6 |
 | 3 | `ramp_2t_down` | reverse across the 2T ramp → returns to Tier 0 without sticking | AC-120.6 |
 | 4 | `ramp_3t_up` | walk from the 3T base to its top without Space → Z rises about 200 cm | AC-120.6 |
@@ -272,9 +272,10 @@ This story imports static meshes and textures, creates materials and material in
   imported `Grass, YarnRoot`. No raw source or B2 credential is tracked or
   present in the bundle.
 - Reported visual-overhang art findings are unchanged: cliff Straight 01 24.9,
-  Straight 02 26.3, Straight 03 25.0, OuterCorner 22.0, InnerCorner 100.0,
-  EndCap 22.9; pit Edge 23.3, OuterCorner 20.6, InnerCorner 100.0; Ramp 2T/3T
-  18.0 cm. Pond basin extents remain intentional, not lip defects.
+  Straight 02 26.3, Straight 03 25.0, OuterCorner 22.0, EndCap 22.9; pit Edge
+  23.3, OuterCorner 20.6; Ramp 2T/3T 18.0 cm. Cliff and pit InnerCorner
+  overhangs are not measurable from AABB (L-shaped footprint); follow-up
+  filed. Pond basin extents remain intentional, not lip defects.
 
 ### Round-3 result and package
 - Round 3 is **not complete**. The story returns to `in-progress`: Tier 3 passes, but
@@ -339,7 +340,8 @@ This story imports static meshes and textures, creates materials and material in
   `MordecaiCore/Content/World/Terrain`: **26,687,384 bytes** across 97 files.
 - Visual overhangs beyond 15 cm, unchanged and reported for Art Bot: Cliff
   Straight 01 24.9, Straight 02 26.3, Straight 03 25.0, OuterCorner 22.0,
-  InnerCorner 100.0, EndCap 22.9; Pit Edge 23.3, OuterCorner 20.6,
-  InnerCorner 100.0; Ramp 2T/3T 18.0 each. Intentional pond-basin extents are
-  shallow Edge 79.6, OuterCorner 78.0, InnerCorner 103.5; deep Edge 79.8,
-  OuterCorner 78.0, InnerCorner 103.5 cm.
+  EndCap 22.9; Pit Edge 23.3, OuterCorner 20.6; Ramp 2T/3T 18.0 each. Cliff
+  and pit InnerCorner overhangs are not measurable from AABB (L-shaped
+  footprint); follow-up filed. Intentional pond-basin extents are shallow Edge
+  79.6, OuterCorner 78.0, InnerCorner 103.5; deep Edge 79.8, OuterCorner 78.0,
+  InnerCorner 103.5 cm.
