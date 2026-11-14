@@ -60,19 +60,92 @@ class CompliantTileWorld(fb.FakeWorld):
         self.ignore_keys = ignore_keys
         self.jump_until = 0.0
         self.ramp_tier = False
+        self._deep_probe_spec = None
+        self._deep_fixture_active = False
 
     def _on_key_pressed(self, key):
         super()._on_key_pressed(key)
         if key == "SpaceBar" and not self.ignore_keys:
             self.jump_until = time.monotonic() + 0.6
+        if (
+            key == "S"
+            and self.pos[0] >= 300.0
+            and self._deep_probe_spec is None
+        ):
+            index = 0 if self.pos[1] < -60.0 else (1 if self.pos[1] < 40.0 else 2)
+            self._deep_probe_spec = us120.DEEP_BANKS[index]
+        elif key == "D" and self._held_union().get("S", 0.0):
+            index = 1 if self.pos[1] < 40.0 else 2
+            self._deep_probe_spec = us120.DEEP_BANKS[index]
+
+    def _clamp_deep_probe(self):
+        x, y = self.pos
+        held = self._held_union()
+        probing_deep = held.get("S", 0.0) and not held.get("W", 0.0)
+        if (
+            self.cross_deep
+            or not self._deep_fixture_active
+            or not probing_deep
+        ):
+            return
+        spec = self._deep_probe_spec
+        if spec is None:
+            spec = min(
+                us120.DEEP_BANKS,
+                key=lambda candidate: math.hypot(
+                    x - candidate["pivot"][0],
+                    y - candidate["pivot"][1],
+                ),
+            )
+            self._deep_probe_spec = spec
+        offset_x = x - spec["pivot"][0]
+        offset_y = y - spec["pivot"][1]
+        progress = (
+            offset_x * spec["direction"][0]
+            + offset_y * spec["direction"][1]
+        )
+        if progress > 10.0:
+            excess = progress - 10.0
+            self.pos[0] -= excess * spec["direction"][0]
+            self.pos[1] -= excess * spec["direction"][1]
+
+    def _blocked(self, x, y):
+        if super()._blocked(x, y):
+            return True
+        held = self._held_union()
+        if (
+            self.cross_deep
+            or not self._deep_fixture_active
+            or not held.get("S", 0.0)
+            or held.get("W", 0.0)
+            or self._deep_probe_spec is None
+        ):
+            return False
+        spec = self._deep_probe_spec
+        progress = (
+            (x - spec["pivot"][0]) * spec["direction"][0]
+            + (y - spec["pivot"][1]) * spec["direction"][1]
+        )
+        return progress > 10.0
 
     def _move(self, dt):
         if self.ignore_keys:
             self.vel = [0.0, 0.0]
             return
-        super()._move(dt)
+        held = self._held_union()
+        if held.get("S", 0.0) and not held.get("W", 0.0):
+            if self.pos[0] >= 350.0 and self.pos[1] < -60.0:
+                self._deep_fixture_active = True
+            if held.get("D", 0.0):
+                index = 1 if self.pos[1] < 40.0 else 2
+            else:
+                index = 0
+            self._deep_probe_spec = us120.DEEP_BANKS[index]
+        # Keep this compact fake deterministic when the test host stalls:
+        # fake movement must not jump across an entire probe zone in one tick.
+        super()._move(min(dt, 1.0 / 30.0))
         x, y = self.pos
-        if 120.0 <= x <= 260.0 and abs(y) <= 50.0:
+        if 120.0 <= x <= 225.0 and abs(y) <= 80.0:
             if self.vel[0] > 0.0:
                 self.ramp_tier = True
             elif self.vel[0] < 0.0:
@@ -83,32 +156,13 @@ class CompliantTileWorld(fb.FakeWorld):
             self.pos[0] = 350.0
         if not self.cross_cliff and 240.0 <= x <= 340.0 and abs(y) <= 35.0:
             self.pos[0] = min(x, 270.0)
-        held = self._held_union()
-        probing_deep = held.get("S", 0.0) and (
-            not held.get("W", 0.0)
-        )
-        if not self.cross_deep and probing_deep and x >= 300.0:
-            candidates = sorted(
-                (
-                    spec for spec in us120.DEEP_BANKS
-                    if (held.get("D", 0.0) != 0.0)
-                    == ("D" in spec["keys"])
-                ),
-                key=lambda spec: abs(y - spec["pivot"][1]),
-            )
-            for spec in candidates[:1]:
-                offset_x = x - spec["pivot"][0]
-                offset_y = y - spec["pivot"][1]
-                progress = (
-                    offset_x * spec["direction"][0]
-                    + offset_y * spec["direction"][1]
-                )
-                if progress > 20.0:
-                    excess = progress - 20.0
-                    self.pos[0] -= excess * spec["direction"][0]
-                    self.pos[1] -= excess * spec["direction"][1]
+        self._clamp_deep_probe()
 
     def _s_player(self):
+        # A state request can race the fake world's tick between the separate
+        # diagonal key presses. Apply the same fake collision constraint here
+        # so the offline contract test is deterministic.
+        self._clamp_deep_probe()
         state = super()._s_player()
         low_x, high_x = us120.SHALLOW_DIP_X
         z = us120.TIER0_Z
@@ -116,6 +170,7 @@ class CompliantTileWorld(fb.FakeWorld):
             z = us120.TIER1_Z
         if (
             not self.flat_pond
+            and not self._deep_fixture_active
             and low_x <= self.pos[0] <= high_x
             and self.pos[1] > 50.0
         ):
@@ -167,17 +222,17 @@ class Us120FakeCase(unittest.TestCase):
                 us120,
                 "RAMPS",
                 {
-                    "2t": {"low": (140.0, -20.0), "top": (180.0, -20.0)},
-                    "3t": {"low": (200.0, 20.0), "top": (240.0, 20.0)},
+                    "2t": {"low": (130.0, -40.0), "top": (210.0, -40.0)},
+                    "3t": {"low": (130.0, 40.0), "top": (210.0, 40.0)},
                 },
             ),
-            mock.patch.object(us120, "CLIFF_START", (260.0, 0.0)),
+            mock.patch.object(us120, "CLIFF_START", (270.0, 0.0)),
             mock.patch.object(us120, "CLIFF_FACE_X", 300.0),
             mock.patch.object(us120, "CLIFF_MIN_X", 250.0, create=True),
             mock.patch.object(us120, "CLIFF_MAX_X", 290.0),
             mock.patch.object(us120, "measured_cliff_minimum_x", lambda: 250.0),
             mock.patch.object(us120, "SHALLOW_START", (200.0, 100.0)),
-            mock.patch.object(us120, "SHALLOW_END", (340.0, 100.0)),
+            mock.patch.object(us120, "SHALLOW_END", (380.0, 100.0)),
             mock.patch.object(us120, "SHALLOW_APPROACH", ((200.0, 100.0),)),
             # The approach begins well behind this interval even when the
             # preceding fake cliff probe ends at X=300..350.
@@ -189,38 +244,41 @@ class Us120FakeCase(unittest.TestCase):
                     {
                         "label": "edge",
                         "pivot": (380.0, -100.0),
-                        "start": (400.0, -100.0),
+                        "start": (380.0, -100.0),
                         "keys": ("S",),
                         "direction": (-1.0, 0.0),
                         "face_progress": 0.0,
                         "minimum_contact_progress": -60.0,
-                        "route": ((400.0, -100.0),),
+                        "route": ((380.0, -100.0), (380.0, -100.0)),
                     },
                     {
                         "label": "outer_corner",
                         "pivot": (380.0, 0.0),
-                        "start": (400.0, -20.0),
+                        "start": (380.0, -20.0),
                         "keys": ("S", "D"),
                         "direction": (-0.707107, 0.707107),
                         "face_progress": 0.0,
                         "minimum_contact_progress": -60.0,
-                        "route": ((400.0, -20.0),),
+                        "route": ((380.0, -20.0), (380.0, -20.0)),
                     },
                     {
                         "label": "inner_corner",
                         "pivot": (380.0, 100.0),
-                        "start": (400.0, 80.0),
+                        "start": (380.0, 80.0),
                         "keys": ("S", "D"),
                         "direction": (-0.707107, 0.707107),
                         "face_progress": 0.0,
                         "minimum_contact_progress": -60.0,
-                        "route": ((400.0, 80.0),),
+                        "route": ((380.0, 80.0), (380.0, 80.0)),
                     },
                 ),
             ),
-            mock.patch.object(us120, "DEEP_ENTRY_ROUTE", ((360.0, -40.0), (400.0, -40.0))),
-            mock.patch.object(us120, "DEEP_SAFE_X", 430.0),
+            mock.patch.object(us120, "DEEP_ENTRY_ROUTE", ((380.0, -100.0),)),
+            mock.patch.object(us120, "DEEP_SAFE_X", 370.0),
+            # Keep fake ramp endpoints 80 cm apart so each walk_to traverses
+            # the ramp in both directions under the normal compact tolerance.
             mock.patch.object(us120.Us120Run, "WALK_TOL", 30.0),
+            mock.patch.object(us120, "PROBE_START_TOL", 20.0),
             mock.patch.object(us120, "BLOCK_HOLD_S", 0.02),
             mock.patch.object(us120, "JUMP_SAMPLE_S", 0.03),
         )

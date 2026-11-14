@@ -27,6 +27,9 @@ IMPORT_REPORT_PATH = (
 MANIFEST = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
 FIXTURE = MANIFEST["test_fixture"]
 LANE_BY_LABEL = {actor["label"]: actor for actor in FIXTURE["lanes"]}
+DEEP_FIXTURE_BY_LABEL = {
+    lane["label"]: lane for lane in FIXTURE["deep_lanes"]
+}
 
 SPAWN = (-1200.0, 0.0)
 TIER0_Z = 92.0
@@ -82,7 +85,11 @@ DEEP_BANKS = (
         "direction": (-1.0, 0.0),
         "face_progress": 0.0,
         "minimum_contact_progress": None,
-        "route": ((4200.0, -1400.0), (4200.0, -1000.0), (4070.0, -1000.0)),
+        "water_regions_xy_cm": DEEP_FIXTURE_BY_LABEL["edge"]["water_regions_xy_cm"],
+        "route": tuple(
+            tuple(point)
+            for point in DEEP_FIXTURE_BY_LABEL["edge"]["clear_route_xy_cm"]
+        ) + ((4070.0, -1000.0),),
     },
     {
         "label": "outer_corner",
@@ -94,7 +101,13 @@ DEEP_BANKS = (
         "direction": (-DIAGONAL, DIAGONAL),
         "face_progress": 0.0,
         "minimum_contact_progress": None,
-        "route": ((4200.0, -1000.0), (4200.0, -300.0), (3970.0, -170.0)),
+        "water_regions_xy_cm": DEEP_FIXTURE_BY_LABEL["outer_corner"][
+            "water_regions_xy_cm"
+        ],
+        "route": tuple(
+            tuple(point)
+            for point in DEEP_FIXTURE_BY_LABEL["outer_corner"]["clear_route_xy_cm"]
+        ) + ((3970.0, -170.0),),
     },
     {
         "label": "inner_corner",
@@ -106,7 +119,16 @@ DEEP_BANKS = (
         "direction": (-DIAGONAL, DIAGONAL),
         "face_progress": 0.0,
         "minimum_contact_progress": None,
-        "route": ((4200.0, -300.0), (4200.0, 700.0), (3970.0, 830.0)),
+        "water_regions_xy_cm": DEEP_FIXTURE_BY_LABEL["inner_corner"][
+            "water_regions_xy_cm"
+        ],
+        "derive_from_hulls": True,
+        "route": tuple(
+            tuple(point)
+            for point in DEEP_FIXTURE_BY_LABEL["inner_corner"][
+                "clear_route_xy_cm"
+            ]
+        ) + ((3970.0, 830.0),),
     },
 )
 DEEP_SAFE_X = 4200.0
@@ -185,6 +207,132 @@ def _player(bridge):
 
 def _near(value, target, tolerance=Z_TOL):
     return abs(value - target) <= tolerance
+
+
+def _blocking_hulls(measurement):
+    shallow_max = MANIFEST["pond_collision_contracts"]["shallow_max_z_cm"]
+    return [
+        hull
+        for hull in measurement["collision_hulls"]
+        if hull["max"][2] > shallow_max
+    ]
+
+
+def _movement_keys(direction):
+    keys = []
+    if direction[0] > 0.25:
+        keys.append("W")
+    elif direction[0] < -0.25:
+        keys.append("S")
+    if direction[1] > 0.25:
+        keys.append("D")
+    elif direction[1] < -0.25:
+        keys.append("A")
+    return tuple(keys)
+
+
+def derive_inner_corner_probe(lane, fixture, measurement):
+    """Derive the radial probe from measured UE-space wall hulls and actor yaw."""
+    hulls = _blocking_hulls(measurement)
+    if not hulls:
+        raise ab.BridgeError(
+            f"{lane['mesh']} has no measured blocking-wall hulls",
+            kind="infrastructure",
+        )
+    centres = [
+        (
+            (hull["min"][0] + hull["max"][0]) * 0.5,
+            (hull["min"][1] + hull["max"][1]) * 0.5,
+        )
+        for hull in hulls
+    ]
+    local_x = sum(point[0] for point in centres) / len(centres)
+    local_y = sum(point[1] for point in centres) / len(centres)
+    local_length = math.hypot(local_x, local_y)
+    if local_length <= 1.0:
+        raise ab.BridgeError(
+            f"{lane['mesh']} wall centroid does not define an arc radius",
+            kind="infrastructure",
+        )
+    local_direction = (local_x / local_length, local_y / local_length)
+    wall_radial_max = max(
+        x * local_direction[0] + y * local_direction[1]
+        for hull in hulls
+        for x in (hull["min"][0], hull["max"][0])
+        for y in (hull["min"][1], hull["max"][1])
+    )
+    radians = math.radians(float(lane["yaw_deg"]))
+    cosine = math.cos(radians)
+    sine = math.sin(radians)
+    direction = (
+        cosine * local_direction[0] - sine * local_direction[1],
+        sine * local_direction[0] + cosine * local_direction[1],
+    )
+    pivot = tuple(float(value) for value in lane["location_cm"][:2])
+    start_distance = wall_radial_max + CAPSULE_RADIUS_CM + 30.0
+    start = (
+        pivot[0] - direction[0] * start_distance,
+        pivot[1] - direction[1] * start_distance,
+    )
+    route = tuple(
+        tuple(float(value) for value in point)
+        for point in fixture["clear_route_xy_cm"]
+    ) + (start,)
+    return {
+        "start": start,
+        "route": route,
+        "direction": direction,
+        "keys": _movement_keys(direction),
+        "water_regions_xy_cm": fixture["water_regions_xy_cm"],
+        "wall_radial_max_cm": wall_radial_max,
+        "wall_hulls_local_cm": hulls,
+        "derivation": (
+            "mean centre of measured UE-space blocking-wall hulls, "
+            f"rotated by lane yaw {float(lane['yaw_deg']):.1f} degrees"
+        ),
+    }
+
+
+def _runtime_deep_banks():
+    banks = []
+    report = None
+    for original in DEEP_BANKS:
+        spec = dict(original)
+        if spec.get("derive_from_hulls"):
+            if report is None:
+                report = _import_report()
+            lane = LANE_BY_LABEL["VW_Lane_DeepInnerCorner"]
+            fixture = DEEP_FIXTURE_BY_LABEL["inner_corner"]
+            measurement = report["mesh_measurements"][spec["mesh"]]
+            spec.update(derive_inner_corner_probe(lane, fixture, measurement))
+        banks.append(spec)
+    return tuple(banks)
+
+
+def _inside_water_side(location, spec):
+    x, y = location[:2]
+    return any(
+        region[0] < x < region[1] and region[2] < y < region[3]
+        for region in spec.get("water_regions_xy_cm", ())
+    )
+
+
+def classify_deep_probe(
+    *,
+    max_progress,
+    minimum_contact,
+    max_allowed,
+    minimum_z,
+    entered_basin,
+):
+    near_land = minimum_z >= TIER0_Z - 20.0
+    if minimum_contact <= max_progress <= max_allowed and near_land:
+        return "BLOCKED"
+    crossed = max_progress > max_allowed
+    dropped = minimum_z < TIER0_Z - 60.0
+    if crossed and (dropped or entered_basin):
+        return "COLLISION DEFECT"
+    return "FIXTURE ERROR"
 
 
 def _import_report():
@@ -453,16 +601,60 @@ class Us120Run(kit.PlaytestRun):
         results = []
 
         def probe_all():
+            banks = _runtime_deep_banks()
+            probe_log = {
+                "coordinate_space": "Unreal world centimetres; north=+X, east=+Y",
+                "classification_contract": {
+                    "blocked": "progress <= face + 55 cm and Z remains near land",
+                    "collision_defect": (
+                        "crosses face + 55 cm and either drops below land - 60 cm "
+                        "or a sampled point enters the declared water-side basin"
+                    ),
+                    "fixture_error": "any other crossing or approach failure",
+                },
+                "probes": [],
+            }
             self._walk_sequence(DEEP_ENTRY_ROUTE, timeout_s=25.0)
-            for spec in DEEP_BANKS:
-                self._walk_sequence(spec["route"][:-1], timeout_s=25.0)
-                self.bridge.walk_to(
-                    *spec["start"], tol=PROBE_START_TOL, timeout_s=25.0
-                )
+            for spec_index, spec in enumerate(banks):
+                path_record = {
+                    "label": spec["label"],
+                    "mesh": spec.get("mesh", "offline-fake"),
+                    "pivot": spec["pivot"],
+                    "yaw_deg": spec.get("yaw_deg"),
+                    "planned_route": spec["route"],
+                    "start": spec["start"],
+                    "direction": spec["direction"],
+                    "keys": spec["keys"],
+                    "face_progress": spec["face_progress"],
+                    "water_regions_xy_cm": spec.get("water_regions_xy_cm", []),
+                    "derivation": spec.get("derivation", "shared fixed lane contract"),
+                    "wall_radial_max_cm": spec.get("wall_radial_max_cm"),
+                    "wall_hulls_local_cm": spec.get("wall_hulls_local_cm", []),
+                    "path_points": [],
+                }
+                probe_log["probes"].append(path_record)
+                try:
+                    self._walk_sequence(spec["route"][:-1], timeout_s=25.0)
+                    self.bridge.walk_to(
+                        *spec["start"], tol=PROBE_START_TOL, timeout_s=25.0
+                    )
+                except ab.BridgeError as exc:
+                    results.append({
+                        "representative": spec["label"],
+                        "classification": "FIXTURE ERROR",
+                        "detail": f"approach to derived probe start failed: {exc}",
+                    })
+                    path_record["classification"] = "FIXTURE ERROR"
+                    path_record["approach_error"] = str(exc)
+                    break
                 max_progress = -math.inf
                 min_z = math.inf
                 location = _player(self.bridge)
+                max_allowed = spec["face_progress"] + DEEP_ALLOWED_PAST_FACE
+                minimum_contact = measured_contact_minimum(spec)
                 pushes = []
+                entered_basin = False
+                crossed = False
                 for push_index in range(DEEP_PUSHES):
                     push_max = -math.inf
                     for key in spec["keys"]:
@@ -477,20 +669,34 @@ class Us120Run(kit.PlaytestRun):
                                 offset_x * spec["direction"][0]
                                 + offset_y * spec["direction"][1]
                             )
+                            inside_basin = _inside_water_side(location, spec)
                             max_progress = max(max_progress, progress)
                             push_max = max(push_max, progress)
                             min_z = min(min_z, location[2])
+                            entered_basin = entered_basin or inside_basin
+                            path_record["path_points"].append({
+                                "push": push_index + 1,
+                                "location": list(location),
+                                "progress_cm": progress,
+                                "inside_water_side": inside_basin,
+                            })
+                            if progress > max_allowed:
+                                crossed = True
+                                break
                             time.sleep(0.05)
                     finally:
                         for key in reversed(spec["keys"]):
                             self.bridge.release(key)
                     pushes.append(push_max)
                     self.bridge.wait(0.1)
-                max_allowed = spec["face_progress"] + DEEP_ALLOWED_PAST_FACE
-                minimum_contact = measured_contact_minimum(spec)
-                blocked = (
-                    minimum_contact <= max_progress <= max_allowed
-                    and min_z >= TIER0_Z - 20.0
+                    if crossed:
+                        break
+                classification = classify_deep_probe(
+                    max_progress=max_progress,
+                    minimum_contact=minimum_contact,
+                    max_allowed=max_allowed,
+                    minimum_z=min_z,
+                    entered_basin=entered_basin,
                 )
                 results.append({
                     "representative": spec["label"],
@@ -501,30 +707,60 @@ class Us120Run(kit.PlaytestRun):
                     "max_allowed": max_allowed,
                     "minimum_z": min_z,
                     "pushes": pushes,
-                    "blocked": blocked,
+                    "entered_basin": entered_basin,
+                    "classification": classification,
                 })
-                if blocked:
+                path_record.update({
+                    "classification": classification,
+                    "max_progress_cm": max_progress,
+                    "minimum_contact_cm": minimum_contact,
+                    "max_allowed_cm": max_allowed,
+                    "minimum_z_cm": min_z,
+                    "entered_basin": entered_basin,
+                })
+                if classification == "BLOCKED":
                     self.shot(
                         f"deep_{spec['label'].replace('_corner', '')}_rejection"
                     )
-                self.bridge.walk_to(
-                    DEEP_SAFE_X,
-                    spec["start"][1],
-                    tol=self.WALK_TOL,
-                    timeout_s=25.0,
-                )
-            bad = [result for result in results if not result["blocked"]]
-            detail = "; ".join(
-                f"{result['representative']} progress/Z "
-                f"{result['max_progress']:.1f}/{result['minimum_z']:.1f} "
-                f"(contact {result['minimum_contact']:.1f}.."
-                f"{result['max_allowed']:.1f}; {len(result['pushes'])} pushes) "
-                f"({'blocked' if result['blocked'] else 'CROSSED'})"
-                for result in results
+                if classification != "BLOCKED":
+                    break
+                if spec_index + 1 < len(banks):
+                    self.bridge.walk_to(
+                        DEEP_SAFE_X,
+                        spec["start"][1],
+                        tol=self.WALK_TOL,
+                        timeout_s=25.0,
+                    )
+            path_file = pathlib.Path(self.run_dir) / "deep_probe_paths.json"
+            path_file.write_text(
+                json.dumps(probe_log, indent=2) + "\n",
+                encoding="utf-8",
             )
+            bad = [
+                result for result in results
+                if result["classification"] != "BLOCKED"
+            ]
+            details = []
+            for result in results:
+                if "detail" in result:
+                    details.append(
+                        f"{result['representative']} {result['classification']}: "
+                        f"{result['detail']}"
+                    )
+                    continue
+                details.append(
+                    f"{result['representative']} progress/Z "
+                    f"{result['max_progress']:.1f}/{result['minimum_z']:.1f} "
+                    f"(contact {result['minimum_contact']:.1f}.."
+                    f"{result['max_allowed']:.1f}; {len(result['pushes'])} pushes; "
+                    f"inside_basin={result['entered_basin']}) "
+                    f"[{result['classification']}]"
+                )
+            detail = "; ".join(details)
             return ("FAIL" if bad else "PASS"), (
                 detail + "; each probe must remain within face + "
-                f"{DEEP_ALLOWED_PAST_FACE:.0f} cm and near land Z"
+                f"{DEEP_ALLOWED_PAST_FACE:.0f} cm and near land Z; "
+                f"path log {path_file}"
             ), {
                 "representatives": results,
                 "bed_z": DEEP_BED_Z,

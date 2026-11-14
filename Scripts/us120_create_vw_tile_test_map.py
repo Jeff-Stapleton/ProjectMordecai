@@ -33,16 +33,6 @@ PLAYER_START = (-1200.0, 0.0, 100.0)
 FLOOR_XY = (-1700.0, 4400.0, -2800.0, 3200.0)
 FLOOR_Z = (-100.0, 0.0)
 SHALLOW_HOLE = (2200.0, 2800.0, -300.0, 300.0)
-DEEP_FIXTURES = (
-    ("DeepEdge", -1000.0),
-    ("DeepOuterCorner", 0.0),
-    ("DeepInnerCorner", 1000.0),
-)
-POND_HOLES = (
-    SHALLOW_HOLE,
-    *((3500.0, 4100.0, centre_y - 300.0, centre_y + 300.0)
-      for _, centre_y in DEEP_FIXTURES),
-)
 
 EAL = unreal.EditorAssetLibrary
 
@@ -277,10 +267,10 @@ def ensure_water_material():
     return material
 
 
-def spawn_segmented_floor(cube, material):
+def spawn_segmented_floor(cube, material, pond_holes):
     x0, x1, y0, y1 = FLOOR_XY
-    x_cuts = sorted({x0, x1, *(value for hole in POND_HOLES for value in hole[:2])})
-    y_cuts = sorted({y0, y1, *(value for hole in POND_HOLES for value in hole[2:])})
+    x_cuts = sorted({x0, x1, *(value for hole in pond_holes for value in hole[:2])})
+    y_cuts = sorted({y0, y1, *(value for hole in pond_holes for value in hole[2:])})
     count = 0
     for min_x, max_x in zip(x_cuts, x_cuts[1:]):
         for min_y, max_y in zip(y_cuts, y_cuts[1:]):
@@ -288,7 +278,7 @@ def spawn_segmented_floor(cube, material):
             centre_y = (min_y + max_y) * 0.5
             inside_hole = any(
                 hole[0] < centre_x < hole[1] and hole[2] < centre_y < hole[3]
-                for hole in POND_HOLES
+                for hole in pond_holes
             )
             if inside_hole:
                 continue
@@ -300,7 +290,7 @@ def spawn_segmented_floor(cube, material):
             )
             count += 1
     unreal.log(
-        f"[US-120 map] segmented floor: {count} pieces around {len(POND_HOLES)} pond holes"
+        f"[US-120 map] segmented floor: {count} pieces around {len(pond_holes)} pond holes"
     )
 
 
@@ -331,56 +321,29 @@ def spawn_pond_fixtures(
             actor["yaw_deg"],
         )
 
-    # Three independent deep 3x3 ponds isolate the representative bank
-    # pieces. Bed and water occupy the open water side; collision support
-    # exists only in each piece's authored land-side region.
-    for prefix, centre_y in DEEP_FIXTURES:
-        hole = (3500.0, 4100.0, centre_y - 300.0, centre_y + 300.0)
+    # Three independent deep ponds use the manifest's exact world-space
+    # basin, water-side and land-support contract.
+    for lane in fixture["deep_lanes"]:
         spawn_box(
-            f"VW_{prefix}_Bed",
-            (*hole, -200.0, -141.0),
+            lane["bed_label"],
+            lane["bed_bounds_cm"],
             cube,
             ground_material,
         )
         spawn_box(
-            f"VW_{prefix}_Water",
-            (
-                hole[0] + 30.0,
-                hole[1] - 30.0,
-                hole[2] + 30.0,
-                hole[3] - 30.0,
-                -10.0,
-                -8.0,
-            ),
+            lane["water_label"],
+            lane["water_bounds_cm"],
             cube,
             water_material,
             collision=False,
         )
-
-    spawn_box(
-        "VW_DeepEdge_Land",
-        (3800.0, 4100.0, -1300.0, -700.0, -100.0, 0.0),
-        cube,
-        ground_material,
-    )
-    spawn_box(
-        "VW_DeepOuterCorner_Land",
-        (3800.0, 4100.0, -300.0, 0.0, -100.0, 0.0),
-        cube,
-        ground_material,
-    )
-    spawn_box(
-        "VW_DeepInnerCorner_LandEast",
-        (3800.0, 4100.0, 700.0, 1300.0, -100.0, 0.0),
-        cube,
-        ground_material,
-    )
-    spawn_box(
-        "VW_DeepInnerCorner_LandSouth",
-        (3500.0, 3800.0, 700.0, 1000.0, -100.0, 0.0),
-        cube,
-        ground_material,
-    )
+        for support in lane["land_supports"]:
+            spawn_box(
+                support["label"],
+                support["bounds_cm"],
+                cube,
+                ground_material,
+            )
 
 
 def spawn_text(label, text, location):
@@ -463,7 +426,11 @@ def build_map():
     if cube is None or grid is None:
         fail("engine cube or grid material did not load")
     water = ensure_water_material()
-    spawn_segmented_floor(cube, grid)
+    pond_holes = [
+        SHALLOW_HOLE,
+        *(lane["basin_bounds_cm"][:4] for lane in fixture["deep_lanes"]),
+    ]
+    spawn_segmented_floor(cube, grid, pond_holes)
     # Boundary walls keep scripted navigation inside the fixture.
     spawn_box("VW_Wall_W", (-1750.0, -1700.0, -2850.0, 3250.0, 0.0, 300.0), cube, grid)
     spawn_box("VW_Wall_E", (4400.0, 4450.0, -2850.0, 3250.0, 0.0, 300.0), cube, grid)

@@ -239,19 +239,76 @@ def _run():
             str(collision),
         )
 
-    for label in (
-        "VW_DeepEdge_Land",
-        "VW_DeepOuterCorner_Land",
-        "VW_DeepInnerCorner_LandEast",
-        "VW_DeepInnerCorner_LandSouth",
-    ):
-        check(f"intended land support {label} exists", label in by_label)
+    for lane in fixture["deep_lanes"]:
+        for support in lane["land_supports"]:
+            label = support["label"]
+            actor = by_label.get(label)
+            check(f"{lane['label']} intended land support {label} exists", actor is not None)
+            if actor is None:
+                continue
+            origin, extent = actor.get_actor_bounds(False)
+            actual = (
+                origin.x - extent.x,
+                origin.x + extent.x,
+                origin.y - extent.y,
+                origin.y + extent.y,
+                origin.z - extent.z,
+                origin.z + extent.z,
+            )
+            expected = tuple(support["bounds_cm"])
+            check(
+                f"{label} stops exactly at its authored land-side face",
+                all(
+                    math.isclose(value, wanted, abs_tol=0.1)
+                    for value, wanted in zip(actual, expected)
+                ),
+                f"{actual} / expected {expected}",
+            )
+        for region_index, region in enumerate(lane["water_regions_xy_cm"]):
+            water_bounds = (
+                region[0],
+                region[1],
+                region[2],
+                region[3],
+                lane["bed_top_z_cm"] + 1.0,
+                300.0,
+            )
+            for label, actor in by_label.items():
+                component = actor.get_editor_property("static_mesh_component")
+                if (
+                    component is None
+                    or component.get_collision_enabled()
+                    == unreal.CollisionEnabled.NO_COLLISION
+                    or label in (lane["actor_label"], lane["bed_label"])
+                ):
+                    continue
+                origin, extent = actor.get_actor_bounds(False)
+                candidate = (
+                    origin.x - extent.x,
+                    origin.x + extent.x,
+                    origin.y - extent.y,
+                    origin.y + extent.y,
+                    origin.z - extent.z,
+                    origin.z + extent.z,
+                )
+                overlap_x = min(candidate[1], water_bounds[1]) - max(
+                    candidate[0], water_bounds[0]
+                )
+                overlap_y = min(candidate[3], water_bounds[3]) - max(
+                    candidate[2], water_bounds[2]
+                )
+                overlap_z = min(candidate[5], water_bounds[5]) - max(
+                    candidate[4], water_bounds[4]
+                )
+                check(
+                    f"{lane['label']} water region {region_index} has no collision from {label}",
+                    not (overlap_x > 0.1 and overlap_y > 0.1 and overlap_z > 0.1),
+                    f"candidate={candidate}, water={water_bounds}",
+                )
 
     pond_holes = (
         (2200.0, 2800.0, -300.0, 300.0),
-        (3500.0, 4100.0, -1300.0, -700.0),
-        (3500.0, 4100.0, -300.0, 300.0),
-        (3500.0, 4100.0, 700.0, 1300.0),
+        *(tuple(lane["basin_bounds_cm"][:4]) for lane in fixture["deep_lanes"]),
     )
     floor_segments = [
         actor for label, actor in by_label.items() if label.startswith("VW_Floor_")

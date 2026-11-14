@@ -86,6 +86,73 @@ LANES = (
     ("VW_Lane_DeepInnerCorner", "SM_VW_Pond_InnerCorner_Deep_01", (3800.0, 1000.0, 0.0), 0.0),
 )
 
+DEEP_LANES = (
+    {
+        "label": "edge",
+        "actor_label": "VW_Lane_DeepEdge",
+        "mesh": "SM_VW_Pond_Edge_Deep_01",
+        "basin_bounds_cm": [3500.0, 4100.0, -1300.0, -700.0, -141.0, 0.0],
+        "bed_label": "VW_DeepEdge_Bed",
+        "bed_bounds_cm": [3500.0, 4100.0, -1300.0, -700.0, -200.0, -141.0],
+        "bed_top_z_cm": -141.0,
+        "water_label": "VW_DeepEdge_Water",
+        "water_bounds_cm": [3530.0, 4070.0, -1270.0, -730.0, -10.0, -8.0],
+        "water_regions_xy_cm": [[3500.0, 3800.0, -1300.0, -700.0]],
+        "land_supports": [
+            {
+                "label": "VW_DeepEdge_Land",
+                "bounds_cm": [3800.0, 4100.0, -1300.0, -700.0, -100.0, 0.0],
+            },
+        ],
+        "clear_route_xy_cm": [[4200.0, -1400.0], [4200.0, -1000.0]],
+    },
+    {
+        "label": "outer_corner",
+        "actor_label": "VW_Lane_DeepOuterCorner",
+        "mesh": "SM_VW_Pond_OuterCorner_Deep_01",
+        "basin_bounds_cm": [3500.0, 4100.0, -300.0, 300.0, -141.0, 0.0],
+        "bed_label": "VW_DeepOuterCorner_Bed",
+        "bed_bounds_cm": [3500.0, 4100.0, -300.0, 300.0, -200.0, -141.0],
+        "bed_top_z_cm": -141.0,
+        "water_label": "VW_DeepOuterCorner_Water",
+        "water_bounds_cm": [3530.0, 4070.0, -270.0, 270.0, -10.0, -8.0],
+        "water_regions_xy_cm": [
+            [3500.0, 3800.0, -300.0, 300.0],
+            [3800.0, 4100.0, 0.0, 300.0],
+        ],
+        "land_supports": [
+            {
+                "label": "VW_DeepOuterCorner_Land",
+                "bounds_cm": [3800.0, 4100.0, -300.0, 0.0, -100.0, 0.0],
+            },
+        ],
+        "clear_route_xy_cm": [[4200.0, -1000.0], [4200.0, -300.0]],
+    },
+    {
+        "label": "inner_corner",
+        "actor_label": "VW_Lane_DeepInnerCorner",
+        "mesh": "SM_VW_Pond_InnerCorner_Deep_01",
+        "basin_bounds_cm": [3500.0, 4100.0, 700.0, 1300.0, -141.0, 0.0],
+        "bed_label": "VW_DeepInnerCorner_Bed",
+        "bed_bounds_cm": [3500.0, 4100.0, 700.0, 1300.0, -200.0, -141.0],
+        "bed_top_z_cm": -141.0,
+        "water_label": "VW_DeepInnerCorner_Water",
+        "water_bounds_cm": [3530.0, 4070.0, 730.0, 1270.0, -10.0, -8.0],
+        "water_regions_xy_cm": [[3500.0, 3800.0, 1000.0, 1300.0]],
+        "land_supports": [
+            {
+                "label": "VW_DeepInnerCorner_LandEast",
+                "bounds_cm": [3800.0, 4100.0, 700.0, 1300.0, -100.0, 0.0],
+            },
+            {
+                "label": "VW_DeepInnerCorner_LandSouth",
+                "bounds_cm": [3500.0, 3800.0, 700.0, 1000.0, -100.0, 0.0],
+            },
+        ],
+        "clear_route_xy_cm": [[4200.0, 500.0], [4200.0, 880.0]],
+    },
+)
+
 SHALLOW_BANK_RING = (
     ("VW_Shallow_Bank_S_0", "SM_VW_Pond_Edge_01", (2200.0, -200.0, 0.0), -90.0),
     ("VW_Shallow_Bank_S_1", "SM_VW_Pond_Edge_01", (2200.0, 200.0, 0.0), -90.0),
@@ -242,6 +309,11 @@ def test_fixture(mesh_ids):
         for entry in SHALLOW_BANK_RING
         if entry[1] in mesh_set
     ]
+    deep_lanes = [
+        json.loads(json.dumps(entry))
+        for entry in DEEP_LANES
+        if entry["mesh"] in mesh_set
+    ]
     return {
         "camera_space": {
             "yaw_deg": 0,
@@ -251,6 +323,7 @@ def test_fixture(mesh_ids):
         "gallery": gallery,
         "lanes": lanes,
         "shallow_bank_ring": bank_ring,
+        "deep_lanes": deep_lanes,
     }
 
 
