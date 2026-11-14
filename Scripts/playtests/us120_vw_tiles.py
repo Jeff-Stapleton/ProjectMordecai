@@ -39,11 +39,13 @@ SHALLOW_END = (3100.0, 0.0)
 SHALLOW_APPROACH = ((1500.0, -500.0), (1900.0, -500.0), SHALLOW_START)
 DEEP_BANKS = (
     ("edge", (4100.0, -800.0)),
-    ("outer_corner", (4100.0, 0.0)),
-    ("inner_corner", (4100.0, 800.0)),
+    # Offset from each corner pivot so the downhill probe intersects a curved
+    # blocking-wall hull rather than the corner's intentionally open quadrant.
+    ("outer_corner", (4100.0, -70.0)),
+    ("inner_corner", (4100.0, 860.0)),
 )
 DEEP_FACE_X = 3800.0
-DEEP_MIN_X = 3870.0
+DEEP_MIN_X = 3810.0
 DEEP_SAFE_X = 4200.0
 DEEP_ENTRY_ROUTE = ((3400.0, -1400.0), (DEEP_SAFE_X, -1400.0))
 
@@ -286,7 +288,10 @@ class Us120Run(kit.PlaytestRun):
                 )
                 response = self.bridge.hold("S", BLOCK_HOLD_S)
                 location = _player(self.bridge)
-                blocked = location[0] >= DEEP_MIN_X
+                blocked = (
+                    location[0] >= DEEP_MIN_X
+                    and location[2] >= TIER0_Z - Z_TOL
+                )
                 results.append({
                     "representative": label,
                     "held_s": response.get("held_s"),
@@ -299,12 +304,14 @@ class Us120Run(kit.PlaytestRun):
                 )
             bad = [result for result in results if not result["blocked"]]
             detail = "; ".join(
-                f"{result['representative']} X {result['location'][0]:.1f} "
+                f"{result['representative']} X/Z "
+                f"{result['location'][0]:.1f}/{result['location'][2]:.1f} "
                 f"({'blocked' if result['blocked'] else 'CROSSED'})"
                 for result in results
             )
             return ("FAIL" if bad else "PASS"), (
-                detail + f"; every X must remain >= {DEEP_MIN_X:.0f}"
+                detail + f"; every X must remain >= {DEEP_MIN_X:.0f} "
+                f"and Z >= {TIER0_Z - Z_TOL:.0f}"
             ), {"representatives": results}
 
         self.attempt("deep_bank_blocks", probe_all)
