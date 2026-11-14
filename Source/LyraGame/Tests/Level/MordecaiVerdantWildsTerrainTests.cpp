@@ -26,6 +26,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "StaticMeshResources.h"
 #include "UObject/SoftObjectPath.h"
 
 namespace MordecaiVerdantWildsTests
@@ -675,10 +676,12 @@ bool FMordecai_VW_MaterialsAndTexturesLoad::RunTest(const FString& Parameters)
 				ObjectPath(MaterialRoot / Slot));
 		}
 		TSet<int32> UsedMaterialIndices;
-		for (int32 SectionIndex = 0; SectionIndex < Mesh->GetNumSections(0); ++SectionIndex)
+		const FStaticMeshRenderData* RenderData = Mesh->GetRenderData();
+		const FStaticMeshLODResources* LOD0 =
+			RenderData && RenderData->LODResources.Num() > 0 ? &RenderData->LODResources[0] : nullptr;
+		for (int32 SectionIndex = 0; LOD0 && SectionIndex < LOD0->Sections.Num(); ++SectionIndex)
 		{
-			UsedMaterialIndices.Add(
-				Mesh->GetSectionInfoMap().Get(0, SectionIndex).MaterialIndex);
+			UsedMaterialIndices.Add(LOD0->Sections[SectionIndex].MaterialIndex);
 		}
 		for (int32 MaterialIndex = 0; MaterialIndex < Actual.Num(); ++MaterialIndex)
 		{
