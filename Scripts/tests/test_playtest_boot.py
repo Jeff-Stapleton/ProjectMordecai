@@ -28,6 +28,10 @@ LOADED = ("[2026.10.19-04.37.20:498][  0]LogLyraExperience: EXPERIENCE: OnExperi
           "(CurrentExperience = LyraExperienceDefinition:B_MordecaiArenaExperience, Server)")
 WRONG = ("[2026.10.19-04.37.20:486][  0]LogLyraExperience: Identified experience "
          "LyraExperienceDefinition:B_LyraDefaultExperience (Source: Default)")
+MATERIAL_ERROR = (
+    "[2026.11.14-20.03.58:366][  0]LogMaterial: Error: "
+    "Loading a material resource None with an invalid ShaderMap!"
+)
 # The loading screen lines of a real packaged run (issue #39)
 LOADING_SHOWN = ("[2026.10.30-18.30.52:100][990]LogLoadingScreen: Showing loading screen when "
                  "'IsShowingInitialLoadingScreen()' is false.")
@@ -218,6 +222,17 @@ class TestLogStream(unittest.TestCase):
         with pb.log_stream(out):
             self.assertIs(pb._LOG_STREAM, out)
         self.assertIs(pb._LOG_STREAM, before)
+
+
+class TestLogSummary(TempDirCase):
+    def test_material_errors_are_reported_separately(self):
+        path = os.path.join(self.tmp, "game.log")
+        write_lines(path, [MATERIAL_ERROR, "LogTemp: Error: unrelated"])
+        summary = pb.summarize_log(path)
+        self.assertEqual(summary["material_errors"], 1)
+        self.assertEqual(summary["material_error_lines"], [
+            "LogMaterial: Error: Loading a material resource None with an invalid ShaderMap!"
+        ])
 
 
 class TestWaitForExperience(TempDirCase):
@@ -603,6 +618,26 @@ class TestMainEndToEnd(TempDirCase):
         self.assertIn("## Engine screenshots", md)
         self.assertIn("STALE BUILD (continuing: --allow-stale)", text)
         self.assertIn("BOOT PLAYTEST: PASS", text)
+
+    def test_main_fails_on_material_error_without_fail_on_errors(self):
+        bat = os.path.join(self.tmp, "FakeGame.bat")
+        with open(bat, "w", encoding="ascii") as f:
+            f.write(f'@"{sys.executable}" "{FAKE_GAME}" %* -FakeMaterialError\n')
+        playtests = os.path.join(self.tmp, "Playtests")
+        out = io.StringIO()
+        argv = ["playtest_boot.py", "--exe", bat, "--allow-stale", "--shots", "0",
+                "--timeout", "60"]
+        with mock.patch.object(pb, "PLAYTESTS_DIR", playtests), \
+                mock.patch.object(sys, "argv", argv), pb.log_stream(out), \
+                contextlib.redirect_stdout(out):
+            code = pb.main()
+        self.assertEqual(code, pb.EXIT_FAIL, out.getvalue())
+        run_dir = os.path.join(playtests, os.listdir(playtests)[0])
+        with open(os.path.join(run_dir, "report.json"), encoding="utf-8") as f:
+            report = json.load(f)
+        check = next(c for c in report["checks"] if c["name"] == "log_errors")
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("1 LogMaterial error", check["detail"])
 
     def test_main_fails_on_a_loading_screen_that_is_not_the_mordecai_one(self):
         # Issue #39: the packaged game showed Lyra's loading screen

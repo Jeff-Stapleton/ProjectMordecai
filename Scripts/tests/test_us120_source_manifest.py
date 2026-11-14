@@ -85,7 +85,7 @@ class TestUs120SourceManifest(unittest.TestCase):
             {
                 "BaseColorTexture": "/Engine/EngineResources/DefaultTexture",
                 "NormalTexture": "/Engine/EngineMaterials/DefaultNormal",
-                "ORMTexture": "/Engine/EngineResources/DefaultTexture",
+                "ORMTexture": "/Engine/MaterialTemplates/LayerBlends/T_DefaultMaskTexture",
             },
         )
         self.assertFalse(any("T_VW_" in value for value in defaults.values()))

@@ -15,6 +15,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "HAL/FileManager.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/FileHelper.h"
@@ -611,6 +612,23 @@ bool FMordecai_VW_MaterialsAndTexturesLoad::RunTest(const FString& Parameters)
 		TestTrue(TEXT("terrain master is Default Lit"),
 			Master->GetShadingModels().HasShadingModel(MSM_DefaultLit));
 		TestTrue(TEXT("terrain master explicitly supports Nanite"), Master->bUsedWithNanite);
+		TArray<const UMaterialExpressionTextureSampleParameter2D*> TextureParameters;
+		Master->GetAllExpressionsOfType(TextureParameters);
+		TestEqual(TEXT("terrain master has three texture parameters"), TextureParameters.Num(), 3);
+		for (const UMaterialExpressionTextureSampleParameter2D* Parameter : TextureParameters)
+		{
+			const FString Name = Parameter ? Parameter->ParameterName.ToString() : TEXT("<null>");
+			if (!TestNotNull(FString::Printf(TEXT("%s texture parameter exists"), *Name), Parameter)
+				|| !TestNotNull(FString::Printf(TEXT("%s has a neutral default texture"), *Name),
+					Parameter->Texture.Get()))
+			{
+				continue;
+			}
+			TestEqual(FString::Printf(TEXT("%s default texture matches its sampler type"), *Name),
+				Parameter->SamplerType.GetValue(),
+				UMaterialExpressionTextureSampleParameter2D::GetSamplerTypeForTexture(
+					Parameter->Texture.Get()));
+		}
 	}
 
 	const TMap<FString, TextureCompressionSettings> CompressionByName = {

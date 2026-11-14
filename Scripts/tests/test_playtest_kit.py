@@ -151,6 +151,26 @@ class TestKitRun(KitCase):
         # The log lines carry the story prefix.
         self.assertIn("[US-900] PASS cycle_next", self.log.getvalue())
 
+    def test_material_error_in_game_log_fails_the_run(self):
+        _, server = self.serve()
+        source_run = os.path.join(self.tmp, "source-game")
+        os.makedirs(source_run)
+        with open(os.path.join(source_run, "game.log"), "w", encoding="utf-8") as f:
+            f.write(
+                "[2026.11.14-20.03.58:366][  0]LogMaterial: Error: "
+                "Loading a material resource None with an invalid ShaderMap!\n"
+            )
+        with open(ab.SESSION_FILE, "w", encoding="utf-8") as f:
+            json.dump({"port": server.port, "run_dir": source_run}, f)
+
+        code, rep = self.play(
+            make_run(cycle_steps(), FAIL_ON_MATERIAL_ERRORS=True), server
+        )
+        self.assertEqual(code, 1, self.log.getvalue()[-3000:])
+        check = self.by_name(rep)["log_errors"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("1 LogMaterial error", check["detail"])
+
     def test_report_md_has_the_acceptance_criteria_table(self):
         _, server = self.serve()
         code, _ = self.play(make_run(cycle_steps()), server)
