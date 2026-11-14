@@ -410,6 +410,13 @@ class TestUs120Plan(unittest.TestCase):
         self.assertEqual(probe["route"][-1], probe["start"])
         self.assertEqual(probe["water_regions_xy_cm"], fixture["water_regions_xy_cm"])
         self.assertGreater(probe["wall_radial_max_cm"], 90.0)
+        self.assertEqual(
+            probe["axis_values"],
+            {
+                "Gamepad_LeftY": probe["direction"][0],
+                "Gamepad_LeftX": probe["direction"][1],
+            },
+        )
 
     def test_deep_probe_classification_distinguishes_defect_from_fixture_error(self):
         blocked = us120.classify_deep_probe(
