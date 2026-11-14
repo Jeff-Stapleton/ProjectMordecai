@@ -30,8 +30,8 @@ This story imports static meshes and textures, creates materials and material in
 - [x] AC-120.4: The sampled shared textures, one saved master material, and all manifest-required `MI_VW_*` material instances exist at the approved terrain paths. D/DA maps use sRGB; N/ORM maps are linear with their intended compression and LOD groups; unsampled Height, alternate cliff, moss, wood-slat, pond-normal, and stitch-seam textures remain outside Git. Every mesh uses exact FBX imported slot names, every slot is used by a section, and the six documented pond catalog-slot mismatches are reported. Verified by `Mordecai.World.Terrain.VerdantWilds.MaterialsAndTexturesLoad`.
 - [x] AC-120.5: `/MordecaiCore/Game/Maps/L_VW_TileTest` is a saved non-world-graph test fixture using `AMordecaiGameMode`. It contains all 17 meshes as labelled, unit-scale actors on the 200 cm grid and dedicated lanes for Ramp 2T, Ramp 3T, a 200 cm cliff, shallow pond crossing, and deep pond blocking. No supplemental collision volume may mask the collision being tested. Verified by `Mordecai.World.Terrain.VerdantWilds.TileTestMapContract` and `Scripts/verify_pie_vw_tiles.py`.
 - [x] AC-120.6: In a fresh packaged build, real WASD input walks the player from Tier 0 to Tier 1 over both ramps and back down; each successful ascent raises the player approximately 200 cm without jumping or becoming stuck. Verified by Tier 4 checks `ramp_2t_up`, `ramp_2t_down`, `ramp_3t_up`, and `ramp_3t_down` in `Scripts/playtests/us120_vw_tiles.py`.
-- [ ] AC-120.7: In that same package, walking into and jumping toward the 200 cm cliff never places the player on Tier 1; the shallow pond lane is traversable end to end; and repeated walking into each deep-bank representative does not cross its bank. `cliff_walk_blocked`, `cliff_jump_blocked`, and `shallow_pond_crosses` pass, and deep Edge/OuterCorner block, but `deep_bank_blocks` fails because repeated pushes cross the Deep InnerCorner collision seam.
-- [ ] AC-120.8: The new map is in `Config/DefaultGame.ini` `+MapsToCook` and `Scripts/package_playtest.py` `DEFAULT_MAPS`; `py Scripts/playtest_story.py US-120` passes Tier 3 and Tier 4 on one fresh clean package, every screenshot is checked by script (PIL/analyze_image, never the file-read tool) and bundled for coordinator review, and the full `py Scripts/playtest_story.py --all` sweep has zero baseline PASS→FAIL. The r3 Tier 3 run and zero-regression sweep pass their gates, but focused Tier 4 fails `deep_bank_blocks`.
+- [x] AC-120.7: In that same package, walking into and jumping toward the 200 cm cliff never places the player on Tier 1; the shallow pond lane is traversable end to end; and repeated walking into each deep-bank representative does not cross its bank. Verified by `cliff_walk_blocked`, `cliff_jump_blocked`, `shallow_pond_crosses`, and `deep_bank_blocks`; the final deep Edge, OuterCorner, and InnerCorner probes each block three independently released, settled pushes.
+- [x] AC-120.8: The new map is in `Config/DefaultGame.ini` `+MapsToCook` and `Scripts/package_playtest.py` `DEFAULT_MAPS`; `py Scripts/playtest_story.py US-120` passes Tier 3 and Tier 4 on one fresh clean package, every screenshot is checked by script (PIL/analyze_image, never the file-read tool) and bundled for coordinator review, and the full `py Scripts/playtest_story.py --all` sweep has zero baseline PASS→FAIL.
 - [x] AC-120.9: Raw FBX and texture source files and credentials are absent from Git; the committed manifest contains the logical B2 keys, ready status, hashes, bounds, footprints, hull counts, slots, and texture references needed for deterministic reimport. Imported `.uasset`/`.umap` files are saved and committed through Git LFS, and `py Scripts/check_content_committed.py` exits 0.
 - [x] AC-120.10: Completion Notes record the pre/post packaged `.pak` byte totals, cooked terrain-folder size, mesh/texture/material counts, and delta. No size threshold is inferred without a coordinator decision.
 
@@ -156,19 +156,75 @@ This story imports static meshes and textures, creates materials and material in
 ## Definition of Done
 - [x] Decisions D1-D5 applied
 - [x] Tests are written first and fail for the expected missing-content/cook-list reasons
-- [ ] All ACs checked off
+- [x] All ACs checked off
 - [x] Tier 1: project compiles and all `Mordecai.*` tests pass
 - [x] Python tooling tests pass
 - [x] Tier 2 PIE smoke passes on `L_VW_TileTest`
 - [x] Every imported `.uasset`/`.umap` is saved and committed; no raw source/token is committed; `py Scripts/check_content_committed.py` exits 0
 - [x] Work is committed before packaging; `py Scripts/package_playtest.py` exits 0 on that exact clean commit
-- [ ] `py Scripts/playtest_story.py US-120` exits 0 without `--allow-stale` — r3 exits 1 on `deep_bank_blocks`
+- [x] `py Scripts/playtest_story.py US-120` exits 0 without `--allow-stale`
 - [x] Every Tier 3 and Tier 4 screenshot is checked by script (PIL/analyze_image only; never open PNGs with the file-read tool) against the Playtest expectations and placed in the evidence bundle for coordinator visual review
 - [x] Full `py Scripts/playtest_story.py --all` sweep has zero baseline PASS→FAIL
 - [x] Completion Notes record run dirs, scripted screenshot checks, imported counts, and package-size deltas
-- [ ] Closing commit touches only `stories/`; story moves to done only after all evidence passes
+- [x] Closing commit touches only `stories/`; story moves to done only after all evidence passes
 
 ## Completion Notes
+### Round-4 completion
+- Package commit: `43a1d9fdcb2ad239e425cff3ede860491147f55f`.
+  `build_info.json` records `dirty=false` and
+  `source_changed_during_build=false`. Round-4 RED commits are `06cfcb0f`,
+  `7f06437b`, `d7386cc1`, and `df5b0888`.
+- Final verification remains: editor/game compile PASS; Tier 1 **849/849 PASS**;
+  Python tooling **708/708 PASS**; Tier 2 PIE on `L_VW_TileTest` **4/4 scripts
+  PASS**, with `verify_pie_vw_tiles.py` **891/891 PASS**; content guard and LFS
+  hydration PASS.
+- Focused Tier 3
+  `Saved/Playtests/20261114-125958-boot`: PASS. Focused Tier 4
+  `Saved/Playtests/20261114-130022-us120`: **27 PASS, 0 FAIL**. Both AC-120.6
+  and AC-120.7 are accepted on the same fresh package.
+- Final deep-bank proof uses a manifest/hull-derived InnerCorner arc radius,
+  exact gamepad-axis radial input, a 5 cm probe-start tolerance, 0.5 s settling,
+  and three independent pushes with releases and re-approaches. Edge blocks at
+  progress **-16.1 cm**, OuterCorner at **-59.3 cm**, and InnerCorner at
+  **27.0 cm**, all within the +55 cm limit and near land height. Every push
+  stops on stable contact. The earlier r3 InnerCorner “collision seam” claim is
+  withdrawn: it was probe drift around the arc, not a proven art defect.
+- Ramp checks pass at Tier 0 Z 92 and Tier 1 Z about 292 without Space. Cliff
+  walking contacts at X 1359.9 cm, and the real jump peaks at Z 196.2 without
+  reaching Tier 1. The shallow pond reaches **Z 54.1** and exits at land
+  height **Z 92.2**.
+- Final sweep `Saved/Playtests/20261114-130230-sweep`: overall FAIL only from
+  baseline-existing US-001 facing, US-054 spacing, and US-078 previous-weapon
+  checks. US-120 passes. Comparison against baseline `5bce1a16` finds
+  **0 PASS→FAIL**, **0 FAIL→PASS**, across 15 shared Tier-4 scripts,
+  395 shared checks, and four shared Tier-3 launches.
+- No PNG was opened with the file-read tool. PIL scripted inspection accepted
+  **83 baseline + 119 final + 11 named capture = 213/213 images**, with
+  0 WARN and 0 FAIL. Named captures contain four gallery views, both ramp
+  tops, cliff rejection, the visible shallow crossing, and deep
+  Edge/OuterCorner/InnerCorner land-side rejections.
+- Evidence bundle:
+  `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-2587667d-8302-5d0e-97b8-9cb6a5b288fc\files\us120-r4-43a1d9fd`.
+  It contains the reused baseline, final focused/sweep reports and images,
+  named captures, probe path log, build/import/manifest evidence, package
+  measurements, secret/raw-source scan, logs, and `SHA256SUMS.txt`
+  (**399/399 verified**).
+- Full packaged `Content/Paks` (`.pak + .ucas + .utoc`) is
+  **819,064,510 bytes**, versus baseline **768,721,316 bytes**: delta
+  **+50,343,194 bytes**. Cooked
+  `MordecaiCore/Content/World/Terrain` remains **26,687,384 bytes** across
+  97 files.
+- Import evidence remains PASS: 17 meshes, 12 sampled textures, four terrain
+  instances, one master material, source-Y-negated UE bounds within 1 cm,
+  local `+Y` facing/downhill and `yaw_offset=-90°` for each kind. The six pond
+  FBX slot mismatches remain the catalog `Grass, CliffFace, YarnRoot` versus
+  imported `Grass, YarnRoot`. No raw source or B2 credential is tracked or
+  present in the bundle.
+- Reported visual-overhang art findings are unchanged: cliff Straight 01 24.9,
+  Straight 02 26.3, Straight 03 25.0, OuterCorner 22.0, InnerCorner 100.0,
+  EndCap 22.9; pit Edge 23.3, OuterCorner 20.6, InnerCorner 100.0; Ramp 2T/3T
+  18.0 cm. Pond basin extents remain intentional, not lip defects.
+
 ### Round-3 result and package
 - Round 3 is **not complete**. The story returns to `in-progress`: Tier 3 passes, but
   Tier 4 `deep_bank_blocks` proves a Deep InnerCorner collision seam that repeated
