@@ -91,7 +91,8 @@ DEFAULT_MAP = "/MordecaiCore/Game/Maps/DevTestMap"
 MOVEMENT_TEST_MAP = "/MordecaiCore/Game/Maps/MovementTestMap"   # open floor, steps, no enemies
 COMBAT_TEST_MAP = "/MordecaiCore/Game/Maps/CombatTestMap"       # TestDummy + TestAttacker
 PICKUP_PROJECTILE_TEST_MAP = "/MordecaiCore/Game/Maps/PickupProjectileTestMap"  # one real pickup
-TEST_MAPS = (MOVEMENT_TEST_MAP, COMBAT_TEST_MAP, PICKUP_PROJECTILE_TEST_MAP)
+VW_TILE_TEST_MAP = "/MordecaiCore/Game/Maps/L_VW_TileTest"  # US-120 terrain kit fixture
+TEST_MAPS = (MOVEMENT_TEST_MAP, COMBAT_TEST_MAP, PICKUP_PROJECTILE_TEST_MAP, VW_TILE_TEST_MAP)
 DEFAULT_EXPERIENCE = "B_MordecaiArenaExperience"
 FRONTEND_EXPERIENCE = "B_LyraFrontEnd_Experience"
 RES_X, RES_Y = 1280, 720
@@ -1223,7 +1224,8 @@ def wait_after_crash(proc, tail, state, t0, grace_s=CRASH_GRACE_S, poll_s=0.5):
 # ---------------------------------------------------------------------------
 def summarize_log(path, top_n=15, tail_n=40):
     out = {"path": path, "exists": os.path.isfile(path), "lines": 0, "errors": 0,
-           "warnings": 0, "top_errors": [], "tail": []}
+           "warnings": 0, "material_errors": 0, "material_error_lines": [],
+           "top_errors": [], "tail": []}
     if not out["exists"]:
         return out
     errors = collections.Counter()
@@ -1240,6 +1242,9 @@ def summarize_log(path, top_n=15, tail_n=40):
                 if m.group(2) == "Error":
                     out["errors"] += 1
                     errors[line[:300]] += 1
+                    if m.group(1) == "LogMaterial":
+                        out["material_errors"] += 1
+                        out["material_error_lines"].append(line[:300])
                 else:
                     out["warnings"] += 1
     except OSError as e:
@@ -1407,7 +1412,8 @@ def write_reports(run_dir, report):
         "",
         f"- game.log: `{logsum['path']}` ({logsum['lines']} lines)",
         f"- Errors: {logsum['errors']}  Warnings: {logsum['warnings']}"
-        + ("" if report["fail_on_errors"] else "  (informational; --fail-on-errors to gate)"),
+        + ("" if report["fail_on_errors"] or logsum.get("material_errors")
+           else "  (informational except LogMaterial errors; --fail-on-errors to gate all)"),
     ]
     if logsum["top_errors"]:
         lines += ["", "### Top errors", ""]
@@ -1833,7 +1839,15 @@ def main():
             warnings.append(f"{LOADING_SHOT_NAME} unreadable: {e}")
     if proc is not None and outcome not in ("interrupted", "script_error"):
         add_check(checks, "loading_screen", *evaluate_loading_screen(state, capture, loading_shot))
-    if args.fail_on_errors:
+    if logsum["material_errors"]:
+        add_check(
+            checks,
+            "log_errors",
+            "FAIL",
+            f"{logsum['material_errors']} LogMaterial error(s), "
+            f"{logsum['errors']} total error(s), {logsum['warnings']} warning(s)",
+        )
+    elif args.fail_on_errors:
         add_check(checks, "log_errors", "FAIL" if logsum["errors"] else "PASS",
                   f"{logsum['errors']} error(s), {logsum['warnings']} warning(s)")
     else:

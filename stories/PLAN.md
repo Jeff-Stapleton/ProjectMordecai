@@ -118,6 +118,7 @@ Note: US-094, US-079 and US-071 were closed at Jeff's call on 2026-10-29, on `Sa
 
 ### Epic 8: World & Exploration
 Authored-cell world framework, movement/exploration skills, Metroidvania gating.
+- US-120: Import and Prove the Verdant Wilds v3 Terrain Tile Kit (EDITOR — issue #131)
 
 **Phase 1 — Cell Framework Foundation (Milestone 1, HEADLESS — scoped)**
 Implements the *already-locked* data model + markup framework from `map_style_technical_design_v1.md` §12. Does NOT introduce gate types/biomes/tier rules (those need human approval).

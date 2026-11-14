@@ -27,6 +27,7 @@ Fake-only switches (UE style, case-insensitive):
   -FakeCrash               log a fatal error after identify and exit 3
   -FakeNoExperience        log 'Failed to identify experience' and keep running
   -FakeExitAfterLoad=<n>   exit with code n right after the experience loads
+  -FakeMaterialError       log the cooked invalid-ShaderMap error emitted by a broken material
   -FakeBindFail            log the bridge's bind failure line and serve nothing
   -FakeToken=<s>           answer ping with this token instead of -AgentBridgeToken
   -FakeLifetime=<s>        exit after this many seconds (600)
@@ -128,6 +129,8 @@ def main(argv=None):
     log = GameLog(opt.get("abslog") if isinstance(opt.get("abslog"), str) else None)
     log.raw("LogInit: Command Line:  " + " ".join(argv))
     log.line("LogInit: Display: Engine is initialized. Leaving FEngineLoop::Init()")
+    if opt.get("fakematerialerror"):
+        log.line("LogMaterial: Error: Loading a material resource None with an invalid ShaderMap!")
     if loading_s > 0:
         # ULoadingScreenManager puts its widget up while the experience loads (issue #39)
         log.line("LogLoadingScreen: Showing loading screen when 'IsShowingInitialLoadingScreen()' is false.")
