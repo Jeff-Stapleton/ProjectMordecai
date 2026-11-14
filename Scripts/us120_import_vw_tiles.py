@@ -161,7 +161,17 @@ def connect(source, output_name, target, input_name):
         )
 
 
-def build_master_material(path):
+def set_default_texture(expression, parameter, textures, defaults):
+    texture_id = defaults.get(parameter)
+    texture = textures.get(texture_id)
+    if texture is None:
+        fail(f"missing master material default texture {parameter}: {texture_id}")
+    expression.set_editor_property("texture", texture)
+    if expression.get_editor_property("texture") != texture:
+        fail(f"master material default texture readback failed: {parameter}")
+
+
+def build_master_material(path, textures, defaults):
     folder, name = path.rsplit("/", 1)
     EAL.make_directory(folder)
     material = unreal.load_asset(path)
@@ -182,6 +192,7 @@ def build_master_material(path):
         material, unreal.MaterialExpressionTextureSampleParameter2D, -720, -240
     )
     base.set_editor_property("parameter_name", "BaseColorTexture")
+    set_default_texture(base, "BaseColorTexture", textures, defaults)
     tint = material_expression(
         material, unreal.MaterialExpressionVectorParameter, -720, -80
     )
@@ -202,6 +213,7 @@ def build_master_material(path):
         material, unreal.MaterialExpressionTextureSampleParameter2D, -720, 100
     )
     normal.set_editor_property("parameter_name", "NormalTexture")
+    set_default_texture(normal, "NormalTexture", textures, defaults)
     normal.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
     normal_strength = material_expression(
         material, unreal.MaterialExpressionScalarParameter, -720, 250
@@ -228,6 +240,7 @@ def build_master_material(path):
         material, unreal.MaterialExpressionTextureSampleParameter2D, -720, 470
     )
     orm.set_editor_property("parameter_name", "ORMTexture")
+    set_default_texture(orm, "ORMTexture", textures, defaults)
     orm.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_MASKS)
     roughness_scale = material_expression(
         material, unreal.MaterialExpressionScalarParameter, -460, 610
@@ -253,6 +266,7 @@ def build_master_material(path):
         material, unreal.MaterialExpressionTextureSampleParameter2D, -720, 760
     )
     height.set_editor_property("parameter_name", "HeightTexture")
+    set_default_texture(height, "HeightTexture", textures, defaults)
     height.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_GRAYSCALE)
     height_strength = material_expression(
         material, unreal.MaterialExpressionScalarParameter, -450, 820
@@ -469,7 +483,11 @@ def main():
     manifest = load_manifest()
     verify_sources(manifest)
     textures = import_textures(manifest)
-    master = build_master_material(manifest["import_contract"]["master_material"])
+    master = build_master_material(
+        manifest["import_contract"]["master_material"],
+        textures,
+        manifest["import_contract"]["master_material_default_textures"],
+    )
     instances = build_material_instances(manifest, master, textures)
     meshes = import_meshes(manifest, instances)
     EAL.save_directory(

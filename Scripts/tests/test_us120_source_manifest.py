@@ -12,6 +12,7 @@ import unittest
 
 SCRIPTS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST = os.path.join(SCRIPTS, "us120_vw_source_manifest.json")
+IMPORTER = os.path.join(SCRIPTS, "us120_import_vw_tiles.py")
 
 READY_IDS = (
     "SM_VW_FeltCliff_Straight_01",
@@ -74,6 +75,38 @@ class TestUs120SourceManifest(unittest.TestCase):
         self.assertEqual(len(self.meshes), 17)
         self.assertEqual({mesh["status"] for mesh in self.meshes}, {"ready"})
         self.assertEqual(self.data["source"]["only_import_status"], "ready")
+
+    def test_master_material_has_cookable_default_textures(self):
+        defaults = self.data["import_contract"]["master_material_default_textures"]
+        self.assertEqual(
+            defaults,
+            {
+                "BaseColorTexture": "T_VW_Grass_D",
+                "NormalTexture": "T_VW_Grass_N",
+                "ORMTexture": "T_VW_Grass_ORM",
+                "HeightTexture": "T_VW_Grass_H",
+            },
+        )
+        texture_ids = {texture["id"] for texture in self.textures}
+        self.assertLessEqual(set(defaults.values()), texture_ids)
+        with open(IMPORTER, encoding="utf-8") as stream:
+            importer = stream.read()
+        self.assertIn(
+            'set_default_texture(base, "BaseColorTexture", textures, defaults)',
+            importer,
+        )
+        self.assertIn(
+            'set_default_texture(normal, "NormalTexture", textures, defaults)',
+            importer,
+        )
+        self.assertIn(
+            'set_default_texture(orm, "ORMTexture", textures, defaults)',
+            importer,
+        )
+        self.assertIn(
+            'set_default_texture(height, "HeightTexture", textures, defaults)',
+            importer,
+        )
 
     def test_every_source_key_and_checksum_is_complete_and_unique(self):
         sources = [entry["source"] for entry in (*self.meshes, *self.textures)]

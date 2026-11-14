@@ -249,6 +249,25 @@ Use `notify_mode=unreal.PropertyAccessChangeNotifyMode.NEVER` on the CDO writes 
 
 **Fix:** Ignore the bool. Read the value back with `get_material_instance_vector_parameter_value` and compare (see `Scripts/us085_configure_frontliner.py`).
 
+### Texture sample parameters need valid defaults before a material is cooked
+
+**Problem:** A Python-created master material and its instances look valid in the editor, but a
+packaged map logs `Loading a material resource None with an invalid ShaderMap` and
+`Tried to access an uncooked shader map ID in a cooked application`. Unreal then warns that it
+cannot compile the material with cooked content and renders the default material.
+
+**Root cause:** `MaterialExpressionTextureSampleParameter2D` nodes had parameter names and the
+material instances supplied overrides, but the master expressions themselves had no `texture`.
+The editor can tolerate that while editing; the cook cannot produce a valid shader map for the
+master without a type-compatible default texture.
+
+**Fix:** Assign and read back a valid default texture on every texture-sample parameter expression
+before `MaterialEditingLibrary.recompile_material()` and saving the master. Use a normal map for a
+`SAMPLERTYPE_NORMAL` node, a mask texture for `SAMPLERTYPE_MASKS`, and matching defaults for the
+other sampler types. Package and boot the map, then require that its log contains no invalid or
+uncooked shader-map errors; an editor compile or material-instance readback alone does not prove
+the cooked shader exists.
+
 ### UInputModifier subobjects created via Python don't serialize
 
 **Problem:** `UInputModifierSwizzleAxis`, `UInputModifierNegate`, `UInputModifierDeadZone` objects created in Python and added to `EnhancedActionKeyMapping.Modifiers` array save as NULL references in the .uasset. The key mappings persist (action + key name survive) but all modifiers are lost on reload.

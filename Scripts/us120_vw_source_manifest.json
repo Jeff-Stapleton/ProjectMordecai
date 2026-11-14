@@ -16,6 +16,12 @@
     "texture_root": "/MordecaiCore/World/Terrain/VerdantWilds/Textures",
     "material_root": "/MordecaiCore/World/Terrain/VerdantWilds/Materials",
     "master_material": "/MordecaiCore/World/Terrain/Shared/Materials/M_Terrain_Master",
+    "master_material_default_textures": {
+      "BaseColorTexture": "T_VW_Grass_D",
+      "NormalTexture": "T_VW_Grass_N",
+      "ORMTexture": "T_VW_Grass_ORM",
+      "HeightTexture": "T_VW_Grass_H"
+    },
     "map": "/MordecaiCore/Game/Maps/L_VW_TileTest",
     "camera_space": {
       "yaw_deg": 0,
