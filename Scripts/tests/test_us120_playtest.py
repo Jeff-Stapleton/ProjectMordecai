@@ -245,9 +245,7 @@ class TestUs120Plan(unittest.TestCase):
             ],
         )
         proved = {ac for step in us120.PLAN for ac in step.proves}
-        self.assertEqual(
-            proved, {"AC-120.1", "AC-120.4", "AC-120.5", "AC-120.6", "AC-120.7"}
-        )
+        self.assertEqual(proved, {"AC-120.6", "AC-120.7"})
         self.assertEqual(us120.PLAN[0].proves, ())
 
     def test_every_required_screenshot_has_a_nonempty_expectation(self):

@@ -237,12 +237,12 @@ class TestUs120SourceManifest(unittest.TestCase):
                 elif "_OuterCorner_" in mesh_id:
                     self.assertEqual(
                         region,
-                        {"operator": "and", "x_lt_cm": -15.0, "y_lt_cm": -15.0},
+                        {"operator": "and", "x_gt_cm": 15.0, "y_lt_cm": -15.0},
                     )
                 else:
                     self.assertEqual(
                         region,
-                        {"operator": "or", "x_lt_cm": -15.0, "y_lt_cm": -15.0},
+                        {"operator": "or", "x_gt_cm": 15.0, "y_lt_cm": -15.0},
                     )
 
     def test_measured_values_are_not_baked_into_the_catalog_derived_manifest(self):

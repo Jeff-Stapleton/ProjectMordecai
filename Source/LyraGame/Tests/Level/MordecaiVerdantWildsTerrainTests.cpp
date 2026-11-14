@@ -217,8 +217,8 @@ namespace MordecaiVerdantWildsTests
 		return Lower;
 	}
 
-	TArray<FVector2D> ClipLessThan(
-		const TArray<FVector2D>& Polygon, bool bClipX, double Limit)
+	TArray<FVector2D> ClipHalfPlane(
+		const TArray<FVector2D>& Polygon, bool bClipX, double Limit, bool bKeepLess)
 	{
 		TArray<FVector2D> Result;
 		if (Polygon.IsEmpty())
@@ -230,10 +230,12 @@ namespace MordecaiVerdantWildsTests
 			return bClipX ? Point.X : Point.Y;
 		};
 		FVector2D Previous = Polygon.Last();
-		bool bPreviousInside = Coordinate(Previous) < Limit;
+		bool bPreviousInside = bKeepLess
+			? Coordinate(Previous) < Limit : Coordinate(Previous) > Limit;
 		for (const FVector2D& Current : Polygon)
 		{
-			const bool bCurrentInside = Coordinate(Current) < Limit;
+			const bool bCurrentInside = bKeepLess
+				? Coordinate(Current) < Limit : Coordinate(Current) > Limit;
 			if (bCurrentInside != bPreviousInside)
 			{
 				const double PreviousCoordinate = Coordinate(Previous);
@@ -266,23 +268,23 @@ namespace MordecaiVerdantWildsTests
 		TArray<FVector2D> Outline = ConvexOutline(Convex);
 		if (Operator == TEXT("half_plane"))
 		{
-			return !ClipLessThan(Outline, false,
-				Region->GetNumberField(TEXT("y_lt_cm")) - FootprintToleranceCm).IsEmpty();
+			return !ClipHalfPlane(Outline, false,
+				Region->GetNumberField(TEXT("y_lt_cm")) - FootprintToleranceCm, true).IsEmpty();
 		}
 		if (Operator == TEXT("and"))
 		{
-			Outline = ClipLessThan(Outline, true,
-				Region->GetNumberField(TEXT("x_lt_cm")) - FootprintToleranceCm);
-			Outline = ClipLessThan(Outline, false,
-				Region->GetNumberField(TEXT("y_lt_cm")) - FootprintToleranceCm);
+			Outline = ClipHalfPlane(Outline, true,
+				Region->GetNumberField(TEXT("x_gt_cm")) + FootprintToleranceCm, false);
+			Outline = ClipHalfPlane(Outline, false,
+				Region->GetNumberField(TEXT("y_lt_cm")) - FootprintToleranceCm, true);
 			return !Outline.IsEmpty();
 		}
 		if (Operator == TEXT("or"))
 		{
-			return !ClipLessThan(Outline, true,
-					Region->GetNumberField(TEXT("x_lt_cm")) - FootprintToleranceCm).IsEmpty()
-				|| !ClipLessThan(Outline, false,
-					Region->GetNumberField(TEXT("y_lt_cm")) - FootprintToleranceCm).IsEmpty();
+			return !ClipHalfPlane(Outline, true,
+					Region->GetNumberField(TEXT("x_gt_cm")) + FootprintToleranceCm, false).IsEmpty()
+				|| !ClipHalfPlane(Outline, false,
+					Region->GetNumberField(TEXT("y_lt_cm")) - FootprintToleranceCm, true).IsEmpty();
 		}
 		Test.AddError(FString::Printf(TEXT("unsupported corner_land_region operator '%s'"), *Operator));
 		return true;

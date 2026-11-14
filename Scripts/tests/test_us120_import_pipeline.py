@@ -151,6 +151,11 @@ class TestUs120ImporterSourceContract(unittest.TestCase):
         self.assertIn("missing texture for material parameter", self.source)
         self.assertNotIn('"HeightTexture"', self.source)
 
+    def test_import_report_records_measured_orientation_by_kind(self):
+        self.assertIn('"orientation_measurements"', self.source)
+        self.assertIn('"yaw_offset_deg"', self.source)
+        self.assertIn('"face_or_downhill_axes"', self.source)
+
     def test_map_builder_never_reflects_imported_mesh_or_collision(self):
         source = MAP_CREATOR.read_text(encoding="utf-8")
         self.assertNotIn("GeometryScript_MeshTransforms.transform_mesh", source)
