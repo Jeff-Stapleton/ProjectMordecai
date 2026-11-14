@@ -408,6 +408,7 @@ class Us120Run(kit.PlaytestRun):
     FEATURES = ("movement",)
     TITLE = "US-120 Verdant Wilds v3 terrain tiles (Tier 4, real input)"
     MAP = kit.VW_TILE_TEST_MAP
+    FAIL_ON_MATERIAL_ERRORS = True
     EXPERIENCE = kit.DEFAULT_EXPERIENCE
     SCREENSHOTS = SCREENSHOTS
     PLAN = PLAN

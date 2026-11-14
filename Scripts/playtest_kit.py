@@ -281,7 +281,8 @@ class PlaytestRun:
 
     execute() returns the exit code.  Class attributes (section 2.2): STORY, COVERS, FEATURES,
     TITLE, RUN_SUFFIX, MAP / EXPERIENCE / FRONTEND, SCREENSHOTS, KNOWN_ISSUES, PLAN, PENDING,
-    WALK_TOL, TAP_S, and SCRIPT (the script's path for the report; default: the module file).
+    WALK_TOL, TAP_S, FAIL_ON_MATERIAL_ERRORS, and SCRIPT (the script's path for the report;
+    default: the module file).
     """
 
     STORY = None
@@ -298,6 +299,7 @@ class PlaytestRun:
     PENDING = {}
     WALK_TOL = 60.0
     TAP_S = 0.1
+    FAIL_ON_MATERIAL_ERRORS = False
     SCRIPT = None
 
     def __init__(self, args):
@@ -850,8 +852,18 @@ class PlaytestRun:
                        "the build" + (": " + ", ".join(self.missing_content[:8])
                                       if self.missing_content else ""), "gameplay")
             s = self.log_summary
-            self.check("log_errors", "INFO", f"{s['errors']} error(s), {s['warnings']} "
-                       "warning(s) in game.log (informational)", "gameplay")
+            material_errors = s.get("material_errors", 0)
+            if self.FAIL_ON_MATERIAL_ERRORS and material_errors:
+                self.check(
+                    "log_errors",
+                    "FAIL",
+                    f"{material_errors} LogMaterial error(s), {s['errors']} total error(s), "
+                    f"{s['warnings']} warning(s) in game.log",
+                    "gameplay",
+                )
+            else:
+                self.check("log_errors", "INFO", f"{s['errors']} error(s), {s['warnings']} "
+                           "warning(s) in game.log (informational)", "gameplay")
         elif self.game_log_note is None:
             self.game_log_note = "game.log was not written"
 

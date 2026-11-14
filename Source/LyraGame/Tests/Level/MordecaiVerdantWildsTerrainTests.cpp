@@ -614,7 +614,7 @@ bool FMordecai_VW_MaterialsAndTexturesLoad::RunTest(const FString& Parameters)
 		TestTrue(TEXT("terrain master explicitly supports Nanite"), Master->bUsedWithNanite);
 		TArray<const UMaterialExpressionTextureSampleParameter2D*> TextureParameters;
 		Master->GetAllExpressionsOfType(TextureParameters);
-		TestEqual(TEXT("terrain master has three texture parameters"), TextureParameters.Num(), 3);
+		TSet<FName> NamedTextureParameters;
 		for (const UMaterialExpressionTextureSampleParameter2D* Parameter : TextureParameters)
 		{
 			const FString Name = Parameter ? Parameter->ParameterName.ToString() : TEXT("<null>");
@@ -628,7 +628,23 @@ bool FMordecai_VW_MaterialsAndTexturesLoad::RunTest(const FString& Parameters)
 				Parameter->SamplerType.GetValue(),
 				UMaterialExpressionTextureSampleParameter2D::GetSamplerTypeForTexture(
 					Parameter->Texture.Get()));
+			if (!Parameter->ParameterName.IsNone())
+			{
+				NamedTextureParameters.Add(Parameter->ParameterName);
+			}
 		}
+		TestEqual(TEXT("terrain master has three sampled named texture parameters"),
+			NamedTextureParameters.Num(), 3);
+		for (const FName Expected : {
+			FName(TEXT("BaseColorTexture")),
+			FName(TEXT("NormalTexture")),
+			FName(TEXT("ORMTexture")) })
+		{
+			TestTrue(FString::Printf(TEXT("terrain master contains %s"), *Expected.ToString()),
+				NamedTextureParameters.Contains(Expected));
+		}
+		TestFalse(TEXT("terrain master no longer references HeightTexture"),
+			NamedTextureParameters.Contains(TEXT("HeightTexture")));
 	}
 
 	const TMap<FString, TextureCompressionSettings> CompressionByName = {

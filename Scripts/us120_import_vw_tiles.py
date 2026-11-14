@@ -215,16 +215,37 @@ def connect(source, output_name, target, input_name):
         )
 
 
-def set_default_texture(expression, parameter, textures, defaults):
+def set_default_texture(
+    expression,
+    parameter,
+    textures,
+    defaults,
+    sampler_type,
+    expected_compression,
+    expected_srgb,
+):
     texture_path = defaults.get(parameter)
     texture = textures.get(texture_path)
     if texture is None and texture_path:
         texture = unreal.load_asset(texture_path)
     if texture is None:
         fail(f"missing master material default texture {parameter}: {texture_path}")
+    expression.set_editor_property("sampler_type", sampler_type)
     expression.set_editor_property("texture", texture)
     if expression.get_editor_property("texture") != texture:
         fail(f"master material default texture readback failed: {parameter}")
+    if expression.get_editor_property("sampler_type") != sampler_type:
+        fail(f"master material sampler readback failed: {parameter}")
+    if texture.get_editor_property("compression_settings") != expected_compression:
+        fail(
+            f"master material default texture compression mismatch: {parameter} "
+            f"({texture_path})"
+        )
+    if bool(texture.get_editor_property("srgb")) != expected_srgb:
+        fail(
+            f"master material default texture sRGB mismatch: {parameter} "
+            f"({texture_path})"
+        )
 
 
 def build_master_material(path, textures, defaults):
@@ -249,7 +270,15 @@ def build_master_material(path, textures, defaults):
         material, unreal.MaterialExpressionTextureSampleParameter2D, -720, -240
     )
     base.set_editor_property("parameter_name", "BaseColorTexture")
-    set_default_texture(base, "BaseColorTexture", textures, defaults)
+    set_default_texture(
+        base,
+        "BaseColorTexture",
+        textures,
+        defaults,
+        unreal.MaterialSamplerType.SAMPLERTYPE_COLOR,
+        unreal.TextureCompressionSettings.TC_DEFAULT,
+        True,
+    )
     tint = material_expression(
         material, unreal.MaterialExpressionVectorParameter, -720, -80
     )
@@ -270,8 +299,15 @@ def build_master_material(path, textures, defaults):
         material, unreal.MaterialExpressionTextureSampleParameter2D, -720, 100
     )
     normal.set_editor_property("parameter_name", "NormalTexture")
-    set_default_texture(normal, "NormalTexture", textures, defaults)
-    normal.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
+    set_default_texture(
+        normal,
+        "NormalTexture",
+        textures,
+        defaults,
+        unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
+        unreal.TextureCompressionSettings.TC_NORMALMAP,
+        False,
+    )
     normal_strength = material_expression(
         material, unreal.MaterialExpressionScalarParameter, -720, 250
     )
@@ -297,8 +333,15 @@ def build_master_material(path, textures, defaults):
         material, unreal.MaterialExpressionTextureSampleParameter2D, -720, 470
     )
     orm.set_editor_property("parameter_name", "ORMTexture")
-    set_default_texture(orm, "ORMTexture", textures, defaults)
-    orm.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_MASKS)
+    set_default_texture(
+        orm,
+        "ORMTexture",
+        textures,
+        defaults,
+        unreal.MaterialSamplerType.SAMPLERTYPE_MASKS,
+        unreal.TextureCompressionSettings.TC_MASKS,
+        False,
+    )
     roughness_scale = material_expression(
         material, unreal.MaterialExpressionScalarParameter, -460, 610
     )

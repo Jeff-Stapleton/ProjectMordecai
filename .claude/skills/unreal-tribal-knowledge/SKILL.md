@@ -258,10 +258,13 @@ master without a type-compatible default texture.
 
 **Fix:** Assign and read back a valid default texture on every texture-sample parameter expression
 before `MaterialEditingLibrary.recompile_material()` and saving the master. Use a normal map for a
-`SAMPLERTYPE_NORMAL` node, a mask texture for `SAMPLERTYPE_MASKS`, and matching defaults for the
-other sampler types. Package and boot the map, then require that its log contains no invalid or
-uncooked shader-map errors; an editor compile or material-instance readback alone does not prove
-the cooked shader exists.
+`SAMPLERTYPE_NORMAL` node and a linear masks-compressed texture (for example
+`/Engine/MaterialTemplates/LayerBlends/T_DefaultMaskTexture`) for `SAMPLERTYPE_MASKS`; the generic
+`/Engine/EngineResources/DefaultTexture` is Color/sRGB and makes a Masks node fail compilation.
+Remove obsolete named texture parameters rather than merely dropping their instance overrides;
+validate the saved material's named parameter set as well as every sampler/default pairing. Package
+and boot the map, then require that its log contains no `LogMaterial: Error` lines; an editor
+compile or material-instance readback alone does not prove the cooked shader exists.
 
 ### UInputModifier subobjects created via Python don't serialize
 

@@ -91,18 +91,19 @@ class TestUs120SourceManifest(unittest.TestCase):
         self.assertFalse(any("T_VW_" in value for value in defaults.values()))
         with open(IMPORTER, encoding="utf-8") as stream:
             importer = stream.read()
-        self.assertIn(
-            'set_default_texture(base, "BaseColorTexture", textures, defaults)',
-            importer,
-        )
-        self.assertIn(
-            'set_default_texture(normal, "NormalTexture", textures, defaults)',
-            importer,
-        )
-        self.assertIn(
-            'set_default_texture(orm, "ORMTexture", textures, defaults)',
-            importer,
-        )
+        for expression, parameter, sampler, compression, srgb in (
+            ("base", "BaseColorTexture", "COLOR", "DEFAULT", "True"),
+            ("normal", "NormalTexture", "NORMAL", "NORMALMAP", "False"),
+            ("orm", "ORMTexture", "MASKS", "MASKS", "False"),
+        ):
+            self.assertRegex(
+                importer,
+                re.compile(
+                    rf"set_default_texture\(\s*{expression},\s*\"{parameter}\","
+                    rf".*?SAMPLERTYPE_{sampler},.*?TC_{compression},\s*{srgb},\s*\)",
+                    re.DOTALL,
+                ),
+            )
         self.assertNotIn('"HeightTexture"', importer)
 
     def test_every_source_key_and_checksum_is_complete_and_unique(self):

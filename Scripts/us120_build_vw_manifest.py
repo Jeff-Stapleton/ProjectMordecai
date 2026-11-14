@@ -459,7 +459,7 @@ def build_manifest(catalog, catalog_bytes, expected_ready_ids=READY_IDS):
             "master_material_default_textures": {
                 "BaseColorTexture": "/Engine/EngineResources/DefaultTexture",
                 "NormalTexture": "/Engine/EngineMaterials/DefaultNormal",
-                "ORMTexture": "/Engine/EngineResources/DefaultTexture",
+                "ORMTexture": "/Engine/MaterialTemplates/LayerBlends/T_DefaultMaskTexture",
             },
             "map": "/MordecaiCore/Game/Maps/L_VW_TileTest",
             "camera_space": {
