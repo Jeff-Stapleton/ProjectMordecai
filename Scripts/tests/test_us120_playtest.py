@@ -144,6 +144,15 @@ class CompliantTileWorld(fb.FakeWorld):
         # Keep this compact fake deterministic when the test host stalls:
         # fake movement must not jump across an entire probe zone in one tick.
         super()._move(min(dt, 1.0 / 30.0))
+        if (
+            self.cross_deep
+            and self._deep_fixture_active
+            and held.get("S", 0.0)
+            and self._deep_probe_spec is not None
+        ):
+            spec = self._deep_probe_spec
+            self.pos[0] = spec["pivot"][0] + spec["direction"][0] * 80.0
+            self.pos[1] = spec["pivot"][1] + spec["direction"][1] * 80.0
         x, y = self.pos
         if 120.0 <= x <= 225.0 and abs(y) <= 80.0:
             if self.vel[0] > 0.0:
@@ -369,6 +378,7 @@ class TestUs120Plan(unittest.TestCase):
             self.assertGreater(spec["direction"][1], 0.0)
         self.assertEqual(by_label["inner_corner"]["face_progress"], 0.0)
         self.assertEqual(us120.DEEP_PUSHES, 3)
+        self.assertGreaterEqual(us120.PROBE_SETTLE_S, 0.5)
         self.assertTrue(
             all("minimum_contact_progress" in spec for spec in us120.DEEP_BANKS)
         )

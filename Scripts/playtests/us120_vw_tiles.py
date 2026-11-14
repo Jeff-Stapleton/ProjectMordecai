@@ -38,6 +38,7 @@ Z_TOL = 55.0
 BLOCK_HOLD_S = 1.5
 DEEP_PUSHES = 3
 PROBE_START_TOL = 25.0
+PROBE_SETTLE_S = 0.5
 JUMP_SAMPLE_S = 2.0
 GALLERY_VIEWPOINTS = (
     (-1200.0, 2000.0),
@@ -246,8 +247,7 @@ def derive_inner_corner_probe(lane, fixture, measurement):
         )
         for hull in hulls
     ]
-    local_x = sum(point[0] for point in centres) / len(centres)
-    local_y = sum(point[1] for point in centres) / len(centres)
+    local_x, local_y = centres[len(centres) // 2]
     local_length = math.hypot(local_x, local_y)
     if local_length <= 1.0:
         raise ab.BridgeError(
@@ -291,7 +291,7 @@ def derive_inner_corner_probe(lane, fixture, measurement):
         "wall_radial_max_cm": wall_radial_max,
         "wall_hulls_local_cm": hulls,
         "derivation": (
-            "mean centre of measured UE-space blocking-wall hulls, "
+            "centre of the middle measured UE-space blocking-wall hull, "
             f"rotated by lane yaw {float(lane['yaw_deg']):.1f} degrees"
         ),
     }
@@ -636,6 +636,8 @@ class Us120Run(kit.PlaytestRun):
                     "wall_radial_max_cm": spec.get("wall_radial_max_cm"),
                     "wall_hulls_local_cm": spec.get("wall_hulls_local_cm", []),
                     "path_points": [],
+                    "reapproaches": [],
+                    "settle_s": PROBE_SETTLE_S,
                 }
                 probe_log["probes"].append(path_record)
                 try:
@@ -643,6 +645,7 @@ class Us120Run(kit.PlaytestRun):
                     self.bridge.walk_to(
                         *spec["start"], tol=PROBE_START_TOL, timeout_s=25.0
                     )
+                    self.bridge.wait(PROBE_SETTLE_S)
                 except ab.BridgeError as exc:
                     results.append({
                         "representative": spec["label"],
@@ -660,6 +663,7 @@ class Us120Run(kit.PlaytestRun):
                 pushes = []
                 entered_basin = False
                 crossed = False
+                reapproach_error = None
                 for push_index in range(DEEP_PUSHES):
                     push_max = -math.inf
                     axis_values = spec.get("axis_values")
@@ -705,6 +709,23 @@ class Us120Run(kit.PlaytestRun):
                     self.bridge.wait(0.1)
                     if crossed:
                         break
+                    if push_index + 1 < DEEP_PUSHES:
+                        try:
+                            response = self.bridge.walk_to(
+                                *spec["start"],
+                                tol=PROBE_START_TOL,
+                                timeout_s=25.0,
+                            )
+                            path_record["reapproaches"].append({
+                                "after_push": push_index + 1,
+                                "target": list(spec["start"]),
+                                "final": response.get("final"),
+                            })
+                            self.bridge.wait(PROBE_SETTLE_S)
+                        except ab.BridgeError as exc:
+                            reapproach_error = str(exc)
+                            path_record["reapproach_error"] = reapproach_error
+                            break
                 classification = classify_deep_probe(
                     max_progress=max_progress,
                     minimum_contact=minimum_contact,
@@ -712,6 +733,8 @@ class Us120Run(kit.PlaytestRun):
                     minimum_z=min_z,
                     entered_basin=entered_basin,
                 )
+                if reapproach_error is not None:
+                    classification = "FIXTURE ERROR"
                 results.append({
                     "representative": spec["label"],
                     "keys": spec["keys"],
@@ -723,6 +746,7 @@ class Us120Run(kit.PlaytestRun):
                     "minimum_z": min_z,
                     "pushes": pushes,
                     "entered_basin": entered_basin,
+                    "reapproach_error": reapproach_error,
                     "classification": classification,
                 })
                 path_record.update({
