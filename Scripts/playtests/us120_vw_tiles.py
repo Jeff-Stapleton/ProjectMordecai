@@ -283,6 +283,10 @@ def derive_inner_corner_probe(lane, fixture, measurement):
         "route": route,
         "direction": direction,
         "keys": _movement_keys(direction),
+        "axis_values": {
+            "Gamepad_LeftY": direction[0],
+            "Gamepad_LeftX": direction[1],
+        },
         "water_regions_xy_cm": fixture["water_regions_xy_cm"],
         "wall_radial_max_cm": wall_radial_max,
         "wall_hulls_local_cm": hulls,
@@ -625,6 +629,7 @@ class Us120Run(kit.PlaytestRun):
                     "start": spec["start"],
                     "direction": spec["direction"],
                     "keys": spec["keys"],
+                    "axis_values": spec.get("axis_values"),
                     "face_progress": spec["face_progress"],
                     "water_regions_xy_cm": spec.get("water_regions_xy_cm", []),
                     "derivation": spec.get("derivation", "shared fixed lane contract"),
@@ -657,8 +662,12 @@ class Us120Run(kit.PlaytestRun):
                 crossed = False
                 for push_index in range(DEEP_PUSHES):
                     push_max = -math.inf
-                    for key in spec["keys"]:
-                        self.bridge.press(key)
+                    axis_values = spec.get("axis_values")
+                    if axis_values:
+                        self.bridge.axis(axis_values)
+                    else:
+                        for key in spec["keys"]:
+                            self.bridge.press(key)
                     try:
                         deadline = time.monotonic() + BLOCK_HOLD_S
                         while time.monotonic() < deadline:
@@ -685,8 +694,13 @@ class Us120Run(kit.PlaytestRun):
                                 break
                             time.sleep(0.05)
                     finally:
-                        for key in reversed(spec["keys"]):
-                            self.bridge.release(key)
+                        if axis_values:
+                            self.bridge.axis(
+                                {axis: 0.0 for axis in axis_values}
+                            )
+                        else:
+                            for key in reversed(spec["keys"]):
+                                self.bridge.release(key)
                     pushes.append(push_max)
                     self.bridge.wait(0.1)
                     if crossed:
@@ -701,6 +715,7 @@ class Us120Run(kit.PlaytestRun):
                 results.append({
                     "representative": spec["label"],
                     "keys": spec["keys"],
+                    "axis_values": spec.get("axis_values"),
                     "location": location,
                     "max_progress": max_progress,
                     "minimum_contact": minimum_contact,
