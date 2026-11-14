@@ -378,7 +378,10 @@ class TestUs120Plan(unittest.TestCase):
             self.assertGreater(spec["direction"][1], 0.0)
         self.assertEqual(by_label["inner_corner"]["face_progress"], 0.0)
         self.assertEqual(us120.DEEP_PUSHES, 3)
+        self.assertLessEqual(us120.PROBE_START_TOL, 5.0)
         self.assertGreaterEqual(us120.PROBE_SETTLE_S, 0.5)
+        self.assertLessEqual(us120.PROBE_CONTACT_EPS_CM, 2.0)
+        self.assertGreaterEqual(us120.PROBE_CONTACT_STABLE_S, 0.25)
         self.assertTrue(
             all("minimum_contact_progress" in spec for spec in us120.DEEP_BANKS)
         )

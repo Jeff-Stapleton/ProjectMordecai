@@ -37,8 +37,10 @@ TIER1_Z = 292.0
 Z_TOL = 55.0
 BLOCK_HOLD_S = 1.5
 DEEP_PUSHES = 3
-PROBE_START_TOL = 25.0
+PROBE_START_TOL = 5.0
 PROBE_SETTLE_S = 0.5
+PROBE_CONTACT_EPS_CM = 2.0
+PROBE_CONTACT_STABLE_S = 0.25
 JUMP_SAMPLE_S = 2.0
 GALLERY_VIEWPOINTS = (
     (-1200.0, 2000.0),
@@ -666,6 +668,8 @@ class Us120Run(kit.PlaytestRun):
                 reapproach_error = None
                 for push_index in range(DEEP_PUSHES):
                     push_max = -math.inf
+                    last_advance_at = time.monotonic()
+                    stop_reason = "hold_complete"
                     axis_values = spec.get("axis_values")
                     if axis_values:
                         self.bridge.axis(axis_values)
@@ -684,7 +688,11 @@ class Us120Run(kit.PlaytestRun):
                             )
                             inside_basin = _inside_water_side(location, spec)
                             max_progress = max(max_progress, progress)
-                            push_max = max(push_max, progress)
+                            if progress > push_max + PROBE_CONTACT_EPS_CM:
+                                push_max = progress
+                                last_advance_at = time.monotonic()
+                            else:
+                                push_max = max(push_max, progress)
                             min_z = min(min_z, location[2])
                             entered_basin = entered_basin or inside_basin
                             path_record["path_points"].append({
@@ -695,6 +703,14 @@ class Us120Run(kit.PlaytestRun):
                             })
                             if progress > max_allowed:
                                 crossed = True
+                                stop_reason = "crossed_limit"
+                                break
+                            if (
+                                progress >= minimum_contact
+                                and time.monotonic() - last_advance_at
+                                >= PROBE_CONTACT_STABLE_S
+                            ):
+                                stop_reason = "stable_contact"
                                 break
                             time.sleep(0.05)
                     finally:
@@ -706,6 +722,9 @@ class Us120Run(kit.PlaytestRun):
                             for key in reversed(spec["keys"]):
                                 self.bridge.release(key)
                     pushes.append(push_max)
+                    path_record.setdefault("push_stop_reasons", []).append(
+                        stop_reason
+                    )
                     self.bridge.wait(0.1)
                     if crossed:
                         break
