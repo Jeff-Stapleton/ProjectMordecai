@@ -63,6 +63,16 @@ EDITOR_EXE = os.path.join(
 )
 UPROJECT = os.path.join(PROJECT_ROOT, "ProjectMordecai.uproject")
 
+
+def default_smoke_tests(map_path):
+    """Return the map-aware default smoke suite for a test map."""
+    tests = list(ANY_MAP_TESTS)
+    if normalize_map(map_path or "").lower() == normalize_map(
+        "/MordecaiCore/Game/Maps/L_VW_TileTest"
+    ).lower():
+        tests.append("vw_tiles")
+    return tests
+
 PHASE_MARKER = "PIE_NEXT_PHASE"  # printed by a verify script that must run again on a later editor frame
 MAX_PHASES = 8
 PHASE_DELAY_S = 2.0
@@ -333,7 +343,7 @@ def main():
     if args.tests:
         filter_names = [t.strip() for t in args.tests.split(",")]
     elif is_test_map(map_path):
-        filter_names = list(ANY_MAP_TESTS)
+        filter_names = default_smoke_tests(map_path)
         log(f"{map_path} is a test map: running the smoke tests for any map ({','.join(filter_names)})")
 
     # --- Step 1: Ensure editor is running ---

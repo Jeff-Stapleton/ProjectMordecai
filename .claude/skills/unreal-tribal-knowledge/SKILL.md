@@ -244,6 +244,25 @@ Use `notify_mode=unreal.PropertyAccessChangeNotifyMode.NEVER` on the CDO writes 
 
 **Fix:** Ignore the bool. Read the value back with `get_material_instance_vector_parameter_value` and compare (see `Scripts/us085_configure_frontliner.py`).
 
+### Texture sample parameters need valid defaults before a material is cooked
+
+**Problem:** A Python-created master material and its instances look valid in the editor, but a
+packaged map logs `Loading a material resource None with an invalid ShaderMap` and
+`Tried to access an uncooked shader map ID in a cooked application`. Unreal then warns that it
+cannot compile the material with cooked content and renders the default material.
+
+**Root cause:** `MaterialExpressionTextureSampleParameter2D` nodes had parameter names and the
+material instances supplied overrides, but the master expressions themselves had no `texture`.
+The editor can tolerate that while editing; the cook cannot produce a valid shader map for the
+master without a type-compatible default texture.
+
+**Fix:** Assign and read back a valid default texture on every texture-sample parameter expression
+before `MaterialEditingLibrary.recompile_material()` and saving the master. Use a normal map for a
+`SAMPLERTYPE_NORMAL` node, a mask texture for `SAMPLERTYPE_MASKS`, and matching defaults for the
+other sampler types. Package and boot the map, then require that its log contains no invalid or
+uncooked shader-map errors; an editor compile or material-instance readback alone does not prove
+the cooked shader exists.
+
 ### UInputModifier subobjects created via Python don't serialize
 
 **Problem:** `UInputModifierSwizzleAxis`, `UInputModifierNegate`, `UInputModifierDeadZone` objects created in Python and added to `EnhancedActionKeyMapping.Modifiers` array save as NULL references in the .uasset. The key mappings persist (action + key name survive) but all modifiers are lost on reload.
@@ -1069,6 +1088,38 @@ Test fixture maps need no playlist: they are launched by `--map` (`playtest_boot
 - The research behind steps 1-9: `Config/DefaultEngine.ini` (`GlobalDefaultGameMode`), `MordecaiGameMode.cpp` (`InitGame`), `LevelEditorSubsystem.cpp` (`new_level`), `NavigationSystem.cpp` (`FNavigationSystemExec::Exec_Runtime`: `RebuildNavigation` → `Build` only with `NavDataSet.Num() > 0`; `PerformNavigationBoundsUpdate`).
 - Step 4's first-run failure: `Saved/Logs/ProjectMordecai-backup-2026.10.29-13.29.17.log` (13.24.55, `Cmd: RebuildNavigation` with no Build after it; the 13.25.04 rerun on the existing map built).
 - The recipe works in the package: on `9904cde` both maps boot `B_MordecaiArenaExperience` (`Saved/Playtests/20261029-175527-boot`, `-175546-boot`) and the CombatTestMap attacker hits and resets (`20261029-175647-us054combat`); `stories/done/US-100-recovery-playtest-test-maps.md`.
+
+---
+
+## Static Mesh Import
+
+### UE 5.7 unattended FBX import needs the legacy factory for named UCX
+
+**Problem:** An unattended Python import either crashed in Content Browser
+sync, silently discarded every authored `UCX_*` hull, or produced apparently
+mirrored bounds when compared directly with a right-handed source catalog.
+
+**Root cause:** `AssetImportTask` defaults to Interchange in UE 5.7.
+Interchange did not preserve these named UCX hulls, and its commandlet path
+attempted `SyncBrowserToAssets`. An explicit `FbxFactory` preserves the hulls.
+The legacy FBX importer also performs the correct handedness conversion from
+right-handed FBX source coordinates to Unreal coordinates: it negates source Y.
+Do not mirror the result after import. Thus
+source bounds `(MinY, MaxY)` become UE bounds `(-MaxY, -MinY)`.
+
+**Fix:** For a deterministic `-run=pythonscript` static-mesh import:
+- pass an explicit `unreal.FbxFactory` and configured
+  `FbxImportUI.static_mesh_import_data`;
+- disable the Interchange FBX feature flag so the explicit legacy factory and
+  its Nanite/material/lightmap-UV options are honored;
+- disable `Interchange.FeatureFlags.Import.SyncToBrowser` for the commandlet;
+- convert catalog bounds and any direction-dependent contracts to UE space
+  before comparing them with the imported asset;
+- read back bounds (within an explicit tolerance), source identity, hulls,
+  slots, Nanite, build scale, lightmap-UV settings, and saved packages;
+- never add a post-import Geometry Script reflection or negative build/actor
+  scale to "correct" handedness. That mirrors visually correct imported art
+  and can desynchronize render geometry from named UCX collision.
 
 ---
 

@@ -1,0 +1,3150 @@
+{
+  "schema_version": 2,
+  "source": {
+    "bucket": "mordecai-assets",
+    "catalog_key": "catalog/catalog.json",
+    "catalog_updated_at": "2026-11-12T17:35:42-07:00",
+    "catalog_sha256": "5b90d933a3e30777900447bf065a3f6bc32b652e67697c7ec3b995f71565a022",
+    "kit_id": "VW_tiles_v3",
+    "kit_prefix": "biomes/verdant_wilds/tiles/v3/",
+    "only_import_status": "ready"
+  },
+  "import_contract": {
+    "units": "cm",
+    "grid_cm": 200,
+    "asset_root": "/MordecaiCore/World/Terrain/VerdantWilds",
+    "mesh_root": "/MordecaiCore/World/Terrain/VerdantWilds/Meshes",
+    "texture_root": "/MordecaiCore/World/Terrain/VerdantWilds/Textures",
+    "material_root": "/MordecaiCore/World/Terrain/VerdantWilds/Materials",
+    "master_material": "/MordecaiCore/World/Terrain/Shared/Materials/M_Terrain_Master",
+    "master_material_default_textures": {
+      "BaseColorTexture": "/Engine/EngineResources/DefaultTexture",
+      "NormalTexture": "/Engine/EngineMaterials/DefaultNormal",
+      "ORMTexture": "/Engine/EngineResources/DefaultTexture"
+    },
+    "map": "/MordecaiCore/Game/Maps/L_VW_TileTest",
+    "camera_space": {
+      "yaw_deg": 0,
+      "screen_north_axis": "+X",
+      "screen_east_axis": "+Y"
+    }
+  },
+  "orientation_contract": {
+    "coordinate_conversion": "source Y negated to UE Y",
+    "bounds_tolerance_cm": 1.0,
+    "yaw_offset_deg": -90.0,
+    "source_straight_cliff_face_axis": "-Y",
+    "source_ramp_2t_downhill_axis": "-Y",
+    "straight_cliff_face_axis": "+Y",
+    "ramp_2t_downhill_axis": "+Y",
+    "by_kind": {
+      "cliff": {
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "yaw_offset_deg": -90.0
+      },
+      "pit": {
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "yaw_offset_deg": -90.0
+      },
+      "pond_bank": {
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "yaw_offset_deg": -90.0
+      },
+      "pond_bank_deep": {
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "yaw_offset_deg": -90.0
+      },
+      "ramp": {
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "yaw_offset_deg": -90.0
+      }
+    }
+  },
+  "pond_collision_contracts": {
+    "coordinator_decision": "D3 pond amendment, 2026-11-13 18:46 MT; converted to UE space by R1",
+    "rationale": "The bank and bed occupy the adjacent water tile; deep pieces carry deliberate blocking walls.",
+    "edge_xy_cm": [
+      -100.0,
+      100.0,
+      -200.0,
+      200.0
+    ],
+    "edge_x_tolerance_cm": 15.0,
+    "corner_xy_cm": [
+      -200.0,
+      200.0,
+      -200.0,
+      200.0
+    ],
+    "min_z_cm": -200.0,
+    "shallow_max_z_cm": 15.0,
+    "deep_wall_max_z_cm": 250.0,
+    "land_intrusion_limit_cm": 15.0
+  },
+  "material_textures": {
+    "MI_VW_Grass": {
+      "BaseColorTexture": "T_VW_Grass_D",
+      "NormalTexture": "T_VW_Grass_N",
+      "ORMTexture": "T_VW_Grass_ORM"
+    },
+    "MI_VW_CliffFace": {
+      "BaseColorTexture": "T_VW_CliffFace_D",
+      "NormalTexture": "T_VW_CliffFace_N",
+      "ORMTexture": "T_VW_CliffFace_ORM"
+    },
+    "MI_VW_YarnRoot": {
+      "BaseColorTexture": "T_VW_YarnRoot_D",
+      "NormalTexture": "T_VW_YarnRoot_N",
+      "ORMTexture": "T_VW_YarnRoot_ORM"
+    },
+    "MI_VW_GrassToPath": {
+      "BaseColorTexture": "T_VW_Path_D",
+      "NormalTexture": "T_VW_Path_N",
+      "ORMTexture": "T_VW_Path_ORM"
+    }
+  },
+  "catalog_slot_mismatch": [
+    {
+      "id": "SM_VW_Pond_Edge_01",
+      "catalog_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "fbx_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "rationale": "FBX ImportedMaterialSlotName is ground truth"
+    },
+    {
+      "id": "SM_VW_Pond_OuterCorner_01",
+      "catalog_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "fbx_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "rationale": "FBX ImportedMaterialSlotName is ground truth"
+    },
+    {
+      "id": "SM_VW_Pond_InnerCorner_01",
+      "catalog_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "fbx_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "rationale": "FBX ImportedMaterialSlotName is ground truth"
+    },
+    {
+      "id": "SM_VW_Pond_Edge_Deep_01",
+      "catalog_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "fbx_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "rationale": "FBX ImportedMaterialSlotName is ground truth"
+    },
+    {
+      "id": "SM_VW_Pond_OuterCorner_Deep_01",
+      "catalog_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "fbx_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "rationale": "FBX ImportedMaterialSlotName is ground truth"
+    },
+    {
+      "id": "SM_VW_Pond_InnerCorner_Deep_01",
+      "catalog_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "fbx_material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "rationale": "FBX ImportedMaterialSlotName is ground truth"
+    }
+  ],
+  "test_fixture": {
+    "camera_space": {
+      "yaw_deg": 0,
+      "screen_north_axis": "+X",
+      "screen_east_axis": "+Y"
+    },
+    "gallery": [
+      {
+        "label": "SM_VW_FeltCliff_Straight_01",
+        "mesh": "SM_VW_FeltCliff_Straight_01",
+        "location_cm": [
+          -800.0,
+          1400.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_FeltCliff_Straight_02",
+        "mesh": "SM_VW_FeltCliff_Straight_02",
+        "location_cm": [
+          -800.0,
+          1600.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_FeltCliff_Straight_03",
+        "mesh": "SM_VW_FeltCliff_Straight_03",
+        "location_cm": [
+          -800.0,
+          2400.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_FeltCliff_OuterCorner_01",
+        "mesh": "SM_VW_FeltCliff_OuterCorner_01",
+        "location_cm": [
+          -800.0,
+          2600.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_FeltCliff_InnerCorner_01",
+        "mesh": "SM_VW_FeltCliff_InnerCorner_01",
+        "location_cm": [
+          0.0,
+          1400.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_FeltCliff_EndCap_01",
+        "mesh": "SM_VW_FeltCliff_EndCap_01",
+        "location_cm": [
+          0.0,
+          1600.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_Pit_Edge_01",
+        "mesh": "SM_VW_Pit_Edge_01",
+        "location_cm": [
+          0.0,
+          2400.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_Pit_OuterCorner_01",
+        "mesh": "SM_VW_Pit_OuterCorner_01",
+        "location_cm": [
+          0.0,
+          2600.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_Pit_InnerCorner_01",
+        "mesh": "SM_VW_Pit_InnerCorner_01",
+        "location_cm": [
+          800.0,
+          1400.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_Pond_Edge_01",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          800.0,
+          1600.0,
+          160.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_Pond_OuterCorner_01",
+        "mesh": "SM_VW_Pond_OuterCorner_01",
+        "location_cm": [
+          800.0,
+          2400.0,
+          160.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_Pond_InnerCorner_01",
+        "mesh": "SM_VW_Pond_InnerCorner_01",
+        "location_cm": [
+          800.0,
+          2600.0,
+          160.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_Pond_Edge_Deep_01",
+        "mesh": "SM_VW_Pond_Edge_Deep_01",
+        "location_cm": [
+          1600.0,
+          1200.0,
+          160.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_Pond_OuterCorner_Deep_01",
+        "mesh": "SM_VW_Pond_OuterCorner_Deep_01",
+        "location_cm": [
+          1600.0,
+          1400.0,
+          160.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_Pond_InnerCorner_Deep_01",
+        "mesh": "SM_VW_Pond_InnerCorner_Deep_01",
+        "location_cm": [
+          1600.0,
+          1600.0,
+          160.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_FeltCliff_Ramp_2T_01",
+        "mesh": "SM_VW_FeltCliff_Ramp_2T_01",
+        "location_cm": [
+          1600.0,
+          2200.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "SM_VW_FeltCliff_Ramp_3T_01",
+        "mesh": "SM_VW_FeltCliff_Ramp_3T_01",
+        "location_cm": [
+          1600.0,
+          2800.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    ],
+    "lanes": [
+      {
+        "label": "VW_Lane_Ramp2T",
+        "mesh": "SM_VW_FeltCliff_Ramp_2T_01",
+        "location_cm": [
+          200.0,
+          -600.0,
+          0.0
+        ],
+        "yaw_deg": 90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Lane_Ramp3T",
+        "mesh": "SM_VW_FeltCliff_Ramp_3T_01",
+        "location_cm": [
+          200.0,
+          600.0,
+          0.0
+        ],
+        "yaw_deg": 90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Lane_Cliff",
+        "mesh": "SM_VW_FeltCliff_Straight_01",
+        "location_cm": [
+          1400.0,
+          0.0,
+          0.0
+        ],
+        "yaw_deg": 90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Lane_ShallowPond",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2200.0,
+          0.0,
+          0.0
+        ],
+        "yaw_deg": -90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Lane_ShallowPond_Far",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2800.0,
+          0.0,
+          0.0
+        ],
+        "yaw_deg": 90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Lane_DeepEdge",
+        "mesh": "SM_VW_Pond_Edge_Deep_01",
+        "location_cm": [
+          3800.0,
+          -1000.0,
+          0.0
+        ],
+        "yaw_deg": 90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Lane_DeepOuterCorner",
+        "mesh": "SM_VW_Pond_OuterCorner_Deep_01",
+        "location_cm": [
+          3800.0,
+          0.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Lane_DeepInnerCorner",
+        "mesh": "SM_VW_Pond_InnerCorner_Deep_01",
+        "location_cm": [
+          3800.0,
+          1000.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    ],
+    "shallow_bank_ring": [
+      {
+        "label": "VW_Shallow_Bank_S_0",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2200.0,
+          -200.0,
+          0.0
+        ],
+        "yaw_deg": -90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_S_1",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2200.0,
+          200.0,
+          0.0
+        ],
+        "yaw_deg": -90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_N_0",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2800.0,
+          -200.0,
+          0.0
+        ],
+        "yaw_deg": 90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_N_1",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2800.0,
+          200.0,
+          0.0
+        ],
+        "yaw_deg": 90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_W_0",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2300.0,
+          -300.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_W_1",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2500.0,
+          -300.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_W_2",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2700.0,
+          -300.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_E_0",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2300.0,
+          300.0,
+          0.0
+        ],
+        "yaw_deg": 180.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_E_1",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2500.0,
+          300.0,
+          0.0
+        ],
+        "yaw_deg": 180.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_E_2",
+        "mesh": "SM_VW_Pond_Edge_01",
+        "location_cm": [
+          2700.0,
+          300.0,
+          0.0
+        ],
+        "yaw_deg": 180.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_Corner_SW",
+        "mesh": "SM_VW_Pond_InnerCorner_01",
+        "location_cm": [
+          2200.0,
+          -300.0,
+          0.0
+        ],
+        "yaw_deg": -90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_Corner_NW",
+        "mesh": "SM_VW_Pond_InnerCorner_01",
+        "location_cm": [
+          2800.0,
+          -300.0,
+          0.0
+        ],
+        "yaw_deg": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_Corner_NE",
+        "mesh": "SM_VW_Pond_InnerCorner_01",
+        "location_cm": [
+          2800.0,
+          300.0,
+          0.0
+        ],
+        "yaw_deg": 90.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "label": "VW_Shallow_Bank_Corner_SE",
+        "mesh": "SM_VW_Pond_InnerCorner_01",
+        "location_cm": [
+          2200.0,
+          300.0,
+          0.0
+        ],
+        "yaw_deg": 180.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    ],
+    "deep_lanes": [
+      {
+        "label": "edge",
+        "actor_label": "VW_Lane_DeepEdge",
+        "mesh": "SM_VW_Pond_Edge_Deep_01",
+        "basin_bounds_cm": [
+          3500.0,
+          4100.0,
+          -1300.0,
+          -700.0,
+          -141.0,
+          0.0
+        ],
+        "bed_label": "VW_DeepEdge_Bed",
+        "bed_bounds_cm": [
+          3500.0,
+          4100.0,
+          -1300.0,
+          -700.0,
+          -200.0,
+          -141.0
+        ],
+        "bed_top_z_cm": -141.0,
+        "water_label": "VW_DeepEdge_Water",
+        "water_bounds_cm": [
+          3530.0,
+          4070.0,
+          -1270.0,
+          -730.0,
+          -10.0,
+          -8.0
+        ],
+        "water_regions_xy_cm": [
+          [
+            3500.0,
+            3800.0,
+            -1300.0,
+            -700.0
+          ]
+        ],
+        "land_supports": [
+          {
+            "label": "VW_DeepEdge_Land",
+            "bounds_cm": [
+              3800.0,
+              4100.0,
+              -1300.0,
+              -700.0,
+              -100.0,
+              0.0
+            ]
+          }
+        ],
+        "clear_route_xy_cm": [
+          [
+            4200.0,
+            -1400.0
+          ],
+          [
+            4200.0,
+            -1000.0
+          ]
+        ]
+      },
+      {
+        "label": "outer_corner",
+        "actor_label": "VW_Lane_DeepOuterCorner",
+        "mesh": "SM_VW_Pond_OuterCorner_Deep_01",
+        "basin_bounds_cm": [
+          3500.0,
+          4100.0,
+          -300.0,
+          300.0,
+          -141.0,
+          0.0
+        ],
+        "bed_label": "VW_DeepOuterCorner_Bed",
+        "bed_bounds_cm": [
+          3500.0,
+          4100.0,
+          -300.0,
+          300.0,
+          -200.0,
+          -141.0
+        ],
+        "bed_top_z_cm": -141.0,
+        "water_label": "VW_DeepOuterCorner_Water",
+        "water_bounds_cm": [
+          3530.0,
+          4070.0,
+          -270.0,
+          270.0,
+          -10.0,
+          -8.0
+        ],
+        "water_regions_xy_cm": [
+          [
+            3500.0,
+            3800.0,
+            -300.0,
+            300.0
+          ],
+          [
+            3800.0,
+            4100.0,
+            0.0,
+            300.0
+          ]
+        ],
+        "land_supports": [
+          {
+            "label": "VW_DeepOuterCorner_Land",
+            "bounds_cm": [
+              3800.0,
+              4100.0,
+              -300.0,
+              0.0,
+              -100.0,
+              0.0
+            ]
+          }
+        ],
+        "clear_route_xy_cm": [
+          [
+            4200.0,
+            -1000.0
+          ],
+          [
+            4200.0,
+            -300.0
+          ]
+        ]
+      },
+      {
+        "label": "inner_corner",
+        "actor_label": "VW_Lane_DeepInnerCorner",
+        "mesh": "SM_VW_Pond_InnerCorner_Deep_01",
+        "basin_bounds_cm": [
+          3500.0,
+          4100.0,
+          700.0,
+          1300.0,
+          -141.0,
+          0.0
+        ],
+        "bed_label": "VW_DeepInnerCorner_Bed",
+        "bed_bounds_cm": [
+          3500.0,
+          4100.0,
+          700.0,
+          1300.0,
+          -200.0,
+          -141.0
+        ],
+        "bed_top_z_cm": -141.0,
+        "water_label": "VW_DeepInnerCorner_Water",
+        "water_bounds_cm": [
+          3530.0,
+          4070.0,
+          730.0,
+          1270.0,
+          -10.0,
+          -8.0
+        ],
+        "water_regions_xy_cm": [
+          [
+            3500.0,
+            3800.0,
+            1000.0,
+            1300.0
+          ]
+        ],
+        "land_supports": [
+          {
+            "label": "VW_DeepInnerCorner_LandEast",
+            "bounds_cm": [
+              3800.0,
+              4100.0,
+              700.0,
+              1300.0,
+              -100.0,
+              0.0
+            ]
+          },
+          {
+            "label": "VW_DeepInnerCorner_LandSouth",
+            "bounds_cm": [
+              3500.0,
+              3800.0,
+              700.0,
+              1000.0,
+              -100.0,
+              0.0
+            ]
+          }
+        ],
+        "clear_route_xy_cm": [
+          [
+            4200.0,
+            500.0
+          ],
+          [
+            4200.0,
+            880.0
+          ]
+        ]
+      }
+    ]
+  },
+  "meshes": [
+    {
+      "id": "SM_VW_FeltCliff_Straight_01",
+      "name": "Cliff Straight 01",
+      "status": "ready",
+      "kind": "cliff",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_FeltCliff_Straight_01/SM_VW_FeltCliff_Straight_01.fbx",
+        "size": 549628,
+        "sha1": "0d210bd50b9a3b6eb43f3bbbe7b0abe622b4a438",
+        "sha256": "f9290af8810c636953d01ef9cac0504334a4fa5303aed2a518726cd78fb1961e"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -100.0,
+          -24.9,
+          -4.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          205.6
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -4.0
+        ],
+        "max": [
+          100.0,
+          24.9,
+          205.6
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            -100.0,
+            100.0,
+            -200.0,
+            -0.0
+          ]
+        ],
+        "z_cm": [
+          -4.0,
+          205.6
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.5,
+              0.0
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_FeltCliff_Straight_01_00"
+        ],
+        "count": 1
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_CliffFace_D",
+        "T_VW_CliffFace_N",
+        "T_VW_CliffFace_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "height_cm": 200.0
+      }
+    },
+    {
+      "id": "SM_VW_FeltCliff_Straight_02",
+      "name": "Cliff Straight 02",
+      "status": "ready",
+      "kind": "cliff",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_FeltCliff_Straight_02/SM_VW_FeltCliff_Straight_02.fbx",
+        "size": 630044,
+        "sha1": "28f6ceec53bd36411146b6a240a477912f7de8f6",
+        "sha256": "750e93bf37e6d62ee0b9c8b7588b87133457c02c181ebd5d997e33b5d322d96c"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -100.0,
+          -26.3,
+          -4.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          205.9
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -4.0
+        ],
+        "max": [
+          100.0,
+          26.3,
+          205.9
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            -100.0,
+            100.0,
+            -200.0,
+            -0.0
+          ]
+        ],
+        "z_cm": [
+          -4.0,
+          205.9
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.5,
+              0.0
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_FeltCliff_Straight_02_00"
+        ],
+        "count": 1
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_CliffFace_D",
+        "T_VW_CliffFace_N",
+        "T_VW_CliffFace_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "height_cm": 200.0
+      }
+    },
+    {
+      "id": "SM_VW_FeltCliff_Straight_03",
+      "name": "Cliff Straight 03",
+      "status": "ready",
+      "kind": "cliff",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_FeltCliff_Straight_03/SM_VW_FeltCliff_Straight_03.fbx",
+        "size": 442300,
+        "sha1": "11206f2e33f708921097cc7ffbf7c7a7f85e0aad",
+        "sha256": "a152295fe7db0216410a7b1f46121e8f501ffe716847d71d4424d9418fcf1570"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -100.0,
+          -25.0,
+          -4.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          205.7
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -4.0
+        ],
+        "max": [
+          100.0,
+          25.0,
+          205.7
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            -100.0,
+            100.0,
+            -200.0,
+            -0.0
+          ]
+        ],
+        "z_cm": [
+          -4.0,
+          205.7
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.5,
+              0.0
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_FeltCliff_Straight_03_00"
+        ],
+        "count": 1
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_CliffFace_D",
+        "T_VW_CliffFace_N",
+        "T_VW_CliffFace_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "height_cm": 200.0
+      }
+    },
+    {
+      "id": "SM_VW_FeltCliff_OuterCorner_01",
+      "name": "Cliff Outer Corner 01",
+      "status": "ready",
+      "kind": "cliff",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_FeltCliff_OuterCorner_01/SM_VW_FeltCliff_OuterCorner_01.fbx",
+        "size": 445532,
+        "sha1": "150ec60f308aa3d1fa0172a2ad527f8bf8dc32b3",
+        "sha256": "b9c45fa1166d53690d7644ef6af110b87d7b7de979648f46cc9d9030d5f77d6b"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -22.0,
+          -22.0,
+          -4.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          205.3
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -22.0,
+          -100.0,
+          -4.0
+        ],
+        "max": [
+          100.0,
+          22.0,
+          205.3
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            0.0,
+            200.0,
+            -200.0,
+            -0.0
+          ]
+        ],
+        "z_cm": [
+          -4.0,
+          205.3
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.0,
+              0.0
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "+X",
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "-X",
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_FeltCliff_OuterCorner_01_00"
+        ],
+        "count": 1
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_CliffFace_D",
+        "T_VW_CliffFace_N",
+        "T_VW_CliffFace_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "height_cm": 200.0
+      }
+    },
+    {
+      "id": "SM_VW_FeltCliff_InnerCorner_01",
+      "name": "Cliff Inner Corner 01",
+      "status": "ready",
+      "kind": "cliff",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_FeltCliff_InnerCorner_01/SM_VW_FeltCliff_InnerCorner_01.fbx",
+        "size": 372540,
+        "sha1": "3ea268475406bf107fd7a9656d1ca0d731143444",
+        "sha256": "d4c4165f08c3057a0565bf60a19e0b4683796de470df5534e071eee5919b5b14"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -4.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          205.2
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -4.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          205.2
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            -100.0,
+            100.0,
+            -200.0,
+            -0.0
+          ],
+          [
+            0.0,
+            200.0,
+            -100.0,
+            100.0
+          ]
+        ],
+        "z_cm": [
+          -4.0,
+          205.2
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.5,
+              0.0
+            ]
+          },
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.0,
+              0.5
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "+X",
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "-X",
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_FeltCliff_InnerCorner_01_00",
+          "UCX_SM_VW_FeltCliff_InnerCorner_01_01"
+        ],
+        "count": 2
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_CliffFace_D",
+        "T_VW_CliffFace_N",
+        "T_VW_CliffFace_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "height_cm": 200.0
+      }
+    },
+    {
+      "id": "SM_VW_FeltCliff_EndCap_01",
+      "name": "Cliff End Cap 01",
+      "status": "ready",
+      "kind": "cliff",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_FeltCliff_EndCap_01/SM_VW_FeltCliff_EndCap_01.fbx",
+        "size": 788236,
+        "sha1": "50f1eeeb4e52dd839138e8519c8fdba83a85594a",
+        "sha256": "c1b1f62bad8357671f3ea71d6beaef7f3795f8989c0bf394305cf2788eb38e68"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -100.0,
+          -22.9,
+          -4.0
+        ],
+        "max": [
+          69.7,
+          222.0,
+          205.9
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -100.0,
+          -222.0,
+          -4.0
+        ],
+        "max": [
+          69.7,
+          22.9,
+          205.9
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x2",
+        "rects_cm": [
+          [
+            -100.0,
+            100.0,
+            -400.0,
+            -0.0
+          ]
+        ],
+        "z_cm": [
+          -4.0,
+          205.9
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              2
+            ],
+            "pivot_offset_tiles": [
+              0.5,
+              0.0
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_FeltCliff_EndCap_01_00"
+        ],
+        "count": 1
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_CliffFace_D",
+        "T_VW_CliffFace_N",
+        "T_VW_CliffFace_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "height_cm": 200.0
+      }
+    },
+    {
+      "id": "SM_VW_Pit_Edge_01",
+      "name": "Pit Edge 01",
+      "status": "ready",
+      "kind": "pit",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_Pit_Edge_01/SM_VW_Pit_Edge_01.fbx",
+        "size": 453340,
+        "sha1": "e476f9bab0cfb07d2466580bbf8af4069151eaf7",
+        "sha256": "da82742d3097e2f55ca4d2f9ca04fc38f3515c745ea38fe57ca617efeab1af37"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -100.0,
+          -23.3,
+          -320.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          5.4
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -320.0
+        ],
+        "max": [
+          100.0,
+          23.3,
+          5.4
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            -100.0,
+            100.0,
+            -200.0,
+            -0.0
+          ]
+        ],
+        "z_cm": [
+          -320.0,
+          5.4
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.5,
+              0.0
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_Pit_Edge_01_00"
+        ],
+        "count": 1
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_CliffFace_D",
+        "T_VW_CliffFace_N",
+        "T_VW_CliffFace_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "depth_cm": 320.0
+      }
+    },
+    {
+      "id": "SM_VW_Pit_OuterCorner_01",
+      "name": "Pit Outer Corner 01",
+      "status": "ready",
+      "kind": "pit",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_Pit_OuterCorner_01/SM_VW_Pit_OuterCorner_01.fbx",
+        "size": 399340,
+        "sha1": "50374841e2768442af2b19c77da2c6e92e273851",
+        "sha256": "e2f65dc1d9d45ee1652c4f22565b4b3478818444d1c0a7cf9815e8b6021e0186"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -20.6,
+          -20.6,
+          -320.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          5.4
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -20.6,
+          -100.0,
+          -320.0
+        ],
+        "max": [
+          100.0,
+          20.6,
+          5.4
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            0.0,
+            200.0,
+            -200.0,
+            -0.0
+          ]
+        ],
+        "z_cm": [
+          -320.0,
+          5.4
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.0,
+              0.0
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "+X",
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "-X",
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_Pit_OuterCorner_01_00"
+        ],
+        "count": 1
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_CliffFace_D",
+        "T_VW_CliffFace_N",
+        "T_VW_CliffFace_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "depth_cm": 320.0
+      }
+    },
+    {
+      "id": "SM_VW_Pit_InnerCorner_01",
+      "name": "Pit Inner Corner 01",
+      "status": "ready",
+      "kind": "pit",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_Pit_InnerCorner_01/SM_VW_Pit_InnerCorner_01.fbx",
+        "size": 353724,
+        "sha1": "56263744d951b5aecab4343b120c13dbfe5e7795",
+        "sha256": "ed3828ffa6936b3f86a97b963b147ed36d6630eb4e9f9f1a68ee3ea18c405bfc"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -320.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          5.5
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -320.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          5.5
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            -100.0,
+            100.0,
+            -200.0,
+            -0.0
+          ],
+          [
+            0.0,
+            200.0,
+            -100.0,
+            100.0
+          ]
+        ],
+        "z_cm": [
+          -320.0,
+          5.5
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.5,
+              0.0
+            ]
+          },
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.0,
+              0.5
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "+X",
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "-X",
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_Pit_InnerCorner_01_00",
+          "UCX_SM_VW_Pit_InnerCorner_01_01"
+        ],
+        "count": 2
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_CliffFace_D",
+        "T_VW_CliffFace_N",
+        "T_VW_CliffFace_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "depth_cm": 320.0
+      }
+    },
+    {
+      "id": "SM_VW_Pond_Edge_01",
+      "name": "Pond Edge 01",
+      "status": "ready",
+      "kind": "pond_bank",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_Pond_Edge_01/SM_VW_Pond_Edge_01.fbx",
+        "size": 208716,
+        "sha1": "d8c7d5c557a8c077261e3fa4807928f3ed59a2c8",
+        "sha256": "0cc72f5f9953f6bb74272812a15f16cb612029ffcb3f2f1acf8cdaaa6647b8ca"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -100.0,
+          -79.6,
+          -38.0
+        ],
+        "max": [
+          103.5,
+          100.0,
+          3.2
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -38.0
+        ],
+        "max": [
+          103.5,
+          79.6,
+          3.2
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            -100.0,
+            100.0,
+            -200.0,
+            -0.0
+          ]
+        ],
+        "z_cm": [
+          -38.0,
+          3.2
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.5,
+              0.0
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_Pond_Edge_01_00",
+          "UCX_SM_VW_Pond_Edge_01_01"
+        ],
+        "count": 2,
+        "corner_land_region": {
+          "operator": "half_plane",
+          "y_lt_cm": -15.0
+        }
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "bed_z": -38,
+        "water_z": -8,
+        "water_depth_cm": 30,
+        "walkable": true
+      }
+    },
+    {
+      "id": "SM_VW_Pond_OuterCorner_01",
+      "name": "Pond Outer Corner 01",
+      "status": "ready",
+      "kind": "pond_bank",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_Pond_OuterCorner_01/SM_VW_Pond_OuterCorner_01.fbx",
+        "size": 190892,
+        "sha1": "aca28d932de0409969a53c08b6145a8dbc608091",
+        "sha256": "b7684e13a075cf5c39cc74fb0976e520dd7514deeabfa26091691ace82e6d61e"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -78.0,
+          -78.0,
+          -38.0
+        ],
+        "max": [
+          103.5,
+          100.0,
+          3.2
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -78.0,
+          -100.0,
+          -38.0
+        ],
+        "max": [
+          103.5,
+          78.0,
+          3.2
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            0.0,
+            200.0,
+            -200.0,
+            -0.0
+          ]
+        ],
+        "z_cm": [
+          -38.0,
+          3.2
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.0,
+              0.0
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "+X",
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "-X",
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_Pond_OuterCorner_01_00",
+          "UCX_SM_VW_Pond_OuterCorner_01_01",
+          "UCX_SM_VW_Pond_OuterCorner_01_02",
+          "UCX_SM_VW_Pond_OuterCorner_01_03",
+          "UCX_SM_VW_Pond_OuterCorner_01_04"
+        ],
+        "count": 5,
+        "corner_land_region": {
+          "operator": "and",
+          "x_gt_cm": 15.0,
+          "y_lt_cm": -15.0
+        }
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "bed_z": -38,
+        "water_z": -8,
+        "water_depth_cm": 30,
+        "walkable": true
+      }
+    },
+    {
+      "id": "SM_VW_Pond_InnerCorner_01",
+      "name": "Pond Inner Corner 01",
+      "status": "ready",
+      "kind": "pond_bank",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_Pond_InnerCorner_01/SM_VW_Pond_InnerCorner_01.fbx",
+        "size": 191996,
+        "sha1": "540d7fd82ee01bfe4ff9a3f79064cf17b0632775",
+        "sha256": "a64c0f3a5c4e77fda580cb80b04541be454fb39cf410b6398f29c27478ac8f44"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -100.0,
+          -103.5,
+          -38.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          3.1
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -38.0
+        ],
+        "max": [
+          100.0,
+          103.5,
+          3.1
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            -100.0,
+            100.0,
+            -200.0,
+            -0.0
+          ],
+          [
+            0.0,
+            200.0,
+            -100.0,
+            100.0
+          ]
+        ],
+        "z_cm": [
+          -38.0,
+          3.1
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.5,
+              0.0
+            ]
+          },
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.0,
+              0.5
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "+X",
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "-X",
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_Pond_InnerCorner_01_00",
+          "UCX_SM_VW_Pond_InnerCorner_01_01",
+          "UCX_SM_VW_Pond_InnerCorner_01_02",
+          "UCX_SM_VW_Pond_InnerCorner_01_03",
+          "UCX_SM_VW_Pond_InnerCorner_01_04",
+          "UCX_SM_VW_Pond_InnerCorner_01_05"
+        ],
+        "count": 6,
+        "corner_land_region": {
+          "operator": "or",
+          "x_gt_cm": 15.0,
+          "y_lt_cm": -15.0
+        }
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "bed_z": -38,
+        "water_z": -8,
+        "water_depth_cm": 30,
+        "walkable": true
+      }
+    },
+    {
+      "id": "SM_VW_Pond_Edge_Deep_01",
+      "name": "Pond Edge Deep 01",
+      "status": "ready",
+      "kind": "pond_bank_deep",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_Pond_Edge_Deep_01/SM_VW_Pond_Edge_Deep_01.fbx",
+        "size": 233836,
+        "sha1": "765d02d8a9b834aa216264bc06e775e526d89ff8",
+        "sha256": "5bb06c8843431c90211ea39bb47cbbb9a30b0f84e613bfdcd0e879fea366d26a"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -100.0,
+          -79.8,
+          -141.0
+        ],
+        "max": [
+          103.5,
+          100.0,
+          3.1
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -141.0
+        ],
+        "max": [
+          103.5,
+          79.8,
+          3.1
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            -100.0,
+            100.0,
+            -200.0,
+            -0.0
+          ]
+        ],
+        "z_cm": [
+          -141.0,
+          3.1
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.5,
+              0.0
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_Pond_Edge_Deep_01_00",
+          "UCX_SM_VW_Pond_Edge_Deep_01_01",
+          "UCX_SM_VW_Pond_Edge_Deep_01_02"
+        ],
+        "count": 3,
+        "corner_land_region": {
+          "operator": "half_plane",
+          "y_lt_cm": -15.0
+        }
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "bed_z": -141,
+        "water_z": -8,
+        "water_depth_cm": 133,
+        "walkable": false
+      }
+    },
+    {
+      "id": "SM_VW_Pond_OuterCorner_Deep_01",
+      "name": "Pond Outer Corner Deep 01",
+      "status": "ready",
+      "kind": "pond_bank_deep",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_Pond_OuterCorner_Deep_01/SM_VW_Pond_OuterCorner_Deep_01.fbx",
+        "size": 212748,
+        "sha1": "b929600deb2e1d6b941e884083d409ec30689eef",
+        "sha256": "a853357bd26263fedd021efb6301a5cd200b0038c22efc07b6657059e58ac4c6"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -78.0,
+          -78.0,
+          -141.0
+        ],
+        "max": [
+          103.5,
+          100.0,
+          3.8
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -78.0,
+          -100.0,
+          -141.0
+        ],
+        "max": [
+          103.5,
+          78.0,
+          3.8
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            0.0,
+            200.0,
+            -200.0,
+            -0.0
+          ]
+        ],
+        "z_cm": [
+          -141.0,
+          3.8
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.0,
+              0.0
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "+X",
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "-X",
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_Pond_OuterCorner_Deep_01_00",
+          "UCX_SM_VW_Pond_OuterCorner_Deep_01_01",
+          "UCX_SM_VW_Pond_OuterCorner_Deep_01_02",
+          "UCX_SM_VW_Pond_OuterCorner_Deep_01_03",
+          "UCX_SM_VW_Pond_OuterCorner_Deep_01_04",
+          "UCX_SM_VW_Pond_OuterCorner_Deep_01_05"
+        ],
+        "count": 6,
+        "corner_land_region": {
+          "operator": "and",
+          "x_gt_cm": 15.0,
+          "y_lt_cm": -15.0
+        }
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "bed_z": -141,
+        "water_z": -8,
+        "water_depth_cm": 133,
+        "walkable": false
+      }
+    },
+    {
+      "id": "SM_VW_Pond_InnerCorner_Deep_01",
+      "name": "Pond Inner Corner Deep 01",
+      "status": "ready",
+      "kind": "pond_bank_deep",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_Pond_InnerCorner_Deep_01/SM_VW_Pond_InnerCorner_Deep_01.fbx",
+        "size": 213932,
+        "sha1": "a57c5423b6128584846ca3f2c14e86573a46d352",
+        "sha256": "7d0ebd83945e9bd0a1756a7cc566d60a3c4cf1db966d071ca476656dd1677303"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -100.0,
+          -103.5,
+          -141.0
+        ],
+        "max": [
+          100.0,
+          100.0,
+          3.2
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -100.0,
+          -100.0,
+          -141.0
+        ],
+        "max": [
+          100.0,
+          103.5,
+          3.2
+        ]
+      },
+      "footprint": {
+        "catalog_text": "1x1",
+        "rects_cm": [
+          [
+            -100.0,
+            100.0,
+            -200.0,
+            -0.0
+          ],
+          [
+            0.0,
+            200.0,
+            -100.0,
+            100.0
+          ]
+        ],
+        "z_cm": [
+          -141.0,
+          3.2
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.5,
+              0.0
+            ]
+          },
+          {
+            "extent_tiles": [
+              1,
+              1
+            ],
+            "pivot_offset_tiles": [
+              0.0,
+              0.5
+            ]
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "+X",
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "-X",
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_Pond_InnerCorner_Deep_01_00",
+          "UCX_SM_VW_Pond_InnerCorner_Deep_01_01",
+          "UCX_SM_VW_Pond_InnerCorner_Deep_01_02",
+          "UCX_SM_VW_Pond_InnerCorner_Deep_01_03",
+          "UCX_SM_VW_Pond_InnerCorner_Deep_01_04",
+          "UCX_SM_VW_Pond_InnerCorner_Deep_01_05",
+          "UCX_SM_VW_Pond_InnerCorner_Deep_01_06"
+        ],
+        "count": 7,
+        "corner_land_region": {
+          "operator": "or",
+          "x_gt_cm": 15.0,
+          "y_lt_cm": -15.0
+        }
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_YarnRoot"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM"
+      ],
+      "catalog_properties": {
+        "bed_z": -141,
+        "water_z": -8,
+        "water_depth_cm": 133,
+        "walkable": false
+      }
+    },
+    {
+      "id": "SM_VW_FeltCliff_Ramp_2T_01",
+      "name": "Cliff Ramp 2 T 01",
+      "status": "ready",
+      "kind": "ramp",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_FeltCliff_Ramp_2T_01/SM_VW_FeltCliff_Ramp_2T_01.fbx",
+        "size": 520780,
+        "sha1": "5faa9dbb6b59e2ac3a22d4ca45f6eb7b57c249a9",
+        "sha256": "05bcb065be7fce521995bbe89041223623cb5e9472358b99338f6107b473fa1a"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -214.2,
+          -418.0,
+          -4.3
+        ],
+        "max": [
+          211.9,
+          100.0,
+          205.1
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -214.2,
+          -100.0,
+          -4.3
+        ],
+        "max": [
+          211.9,
+          418.0,
+          205.1
+        ]
+      },
+      "footprint": {
+        "catalog_text": "2 wide x 2 run (+ top half-row)",
+        "rects_cm": [
+          [
+            -200.0,
+            200.0,
+            -100.0,
+            400.0
+          ]
+        ],
+        "z_cm": [
+          -4.3,
+          205.1
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              2,
+              2
+            ],
+            "pivot_offset_tiles": [
+              1.0,
+              2.0
+            ],
+            "top_half_row_cm": 100.0
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_FeltCliff_Ramp_2T_01_00"
+        ],
+        "count": 1
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot",
+        "MI_VW_GrassToPath"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_CliffFace_D",
+        "T_VW_CliffFace_N",
+        "T_VW_CliffFace_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM",
+        "T_VW_Path_D",
+        "T_VW_Path_N",
+        "T_VW_Path_ORM"
+      ],
+      "catalog_properties": {
+        "rise_cm": 200.0,
+        "run_cm": 400.0,
+        "run_tiles": 2,
+        "width_cm": 400.0,
+        "slope_deg": 26.6,
+        "max_surface_slope_deg": 27.5
+      }
+    },
+    {
+      "id": "SM_VW_FeltCliff_Ramp_3T_01",
+      "name": "Cliff Ramp 3 T 01",
+      "status": "ready",
+      "kind": "ramp",
+      "category": "tile",
+      "version": "v3",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/SM_VW_FeltCliff_Ramp_3T_01/SM_VW_FeltCliff_Ramp_3T_01.fbx",
+        "size": 717980,
+        "sha1": "b1153daa83ab4f6a3c13901328ba84b22c310de0",
+        "sha256": "260019772a5f1229723453155c8c9cf39aad91e0df1cc689f67c3c195411647d"
+      },
+      "units": {
+        "system": "cm",
+        "fbx_unit_scale": 0.01,
+        "grid_cm": 200
+      },
+      "pivot": "bottom centre of the 1x1 footprint (ramps: centre of the cliff-row cell pair, on a grid line in X)",
+      "source_bounds_cm": {
+        "min": [
+          -213.8,
+          -618.0,
+          -4.3
+        ],
+        "max": [
+          213.8,
+          100.0,
+          205.0
+        ]
+      },
+      "bounds_cm": {
+        "min": [
+          -213.8,
+          -100.0,
+          -4.3
+        ],
+        "max": [
+          213.8,
+          618.0,
+          205.0
+        ]
+      },
+      "footprint": {
+        "catalog_text": "2 wide x 3 run (+ top half-row)",
+        "rects_cm": [
+          [
+            -200.0,
+            200.0,
+            -100.0,
+            600.0
+          ]
+        ],
+        "z_cm": [
+          -4.3,
+          205.0
+        ],
+        "tile_rects": [
+          {
+            "extent_tiles": [
+              2,
+              3
+            ],
+            "pivot_offset_tiles": [
+              1.0,
+              3.0
+            ],
+            "top_half_row_cm": 100.0
+          }
+        ],
+        "pivot_local_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "high_or_land_axes": [
+          "-Y"
+        ],
+        "face_or_downhill_axes": [
+          "+Y"
+        ],
+        "visual_overhang_limit_cm": 15.0
+      },
+      "collision": {
+        "type": "UCX convex hulls",
+        "meshes": [
+          "UCX_SM_VW_FeltCliff_Ramp_3T_01_00"
+        ],
+        "count": 1
+      },
+      "material_slots": [
+        "MI_VW_Grass",
+        "MI_VW_CliffFace",
+        "MI_VW_YarnRoot",
+        "MI_VW_GrassToPath"
+      ],
+      "texture_references": [
+        "T_VW_Grass_D",
+        "T_VW_Grass_N",
+        "T_VW_Grass_ORM",
+        "T_VW_CliffFace_D",
+        "T_VW_CliffFace_N",
+        "T_VW_CliffFace_ORM",
+        "T_VW_YarnRoot_D",
+        "T_VW_YarnRoot_N",
+        "T_VW_YarnRoot_ORM",
+        "T_VW_Path_D",
+        "T_VW_Path_N",
+        "T_VW_Path_ORM"
+      ],
+      "catalog_properties": {
+        "rise_cm": 200.0,
+        "run_cm": 600.0,
+        "run_tiles": 3,
+        "width_cm": 400.0,
+        "slope_deg": 18.4,
+        "max_surface_slope_deg": 19.9
+      }
+    }
+  ],
+  "textures": [
+    {
+      "id": "T_VW_Grass_D",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_Grass_D.png",
+        "size": 1128063,
+        "sha1": "ec1497197468507789f37b225f302233bf96e785",
+        "sha256": "de6fad1b016d1476a4a4762ab2b0b1e691b26c55eb2b9cf774794cfe2f4fce11"
+      },
+      "srgb": true,
+      "compression": "Default",
+      "lod_group": "World"
+    },
+    {
+      "id": "T_VW_Grass_N",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_Grass_N.png",
+        "size": 2887446,
+        "sha1": "d8c2dab425300f6d21edcf193265d17d6d68c3c8",
+        "sha256": "74b381dd1a2f8f45c3a8fb14cba32e7a12cbbbdb36487a847b171411b88d5a83"
+      },
+      "srgb": false,
+      "compression": "Normalmap",
+      "lod_group": "WorldNormalMap"
+    },
+    {
+      "id": "T_VW_Grass_ORM",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_Grass_ORM.png",
+        "size": 1450927,
+        "sha1": "9daab38aad25ad6f629356f1dfe25d026c02f542",
+        "sha256": "476a5a0fe4631c5b4f9aa92f75a0e16062928ebc0fc06cfa08f91f0e77e17838"
+      },
+      "srgb": false,
+      "compression": "Masks",
+      "lod_group": "World"
+    },
+    {
+      "id": "T_VW_CliffFace_D",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_CliffFace_D.png",
+        "size": 2548272,
+        "sha1": "870693a76fb358201d9b7671f6996d1c1de1056d",
+        "sha256": "6edfe5ffa3294792989fc5eeadcb189a7ade66b73f478dbed0a210daa0aeb7a3"
+      },
+      "srgb": true,
+      "compression": "Default",
+      "lod_group": "World"
+    },
+    {
+      "id": "T_VW_CliffFace_N",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_CliffFace_N.png",
+        "size": 3101688,
+        "sha1": "a14807853c9c118aaaab0b41bcd68d7713235327",
+        "sha256": "fe494d1190584940c15bac336394e3574ce35f650af5842a0705624547b09811"
+      },
+      "srgb": false,
+      "compression": "Normalmap",
+      "lod_group": "WorldNormalMap"
+    },
+    {
+      "id": "T_VW_CliffFace_ORM",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_CliffFace_ORM.png",
+        "size": 1116355,
+        "sha1": "a3ba834e3513792c9855ab87b382f17dd6fc6a0a",
+        "sha256": "2dc4703f0b4573aba5fcf522e2141317724a86acf39d958f8855a99554737e91"
+      },
+      "srgb": false,
+      "compression": "Masks",
+      "lod_group": "World"
+    },
+    {
+      "id": "T_VW_YarnRoot_D",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_YarnRoot_D.png",
+        "size": 1262852,
+        "sha1": "f5b590cd4243310d2174a09144ff993d2b1ac820",
+        "sha256": "363e86fe6c8238b52e87f5a1f092d8f4b1ac80c336b7e9bf4770e33c4eeab16e"
+      },
+      "srgb": true,
+      "compression": "Default",
+      "lod_group": "World"
+    },
+    {
+      "id": "T_VW_YarnRoot_N",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_YarnRoot_N.png",
+        "size": 2491968,
+        "sha1": "57d24d4a7e53ab4d90a5867161c297fd3b0af33d",
+        "sha256": "7c50acbdf688a2be183ee05b5c804d5c88736603b541bd1a303d3ab2a1996780"
+      },
+      "srgb": false,
+      "compression": "Normalmap",
+      "lod_group": "WorldNormalMap"
+    },
+    {
+      "id": "T_VW_YarnRoot_ORM",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_YarnRoot_ORM.png",
+        "size": 891579,
+        "sha1": "9cd948b1c9bbbaff6e71f61fb525a1276280ec33",
+        "sha256": "44be9720c9d023047ffb34bcb4f78cfc67d190f54b35f7f95e38cf8d90ab084e"
+      },
+      "srgb": false,
+      "compression": "Masks",
+      "lod_group": "World"
+    },
+    {
+      "id": "T_VW_Path_D",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_Path_D.png",
+        "size": 2203343,
+        "sha1": "63daeb763a5beef8e9e9e59ea48421adeb1f79a9",
+        "sha256": "06d23c5f4a85abce82692adee0c414f6a6760c30914564575daebed20177a00a"
+      },
+      "srgb": true,
+      "compression": "Default",
+      "lod_group": "World"
+    },
+    {
+      "id": "T_VW_Path_N",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_Path_N.png",
+        "size": 1122671,
+        "sha1": "f4d8fa42f65937b213b66eb411ad94d6e1c33f6b",
+        "sha256": "06674cfd8e23d71609b9c27c23eef873d611483196b237efc4484982df6b69d3"
+      },
+      "srgb": false,
+      "compression": "Normalmap",
+      "lod_group": "WorldNormalMap"
+    },
+    {
+      "id": "T_VW_Path_ORM",
+      "source": {
+        "key": "biomes/verdant_wilds/tiles/v3/_shared/textures/T_VW_Path_ORM.png",
+        "size": 548579,
+        "sha1": "09feab92eb4f754bd5b18586fb85f5eef3351b0a",
+        "sha256": "ec0d19708f4579f4ab63da9aa5f3321bbe7da06f27856c1764ba717876694e09"
+      },
+      "srgb": false,
+      "compression": "Masks",
+      "lod_group": "World"
+    }
+  ]
+}
