@@ -612,6 +612,7 @@ bool FMordecai_VW_MaterialsAndTexturesLoad::RunTest(const FString& Parameters)
 		TestTrue(TEXT("terrain master is Default Lit"),
 			Master->GetShadingModels().HasShadingModel(MSM_DefaultLit));
 		TestTrue(TEXT("terrain master explicitly supports Nanite"), Master->bUsedWithNanite);
+#if WITH_EDITOR
 		TArray<const UMaterialExpressionTextureSampleParameter2D*> TextureParameters;
 		Master->GetAllExpressionsOfType(TextureParameters);
 		TSet<FName> NamedTextureParameters;
@@ -645,6 +646,7 @@ bool FMordecai_VW_MaterialsAndTexturesLoad::RunTest(const FString& Parameters)
 		}
 		TestFalse(TEXT("terrain master no longer references HeightTexture"),
 			NamedTextureParameters.Contains(TEXT("HeightTexture")));
+#endif
 	}
 
 	const TMap<FString, TextureCompressionSettings> CompressionByName = {
