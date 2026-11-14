@@ -290,8 +290,10 @@ bool FMordecai_VW_NaniteAndSimpleCollision::RunTest(const FString& Parameters)
 		{
 			continue;
 		}
+#if WITH_EDITOR
 		TestTrue(FString::Printf(TEXT("%s has Nanite enabled"), *Mesh->GetName()),
 			Mesh->GetNaniteSettings().bEnabled);
+#endif
 		const UBodySetup* Body = Mesh->GetBodySetup();
 		if (!TestNotNull(FString::Printf(TEXT("%s has a BodySetup"), *Mesh->GetName()), Body))
 		{
