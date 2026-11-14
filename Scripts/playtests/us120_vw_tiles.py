@@ -2,7 +2,9 @@
 """US-120 Verdant Wilds tile fixture -- Tier 4 real-input traversal checks."""
 
 import math
+import json
 import os
+import pathlib
 import sys
 import time
 
@@ -15,11 +17,24 @@ import agent_bridge as ab  # noqa: E402
 import playtest_kit as kit  # noqa: E402
 from playtest_kit import Step  # noqa: E402
 
+MANIFEST_PATH = pathlib.Path(SCRIPTS_DIR) / "us120_vw_source_manifest.json"
+IMPORT_REPORT_PATH = (
+    pathlib.Path(SCRIPTS_DIR).parent
+    / "Saved"
+    / "Playtests"
+    / "us120-vw-import-report.json"
+)
+MANIFEST = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+FIXTURE = MANIFEST["test_fixture"]
+LANE_BY_LABEL = {actor["label"]: actor for actor in FIXTURE["lanes"]}
+
 SPAWN = (-1200.0, 0.0)
 TIER0_Z = 92.0
 TIER1_Z = 292.0
 Z_TOL = 55.0
 BLOCK_HOLD_S = 1.5
+DEEP_PUSHES = 3
+PROBE_START_TOL = 25.0
 JUMP_SAMPLE_S = 2.0
 GALLERY_VIEWPOINTS = (
     (-1200.0, 2000.0),
@@ -28,11 +43,18 @@ GALLERY_VIEWPOINTS = (
     (1200.0, 2000.0),
 )
 RAMPS = {
-    "2t": {"low": (-500.0, -600.0), "top": (250.0, -600.0)},
-    "3t": {"low": (-700.0, 600.0), "top": (250.0, 600.0)},
+    "2t": {
+        "low": (-500.0, LANE_BY_LABEL["VW_Lane_Ramp2T"]["location_cm"][1]),
+        "top": (250.0, LANE_BY_LABEL["VW_Lane_Ramp2T"]["location_cm"][1]),
+    },
+    "3t": {
+        "low": (-700.0, LANE_BY_LABEL["VW_Lane_Ramp3T"]["location_cm"][1]),
+        "top": (250.0, LANE_BY_LABEL["VW_Lane_Ramp3T"]["location_cm"][1]),
+    },
 }
 CLIFF_START = (1100.0, 0.0)
-CLIFF_FACE_X = 1400.0
+CLIFF_FACE_X = LANE_BY_LABEL["VW_Lane_Cliff"]["location_cm"][0]
+CLIFF_MIN_X = 1330.0
 CLIFF_MAX_X = 1370.0
 SHALLOW_START = (1900.0, 0.0)
 SHALLOW_END = (3100.0, 0.0)
@@ -52,31 +74,38 @@ DIAGONAL = math.sqrt(0.5)
 DEEP_BANKS = (
     {
         "label": "edge",
-        "pivot": (3800.0, -1000.0),
+        "mesh": LANE_BY_LABEL["VW_Lane_DeepEdge"]["mesh"],
+        "yaw_deg": LANE_BY_LABEL["VW_Lane_DeepEdge"]["yaw_deg"],
+        "pivot": tuple(LANE_BY_LABEL["VW_Lane_DeepEdge"]["location_cm"][:2]),
         "start": (4070.0, -1000.0),
         "keys": ("S",),
         "direction": (-1.0, 0.0),
         "face_progress": 0.0,
+        "minimum_contact_progress": None,
         "route": ((4200.0, -1400.0), (4200.0, -1000.0), (4070.0, -1000.0)),
     },
     {
         "label": "outer_corner",
-        "pivot": (3800.0, 0.0),
+        "mesh": LANE_BY_LABEL["VW_Lane_DeepOuterCorner"]["mesh"],
+        "yaw_deg": LANE_BY_LABEL["VW_Lane_DeepOuterCorner"]["yaw_deg"],
+        "pivot": tuple(LANE_BY_LABEL["VW_Lane_DeepOuterCorner"]["location_cm"][:2]),
         "start": (3970.0, -170.0),
         "keys": ("S", "D"),
         "direction": (-DIAGONAL, DIAGONAL),
         "face_progress": 0.0,
+        "minimum_contact_progress": None,
         "route": ((4200.0, -1000.0), (4200.0, -300.0), (3970.0, -170.0)),
     },
     {
         "label": "inner_corner",
-        "pivot": (3800.0, 1000.0),
+        "mesh": LANE_BY_LABEL["VW_Lane_DeepInnerCorner"]["mesh"],
+        "yaw_deg": LANE_BY_LABEL["VW_Lane_DeepInnerCorner"]["yaw_deg"],
+        "pivot": tuple(LANE_BY_LABEL["VW_Lane_DeepInnerCorner"]["location_cm"][:2]),
         "start": (3970.0, 830.0),
         "keys": ("S", "D"),
         "direction": (-DIAGONAL, DIAGONAL),
-        # The concave bank's authored quarter-circle face is 100 cm into the
-        # local -X/-Y water quadrant along this radial probe.
-        "face_progress": 100.0,
+        "face_progress": 0.0,
+        "minimum_contact_progress": None,
         "route": ((4200.0, -300.0), (4200.0, 700.0), (3970.0, 830.0)),
     },
 )
@@ -101,7 +130,7 @@ PLAN = (
     Step(
         "tile_gallery_visible",
         "walk through four catalogue viewpoints and capture all 17 labelled ready tiles",
-        proves=("AC-120.1", "AC-120.4", "AC-120.5"),
+        proves=(),
     ),
     Step(
         "ramp_2t_up",
@@ -156,6 +185,68 @@ def _player(bridge):
 
 def _near(value, target, tolerance=Z_TOL):
     return abs(value - target) <= tolerance
+
+
+def _import_report():
+    if not IMPORT_REPORT_PATH.is_file():
+        raise ab.BridgeError(
+            f"US-120 import report is missing: {IMPORT_REPORT_PATH}",
+            kind="infrastructure",
+        )
+    report = json.loads(IMPORT_REPORT_PATH.read_text(encoding="utf-8"))
+    if report.get("result") != "PASS":
+        raise ab.BridgeError("US-120 import report is not PASS", kind="infrastructure")
+    return report
+
+
+def _projected_hull_minimum(mesh_id, yaw_deg, direction, blocking_only):
+    measurement = _import_report()["mesh_measurements"][mesh_id]
+    hulls = measurement["collision_hulls"]
+    if blocking_only:
+        hulls = [
+            hull for hull in hulls
+            if hull["max"][2] > MANIFEST["pond_collision_contracts"]["shallow_max_z_cm"]
+        ]
+    if not hulls:
+        raise ab.BridgeError(
+            f"{mesh_id} has no measured contact hulls", kind="infrastructure"
+        )
+    radians = math.radians(yaw_deg)
+    cosine = math.cos(radians)
+    sine = math.sin(radians)
+    projections = []
+    for hull in hulls:
+        for x in (hull["min"][0], hull["max"][0]):
+            for y in (hull["min"][1], hull["max"][1]):
+                world_x = cosine * x - sine * y
+                world_y = sine * x + cosine * y
+                projections.append(
+                    world_x * direction[0] + world_y * direction[1]
+                )
+    return min(projections)
+
+
+def measured_contact_minimum(spec):
+    explicit = spec.get("minimum_contact_progress")
+    if explicit is not None:
+        return float(explicit)
+    hull_minimum = _projected_hull_minimum(
+        spec["mesh"], spec["yaw_deg"], spec["direction"], blocking_only=True
+    )
+    return hull_minimum - CAPSULE_RADIUS_CM - BANK_TOLERANCE_CM
+
+
+def measured_cliff_minimum_x():
+    actor = LANE_BY_LABEL["VW_Lane_Cliff"]
+    hull_minimum = _projected_hull_minimum(
+        actor["mesh"], actor["yaw_deg"], (1.0, 0.0), blocking_only=False
+    )
+    return (
+        actor["location_cm"][0]
+        + hull_minimum
+        - CAPSULE_RADIUS_CM
+        - BANK_TOLERANCE_CM
+    )
 
 
 class Us120Run(kit.PlaytestRun):
@@ -240,24 +331,30 @@ class Us120Run(kit.PlaytestRun):
 
     def step_cliff(self):
         def walk_blocked():
-            self.bridge.walk_to(
-                *CLIFF_START, tol=self.WALK_TOL, timeout_s=20.0
-            )
+            self.bridge.walk_to(*CLIFF_START, tol=PROBE_START_TOL, timeout_s=20.0)
             response = self.bridge.hold("W", BLOCK_HOLD_S)
             location = _player(self.bridge)
-            ok = location[0] <= CLIFF_MAX_X and location[2] < TIER1_Z - Z_TOL
+            minimum_x = measured_cliff_minimum_x()
+            ok = (
+                minimum_x <= location[0] <= CLIFF_MAX_X
+                and location[2] < TIER1_Z - Z_TOL
+            )
             detail = (
                 f"held W {response.get('held_s')}s: location "
                 f"({location[0]:.1f}, {location[1]:.1f}, {location[2]:.1f}); "
-                f"need X <= {CLIFF_MAX_X:.0f} and below Tier 1"
+                f"need measured contact X {minimum_x:.1f}..{CLIFF_MAX_X:.0f} "
+                "and below Tier 1"
             )
-            return ("PASS" if ok else "FAIL"), detail, {"location": location}
+            return ("PASS" if ok else "FAIL"), detail, {
+                "location": location,
+                "minimum_contact_x": minimum_x,
+            }
 
         walked, _ = self.attempt("cliff_walk_blocked", walk_blocked)
 
         def jump_blocked():
             bridge = self.bridge
-            bridge.walk_to(*CLIFF_START, tol=self.WALK_TOL, timeout_s=20.0)
+            bridge.walk_to(*CLIFF_START, tol=PROBE_START_TOL, timeout_s=20.0)
             max_z = -math.inf
             max_x = -math.inf
             bridge.press("W")
@@ -271,10 +368,16 @@ class Us120Run(kit.PlaytestRun):
                     time.sleep(0.05)
             finally:
                 bridge.release("W")
-            ok = max_x <= CLIFF_MAX_X and max_z < TIER1_Z - Z_TOL
+            minimum_x = measured_cliff_minimum_x()
+            ok = (
+                minimum_x <= max_x <= CLIFF_MAX_X
+                and TIER0_Z + 50.0 <= max_z < TIER1_Z - Z_TOL
+            )
             detail = (
-                f"real W+Space samples: max X {max_x:.1f} (need <= {CLIFF_MAX_X:.0f}), "
-                f"max Z {max_z:.1f} (need < {TIER1_Z - Z_TOL:.0f})"
+                f"real W+Space samples: max X {max_x:.1f} "
+                f"(need contact {minimum_x:.1f}..{CLIFF_MAX_X:.0f}), "
+                f"max Z {max_z:.1f} (need {TIER0_Z + 50.0:.0f}.."
+                f"{TIER1_Z - Z_TOL:.0f})"
             )
             return ("PASS" if ok else "FAIL"), detail, {"max_x": max_x, "max_z": max_z}
 
@@ -352,31 +455,41 @@ class Us120Run(kit.PlaytestRun):
         def probe_all():
             self._walk_sequence(DEEP_ENTRY_ROUTE, timeout_s=25.0)
             for spec in DEEP_BANKS:
-                self._walk_sequence(spec["route"], timeout_s=25.0)
+                self._walk_sequence(spec["route"][:-1], timeout_s=25.0)
+                self.bridge.walk_to(
+                    *spec["start"], tol=PROBE_START_TOL, timeout_s=25.0
+                )
                 max_progress = -math.inf
                 min_z = math.inf
                 location = _player(self.bridge)
-                for key in spec["keys"]:
-                    self.bridge.press(key)
-                try:
-                    deadline = time.monotonic() + BLOCK_HOLD_S
-                    while time.monotonic() < deadline:
-                        location = _player(self.bridge)
-                        offset_x = location[0] - spec["pivot"][0]
-                        offset_y = location[1] - spec["pivot"][1]
-                        progress = (
-                            offset_x * spec["direction"][0]
-                            + offset_y * spec["direction"][1]
-                        )
-                        max_progress = max(max_progress, progress)
-                        min_z = min(min_z, location[2])
-                        time.sleep(0.05)
-                finally:
-                    for key in reversed(spec["keys"]):
-                        self.bridge.release(key)
+                pushes = []
+                for push_index in range(DEEP_PUSHES):
+                    push_max = -math.inf
+                    for key in spec["keys"]:
+                        self.bridge.press(key)
+                    try:
+                        deadline = time.monotonic() + BLOCK_HOLD_S
+                        while time.monotonic() < deadline:
+                            location = _player(self.bridge)
+                            offset_x = location[0] - spec["pivot"][0]
+                            offset_y = location[1] - spec["pivot"][1]
+                            progress = (
+                                offset_x * spec["direction"][0]
+                                + offset_y * spec["direction"][1]
+                            )
+                            max_progress = max(max_progress, progress)
+                            push_max = max(push_max, progress)
+                            min_z = min(min_z, location[2])
+                            time.sleep(0.05)
+                    finally:
+                        for key in reversed(spec["keys"]):
+                            self.bridge.release(key)
+                    pushes.append(push_max)
+                    self.bridge.wait(0.1)
                 max_allowed = spec["face_progress"] + DEEP_ALLOWED_PAST_FACE
+                minimum_contact = measured_contact_minimum(spec)
                 blocked = (
-                    max_progress <= max_allowed
+                    minimum_contact <= max_progress <= max_allowed
                     and min_z >= TIER0_Z - 20.0
                 )
                 results.append({
@@ -384,13 +497,16 @@ class Us120Run(kit.PlaytestRun):
                     "keys": spec["keys"],
                     "location": location,
                     "max_progress": max_progress,
+                    "minimum_contact": minimum_contact,
                     "max_allowed": max_allowed,
                     "minimum_z": min_z,
+                    "pushes": pushes,
                     "blocked": blocked,
                 })
-                self.shot(
-                    f"deep_{spec['label'].replace('_corner', '')}_rejection"
-                )
+                if blocked:
+                    self.shot(
+                        f"deep_{spec['label'].replace('_corner', '')}_rejection"
+                    )
                 self.bridge.walk_to(
                     DEEP_SAFE_X,
                     spec["start"][1],
@@ -401,7 +517,8 @@ class Us120Run(kit.PlaytestRun):
             detail = "; ".join(
                 f"{result['representative']} progress/Z "
                 f"{result['max_progress']:.1f}/{result['minimum_z']:.1f} "
-                f"(limit {result['max_allowed']:.1f}) "
+                f"(contact {result['minimum_contact']:.1f}.."
+                f"{result['max_allowed']:.1f}; {len(result['pushes'])} pushes) "
                 f"({'blocked' if result['blocked'] else 'CROSSED'})"
                 for result in results
             )

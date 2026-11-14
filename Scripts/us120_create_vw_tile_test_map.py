@@ -6,15 +6,12 @@ us120_import_vw_tiles.py has completed.
 
 import gc
 import json
-import math
-import os
 import pathlib
 
 import unreal
 
 
 MAP = "/MordecaiCore/Game/Maps/L_VW_TileTest"
-DEVTEST_MAP = "/MordecaiCore/Game/Maps/DevTestMap"
 MESH_ROOT = "/MordecaiCore/World/Terrain/VerdantWilds/Meshes"
 MASTER_MATERIAL = "/MordecaiCore/World/Terrain/Shared/Materials/M_Terrain_Master"
 MANIFEST = (
@@ -47,81 +44,6 @@ POND_HOLES = (
       for _, centre_y in DEEP_FIXTURES),
 )
 
-# Screen north is world +X and screen east is world +Y at camera yaw 0.
-GALLERY_LOCATIONS = (
-    (-800.0, 1400.0, 0.0),
-    (-800.0, 1600.0, 0.0),
-    (-800.0, 2400.0, 0.0),
-    (-800.0, 2600.0, 0.0),
-    (0.0, 1400.0, 0.0),
-    (0.0, 1600.0, 0.0),
-    (0.0, 2400.0, 0.0),
-    (0.0, 2600.0, 0.0),
-    (800.0, 1400.0, 0.0),
-    # Pond gallery pieces are raised so their catalog beds are not buried by
-    # the display floor. The traversable pond fixtures remain at Z=0 below.
-    (800.0, 1600.0, 160.0),
-    (800.0, 2400.0, 160.0),
-    (800.0, 2600.0, 160.0),
-    (1600.0, 1200.0, 160.0),
-    (1600.0, 1400.0, 160.0),
-    (1600.0, 1600.0, 160.0),
-    (1600.0, 2400.0, 0.0),
-    (1600.0, 2600.0, 0.0),
-)
-
-LANES = (
-    # label, mesh id, location, yaw. Imported local -Y is face/downhill.
-    (
-        "VW_Lane_Ramp2T",
-        "SM_VW_FeltCliff_Ramp_2T_01",
-        (200.0, -600.0, 0.0),
-        -90.0,
-    ),
-    (
-        "VW_Lane_Ramp3T",
-        "SM_VW_FeltCliff_Ramp_3T_01",
-        (100.0, 600.0, 0.0),
-        -90.0,
-    ),
-    (
-        "VW_Lane_Cliff",
-        "SM_VW_FeltCliff_Straight_01",
-        (1400.0, 0.0, 0.0),
-        -90.0,
-    ),
-    (
-        "VW_Lane_ShallowPond",
-        "SM_VW_Pond_Edge_01",
-        (2200.0, 0.0, 0.0),
-        90.0,
-    ),
-    (
-        "VW_Lane_ShallowPond_Far",
-        "SM_VW_Pond_Edge_01",
-        (2800.0, 0.0, 0.0),
-        -90.0,
-    ),
-    (
-        "VW_Lane_DeepEdge",
-        "SM_VW_Pond_Edge_Deep_01",
-        (3800.0, -1000.0, 0.0),
-        -90.0,
-    ),
-    (
-        "VW_Lane_DeepOuterCorner",
-        "SM_VW_Pond_OuterCorner_Deep_01",
-        (3800.0, 0.0, 0.0),
-        -90.0,
-    ),
-    (
-        "VW_Lane_DeepInnerCorner",
-        "SM_VW_Pond_InnerCorner_Deep_01",
-        (3800.0, 1000.0, 0.0),
-        -90.0,
-    ),
-)
-
 EAL = unreal.EditorAssetLibrary
 
 
@@ -150,20 +72,12 @@ def dirty_packages():
     return [package.get_name() for package in packages]
 
 
-def finalize_orientation(manifest, meshes):
-    """Compensate for FBX handedness while keeping every placed actor unit-scaled.
-
-    Legacy FBX import preserves the named UCX hulls but reflects local Y while
-    converting handedness. Geometry Script applies the exact compensating
-    reflection to source geometry and authored collision after the unattended
-    import. Bounds detection makes this finalizer idempotent.
-    """
+def verify_imported_meshes(manifest, meshes):
+    """Read back the commandlet import; this map builder never edits meshes."""
     subsystem = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
     if subsystem is None:
         fail("StaticMeshEditorSubsystem is unavailable")
 
-    transform = unreal.Transform()
-    transform.set_editor_property("scale3d", unreal.Vector(1.0, -1.0, 1.0))
     finalized = []
     for entry in manifest["meshes"]:
         mesh = meshes[entry["id"]]
@@ -180,92 +94,30 @@ def finalize_orientation(manifest, meshes):
         )
         expected_min = entry["bounds_cm"]["min"]
         expected_max = entry["bounds_cm"]["max"]
-        already_final = all(
+        imported_as_converted = all(
             abs(actual - expected) <= 1.0
             for actual, expected in zip(
                 actual_min + actual_max, expected_min + expected_max
             )
         )
-        mirrored_min = (
-            expected_min[0],
-            -expected_max[1],
-            expected_min[2],
-        )
-        mirrored_max = (
-            expected_max[0],
-            -expected_min[1],
-            expected_max[2],
-        )
-        needs_reflection = not already_final and all(
+        source_min = entry["source_bounds_cm"]["min"]
+        source_max = entry["source_bounds_cm"]["max"]
+        imported_as_source = all(
             abs(actual - expected) <= 1.0
             for actual, expected in zip(
-                actual_min + actual_max, mirrored_min + mirrored_max
+                actual_min + actual_max, source_min + source_max
             )
         )
-        if not already_final and not needs_reflection:
+        if not imported_as_converted and not imported_as_source:
             fail(
-                f"{entry['id']} is neither catalog-facing nor the expected "
-                f"FBX Y reflection: min={actual_min}, max={actual_max}"
+                f"{entry['id']} matches neither source nor converted UE bounds: "
+                f"min={actual_min}, max={actual_max}"
             )
-
-        if needs_reflection:
-            dynamic_mesh = unreal.DynamicMesh()
-            read_lod = unreal.GeometryScriptMeshReadLOD()
-            read_lod.set_editor_property(
-                "lod_type", unreal.GeometryScriptLODType.SOURCE_MODEL
+        if not imported_as_converted:
+            fail(
+                f"{entry['id']} retained source-space orientation; "
+                "the unattended importer must produce the UE Y-negation"
             )
-            read_lod.set_editor_property("lod_index", 0)
-            read_options = unreal.GeometryScriptCopyMeshFromAssetOptions()
-            read_options.set_editor_property("apply_build_settings", False)
-            read_options.set_editor_property("use_build_scale", False)
-            dynamic_mesh, read_outcome = (
-                unreal.GeometryScript_AssetUtils.copy_mesh_from_static_mesh(
-                    mesh, dynamic_mesh, read_options, read_lod
-                )
-            )
-            if read_outcome != unreal.GeometryScriptOutcomePins.SUCCESS:
-                fail(f"{entry['id']} source-geometry copy failed: {read_outcome}")
-            unreal.GeometryScript_MeshTransforms.transform_mesh(
-                dynamic_mesh, transform, True
-            )
-
-            write_options = unreal.GeometryScriptCopyMeshToAssetOptions()
-            write_options.set_editor_property("use_build_scale", False)
-            write_options.set_editor_property("replace_materials", False)
-            write_lod = unreal.GeometryScriptMeshWriteLOD()
-            write_lod.set_editor_property("lod_index", 0)
-            _, write_outcome = (
-                unreal.GeometryScript_AssetUtils.copy_mesh_to_static_mesh(
-                    dynamic_mesh, mesh, write_options, write_lod, True
-                )
-            )
-            if write_outcome != unreal.GeometryScriptOutcomePins.SUCCESS:
-                fail(f"{entry['id']} geometry reflection failed: {write_outcome}")
-
-            collision = (
-                unreal.GeometryScript_Collision.get_simple_collision_from_static_mesh(
-                    mesh
-                )
-            )
-            collision_options = unreal.GeometryScriptTransformCollisionOptions()
-            collision_options.set_editor_property(
-                "center_transform_pivot_per_shape", False
-            )
-            collision, collision_ok = (
-                unreal.GeometryScript_Collision.transform_simple_collision_shapes(
-                    collision, transform, collision_options
-                )
-            )
-            if not collision_ok:
-                fail(f"{entry['id']} collision reflection was not exact")
-            unreal.GeometryScript_Collision.set_simple_collision_of_static_mesh(
-                collision,
-                mesh,
-                unreal.GeometryScriptSetSimpleCollisionOptions(),
-                unreal.GeometryScriptSetStaticMeshCollisionOptions(),
-            )
-            if not EAL.save_loaded_asset(mesh, only_if_is_dirty=False):
-                fail(f"could not save finalized mesh {entry['id']}")
 
         bounds = mesh.get_bounds()
         actual_min = (
@@ -308,19 +160,20 @@ def finalize_orientation(manifest, meshes):
     if not IMPORT_REPORT.is_file():
         fail(f"import report is missing: {IMPORT_REPORT}")
     report = json.loads(IMPORT_REPORT.read_text(encoding="utf-8"))
-    report["editor_finalization"] = {
+    report["map_builder_orientation_readback"] = {
         "result": "PASS",
         "mesh_count": len(finalized),
-        "method": "Geometry Script source geometry and simple collision reflection",
+        "method": "read-only bounds, build-scale, and collision-count verification",
         "build_scale3d": [1.0, 1.0, 1.0],
-        "face_or_downhill_local_axis": "-Y",
+        "face_or_downhill_local_axis": "+Y",
         "bounds_tolerance_cm": 1.0,
     }
     IMPORT_REPORT.write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8"
     )
     unreal.log(
-        f"[US-120 map] PASS orientation: {len(finalized)} meshes finalized to local -Y"
+        f"[US-120 map] PASS orientation: {len(finalized)} commandlet-imported meshes "
+        "verified at local +Y face/downhill"
     )
 
 
@@ -451,7 +304,9 @@ def spawn_segmented_floor(cube, material):
     )
 
 
-def spawn_pond_fixtures(meshes, cube, ground_material, water_material):
+def spawn_pond_fixtures(
+    meshes, cube, ground_material, water_material, fixture
+):
     # Real 3x3 shallow pond: collision bed at catalog Z=-38, an inset
     # non-colliding water plane at Z=-8, and a closed bank ring. The inset
     # leaves a visible bed border in evidence captures.
@@ -468,22 +323,13 @@ def spawn_pond_fixtures(meshes, cube, ground_material, water_material):
         water_material,
         collision=False,
     )
-    edge = meshes["SM_VW_Pond_Edge_01"]
-    # The centre west/east pieces are the labelled LANES actors below.
-    for index, y in enumerate((-200.0, 200.0)):
-        spawn_mesh(f"VW_Shallow_Bank_W_{index}", edge, (2200.0, y, 0.0), 90.0)
-        spawn_mesh(f"VW_Shallow_Bank_E_{index}", edge, (2800.0, y, 0.0), -90.0)
-    for index, x in enumerate((2300.0, 2500.0, 2700.0)):
-        spawn_mesh(f"VW_Shallow_Bank_S_{index}", edge, (x, -300.0, 0.0), 180.0)
-        spawn_mesh(f"VW_Shallow_Bank_N_{index}", edge, (x, 300.0, 0.0), 0.0)
-    inner = meshes["SM_VW_Pond_InnerCorner_01"]
-    for suffix, location, yaw in (
-        ("SW", (2200.0, -300.0, 0.0), 180.0),
-        ("NW", (2200.0, 300.0, 0.0), 90.0),
-        ("NE", (2800.0, 300.0, 0.0), 0.0),
-        ("SE", (2800.0, -300.0, 0.0), -90.0),
-    ):
-        spawn_mesh(f"VW_Shallow_Bank_Corner_{suffix}", inner, location, yaw)
+    for actor in fixture["shallow_bank_ring"]:
+        spawn_mesh(
+            actor["label"],
+            meshes[actor["mesh"]],
+            actor["location_cm"],
+            actor["yaw_deg"],
+        )
 
     # Three independent deep 3x3 ponds isolate the representative bank
     # pieces. Bed and water occupy the open water side; collision support
@@ -589,6 +435,7 @@ def spawn_lights():
 
 def build_map():
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    fixture = manifest["test_fixture"]
     mesh_ids = [entry["id"] for entry in manifest["meshes"]]
     if len(mesh_ids) != 17:
         fail(f"manifest has {len(mesh_ids)} meshes, expected 17")
@@ -600,7 +447,7 @@ def build_map():
     if missing:
         fail(f"imported meshes missing: {missing}")
 
-    finalize_orientation(manifest, meshes)
+    verify_imported_meshes(manifest, meshes)
     if not EAL.save_asset(MASTER_MATERIAL, only_if_is_dirty=False):
         fail(f"could not save imported master material {MASTER_MATERIAL}")
     open_for_rebuild(set(mesh_ids))
@@ -626,13 +473,14 @@ def build_map():
     # Tier-1 support is behind the imported ramp/cliff faces, never in front of them.
     spawn_box("VW_Ramp2T_Tier1", (200.0, 700.0, -900.0, -300.0, 0.0, 200.0), cube, grid)
     spawn_box("VW_Ramp3T_Tier1", (200.0, 700.0, 300.0, 900.0, 0.0, 200.0), cube, grid)
-    spawn_box("VW_Cliff_Tier1", (1400.0, 1800.0, -300.0, 300.0, 0.0, 200.0), cube, grid)
+    spawn_box("VW_Cliff_Tier1", (1510.0, 1800.0, -100.0, 100.0, 0.0, 200.0), cube, grid)
 
-    spawn_pond_fixtures(meshes, cube, grid, water)
+    spawn_pond_fixtures(meshes, cube, grid, water, fixture)
 
-    for entry, location in zip(manifest["meshes"], GALLERY_LOCATIONS):
-        mesh_id = entry["id"]
-        spawn_mesh(mesh_id, meshes[mesh_id], location)
+    for actor in fixture["gallery"]:
+        mesh_id = actor["mesh"]
+        location = actor["location_cm"]
+        spawn_mesh(actor["label"], meshes[mesh_id], location, actor["yaw_deg"])
         spawn_text(
             f"VW_Label_{mesh_id}",
             mesh_id.replace("SM_VW_", "").replace("_", " "),
@@ -645,8 +493,10 @@ def build_map():
     spawn_box("VW_PitFence_N", (950.0, 1000.0, 2250.0, 2800.0, 0.0, 120.0), cube, grid)
     spawn_box("VW_PitFence_S", (-200.0, -150.0, 2250.0, 2800.0, 0.0, 120.0), cube, grid)
 
-    for label, mesh_id, location, yaw in LANES:
-        spawn_mesh(label, meshes[mesh_id], location, yaw)
+    for actor in fixture["lanes"]:
+        label = actor["label"]
+        location = actor["location_cm"]
+        spawn_mesh(label, meshes[actor["mesh"]], location, actor["yaw_deg"])
         spawn_text(
             f"VW_Label_{label}",
             label.replace("VW_Lane_", "").replace("_", " "),
@@ -667,7 +517,7 @@ def build_map():
         fail(f"{MAP} remains dirty after save")
     unreal.log(
         "[US-120 map] RESULT PASS: saved L_VW_TileTest; "
-        "screen north=+X, east=+Y; straight/ramp face-downhill local axis=-Y"
+        "screen north=+X, east=+Y; straight/ramp face-downhill local axis=+Y"
     )
 
 

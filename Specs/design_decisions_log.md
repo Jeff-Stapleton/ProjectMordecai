@@ -259,8 +259,27 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 
 ## 2026-11-13 — Verdant Wilds v3 tile footprints and fixture orientation (US-120)
 
-- For 1x1 cliff, pit, and pond edge pieces, the local origin is the midpoint of the authored grid edge between tiles. The body/high-or-land side is local +Y, and collision uses the high/land-side tile footprint: X -100..100, Y 0..200, with Z from the piece.
+- For 1x1 cliff and pit edge pieces, the local origin is the midpoint of the authored grid edge between tiles. The body/high-or-land side is local +Y, and collision uses the high/land-side tile footprint: X -100..100, Y 0..200, with Z from the piece.
 - Corners use the high/land-side tile quadrant or quadrants implied by their bounds. Ramps use the catalog ramp pivot and `run_tiles`/`width_cm`.
+- Pond amendment: the bank and bed deliberately extend into the adjacent water tile; this basin is not a lip. Pond edges allow X -100..100 (plus 15 cm tolerance), Y -200..200, and Z down to -200; pond corners allow X/Y -200..200. Shallow hulls may not rise above +15 except for the land body. Deep blocking walls may rise to Z 250 but may not intrude more than 15 cm into the land side (local Y >15 for edges; the land region for corners). Record every pond hull's extents in the import report.
 - Measure every piece's visual overhang past the face into local -Y. An overhang above 15 cm is a per-piece art defect to report with its measured value; it does not stop the import and must not be fixed by editing the mesh.
 - `L_VW_TileTest` uses camera yaw 0: screen-up/north is Unreal +X and screen-right/east is Unreal +Y. Report the imported FBX face/downhill local axis for a straight cliff and the 2T ramp.
 - Source: US-120 coordinator clarification for Jeff (2026-11-13).
+
+---
+
+## 2026-11-14 — Verdant Wilds pond fixture correction (US-120)
+
+- The flat test floor covering the pond basin invalidated the original pond behavioral proof; walking above a hidden basin is neither a shallow crossing nor a deep-bank rejection.
+- Build each pond fixture with open water-side floor, visible bank/bed, a non-colliding water surface at Z -8, and the catalog bed height (shallow -38, deep -141). Shallow acceptance requires a Z dip and far-bank exit. Probe each deep representative from its land side, perpendicular to the face (or along the corner arc radius), and require the character to remain on land.
+- Withdraw any art-defect claim based on the covered-floor fixture.
+- Source: coordinator decision for Jeff after evidence review (2026-11-14).
+
+---
+
+## 2026-11-14 — Verdant Wilds round-3 import contracts (US-120)
+
+- **R1 — orientation:** Do not mirror imported geometry. UE's legacy FBX importer performs the correct right-handed-to-left-handed conversion by negating source Y. Preserve catalog bounds as `source_bounds_cm`, convert bounds/contracts to UE space before use, and require unattended commandlet import readback to match converted bounds within 1 cm. Measure the resulting catalog-bearing-to-UE-yaw offset and face/downhill axis; stop if bounds match neither source nor converted space.
+- **R2 — material slots:** The FBX `ImportedMaterialSlotName` set is authoritative. Match by name, never pad or positionally rename, require `ImportedMaterialSlotName == MaterialSlotName`, and require every slot to be used by a mesh section. The six pond FBXs omit the catalog's `CliffFace` slot (FBX has `Grass`, `YarnRoot`); preserve and report that catalog mismatch.
+- **R3 — textures and budget:** Derive each mesh's texture references from its actual slots/material instances and import only sampled textures. Omit unused CliffFaceB/C, Moss, WoodSlat, Pond_N, StitchSeam, and Height maps until sampled. Give the terrain master neutral engine defaults, set role-appropriate texture LOD groups (`WorldNormalMap` for normals, `World` otherwise), and report complete packaged `.pak + .ucas + .utoc` totals plus cooked terrain size.
+- Source: coordinator rulings for Jeff from the two read-only PR reviews (2026-11-14).

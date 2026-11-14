@@ -1101,26 +1101,30 @@ Test fixture maps need no playlist: they are launched by `--map` (`playtest_boot
 ### UE 5.7 unattended FBX import needs the legacy factory for named UCX
 
 **Problem:** An unattended Python import either crashed in Content Browser
-sync, silently discarded every authored `UCX_*` hull, or refused to persist a
-negative-axis build scale used to correct FBX handedness.
+sync, silently discarded every authored `UCX_*` hull, or produced apparently
+mirrored bounds when compared directly with a right-handed source catalog.
 
 **Root cause:** `AssetImportTask` defaults to Interchange in UE 5.7.
 Interchange did not preserve these named UCX hulls, and its commandlet path
 attempted `SyncBrowserToAssets`. An explicit `FbxFactory` preserves the hulls.
-`EditorStaticMeshLibrary.set_lod_build_settings()` delegates to
-`StaticMeshEditorSubsystem`, which rejects commandlet context, so its apparent
-success does not mean a changed build scale was saved.
+The legacy FBX importer also performs the correct handedness conversion from
+right-handed FBX source coordinates to Unreal coordinates: it negates source Y.
+Do not mirror the result after import. Thus
+source bounds `(MinY, MaxY)` become UE bounds `(-MaxY, -MinY)`.
 
 **Fix:** For a deterministic `-run=pythonscript` static-mesh import:
 - pass an explicit `unreal.FbxFactory` and configured
   `FbxImportUI.static_mesh_import_data`;
+- disable the Interchange FBX feature flag so the explicit legacy factory and
+  its Nanite/material/lightmap-UV options are honored;
 - disable `Interchange.FeatureFlags.Import.SyncToBrowser` for the commandlet;
-- read back hull counts, material slots, Nanite, and saved packages;
-- if the required asset-local orientation needs a handedness reflection, do a
-  deterministic GUI-editor finalization with Geometry Script: copy the source
-  LOD to `DynamicMesh`, transform it, copy it back, then get/transform/set the
-  simple collision with the same transform. Do not use a negative actor scale.
-  Detect expected versus reflected bounds first so the finalizer is idempotent.
+- convert catalog bounds and any direction-dependent contracts to UE space
+  before comparing them with the imported asset;
+- read back bounds (within an explicit tolerance), source identity, hulls,
+  slots, Nanite, build scale, lightmap-UV settings, and saved packages;
+- never add a post-import Geometry Script reflection or negative build/actor
+  scale to "correct" handedness. That mirrors visually correct imported art
+  and can desynchronize render geometry from named UCX collision.
 
 ---
 

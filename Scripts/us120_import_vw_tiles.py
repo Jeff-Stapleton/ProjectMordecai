@@ -10,9 +10,10 @@ temporary staging directory and are never copied into the repository.
 
 import hashlib
 import json
+import math
 import os
 import pathlib
-import sys
+import re
 
 import unreal
 
@@ -32,19 +33,17 @@ REPORT_PATH = (
 EAL = unreal.EditorAssetLibrary
 TOOLS = unreal.AssetToolsHelpers.get_asset_tools()
 MEL = unreal.MaterialEditingLibrary
-
-MATERIAL_TEXTURES = {
-    "MI_VW_Grass": "T_VW_Grass",
-    "MI_VW_CliffFace": "T_VW_CliffFace",
-    "MI_VW_GrassToPath": "T_VW_Path",
-    "MI_VW_YarnRoot": "T_VW_YarnRoot",
-}
+ASSET_REGISTRY = unreal.AssetRegistryHelpers.get_asset_registry()
 
 COMPRESSION = {
     "Default": unreal.TextureCompressionSettings.TC_DEFAULT,
     "Normalmap": unreal.TextureCompressionSettings.TC_NORMALMAP,
     "Masks": unreal.TextureCompressionSettings.TC_MASKS,
-    "Grayscale": unreal.TextureCompressionSettings.TC_GRAYSCALE,
+}
+
+LOD_GROUPS = {
+    "World": unreal.TextureGroup.TEXTUREGROUP_WORLD,
+    "WorldNormalMap": unreal.TextureGroup.TEXTUREGROUP_WORLD_NORMAL_MAP,
 }
 
 
@@ -69,14 +68,55 @@ def digest(path):
     return size, sha1.hexdigest(), sha256.hexdigest()
 
 
+def staged_source_md5(path):
+    value = hashlib.md5()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            value.update(chunk)
+    return value.hexdigest()
+
+
+def source_file_hash(asset):
+    # CreateAssetData asks the live object to append its registry tags, so this
+    # cannot accidentally read a stale cached tag for the prior on-disk asset.
+    asset_data = unreal.AssetRegistryHelpers.create_asset_data(asset)
+    value = asset_data.get_tag_value("AssetImportData")
+    serialized = str(value or "")
+    hashes = re.findall(
+        r"FileMD5[^0-9a-fA-F]*([0-9a-fA-F]{32})", serialized,
+        flags=re.IGNORECASE,
+    )
+    if len(hashes) != 1:
+        fail(
+            f"{asset.get_name()} live AssetImportData tag exposed {len(hashes)} "
+            f"MD5 values (serialized length {len(serialized)})"
+        )
+    return hashes[0]
+
+
+def verify_import_source(asset, source):
+    expected_path = str(source.resolve()).replace("\\", "/").lower()
+    import_data = asset.get_editor_property("asset_import_data")
+    actual_path = str(import_data.get_first_filename()).replace("\\", "/").lower()
+    if actual_path != expected_path:
+        fail(f"{asset.get_name()} stored source path {actual_path} != {expected_path}")
+    expected_md5 = staged_source_md5(source)
+    stored = source_file_hash(asset).lower()
+    if expected_md5 not in stored:
+        fail(
+            f"{asset.get_name()} source MD5 readback mismatch: "
+            f"stored source_file_hash does not contain staged_source_md5"
+        )
+
+
 def load_manifest():
     data = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     meshes = data.get("meshes", [])
     textures = data.get("textures", [])
     if len(meshes) != 17 or any(mesh.get("status") != "ready" for mesh in meshes):
         fail("manifest must contain exactly 17 ready meshes")
-    if len(textures) != 34:
-        fail("manifest must contain exactly 34 referenced textures")
+    if len(textures) != 12:
+        fail("manifest must contain exactly 12 sampled textures")
     return data
 
 
@@ -94,6 +134,13 @@ def verify_sources(manifest):
 
 
 def import_task(source, destination, name, options=None, factory=None):
+    asset_path = f"{destination}/{name}"
+    # FbxFactory routes an existing asset through ReimportManager, whose
+    # handler can retain stale per-asset import options. A deterministic
+    # commandlet import is always fresh from the hash-verified staged source.
+    if EAL.does_asset_exist(asset_path):
+        if not EAL.delete_asset(asset_path):
+            fail(f"could not remove prior asset before deterministic import: {asset_path}")
     task = unreal.AssetImportTask()
     task.set_editor_property("filename", str(source))
     task.set_editor_property("destination_path", destination)
@@ -109,11 +156,15 @@ def import_task(source, destination, name, options=None, factory=None):
     TOOLS.import_asset_tasks([task])
     paths = list(task.get_editor_property("imported_object_paths"))
     expected = f"{destination}/{name}.{name}"
-    if expected not in paths and not EAL.does_asset_exist(f"{destination}/{name}"):
-        fail(f"import produced no expected asset {destination}/{name}")
-    asset = EAL.load_asset(f"{destination}/{name}")
+    if expected not in paths:
+        fail(
+            f"import task did not report expected asset {expected}; "
+            f"reported {paths}"
+        )
+    asset = EAL.load_asset(asset_path)
     if asset is None:
         fail(f"imported asset did not load: {destination}/{name}")
+    verify_import_source(asset, source)
     return asset
 
 
@@ -132,6 +183,7 @@ def import_textures(manifest):
         texture.set_editor_property(
             "compression_settings", COMPRESSION[entry["compression"]]
         )
+        texture.set_editor_property("lod_group", LOD_GROUPS[entry["lod_group"]])
         if not EAL.save_loaded_asset(texture, only_if_is_dirty=False):
             fail(f"save failed for texture {entry['id']}")
         if texture.get_editor_property("srgb") != entry["srgb"]:
@@ -141,6 +193,8 @@ def import_textures(manifest):
             != COMPRESSION[entry["compression"]]
         ):
             fail(f"{entry['id']} compression readback mismatch")
+        if texture.get_editor_property("lod_group") != LOD_GROUPS[entry["lod_group"]]:
+            fail(f"{entry['id']} LOD group readback mismatch")
         result[entry["id"]] = texture
     log(f"PASS textures: {len(result)} imported, configured, and saved")
     return result
@@ -162,10 +216,12 @@ def connect(source, output_name, target, input_name):
 
 
 def set_default_texture(expression, parameter, textures, defaults):
-    texture_id = defaults.get(parameter)
-    texture = textures.get(texture_id)
+    texture_path = defaults.get(parameter)
+    texture = textures.get(texture_path)
+    if texture is None and texture_path:
+        texture = unreal.load_asset(texture_path)
     if texture is None:
-        fail(f"missing master material default texture {parameter}: {texture_id}")
+        fail(f"missing master material default texture {parameter}: {texture_path}")
     expression.set_editor_property("texture", texture)
     if expression.get_editor_property("texture") != texture:
         fail(f"master material default texture readback failed: {parameter}")
@@ -186,6 +242,7 @@ def build_master_material(path, textures, defaults):
     material.set_editor_property(
         "shading_model", unreal.MaterialShadingModel.MSM_DEFAULT_LIT
     )
+    material.set_editor_property("used_with_nanite", True)
     MEL.delete_all_material_expressions(material)
 
     base = material_expression(
@@ -262,22 +319,19 @@ def build_master_material(path, textures, defaults):
         orm, "B", unreal.MaterialProperty.MP_METALLIC
     )
 
-    height = material_expression(
-        material, unreal.MaterialExpressionTextureSampleParameter2D, -720, 760
-    )
-    height.set_editor_property("parameter_name", "HeightTexture")
-    set_default_texture(height, "HeightTexture", textures, defaults)
-    height.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_GRAYSCALE)
-    height_strength = material_expression(
-        material, unreal.MaterialExpressionScalarParameter, -450, 820
-    )
-    height_strength.set_editor_property("parameter_name", "HeightStrength")
-    height_strength.set_editor_property("default_value", 0.0)
-
     MEL.recompile_material(material)
     if not EAL.save_loaded_asset(material, only_if_is_dirty=False):
         fail(f"save failed for {path}")
-    log(f"PASS master material: {path}")
+    if material.get_editor_property("blend_mode") != unreal.BlendMode.BLEND_OPAQUE:
+        fail("master material blend mode readback mismatch")
+    if (
+        material.get_editor_property("shading_model")
+        != unreal.MaterialShadingModel.MSM_DEFAULT_LIT
+    ):
+        fail("master material shading model readback mismatch")
+    if not material.get_editor_property("used_with_nanite"):
+        fail("master material Nanite usage readback mismatch")
+    log(f"PASS opaque Default Lit Nanite master material: {path}")
     return material
 
 
@@ -287,7 +341,10 @@ def texture_or_none(textures, name):
 
 def set_texture_parameter(instance, parameter, texture):
     if texture is None:
-        return
+        fail(
+            f"missing texture for material parameter "
+            f"{instance.get_name()}.{parameter}"
+        )
     MEL.set_material_instance_texture_parameter_value(instance, parameter, texture)
     actual = MEL.get_material_instance_texture_parameter_value(instance, parameter)
     if actual != texture:
@@ -301,7 +358,7 @@ def build_material_instances(manifest, master, textures):
     folder = manifest["import_contract"]["material_root"]
     EAL.make_directory(folder)
     instances = {}
-    for name, texture_prefix in MATERIAL_TEXTURES.items():
+    for name, parameter_values in manifest["material_textures"].items():
         path = f"{folder}/{name}"
         instance = unreal.load_asset(path)
         if instance is None:
@@ -314,18 +371,11 @@ def build_material_instances(manifest, master, textures):
         if instance is None:
             fail(f"could not create {path}")
         MEL.set_material_instance_parent(instance, master)
-        set_texture_parameter(
-            instance, "BaseColorTexture", texture_or_none(textures, texture_prefix + "_D")
-        )
-        set_texture_parameter(
-            instance, "NormalTexture", texture_or_none(textures, texture_prefix + "_N")
-        )
-        set_texture_parameter(
-            instance, "ORMTexture", texture_or_none(textures, texture_prefix + "_ORM")
-        )
-        set_texture_parameter(
-            instance, "HeightTexture", texture_or_none(textures, texture_prefix + "_H")
-        )
+        MEL.clear_all_material_instance_parameters(instance)
+        for parameter, texture_id in parameter_values.items():
+            set_texture_parameter(
+                instance, parameter, texture_or_none(textures, texture_id)
+            )
         if not EAL.save_loaded_asset(instance, only_if_is_dirty=False):
             fail(f"save failed for {path}")
         if instance.get_editor_property("parent") != master:
@@ -363,8 +413,36 @@ def fbx_options():
     data.set_editor_property("combine_meshes", False)
     data.set_editor_property("auto_generate_collision", False)
     data.set_editor_property("one_convex_hull_per_ucx", True)
+    data.set_editor_property("generate_lightmap_u_vs", False)
     data.set_editor_property("build_nanite", True)
     return options
+
+
+def mesh_bounds(mesh):
+    bounds = mesh.get_bounds()
+    return {
+        "min": [
+            bounds.origin.x - bounds.box_extent.x,
+            bounds.origin.y - bounds.box_extent.y,
+            bounds.origin.z - bounds.box_extent.z,
+        ],
+        "max": [
+            bounds.origin.x + bounds.box_extent.x,
+            bounds.origin.y + bounds.box_extent.y,
+            bounds.origin.z + bounds.box_extent.z,
+        ],
+    }
+
+
+def bounds_match(actual, expected, tolerance=1.0):
+    return all(
+        abs(actual_value - expected_value) <= tolerance
+        for actual_values, expected_values in (
+            (actual["min"], expected["min"]),
+            (actual["max"], expected["max"]),
+        )
+        for actual_value, expected_value in zip(actual_values, expected_values)
+    )
 
 
 def import_meshes(manifest, instances):
@@ -385,16 +463,25 @@ def import_meshes(manifest, instances):
 
         materials = list(mesh.get_editor_property("static_materials"))
         expected_slots = entry["material_slots"]
-        if len(materials) > len(expected_slots):
+        imported_slots = [
+            str(slot.get_editor_property("imported_material_slot_name"))
+            for slot in materials
+        ]
+        assigned_slots = [
+            str(slot.get_editor_property("material_slot_name"))
+            for slot in materials
+        ]
+        if imported_slots != expected_slots:
             fail(
-                f"{entry['id']} imported {len(materials)} material slots; "
-                f"catalog allows only {len(expected_slots)}"
+                f"{entry['id']} ImportedMaterialSlotName set {imported_slots} "
+                f"differs from manifest FBX ground truth {expected_slots}"
             )
-        while len(materials) < len(expected_slots):
-            materials.append(unreal.StaticMaterial())
-        for index, slot_name in enumerate(expected_slots):
-            slot = materials[index]
-            slot.set_editor_property("material_slot_name", slot_name)
+        if assigned_slots != imported_slots:
+            fail(
+                f"{entry['id']} MaterialSlotName {assigned_slots} differs from "
+                f"ImportedMaterialSlotName {imported_slots}"
+            )
+        for slot, slot_name in zip(materials, imported_slots):
             slot.set_editor_property("material_interface", instances[slot_name])
         mesh.set_editor_property("static_materials", materials)
 
@@ -407,6 +494,44 @@ def import_meshes(manifest, instances):
         body_setup.set_editor_property(
             "collision_trace_flag", unreal.CollisionTraceFlag.CTF_USE_DEFAULT
         )
+        actual_bounds = mesh_bounds(mesh)
+        expected_bounds = entry["bounds_cm"]
+        source_bounds = entry["source_bounds_cm"]
+        matches_ue = bounds_match(actual_bounds, expected_bounds)
+        matches_source = bounds_match(actual_bounds, source_bounds)
+        if not matches_ue and not matches_source:
+            fail(
+                f"{entry['id']} imported bounds match neither catalog source "
+                f"nor converted UE bounds: {actual_bounds}"
+            )
+        if not matches_ue:
+            fail(
+                f"{entry['id']} import kept source-space bounds instead of "
+                f"the required UE Y-negation"
+            )
+
+        import_data = mesh.get_editor_property("asset_import_data")
+        import_settings = (
+            ("auto_generate_collision", False),
+            ("one_convex_hull_per_ucx", True),
+            ("generate_lightmap_u_vs", False),
+            ("build_nanite", True),
+        )
+        # Persist the exact task contract as the reimport contract too. The
+        # legacy importer can otherwise serialize its class defaults even
+        # though the task-level options were used for the fresh import.
+        for property_name, expected in import_settings:
+            import_data.set_editor_property(property_name, expected)
+        for property_name, expected in import_settings:
+            actual = import_data.get_editor_property(property_name)
+            if actual != expected:
+                fail(
+                    f"{entry['id']} import setting {property_name} "
+                    f"readback {actual} != {expected}"
+                )
+        # The commandlet has no StaticMeshEditorSubsystem. Exact converted
+        # bounds above prove the effective scale here; the GUI map builder and
+        # Tier-1 contract independently read SourceModel BuildScale3D.
         if not EAL.save_loaded_asset(mesh, only_if_is_dirty=False):
             fail(f"save failed for mesh {entry['id']}")
 
@@ -433,22 +558,163 @@ def dirty_packages():
     return [package.get_name() for package in packages]
 
 
-def write_report(manifest, meshes, textures, instances):
-    defects = [
-        {
-            "id": entry["id"],
-            "visual_overhang_downhill_cm": entry["footprint"][
-                "visual_overhang_downhill_cm"
+def collision_hull_extents(mesh):
+    collision = (
+        unreal.GeometryScript_Collision.get_simple_collision_from_static_mesh(mesh)
+    )
+    triangulated = unreal.DynamicMesh()
+    unreal.GeometryScript_Primitives.append_simple_collision_shapes(
+        triangulated,
+        unreal.GeometryScriptPrimitiveOptions(),
+        unreal.Transform(),
+        collision,
+        unreal.GeometryScriptSimpleCollisionTriangulationOptions(),
+    )
+    _, convexes = (
+        unreal.GeometryScript_MeshDecomposition.split_mesh_by_components(
+            triangulated, None
+        )
+    )
+    result = []
+    for index, convex in enumerate(convexes):
+        bounds = convex.get_mesh_bounding_box()
+        minimum = bounds.min
+        maximum = bounds.max
+        result.append({
+            "index": index,
+            "triangle_count": convex.get_triangle_count(),
+            "min": [
+                minimum.x,
+                minimum.y,
+                minimum.z,
             ],
-            "limit_cm": entry["footprint"]["visual_overhang_limit_cm"],
-            "status": "KNOWN ART DEFECT",
+            "max": [
+                maximum.x,
+                maximum.y,
+                maximum.z,
+            ],
+        })
+    expected = unreal.GeometryScript_Collision.get_simple_collision_shape_count(
+        collision
+    )
+    if len(result) != expected:
+        fail(
+            f"{mesh.get_name()} collision triangulated into {len(result)} "
+            f"components, expected {expected} simple shapes"
+        )
+    return result
+
+
+def visual_overhang(entry, actual_bounds):
+    mesh_id = entry["id"]
+    if "_InnerCorner_" in mesh_id:
+        return max(-actual_bounds["min"][0], actual_bounds["max"][1], 0.0)
+    if "_OuterCorner_" in mesh_id:
+        return max(-actual_bounds["min"][0], actual_bounds["max"][1], 0.0)
+    footprint_max_y = max(rect[3] for rect in entry["footprint"]["rects_cm"])
+    return max(actual_bounds["max"][1] - footprint_max_y, 0.0)
+
+
+def purge_unlisted_assets(folder, expected_names):
+    expected_names = set(expected_names)
+    removed = []
+    ASSET_REGISTRY.scan_paths_synchronous([folder], True, True)
+    for object_path in EAL.list_assets(folder, recursive=True, include_folder=False):
+        package_path = object_path.split(".", 1)[0]
+        name = package_path.rsplit("/", 1)[-1]
+        if name in expected_names:
+            continue
+        if not EAL.delete_asset(package_path):
+            fail(f"could not remove unlisted imported asset {package_path}")
+        removed.append(name)
+    if removed:
+        log(f"PASS removed {len(removed)} unlisted assets: {sorted(removed)}")
+
+
+def write_report(manifest, meshes, textures, instances):
+    mesh_entries = {entry["id"]: entry for entry in manifest["meshes"]}
+    mesh_measurements = {}
+    defects = []
+    for mesh_id, mesh in meshes.items():
+        entry = mesh_entries[mesh_id]
+        bounds = mesh_bounds(mesh)
+        overhang = visual_overhang(entry, bounds)
+        limit = entry["footprint"]["visual_overhang_limit_cm"]
+        hulls = collision_hull_extents(mesh)
+        mesh_measurements[mesh_id] = {
+            "bounds_cm": bounds,
+            "visual_overhang_downhill_cm": overhang,
+            "visual_overhang_limit_cm": limit,
+            "collision_hulls": hulls,
+            "material_slots": [
+                {
+                    "MaterialSlotName": str(
+                        slot.get_editor_property("material_slot_name")
+                    ),
+                    "ImportedMaterialSlotName": str(
+                        slot.get_editor_property("imported_material_slot_name")
+                    ),
+                }
+                for slot in mesh.get_editor_property("static_materials")
+            ],
+            "source_md5": staged_source_md5(
+                SOURCE_ROOT.joinpath(*entry["source"]["key"].split("/"))
+            ),
         }
-        for entry in manifest["meshes"]
-        if entry["footprint"]["visual_overhang_art_defect"]
+        if overhang > limit:
+            defects.append({
+                "id": mesh_id,
+                "visual_overhang_downhill_cm": overhang,
+                "limit_cm": limit,
+                "status": "KNOWN ART DEFECT",
+            })
+    representatives = {
+        "cliff": "SM_VW_FeltCliff_Straight_01",
+        "pit": "SM_VW_Pit_Edge_01",
+        "pond_bank": "SM_VW_Pond_Edge_01",
+        "pond_bank_deep": "SM_VW_Pond_Edge_Deep_01",
+        "ramp": "SM_VW_FeltCliff_Ramp_2T_01",
+    }
+    source_axis = manifest["orientation_contract"][
+        "source_straight_cliff_face_axis"
     ]
+    axis_vectors = {
+        "+X": (1.0, 0.0),
+        "-X": (-1.0, 0.0),
+        "+Y": (0.0, 1.0),
+        "-Y": (0.0, -1.0),
+    }
+    source_vector = axis_vectors[source_axis]
+    converted_vector = (source_vector[0], -source_vector[1])
+    measured_axis = next(
+        name for name, vector in axis_vectors.items() if vector == converted_vector
+    )
+    measured_yaw_offset = -math.degrees(
+        math.atan2(converted_vector[1], converted_vector[0])
+    )
+    orientation = {}
+    for kind, representative in representatives.items():
+        entry = mesh_entries[representative]
+        actual = mesh_measurements[representative]["bounds_cm"]
+        orientation[kind] = {
+            "representative": representative,
+            "measurement_method": (
+                "imported bounds matched source bounds after FBX Y-negation; "
+                "source face/downhill axis transformed by the same conversion"
+            ),
+            "source_face_or_downhill_axis": source_axis,
+            "face_or_downhill_axes": [measured_axis],
+            "yaw_offset_deg": measured_yaw_offset,
+            "source_bounds_cm": entry["source_bounds_cm"],
+            "imported_bounds_cm": actual,
+            "converted_bounds_match_within_1cm": bounds_match(
+                actual, entry["bounds_cm"]
+            ),
+        }
     report = {
         "result": "PASS",
         "manifest_sha256": hashlib.sha256(MANIFEST_PATH.read_bytes()).hexdigest(),
+        "catalog_sha256": manifest["source"]["catalog_sha256"],
         "counts": {
             "meshes": len(meshes),
             "textures": len(textures),
@@ -459,11 +725,15 @@ def write_report(manifest, meshes, textures, instances):
         "texture_ids": sorted(textures),
         "material_instances": sorted(instances),
         "master_material": manifest["import_contract"]["master_material"],
-        "imported_facing": {
-            "SM_VW_FeltCliff_Straight_01_face_or_downhill_local_axis": "-Y",
-            "SM_VW_FeltCliff_Ramp_2T_01_face_or_downhill_local_axis": "-Y",
+        "orientation_measurements": orientation,
+        "yaw_offset_deg": measured_yaw_offset,
+        "face_or_downhill_axes": {
+            entry["id"]: entry["footprint"]["face_or_downhill_axes"]
+            for entry in manifest["meshes"]
         },
+        "catalog_slot_mismatch": manifest["catalog_slot_mismatch"],
         "pond_collision_contracts": manifest["pond_collision_contracts"],
+        "mesh_measurements": mesh_measurements,
         "known_art_defects": defects,
     }
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -480,6 +750,11 @@ def main():
     unreal.SystemLibrary.execute_console_command(
         None, "Interchange.FeatureFlags.Import.SyncToBrowser 0"
     )
+    # Force the explicit FbxFactory path: Interchange otherwise ignores parts
+    # of FbxStaticMeshImportData during a Python commandlet import.
+    unreal.SystemLibrary.execute_console_command(
+        None, "Interchange.FeatureFlags.Import.FBX 0"
+    )
     manifest = load_manifest()
     verify_sources(manifest)
     textures = import_textures(manifest)
@@ -490,6 +765,9 @@ def main():
     )
     instances = build_material_instances(manifest, master, textures)
     meshes = import_meshes(manifest, instances)
+    purge_unlisted_assets(
+        manifest["import_contract"]["texture_root"], textures.keys()
+    )
     EAL.save_directory(
         "/MordecaiCore/World/Terrain", only_if_is_dirty=False, recursive=True
     )

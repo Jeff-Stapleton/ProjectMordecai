@@ -59,6 +59,7 @@ class CompliantTileWorld(fb.FakeWorld):
         self.flat_pond = flat_pond
         self.ignore_keys = ignore_keys
         self.jump_until = 0.0
+        self.ramp_tier = False
 
     def _on_key_pressed(self, key):
         super()._on_key_pressed(key)
@@ -71,12 +72,31 @@ class CompliantTileWorld(fb.FakeWorld):
             return
         super()._move(dt)
         x, y = self.pos
-        if not self.cross_cliff and 240.0 <= x <= 340.0 and abs(y) <= 10.0:
+        if 120.0 <= x <= 260.0 and abs(y) <= 50.0:
+            if self.vel[0] > 0.0:
+                self.ramp_tier = True
+            elif self.vel[0] < 0.0:
+                self.ramp_tier = False
+        elif x > 260.0:
+            self.ramp_tier = False
+        if self.cross_cliff and 240.0 <= x <= 340.0 and abs(y) <= 35.0:
+            self.pos[0] = 350.0
+        if not self.cross_cliff and 240.0 <= x <= 340.0 and abs(y) <= 35.0:
             self.pos[0] = min(x, 270.0)
-        if not self.cross_deep and x >= 350.0:
-            for spec in us120.DEEP_BANKS:
-                if abs(y - spec["pivot"][1]) > 35.0:
-                    continue
+        held = self._held_union()
+        probing_deep = held.get("S", 0.0) and (
+            not held.get("W", 0.0)
+        )
+        if not self.cross_deep and probing_deep and x >= 300.0:
+            candidates = sorted(
+                (
+                    spec for spec in us120.DEEP_BANKS
+                    if (held.get("D", 0.0) != 0.0)
+                    == ("D" in spec["keys"])
+                ),
+                key=lambda spec: abs(y - spec["pivot"][1]),
+            )
+            for spec in candidates[:1]:
                 offset_x = x - spec["pivot"][0]
                 offset_y = y - spec["pivot"][1]
                 progress = (
@@ -92,12 +112,13 @@ class CompliantTileWorld(fb.FakeWorld):
         state = super()._s_player()
         low_x, high_x = us120.SHALLOW_DIP_X
         z = us120.TIER0_Z
-        if not self.flat_ramps:
-            if 175.0 <= self.pos[0] <= 190.0 and self.pos[1] < 0.0:
-                z = us120.TIER1_Z
-            elif 235.0 <= self.pos[0] <= 250.0 and self.pos[1] > 0.0:
-                z = us120.TIER1_Z
-        if not self.flat_pond and low_x <= self.pos[0] <= high_x:
+        if not self.flat_ramps and self.ramp_tier:
+            z = us120.TIER1_Z
+        if (
+            not self.flat_pond
+            and low_x <= self.pos[0] <= high_x
+            and self.pos[1] > 50.0
+        ):
             z = us120.SHALLOW_DIP_Z
         if time.monotonic() <= self.jump_until:
             z = max(z, us120.TIER0_Z + 80.0)
@@ -154,25 +175,26 @@ class Us120FakeCase(unittest.TestCase):
             mock.patch.object(us120, "CLIFF_FACE_X", 300.0),
             mock.patch.object(us120, "CLIFF_MIN_X", 250.0, create=True),
             mock.patch.object(us120, "CLIFF_MAX_X", 290.0),
-            mock.patch.object(us120, "SHALLOW_START", (200.0, 0.0)),
-            mock.patch.object(us120, "SHALLOW_END", (340.0, 0.0)),
-            mock.patch.object(us120, "SHALLOW_APPROACH", ((200.0, 0.0),)),
+            mock.patch.object(us120, "measured_cliff_minimum_x", lambda: 250.0),
+            mock.patch.object(us120, "SHALLOW_START", (200.0, 100.0)),
+            mock.patch.object(us120, "SHALLOW_END", (340.0, 100.0)),
+            mock.patch.object(us120, "SHALLOW_APPROACH", ((200.0, 100.0),)),
             # The approach begins well behind this interval even when the
             # preceding fake cliff probe ends at X=300..350.
-            mock.patch.object(us120, "SHALLOW_DIP_X", (245.0, 320.0)),
+            mock.patch.object(us120, "SHALLOW_DIP_X", (245.0, 350.0)),
             mock.patch.object(
                 us120,
                 "DEEP_BANKS",
                 (
                     {
                         "label": "edge",
-                        "pivot": (380.0, -20.0),
-                        "start": (400.0, -20.0),
+                        "pivot": (380.0, -100.0),
+                        "start": (400.0, -100.0),
                         "keys": ("S",),
                         "direction": (-1.0, 0.0),
                         "face_progress": 0.0,
                         "minimum_contact_progress": -60.0,
-                        "route": ((400.0, -20.0),),
+                        "route": ((400.0, -100.0),),
                     },
                     {
                         "label": "outer_corner",
@@ -186,17 +208,19 @@ class Us120FakeCase(unittest.TestCase):
                     },
                     {
                         "label": "inner_corner",
-                        "pivot": (380.0, 20.0),
-                        "start": (400.0, 0.0),
+                        "pivot": (380.0, 100.0),
+                        "start": (400.0, 80.0),
                         "keys": ("S", "D"),
                         "direction": (-0.707107, 0.707107),
                         "face_progress": 0.0,
                         "minimum_contact_progress": -60.0,
-                        "route": ((400.0, 0.0),),
+                        "route": ((400.0, 80.0),),
                     },
                 ),
             ),
             mock.patch.object(us120, "DEEP_ENTRY_ROUTE", ((360.0, -40.0), (400.0, -40.0))),
+            mock.patch.object(us120, "DEEP_SAFE_X", 430.0),
+            mock.patch.object(us120.Us120Run, "WALK_TOL", 30.0),
             mock.patch.object(us120, "BLOCK_HOLD_S", 0.02),
             mock.patch.object(us120, "JUMP_SAMPLE_S", 0.03),
         )
