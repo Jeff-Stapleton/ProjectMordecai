@@ -502,6 +502,12 @@ class TestUs120AgainstFake(Us120FakeCase):
             {"edge", "outer_corner", "inner_corner"},
         )
         self.assertTrue(paths["probes"][-1]["path_points"])
+        self.assertTrue(
+            all(
+                len(entry["reapproaches"]) == us120.DEEP_PUSHES - 1
+                for entry in paths["probes"]
+            )
+        )
 
         shallow = checks["shallow_pond_crosses"]
         self.assertIn("min Z 54.0", shallow["detail"])
