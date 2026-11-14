@@ -397,6 +397,23 @@ class TestUs120Plan(unittest.TestCase):
         self.assertAlmostEqual(math.hypot(*probe["direction"]), 1.0, places=5)
         self.assertLess(probe["direction"][0], 0.0)
         self.assertGreater(probe["direction"][1], 0.0)
+        blocking_hulls = us120._blocking_hulls(measurement)
+        middle_hull = blocking_hulls[len(blocking_hulls) // 2]
+        middle_centre = (
+            (middle_hull["min"][0] + middle_hull["max"][0]) * 0.5,
+            (middle_hull["min"][1] + middle_hull["max"][1]) * 0.5,
+        )
+        middle_length = math.hypot(*middle_centre)
+        self.assertAlmostEqual(
+            probe["direction"][0],
+            middle_centre[0] / middle_length,
+            places=5,
+        )
+        self.assertAlmostEqual(
+            probe["direction"][1],
+            middle_centre[1] / middle_length,
+            places=5,
+        )
         start_offset = (
             probe["start"][0] - lane["location_cm"][0],
             probe["start"][1] - lane["location_cm"][1],
