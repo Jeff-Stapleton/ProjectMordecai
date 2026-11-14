@@ -169,6 +169,57 @@ This story imports static meshes and textures, creates materials and material in
 - [x] Closing commit touches only `stories/`; story moves to done only after all evidence passes
 
 ## Completion Notes
+### Round-5 completion
+- Package commit: `0f3a9b6995ead1417d22efb471ce2d210e268062`.
+  `build_info.json` records `dirty=false` and
+  `source_changed_during_build=false`. The Round-5 RED commit is `950199e6`;
+  GREEN commits are `aea71db6` and `0f3a9b69`.
+- The invalid cooked shader map came from
+  `/MordecaiCore/World/Terrain/Shared/Materials/M_Terrain_Master`: its ORM
+  `TextureSampleParameter2D` declared a Masks sampler but used the color/sRGB
+  `/Engine/EngineResources/DefaultTexture`. The importer and manifest now use
+  neutral mask-compatible
+  `/Engine/MaterialTemplates/LayerBlends/T_DefaultMaskTexture`, explicitly set
+  and read back each neutral default's sampler type, compression, and sRGB
+  contract, and regenerate the master material. The test contract also checks
+  the named parameter/default compatibility in editor builds.
+- Final verification: editor and game compile PASS; Tier 1 **849/849 PASS**;
+  Python tooling **711/711 PASS**; Tier 2 PIE on `L_VW_TileTest` **4/4 scripts
+  PASS**, including **891/891** Verdant Wilds fixture checks; content guard,
+  LFS hydration, source-hash verification, config sync, and tracked
+  secret/raw-source scans PASS.
+- Plain packaged boot `Saved/Playtests/20261114-152143-boot`, focused Tier 3
+  `Saved/Playtests/20261114-152516-boot`, and focused Tier 4
+  `Saved/Playtests/20261114-152537-us120` all PASS on the clean package.
+  Focused Tier 4 is **27 PASS, 0 FAIL**, accepts AC-120.6 and AC-120.7, and
+  records **0 `LogMaterial: Error`** lines. The first focused attempt had a
+  transient route-to-start failure before the cliff probe; the clean rerun
+  completed every gameplay check.
+- Final sweep `Saved/Playtests/20261114-152746-sweep`: US-120 passes; overall
+  FAIL remains only from the baseline-existing US-001 facing, US-054 spacing,
+  and US-078 previous-weapon checks. Comparison with baseline `5bce1a16`
+  finds **0 PASS→FAIL** and **0 FAIL→PASS** across 15 shared Tier-4 scripts,
+  395 shared checks, and four shared Tier-3 launches. Every packaged game log
+  in the plain boot, focused run, and sweep has **0 `LogMaterial: Error`**.
+- No PNG was opened with the file-read tool. PIL scripted inspection accepted
+  all **220** bundled baseline/final/capture images with **0 failures**.
+  Scripted red-pixel-row comparison against the Round-4 gallery confirms the
+  shader-error overlay is absent from the new `gallery_1.png`.
+- Evidence bundle:
+  `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-2587667d-8302-5d0e-97b8-9cb6a5b288fc\files\us120-r5-0f3a9b69`.
+  It contains the reused baseline, plain/focused/sweep reports and images,
+  named captures, build/import/manifest evidence, material-log scan, package
+  measurements, scripted image analysis, secret/raw-source scan, logs, and
+  `SHA256SUMS.txt` (**407/407 verified**).
+- Full packaged `Content/Paks` (`.pak + .ucas + .utoc`) is
+  **819,239,486 bytes**, versus baseline **768,721,316 bytes**: delta
+  **+50,518,170 bytes**. Final totals are `.pak` **74,793,654**, `.ucas`
+  **743,364,272**, and `.utoc` **1,081,560** bytes. Cooked
+  `MordecaiCore/Content/World/Terrain` is **26,705,462 bytes** across 97 files.
+- Round-4 collision, orientation, slot-mismatch, overhang, and pond-hull
+  findings remain unchanged; Round 5 changed only the terrain master's neutral
+  ORM default and its verification coverage.
+
 ### Round-4 completion
 - Package commit: `43a1d9fdcb2ad239e425cff3ede860491147f55f`.
   `build_info.json` records `dirty=false` and
