@@ -15,13 +15,14 @@ This script runs OUTSIDE the editor.  It invokes:
 Default maps: /Game/System/FrontEnd/Maps/L_LyraFrontEnd (the real player
 entry point) + /MordecaiCore/Game/Maps/DevTestMap + the playtest test maps
 /MordecaiCore/Game/Maps/MovementTestMap, /MordecaiCore/Game/Maps/CombatTestMap and
-/MordecaiCore/Game/Maps/PickupProjectileTestMap.
+/MordecaiCore/Game/Maps/PickupProjectileTestMap, plus the Verdant Wilds terrain
+fixture /MordecaiCore/Game/Maps/L_VW_TileTest.
 
 --all-maps adds -CookAll -CookMapsOnly (every map in the project plus what it
 references) and still passes the default maps explicitly.  UAT has no -allmaps
 switch: BuildCookRun silently ignores unknown switches, and the cooker would
 then fall back to the MapsToCook list in DefaultGame.ini, which here is
-the same five maps.
+the same six maps.
 
 -iterate: in UE 5.7 the cooker maps -iterate onto the incremental cook.
 --clean leaves it out, so every package is recooked.
@@ -102,7 +103,8 @@ ARCHIVE_PLATFORM_DIR = os.path.join(ARCHIVE_DIR, "Windows")
 PACKAGED_BIN_DIR = os.path.join(ARCHIVE_PLATFORM_DIR, "ProjectMordecai", "Binaries", "Win64")
 
 # The front end, DevTestMap and the playtest test maps (playtest_boot.DEFAULT_MAP,
-# MOVEMENT_TEST_MAP, COMBAT_TEST_MAP, PICKUP_PROJECTILE_TEST_MAP). Keep this list equal to the +MapsToCook lines in
+# MOVEMENT_TEST_MAP, COMBAT_TEST_MAP, PICKUP_PROJECTILE_TEST_MAP, VW_TILE_TEST_MAP).
+# Keep this list equal to the +MapsToCook lines in
 # Config/DefaultGame.ini; Scripts/tests/test_package_playtest.py checks both, and that every
 # Scripts/playtests/*.py map is in it.
 DEFAULT_MAPS = [
@@ -111,6 +113,7 @@ DEFAULT_MAPS = [
     "/MordecaiCore/Game/Maps/MovementTestMap",
     "/MordecaiCore/Game/Maps/CombatTestMap",
     "/MordecaiCore/Game/Maps/PickupProjectileTestMap",
+    "/MordecaiCore/Game/Maps/L_VW_TileTest",
 ]
 # Real BuildCookRun switches (ProjectParams.CookAll / CookMapsOnly -> cooker -cookall -mapsonly).
 ALL_MAPS_UAT_ARGS = ["-CookAll", "-CookMapsOnly"]
@@ -464,7 +467,7 @@ def main():
     parser.add_argument("--all-maps", action="store_true",
                         help="Cook every map (-CookAll -CookMapsOnly) in addition to the default "
                              "maps (front end, DevTestMap, MovementTestMap, CombatTestMap, "
-                             "PickupProjectileTestMap)")
+                             "PickupProjectileTestMap, L_VW_TileTest)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Print the UAT command and exit 0")
     parser.add_argument("--config", choices=CONFIGS, default="Development",

@@ -35,6 +35,7 @@ namespace MordecaiVerdantWildsTests
 		TEXT("/MordecaiCore/World/Terrain/Shared/Materials/M_Terrain_Master");
 	constexpr double BoundsToleranceCm = 1.0;
 	constexpr double FootprintToleranceCm = 0.1;
+	constexpr double HullExtentToleranceCm = 0.01;
 	constexpr double GridToleranceCm = 0.1;
 
 	TSharedPtr<FJsonObject> LoadManifest(FAutomationTestBase& Test)
@@ -320,6 +321,24 @@ bool FMordecai_VW_CollisionInsideFootprint::RunTest(const FString& Parameters)
 		return false;
 	}
 	const FString MeshRoot = AssetRoot(*this, Manifest, TEXT("mesh_root"));
+	const TSharedPtr<FJsonObject> PondContract =
+		ObjectField(*this, Manifest, TEXT("pond_collision_contracts"));
+	const TSharedPtr<FJsonObject> PondHullExtents =
+		ObjectField(*this, PondContract, TEXT("actual_hull_extents_cm"));
+	const TArray<TSharedPtr<FJsonValue>>* EdgeXY =
+		ArrayField(*this, PondContract, TEXT("edge_xy_cm"));
+	const TArray<TSharedPtr<FJsonValue>>* CornerXY =
+		ArrayField(*this, PondContract, TEXT("corner_xy_cm"));
+	if (!PondContract || !PondHullExtents || !EdgeXY || EdgeXY->Num() != 4
+		|| !CornerXY || CornerXY->Num() != 4)
+	{
+		return false;
+	}
+	const double EdgeXTolerance = PondContract->GetNumberField(TEXT("edge_x_tolerance_cm"));
+	const double PondMinimumZ = PondContract->GetNumberField(TEXT("min_z_cm"));
+	const double ShallowPondMaximumZ = PondContract->GetNumberField(TEXT("shallow_max_z_cm"));
+	const double DeepPondMaximumZ = PondContract->GetNumberField(TEXT("deep_wall_max_z_cm"));
+	const double LandIntrusionLimit = PondContract->GetNumberField(TEXT("land_intrusion_limit_cm"));
 	for (const TSharedPtr<FJsonValue>& Value : *Entries)
 	{
 		const TSharedPtr<FJsonObject> Entry = Value->AsObject();
@@ -329,26 +348,62 @@ bool FMordecai_VW_CollisionInsideFootprint::RunTest(const FString& Parameters)
 			continue;
 		}
 		const TSharedPtr<FJsonObject> Footprint = ObjectField(*this, Entry, TEXT("footprint"));
+		const FString Id = StringField(Entry, TEXT("id"));
+		const FString Kind = StringField(Entry, TEXT("kind"));
+		const bool bIsPond = Kind.StartsWith(TEXT("pond_bank"));
+		const bool bIsDeepPond = Kind == TEXT("pond_bank_deep");
+		const bool bIsPondEdge = bIsPond && Id.Contains(TEXT("_Edge_"));
 		const TArray<TSharedPtr<FJsonValue>>* RectValues = ArrayField(*this, Footprint, TEXT("rects_cm"));
 		const TArray<TSharedPtr<FJsonValue>>* ZValues = ArrayField(*this, Footprint, TEXT("z_cm"));
 		if (!RectValues || !ZValues || ZValues->Num() != 2)
 		{
 			continue;
 		}
-		const double ZMin = (*ZValues)[0]->AsNumber() - FootprintToleranceCm;
-		const double ZMax = (*ZValues)[1]->AsNumber() + FootprintToleranceCm;
+		const double ZMin = bIsPond
+			? PondMinimumZ - FootprintToleranceCm
+			: (*ZValues)[0]->AsNumber() - FootprintToleranceCm;
+		const double ZMax = bIsPond
+			? (bIsDeepPond ? DeepPondMaximumZ : ShallowPondMaximumZ) + FootprintToleranceCm
+			: (*ZValues)[1]->AsNumber() + FootprintToleranceCm;
+		const TArray<TSharedPtr<FJsonValue>>* ExpectedHullValues = nullptr;
+		if (bIsPond)
+		{
+			TestTrue(FString::Printf(TEXT("manifest records actual hull extents for %s"), *Id),
+				PondHullExtents->TryGetArrayField(Id, ExpectedHullValues));
+			if (!ExpectedHullValues)
+			{
+				continue;
+			}
+			TestEqual(FString::Printf(TEXT("%s extent count matches UCX hull count"), *Id),
+				ExpectedHullValues->Num(), Mesh->GetBodySetup()->AggGeom.ConvexElems.Num());
+		}
 		int32 VertexIndex = 0;
+		int32 HullIndex = 0;
 		for (const FKConvexElem& Convex : Mesh->GetBodySetup()->AggGeom.ConvexElems)
 		{
 			const FTransform ConvexTransform = Convex.GetTransform();
+			FBox HullBounds(EForceInit::ForceInit);
+			bool bHullInXY = true;
+			bool bDeepWallIntrudesLand = false;
 			for (const FVector& LocalVertex : Convex.VertexData)
 			{
 				const FVector Vertex = ConvexTransform.TransformPosition(LocalVertex);
-				bool bInXY = false;
+				HullBounds += Vertex;
+				bool bInXY = bIsPond
+					? (bIsPondEdge
+						? Vertex.X >= (*EdgeXY)[0]->AsNumber() - EdgeXTolerance
+							&& Vertex.X <= (*EdgeXY)[1]->AsNumber() + EdgeXTolerance
+							&& Vertex.Y >= (*EdgeXY)[2]->AsNumber() - FootprintToleranceCm
+							&& Vertex.Y <= (*EdgeXY)[3]->AsNumber() + FootprintToleranceCm
+						: Vertex.X >= (*CornerXY)[0]->AsNumber() - FootprintToleranceCm
+							&& Vertex.X <= (*CornerXY)[1]->AsNumber() + FootprintToleranceCm
+							&& Vertex.Y >= (*CornerXY)[2]->AsNumber() - FootprintToleranceCm
+							&& Vertex.Y <= (*CornerXY)[3]->AsNumber() + FootprintToleranceCm)
+					: false;
 				for (const TSharedPtr<FJsonValue>& RectValue : *RectValues)
 				{
 					const TArray<TSharedPtr<FJsonValue>>& Rect = RectValue->AsArray();
-					if (Rect.Num() == 4
+					if (!bIsPond && Rect.Num() == 4
 						&& Vertex.X >= Rect[0]->AsNumber() - FootprintToleranceCm
 						&& Vertex.X <= Rect[1]->AsNumber() + FootprintToleranceCm
 						&& Vertex.Y >= Rect[2]->AsNumber() - FootprintToleranceCm
@@ -358,6 +413,14 @@ bool FMordecai_VW_CollisionInsideFootprint::RunTest(const FString& Parameters)
 						break;
 					}
 				}
+				bHullInXY &= bInXY;
+				if (bIsDeepPond)
+				{
+					bDeepWallIntrudesLand |= bIsPondEdge
+						? Vertex.Y > LandIntrusionLimit + FootprintToleranceCm
+						: Vertex.X > LandIntrusionLimit + FootprintToleranceCm
+							&& Vertex.Y > LandIntrusionLimit + FootprintToleranceCm;
+				}
 				TestTrue(FString::Printf(TEXT("%s collision vertex %d %s is inside the declared XY footprint"),
 						*Mesh->GetName(), VertexIndex, *Vertex.ToString()), bInXY);
 				TestTrue(FString::Printf(TEXT("%s collision vertex %d Z %.2f is inside %.2f..%.2f"),
@@ -365,6 +428,45 @@ bool FMordecai_VW_CollisionInsideFootprint::RunTest(const FString& Parameters)
 					Vertex.Z >= ZMin && Vertex.Z <= ZMax);
 				++VertexIndex;
 			}
+			if (bIsPond)
+			{
+				AddInfo(FString::Printf(
+					TEXT("POND_HULL_EXTENT|%s|%d|%s|min=%.3f,%.3f,%.3f|max=%.3f,%.3f,%.3f"),
+					*Id, HullIndex, *Convex.GetName().ToString(),
+					HullBounds.Min.X, HullBounds.Min.Y, HullBounds.Min.Z,
+					HullBounds.Max.X, HullBounds.Max.Y, HullBounds.Max.Z));
+				TestTrue(FString::Printf(TEXT("%s hull %d stays inside revised pond XY"), *Id, HullIndex),
+					bHullInXY);
+				if (ExpectedHullValues && ExpectedHullValues->IsValidIndex(HullIndex))
+				{
+					const TSharedPtr<FJsonObject> ExpectedHull = (*ExpectedHullValues)[HullIndex]->AsObject();
+					const FVector ExpectedMin = VectorField(*this, ExpectedHull, TEXT("min"));
+					const FVector ExpectedMax = VectorField(*this, ExpectedHull, TEXT("max"));
+					TestTrue(FString::Printf(TEXT("%s hull %d measured min extent matches report"), *Id, HullIndex),
+						HullBounds.Min.Equals(ExpectedMin, HullExtentToleranceCm));
+					TestTrue(FString::Printf(TEXT("%s hull %d measured max extent matches report"), *Id, HullIndex),
+						HullBounds.Max.Equals(ExpectedMax, HullExtentToleranceCm));
+				}
+				const bool bBlockingWall = bIsDeepPond
+					&& HullBounds.Max.Z > ShallowPondMaximumZ + FootprintToleranceCm;
+				if (bBlockingWall)
+				{
+					TestFalse(FString::Printf(
+						TEXT("%s blocking-wall hull %d does not intrude into the land side"),
+						*Id, HullIndex), bDeepWallIntrudesLand);
+				}
+				else if (!bIsDeepPond && HullBounds.Max.Z > ShallowPondMaximumZ + FootprintToleranceCm)
+				{
+					const bool bLandBody = bIsPondEdge
+						? HullBounds.Max.Y > LandIntrusionLimit
+						: HullBounds.Max.X > LandIntrusionLimit
+							&& HullBounds.Max.Y > LandIntrusionLimit;
+					TestTrue(FString::Printf(
+						TEXT("%s shallow hull %d above +15 cm is the land body"),
+						*Id, HullIndex), bLandBody);
+				}
+			}
+			++HullIndex;
 		}
 
 		const double Overhang = Footprint->GetNumberField(TEXT("visual_overhang_downhill_cm"));

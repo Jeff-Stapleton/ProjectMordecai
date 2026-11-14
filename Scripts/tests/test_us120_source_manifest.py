@@ -148,6 +148,32 @@ class TestUs120SourceManifest(unittest.TestCase):
             {"yaw_deg": 0, "screen_north_axis": "+X", "screen_east_axis": "+Y"},
         )
 
+    def test_revised_pond_contract_and_measured_hull_extents_are_complete(self):
+        contract = self.data["pond_collision_contracts"]
+        self.assertEqual(contract["edge_xy_cm"], [-100.0, 100.0, -200.0, 200.0])
+        self.assertEqual(contract["edge_x_tolerance_cm"], 15.0)
+        self.assertEqual(contract["corner_xy_cm"], [-200.0, 200.0, -200.0, 200.0])
+        self.assertEqual(contract["min_z_cm"], -200.0)
+        self.assertEqual(contract["shallow_max_z_cm"], 15.0)
+        self.assertEqual(contract["deep_wall_max_z_cm"], 250.0)
+        self.assertEqual(contract["land_intrusion_limit_cm"], 15.0)
+        pond_meshes = {
+            mesh["id"]: mesh
+            for mesh in self.meshes
+            if mesh["kind"].startswith("pond_bank")
+        }
+        extents = contract["actual_hull_extents_cm"]
+        self.assertEqual(set(extents), set(pond_meshes))
+        for mesh_id, mesh in pond_meshes.items():
+            with self.subTest(mesh=mesh_id):
+                self.assertEqual(len(extents[mesh_id]), mesh["collision"]["count"])
+                for hull in extents[mesh_id]:
+                    self.assertEqual(len(hull["min"]), 3)
+                    self.assertEqual(len(hull["max"]), 3)
+                    self.assertTrue(
+                        all(lo <= hi for lo, hi in zip(hull["min"], hull["max"]))
+                    )
+
     def test_every_downhill_overhang_is_measured_and_flagged_without_editing_sources(self):
         for mesh in self.meshes:
             with self.subTest(mesh=mesh["id"]):

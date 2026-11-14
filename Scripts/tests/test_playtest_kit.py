@@ -326,13 +326,23 @@ class TestKitMapCheck(KitCase):
             "/MordecaiCore/Game/Maps/PickupProjectileTestMap",
         )
         self.assertEqual(
+            kit.VW_TILE_TEST_MAP,
+            "/MordecaiCore/Game/Maps/L_VW_TileTest",
+        )
+        self.assertEqual(
             kit.TEST_MAPS,
-            (kit.MOVEMENT_TEST_MAP, kit.COMBAT_TEST_MAP, kit.PICKUP_PROJECTILE_TEST_MAP),
+            (
+                kit.MOVEMENT_TEST_MAP,
+                kit.COMBAT_TEST_MAP,
+                kit.PICKUP_PROJECTILE_TEST_MAP,
+                kit.VW_TILE_TEST_MAP,
+            ),
         )
         for name in (
             "MOVEMENT_TEST_MAP",
             "COMBAT_TEST_MAP",
             "PICKUP_PROJECTILE_TEST_MAP",
+            "VW_TILE_TEST_MAP",
             "TEST_MAPS",
         ):
             self.assertEqual(getattr(kit, name), getattr(pb, name), name)  # one source: pb

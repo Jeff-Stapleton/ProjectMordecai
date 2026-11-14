@@ -94,7 +94,7 @@ class Us120FakeCase(unittest.TestCase):
                     ("inner_corner", (380.0, 20.0)),
                 ),
             ),
-            mock.patch.object(us120, "DEEP_MAX_X", 10000.0),
+            mock.patch.object(us120, "DEEP_MIN_X", -10000.0),
             mock.patch.object(us120, "_near", lambda value, target, tolerance=None: True),
             mock.patch.object(us120, "BLOCK_HOLD_S", 0.02),
             mock.patch.object(us120, "JUMP_SAMPLE_S", 0.03),

@@ -37,12 +37,12 @@ CLIFF_MAX_X = 1330.0
 SHALLOW_START = (1900.0, 0.0)
 SHALLOW_END = (3100.0, 0.0)
 DEEP_BANKS = (
-    ("edge", (3500.0, -800.0)),
-    ("outer_corner", (3500.0, 0.0)),
-    ("inner_corner", (3500.0, 800.0)),
+    ("edge", (4100.0, -800.0)),
+    ("outer_corner", (4100.0, 0.0)),
+    ("inner_corner", (4100.0, 800.0)),
 )
 DEEP_FACE_X = 3800.0
-DEEP_MAX_X = 3730.0
+DEEP_MIN_X = 3870.0
 
 SCREENSHOTS = {
     "gallery_1": "the first labelled Verdant Wilds gallery group, with approved meshes and felt materials",
@@ -101,7 +101,7 @@ PLAN = (
     ),
     Step(
         "deep_bank_blocks",
-        "hold W into deep Edge, OuterCorner and InnerCorner banks -> each remains on the near side",
+        "hold S downhill from the land side into deep Edge, OuterCorner and InnerCorner banks -> each remains on land",
         proves=("AC-120.7",),
     ),
 )
@@ -282,9 +282,9 @@ class Us120Run(kit.PlaytestRun):
                 self.bridge.walk_to(
                     *start, tol=self.WALK_TOL, timeout_s=25.0
                 )
-                response = self.bridge.hold("W", BLOCK_HOLD_S)
+                response = self.bridge.hold("S", BLOCK_HOLD_S)
                 location = _player(self.bridge)
-                blocked = location[0] <= DEEP_MAX_X
+                blocked = location[0] >= DEEP_MIN_X
                 results.append({
                     "representative": label,
                     "held_s": response.get("held_s"),
@@ -299,7 +299,7 @@ class Us120Run(kit.PlaytestRun):
                 for result in results
             )
             return ("FAIL" if bad else "PASS"), (
-                detail + f"; every X must remain <= {DEEP_MAX_X:.0f}"
+                detail + f"; every X must remain >= {DEEP_MIN_X:.0f}"
             ), {"representatives": results}
 
         self.attempt("deep_bank_blocks", probe_all)

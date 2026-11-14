@@ -1077,6 +1077,34 @@ Test fixture maps need no playlist: they are launched by `--map` (`playtest_boot
 
 ---
 
+## Static Mesh Import
+
+### UE 5.7 unattended FBX import needs the legacy factory for named UCX
+
+**Problem:** An unattended Python import either crashed in Content Browser
+sync, silently discarded every authored `UCX_*` hull, or refused to persist a
+negative-axis build scale used to correct FBX handedness.
+
+**Root cause:** `AssetImportTask` defaults to Interchange in UE 5.7.
+Interchange did not preserve these named UCX hulls, and its commandlet path
+attempted `SyncBrowserToAssets`. An explicit `FbxFactory` preserves the hulls.
+`EditorStaticMeshLibrary.set_lod_build_settings()` delegates to
+`StaticMeshEditorSubsystem`, which rejects commandlet context, so its apparent
+success does not mean a changed build scale was saved.
+
+**Fix:** For a deterministic `-run=pythonscript` static-mesh import:
+- pass an explicit `unreal.FbxFactory` and configured
+  `FbxImportUI.static_mesh_import_data`;
+- disable `Interchange.FeatureFlags.Import.SyncToBrowser` for the commandlet;
+- read back hull counts, material slots, Nanite, and saved packages;
+- if the required asset-local orientation needs a handedness reflection, do a
+  deterministic GUI-editor finalization with Geometry Script: copy the source
+  LOD to `DynamicMesh`, transform it, copy it back, then get/transform/set the
+  simple collision with the same transform. Do not use a negative actor scale.
+  Detect expected versus reflected bounds first so the finalizer is idempotent.
+
+---
+
 ## Build System
 
 ### UBA memory loop kills compilation indefinitely on high-memory machines
