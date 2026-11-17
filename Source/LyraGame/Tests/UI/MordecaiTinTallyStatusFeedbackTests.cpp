@@ -248,6 +248,62 @@ bool FMordecai_UI_StatusChip_WrapsAndCapsAtEight::RunTest(const FString& Paramet
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_StatusChip_DistinctNamesForConcurrentStatuses,
+	"Mordecai.UI.StatusChip.DistinctNamesForConcurrentStatuses",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_StatusChip_DistinctNamesForConcurrentStatuses::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiTinTallyStatusFeedbackTest;
+	FRecoveryControlledTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownWithController(); };
+	if (!TestTrue("controlled player world", Env.SetupWithController()))
+	{
+		return true;
+	}
+
+	UAbilitySystemComponent* ASC = Env.GetPlayerASC();
+	UMordecaiStatusEffectBarWidget* Bar =
+		Env.MakeWidget<UMordecaiStatusEffectBarWidget>();
+	Bar->BindToASC(ASC);
+	ASC->AddLooseGameplayTag(MordecaiGameplayTags::Status_StoneSkin);
+	ASC->AddLooseGameplayTag(MordecaiGameplayTags::Status_Burning);
+
+	UPanelWidget* Container = Find<UPanelWidget>(Bar, TEXT("IndicatorContainer"));
+	TMap<FGameplayTag, FString> NamesByTag;
+	for (int32 Index = 0; Container && Index < Container->GetChildrenCount(); ++Index)
+	{
+		if (const UMordecaiStatusEffectIndicatorWidget* Indicator =
+			Cast<UMordecaiStatusEffectIndicatorWidget>(Container->GetChildAt(Index)))
+		{
+			const UTextBlock* Name =
+				Find<UTextBlock>(Indicator, TEXT("StatusNameText"));
+			NamesByTag.Add(
+				Indicator->GetStatusTag(),
+				Name ? Name->GetText().ToString() : FString());
+		}
+	}
+
+	TestEqual("two active statuses create two indicators", NamesByTag.Num(), 2);
+	TestEqual("Stone Skin indicator uses its player-facing name",
+		NamesByTag.FindRef(MordecaiGameplayTags::Status_StoneSkin),
+		FString(TEXT("Stone Skin")));
+	TestEqual("Burning indicator uses its distinct player-facing name",
+		NamesByTag.FindRef(MordecaiGameplayTags::Status_Burning),
+		FString(TEXT("Burning")));
+
+	ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::Status_StoneSkin);
+	TestEqual("ending Stone Skin removes only its indicator",
+		CountShownChildren(Container), 1);
+	const UMordecaiStatusEffectIndicatorWidget* Remaining =
+		FirstIndicator(Container);
+	TestTrue("Burning remains after Stone Skin ends",
+		Remaining
+		&& Remaining->GetStatusTag() == MordecaiGameplayTags::Status_Burning);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_StatusChip_DisplayNameAndPolarity,
 	"Mordecai.UI.StatusChip.DisplayNameAndPolarity",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
