@@ -93,6 +93,7 @@ IDLE = "Idle"
 # --- tags, widget classes, texts ----------------------------------------------------------------
 TAG_DEAD = "Mordecai.State.Dead"
 TAG_ATTACKING = "Mordecai.State.Attacking"
+TAG_COMBO_WINDOW = "Mordecai.State.ComboWindow"
 TAG_DODGE_SUBSTR = "dodg"              # Mordecai.State.Dodging (case-insensitive substring)
 TAG_BURNING = "Mordecai.Status.Burning"
 TAG_RESTORATION = "Mordecai.Status.Restoration"
@@ -108,6 +109,7 @@ ATTACK_POINT = (640, 360)              # the viewport centre: the game view, no 
 
 # --- timeouts (module-level so the offline tests can shorten them) ------------------------------
 ATTACK_TIMEOUT_S = 1.0
+COMBO_TIMEOUT_S = 1.5
 DODGE_TIMEOUT_S = 0.5
 DAMAGE_TIMEOUT_S = 20.0
 RESTORATION_TIMEOUT_S = 6.0
@@ -140,6 +142,8 @@ SCREENSHOTS = {
     "near_dummy": "the player on the grid floor right next to the blue-grey TestDummy cylinder "
                   "(160 cm +X of the player, i.e. just up the screen) under its one always-on "
                   "red 150px EnemyIndicator health bar",
+    "combo_hit_two": "the player beside the TestDummy during the second real light-combo "
+                     "recovery; the fixed 108x36 centre-lane plate reads 'Hit 2'",
     "killed": "the player at the melee spot; the TestDummy's cylinder gone (a dead enemy's body is "
               "hidden) and its EnemyIndicator unregistered; 'Kills: 1' top-right",
     "hit": "the player next to the orange TestAttacker cylinder (100 cm +X of the player, just "
@@ -173,6 +177,9 @@ PLAN = (
     Step("melee_lmb", f"click Left at {ATTACK_POINT} -> within {ATTACK_TIMEOUT_S:g}s "
          f"'{TAG_ATTACKING}' in player.tags or the {DUMMY}'s health below its value before the "
          "click", proves=("AC-054.6", "AC-054.5")),
+    Step("combo_hit_two", f"wait for '{TAG_COMBO_WINDOW}' and widget text 'Hit 1', click Left "
+         f"again at {ATTACK_POINT} -> within {COMBO_TIMEOUT_S:g}s widget text 'Hit 2' and the "
+         f"{DUMMY}'s health decreases again (issue #136)"),
     Step("dodge_lalt", f"tap LeftAlt -> within {DODGE_TIMEOUT_S:g}s a Dodging tag in player.tags "
          "or a displacement > 150 cm", proves=("AC-054.6", "AC-054.5")),
     Step("kill_enemy_melee", f"walk_to({DUMMY_MELEE_SPOT[0]:g}, {DUMMY_MELEE_SPOT[1]:g}) if the "
@@ -606,7 +613,57 @@ class Us054CombatRun(kit.PlaytestRun):
 
         melee_ok, _ = self.measure("melee_lmb", melee)
 
+        def combo(b):
+            first = {"texts": [], "tags": []}
+
+            def hit_one(st):
+                first["texts"] = all_texts(st)
+                first["tags"] = tags(player(st))
+                return ("Hit 1" in first["texts"]
+                        and TAG_COMBO_WINDOW in first["tags"])
+
+            ready, st = self._poll(["player", "widgets", "actors"], hit_one, COMBO_TIMEOUT_S)
+            if not ready:
+                return ("FAIL", f"first light attack never opened a visible combo window within "
+                        f"{COMBO_TIMEOUT_S:g}s: texts {first['texts']}, tags {first['tags']}",
+                        None)
+            before = enemy_health(find_target(st, DUMMY))[0]
+            response = b.click(*ATTACK_POINT, button="Left")
+            second = {"texts": [], "tags": [], "health": before}
+
+            def hit_two(now):
+                self._note(now, "combo_hit_two")
+                second["texts"] = all_texts(now)
+                second["tags"] = tags(player(now))
+                target = find_target(now, DUMMY)
+                second["health"] = enemy_health(target)[0] if target is not None else None
+                return ("Hit 2" in second["texts"]
+                        and second["health"] is not None
+                        and before is not None
+                        and second["health"] < before)
+
+            done, _ = self._poll(
+                ["player", "widgets", "actors"], hit_two, COMBO_TIMEOUT_S)
+            detail = (f"saw 'Hit 1' with '{TAG_COMBO_WINDOW}', then Left click at "
+                      f"{ATTACK_POINT} (Slate hit {response.get('hit')}): texts "
+                      f"{second['texts']}, tags {second['tags']}, {DUMMY} health "
+                      f"{before} -> {second['health']}")
+            return ("PASS" if done else "FAIL"), detail, None
+
+        combo_ok, _ = self.measure(
+            "combo_hit_two", combo, needs=melee_ok,
+            needs_why="not run: the first light attack failed")
+        self.shot("combo_hit_two", needs=combo_ok,
+                  needs_why="not taken: the real two-hit combo did not show Hit 2")
+
         def dodge(b):
+            idle, _ = self._poll(
+                ["player"],
+                lambda st: TAG_ATTACKING not in tags(player(st)),
+                COMBO_TIMEOUT_S)
+            if not idle:
+                return ("FAIL", f"'{TAG_ATTACKING}' did not clear after the combo within "
+                        f"{COMBO_TIMEOUT_S:g}s; dodge input was not sent", None)
             p0 = player(b.state(["player"]))
             if p0 is None:
                 return "FAIL", "no valid player before LeftAlt", None

@@ -237,7 +237,8 @@ void UMordecaiGA_MeleeAttack::ResetCombo()
 
 void UMordecaiGA_MeleeAttack::NotifyComboInput()
 {
-	if (CurrentPhase == EMordecaiAttackPhase::Recovery)
+	if (CurrentPhase == EMordecaiAttackPhase::Recovery
+		&& !IsComboContinuationBlocked())
 	{
 		bComboInputReceived = true;
 	}
@@ -360,8 +361,18 @@ void UMordecaiGA_MeleeAttack::EndAbility(
 
 	CurrentPhase = EMordecaiAttackPhase::None;
 	bComboInputReceived = false;
+	SetComboWindowOpen(false);
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UMordecaiGA_MeleeAttack::InputPressed(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo)
+{
+	Super::InputPressed(Handle, ActorInfo, ActivationInfo);
+	NotifyComboInput();
 }
 
 // ---------------------------------------------------------------------------
@@ -393,6 +404,7 @@ void UMordecaiGA_MeleeAttack::OnActiveComplete()
 
 	const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
 	if (!Profile) return;
+	SetComboWindowOpen(Profile->InputSlot == EMordecaiInputSlot::Light);
 
 	if (UWorld* World = GetWorld())
 	{
@@ -417,9 +429,16 @@ void UMordecaiGA_MeleeAttack::OnActiveComplete()
 
 void UMordecaiGA_MeleeAttack::OnRecoveryComplete()
 {
+	SetComboWindowOpen(false);
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(ComboWindowTimerHandle);
+	}
+
+	// A blocking state can arrive after input was queued but before Recovery ends.
+	if (bComboInputReceived && IsComboContinuationBlocked())
+	{
+		bComboInputReceived = false;
 	}
 
 	// AC-004.9: If combo input was received, advance and start next step
@@ -457,6 +476,29 @@ void UMordecaiGA_MeleeAttack::OnComboWindowTimeout()
 {
 	// AC-004.10: Combo resets after timeout
 	bComboInputReceived = false;
+	SetComboWindowOpen(false);
+}
+
+void UMordecaiGA_MeleeAttack::SetComboWindowOpen(bool bOpen)
+{
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASC->SetLooseGameplayTagCount(
+			MordecaiGameplayTags::State_ComboWindow, bOpen ? 1 : 0);
+	}
+}
+
+bool UMordecaiGA_MeleeAttack::IsComboContinuationBlocked() const
+{
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!ASC)
+	{
+		return true;
+	}
+
+	FGameplayTagContainer ComboBlockedTags = ActivationBlockedTags;
+	ComboBlockedTags.RemoveTag(MordecaiGameplayTags::State_Attacking);
+	return ASC->HasAnyMatchingGameplayTags(ComboBlockedTags);
 }
 
 // ---------------------------------------------------------------------------

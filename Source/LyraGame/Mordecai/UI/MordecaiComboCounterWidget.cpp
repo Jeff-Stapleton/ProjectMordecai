@@ -1,6 +1,7 @@
 // Project Mordecai — Combo Counter Widget (US-061)
 
 #include "Mordecai/UI/MordecaiComboCounterWidget.h"
+#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
@@ -148,6 +149,21 @@ void UMordecaiComboCounterWidget::OnComboWindowTagChanged(const FGameplayTag Tag
 {
 	if (NewCount > 0)
 	{
+		if (UAbilitySystemComponent* ASC = BoundASC.Get())
+		{
+			for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+			{
+				const UMordecaiGA_MeleeAttack* Melee =
+					Spec.IsActive()
+						? Cast<UMordecaiGA_MeleeAttack>(Spec.GetPrimaryInstance())
+						: nullptr;
+				if (Melee && Melee->AttackSlot == EMordecaiInputSlot::Light)
+				{
+					SetComboIndex(Melee->GetCurrentComboIndex());
+					break;
+				}
+			}
+		}
 		SetComboVisible(true);
 	}
 	else
