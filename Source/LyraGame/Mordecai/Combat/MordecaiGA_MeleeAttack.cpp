@@ -237,7 +237,8 @@ void UMordecaiGA_MeleeAttack::ResetCombo()
 
 void UMordecaiGA_MeleeAttack::NotifyComboInput()
 {
-	if (CurrentPhase == EMordecaiAttackPhase::Recovery)
+	if (CurrentPhase == EMordecaiAttackPhase::Recovery
+		&& !IsComboContinuationBlocked())
 	{
 		bComboInputReceived = true;
 	}
@@ -434,6 +435,12 @@ void UMordecaiGA_MeleeAttack::OnRecoveryComplete()
 		World->GetTimerManager().ClearTimer(ComboWindowTimerHandle);
 	}
 
+	// A blocking state can arrive after input was queued but before Recovery ends.
+	if (bComboInputReceived && IsComboContinuationBlocked())
+	{
+		bComboInputReceived = false;
+	}
+
 	// AC-004.9: If combo input was received, advance and start next step
 	if (bComboInputReceived && AdvanceCombo())
 	{
@@ -479,6 +486,19 @@ void UMordecaiGA_MeleeAttack::SetComboWindowOpen(bool bOpen)
 		ASC->SetLooseGameplayTagCount(
 			MordecaiGameplayTags::State_ComboWindow, bOpen ? 1 : 0);
 	}
+}
+
+bool UMordecaiGA_MeleeAttack::IsComboContinuationBlocked() const
+{
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!ASC)
+	{
+		return true;
+	}
+
+	FGameplayTagContainer ComboBlockedTags = ActivationBlockedTags;
+	ComboBlockedTags.RemoveTag(MordecaiGameplayTags::State_Attacking);
+	return ASC->HasAnyMatchingGameplayTags(ComboBlockedTags);
 }
 
 // ---------------------------------------------------------------------------

@@ -16,6 +16,7 @@
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/WrapBox.h"
+#include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/StatusEffects/MordecaiStatusEffectTypes.h"
@@ -554,6 +555,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Combo_LiveMeleeAbilityUpdatesBound
 	"Mordecai.UI.Combo.LiveMeleeAbilityUpdatesBoundCounter",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Combo_BlockedTagsStopQueuedStep,
+	"Mordecai.UI.Combo.BlockedTagsStopQueuedStep",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
 bool FMordecai_UI_Combo_LiveMeleeAbilityUpdatesBoundCounter::RunTest(const FString& Parameters)
 {
 	using namespace MordecaiTinTallyStatusFeedbackTest;
@@ -639,6 +644,120 @@ bool FMordecai_UI_Combo_LiveMeleeAbilityUpdatesBoundCounter::RunTest(const FStri
 	}
 	TestEqual("counter hides when the combo window closes",
 		Combo->GetVisibility(), ESlateVisibility::Collapsed);
+	return true;
+}
+
+bool FMordecai_UI_Combo_BlockedTagsStopQueuedStep::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiTinTallyStatusFeedbackTest;
+	using namespace MordecaiRecoveryTest;
+
+	auto RunBlockedCase = [this](const FGameplayTag BlockedTag, const TCHAR* CaseName,
+		const bool bAddTagBeforeInput)
+	{
+		FRecoveryControlledTestEnv Env;
+		ON_SCOPE_EXIT { Env.TeardownWithController(); };
+		if (!TestTrue(*FString::Printf(TEXT("%s: controlled player world"), CaseName),
+			Env.SetupWithController()))
+		{
+			return;
+		}
+
+		ULyraAbilitySystemComponent* ASC =
+			CastChecked<ULyraAbilitySystemComponent>(Env.GetPlayerASC());
+		UMordecaiCombatHUDWidget* HUD = Env.MakeWidget<UMordecaiCombatHUDWidget>();
+		UMordecaiComboCounterWidget* Combo = Cast<UMordecaiComboCounterWidget>(
+			HUD->GetNamedWidget(HUD, TEXT("ComboCounter")));
+		UTextBlock* ComboText = Find<UTextBlock>(Combo, TEXT("ComboText"));
+		if (!TestNotNull(*FString::Printf(TEXT("%s: combo counter"), CaseName), Combo)
+			|| !TestNotNull(*FString::Printf(TEXT("%s: combo text"), CaseName), ComboText))
+		{
+			return;
+		}
+		HUD->BindToASC(ASC);
+
+		FGameplayAbilitySpec Spec(UMordecaiGA_MeleeAttack::StaticClass(), 1);
+		Spec.GetDynamicSpecSourceTags().AddTag(MordecaiGameplayTags::Input_LightAttack);
+		const FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(Spec);
+		FGameplayAbilitySpec* Granted = ASC->FindAbilitySpecFromHandle(Handle);
+		UMordecaiGA_MeleeAttack* Melee = Granted
+			? Cast<UMordecaiGA_MeleeAttack>(Granted->GetPrimaryInstance())
+			: nullptr;
+		if (!TestNotNull(*FString::Printf(TEXT("%s: real melee ability"), CaseName), Melee))
+		{
+			return;
+		}
+
+		UMordecaiAttackProfileDataAsset* First = MakeStubProfile();
+		UMordecaiAttackProfileDataAsset* Second = MakeStubProfile();
+		First->StaminaCost = 5.f;
+		Second->StaminaCost = 5.f;
+		Melee->AttackProfiles = { First, Second };
+		ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetStaminaAttribute(), 100.f);
+
+		auto Tick = [&Env]()
+		{
+			++GFrameCounter;
+			Env.World->TimeSeconds += 0.11f;
+			Env.World->GetTimerManager().Tick(0.11f);
+		};
+		auto PressLight = [ASC]()
+		{
+			ASC->AbilityInputTagPressed(MordecaiGameplayTags::Input_LightAttack);
+			ASC->ProcessAbilityInput(0.f, false);
+			ASC->AbilityInputTagReleased(MordecaiGameplayTags::Input_LightAttack);
+			ASC->ProcessAbilityInput(0.f, false);
+		};
+
+		TestTrue(*FString::Printf(TEXT("%s: first step activates"), CaseName),
+			ASC->TryActivateAbility(Handle));
+		for (int32 Frame = 0;
+			Frame < 10 && Melee->GetCurrentPhase() != EMordecaiAttackPhase::Recovery;
+			++Frame)
+		{
+			Tick();
+		}
+		TestEqual(*FString::Printf(TEXT("%s: first step reaches Recovery"), CaseName),
+			Melee->GetCurrentPhase(), EMordecaiAttackPhase::Recovery);
+		const float StaminaAfterFirst = ASC->GetNumericAttribute(
+			UMordecaiAttributeSet::GetStaminaAttribute());
+
+		if (bAddTagBeforeInput)
+		{
+			ASC->AddLooseGameplayTag(BlockedTag);
+		}
+		PressLight();
+		if (!bAddTagBeforeInput)
+		{
+			ASC->AddLooseGameplayTag(BlockedTag);
+		}
+		Tick(); // Finish hit 1 Recovery; a blocked hit 2 must not start.
+
+		TestEqual(*FString::Printf(TEXT("%s: combo index stays on hit 1"), CaseName),
+			Melee->GetCurrentComboIndex(), 0);
+		TestFalse(*FString::Printf(TEXT("%s: ability ends after blocked queue"), CaseName),
+			Melee->IsActive());
+		TestEqual(*FString::Printf(TEXT("%s: blocked step spends no stamina"), CaseName),
+			ASC->GetNumericAttribute(UMordecaiAttributeSet::GetStaminaAttribute()),
+			StaminaAfterFirst);
+		TestTrue(*FString::Printf(TEXT("%s: combo counter stays hidden"), CaseName),
+			Combo->GetVisibility() == ESlateVisibility::Collapsed);
+		TestNotEqual(*FString::Printf(TEXT("%s: combo counter never shows Hit 2"), CaseName),
+			ComboText->GetText().ToString(), FString(TEXT("Hit 2")));
+	};
+
+	const TPair<FGameplayTag, const TCHAR*> BlockedCases[] = {
+		{ MordecaiGameplayTags::State_PostureBroken, TEXT("PostureBroken before input") },
+		{ MordecaiGameplayTags::State_KnockedDown, TEXT("KnockedDown before input") },
+		{ MordecaiGameplayTags::State_Parrying, TEXT("Parrying before input") },
+		{ MordecaiGameplayTags::State_ParryWhiff, TEXT("ParryWhiff before input") },
+		{ MordecaiGameplayTags::State_Dead, TEXT("Dead before input") },
+	};
+	for (const TPair<FGameplayTag, const TCHAR*>& BlockedCase : BlockedCases)
+	{
+		RunBlockedCase(BlockedCase.Key, BlockedCase.Value, true);
+	}
+	RunBlockedCase(MordecaiGameplayTags::State_Dead, TEXT("Dead after queued input"), false);
 	return true;
 }
 

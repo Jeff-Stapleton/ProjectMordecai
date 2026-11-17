@@ -171,6 +171,7 @@ protected:
 	void OnRecoveryComplete();
 	void OnComboWindowTimeout();
 	void SetComboWindowOpen(bool bOpen);
+	bool IsComboContinuationBlocked() const;
 
 	// --- Hit Detection & Damage ---
 	void PerformHitDetectionAndApplyDamage();
