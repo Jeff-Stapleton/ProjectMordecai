@@ -572,6 +572,8 @@ bool FMordecai_UI_Combo_SurvivesHUDReactivation::RunTest(const FString& Paramete
 	HUD->BindToASC(ASC);
 	HUD->ActivateWidget();
 	HUD->DeactivateWidget();
+	Combo->SetComboVisible(false); // A rebuilt Slate widget starts collapsed before its ASC rebind.
+	HUD->BindToASC(ASC);
 	HUD->ActivateWidget();
 
 	const UTextBlock* ComboText = Find<UTextBlock>(Combo, TEXT("ComboText"));
@@ -584,10 +586,10 @@ bool FMordecai_UI_Combo_SurvivesHUDReactivation::RunTest(const FString& Paramete
 	TestEqual("24 design px converts to 18 pt",
 		ComboText ? static_cast<float>(ComboText->GetFont().Size) : 0.f,
 		18.f);
-	TestEqual("active combo keeps Hit N through HUD reactivation",
+	TestEqual("active combo keeps Hit N through HUD rebuild and rebind",
 		ComboText ? ComboText->GetText().ToString() : FString(),
 		FString(TEXT("Hit 2")));
-	TestEqual("active combo remains visible after HUD reactivation",
+	TestEqual("active combo becomes visible again after HUD rebuild and rebind",
 		Combo->GetVisibility(), ESlateVisibility::HitTestInvisible);
 	ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::State_ComboWindow);
 	TestEqual("combo hides when the active window closes",
