@@ -144,11 +144,12 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 15 | `walk_lane_reset` | walk_to(-700, -800) -> within 60 cm | - |
 | 16 | `sprint_shift` | tap LeftShift, hold W 1s -> dx > 700 cm; tap LeftShift again, hold S 1s -> back to a walk (peak player.speed 500..750 cm/s) | AC-1.3.3, AC-2.1.3 |
 | 17 | `walk_lane_reset2` | walk_to(-700, -800) -> within 60 cm | - |
-| 18 | `sprint_l3` | tap Gamepad_LeftThumbstick (L3), hold W 1s -> dx > 700 cm (then tap L3 again) _(known issue: gamepad stick and L3 mappings use invalid FKey names (Specs/agent_playtest_plan_v1.md))_ | AC-1.3.3, AC-2.1.3 |
+| 18 | `sprint_l3` | tap Gamepad_LeftThumbstick (L3), hold W 1s -> dx > 700 cm (then tap L3 again) | AC-1.3.3, AC-2.1.3 |
 | 19 | `jump_space` | tap SpaceBar -> wait_until player.movement_mode=="Falling" within 1s | AC-2.1.4 |
-| 20 | `facing_mouse` | mouse 1100 360 (right of the player, +Y) -> wait_until player.rotation yaw 90 (+-30) within 1s _(known issue: facing and aim are pinned to +X by the diorama camera (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.2 |
-| 21 | `facing_stick` | axis Gamepad_RightX=-1 held (left, -Y) -> wait_until player.rotation yaw -90 (+-30) within 1s, then release _(known issue: facing and aim are pinned to +X by the diorama camera (Specs/agent_playtest_plan_v1.md); Known issue: gamepad stick and L3 mappings use invalid FKey names (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.2 |
-| 22 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm _(known issue: gamepad stick and L3 mappings use invalid FKey names (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.1, AC-1.3.2 |
+| 20 | `facing_mouse` | mouse 1100 360 (right of the player, +Y) -> wait_until player.rotation yaw 90 (+-30) within 1s | AC-2.1.2 |
+| 21 | `movement_keeps_aim` | with mouse aim still +Y, hold W 0.4s -> player.location moves > 100 cm along camera-relative +X and < 30 cm across while yaw stays 90 (+-30) | AC-2.1.1, AC-2.1.2, AC-1.3.2 |
+| 22 | `facing_stick` | axis Gamepad_RightX=-1 held (left, -Y) -> wait_until player.rotation yaw -90 (+-30) within 1s, then release and retain that yaw | AC-2.1.2 |
+| 23 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm | AC-2.1.1, AC-1.3.2 |
 
 ### Issue #17 / N12 evidence (2026-11-09)
 - The exact-`4b3dd65` package's Tier 3 MovementTestMap boot `Saved/Playtests/20261109-144453-boot` (part of sweep `Saved/Playtests/20261109-144434-sweep`) supports AC-2.1.5: exit 0, with the placeholder player and green facing arrow visible in the engine captures. The complete `us001_movement.py` run still exits 1 only on older gamepad/facing known issues; its arrow check passes. Acceptance is pending Jeff's review of PR #94.

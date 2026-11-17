@@ -106,7 +106,9 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
 	{
 		CMC->bOrientRotationToMovement = false;
-		CMC->bUseControllerDesiredRotation = true;
+		// Aim input owns actor yaw. The fixed camera keeps control yaw at zero, so controller-desired
+		// rotation would overwrite mouse/right-stick facing every movement update.
+		CMC->bUseControllerDesiredRotation = false;
 		CMC->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
 		CMC->MaxWalkSpeed = WalkSpeed;
 		CMC->MaxAcceleration = GroundAcceleration;
@@ -115,6 +117,41 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 		CMC->JumpZVelocity = 600.0f;
 		CMC->AirControl = 0.2f;
 	}
+}
+
+void AMordecaiCharacter::SetAimFacingDirection(FVector AimDirection)
+{
+	AimDirection.Z = 0.f;
+	if (AimDirection.ContainsNaN() || !AimDirection.Normalize())
+	{
+		return;
+	}
+
+	// Apply immediately for the owning player, then let the authority replicate the character's
+	// normal actor rotation. This keeps local aim responsive without making camera rotation the
+	// movement/facing source again.
+	ApplyAimFacingDirection(AimDirection);
+	if (!HasAuthority())
+	{
+		ServerSetAimFacingDirection(AimDirection);
+	}
+}
+
+void AMordecaiCharacter::ServerSetAimFacingDirection_Implementation(FVector AimDirection)
+{
+	AimDirection.Z = 0.f;
+	if (AimDirection.ContainsNaN() || !AimDirection.Normalize())
+	{
+		return;
+	}
+
+	ApplyAimFacingDirection(AimDirection);
+	ForceNetUpdate();
+}
+
+void AMordecaiCharacter::ApplyAimFacingDirection(const FVector& AimDirection)
+{
+	SetActorRotation(FRotator(0.f, AimDirection.Rotation().Yaw, 0.f));
 }
 
 void AMordecaiCharacter::SetSprinting(bool bNewSprinting)

@@ -32,7 +32,7 @@ STORY_FILE = os.path.join(os.path.dirname(SCRIPTS), "stories", "done",
 TOKEN = "us001-token"
 INPUT_AND_READ_CMDS = {"ping", "state", "key", "axis", "mouse", "click", "screenshot",
                        "wait_until", "wait", "quit"}
-KNOWN_FAILS = ["facing_mouse", "facing_stick"]
+KNOWN_FAILS = []
 FIXED_BY_US083 = ["sprint_shift", "jump_space"]
 
 
@@ -83,7 +83,7 @@ class UnboundWorld(fb.FakeWorld):
 class HudWorld(UnboundWorld):
     """Today's game (US-083): LeftShift toggles sprint (x1.5) and SpaceBar jumps
     (movement_mode Falling for 0.6 s).  L3 toggles sprint and the left stick moves after
-    US-097; facing remains pinned to +X."""
+    US-097; mouse and right-stick aim turn the pawn after US-098."""
 
     SPRINT_MULT = 1.5
     JUMP_S = 0.6
@@ -97,6 +97,7 @@ class HudWorld(UnboundWorld):
         self.sprinting = False
         self.jump_until = -1.0
         self.sprint_taps = 0
+        self.yaw = 0.0
 
     def _on_key_pressed(self, key):
         super()._on_key_pressed(key)
@@ -115,7 +116,30 @@ class HudWorld(UnboundWorld):
         out = super()._s_player()
         if out.get("valid") and self.real_time() < self.jump_until:
             out["movement_mode"] = "Falling"
+        if out.get("valid"):
+            out["rotation"] = [0.0, round(self.yaw, 2), 0.0]
+            radians = math.radians(self.yaw)
+            forward = [round(math.cos(radians), 4), round(math.sin(radians), 4), 0.0]
+            out["facing_arrow"].update({
+                "hidden_in_game": False, "visible": True,
+                "forward": forward, "pawn_forward": forward, "forward_alignment": 1.0,
+            })
         return out
+
+    def move_cursor(self, x, y):
+        with self.lock:
+            super().move_cursor(x, y)
+            wx, wy = (fb.VIEWPORT_H / 2.0) - y, x - (fb.VIEWPORT_W / 2.0)
+            if math.hypot(wx, wy) > 1:
+                self.yaw = math.degrees(math.atan2(wy, wx))
+
+    def tick(self, dt):
+        with self.lock:
+            held = self._held_union()
+            rx, ry = held.get("Gamepad_RightX", 0.0), held.get("Gamepad_RightY", 0.0)
+            if math.hypot(rx, ry) > 0.25:
+                self.yaw = math.degrees(math.atan2(rx, ry))
+        super().tick(dt)
 
 
 class StickySprintWorld(HudWorld):
@@ -131,39 +155,7 @@ class DroppedSprintTapWorld(HudWorld):
 
 
 class FixedWorld(HudWorld):
-    """A game with every known issue fixed: Shift / L3 toggle sprint, SpaceBar jumps, the mouse
-    and the right stick turn the pawn, and the left stick moves it."""
-
-    def __init__(self, **kw):
-        super().__init__(**kw)
-        self.yaw = 0.0
-
-    def move_cursor(self, x, y):
-        with self.lock:
-            super().move_cursor(x, y)
-            wx, wy = (fb.VIEWPORT_H / 2.0) - y, x - (fb.VIEWPORT_W / 2.0)  # up=+X, right=+Y
-            if math.hypot(wx, wy) > 1:
-                self.yaw = math.degrees(math.atan2(wy, wx))
-
-    def tick(self, dt):
-        with self.lock:
-            held = self._held_union()
-            rx, ry = held.get("Gamepad_RightX", 0.0), held.get("Gamepad_RightY", 0.0)
-            if math.hypot(rx, ry) > 0.25:
-                self.yaw = math.degrees(math.atan2(rx, ry))
-        super().tick(dt)
-
-    def _s_player(self):
-        out = super()._s_player()
-        if out.get("valid"):
-            out["rotation"] = [0.0, round(self.yaw, 2), 0.0]
-            radians = math.radians(self.yaw)
-            forward = [round(math.cos(radians), 4), round(math.sin(radians), 4), 0.0]
-            out["facing_arrow"].update({
-                "hidden_in_game": False, "visible": True,
-                "forward": forward, "pawn_forward": forward, "forward_alignment": 1.0,
-            })
-        return out
+    """Explicit fixed-game alias retained for the focused all-green test."""
 
 
 class MouseTurnsCameraWorld(HudWorld):
@@ -288,19 +280,19 @@ class PlaytestCase(unittest.TestCase):
 # Runs against the fake
 # ---------------------------------------------------------------------------
 class TestUs001TodaysGame(PlaytestCase):
-    """HudWorld behaves like today's game: what works PASSes (sprint and jump since US-083),
-    the known issues FAIL as known."""
+    """HudWorld behaves like today's game after US-098: every movement/aim check passes."""
 
-    def test_works_passes_and_the_known_issues_fail_as_known(self):
+    def test_movement_camera_and_aim_pass(self):
         world, server = self.serve()
         code, rep = self.play(server)
-        self.assertEqual(code, 1, self.log.getvalue()[-3000:])
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
         checks = self.by_name(rep)
         for name in ("attach", "experience", "map", "hud_visible", "spawn_state", "imc_active",
                      "move_a", "move_w", "move_d", "move_s", "camera_fixed",
                      "no_camera_rotation_input", "walk_lane_wp1", "walk_lane_wp2",
                      "walk_lane_start", "walk_speed_baseline", "walk_lane_reset",
                      "sprint_shift", "walk_lane_reset2", "sprint_l3", "jump_space",
+                     "facing_mouse", "movement_keeps_aim", "facing_stick",
                      "facing_arrow", "gamepad_move", "no_crash"):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(self.statuses(rep, "FAIL"), KNOWN_FAILS)
@@ -314,11 +306,11 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertIn("then held S 1s: peak speed 600 cm/s", checks["sprint_shift"]["detail"])
         self.assertNotIn(" -- ", checks["sprint_shift"]["detail"])
         self.assertFalse(world.sprinting, "the sprint was toggled back")
-        # What the details say about each known failure.
         self.assertIn("need > 700", checks["sprint_l3"]["detail"])
         self.assertNotIn(" -- ", checks["sprint_l3"]["detail"])
-        self.assertIn("yaw stayed 0", checks["facing_mouse"]["detail"])
-        self.assertIn("yaw stayed 0", checks["facing_stick"]["detail"])
+        self.assertIn("yaw 90", checks["facing_mouse"]["detail"])
+        self.assertIn("yaw 90.0", checks["movement_keeps_aim"]["detail"])
+        self.assertIn("release preserved yaw -90", checks["facing_stick"]["detail"])
         self.assertIn("need > 100", checks["gamepad_move"]["detail"])
         # MovementTestMap has no pickups or enemies: nothing was picked up, nothing was in the way.
         self.assertIn(fb.MOVEMENT_TEST_MAP, checks["map"]["detail"])
@@ -331,7 +323,7 @@ class TestUs001TodaysGame(PlaytestCase):
     def test_acceptance_criteria(self):
         _, server = self.serve()
         code, rep = self.play(server)
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 0)
         acs = self.acs(rep)
         self.assertEqual({a["story"] for a in rep["acs"]}, {"US-001"})
         for ac in ("AC-2.2.5", "AC-2.3.3", "AC-1.2.2", "AC-1.2.4", "AC-2.1.6"):
@@ -343,10 +335,8 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertEqual(acs["AC-1.3.2"]["checks"][0], "imc_active")
         for ac in ("AC-1.3.3", "AC-2.1.3"):
             self.assertEqual(acs[ac]["status"], "PASS", ac)
-        # Facing is still pinned.
-        for ac in ("AC-2.1.2",):
-            self.assertEqual(acs[ac]["status"], "FAIL", ac)
-            self.assertTrue(acs[ac]["known_issue"], ac)
+        self.assertEqual(acs["AC-2.1.2"]["status"], "PASS")
+        self.assertFalse(acs["AC-2.1.2"]["known_issue"])
         self.assertEqual(acs["AC-1.3.3"]["checks"], ["sprint_shift", "sprint_l3"])
         self.assertEqual(acs["AC-2.1.4"]["status"], "PASS")
         self.assertEqual(acs["AC-1.2.1"]["status"], "PENDING")
@@ -356,8 +346,7 @@ class TestUs001TodaysGame(PlaytestCase):
                          "an attached run never accepts an AC")
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
         self.assertIn("| AC-2.1.4 | jump_space | PASS", md)
-        self.assertIn("FAIL (known: Known issue: facing", md)
-        self.assertIn("| FAIL (known) |", md)
+        self.assertNotIn("FAIL (known:", md)
         self.assertNotIn("FAIL (NEW)", md)
         self.assertIn("## Movement measurements", md)
         self.assertLess(md.index("## Acceptance criteria"), md.index("## Movement measurements"))
@@ -365,9 +354,9 @@ class TestUs001TodaysGame(PlaytestCase):
     def test_run_dir_screenshots_and_the_audit_trail(self):
         _, server = self.serve()
         code, rep = self.play(server)
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 0)
         self.assertEqual([s["label"] for s in rep["screenshots"]],
-                         ["start", "after_moves", "facing_arrow"])
+                         ["start", "after_moves", "mouse_facing_off_axis", "facing_arrow"])
         for s in rep["screenshots"]:
             self.assertTrue(ab.file_complete(s["path"]), s["path"])
             self.assertEqual(s["expect"], us001.SCREENSHOTS[s["label"]])
@@ -394,6 +383,8 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertGreater(movement["walk_speed_baseline"]["dx"], 400)
         self.assertGreater(movement["sprint_shift"]["dx"], 700)
         self.assertLess(movement["sprint_shift_toggle_back"]["dx"], -400)
+        self.assertGreater(movement["movement_keeps_aim"]["dx"], 100)
+        self.assertAlmostEqual(movement["movement_keeps_aim"]["yaw"], 90.0)
 
 
 class TestUs001BeforeUs083(PlaytestCase):
@@ -404,7 +395,9 @@ class TestUs001BeforeUs083(PlaytestCase):
         checks = self.by_name(rep)
         for name in FIXED_BY_US083:
             self.assertEqual(checks[name]["status"], "FAIL", name)
-        self.assertEqual(rep["new_failures"], ["sprint_shift", "sprint_l3", "jump_space"])
+        self.assertEqual(
+            rep["new_failures"],
+            ["sprint_shift", "sprint_l3", "jump_space", "facing_mouse", "facing_stick"])
         self.assertIn("need > 700", checks["sprint_shift"]["detail"])
         self.assertIn("player.movement_mode", checks["jump_space"]["detail"])
         self.assertIn('"Walking"', checks["jump_space"]["detail"])
@@ -443,10 +436,10 @@ class TestUs001FixedGame(PlaytestCase):
         code, rep = self.play(server)
         fails = [c for c in rep["checks"] if c["status"] in ("FAIL", "SKIP")]
         self.assertEqual(code, 0, json.dumps(fails))
-        self.assertEqual(rep["fixed_candidates"], KNOWN_FAILS)
+        self.assertEqual(rep["fixed_candidates"], [])
         self.assertEqual(rep["known_failures"], [])
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
-        self.assertIn("PASS (FIXED?)", md)
+        self.assertNotIn("PASS (FIXED?)", md)
         acs = self.acs(rep)
         for ac in ("AC-2.1.1", "AC-1.3.2", "AC-1.3.3", "AC-2.1.3", "AC-2.1.4", "AC-2.1.2"):
             self.assertEqual(acs[ac]["status"], "PASS", ac)

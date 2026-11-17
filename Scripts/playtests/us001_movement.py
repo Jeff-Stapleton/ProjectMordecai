@@ -32,9 +32,10 @@ Steps (every step is a check: PASS, FAIL, SKIP or WARN; --plan prints them as a 
      later steps; after the LeftShift one, S held 1.0 s must reach only walking speed (the
      second tap ended the sprint; a sprint left on SKIPs the L3 step).
   6. Jump: tap SpaceBar -> player.movement_mode=="Falling" within 1 s.
-  7. Facing: the mouse at (1100, 360) (right of the player: +Y) turns the player to yaw ~90;
-     the right stick held left (Gamepad_RightX=-1: -Y) turns it to yaw ~-90.  Screenshot.
-     Expected FAIL today (facing is pinned to +X).
+  7. Facing: the mouse at (1100, 360) (right of the player: +Y) turns the player to yaw ~90.
+     While that aim is held, W still moves along camera-relative +X without replacing yaw; screenshot
+     the off-axis aim/movement result.  The right stick held left (Gamepad_RightX=-1: -Y) then
+     turns the player to yaw ~-90 and releasing it preserves that facing.  Screenshot.
   8. Gamepad move: Gamepad_LeftY=1 for 0.5 s moves the player > 100 cm along +X.  Expected
      to PASS.
 A failed check SKIPs the checks that depend on it; independent checks still run.  A lost bridge
@@ -137,9 +138,7 @@ GAMEPAD_TIMEOUT_S = 1.0
 ARROW_LENGTH = 80.0
 ARROW_SIZE = 1.5
 
-KI_FACING = ("Known issue: facing and aim are pinned to +X by the diorama camera "
-             "(Specs/agent_playtest_plan_v1.md)")
-KNOWN_ISSUES = (KI_FACING,)
+KNOWN_ISSUES = ()
 
 SCREENSHOTS = {
     "start": "MovementTestMap from the fixed overhead camera (pitch -50, looking +X): the open "
@@ -149,9 +148,11 @@ SCREENSHOTS = {
     "after_moves": "the same camera angle (no rotation) with the player at the lane start "
                    "(-700, -800): the camera followed, so the player is still near the screen "
                    "centre and the floor grid has shifted under it",
-    "facing_arrow": "the player after the mouse and right-stick facing attempts: the existing "
-                    "green facing arrow is visibly present on the player and points along the "
-                    "pawn's +X facing direction",
+    "mouse_facing_off_axis": "the player after W moved camera-relative +X while the mouse remained "
+                             "off-axis at screen-right/world +Y: the green facing arrow points "
+                             "toward +Y and the fixed camera angle is unchanged",
+    "facing_arrow": "the player after the right-stick facing attempt: the existing green facing "
+                    "arrow is visibly present and points along the pawn's world -Y direction",
 }
 
 EXIT_PASS, EXIT_FAIL, EXIT_INFRA = kit.EXIT_PASS, kit.EXIT_FAIL, kit.EXIT_INFRA
@@ -209,12 +210,14 @@ PLAN = (
          f"within {JUMP_TIMEOUT_S:g}s", proves=("AC-2.1.4",)),
     Step("facing_mouse", f"mouse {FACING_MOUSE[0]:g} {FACING_MOUSE[1]:g} (right of the "
          f"player, +Y) -> wait_until player.rotation yaw {FACING_MOUSE_YAW:g} "
-         f"(+-{FACING_TOL:g}) within {FACING_TIMEOUT_S:g}s", proves=("AC-2.1.2",),
-         known_issue=KI_FACING),
+         f"(+-{FACING_TOL:g}) within {FACING_TIMEOUT_S:g}s", proves=("AC-2.1.2",)),
+    Step("movement_keeps_aim", f"with mouse aim still +Y, hold W {MOVE_HOLD_S:g}s -> "
+         f"player.location moves > {MOVE_MIN:g} cm along camera-relative +X and < "
+         f"{CROSS_MAX:g} cm across while yaw stays {FACING_MOUSE_YAW:g} "
+         f"(+-{FACING_TOL:g})", proves=("AC-2.1.1", "AC-2.1.2", "AC-1.3.2")),
     Step("facing_stick", f"axis Gamepad_RightX=-1 held (left, -Y) -> wait_until "
          f"player.rotation yaw {FACING_STICK_YAW:g} (+-{FACING_TOL:g}) within "
-         f"{FACING_TIMEOUT_S:g}s, then release", proves=("AC-2.1.2",),
-         known_issue=KI_FACING),
+         f"{FACING_TIMEOUT_S:g}s, then release and retain that yaw", proves=("AC-2.1.2",)),
     Step("gamepad_move", f"axis Gamepad_LeftY=1 for {GAMEPAD_HOLD_S:g}s -> player.location "
          f"x rises > {GAMEPAD_MIN:g} cm", proves=("AC-2.1.1", "AC-1.3.2")),
 )
@@ -606,15 +609,56 @@ class Us001Run(kit.PlaytestRun):
             r = self.bridge.mouse(x, y)
             return self._wait_yaw(FACING_MOUSE_YAW, f"mouse moved to ({x:g}, {y:g})", r)
 
-        self.attempt("facing_mouse", mouse)
+        mouse_ok, _ = self.attempt("facing_mouse", mouse)
+
+        def movement_keeps_aim():
+            b = self.bridge
+            try:
+                b.wait_until('player.movement_mode=="Walking"', timeout_s=2.0)
+            except ab.BridgeError as e:
+                if e.code != "timeout":
+                    raise
+                return "FAIL", "player did not return to Walking before the aimed move", None
+            got, err = self._hold_and_measure("W", MOVE_HOLD_S)
+            if got is None:
+                return "FAIL", err, None
+            p0, p1, held_s, stop_s = got
+            dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+            yaw = _section(b.state(["player"]), "player").get("rotation")
+            yaw_value = yaw[1] if isinstance(yaw, list) and len(yaw) > 1 else None
+            yaw_ok = (isinstance(yaw_value, (int, float))
+                      and abs(_angle_delta(yaw_value, FACING_MOUSE_YAW)) < FACING_TOL)
+            rec = self._record(
+                "movement_keeps_aim", f"hold W {MOVE_HOLD_S:g}s while aimed +Y", p0, p1,
+                {"held_s": held_s, "stop_s": stop_s, "yaw": yaw_value})
+            ok = dx > MOVE_MIN and abs(dy) < CROSS_MAX and yaw_ok
+            detail = (f"held W {held_s}s while mouse aim stayed at +Y: "
+                      f"({p0[0]:.0f}, {p0[1]:.0f}) -> ({p1[0]:.0f}, {p1[1]:.0f}); "
+                      f"{dx:.0f} cm along +X (need > {MOVE_MIN:g}), {abs(dy):.0f} cm across "
+                      f"(need < {CROSS_MAX:g}), yaw {yaw_value} (need {FACING_MOUSE_YAW:g} "
+                      f"+-{FACING_TOL:g})")
+            return ("PASS" if ok else "FAIL"), detail, rec
+
+        self.attempt("movement_keeps_aim", movement_keeps_aim, needs=mouse_ok,
+                     needs_why="not run: mouse aim did not establish +Y facing")
+        self.shot("mouse_facing_off_axis")
 
         def stick():
             b = self.bridge
             r = b.axis(FACING_STICK)
             try:
-                return self._wait_yaw(FACING_STICK_YAW, "Gamepad_RightX=-1 held", r)
+                result = self._wait_yaw(FACING_STICK_YAW, "Gamepad_RightX=-1 held", r)
             finally:
                 self._release_axes(FACING_STICK)
+            if result[0] != "PASS":
+                return result
+            yaw = _section(b.state(["player"]), "player").get("rotation")
+            yaw_value = yaw[1] if isinstance(yaw, list) and len(yaw) > 1 else None
+            if not (isinstance(yaw_value, (int, float))
+                    and abs(_angle_delta(yaw_value, FACING_STICK_YAW)) < FACING_TOL):
+                return ("FAIL", f"right stick reached -Y, but release changed yaw to {yaw_value} "
+                        f"(expected {FACING_STICK_YAW:g} +-{FACING_TOL:g})", r)
+            return ("PASS", f"{result[1]}; release preserved yaw {yaw_value}", r)
 
         self.attempt("facing_stick", stick)
         self.shot("facing_arrow")
@@ -675,6 +719,11 @@ def _camera_fixed(rot):
             and all(isinstance(v, (int, float)) for v in rot[:2])):
         return False
     return abs(rot[0] - CAMERA_PITCH) <= CAMERA_TOL and abs(rot[1]) <= CAMERA_TOL
+
+
+def _angle_delta(actual, expected):
+    """Smallest signed angular difference in degrees."""
+    return (float(actual) - float(expected) + 180.0) % 360.0 - 180.0
 
 
 def parse_args(argv=None):

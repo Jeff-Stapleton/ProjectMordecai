@@ -283,3 +283,16 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - **R2 — material slots:** The FBX `ImportedMaterialSlotName` set is authoritative. Match by name, never pad or positionally rename, require `ImportedMaterialSlotName == MaterialSlotName`, and require every slot to be used by a mesh section. The six pond FBXs omit the catalog's `CliffFace` slot (FBX has `Grass`, `YarnRoot`); preserve and report that catalog mismatch.
 - **R3 — textures and budget:** Derive each mesh's texture references from its actual slots/material instances and import only sampled textures. Omit unused CliffFaceB/C, Moss, WoodSlat, Pond_N, StitchSeam, and Height maps until sampled. Give the terrain master neutral engine defaults, set role-appropriate texture LOD groups (`WorldNormalMap` for normals, `World` otherwise), and report complete packaged `.pak + .ucas + .utoc` totals plus cooked terrain size.
 - Source: coordinator rulings for Jeff from the two read-only PR reviews (2026-11-14).
+
+---
+
+## 2026-11-17 — Player aim drives facing (issue #34, US-098)
+
+- **Final decision:** the player character faces the aim direction.
+- Mouse and keyboard aim toward the mouse cursor projected onto the horizontal plane at the character's height.
+- Gamepad aim follows the right-stick direction with a deadzone. Releasing the stick preserves the last facing; movement does not replace an established aim direction.
+- The camera remains fixed at yaw 0 (map north / screen-up is Unreal +X), while WASD and the left stick remain camera-relative and independent of character facing.
+- Melee direction, block facing, backward-dodge fallback and spell aim use the character's facing. Existing combat and spell code that reads `GetActorForwardVector()` remains the shared direction source.
+- Keep the existing player capsule radius 40, half-height 90 and maximum step height 45.
+- Scope remains the local player plus the existing server-authoritative actor-rotation replication path. Any broader multiplayer prediction or reconciliation work is a follow-up, not part of issue #34.
+- Source: owner decision supplied with the issue #34 builder task (2026-11-17).

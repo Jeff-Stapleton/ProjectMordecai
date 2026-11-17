@@ -49,6 +49,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Input")
 	float HeavyAttackHoldSeconds = 0.4f;
 
+	/** Radial right-stick magnitude below which the last aim-facing direction is retained. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Input", Meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float AimStickDeadzone = 0.2f;
+
 	/**
 	 * Removes EIC's action bindings to BoundObject for InputConfig's native action of InputTag. Returns how many were
 	 * removed. Used to drop the crouch binding Lyra makes from InputData_Mordecai (InitializePlayerInput).
@@ -65,11 +69,18 @@ protected:
 	//~ End ULyraHeroComponent interface
 
 private:
-	// Direct WASD handlers that bypass IMC modifiers (which can't be serialized via Python)
-	void Input_MoveForward(const FInputActionValue& InputActionValue);
-	void Input_MoveBackward(const FInputActionValue& InputActionValue);
-	void Input_MoveRight(const FInputActionValue& InputActionValue);
-	void Input_MoveLeft(const FInputActionValue& InputActionValue);
+	// Fixed-camera input handlers. Movement stays in the yaw-zero camera basis while aim rotates only the pawn.
+	void Input_Move(const FInputActionValue& InputActionValue);
+	void Input_LookMouse(const FInputActionValue& InputActionValue);
+	void Input_LookStick(const FInputActionValue& InputActionValue);
+
+	/** Project a deprojected cursor ray onto the horizontal plane at the character's height. */
+	UFUNCTION()
+	bool ApplyMouseAimFromRay(FVector WorldOrigin, FVector WorldDirection);
+
+	/** Apply right-stick aim in the fixed-camera basis; false inside the deadzone preserves last facing. */
+	UFUNCTION()
+	bool ApplyGamepadAim(FVector2D StickInput);
 
 	// Spell input handlers (AC-057.5) — each activates the spell in the corresponding slot
 	void HandleSpell1Input(const FInputActionValue& InputActionValue);

@@ -51,6 +51,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Movement")
 	void SetSprinting(bool bNewSprinting);
 
+	/** Turn the character toward a horizontal aim direction without changing the fixed camera or movement basis. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Character")
+	void SetAimFacingDirection(FVector AimDirection);
+
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Character")
 	UArrowComponent* GetFacingArrow() const { return FacingArrowComponent; }
 
@@ -160,4 +164,10 @@ private:
 	bool bDeathHandled = false;
 	FDelegateHandle HealthChangedHandle;
 	TWeakObjectPtr<UAbilitySystemComponent> HealthBoundASC;
+
+	/** Server-authoritative counterpart to the owning client's immediate aim-facing update. */
+	UFUNCTION(Server, Unreliable)
+	void ServerSetAimFacingDirection(FVector AimDirection);
+
+	void ApplyAimFacingDirection(const FVector& AimDirection);
 };

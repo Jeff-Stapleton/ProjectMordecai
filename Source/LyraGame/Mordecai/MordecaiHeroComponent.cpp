@@ -166,7 +166,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 			// Gamepad Left Stick
 			FEnhancedActionKeyMapping& Stick = MordecaiIMC->MapKey(MoveAction, EKeys::Gamepad_Left2D);
 			UInputModifierDeadZone* DZ = NewObject<UInputModifierDeadZone>(MordecaiIMC);
-			DZ->LowerThreshold = 0.2f;
+			DZ->LowerThreshold = AimStickDeadzone;
 			Stick.Modifiers.Add(DZ);
 		}
 
@@ -179,7 +179,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 		{
 			FEnhancedActionKeyMapping& RS = MordecaiIMC->MapKey(LookStickAction, EKeys::Gamepad_Right2D);
 			UInputModifierDeadZone* DZ2 = NewObject<UInputModifierDeadZone>(MordecaiIMC);
-			DZ2->LowerThreshold = 0.2f;
+			DZ2->LowerThreshold = AimStickDeadzone;
 			RS.Modifiers.Add(DZ2);
 		}
 
@@ -463,11 +463,98 @@ void UMordecaiHeroComponent::SetAbilitySystemOverride(ULyraAbilitySystemComponen
 	AbilitySystemOverride = InASC;
 }
 
-// Unused stubs (movement is handled by base class Input_Move via the programmatic IMC with correct modifiers)
-void UMordecaiHeroComponent::Input_MoveForward(const FInputActionValue& InputActionValue) {}
-void UMordecaiHeroComponent::Input_MoveBackward(const FInputActionValue& InputActionValue) {}
-void UMordecaiHeroComponent::Input_MoveRight(const FInputActionValue& InputActionValue) {}
-void UMordecaiHeroComponent::Input_MoveLeft(const FInputActionValue& InputActionValue) {}
+void UMordecaiHeroComponent::Input_Move(const FInputActionValue& InputActionValue)
+{
+	APawn* Pawn = Cast<APawn>(GetOwner());
+	AController* Controller = Pawn ? Pawn->GetController() : nullptr;
+	if (!Pawn || !Controller)
+	{
+		return;
+	}
+
+	if (AMordecaiPlayerController* MordecaiController = Cast<AMordecaiPlayerController>(Controller))
+	{
+		MordecaiController->SetIsAutoRunning(false);
+	}
+
+	// The diorama camera is permanently yaw zero: screen-up/map north is world +X and
+	// screen-right is world +Y. Never derive movement from pawn facing or aim.
+	const FVector2D Value = InputActionValue.Get<FVector2D>();
+	if (!FMath::IsNearlyZero(Value.X))
+	{
+		Pawn->AddMovementInput(FVector::RightVector, Value.X);
+	}
+	if (!FMath::IsNearlyZero(Value.Y))
+	{
+		Pawn->AddMovementInput(FVector::ForwardVector, Value.Y);
+	}
+}
+
+void UMordecaiHeroComponent::Input_LookMouse(const FInputActionValue& InputActionValue)
+{
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	APlayerController* PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
+	if (!PC || !PC->IsLocalController())
+	{
+		return;
+	}
+
+	FVector WorldOrigin;
+	FVector WorldDirection;
+	if (PC->DeprojectMousePositionToWorld(WorldOrigin, WorldDirection))
+	{
+		ApplyMouseAimFromRay(WorldOrigin, WorldDirection);
+	}
+}
+
+void UMordecaiHeroComponent::Input_LookStick(const FInputActionValue& InputActionValue)
+{
+	ApplyGamepadAim(InputActionValue.Get<FVector2D>());
+}
+
+bool UMordecaiHeroComponent::ApplyMouseAimFromRay(FVector WorldOrigin, FVector WorldDirection)
+{
+	AMordecaiCharacter* Character = Cast<AMordecaiCharacter>(GetOwner());
+	if (!Character || WorldOrigin.ContainsNaN() || WorldDirection.ContainsNaN()
+		|| FMath::IsNearlyZero(WorldDirection.Z))
+	{
+		return false;
+	}
+
+	const FVector CharacterLocation = Character->GetActorLocation();
+	const double RayDistance =
+		(CharacterLocation.Z - WorldOrigin.Z) / WorldDirection.Z;
+	if (RayDistance < 0.0)
+	{
+		return false;
+	}
+
+	FVector AimDirection =
+		(WorldOrigin + WorldDirection * RayDistance) - CharacterLocation;
+	AimDirection.Z = 0.f;
+	if (!AimDirection.Normalize())
+	{
+		return false;
+	}
+
+	Character->SetAimFacingDirection(AimDirection);
+	return true;
+}
+
+bool UMordecaiHeroComponent::ApplyGamepadAim(FVector2D StickInput)
+{
+	AMordecaiCharacter* Character = Cast<AMordecaiCharacter>(GetOwner());
+	if (!Character || StickInput.ContainsNaN()
+		|| StickInput.SizeSquared() <= FMath::Square(AimStickDeadzone))
+	{
+		return false;
+	}
+
+	// Fixed camera yaw zero: stick up is world +X; stick right is world +Y.
+	Character->SetAimFacingDirection(
+		FVector(StickInput.Y, StickInput.X, 0.f));
+	return true;
+}
 
 // ---------------------------------------------------------------------------
 // Spell Input Handlers (AC-057.5)
