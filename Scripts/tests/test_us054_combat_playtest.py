@@ -52,6 +52,7 @@ def load(name):
 us054c = load("us054_combat")
 
 TAG_ATTACKING = "Mordecai.State.Attacking"
+TAG_COMBO_WINDOW = "Mordecai.State.ComboWindow"
 TAG_DODGING = "Mordecai.State.Dodging"
 TAG_BURNING = "Mordecai.Status.Burning"
 TAG_RESTORATION = "Mordecai.Status.Restoration"
@@ -65,7 +66,8 @@ FAST = dict(hit_damage=25.0, windup_s=0.2, attack_s=0.4, cooldown_s=0.4)
 # at the respawn, so a reset-less run would race that leash.
 MID_SWING = dict(hit_damage=25.0, windup_s=0.2, attack_s=0.6, cooldown_s=0.6)
 AI_NOT_RESET = r"TestAttacker: AI not reset to Idle at the respawn \(ai_state (Attack|Recover)\)"
-PLAN_ORDER = ["combat_targets_present", "walk_to_dummy", "melee_lmb", "dodge_lalt",
+PLAN_ORDER = ["combat_targets_present", "walk_to_dummy", "melee_lmb", "combo_hit_two",
+              "dodge_lalt",
               "kill_enemy_melee", "kill_counter_increments",
               "walk_to_attacker", "attacker_damages_player", "restoration_heals", "burning_on_hit",
               "player_dies", "death_screen", "weapon_hud_hidden_under_death", "dead_no_move",
@@ -160,6 +162,7 @@ class CombatWorld(fb.FakeWorld):
         self.death_screen_live_count = death_screen_live_count
         self.kills_at_death = 0    # the death screen's count: the life that ended
         self.timed_tags = {}
+        self.combo_hit = 0
         self.burn_rolls = 0
         self.hits = []             # (real time, health after) of every attacker hit
         self.deaths = 0
@@ -308,8 +311,10 @@ class CombatWorld(fb.FakeWorld):
         with self.lock:
             if (button == "Left" and self.attacks and self.game_input_allowed
                     and not self.is_dead):
+                self.combo_hit = self.combo_hit + 1 if TAG_COMBO_WINDOW in self.timed_tags else 1
                 if self.attack_tag:
                     self.timed_tags[TAG_ATTACKING] = self.real_time() + 0.5
+                    self.timed_tags[TAG_COMBO_WINDOW] = self.real_time() + 0.5
                 if self.click_damage:
                     px, py = self.pos
                     half = math.radians(self.melee_arc_deg / 2.0)
@@ -371,6 +376,10 @@ class CombatWorld(fb.FakeWorld):
         if not screen_up and self.burn_indicator and TAG_BURNING in self.timed_tags:
             out.append({"class": "MordecaiStatusEffectBarWidget", "name": "Status",
                         "rect": [40, 104, 260, 20], "texts": ["Burning"], "buttons": []})
+        if not screen_up and TAG_COMBO_WINDOW in self.timed_tags:
+            out.append({"class": "MordecaiComboCounterWidget", "name": "ComboCounter",
+                        "rect": [586, 478, 108, 36],
+                        "texts": [f"Hit {self.combo_hit}"], "buttons": []})
         if screen_up:
             left = (max(0, math.ceil(self.respawn_s - (self.real_time() - self.dead_since)))
                     if self.is_dead else 0)
@@ -515,10 +524,11 @@ class TestUs054CombatPlan(unittest.TestCase):
             kit.set_log_stream(previous)
         text = out.getvalue()
         self.assertIn("| 1 | `combat_targets_present` |", text)
-        self.assertIn("| 5 | `kill_enemy_melee` |", text)
-        self.assertIn("| 6 | `kill_counter_increments` |", text)
-        self.assertIn("| 16 | `death_screen_removed` |", text)
-        self.assertIn("| 20 | `kill_counter_text_matches` |", text)
+        self.assertIn("| 4 | `combo_hit_two` |", text)
+        self.assertIn("| 6 | `kill_enemy_melee` |", text)
+        self.assertIn("| 7 | `kill_counter_increments` |", text)
+        self.assertIn("| 17 | `death_screen_removed` |", text)
+        self.assertIn("| 21 | `kill_counter_text_matches` |", text)
         self.assertNotIn("Known issue N2", text)
 
 
@@ -670,16 +680,18 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertIn(us054c.WEAPON_WIDGET_CLASS, checks["death_screen_removed"]["detail"])
         self.assertIn("'Longsword'", checks["death_screen_removed"]["detail"])
         self.assertEqual([s["label"] for s in rep["screenshots"]],
-                         ["start", "near_dummy", "killed", "hit", "dead", "respawned"])
+                         ["start", "near_dummy", "combo_hit_two", "killed", "hit", "dead",
+                          "respawned"])
         # The light attack is judged on the dummy, which was really hit.
         self.assertIn("TestDummy health 200.0 before the click, (188.0, 200.0) after",
                       checks["melee_lmb"]["detail"])
         # The dodge moved the player out of reach: the kill walked back first, then killed it
         kill = checks["kill_enemy_melee"]["detail"]
         self.assertRegex(kill, r"walked back from \(3\d\d, \d+\) to \(4\d\d, \d+\)")   # -98 cm
-        # Two strikes can land between reads, so a drop may be 24: the drops add up to 188 (from 188)
+        # Two strikes can land between reads, so a drop may be 24: the drops add up to 176
+        # after the two-hit combo reduced the dummy from 200.
         self.assertIn("damage per hit [", kill)
-        self.assertEqual(sum(rep["kill"]["damage_per_hit"]), 188.0, rep["kill"])
+        self.assertEqual(sum(rep["kill"]["damage_per_hit"]), 176.0, rep["kill"])
         self.assertEqual(rep["kill"]["healths"][-1], 0.0)
         self.assertRegex(kill, r"dead after \d+\.\ds")
         self.assertTrue(rep["kill"]["walked_back"])
@@ -933,7 +945,7 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertEqual(check["status"], "WARN", check["detail"])
         self.assertIn("no reset was observable", check["detail"])
         self.assertEqual(self.acs(rep)[("US-053", "AC-053.8")]["status"], "NOT RUN")
-        self.assertEqual(rep["new_failures"], ["kill_enemy_melee"])
+        self.assertEqual(rep["new_failures"], ["combo_hit_two", "kill_enemy_melee"])
 
     def test_no_attacker_damage_skips_the_death_chain(self):
         self.shorten(DAMAGE_TIMEOUT_S=1.5)

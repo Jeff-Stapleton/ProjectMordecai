@@ -360,8 +360,18 @@ void UMordecaiGA_MeleeAttack::EndAbility(
 
 	CurrentPhase = EMordecaiAttackPhase::None;
 	bComboInputReceived = false;
+	SetComboWindowOpen(false);
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UMordecaiGA_MeleeAttack::InputPressed(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo)
+{
+	Super::InputPressed(Handle, ActorInfo, ActivationInfo);
+	NotifyComboInput();
 }
 
 // ---------------------------------------------------------------------------
@@ -393,6 +403,7 @@ void UMordecaiGA_MeleeAttack::OnActiveComplete()
 
 	const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
 	if (!Profile) return;
+	SetComboWindowOpen(Profile->InputSlot == EMordecaiInputSlot::Light);
 
 	if (UWorld* World = GetWorld())
 	{
@@ -417,6 +428,7 @@ void UMordecaiGA_MeleeAttack::OnActiveComplete()
 
 void UMordecaiGA_MeleeAttack::OnRecoveryComplete()
 {
+	SetComboWindowOpen(false);
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(ComboWindowTimerHandle);
@@ -457,6 +469,16 @@ void UMordecaiGA_MeleeAttack::OnComboWindowTimeout()
 {
 	// AC-004.10: Combo resets after timeout
 	bComboInputReceived = false;
+	SetComboWindowOpen(false);
+}
+
+void UMordecaiGA_MeleeAttack::SetComboWindowOpen(bool bOpen)
+{
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASC->SetLooseGameplayTagCount(
+			MordecaiGameplayTags::State_ComboWindow, bOpen ? 1 : 0);
+	}
 }
 
 // ---------------------------------------------------------------------------

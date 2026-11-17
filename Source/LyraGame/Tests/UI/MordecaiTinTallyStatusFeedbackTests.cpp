@@ -16,6 +16,7 @@
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/WrapBox.h"
+#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/StatusEffects/MordecaiStatusEffectTypes.h"
 #include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
@@ -27,6 +28,7 @@
 #include "Input/HittestGrid.h"
 #include "Rendering/DrawElements.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
+#include "TimerManager.h"
 #include "Types/PaintArgs.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/SVirtualWindow.h"
@@ -547,6 +549,98 @@ bool FMordecai_UI_CombatCallout_ReplacesAndExpires::RunTest(const FString& Param
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Combo_SurvivesHUDReactivation,
 	"Mordecai.UI.Combo.SurvivesHUDReactivation",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Combo_LiveMeleeAbilityUpdatesBoundCounter,
+	"Mordecai.UI.Combo.LiveMeleeAbilityUpdatesBoundCounter",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_Combo_LiveMeleeAbilityUpdatesBoundCounter::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiTinTallyStatusFeedbackTest;
+	using namespace MordecaiRecoveryTest;
+	FRecoveryControlledTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownWithController(); };
+	if (!TestTrue("controlled player world", Env.SetupWithController()))
+	{
+		return true;
+	}
+
+	ULyraAbilitySystemComponent* ASC =
+		CastChecked<ULyraAbilitySystemComponent>(Env.GetPlayerASC());
+	UMordecaiCombatHUDWidget* HUD = Env.MakeWidget<UMordecaiCombatHUDWidget>();
+	UMordecaiComboCounterWidget* Combo = Cast<UMordecaiComboCounterWidget>(
+		HUD->GetNamedWidget(HUD, TEXT("ComboCounter")));
+	UTextBlock* ComboText = Find<UTextBlock>(Combo, TEXT("ComboText"));
+	if (!TestNotNull("HUD owns bound combo counter", Combo)
+		|| !TestNotNull("combo counter owns text", ComboText))
+	{
+		return true;
+	}
+	HUD->BindToASC(ASC);
+
+	FGameplayAbilitySpec Spec(UMordecaiGA_MeleeAttack::StaticClass(), 1);
+	Spec.GetDynamicSpecSourceTags().AddTag(MordecaiGameplayTags::Input_LightAttack);
+	const FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(Spec);
+	FGameplayAbilitySpec* Granted = ASC->FindAbilitySpecFromHandle(Handle);
+	UMordecaiGA_MeleeAttack* Melee = Granted
+		? Cast<UMordecaiGA_MeleeAttack>(Granted->GetPrimaryInstance())
+		: nullptr;
+	if (!TestNotNull("real instanced melee ability", Melee))
+	{
+		return true;
+	}
+	Melee->AttackProfiles = { MakeStubProfile(), MakeStubProfile() };
+
+	auto PressLight = [ASC]()
+	{
+		ASC->AbilityInputTagPressed(MordecaiGameplayTags::Input_LightAttack);
+		ASC->ProcessAbilityInput(0.f, false);
+		ASC->AbilityInputTagReleased(MordecaiGameplayTags::Input_LightAttack);
+		ASC->ProcessAbilityInput(0.f, false);
+	};
+	auto Tick = [&Env]()
+	{
+		++GFrameCounter;
+		Env.World->TimeSeconds += 0.11f;
+		Env.World->GetTimerManager().Tick(0.11f);
+	};
+
+	TestTrue("real melee ability activates", ASC->TryActivateAbility(Handle));
+	TestEqual("hit 1 begins in Windup",
+		Melee->GetCurrentPhase(), EMordecaiAttackPhase::Windup);
+	for (int32 Frame = 0;
+		Frame < 10 && Melee->GetCurrentPhase() != EMordecaiAttackPhase::Recovery;
+		++Frame)
+	{
+		Tick();
+	}
+	TestEqual("hit 1 reaches Recovery",
+		Melee->GetCurrentPhase(), EMordecaiAttackPhase::Recovery);
+	TestEqual("hit 1 opens the bound counter",
+		ComboText->GetText().ToString(), FString(TEXT("Hit 1")));
+
+	PressLight(); // real second light input while the first hit is in Recovery
+	for (int32 Frame = 0;
+		Frame < 10
+			&& (Melee->GetCurrentComboIndex() != 1
+				|| Melee->GetCurrentPhase() != EMordecaiAttackPhase::Recovery);
+		++Frame)
+	{
+		Tick();
+	}
+	TestEqual("hit 2 updates the bound counter",
+		ComboText->GetText().ToString(), FString(TEXT("Hit 2")));
+
+	for (int32 Frame = 0;
+		Frame < 10 && Melee->GetCurrentPhase() != EMordecaiAttackPhase::None;
+		++Frame)
+	{
+		Tick();
+	}
+	TestEqual("counter hides when the combo window closes",
+		Combo->GetVisibility(), ESlateVisibility::Collapsed);
+	return true;
+}
 
 bool FMordecai_UI_Combo_SurvivesHUDReactivation::RunTest(const FString& Parameters)
 {
