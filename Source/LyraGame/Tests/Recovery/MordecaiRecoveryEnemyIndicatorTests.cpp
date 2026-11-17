@@ -215,6 +215,69 @@ bool FMordecai_Recovery_EnemyIndicator_RefreshesOnArenaReset::RunTest(const FStr
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_EnemyIndicator_HealthBarRefreshesOnArenaReset,
+	"Mordecai.Recovery.EnemyIndicator.HealthBarRefreshesOnArenaReset",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_EnemyIndicator_HealthBarRefreshesOnArenaReset::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiRecoveryEnemyIndicatorTest;
+
+	FRecoveryControlledTestEnv Env;
+	if (!TestTrue("controlled player world", Env.SetupWithController()))
+	{
+		Env.TeardownWithController();
+		return true;
+	}
+
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnEnemy(
+		FVector(500.f, 0.f, 0.f), { MakeStubProfile() });
+	UMordecaiEnemyIndicatorComponent* Component = Indicator(Enemy);
+	ULyraIndicatorManagerComponent* Manager = NewObject<ULyraIndicatorManagerComponent>(
+		Env.PC, ULyraIndicatorManagerComponent::StaticClass(), TEXT("IndicatorManager"));
+	if (Manager)
+	{
+		Manager->RegisterComponent();
+	}
+	if (!TestNotNull("enemy", Enemy)
+		|| !TestNotNull("enemy indicator component", Component)
+		|| !TestNotNull("indicator manager", Manager))
+	{
+		Env.TeardownWithController();
+		return true;
+	}
+
+	Component->NotifyDamageReceived();
+	UIndicatorDescriptor* Descriptor = DescriptorFor(Manager, Enemy);
+	UMordecaiEnemyIndicatorWidget* Widget = Env.MakeWidget<UMordecaiEnemyIndicatorWidget>();
+	UProgressBar* HealthBar = Widget && Widget->WidgetTree
+		? Widget->WidgetTree->FindWidget<UProgressBar>(TEXT("HealthProgressBar"))
+		: nullptr;
+	if (!TestNotNull("enemy indicator descriptor", Descriptor)
+		|| !TestNotNull("enemy indicator widget", Widget)
+		|| !TestNotNull("enemy health progress bar", HealthBar))
+	{
+		Env.TeardownWithController();
+		return true;
+	}
+	Widget->BindIndicator_Implementation(Descriptor);
+
+	FRecoveryTestEnv::ApplyHealthDelta(Env.GetPlayerASC(), Enemy, -25.f);
+	const float MaxHealth = Enemy->GetMordecaiAttributeSet()->GetMaxHealth();
+	TestEqual("damaged bar follows the enemy attribute",
+		HealthBar->GetPercent(),
+		Enemy->GetMordecaiAttributeSet()->GetHealth() / MaxHealth);
+
+	Enemy->ResetForArena();
+
+	TestEqual("arena reset restores the enemy attribute", Enemy->GetMordecaiAttributeSet()->GetHealth(), MaxHealth);
+	TestEqual("arena reset redraws the bound enemy health bar at full", HealthBar->GetPercent(), 1.f);
+
+	Env.TeardownWithController();
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_EnemyIndicator_ArenaHasManagerAndLayer,
 	"Mordecai.Recovery.EnemyIndicator.ArenaHasManagerAndLayer",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)

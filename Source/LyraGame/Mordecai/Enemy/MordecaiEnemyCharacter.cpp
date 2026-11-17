@@ -483,8 +483,19 @@ void AMordecaiEnemyCharacter::ResetForArena()
 	// Restore health and posture to max (AC-053.9)
 	const float MaxHealth = AttributeSet->GetMaxHealth();
 	const float MaxPosture = AttributeSet->GetMaxPosture();
-	AttributeSet->InitHealth(MaxHealth);
-	AttributeSet->InitPosture(MaxPosture);
+	if (EnemyAbilitySystemComponent->GetOwnerActor())
+	{
+		EnemyAbilitySystemComponent->SetNumericAttributeBase(
+			UMordecaiAttributeSet::GetHealthAttribute(), MaxHealth);
+		EnemyAbilitySystemComponent->SetNumericAttributeBase(
+			UMordecaiAttributeSet::GetPostureAttribute(), MaxPosture);
+	}
+	else
+	{
+		// NewObject-only automation fixtures have no initialized GAS owner.
+		AttributeSet->InitHealth(MaxHealth);
+		AttributeSet->InitPosture(MaxPosture);
+	}
 
 	if (EnemyIndicatorComponent)
 	{

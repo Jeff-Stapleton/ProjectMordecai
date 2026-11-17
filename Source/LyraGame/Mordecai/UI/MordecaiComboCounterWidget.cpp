@@ -128,7 +128,9 @@ void UMordecaiComboCounterWidget::BindToASC(UAbilitySystemComponent* ASC)
 		.AddUObject(this, &UMordecaiComboCounterWidget::OnComboWindowTagChanged);
 
 	// Re-read on activation: the combo window may have changed while another UI.Layer.Game widget was on top.
-	SetComboVisible(ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_ComboWindow));
+	OnComboWindowTagChanged(
+		MordecaiGameplayTags::State_ComboWindow,
+		ASC->GetGameplayTagCount(MordecaiGameplayTags::State_ComboWindow));
 }
 
 void UMordecaiComboCounterWidget::SetComboIndex(int32 ComboIndex)
