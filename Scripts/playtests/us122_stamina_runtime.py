@@ -28,18 +28,22 @@ from playtest_kit import Step  # noqa: E402
 STORY = "US-122"
 TITLE = "US-122 stamina runtime: sprint drain, tier tag, delay and refill"
 SPRINT_KEY = "LeftShift"
+BLOCK_AXIS = "Gamepad_LeftTriggerAxis"
 TAG_SPRINTING = "Mordecai.State.Sprinting"
+TAG_BLOCKING = "Mordecai.State.Blocking"
 TAG_GREEN = "Mordecai.Stamina.Tier.Green"
 TAG_RED = "Mordecai.Stamina.Tier.Red"
 TAG_EXHAUSTED = "Mordecai.Stamina.Tier.Exhausted"
 LOW_TAGS = (TAG_RED, TAG_EXHAUSTED)
 LANE_WAYPOINTS = ((-650.0, 0.0), (-700.0, -650.0), (-300.0, -800.0))
 PULSE_S = 0.5
-IDLE_CLEAR_WAIT_S = 0.4
+DELAYED_MOVE_WAIT_S = 0.5
+IDLE_CLEAR_WAIT_S = 1.35
+STOP_TAP_HOLD_S = 0.01
 STATIONARY_SPEED_MAX = 5.0
 STATIONARY_WAIT_TIMEOUT_S = 2.0
 LOW_STAMINA = 25.0
-DELAY_OBSERVE_S = 0.5
+DELAY_OBSERVE_S = 0.75
 REFILLED_STAMINA = 95.0
 LOW_TIER_SPEED_HOLD_S = 0.5
 LOW_TIER_SPRINT_SPEED_MIN = 850.0
@@ -58,9 +62,13 @@ PLAN = (
          f"release movement and observe speed <= {STATIONARY_SPEED_MAX:g} cm/s, tap {SPRINT_KEY}, "
          f"wait {IDLE_CLEAR_WAIT_S:g}s -> stamina does not decrease and '{TAG_SPRINTING}' "
          "auto-clears", proves=("AC-122.11", "AC-122.12", "AC-122.17")),
+    Step("block_rejects_sprint",
+         f"hold {BLOCK_AXIS}=1 until '{TAG_BLOCKING}', tap {SPRINT_KEY}, release block -> "
+         f"'{TAG_SPRINTING}' never appears and does not appear after block release"),
     Step("sprint_drains",
-         f"tap {SPRINT_KEY}, hold W {PULSE_S:g}s -> '{TAG_SPRINTING}' in player.tags and "
-         "player.attributes.stamina decreases", proves=("AC-122.7",)),
+         f"tap {SPRINT_KEY}, wait {DELAYED_MOVE_WAIT_S:g}s, then hold W {PULSE_S:g}s -> "
+         f"'{TAG_SPRINTING}' remains in player.tags and player.attributes.stamina decreases",
+         proves=("AC-122.7",)),
     Step("low_tier_authoritative",
          f"cycle real WASD holds while sprint remains tagged until stamina <= {LOW_STAMINA:g}; "
          f"'{TAG_RED}' or '{TAG_EXHAUSTED}' is authoritative; capture drained HUD",
@@ -147,9 +155,12 @@ class Us122Run(kit.PlaytestRun):
         idle, _ = self.attempt(
             "idle_sprint_auto_clears", self._idle_sprint_auto_clears,
             needs=reached, needs_why="not run: lane L1 was not reached")
+        blocked, _ = self.attempt(
+            "block_rejects_sprint", self._block_rejects_sprint,
+            needs=idle, needs_why="not run: idle sprint did not auto-clear cleanly")
         sprinted, _ = self.attempt(
             "sprint_drains", self._start_sprint,
-            needs=idle, needs_why="not run: idle sprint did not auto-clear cleanly")
+            needs=blocked, needs_why="not run: sprint refusal during block was not verified")
         low, _ = self.attempt(
             "low_tier_authoritative", self._drain_to_low,
             needs=sprinted, needs_why="not run: real sprint did not start and drain stamina")
@@ -229,11 +240,68 @@ class Us122Run(kit.PlaytestRun):
                 "tags": tags,
             }
 
+    def _block_rejects_sprint(self):
+        self.bridge.axis({BLOCK_AXIS: 1.0})
+        try:
+            deadline = time.monotonic() + 1.0
+            blocking_tags = []
+            while time.monotonic() < deadline:
+                _, blocking_tags, _ = player_state(self.bridge)
+                if TAG_BLOCKING in blocking_tags:
+                    break
+                self.bridge.wait(SPEED_POLL_S)
+            if TAG_BLOCKING not in blocking_tags:
+                return "FAIL", (
+                    f"held {BLOCK_AXIS}=1 but '{TAG_BLOCKING}' did not appear; "
+                    f"tags {blocking_tags}"), {"tags": blocking_tags}
+
+            self.bridge.tap(SPRINT_KEY, hold_s=0.1)
+            self.bridge.wait(0.15)
+            _, during_tags, _ = player_state(self.bridge)
+            if TAG_SPRINTING in during_tags:
+                return "FAIL", (
+                    f"tap {SPRINT_KEY} while blocking started sprint; tags {during_tags}"), {
+                        "during_tags": during_tags}
+        finally:
+            self.bridge.axis({BLOCK_AXIS: 0.0})
+
+        deadline = time.monotonic() + 1.0
+        after_tags = []
+        while time.monotonic() < deadline:
+            _, after_tags, _ = player_state(self.bridge)
+            if TAG_BLOCKING not in after_tags:
+                break
+            self.bridge.wait(SPEED_POLL_S)
+        self.bridge.wait(0.1)
+        _, after_tags, _ = player_state(self.bridge)
+        problems = []
+        if TAG_BLOCKING in after_tags:
+            problems.append(f"'{TAG_BLOCKING}' remained after release")
+        if TAG_SPRINTING in after_tags:
+            problems.append(f"'{TAG_SPRINTING}' appeared after block release")
+        detail = (
+            f"held {BLOCK_AXIS}=1, tapped {SPRINT_KEY}, released block; tags {after_tags}")
+        return ("FAIL" if problems else "PASS"), (
+            detail + (f" -- {'; '.join(problems)}" if problems else "")), {
+                "after_tags": after_tags}
+
     def _start_sprint(self):
         before, _ = self._sample("before_sprint")
         if before is None:
             return "FAIL", "player.attributes.stamina is unavailable", None
         self.bridge.tap(SPRINT_KEY, hold_s=0.1)
+        self.bridge.wait(DELAYED_MOVE_WAIT_S)
+        waiting, waiting_tags = self._sample("after_delayed_move_wait")
+        if TAG_SPRINTING not in waiting_tags:
+            return "FAIL", (
+                f"tap {SPRINT_KEY}, wait {DELAYED_MOVE_WAIT_S:g}s: sprint auto-cleared "
+                f"before movement (tags {waiting_tags})"), {
+                    "before": before, "waiting": waiting, "tags": waiting_tags}
+        if waiting is None or waiting < before - 0.1:
+            return "FAIL", (
+                f"stationary sprint drained during the {DELAYED_MOVE_WAIT_S:g}s grace "
+                f"({before} -> {waiting})"), {
+                    "before": before, "waiting": waiting, "tags": waiting_tags}
         self.bridge.press("W")
         self.sprint_direction = "W"
         self.bridge.wait(PULSE_S)
@@ -243,10 +311,12 @@ class Us122Run(kit.PlaytestRun):
             problems.append(f"'{TAG_SPRINTING}' absent (tags {tags})")
         if after is None or after >= before - 0.1:
             problems.append(f"stamina did not decrease ({before} -> {after})")
-        detail = f"tap {SPRINT_KEY}, hold W {PULSE_S:g}s: stamina {before} -> {after}; tags {tags}"
+        detail = (
+            f"tap {SPRINT_KEY}, wait {DELAYED_MOVE_WAIT_S:g}s at stamina {waiting}, "
+            f"then hold W {PULSE_S:g}s: stamina {before} -> {after}; tags {tags}")
         return ("FAIL" if problems else "PASS"), (
             detail + (f" -- {'; '.join(problems)}" if problems else "")), {
-                "before": before, "after": after, "tags": tags}
+                "before": before, "waiting": waiting, "after": after, "tags": tags}
 
     def _drain_to_low(self):
         deadline = time.monotonic() + 15.0
@@ -302,7 +372,10 @@ class Us122Run(kit.PlaytestRun):
 
     def _stop_and_check_delay(self):
         before, _ = self._sample("before_stop")
-        self.bridge.tap(SPRINT_KEY, hold_s=0.1)
+        # The delay starts at the final stamina spend, not after this input
+        # helper returns. Use a one-frame real tap so the full 0.75s
+        # observation remains inside the specified 1.0s regeneration delay.
+        self.bridge.tap(SPRINT_KEY, hold_s=STOP_TAP_HOLD_S)
         if self.sprint_direction:
             self.bridge.release(self.sprint_direction)
             self.sprint_direction = None

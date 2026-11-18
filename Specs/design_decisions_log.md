@@ -365,3 +365,28 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Source: coordinator decisions supplied for issue #143 round-2 review
   (2026-11-18). These coordinator choices, including the numeric defaults,
   remain tunable.
+
+### Issue #145 stamina follow-up tuning
+
+- **Sprint-toggle grace (tunable):** the stopped auto-clear begins counting
+  only after this toggle has actually moved, or after a **1.0 second** grace
+  from the toggle, whichever happens first. The existing **0.25 second**
+  stopped threshold then applies. Standing with sprint toggled never drains
+  stamina.
+- **Interrupt refusal (tunable policy):** a new sprint toggle is refused while
+  block, parry, attack committed, dodge, micro-stun, posture break, knockdown
+  or death is already active. An interrupt that begins during sprint still
+  clears it.
+- **Tier-penalty scaling (tunable):** for tier multipliers below Normal,
+  `Effective = clamp(1 - (1 - Tier) * StaminaTierPenaltyMultiplier, 0.25, 1)`.
+  A penalty multiplier of 0 therefore makes Red/Exhausted Normal (1.0), while
+  preserving Green's 1.25 bonus. Fear's 1.5 amplifies the shortfall below 1.0.
+- **Block status multipliers (tunable):**
+  `EffectiveStability = clamp(Stability * TierMultiplier *
+  BlockStabilityMultiplier, 0, 1)`, and the resulting stamina drain is
+  multiplied by `BlockStaminaCostMultiplier`.
+- **Low-stamina break-free (tunable):** the Rooted specs require break-free to
+  cost stamina but do not require enough stamina up front. Following the
+  locked rule that low stamina never blocks actions, break-free remains
+  available below its cost and spends down to the shared -50 stamina floor.
+- Source: coordinator decisions supplied for issue #145 (2026-11-18).

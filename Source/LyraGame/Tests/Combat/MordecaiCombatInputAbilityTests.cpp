@@ -402,15 +402,15 @@ bool FMordecai_Recovery_CombatSprintComposesWithBlockSpeed::RunTest(const FStrin
 	Character->SetSprinting(false);
 	TestEqual("Walking again", CMC->MaxWalkSpeed, Walk);
 
-	// Sprint toggled on while blocking, block released, sprint toggled off
+	// A new sprint toggle is refused while block owns its interrupt tag.
 	Env.PressInput(MordecaiGameplayTags::Input_Block);
 	TestEqual("Blocking walk", CMC->MaxWalkSpeed, Walk * BlockMul);
 	Character->SetSprinting(true);
-	TestEqual("Blocking sprint", CMC->MaxWalkSpeed, Sprint * BlockMul);
+	TestFalse("Sprint is refused while a real block is active", Character->bIsSprinting);
+	TestEqual("Blocking speed remains unsprinted", CMC->MaxWalkSpeed, Walk * BlockMul);
 	Env.ReleaseInput(MordecaiGameplayTags::Input_Block);
-	TestEqual("Sprint after block", CMC->MaxWalkSpeed, Sprint);
-	Character->SetSprinting(false);
-	TestEqual("Walk after all", CMC->MaxWalkSpeed, Walk);
+	TestFalse("Releasing block does not resurrect the refused sprint", Character->bIsSprinting);
+	TestEqual("Walk after refused sprint and block release", CMC->MaxWalkSpeed, Walk);
 
 	// Sprint on, block, sprint off while blocking, release
 	Character->SetSprinting(true);
