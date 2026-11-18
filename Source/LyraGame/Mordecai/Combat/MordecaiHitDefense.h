@@ -9,6 +9,31 @@ class UAbilitySystemComponent;
 class UMordecaiGA_Block;
 class UMordecaiGA_Parry;
 
+/** Spatial source used to test a hit against directional defenses. */
+struct FMordecaiIncomingHitSource
+{
+	FVector SourceLocation = FVector::ZeroVector;
+	FVector IncomingTravelDirection = FVector::ZeroVector;
+	bool bHasSourceLocation = false;
+
+	static FMordecaiIncomingHitSource FromLocation(const FVector& InSourceLocation)
+	{
+		FMordecaiIncomingHitSource Source;
+		Source.SourceLocation = InSourceLocation;
+		Source.bHasSourceLocation = true;
+		return Source;
+	}
+
+	static FMordecaiIncomingHitSource FromProjectile(
+		const FVector& InOrigin,
+		const FVector& InTravelDirection)
+	{
+		FMordecaiIncomingHitSource Source = FromLocation(InOrigin);
+		Source.IncomingTravelDirection = InTravelDirection;
+		return Source;
+	}
+};
+
 /** What the target's defenses did with a hit. */
 struct FMordecaiHitDefenseResult
 {
@@ -26,19 +51,21 @@ struct FMordecaiHitDefenseResult
 /**
  * FMordecaiHitDefense
  *
- * Runs an incoming melee hit through the target's defenses before any of it is applied, in this order:
+ * Runs an incoming hit through the target's defenses before any of it is applied, in this order:
  *   1. i-frames: Mordecai.State.Invulnerable (Blink) or Mordecai.State.Dodging (AC-005.3, AC-021.3) — Evaded
  *   2. an active parry window (UMordecaiGA_Parry::ReceiveParriedHit, AC-006.13) — Parried
  *   3. an active block (UMordecaiGA_Block::ReceiveBlockedHit: mitigation, stamina drain, guard break, perfect block;
  *      AC-006.3/006.4/006.5/006.9/006.10) — Blocked / PerfectBlocked
  * Jump-avoidable sweeps are decided earlier, in the hit query (Mordecai.State.Airborne, AC-003.7).
- *
- * TODO(DECISION): melee only. Projectiles, Cone of Cold and DoT ticks do not consult the defenses yet.
+ * Block and parry only apply when the flattened hit source lies inside the configured frontal arc.
+ * Melee, projectiles and direct-damage spells consult this resolver; periodic status-effect ticks do not.
  */
 struct LYRAGAME_API FMordecaiHitDefense
 {
 	/**
 	 * Resolve a hit of IncomingHealthDamage (positive) from AttackerASC on TargetASC landing at HitTime (world seconds).
+	 * HitSource may provide a projectile/spell origin and travel direction; otherwise the attacker's avatar location is
+	 * used. Direction is flattened to the ground plane.
 	 * Parry and block apply their own effects here: the parry's attacker posture and tags, the block's mitigated
 	 * health damage, stamina drain, guard break and perfect-block posture.
 	 */
@@ -46,7 +73,8 @@ struct LYRAGAME_API FMordecaiHitDefense
 		UAbilitySystemComponent* TargetASC,
 		UAbilitySystemComponent* AttackerASC,
 		float IncomingHealthDamage,
-		double HitTime);
+		double HitTime,
+		const FMordecaiIncomingHitSource& HitSource = FMordecaiIncomingHitSource());
 
 	/** The ASC's active parry instance (Blueprint subclasses included), or null. */
 	static UMordecaiGA_Parry* FindActiveParry(const UAbilitySystemComponent* ASC);

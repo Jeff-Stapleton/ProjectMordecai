@@ -13,6 +13,7 @@
 #include "Mordecai/Combat/MordecaiGA_Block.h"
 #include "Mordecai/Combat/MordecaiGA_Dodge.h"
 #include "Mordecai/Combat/MordecaiGA_Parry.h"
+#include "Mordecai/Combat/MordecaiHitDefense.h"
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
 #include "Mordecai/Magic/MordecaiGA_Blink.h"
@@ -21,6 +22,8 @@
 #include "Mordecai/MordecaiPlayerController.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Weakened.h"
 #include "Mordecai/UI/MordecaiDamagePopComponent.h"
+#include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
+#include "Mordecai/Weapons/MordecaiShieldDataAsset.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
 
 namespace MordecaiRecoveryDefenseTest
@@ -131,20 +134,22 @@ namespace MordecaiRecoveryDefenseTest
 			return World->GetFirstPlayerController() == PopPC && FindSpec(UMordecaiGA_Block::StaticClass()) != nullptr;
 		}
 
-		/** An enemy at the origin facing +X, on the ground (a possessed pawn in this floorless world would be falling). */
+		/** An enemy 100 cm in front of and facing the defender, on the ground. */
 		AMordecaiEnemyCharacter* SpawnAttacker(UMordecaiAttackProfileDataAsset* Profile) const
 		{
 			AMordecaiEnemyCharacter* Enemy = SpawnEnemy(FVector::ZeroVector, { Profile });
 			SetFalling(Enemy, false);
+			PlaceAttackerAtDefenseAngle(Enemy, 0.f);
 			return Enemy;
 		}
 
-		/** The CombatTestMap TestAttacker Blueprint (its DA_EnemyAttack_BasicSlash) at the origin facing +X, on the ground. */
+		/** The CombatTestMap TestAttacker Blueprint (its DA_EnemyAttack_BasicSlash), in front and facing the defender. */
 		AMordecaiEnemyCharacter* SpawnTestAttacker() const
 		{
 			UClass* AttackerClass = FSoftClassPath(TestAttackerClassPath).TryLoadClass<AMordecaiEnemyCharacter>();
 			AMordecaiEnemyCharacter* Enemy = AttackerClass ? SpawnEnemyOfClass(AttackerClass, FVector::ZeroVector) : nullptr;
 			SetFalling(Enemy, false);
+			PlaceAttackerAtDefenseAngle(Enemy, 0.f);
 			return Enemy;
 		}
 
@@ -240,6 +245,24 @@ namespace MordecaiRecoveryDefenseTest
 			}
 		}
 
+		/**
+		 * Place the attacker at DefenseAngleDegrees around the defender's +X actor forward and face it toward the
+		 * defender. 0 is directly in front, +90 is the defender's right, and 180 is behind.
+		 */
+		void PlaceAttackerAtDefenseAngle(AMordecaiEnemyCharacter* Enemy, float DefenseAngleDegrees) const
+		{
+			if (!Enemy || !Player)
+			{
+				return;
+			}
+			const FVector TowardSource =
+				FRotator(0.f, DefenseAngleDegrees, 0.f).RotateVector(FVector::ForwardVector);
+			Enemy->SetActorLocation(
+				Player->GetActorLocation() + TowardSource * 100.f,
+				false, nullptr, ETeleportType::TeleportPhysics);
+			Enemy->SetActorRotation((-TowardSource).Rotation());
+		}
+
 		int32 PopCount() const
 		{
 			return Pops ? Pops->GetActivePopCount() : -1;
@@ -261,6 +284,43 @@ namespace MordecaiRecoveryDefenseTest
 			Teardown();
 		}
 	};
+}
+
+namespace MordecaiDefenseArcTest
+{
+	using namespace MordecaiRecoveryDefenseTest;
+
+	struct FHitCosts
+	{
+		float Health = 0.f;
+		float Stamina = 0.f;
+		float Posture = 0.f;
+	};
+
+	inline FHitCosts LandBlockedSwingAtAngle(FDefenseTestEnv& Env, float DefenseAngleDegrees)
+	{
+		AMordecaiEnemyCharacter* Enemy = Env.SpawnAttacker(MakeSlashProfile());
+		if (!Enemy)
+		{
+			return { -1.f, -1.f, -1.f };
+		}
+		Env.PlaceAttackerAtDefenseAngle(Enemy, DefenseAngleDegrees);
+		Env.Press(MordecaiGameplayTags::Input_Block);
+		Env.TickFrames(8);
+
+		const float HealthBefore = Env.GetPlayer(UMordecaiAttributeSet::GetHealthAttribute());
+		const float StaminaBefore = Env.GetPlayer(UMordecaiAttributeSet::GetStaminaAttribute());
+		const float PostureBefore = Env.GetPlayer(UMordecaiAttributeSet::GetPostureAttribute());
+		if (!Env.LandSwing(Enemy))
+		{
+			return { -1.f, -1.f, -1.f };
+		}
+		return {
+			HealthBefore - Env.GetPlayer(UMordecaiAttributeSet::GetHealthAttribute()),
+			StaminaBefore - Env.GetPlayer(UMordecaiAttributeSet::GetStaminaAttribute()),
+			PostureBefore - Env.GetPlayer(UMordecaiAttributeSet::GetPostureAttribute())
+		};
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -669,9 +729,7 @@ bool FMordecai_Recovery_Defense_BlinkInvulnerabilityNegatesEnemyHit::RunTest(con
 	{
 		return true;
 	}
-	Enemy->SetActorLocation(
-		Env.Player->GetActorLocation() - FVector(100.f, 0.f, 0.f),
-		false, nullptr, ETeleportType::TeleportPhysics);
+	Env.PlaceAttackerAtDefenseAngle(Enemy, 180.f);
 	if (!TestTrue("the swing lands during the invulnerability", Env.LandSwing(Enemy)))
 	{
 		return true;
@@ -893,5 +951,193 @@ bool FMordecai_Recovery_Defense_JumpAvoidsBasicSlash::RunTest(const FString& Par
 		return true;
 	}
 	TestEqual("a HitsAirborne swing hits the falling player", Env.GetPlayer(UMordecaiAttributeSet::GetHealthAttribute()), 100.f - 2.f * Damage);
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// Issue #71 / US-121 — a guard and parry cover a configurable frontal arc centred on actor forward.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_DefenseArc_FrontIsBlocked,
+	"Mordecai.DefenseArc.FrontIsBlocked",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_DefenseArc_FrontIsBlocked::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiDefenseArcTest;
+	FDefenseTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownDefender(); };
+	if (!TestTrue("defender set up", Env.SetupDefender(FVector::ZeroVector)))
+	{
+		return true;
+	}
+	const FHitCosts Costs = LandBlockedSwingAtAngle(Env, 0.f);
+	TestEqual("front hit is mitigated", Costs.Health, 7.5f);
+	TestEqual("front hit drains block stamina", Costs.Stamina, 10.5f);
+	TestEqual("front hit uses blocked posture", Costs.Posture, 2.25f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_DefenseArc_FiftyNineDegreesIsBlocked,
+	"Mordecai.DefenseArc.FiftyNineDegreesIsBlocked",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_DefenseArc_FiftyNineDegreesIsBlocked::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiDefenseArcTest;
+	FDefenseTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownDefender(); };
+	if (!TestTrue("defender set up", Env.SetupDefender(FVector::ZeroVector)))
+	{
+		return true;
+	}
+	const FHitCosts Costs = LandBlockedSwingAtAngle(Env, 59.f);
+	TestEqual("59 degree hit is mitigated", Costs.Health, 7.5f);
+	TestEqual("59 degree hit drains block stamina", Costs.Stamina, 10.5f);
+	TestEqual("59 degree hit uses blocked posture", Costs.Posture, 2.25f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_DefenseArc_SixtyOneDegreesIsNotBlocked,
+	"Mordecai.DefenseArc.SixtyOneDegreesIsNotBlocked",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_DefenseArc_SixtyOneDegreesIsNotBlocked::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiDefenseArcTest;
+	FDefenseTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownDefender(); };
+	if (!TestTrue("defender set up", Env.SetupDefender(FVector::ZeroVector)))
+	{
+		return true;
+	}
+	const FHitCosts Costs = LandBlockedSwingAtAngle(Env, 61.f);
+	TestEqual("61 degree hit lands in full", Costs.Health, 15.f);
+	TestEqual("61 degree hit has no block stamina cost", Costs.Stamina, 0.f);
+	TestEqual("61 degree hit uses unblocked posture", Costs.Posture, 4.5f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_DefenseArc_BehindIsNotBlocked,
+	"Mordecai.DefenseArc.BehindIsNotBlocked",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_DefenseArc_BehindIsNotBlocked::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiDefenseArcTest;
+	FDefenseTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownDefender(); };
+	if (!TestTrue("defender set up", Env.SetupDefender(FVector::ZeroVector)))
+	{
+		return true;
+	}
+	const FHitCosts Costs = LandBlockedSwingAtAngle(Env, 180.f);
+	TestEqual("rear hit lands in full", Costs.Health, 15.f);
+	TestEqual("rear hit has no block stamina cost", Costs.Stamina, 0.f);
+	TestEqual("rear hit uses unblocked posture", Costs.Posture, 4.5f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_DefenseArc_EquippedShieldWidensArc,
+	"Mordecai.DefenseArc.EquippedShieldWidensArc",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_DefenseArc_EquippedShieldWidensArc::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiDefenseArcTest;
+
+	FDefenseTestEnv DefaultEnv;
+	ON_SCOPE_EXIT { DefaultEnv.TeardownDefender(); };
+	if (!TestTrue("default defender set up", DefaultEnv.SetupDefender(FVector::ZeroVector)))
+	{
+		return true;
+	}
+	const FHitCosts DefaultCosts = LandBlockedSwingAtAngle(DefaultEnv, 70.f);
+	TestEqual("70 degrees is outside the default 120 degree arc", DefaultCosts.Health, 15.f);
+	TestEqual("default guard spends no stamina out of arc", DefaultCosts.Stamina, 0.f);
+
+	FDefenseTestEnv ShieldEnv;
+	ON_SCOPE_EXIT { ShieldEnv.TeardownDefender(); };
+	if (!TestTrue("shield defender set up", ShieldEnv.SetupDefender(FVector::ZeroVector)))
+	{
+		return true;
+	}
+	UMordecaiShieldDataAsset* Buckler = NewObject<UMordecaiShieldDataAsset>();
+	Buckler->BlockArcDegrees = 150.f;
+	FMordecaiWeaponInstance ShieldInstance;
+	ShieldInstance.InstanceId = FGuid::NewGuid();
+	ShieldInstance.WeaponDataAsset = Buckler;
+	UMordecaiEquipmentComponent* Equipment = ShieldEnv.Player->GetEquipmentComponent();
+	if (!TestNotNull("equipment component", Equipment)
+		|| !TestTrue("150 degree shield equips off hand", Equipment->EquipWeapon(ShieldInstance, EMordecaiEquipSlot::OffHand)))
+	{
+		return true;
+	}
+	const FHitCosts ShieldCosts = LandBlockedSwingAtAngle(ShieldEnv, 70.f);
+	TestEqual("70 degrees is inside the configured 150 degree shield arc", ShieldCosts.Health, 7.5f);
+	TestEqual("shield block drains stamina", ShieldCosts.Stamina, 10.5f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_DefenseArc_ProjectileFromBehindIsNotBlocked,
+	"Mordecai.DefenseArc.ProjectileFromBehindIsNotBlocked",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_DefenseArc_ProjectileFromBehindIsNotBlocked::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryDefenseTest;
+	FDefenseTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownDefender(); };
+	if (!TestTrue("defender set up", Env.SetupDefender(FVector::ZeroVector)))
+	{
+		return true;
+	}
+	Env.Press(MordecaiGameplayTags::Input_Block);
+	Env.TickFrames(8);
+	const FVector DefenderLocation = Env.Player->GetActorLocation();
+	const FMordecaiIncomingHitSource ProjectileSource = FMordecaiIncomingHitSource::FromProjectile(
+		DefenderLocation - FVector(1000.f, 0.f, 0.f),
+		FVector::ForwardVector);
+	const FMordecaiHitDefenseResult Result = FMordecaiHitDefense::ResolveIncomingHit(
+		Env.GetPlayerASC(), nullptr, 15.f, Env.World->GetTimeSeconds(), ProjectileSource);
+	TestTrue("projectile source is behind the +X-facing defender", Result.Defense == EMordecaiHitDefense::None);
+	TestEqual("rear projectile consumes no block stamina",
+		Env.GetPlayer(UMordecaiAttributeSet::GetStaminaAttribute()), 100.f);
+	TestEqual("rear projectile is not pre-applied as blocked health damage",
+		Env.GetPlayer(UMordecaiAttributeSet::GetHealthAttribute()), 100.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_DefenseArc_ParryBehindDoesNotSucceed,
+	"Mordecai.DefenseArc.ParryBehindDoesNotSucceed",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_DefenseArc_ParryBehindDoesNotSucceed::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryDefenseTest;
+	FDefenseTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownDefender(); };
+	if (!TestTrue("defender set up", Env.SetupDefender(FVector::ZeroVector)))
+	{
+		return true;
+	}
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnAttacker(MakeSlashProfile());
+	if (!TestNotNull("attacker spawned", Enemy))
+	{
+		return true;
+	}
+	Env.PlaceAttackerAtDefenseAngle(Enemy, 180.f);
+	Env.Press(MordecaiGameplayTags::Input_Parry);
+	UMordecaiGA_Parry* Parry = Env.FindInstance<UMordecaiGA_Parry>();
+	if (!TestNotNull("parry instance", Parry) || !TestTrue("rear swing lands", Env.LandSwing(Enemy)))
+	{
+		return true;
+	}
+	TestEqual("rear hit lands in full through parry", Env.GetPlayer(UMordecaiAttributeSet::GetHealthAttribute()), 85.f);
+	TestEqual("rear hit uses normal posture", Env.GetPlayer(UMordecaiAttributeSet::GetPostureAttribute()), 95.5f);
+	TestFalse("rear attacker is not parried",
+		Enemy->GetAbilitySystemComponent()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Parried));
+	TestFalse("rear hit grants no riposte", Env.PlayerHas(MordecaiGameplayTags::State_Riposte));
+	TestTrue("out-of-arc hit does not consume the parry window",
+		Parry->GetCurrentParryPhase() == EMordecaiParryPhase::Active);
 	return true;
 }

@@ -78,7 +78,7 @@ All changes are C++ (the melee damage path, block, Blink, the player and enemy c
 - Invulnerability is now a HasDuration GameplayEffect granting `Mordecai.State.Invulnerable` (`UTargetTagsGameplayEffectComponent`, the Stone Skin pattern), applied to the caster. GAS removes it on expiry, whatever the ability's lifetime.
 
 **Other**
-- Melee only. Projectiles (`AMordecaiProjectile::ApplyDamageToTarget`), Cone of Cold and Burning ticks do not consult the defenses yet. No enemy uses them against the player today.
+- Historical US-101 scope was melee only. US-121 (2026-11-18) now routes projectiles and Cone of Cold through the same defense resolver with directional source data. Burning ticks remain non-directional damage-over-time and do not consult block/parry.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
 **Decisions taken for Jeff (2026-10-30, `Specs/design_decisions_log.md`); he may revisit:**
@@ -90,10 +90,10 @@ All changes are C++ (the melee damage path, block, Blink, the player and enemy c
 6. Blink's fix lands here, ahead of US-087.
 
 **TODO(DECISION) (left as they are, in the code)**
-- Is block frontal only? `skill_sheet_v1.1.md` shield ranks say "frontal"; the code and US-006 have no direction.
+- Block direction was resolved by US-121: block and parry use a 120 degree arc centred on actor forward; equipped shields widen it according to shield data.
 - Do blocked hits still apply on-hit payloads, status effects and the enchant bonus? They do today, and nothing that enemies swing has any.
 - Durations of `Mordecai.State.Parried` and `Mordecai.State.Riposte`. Both are loose tags that nothing removes (filed as known issue N33).
-- Should projectiles, spells and DoT ticks also honor i-frames and block?
+- Projectiles and directional spells were resolved by US-121; non-directional DoT ticks remain outside directional block/parry.
 - AC-005.9: the perfect-dodge stamina refund still has no caller; the resolver's Evaded branch is its hook.
 
 ## Tests Required
@@ -130,13 +130,14 @@ Every test applies a real enemy swing: the enemy's `UMordecaiGA_MeleeAttack` act
 - **Player steps:**
   1. Walk (WASD) to the fight spot (2000, 0), 100 cm −X of the TestAttacker (2100, 0).
   2. Stand through one swing.
-  3. Hold LT (`Gamepad_LeftTriggerAxis`) through the next swing.
-  4. Raise LT about 0.30 s after a swing starts (inside the 250 ms before the hit at about 0.5 s).
-  5. Press W about 0.15 s after a swing starts and tap Left Alt at about 0.25 s, so the dodge goes +X into the attacker and stays in reach; release W.
-  6. Tap Space about 0.15 s after a swing starts.
-  7. Hold LT and press RT (`Gamepad_RightTriggerAxis`) about 0.25 s after a swing starts.
-- **Visible on screen:** the player next to the red TestAttacker on the CombatTestMap floor. The HUD health and stamina bars drop after the control and block swings and stay put after the dodge, jump and parry swings. "Perfect Block!" / "Parry" feedback may flash.
-- **Proof:** Tier 3 boot of CombatTestMap shows the arena, the HUD and the TestAttacker. Tier 4 checks `undefended_hit`, `block_mitigates`, `perfect_block`, `dodge_evades`, `jump_evades` and `parry_negates` in `Scripts/playtests/us101_defenses.py`.
+  3. Aim the right stick at the attacker and hold LT (`Gamepad_LeftTriggerAxis`) through the next swing.
+  4. Aim away from the attacker and hold LT through a rear swing; it must land in full.
+  5. Aim back at the attacker and raise LT about 0.30 s after a swing starts (inside the 250 ms before the hit at about 0.5 s).
+  6. Press W about 0.15 s after a swing starts and tap Left Alt at about 0.25 s, so the dodge goes +X into the attacker and stays in reach; release W.
+  7. Tap Space about 0.15 s after a swing starts.
+  8. Hold LT and press RT (`Gamepad_RightTriggerAxis`) about 0.25 s after a swing starts.
+- **Visible on screen:** the player next to the red TestAttacker on the CombatTestMap floor. The facing arrow points at the attacker for the blocked front hit and away for the rear hit; the HUD health and stamina bars show the respective mitigated and full-damage outcomes. Health stays put after the dodge, jump and parry swings. "Perfect Block!" / "Parry" feedback may flash.
+- **Proof:** Tier 3 boot of CombatTestMap shows the arena, the HUD and the TestAttacker. Tier 4 checks `undefended_hit`, `block_mitigates`, `rear_unblocked`, `perfect_block`, `dodge_evades`, `jump_evades` and `parry_negates` in `Scripts/playtests/us101_defenses.py`.
 - **Tier 4 script:** `Scripts/playtests/us101_defenses.py`, run with `py Scripts/playtest_story.py US-101`
 - **Steps:** (generated: `py Scripts/playtest_story.py US-101 --plan`; checked: `--lint`)
 
@@ -144,11 +145,12 @@ Every test applies a real enemy swing: the enemy's `UMordecaiGA_MeleeAttack` act
 |---|---|---|---|
 | 1 | `walk_to_fight_spot` | walk_to(2000, 0) -> within 25 cm (100 cm -X of the TestAttacker at (2100, 0)); state actors (radius 3000) -> the TestAttacker (by label, else class) alive, within its 150 cm reach | - |
 | 2 | `undefended_hit` | no input: wait_until the TestAttacker's actors[] ai_state leaves 'Attack', read player, wait_until it is 'Attack' (the edge, poll_s 0), wait_until player.attributes.health drops; after the swing -> health -15 and posture -4.5 (+-0.5): the control, the swing lands at this spot | AC-101.10 |
-| 3 | `block_mitigates` | axis Gamepad_LeftTriggerAxis=1 held from the attacker's Recover ('Mordecai.State.Blocking' seen before the edge) through its swing -> health -7.5, not -15, and stamina -10.5 (+-0.5); then Gamepad_LeftTriggerAxis=0 | AC-101.11, US-006:AC-006.3, US-006:AC-006.4 |
-| 4 | `perfect_block` | Gamepad_LeftTriggerAxis up at the edge; ~0.3s after it (shifted by the measured hit time) axis Gamepad_LeftTriggerAxis=1, wait_until health drops -> health -7.5 and stamina unchanged (+-0.5); the edge, LT and hit times are in the detail | AC-101.12 |
-| 5 | `dodge_evades` | press W ~0.15s and tap LeftAlt ~0.25s after the edge (a dodge +X, into the attacker), release W; poll state -> 'Mordecai.State.Dodging' seen, health unchanged (+-0.5), and the player within 150 cm of the attacker at the reads around the expected hit (needs the control) | AC-101.13, US-005:AC-005.3 |
-| 6 | `jump_evades` | tap SpaceBar ~0.15s after the edge; poll state -> 'Mordecai.State.Airborne' in player.tags at a read with player.movement_mode=="Falling", health unchanged (+-0.5), within reach around the expected hit, and no 'Mordecai.State.Airborne' once Walking again (needs the control) | AC-101.14, US-003:AC-003.7 |
-| 7 | `parry_negates` | axis Gamepad_LeftTriggerAxis=1 held from Recover ('Mordecai.State.Blocking' seen), axis Gamepad_RightTriggerAxis=1 for 0.1s ~0.25s after the edge (the parry chord) -> health unchanged (+-0.5), 'Mordecai.State.Riposte' in player.tags and 'Mordecai.State.Parried' in the attacker's actors[] tags; then Gamepad_LeftTriggerAxis=0 (last: N33; needs the control) | AC-101.15 |
+| 3 | `block_mitigates` | axis Gamepad_LeftTriggerAxis=1 held from the attacker's Recover ('Mordecai.State.Blocking' seen before the edge), after axis Gamepad_RightY=1 faces the attacker, through its swing -> health -7.5, not -15, and stamina -10.5 (+-0.5); then Gamepad_LeftTriggerAxis=0 | AC-101.11, US-006:AC-006.3, US-006:AC-006.4, US-121:AC-121.5 |
+| 4 | `rear_unblocked` | axis Gamepad_RightY=-1 faces away from the attacker, then Gamepad_LeftTriggerAxis=1 held from Recover ('Mordecai.State.Blocking' seen) through its swing -> health -15, posture -4.5, stamina unchanged (+-0.5); then Gamepad_LeftTriggerAxis=0 | US-121:AC-121.5 |
+| 5 | `perfect_block` | axis Gamepad_RightY=1 faces the attacker again; Gamepad_LeftTriggerAxis up at the edge; ~0.3s after it (shifted by the measured hit time) axis Gamepad_LeftTriggerAxis=1, wait_until health drops -> health -7.5 and stamina unchanged (+-0.5); the edge, LT and hit times are in the detail | AC-101.12 |
+| 6 | `dodge_evades` | press W ~0.15s and tap LeftAlt ~0.25s after the edge (a dodge +X, into the attacker), release W; poll state -> 'Mordecai.State.Dodging' seen, health unchanged (+-0.5), and the player within 150 cm of the attacker at the reads around the expected hit (needs the control) | AC-101.13, US-005:AC-005.3 |
+| 7 | `jump_evades` | tap SpaceBar ~0.15s after the edge; poll state -> 'Mordecai.State.Airborne' in player.tags at a read with player.movement_mode=="Falling", health unchanged (+-0.5), within reach around the expected hit, and no 'Mordecai.State.Airborne' once Walking again (needs the control) | AC-101.14, US-003:AC-003.7 |
+| 8 | `parry_negates` | axis Gamepad_LeftTriggerAxis=1 held from Recover ('Mordecai.State.Blocking' seen), axis Gamepad_RightTriggerAxis=1 for 0.1s ~0.25s after the edge (the parry chord) -> health unchanged (+-0.5), 'Mordecai.State.Riposte' in player.tags and 'Mordecai.State.Parried' in the attacker's actors[] tags; then Gamepad_LeftTriggerAxis=0 (last: N33; needs the control) | AC-101.15 |
 
 - **Playable alone:** YES
 

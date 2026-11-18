@@ -5,6 +5,7 @@
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Combat/MordecaiHitDefense.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "AbilitySystemComponent.h"
@@ -114,6 +115,17 @@ void UMordecaiGA_ConeOfCold::ApplyColdDamageToTarget(AActor* TargetActor, float 
 	}
 
 	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
+	const AActor* SourceActor = SourceASC ? SourceASC->GetAvatarActor() : GetAvatarActorFromActorInfo();
+	const FMordecaiIncomingHitSource HitSource = SourceActor
+		? FMordecaiIncomingHitSource::FromLocation(SourceActor->GetActorLocation())
+		: FMordecaiIncomingHitSource();
+	const FMordecaiHitDefenseResult Defense = FMordecaiHitDefense::ResolveIncomingHit(
+		TargetASC, SourceASC, DamageMagnitude, GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0, HitSource);
+	if (Defense.IsNegated() || Defense.IsBlocked())
+	{
+		return;
+	}
+
 	FGameplayEffectContextHandle Context;
 	if (SourceASC)
 	{

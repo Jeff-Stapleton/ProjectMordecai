@@ -312,3 +312,15 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Gameplay presents exactly one cursor affordance: mouse/keyboard keeps the physical Win32 position live for aiming but hides the OS cursor and displays only the HUD reticle. Menus, pause, inventory and death restore the normal OS cursor; the gameplay reticle is hidden while paused or when gamepad is last-used.
 - During active gameplay, viewport mouse lock confines the physical cursor to the game window. Menu input releases the lock.
 - Source: owner decisions supplied with the issue #34 round-3 builder task (2026-11-17).
+
+---
+
+## 2026-11-18 — Directional block and parry (issue #71, US-121)
+
+- **Final decision:** an unshielded block covers a 120 degree arc centred on the defender's actor forward. Actor forward is the aim-facing direction delivered by US-098.
+- Hits outside the arc are ordinary unblocked hits: full health and posture damage, no block stamina drain, and no perfect-block reward.
+- Equipped shield data carries a tunable block arc. Initial tuning defaults are **Buckler/small 150 degrees**, **standard 180 degrees**, and **tower 210 degrees**.
+- Attack direction is flattened to the ground plane and points from defender to attacker. Projectile and projectile-spell delivery uses the projectile source/origin, falling back to the inverse travel velocity when the source coincides with the defender.
+- The current parry was omnidirectional and no spec grants that exception. Parry therefore uses the same effective arc as block; an out-of-arc hit neither succeeds nor consumes the parry window.
+- These values are balance defaults, not locked constants; shield assets may tune their arc.
+- Source: owner decision supplied with the issue #71 builder task (2026-11-18).

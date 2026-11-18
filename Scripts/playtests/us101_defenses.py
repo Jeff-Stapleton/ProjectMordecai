@@ -35,21 +35,24 @@ Steps (--plan prints them as the story's Steps table):
   1  Walk (WASD) to the fight spot (2000, 0), 100 cm -X of the attacker (its first swing usually
      lands during the walk: not measured).
   2  Control: stand through one swing: health -15, posture -4.5.
-  3  Block: LT held from Recover through the swing: health -7.5 (not -15), stamina -10.5.
-  4  Perfect block: LT raised ~0.30 s after the edge (~0.2 s before the hit, inside the 250 ms
+  3  Front block: aim the right stick toward the attacker (+X), then hold LT from Recover through
+     the swing: health -7.5 (not -15), stamina -10.5.
+  4  Rear hit: aim away from the attacker (-X), hold LT through the swing: the guard is active but
+     the hit is outside its 120 degree arc, so health -15, posture -4.5 and stamina unchanged.
+  5  Perfect block: face the attacker again and raise LT ~0.30 s after the edge (~0.2 s before the hit, inside the 250 ms
      window): health -7.5, stamina unchanged.
-  5  Dodge: W held from ~0.15 s, LeftAlt tapped ~0.25 s after the edge (the dodge goes +X into the
+  6  Dodge: W held from ~0.15 s, LeftAlt tapped ~0.25 s after the edge (the dodge goes +X into the
      attacker and stays inside its reach; a backward dodge leaves it, N27): no health lost,
      Mordecai.State.Dodging seen, the player within 150 cm of the attacker around the hit.
-  6  Jump: SpaceBar tapped ~0.15 s after the edge: no health lost, Mordecai.State.Airborne in
+  7  Jump: SpaceBar tapped ~0.15 s after the edge: no health lost, Mordecai.State.Airborne in
      player.tags while movement_mode is Falling, and gone after the landing.
-  7  Parry, last (Riposte and Parried are never removed today, N33): LT held from Recover, RT
+  8  Parry, last (Riposte and Parried are never removed today, N33): LT held from Recover, RT
      pressed ~0.25 s after the edge: no health lost, Mordecai.State.Riposte on the player,
      Mordecai.State.Parried on the attacker.
   A screenshot after the walk and after each swing shows the HUD bars.  Steps 5-7 need the control
   to have passed (a defended swing that does no damage proves nothing if swings never land here),
   and steps 5-7 FAIL when the player was out of the 150 cm reach at the hit.
-Budget: health 100 -> 85 (the walk's swing) -> 70 -> 62.5 -> 55, then unchanged; each failed
+Budget: health 100 -> 85 (the walk's swing) -> 70 -> 62.5 -> 47.5 -> 40, then unchanged; each failed
 defense costs 15 more.  Stamina never regenerates (N30): 100 - 10.5 - 0 - 15 - 20 stays above 0, so
 the guard never breaks.
 
@@ -116,8 +119,12 @@ RT = "Gamepad_RightTriggerAxis"
 FORWARD_KEY = "W"                      # +X: toward the attacker
 DODGE_KEY = "LeftAlt"
 JUMP_KEY = "SpaceBar"
+AIM_Y = "Gamepad_RightY"              # +1 faces +X (attacker); -1 faces -X (away)
 TAP_S = 0.1
 RT_TAP_S = 0.1
+AIM_HOLD_S = 0.15
+AIM_TIMEOUT_S = 1.0
+FACING_TOL = 20.0
 
 # --- tags -----------------------------------------------------------------------------------------
 TAG_BLOCKING = "Mordecai.State.Blocking"
@@ -157,6 +164,9 @@ SCREENSHOTS = {
     "undefended": "the player next to the TestAttacker after the control swing: the HUD health bar "
                   "15 lower than before it, stamina still full",
     "blocked": "after the blocked swing: health 7.5 lower, the stamina bar visibly down (10.5)",
+    "rear_hit": "after the player aimed away from the TestAttacker and guarded through its rear "
+                "swing: the facing arrow points away, health is 15 lower, posture is 4.5 lower, "
+                "and stamina is unchanged since the front-block screenshot",
     "perfect_block": "after the perfect block: health 7.5 lower, stamina unchanged since the "
                      "previous screenshot; 'Perfect Block!' feedback may flash",
     "dodged": "after the dodge into the attacker: the player still pressed against (or beside) "
@@ -190,10 +200,15 @@ PLAN = (
          f"-{FULL_POSTURE:g} (+-{TOL:g}): the control, the swing lands at this spot",
          proves=("AC-101.10",)),
     Step("block_mitigates", f"axis {LT}=1 held from the attacker's Recover ('{TAG_BLOCKING}' seen "
-         f"before the edge) through its swing -> health -{BLOCKED_HEALTH:g}, not "
+         f"before the edge), after axis {AIM_Y}=1 faces the attacker, through its swing -> health -{BLOCKED_HEALTH:g}, not "
          f"-{SLASH_DAMAGE:g}, and stamina -{BLOCKED_STAMINA:g} (+-{TOL:g}); then {LT}=0",
-         proves=("AC-101.11", "US-006:AC-006.3", "US-006:AC-006.4")),
-    Step("perfect_block", f"{LT} up at the edge; ~{PERFECT_BLOCK_DELAY_S:g}s after it (shifted by "
+         proves=("AC-101.11", "US-006:AC-006.3", "US-006:AC-006.4", "US-121:AC-121.5")),
+    Step("rear_unblocked", f"axis {AIM_Y}=-1 faces away from the attacker, then {LT}=1 held from "
+         f"Recover ('{TAG_BLOCKING}' seen) through its swing -> health -{SLASH_DAMAGE:g}, posture "
+         f"-{FULL_POSTURE:g}, stamina unchanged (+-{TOL:g}); then {LT}=0",
+         proves=("US-121:AC-121.5",)),
+    Step("perfect_block", f"axis {AIM_Y}=1 faces the attacker again; {LT} up at the edge; "
+         f"~{PERFECT_BLOCK_DELAY_S:g}s after it (shifted by "
          f"the measured hit time) axis {LT}=1, wait_until health drops -> health "
          f"-{BLOCKED_HEALTH:g} and stamina unchanged (+-{TOL:g}); the edge, LT and hit times are in "
          "the detail", proves=("AC-101.12",)),
@@ -412,6 +427,22 @@ def judge_block(rec):
     return "FAIL", f"{detail} -- {'; '.join(why)}"
 
 
+def judge_rear_unblocked(rec):
+    s = rec.get("spent") or {}
+    h, st, posture = s.get("health"), s.get("stamina"), s.get("posture")
+    detail = f"faced away with guard active: {_base(rec)}"
+    problems = []
+    if not near(h, SLASH_DAMAGE):
+        problems.append(f"health -{h} (expected full -{SLASH_DAMAGE:g})")
+    if not near(st, 0.0):
+        problems.append(f"stamina -{st} (expected no block cost)")
+    if not near(posture, FULL_POSTURE):
+        problems.append(f"posture -{posture} (expected full -{FULL_POSTURE:g})")
+    if _died(rec):
+        problems.append("the player died")
+    return ("FAIL", f"{detail} -- {'; '.join(problems)}") if problems else ("PASS", detail)
+
+
 def judge_perfect(rec):
     s = rec.get("spent") or {}
     h, st = s.get("health"), s.get("stamina")
@@ -519,7 +550,7 @@ def judge_parry(rec):
 # ---------------------------------------------------------------------------
 class Us101Run(kit.PlaytestRun):
     STORY = STORY
-    COVERS = ("US-003", "US-005", "US-006")
+    COVERS = ("US-003", "US-005", "US-006", "US-121")
     FEATURES = ("block_parry", "dodge", "stamina", "enemies", "movement")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX
@@ -552,6 +583,9 @@ class Us101Run(kit.PlaytestRun):
             self.attempt("block_mitigates", self._guarded(self.step_block), needs=walked,
                          needs_why=why)
             self._shot_after("blocked", walked)
+            self.attempt("rear_unblocked", self._guarded(self.step_rear_unblocked), needs=walked,
+                         needs_why=why)
+            self._shot_after("rear_hit", walked)
             self.attempt("perfect_block", self._guarded(self.step_perfect_block), needs=walked,
                          needs_why=why)
             self._shot_after("perfect_block", walked)
@@ -628,6 +662,18 @@ class Us101Run(kit.PlaytestRun):
                 raise SwingError(f"held {LT}=1: no '{TAG_BLOCKING}' in player.tags within "
                                  f"{GUARD_TIMEOUT_S:g}s (tags {got})")
             time.sleep(SAMPLE_POLL_S)
+
+    def _aim_at_attacker(self, toward):
+        """Use real right-stick input to face +X toward the attacker or -X away from it."""
+        value = 1.0 if toward else -1.0
+        self.bridge.axis({AIM_Y: value}, hold_s=AIM_HOLD_S)
+        condition = (f"player.rotation[1]>-{FACING_TOL:g} && "
+                     f"player.rotation[1]<{FACING_TOL:g}") if toward else (
+                     f"player.rotation[1]>{180.0 - FACING_TOL:g} || "
+                     f"player.rotation[1]<{-180.0 + FACING_TOL:g}")
+        self._wait(condition, AIM_TIMEOUT_S,
+                   f"right-stick aim {'toward' if toward else 'away from'} the {ATTACKER}")
+        return f"{AIM_Y}={value:g}: faced {'toward' if toward else 'away from'} the {ATTACKER}"
 
     # --- reading ---------------------------------------------------------------------------------
     def _read(self):
@@ -820,6 +866,7 @@ class Us101Run(kit.PlaytestRun):
     # --- 3: block ----------------------------------------------------------------------------------
     def step_block(self):
         note = self._ensure_at_spot()
+        note += self._aim_at_attacker(True) + "; "
         note += self._raise_guard() + " before the swing; "
 
         def pre(p0, a0):
@@ -830,9 +877,24 @@ class Us101Run(kit.PlaytestRun):
         status, detail = judge_block(rec)
         return status, note + detail, None
 
-    # --- 4: perfect block ---------------------------------------------------------------------------
+    # --- 4: rear hit through the directional guard ---------------------------------------------------
+    def step_rear_unblocked(self):
+        note = self._ensure_at_spot()
+        note += self._aim_at_attacker(False) + "; "
+        note += self._raise_guard() + " before the swing; "
+
+        def pre(p0, a0):
+            return (None if TAG_BLOCKING in tags(p0) else
+                    f"'{TAG_BLOCKING}' is gone (tags {tags(p0)}): the guard dropped")
+
+        rec = self._swing("rear_unblocked", self._watch_hit, pre)
+        status, detail = judge_rear_unblocked(rec)
+        return status, note + detail, None
+
+    # --- 5: perfect block ---------------------------------------------------------------------------
     def step_perfect_block(self):
         note = self._ensure_at_spot()
+        note += self._aim_at_attacker(True) + "; "
 
         def pre(p0, a0):
             return (f"'{TAG_BLOCKING}' is still up from the previous step (tags {tags(p0)})"
