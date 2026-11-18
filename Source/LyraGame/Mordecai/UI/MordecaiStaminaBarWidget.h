@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "GameplayTagContainer.h"
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
 
@@ -90,16 +91,23 @@ protected:
 
 private:
 	void BuildDefaultContent();
+	void UnbindFromASC();
 	void OnStaminaChanged(const FOnAttributeChangeData& Data);
 	void OnMaxStaminaChanged(const FOnAttributeChangeData& Data);
+	void OnTierTagChanged(const FGameplayTag Tag, int32 NewCount);
 	void UpdateDisplay();
 	void ApplyTheme(EMordecaiUITheme Theme, const FMordecaiUIThemeColors& Colors);
 
 	FLinearColor GetColorForTier(EMordecaiStaminaTier Tier) const;
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
+	FDelegateHandle GreenTierChangedHandle;
+	FDelegateHandle YellowTierChangedHandle;
+	FDelegateHandle RedTierChangedHandle;
+	FDelegateHandle ExhaustedTierChangedHandle;
 	TWeakObjectPtr<UMordecaiUIThemeSubsystem> BoundThemeSubsystem;
 	FDelegateHandle ThemeChangedHandle;
+	EMordecaiStaminaTier CachedTier = EMordecaiStaminaTier::Yellow;
 	EMordecaiUITheme CurrentTheme = EMordecaiUITheme::Diorama;
 	FMordecaiUIThemeColors CurrentThemeColors = FMordecaiUIThemeColors::MakeDiorama();
 

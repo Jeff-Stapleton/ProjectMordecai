@@ -58,6 +58,23 @@ def read_jsonl(path):
         return [json.loads(line) for line in f if line.strip()]
 
 
+class TestAimHelpers(unittest.TestCase):
+    def test_positive_x_aim_moves_before_target_to_emit_a_fresh_event(self):
+        class Bridge:
+            def __init__(self):
+                self.calls = []
+
+            def mouse(self, x, y):
+                self.calls.append((x, y))
+                return {"x": x, "y": y}
+
+        bridge = Bridge()
+        result = kit.aim_world_positive_x(bridge)
+
+        self.assertEqual(bridge.calls, [(640, 121), (640, 120)])
+        self.assertEqual(result, {"x": 640, "y": 120})
+
+
 class KitCase(unittest.TestCase):
     """Temp dir, captured logs, and a fake bridge per run."""
 

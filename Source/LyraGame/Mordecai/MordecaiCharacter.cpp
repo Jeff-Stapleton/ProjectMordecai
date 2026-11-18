@@ -20,6 +20,7 @@
 #include "Engine/StaticMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Net/UnrealNetwork.h"
 #include "UObject/ConstructorHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCharacter)
@@ -195,25 +196,64 @@ void AMordecaiCharacter::ApplyAimFacingDirection(const FVector& AimDirection)
 
 void AMordecaiCharacter::SetSprinting(bool bNewSprinting)
 {
-	if (bIsSprinting == bNewSprinting)
+	// The owning client predicts the speed change; the server owns the replicated
+	// state, ASC tag, and all stamina mutation.
+	// TODO(DECISION): this immediate client-side toggle is not carried in a
+	// CharacterMovementComponent saved move. Remote-client sprint and movement
+	// prediction need the multiplayer follow-up tracked on issue #95.
+	ApplySprintingState(bNewSprinting);
+	if (!HasAuthority())
+	{
+		ServerSetSprinting(bNewSprinting);
+	}
+}
+
+void AMordecaiCharacter::ServerSetSprinting_Implementation(bool bNewSprinting)
+{
+	ApplySprintingState(bNewSprinting);
+}
+
+void AMordecaiCharacter::ApplySprintingState(bool bNewSprinting)
+{
+	const bool bChanged = bIsSprinting != bNewSprinting;
+	bIsSprinting = bNewSprinting;
+
+	if (HasAuthority())
+	{
+		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+		{
+			ASC->SetLooseGameplayTagCount(
+				MordecaiGameplayTags::State_Sprinting,
+				bIsSprinting ? 1 : 0,
+				EGameplayTagReplicationState::TagOnly);
+		}
+	}
+
+	if (bChanged)
+	{
+		RefreshSprintSpeed();
+	}
+}
+
+void AMordecaiCharacter::OnRep_IsSprinting()
+{
+	RefreshSprintSpeed();
+}
+
+void AMordecaiCharacter::RefreshSprintSpeed()
+{
+	UCharacterMovementComponent* CMC = GetCharacterMovement();
+	if (!CMC || AppliedSprintSpeedFactor <= KINDA_SMALL_NUMBER)
 	{
 		return;
 	}
 
-	// Rescale the current speed rather than write WalkSpeed * multiplier: Block halves MaxWalkSpeed while held and
-	// doubles it on release, so sprint toggled mid-block must compose with that (US-083)
-	// TODO(DECISION): sprint is client-local (no RPC, nothing replicated): a remote client in networked play would be
-	// corrected on every sprinting move. Before networked play, carry it as a CharacterMovementComponent saved-move flag
-	// read in GetMaxSpeed (Block's slow-down with it). Standalone and a listen-server host are unaffected (N28).
-	const float OldFactor = bIsSprinting ? SprintSpeedMultiplier : 1.f;
-	const float NewFactor = bNewSprinting ? SprintSpeedMultiplier : 1.f;
-	bIsSprinting = bNewSprinting;
+	const float NewFactor = bIsSprinting ? SprintSpeedMultiplier : 1.f;
 
-	UCharacterMovementComponent* CMC = GetCharacterMovement();
-	if (CMC && OldFactor > KINDA_SMALL_NUMBER)
-	{
-		CMC->MaxWalkSpeed = CMC->MaxWalkSpeed / OldFactor * NewFactor;
-	}
+	// Rescale rather than overwrite: Block scales MaxWalkSpeed independently and
+	// sprint toggles must continue to compose with it.
+	CMC->MaxWalkSpeed = CMC->MaxWalkSpeed / AppliedSprintSpeedFactor * NewFactor;
+	AppliedSprintSpeedFactor = NewFactor;
 }
 
 // ---------------------------------------------------------------------------
@@ -327,6 +367,8 @@ void AMordecaiCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 void AMordecaiCharacter::OnAbilitySystemInitialized()
 {
 	Super::OnAbilitySystemInitialized();
+	// The PlayerState ASC outlives pawns. Never inherit the old pawn's toggle.
+	ApplySprintingState(false);
 	BindToASC();
 	if (EquipmentComponent)
 	{
@@ -339,6 +381,19 @@ void AMordecaiCharacter::OnAbilitySystemInitialized()
 
 void AMordecaiCharacter::OnAbilitySystemUninitialized()
 {
+	// Clear both the pawn flag and the persistent PlayerState ASC tag before
+	// ALyraCharacter detaches the actor info.
+	ApplySprintingState(false);
+	if (HasAuthority())
+	{
+		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+		{
+			ASC->SetLooseGameplayTagCount(
+				MordecaiGameplayTags::State_Sprinting,
+				0,
+				EGameplayTagReplicationState::TagOnly);
+		}
+	}
 	UnbindFromASC();
 	if (EquipmentComponent)
 	{
@@ -370,7 +425,34 @@ void AMordecaiCharacter::BindToASC()
 	UnbindFromASC();
 	HealthChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute())
 		.AddUObject(this, &AMordecaiCharacter::OnHealthChanged);
+	const FGameplayTag SprintInterruptTags[] = {
+		MordecaiGameplayTags::State_Dodging.GetTag(),
+		MordecaiGameplayTags::State_AttackCommitted.GetTag(),
+		MordecaiGameplayTags::State_Blocking.GetTag(),
+		MordecaiGameplayTags::State_Parrying.GetTag(),
+		MordecaiGameplayTags::Status_MicroStunned.GetTag(),
+		MordecaiGameplayTags::State_PostureBroken.GetTag(),
+		MordecaiGameplayTags::State_KnockedDown.GetTag(),
+		MordecaiGameplayTags::State_Dead.GetTag()
+	};
+	for (const FGameplayTag& InterruptTag : SprintInterruptTags)
+	{
+		SprintInterruptTagHandles.Add(
+			InterruptTag,
+			ASC->RegisterGameplayTagEvent(
+				InterruptTag, EGameplayTagEventType::NewOrRemoved)
+				.AddUObject(this, &AMordecaiCharacter::OnSprintInterruptTagChanged));
+	}
 	HealthBoundASC = ASC;
+	for (const FGameplayTag& InterruptTag : SprintInterruptTags)
+	{
+		if (ASC->HasMatchingGameplayTag(InterruptTag))
+		{
+			ApplySprintingState(false);
+			break;
+		}
+	}
+	RefreshSprintSpeed();
 }
 
 void AMordecaiCharacter::UnbindFromASC()
@@ -378,9 +460,26 @@ void AMordecaiCharacter::UnbindFromASC()
 	if (UAbilitySystemComponent* ASC = HealthBoundASC.Get())
 	{
 		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute()).Remove(HealthChangedHandle);
+		for (const TPair<FGameplayTag, FDelegateHandle>& Pair : SprintInterruptTagHandles)
+		{
+			ASC->RegisterGameplayTagEvent(
+				Pair.Key, EGameplayTagEventType::NewOrRemoved)
+				.Remove(Pair.Value);
+		}
 	}
 	HealthChangedHandle.Reset();
+	SprintInterruptTagHandles.Reset();
 	HealthBoundASC.Reset();
+}
+
+void AMordecaiCharacter::OnSprintInterruptTagChanged(
+	const FGameplayTag Tag,
+	int32 NewCount)
+{
+	if (NewCount > 0 && bIsSprinting)
+	{
+		SetSprinting(false);
+	}
 }
 
 void AMordecaiCharacter::OnHealthChanged(const FOnAttributeChangeData& Data)
@@ -406,6 +505,13 @@ bool AMordecaiCharacter::IsDead() const
 	return bDeathHandled;
 }
 
+void AMordecaiCharacter::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AMordecaiCharacter, bIsSprinting);
+}
+
 void AMordecaiCharacter::HandlePlayerDeath()
 {
 	if (bDeathHandled)
@@ -413,6 +519,7 @@ void AMordecaiCharacter::HandlePlayerDeath()
 		return;
 	}
 	bDeathHandled = true;
+	ApplySprintingState(false);
 
 	// Notify game mode for respawn flow (AC-053.4). First: it also ends the life's kill count (issue #6), which the
 	// death screen shows when State_Dead goes on below.
@@ -454,6 +561,7 @@ void AMordecaiCharacter::HandlePlayerDeath()
 void AMordecaiCharacter::HandlePlayerRespawn()
 {
 	bDeathHandled = false;
+	ApplySprintingState(false);
 
 	// AC-053.5: Remove State_Dead tag and restore attributes
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())

@@ -324,3 +324,44 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - The current parry was omnidirectional and no spec grants that exception. Parry therefore uses the same effective arc as block; an out-of-arc hit neither succeeds nor consumes the parry window.
 - These values are balance defaults, not locked constants; shield assets may tune their arc.
 - Source: owner decision supplied with the issue #71 builder task (2026-11-18).
+
+---
+
+## 2026-11-18 — Stamina runtime tuning (issue #143, US-122)
+
+- The existing US-008 tuning remains authoritative: base regeneration is **15 stamina/second**, the post-spend delay is **1000 ms**, and sprint drains **10 stamina/second**. Regeneration is multiplied by the replicated `StaminaRegenMultiplier`.
+- Exactly one authoritative tier tag is active. `Exhausted` replaces `Red` at stamina `<= 0`; it is not an overlapping overlay at runtime.
+- The 1.25/1.0/0.75/0.5 tier multiplier scales total melee health damage and total dodge distance. For block, it scales the configured stability before drain is calculated: `EffectiveStability = Stability × TierMultiplier`.
+- Sprint is never stopped by low or negative stamina. Its total speed multiplier is `SprintSpeedMultiplier × TierMultiplier`; at zero stamina the 0.5 Exhausted multiplier applies. This makes the existing US-008 AC-008.16 “continues at reduced speed” rule concrete while preserving the game-design rule that stamina never blocks an action.
+- Sprint-drain attempts at the stamina floor continue resetting the post-spend delay, so regeneration starts one full delay after sprint is toggled off.
+- Source: issue #143 builder task, applying US-008 and `game_design_v2.md`'s existing “never blocks actions” rule (2026-11-18).
+
+### Round-2 sprint and activation-tier tuning
+
+- **Supersedes the sprint-speed and stationary-drain choices above.** Sprint
+  speed is the legacy **1.5x walk speed at every stamina tier**. AC-008.8
+  applies tier multipliers only to dodge distance, melee damage and block
+  stability/stamina mitigation; it does not scale sprint speed.
+- Sprint drains stamina and restarts the regeneration delay only while the
+  sprint toggle is active and horizontal speed exceeds **10% of base walk
+  speed**. The toggle and `Mordecai.State.Sprinting` auto-clear after
+  **0.25 seconds** below that threshold. These are tunable initial values.
+- Dodge, attack windup, block, parry, micro-stun, posture break, knockdown,
+  death, respawn and ASC/pawn uninitialization clear sprint. A newly attached
+  pawn always starts unsprinted, including when its PlayerState ASC survived a
+  previous pawn.
+- Dodge and each melee attack step snapshot their stamina-tier multiplier at
+  activation, before paying that action's stamina cost. Melee retains that
+  snapshot through hit delivery.
+- Any authoritative `MaxStamina` change refreshes the mutually exclusive tier
+  tag, including recalculation from Endurance.
+- Remote-client sprint/tier movement prediction remains a multiplayer
+  follow-up tracked with issue #95; the existing `TODO(DECISION)` remains in
+  `AMordecaiCharacter`.
+- `StaminaTierPenaltyMultiplier` (Focused/Fear),
+  `BlockStabilityMultiplier`/`BlockStaminaCostMultiplier`, and the break-free
+  stamina gate are explicitly deferred follow-ups and are not wired into this
+  runtime change.
+- Source: coordinator decisions supplied for issue #143 round-2 review
+  (2026-11-18). These coordinator choices, including the numeric defaults,
+  remain tunable.

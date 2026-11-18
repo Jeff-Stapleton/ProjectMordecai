@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Character/LyraCharacter.h"
+#include "GameplayTagContainer.h"
 
 #include "MordecaiCharacter.generated.h"
 
@@ -45,7 +46,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Mordecai|Movement")
 	float GroundDeceleration;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Mordecai|Movement")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_IsSprinting, Category = "Mordecai|Movement")
 	bool bIsSprinting;
 
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Movement")
@@ -118,6 +119,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	//~ ALyraCharacter: the pawn's ASC (on the PlayerState) is attached or detached
 	virtual void OnAbilitySystemInitialized() override;
@@ -168,16 +170,28 @@ private:
 	void BindToASC();
 	void UnbindFromASC();
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
+	void OnSprintInterruptTagChanged(const FGameplayTag Tag, int32 NewCount);
+	void RefreshSprintSpeed();
+	void ApplySprintingState(bool bNewSprinting);
 	bool bDeathHandled = false;
 	FDelegateHandle HealthChangedHandle;
+	TMap<FGameplayTag, FDelegateHandle> SprintInterruptTagHandles;
 	TWeakObjectPtr<UAbilitySystemComponent> HealthBoundASC;
+
+	UFUNCTION()
+	void OnRep_IsSprinting();
 
 	/** Server-authoritative counterpart to the owning client's immediate aim-facing update. */
 	UFUNCTION(Server, Unreliable)
 	void ServerSetAimFacingDirection(FVector AimDirection);
 
+	/** Server owns the sprint tag and stamina drain; the owner predicts only movement speed. */
+	UFUNCTION(Server, Reliable)
+	void ServerSetSprinting(bool bNewSprinting);
+
 	void ApplyAimFacingDirection(const FVector& AimDirection);
 
 	float LastSentAimFacingYaw = 0.f;
 	bool bHasSentAimFacingYaw = false;
+	float AppliedSprintSpeedFactor = 1.f;
 };

@@ -191,6 +191,7 @@ protected:
 	EMordecaiAttackPhase CurrentPhase = EMordecaiAttackPhase::None;
 	bool bComboInputReceived = false;
 	bool bIsRooted = false;
+	float ActivationStaminaTierMultiplier = 1.f;
 
 	FTimerHandle PhaseTimerHandle;
 	FTimerHandle ComboWindowTimerHandle;

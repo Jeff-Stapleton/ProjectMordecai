@@ -2,6 +2,7 @@
 
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
@@ -45,6 +46,7 @@ void UMordecaiStaminaBarWidget::NativeConstruct()
 
 void UMordecaiStaminaBarWidget::NativeDestruct()
 {
+	UnbindFromASC();
 	MordecaiUIThemeBinding::Unbind(BoundThemeSubsystem, ThemeChangedHandle);
 	Super::NativeDestruct();
 }
@@ -225,7 +227,7 @@ float UMordecaiStaminaBarWidget::GetStaminaPercent() const
 
 EMordecaiStaminaTier UMordecaiStaminaBarWidget::GetStaminaTier() const
 {
-	return CalcStaminaTier(CachedStamina, CachedMaxStamina);
+	return CachedTier;
 }
 
 void UMordecaiStaminaBarWidget::BindToASC(UAbilitySystemComponent* ASC)
@@ -235,11 +237,7 @@ void UMordecaiStaminaBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 		return;
 	}
 
-	if (UAbilitySystemComponent* Previous = BoundASC.Get())
-	{
-		Previous->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetStaminaAttribute()).RemoveAll(this);
-		Previous->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxStaminaAttribute()).RemoveAll(this);
-	}
+	UnbindFromASC();
 	BoundASC = ASC;
 
 	ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetStaminaAttribute())
@@ -247,6 +245,18 @@ void UMordecaiStaminaBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 
 	ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxStaminaAttribute())
 		.AddUObject(this, &UMordecaiStaminaBarWidget::OnMaxStaminaChanged);
+	GreenTierChangedHandle = ASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::Stamina_Tier_Green, EGameplayTagEventType::AnyCountChange)
+		.AddUObject(this, &UMordecaiStaminaBarWidget::OnTierTagChanged);
+	YellowTierChangedHandle = ASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::Stamina_Tier_Yellow, EGameplayTagEventType::AnyCountChange)
+		.AddUObject(this, &UMordecaiStaminaBarWidget::OnTierTagChanged);
+	RedTierChangedHandle = ASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::Stamina_Tier_Red, EGameplayTagEventType::AnyCountChange)
+		.AddUObject(this, &UMordecaiStaminaBarWidget::OnTierTagChanged);
+	ExhaustedTierChangedHandle = ASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::Stamina_Tier_Exhausted, EGameplayTagEventType::AnyCountChange)
+		.AddUObject(this, &UMordecaiStaminaBarWidget::OnTierTagChanged);
 
 	// Initialize from current values
 	bool bFound = false;
@@ -255,8 +265,37 @@ void UMordecaiStaminaBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 
 	CachedMaxStamina = ASC->GetGameplayAttributeValue(UMordecaiAttributeSet::GetMaxStaminaAttribute(), bFound);
 	if (!bFound) { CachedMaxStamina = 0.f; }
+	CachedTier = UMordecaiStaminaSystem::GetTierFromASC(ASC);
 
 	UpdateDisplay();
+}
+
+void UMordecaiStaminaBarWidget::UnbindFromASC()
+{
+	if (UAbilitySystemComponent* ASC = BoundASC.Get())
+	{
+		ASC->GetGameplayAttributeValueChangeDelegate(
+			UMordecaiAttributeSet::GetStaminaAttribute()).RemoveAll(this);
+		ASC->GetGameplayAttributeValueChangeDelegate(
+			UMordecaiAttributeSet::GetMaxStaminaAttribute()).RemoveAll(this);
+		ASC->RegisterGameplayTagEvent(
+			MordecaiGameplayTags::Stamina_Tier_Green, EGameplayTagEventType::AnyCountChange)
+			.Remove(GreenTierChangedHandle);
+		ASC->RegisterGameplayTagEvent(
+			MordecaiGameplayTags::Stamina_Tier_Yellow, EGameplayTagEventType::AnyCountChange)
+			.Remove(YellowTierChangedHandle);
+		ASC->RegisterGameplayTagEvent(
+			MordecaiGameplayTags::Stamina_Tier_Red, EGameplayTagEventType::AnyCountChange)
+			.Remove(RedTierChangedHandle);
+		ASC->RegisterGameplayTagEvent(
+			MordecaiGameplayTags::Stamina_Tier_Exhausted, EGameplayTagEventType::AnyCountChange)
+			.Remove(ExhaustedTierChangedHandle);
+	}
+	BoundASC.Reset();
+	GreenTierChangedHandle.Reset();
+	YellowTierChangedHandle.Reset();
+	RedTierChangedHandle.Reset();
+	ExhaustedTierChangedHandle.Reset();
 }
 
 void UMordecaiStaminaBarWidget::OnStaminaChanged(const FOnAttributeChangeData& Data)
@@ -268,6 +307,12 @@ void UMordecaiStaminaBarWidget::OnStaminaChanged(const FOnAttributeChangeData& D
 void UMordecaiStaminaBarWidget::OnMaxStaminaChanged(const FOnAttributeChangeData& Data)
 {
 	CachedMaxStamina = Data.NewValue;
+	UpdateDisplay();
+}
+
+void UMordecaiStaminaBarWidget::OnTierTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	CachedTier = UMordecaiStaminaSystem::GetTierFromASC(BoundASC.Get());
 	UpdateDisplay();
 }
 

@@ -6,6 +6,7 @@
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/Combat/MordecaiHitDefense.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
+#include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
@@ -146,7 +147,8 @@ float UMordecaiGA_MeleeAttack::ComputeHealthDamage() const
 
 	// AC-024.11: FinalDamage = (AttackProfile.BasePower + Weapon.BaseDamage) x existing multipliers
 	const float WeaponBonus = GetWeaponBaseDamage();
-	return -(Profile->DamageProfile.BasePower + WeaponBonus);
+	return -(Profile->DamageProfile.BasePower + WeaponBonus) *
+		ActivationStaminaTierMultiplier;
 }
 
 float UMordecaiGA_MeleeAttack::ComputePostureDamage() const
@@ -337,6 +339,11 @@ void UMordecaiGA_MeleeAttack::ActivateAbility(
 		return;
 	}
 
+	// Snapshot before paying this attack's cost and retain it through the hit.
+	ActivationStaminaTierMultiplier =
+		UMordecaiStaminaSystem::GetTierMultiplierFromASC(
+			GetAbilitySystemComponentFromActorInfo());
+
 	// AC-004.7: Consume stamina on activation
 	ApplyStaminaCost();
 
@@ -383,6 +390,7 @@ void UMordecaiGA_MeleeAttack::EndAbility(
 	TransitionToPhase(EMordecaiAttackPhase::None);
 	bComboInputReceived = false;
 	SetComboWindowOpen(false);
+	ActivationStaminaTierMultiplier = 1.f;
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -469,6 +477,11 @@ void UMordecaiGA_MeleeAttack::OnRecoveryComplete()
 		const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
 		if (Profile)
 		{
+			// Each combo step is a new committed attack. Snapshot its visible
+			// tier before that step pays its stamina cost.
+			ActivationStaminaTierMultiplier =
+				UMordecaiStaminaSystem::GetTierMultiplierFromASC(
+					GetAbilitySystemComponentFromActorInfo());
 			ApplyStaminaCost();
 			TransitionToPhase(EMordecaiAttackPhase::Windup);
 			if (UWorld* World = GetWorld())

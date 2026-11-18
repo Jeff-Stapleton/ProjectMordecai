@@ -118,35 +118,35 @@ void UMordecaiStaminaSystem::Reset()
 
 float UMordecaiStaminaSystem::GetTierMultiplierFromASC(UAbilitySystemComponent* ASC)
 {
-	// AC-008.8: Read tier tags from ASC and return appropriate multiplier
-	if (!ASC)
-	{
-		return 1.0f;
-	}
-
-	// Exhausted overrides all tier multipliers
-	if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Exhausted))
-	{
-		// Use CDO defaults for multiplier values
-		const UMordecaiStaminaSystem* CDO = GetDefault<UMordecaiStaminaSystem>();
-		return CDO->ExhaustedMultiplier;
-	}
-
 	const UMordecaiStaminaSystem* CDO = GetDefault<UMordecaiStaminaSystem>();
-
-	if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Green))
-	{
-		return CDO->GreenMultiplier;
-	}
-	else if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Yellow))
+	if (!ASC)
 	{
 		return CDO->YellowMultiplier;
 	}
-	else if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Red))
-	{
-		return CDO->RedMultiplier;
-	}
+	return CDO->GetMultiplierForTier(GetTierFromASC(ASC));
+}
 
-	// Default if no tier tag is present
-	return 1.0f;
+EMordecaiStaminaTier UMordecaiStaminaSystem::GetTierFromASC(const UAbilitySystemComponent* ASC)
+{
+	if (!ASC)
+	{
+		return EMordecaiStaminaTier::Yellow;
+	}
+	if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Exhausted))
+	{
+		return EMordecaiStaminaTier::Exhausted;
+	}
+	if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Green))
+	{
+		return EMordecaiStaminaTier::Green;
+	}
+	if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Yellow))
+	{
+		return EMordecaiStaminaTier::Yellow;
+	}
+	if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Red))
+	{
+		return EMordecaiStaminaTier::Red;
+	}
+	return EMordecaiStaminaTier::Yellow;
 }

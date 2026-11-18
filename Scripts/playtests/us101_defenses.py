@@ -36,7 +36,7 @@ Steps (--plan prints them as the story's Steps table):
      lands during the walk: not measured).
   2  Control: stand through one swing: health -15, posture -4.5.
   3  Front block: aim the right stick toward the attacker (+X), then hold LT from Recover through
-     the swing: health -7.5 (not -15), stamina -10.5.
+     the swing: health -7.5 (not -15), stamina -9.375 at the Green tier.
   4  Rear hit: aim away from the attacker (-X), hold LT through the swing: the guard is active but
      the hit is outside its 120 degree arc, so health -15, posture -4.5 and stamina unchanged.
   5  Perfect block: face the attacker again and raise LT ~0.30 s after the edge (~0.2 s before the hit, inside the 250 ms
@@ -53,8 +53,8 @@ Steps (--plan prints them as the story's Steps table):
   to have passed (a defended swing that does no damage proves nothing if swings never land here),
   and steps 5-7 FAIL when the player was out of the 150 cm reach at the hit.
 Budget: health 100 -> 85 (the walk's swing) -> 70 -> 62.5 -> 47.5 -> 40, then unchanged; each failed
-defense costs 15 more.  Stamina never regenerates (N30): 100 - 10.5 - 0 - 15 - 20 stays above 0, so
-the guard never breaks.
+defense costs 15 more. Runtime regeneration can refill stamina between swings; each spend is still
+measured before regeneration starts, and a non-spend may show a net refill.
 
 Usage:
   py Scripts/playtests/us101_defenses.py                    fresh package: launch, play, quit
@@ -105,12 +105,13 @@ SLASH_DAMAGE = 15.0                    # DA_EnemyAttack_BasicSlash BasePower
 POSTURE_SCALAR = 0.3                   # PostureDamageScalar: 4.5 posture per hit
 MITIGATION = 0.5                       # UMordecaiGA_Block::Mitigation
 STABILITY = 0.3                        # UMordecaiGA_Block::Stability
+GREEN_TIER_MULTIPLIER = 1.25           # US-008 / design log: effective block stability multiplier
 PERFECT_WINDOW_S = 0.25                # UMordecaiGA_Block::PerfectBlockWindowMs
 DODGE_STAMINA = 15.0                   # UMordecaiGA_Dodge::StaminaCost
 PARRY_STAMINA = 20.0                   # UMordecaiGA_Parry::ParryStaminaCost
 TOL = 0.5                              # every health / stamina / posture expectation is +-0.5
 BLOCKED_HEALTH = SLASH_DAMAGE * (1.0 - MITIGATION)       # 7.5
-BLOCKED_STAMINA = SLASH_DAMAGE * (1.0 - STABILITY)       # 10.5
+BLOCKED_STAMINA = SLASH_DAMAGE * (1.0 - STABILITY * GREEN_TIER_MULTIPLIER)  # 9.375
 FULL_POSTURE = SLASH_DAMAGE * POSTURE_SCALAR             # 4.5
 
 # --- input ----------------------------------------------------------------------------------------
@@ -163,12 +164,12 @@ SCREENSHOTS = {
                   "probably already below full: the attacker's first swing lands during the walk)",
     "undefended": "the player next to the TestAttacker after the control swing: the HUD health bar "
                   "15 lower than before it, stamina still full",
-    "blocked": "after the blocked swing: health 7.5 lower, the stamina bar visibly down (10.5)",
+    "blocked": "after the blocked swing: health 7.5 lower, the stamina bar visibly down (9.375)",
     "rear_hit": "after the player aimed away from the TestAttacker and guarded through its rear "
                 "swing: the facing arrow points away, health is 15 lower, posture is 4.5 lower, "
-                "and stamina is unchanged since the front-block screenshot",
-    "perfect_block": "after the perfect block: health 7.5 lower, stamina unchanged since the "
-                     "previous screenshot; 'Perfect Block!' feedback may flash",
+                "and stamina has no block cost (it may refill since the front-block screenshot)",
+    "perfect_block": "after the perfect block: health 7.5 lower, no stamina cost (the bar may "
+                     "refill); 'Perfect Block!' feedback may flash",
     "dodged": "after the dodge into the attacker: the player still pressed against (or beside) "
               "the TestAttacker, health unchanged since the previous screenshot, stamina lower (15)",
     "jumped": "after the jump: the player back on the floor next to the TestAttacker, health "
@@ -182,8 +183,8 @@ KNOWN_ISSUES = (
     "A dodge travels about 110 cm (N27); with no move input it goes backward (-X), out of the "
     "150 cm reach, which would make dodge_evades prove nothing.  So W is held into the dodge "
     "(+X, into the attacker), and the check FAILs when the player was out of reach at the hit.",
-    "Stamina never regenerates (N30): the stamina budget is 100 - 10.5 (block) - 0 (perfect "
-    "block) - 15 (dodge) - 20 (parry).",
+    "Runtime stamina regeneration can increase stamina between the before/after reads of a swing "
+    "that spends none; those checks accept a refill but never a positive spend.",
     "Block and parry on the mouse (RMB hold, RMB+LMB) are not played: the playtest client holds a "
     "mouse button only inside one blocking click (B2).  LT / RT are the same Block / Parry "
     "actions.",
@@ -335,6 +336,11 @@ def near(value, target, tol=TOL):
     return value is not None and abs(value - target) <= tol
 
 
+def no_stamina_spend(value):
+    """True when an action spent no stamina; runtime regeneration may make spent negative."""
+    return value is not None and value <= TOL
+
+
 def shift_for(expected_hit_s):
     """How far to move the timed inputs: the measured hit time minus the nominal one, clamped."""
     return max(-MAX_SHIFT_S, min(MAX_SHIFT_S, float(expected_hit_s) - NOMINAL_HIT_S))
@@ -435,8 +441,8 @@ def judge_rear_unblocked(rec):
     problems = []
     if not near(h, SLASH_DAMAGE):
         problems.append(f"health -{h} (expected full -{SLASH_DAMAGE:g})")
-    if not near(st, 0.0):
-        problems.append(f"stamina -{st} (expected no block cost)")
+    if not no_stamina_spend(st):
+        problems.append(f"stamina -{st} (expected no block cost; a refill is allowed)")
     if not near(posture, FULL_POSTURE):
         problems.append(f"posture -{posture} (expected full -{FULL_POSTURE:g})")
     if _died(rec):
@@ -452,7 +458,7 @@ def judge_perfect(rec):
     lead = (f"LT went up {hit - lt:.3f}s before the hit was seen (window {PERFECT_WINDOW_S:g}s)"
             if lt is not None and hit is not None else "LT-to-hit lead not measured")
     detail = f"{lead}: {_base(rec)}"
-    if near(h, BLOCKED_HEALTH) and near(st, 0.0):
+    if near(h, BLOCKED_HEALTH) and no_stamina_spend(st):
         return "PASS", detail
     why = []
     if hit is None:
@@ -464,8 +470,8 @@ def judge_perfect(rec):
     if near(st, BLOCKED_STAMINA):
         why.append(f"stamina -{st}: a normal block, not a perfect one (a timing miss: see the "
                    "lead)")
-    elif not near(st, 0.0):
-        why.append(f"stamina -{st} (expected 0)")
+    elif not no_stamina_spend(st):
+        why.append(f"stamina -{st} (expected no cost; a refill is allowed)")
     if _died(rec):
         why.append("the player died")
     return "FAIL", f"{detail} -- {'; '.join(why)}"

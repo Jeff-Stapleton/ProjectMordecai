@@ -111,6 +111,28 @@ namespace MordecaiTinTallyHUDTest
 		return Brush.TintColor.GetSpecifiedColor();
 	}
 
+	void SetAuthoritativeStaminaTier(
+		UAbilitySystemComponent* ASC,
+		const FGameplayTag& DesiredTier)
+	{
+		if (!ASC)
+		{
+			return;
+		}
+		ASC->SetLooseGameplayTagCount(DesiredTier, 1);
+		for (const FGameplayTag& Tier : {
+			MordecaiGameplayTags::Stamina_Tier_Green.GetTag(),
+			MordecaiGameplayTags::Stamina_Tier_Yellow.GetTag(),
+			MordecaiGameplayTags::Stamina_Tier_Red.GetTag(),
+			MordecaiGameplayTags::Stamina_Tier_Exhausted.GetTag() })
+		{
+			if (Tier != DesiredTier)
+			{
+				ASC->SetLooseGameplayTagCount(Tier, 0);
+			}
+		}
+	}
+
 	void ExpectCanvasOffsets(
 		FAutomationTestBase& Test,
 		const UWidget* Widget,
@@ -383,18 +405,22 @@ bool FMordecai_UI_Gauge_HealthStaminaPostureSpellPoints::RunTest(const FString& 
 	UBorder* TierFill = Find<UBorder>(Stamina, TEXT("StaminaTierPill_Fill"));
 	UBorder* TierOutline = Find<UBorder>(Stamina, TEXT("StaminaTierPill_Outline"));
 	const FMordecaiUIThemeColors Diorama = FMordecaiUIThemeColors::MakeDiorama();
+	SetAuthoritativeStaminaTier(ASC, MordecaiGameplayTags::Stamina_Tier_Green);
 	ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetStaminaAttribute(), 100.f);
 	TestEqual("Green copy", StaminaTier ? StaminaTier->GetText().ToString() : FString(), FString(TEXT("×1.25")));
 	TestTrue("Green pill uses tier ground", TierFill && BrushTint(TierFill->Background).Equals(Diorama.StaminaGreen));
 	TestTrue("Green pill uses ink text", StaminaTier
 		&& StaminaTier->GetColorAndOpacity().GetSpecifiedColor().Equals(Diorama.Ink));
+	SetAuthoritativeStaminaTier(ASC, MordecaiGameplayTags::Stamina_Tier_Yellow);
 	ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetStaminaAttribute(), 50.f);
 	TestEqual("Yellow copy", StaminaTier ? StaminaTier->GetText().ToString() : FString(), FString(TEXT("×1.0")));
 	TestTrue("Yellow pill uses tier ground", TierFill && BrushTint(TierFill->Background).Equals(Diorama.StaminaYellow));
+	SetAuthoritativeStaminaTier(ASC, MordecaiGameplayTags::Stamina_Tier_Red);
 	ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetStaminaAttribute(), 20.f);
 	TestEqual("Red copy", StaminaTier ? StaminaTier->GetText().ToString() : FString(), FString(TEXT("×0.75")));
 	TestTrue("Red fill uses the stripe material", StaminaFill
 		&& StaminaFill->GetWidgetStyle().FillImage.GetResourceObject() != nullptr);
+	SetAuthoritativeStaminaTier(ASC, MordecaiGameplayTags::Stamina_Tier_Exhausted);
 	ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetStaminaAttribute(), -26.f);
 	TestEqual("negative stamina has no positive fill", StaminaFill ? StaminaFill->GetPercent() : -1.f, 0.f);
 	TestEqual("debt width is abs(Stamina)/MaxStamina", StaminaDebt ? StaminaDebt->GetPercent() : -1.f,
@@ -518,6 +544,9 @@ bool FMordecai_UI_HUD_LiveThemeAndSpellPresentation::RunTest(const FString& Para
 	{
 		return true;
 	}
+	UAbilitySystemComponent* ASC = Env.GetPlayerASC();
+	SetAuthoritativeStaminaTier(ASC, MordecaiGameplayTags::Stamina_Tier_Green);
+	Stamina->BindToASC(ASC);
 	StatusIndicator->InitializeIndicator(
 		MordecaiGameplayTags::Status_StoneSkin, true, 10.f);
 	CompactDebuff->InitializeIndicator(

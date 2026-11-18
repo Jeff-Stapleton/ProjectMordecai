@@ -3,6 +3,7 @@
 #include "Mordecai/Combat/MordecaiGA_Dodge.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -66,7 +67,9 @@ FVector UMordecaiGA_Dodge::ComputeImpulseVelocity(const FVector& Direction) cons
 {
 	if (DodgeDurationMs <= 0.f) return FVector::ZeroVector;
 
-	float Speed = DodgeDistanceCm / (DodgeDurationMs / 1000.f);
+	const float Speed =
+		DodgeDistanceCm * ActivationStaminaTierMultiplier /
+		(DodgeDurationMs / 1000.f);
 	return Direction.GetSafeNormal() * Speed;
 }
 
@@ -105,6 +108,12 @@ void UMordecaiGA_Dodge::ActivateAbility(
 	const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+	// Snapshot before paying this dodge's cost: the action uses the tier the
+	// player saw when they committed.
+	ActivationStaminaTierMultiplier =
+		UMordecaiStaminaSystem::GetTierMultiplierFromASC(
+			GetAbilitySystemComponentFromActorInfo());
 
 	// AC-005.6: Consume stamina on activation (even if stamina is at 0)
 	ApplyStaminaCost();
@@ -191,6 +200,7 @@ void UMordecaiGA_Dodge::EndAbility(
 
 	CurrentDodgePhase = EMordecaiDodgePhase::None;
 	DodgeDirection = FVector::ZeroVector;
+	ActivationStaminaTierMultiplier = 1.f;
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

@@ -10,6 +10,7 @@ class UMordecaiAttributeSet;
 class UMordecaiAbilitySystemComponent;
 class UMordecaiSkillComponent;
 class UMordecaiFeatComponent;
+class UMordecaiStaminaRuntimeComponent;
 
 /**
  * AMordecaiPlayerState
@@ -36,6 +37,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Feats")
 	UMordecaiFeatComponent* GetFeatComponent() const { return FeatComponent; }
 
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Stamina")
+	UMordecaiStaminaRuntimeComponent* GetStaminaRuntimeComponent() const { return StaminaRuntimeComponent; }
+
 private:
 	UPROPERTY()
 	TObjectPtr<UMordecaiAttributeSet> MordecaiAttributeSet;
@@ -45,4 +49,7 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UMordecaiFeatComponent> FeatComponent;
+
+	UPROPERTY(VisibleAnywhere, Category = "Mordecai|Stamina")
+	TObjectPtr<UMordecaiStaminaRuntimeComponent> StaminaRuntimeComponent;
 };
