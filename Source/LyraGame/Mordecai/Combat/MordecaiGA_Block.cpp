@@ -3,6 +3,7 @@
 #include "Mordecai/Combat/MordecaiGA_Block.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiShieldDataAsset.h"
 #include "AbilitySystemComponent.h"
@@ -60,8 +61,13 @@ float UMordecaiGA_Block::ComputeBlockedDamage(float IncomingDamage) const
 
 float UMordecaiGA_Block::ComputeStaminaDrain(float IncomingDamage) const
 {
-	// StaminaDrain = IncomingDamage × (1 − Stability)
-	return IncomingDamage * (1.f - FMath::Clamp(Stability, 0.f, 1.f));
+	// Low stamina reduces block stability rather than blocking the action.
+	UAbilitySystemComponent* ASC =
+		CurrentActorInfo ? GetAbilitySystemComponentFromActorInfo() : nullptr;
+	const float TierMultiplier =
+		UMordecaiStaminaSystem::GetTierMultiplierFromASC(ASC);
+	const float EffectiveStability = FMath::Clamp(Stability * TierMultiplier, 0.f, 1.f);
+	return IncomingDamage * (1.f - EffectiveStability);
 }
 
 float UMordecaiGA_Block::GetEffectiveBlockArcDegrees() const

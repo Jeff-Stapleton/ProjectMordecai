@@ -1,0 +1,288 @@
+#!/usr/bin/env python3
+"""US-122 stamina runtime — Tier 4 packaged playtest with real input.
+
+The run reaches MovementTestMap's open lane, toggles sprint with Left Shift,
+alternates W/S so it can drain the authoritative PlayerState stamina without
+running into a boundary, stops sprinting, verifies the post-spend delay, and
+watches stamina refill to Green. Screenshots are verified with Pillow and the
+machine-readable result is written beside the report as image-verification.json.
+"""
+
+import json
+import math
+import os
+import sys
+import time
+
+PLAYTEST_DIR = os.path.dirname(os.path.abspath(__file__))
+SCRIPTS_DIR = os.path.dirname(PLAYTEST_DIR)
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
+
+import agent_bridge as ab  # noqa: E402
+import playtest_kit as kit  # noqa: E402
+from playtest_kit import Step  # noqa: E402
+
+STORY = "US-122"
+TITLE = "US-122 stamina runtime: sprint drain, tier tag, delay and refill"
+SPRINT_KEY = "LeftShift"
+TAG_SPRINTING = "Mordecai.State.Sprinting"
+TAG_GREEN = "Mordecai.Stamina.Tier.Green"
+TAG_RED = "Mordecai.Stamina.Tier.Red"
+TAG_EXHAUSTED = "Mordecai.Stamina.Tier.Exhausted"
+LOW_TAGS = (TAG_RED, TAG_EXHAUSTED)
+LANE_WAYPOINTS = ((-650.0, 0.0), (-700.0, -650.0), (-300.0, -800.0))
+PULSE_S = 0.5
+LOW_STAMINA = 25.0
+DELAY_OBSERVE_S = 0.75
+REFILLED_STAMINA = 95.0
+
+SCREENSHOTS = {
+    "drained": "MovementTestMap with the Mordecai HUD stamina bar visibly low and Red/Exhausted",
+    "refilled": "the same packaged HUD after stamina refills, with a nearly full Green bar",
+}
+
+PLAN = (
+    Step("walk_lane", "walk_to three open-floor waypoints ending at (-300, -800) on lane L1"),
+    Step("sprint_drains",
+         f"tap {SPRINT_KEY}, hold W {PULSE_S:g}s -> '{TAG_SPRINTING}' in player.tags and "
+         "player.attributes.stamina decreases", proves=("AC-122.7",)),
+    Step("low_tier_authoritative",
+         f"alternate real W/S holds while sprint remains tagged until stamina <= {LOW_STAMINA:g}; "
+         f"'{TAG_RED}' or '{TAG_EXHAUSTED}' is authoritative; capture drained HUD",
+         proves=("AC-122.4", "AC-122.8", "AC-122.9", "AC-122.10")),
+    Step("regen_delay",
+         f"tap {SPRINT_KEY} -> sprint tag removed; wait {DELAY_OBSERVE_S:g}s and stamina does "
+         "not increase", proves=("AC-122.2", "AC-122.7")),
+    Step("refills_green",
+         f"wait without input until stamina >= {REFILLED_STAMINA:g} and '{TAG_GREEN}' is present; "
+         "capture refilled HUD", proves=("AC-122.1", "AC-122.9", "AC-122.10")),
+    Step("image_verification",
+         "Pillow checks both captures are non-uniform and detects Red in the drained HUD and "
+         "Green in the refilled HUD; write image-verification.json",
+         proves=("AC-122.10",), kind="infra"),
+)
+
+
+def player_state(bridge):
+    state = bridge.state(["player"])
+    player = kit.section(state, "player")
+    attrs = player.get("attributes")
+    tags = player.get("tags")
+    return (
+        float(attrs.get("stamina")) if isinstance(attrs, dict)
+        and isinstance(attrs.get("stamina"), (int, float)) else None,
+        [str(tag) for tag in tags] if isinstance(tags, list) else [],
+        player,
+    )
+
+
+def _near(pixel, target, tolerance=58.0):
+    return math.sqrt(sum((float(pixel[i]) - target[i]) ** 2 for i in range(3))) <= tolerance
+
+
+def analyze_hud_image(path, expected):
+    from PIL import Image, ImageStat
+
+    with Image.open(path) as source:
+        image = source.convert("RGB")
+        full_stddev = ImageStat.Stat(image).stddev
+        # Combat HUD gauges occupy the upper-left 500x150 viewport region.
+        hud = image.crop((0, 0, min(500, image.width), min(150, image.height)))
+        pixels = list(hud.getdata())
+        green = sum(_near(pixel, (76, 203, 110)) for pixel in pixels)
+        red = sum(_near(pixel, (255, 90, 60)) for pixel in pixels)
+
+    non_uniform = max(full_stddev) >= 3.0
+    colour_count = red if expected == "red" else green
+    return {
+        "path": os.path.abspath(path),
+        "expected": expected,
+        "non_uniform": non_uniform,
+        "rgb_stddev": [round(value, 3) for value in full_stddev],
+        "hud_green_pixels": green,
+        "hud_red_pixels": red,
+        "passed": non_uniform and colour_count >= 20,
+    }
+
+
+class Us122Run(kit.PlaytestRun):
+    STORY = STORY
+    FEATURES = ("stamina", "sprint", "combat_hud")
+    TITLE = TITLE
+    MAP = kit.MOVEMENT_TEST_MAP
+    EXPERIENCE = kit.DEFAULT_EXPERIENCE
+    SCREENSHOTS = SCREENSHOTS
+    PLAN = PLAN
+    SCRIPT = os.path.abspath(__file__)
+
+    def __init__(self, args):
+        super().__init__(args)
+        self.drained_path = None
+        self.refilled_path = None
+        self.stamina_samples = []
+
+    def steps(self):
+        reached, _ = self.attempt("walk_lane", self._walk_lane)
+        sprinted, _ = self.attempt(
+            "sprint_drains", self._start_sprint,
+            needs=reached, needs_why="not run: lane L1 was not reached")
+        low, _ = self.attempt(
+            "low_tier_authoritative", self._drain_to_low,
+            needs=sprinted, needs_why="not run: real sprint did not start and drain stamina")
+        if low:
+            self.shot("drained")
+            self.drained_path = self.screens[-1]["path"] if self.screens else None
+        stopped, _ = self.attempt(
+            "regen_delay", self._stop_and_check_delay,
+            needs=sprinted, needs_why="not run: sprint did not start")
+        refilled, _ = self.attempt(
+            "refills_green", self._wait_for_refill,
+            needs=stopped, needs_why="not run: sprint was not stopped cleanly")
+        if refilled:
+            self.shot("refilled")
+            self.refilled_path = self.screens[-1]["path"] if self.screens else None
+        self.attempt(
+            "image_verification", self._verify_images, kind="infra",
+            needs=bool(self.drained_path and self.refilled_path),
+            needs_why="not run: both drained and refilled captures were not written")
+
+    def _walk_lane(self):
+        details = []
+        for x, y in LANE_WAYPOINTS:
+            result = self.bridge.walk_to(x, y, tol=60.0)
+            details.append(
+                f"({x:g},{y:g}), distance {result.get('dist')}, pulses {result.get('pulses')}")
+        return "PASS", " -> ".join(details), {"waypoints": LANE_WAYPOINTS}
+
+    def _sample(self, label):
+        stamina, tags, _ = player_state(self.bridge)
+        self.stamina_samples.append({
+            "label": label,
+            "stamina": stamina,
+            "tags": tags,
+            "at": round(time.monotonic(), 3),
+        })
+        return stamina, tags
+
+    def _start_sprint(self):
+        before, _ = self._sample("before_sprint")
+        if before is None:
+            return "FAIL", "player.attributes.stamina is unavailable", None
+        self.bridge.tap(SPRINT_KEY, hold_s=0.1)
+        self.bridge.hold("W", PULSE_S)
+        after, tags = self._sample("first_sprint_pulse")
+        problems = []
+        if TAG_SPRINTING not in tags:
+            problems.append(f"'{TAG_SPRINTING}' absent (tags {tags})")
+        if after is None or after >= before - 0.1:
+            problems.append(f"stamina did not decrease ({before} -> {after})")
+        detail = f"tap {SPRINT_KEY}, hold W {PULSE_S:g}s: stamina {before} -> {after}; tags {tags}"
+        return ("FAIL" if problems else "PASS"), (
+            detail + (f" -- {'; '.join(problems)}" if problems else "")), {
+                "before": before, "after": after, "tags": tags}
+
+    def _drain_to_low(self):
+        deadline = time.monotonic() + 15.0
+        direction = "S"
+        while time.monotonic() < deadline:
+            stamina, tags = self._sample("draining")
+            if stamina is not None and stamina <= LOW_STAMINA:
+                if TAG_SPRINTING not in tags:
+                    return "FAIL", f"stamina reached {stamina}, but sprint tag disappeared: {tags}", None
+                low = [tag for tag in tags if tag in LOW_TAGS]
+                if not low:
+                    return "FAIL", f"stamina reached {stamina}, but no low tier tag: {tags}", None
+                return "PASS", f"stamina {stamina}; sprint active; authoritative tier {low}", {
+                    "stamina": stamina, "tags": tags}
+            if TAG_SPRINTING not in tags:
+                return "FAIL", f"sprint tag disappeared before low stamina (stamina {stamina}, tags {tags})", None
+            self.bridge.hold(direction, PULSE_S)
+            direction = "W" if direction == "S" else "S"
+        stamina, tags = self._sample("drain_timeout")
+        return "FAIL", f"stamina did not reach {LOW_STAMINA:g} in 15s ({stamina}, tags {tags})", None
+
+    def _stop_and_check_delay(self):
+        before, _ = self._sample("before_stop")
+        self.bridge.tap(SPRINT_KEY, hold_s=0.1)
+        stopped, tags, _ = player_state(self.bridge)
+        if TAG_SPRINTING in tags:
+            return "FAIL", f"tap {SPRINT_KEY}: sprint tag remained (tags {tags})", None
+        time.sleep(DELAY_OBSERVE_S)
+        delayed, delayed_tags = self._sample("inside_regen_delay")
+        if before is None or stopped is None or delayed is None:
+            return "FAIL", "stamina unavailable while checking the delay", None
+        if delayed > stopped + 0.1:
+            return "FAIL", (
+                f"stamina regenerated inside {DELAY_OBSERVE_S:g}s delay: "
+                f"{stopped} -> {delayed}"), None
+        return "PASS", (
+            f"tap {SPRINT_KEY}: sprint tag removed; stamina {before} -> {stopped} -> "
+            f"{delayed} during {DELAY_OBSERVE_S:g}s delay; tags {delayed_tags}"), {
+                "before_stop": before, "after_stop": stopped, "after_delay": delayed}
+
+    def _wait_for_refill(self):
+        def ready(state):
+            player = kit.section(state, "player")
+            attrs = player.get("attributes")
+            tags = player.get("tags")
+            return (
+                isinstance(attrs, dict)
+                and isinstance(attrs.get("stamina"), (int, float))
+                and float(attrs["stamina"]) >= REFILLED_STAMINA
+                and isinstance(tags, list)
+                and TAG_GREEN in tags
+                and TAG_SPRINTING not in tags
+            )
+
+        try:
+            state = self.bridge.wait_for(ready, timeout_s=10.0, sections=["player"], poll_s=0.1)
+        except ab.BridgeError as error:
+            if error.code != "wait_for_timeout":
+                raise
+            stamina, tags, _ = player_state(self.bridge)
+            return "FAIL", f"did not refill Green in 10s (stamina {stamina}, tags {tags})", None
+        player = kit.section(state, "player")
+        stamina = float(player["attributes"]["stamina"])
+        tags = [str(tag) for tag in player["tags"]]
+        self.stamina_samples.append({"label": "refilled", "stamina": stamina, "tags": tags})
+        return "PASS", f"stamina refilled to {stamina}; authoritative Green tag present", {
+            "stamina": stamina, "tags": tags}
+
+    def _verify_images(self):
+        results = [
+            analyze_hud_image(self.drained_path, "red"),
+            analyze_hud_image(self.refilled_path, "green"),
+        ]
+        payload = {
+            "story": STORY,
+            "generated_by": os.path.abspath(__file__),
+            "result": "PASS" if all(item["passed"] for item in results) else "FAIL",
+            "images": results,
+        }
+        path = os.path.join(self.run_dir, "image-verification.json")
+        with open(path, "w", encoding="utf-8") as stream:
+            json.dump(payload, stream, indent=2)
+            stream.write("\n")
+        if payload["result"] != "PASS":
+            return "FAIL", f"{path}: {results}", payload
+        return "PASS", (
+            f"{path}: drained red pixels {results[0]['hud_red_pixels']}; "
+            f"refilled green pixels {results[1]['hud_green_pixels']}"), payload
+
+    def report_extra(self):
+        return {
+            "stamina_samples": self.stamina_samples,
+            "image_verification": os.path.join(self.run_dir, "image-verification.json"),
+        }
+
+
+Run = Us122Run
+
+
+def main(argv=None):
+    return kit.main(Us122Run, argv)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

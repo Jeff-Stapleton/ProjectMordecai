@@ -3,6 +3,7 @@
 #include "Mordecai/Combat/MordecaiGA_Dodge.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -66,7 +67,10 @@ FVector UMordecaiGA_Dodge::ComputeImpulseVelocity(const FVector& Direction) cons
 {
 	if (DodgeDurationMs <= 0.f) return FVector::ZeroVector;
 
-	float Speed = DodgeDistanceCm / (DodgeDurationMs / 1000.f);
+	UAbilitySystemComponent* ASC =
+		CurrentActorInfo ? GetAbilitySystemComponentFromActorInfo() : nullptr;
+	const float TierMultiplier = UMordecaiStaminaSystem::GetTierMultiplierFromASC(ASC);
+	const float Speed = DodgeDistanceCm * TierMultiplier / (DodgeDurationMs / 1000.f);
 	return Direction.GetSafeNormal() * Speed;
 }
 

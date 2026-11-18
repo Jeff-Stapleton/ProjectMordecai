@@ -13,9 +13,8 @@ class UAbilitySystemComponent;
  * Stamina tier enum.
  * Green/Yellow/Red represent the three tiers of stamina effectiveness.
  * Exhausted represents fully depleted stamina (Stamina <= 0).
- * Note: The combat system (UMordecaiStaminaSystem::GetTierForStamina) returns
- * Green/Yellow/Red and uses IsExhausted() separately. The HUD (CalcStaminaTier)
- * returns Exhausted directly for display purposes.
+ * GetTierForStamina computes Green/Yellow/Red; the authoritative runtime makes
+ * Exhausted the exclusive ASC tier tag whenever stamina is <= 0.
  */
 UENUM(BlueprintType)
 enum class EMordecaiStaminaTier : uint8
@@ -102,8 +101,8 @@ public:
 
 	// --- Computation Methods (pure, testable) ---
 
-	/** Determine the stamina tier based on current and max stamina (AC-008.3).
-	 *  Returns Green/Yellow/Red. Exhausted is a separate overlay (see IsExhausted). */
+	/** Determine the non-exhausted stamina tier based on current and max stamina (AC-008.3).
+	 *  Returns Green/Yellow/Red; runtime callers check IsExhausted first. */
 	EMordecaiStaminaTier GetTierForStamina(float CurrentStamina, float MaxStamina) const;
 
 	/** Check if the character is in Exhausted state (Stamina <= 0) (AC-008.6). */
@@ -145,6 +144,10 @@ public:
 	 *  Other systems (dodge, attack, block) call this to get effectiveness. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Stamina", meta = (DisplayName = "Get Stamina Tier Multiplier"))
 	static float GetTierMultiplierFromASC(UAbilitySystemComponent* ASC);
+
+	/** Read the mutually-exclusive authoritative tier tag from an ASC.
+	 *  Yellow is the neutral fallback while an ASC has not received its initial tag. */
+	static EMordecaiStaminaTier GetTierFromASC(const UAbilitySystemComponent* ASC);
 
 private:
 	double LastConsumptionTime = -999.0;

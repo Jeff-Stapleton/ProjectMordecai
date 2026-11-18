@@ -324,3 +324,14 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - The current parry was omnidirectional and no spec grants that exception. Parry therefore uses the same effective arc as block; an out-of-arc hit neither succeeds nor consumes the parry window.
 - These values are balance defaults, not locked constants; shield assets may tune their arc.
 - Source: owner decision supplied with the issue #71 builder task (2026-11-18).
+
+---
+
+## 2026-11-18 — Stamina runtime tuning (issue #143, US-122)
+
+- The existing US-008 tuning remains authoritative: base regeneration is **15 stamina/second**, the post-spend delay is **1000 ms**, and sprint drains **10 stamina/second**. Regeneration is multiplied by the replicated `StaminaRegenMultiplier`.
+- Exactly one authoritative tier tag is active. `Exhausted` replaces `Red` at stamina `<= 0`; it is not an overlapping overlay at runtime.
+- The 1.25/1.0/0.75/0.5 tier multiplier scales total melee health damage and total dodge distance. For block, it scales the configured stability before drain is calculated: `EffectiveStability = Stability × TierMultiplier`.
+- Sprint is never stopped by low or negative stamina. Its total speed multiplier is `SprintSpeedMultiplier × TierMultiplier`; at zero stamina the 0.5 Exhausted multiplier applies. This makes the existing US-008 AC-008.16 “continues at reduced speed” rule concrete while preserving the game-design rule that stamina never blocks an action.
+- Sprint-drain attempts at the stamina floor continue resetting the post-spend delay, so regeneration starts one full delay after sprint is toggled off.
+- Source: issue #143 builder task, applying US-008 and `game_design_v2.md`'s existing “never blocks actions” rule (2026-11-18).

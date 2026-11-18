@@ -6,6 +6,7 @@
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/Combat/MordecaiHitDefense.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
+#include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
@@ -146,7 +147,10 @@ float UMordecaiGA_MeleeAttack::ComputeHealthDamage() const
 
 	// AC-024.11: FinalDamage = (AttackProfile.BasePower + Weapon.BaseDamage) x existing multipliers
 	const float WeaponBonus = GetWeaponBaseDamage();
-	return -(Profile->DamageProfile.BasePower + WeaponBonus);
+	UAbilitySystemComponent* ASC =
+		CurrentActorInfo ? GetAbilitySystemComponentFromActorInfo() : nullptr;
+	const float StaminaTierMultiplier = UMordecaiStaminaSystem::GetTierMultiplierFromASC(ASC);
+	return -(Profile->DamageProfile.BasePower + WeaponBonus) * StaminaTierMultiplier;
 }
 
 float UMordecaiGA_MeleeAttack::ComputePostureDamage() const

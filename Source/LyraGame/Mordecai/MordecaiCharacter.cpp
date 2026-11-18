@@ -8,6 +8,7 @@
 #include "Mordecai/MordecaiHeroComponent.h"
 #include "Mordecai/Camera/MordecaiCameraMode_Diorama.h"
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
+#include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
@@ -20,6 +21,7 @@
 #include "Engine/StaticMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Net/UnrealNetwork.h"
 #include "UObject/ConstructorHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCharacter)
@@ -195,25 +197,64 @@ void AMordecaiCharacter::ApplyAimFacingDirection(const FVector& AimDirection)
 
 void AMordecaiCharacter::SetSprinting(bool bNewSprinting)
 {
-	if (bIsSprinting == bNewSprinting)
+	// The owning client predicts the speed change; the server owns the replicated
+	// state, ASC tag, and all stamina mutation.
+	ApplySprintingState(bNewSprinting);
+	if (!HasAuthority())
+	{
+		ServerSetSprinting(bNewSprinting);
+	}
+}
+
+void AMordecaiCharacter::ServerSetSprinting_Implementation(bool bNewSprinting)
+{
+	ApplySprintingState(bNewSprinting);
+}
+
+void AMordecaiCharacter::ApplySprintingState(bool bNewSprinting)
+{
+	const bool bChanged = bIsSprinting != bNewSprinting;
+	bIsSprinting = bNewSprinting;
+
+	if (HasAuthority())
+	{
+		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+		{
+			ASC->SetLooseGameplayTagCount(
+				MordecaiGameplayTags::State_Sprinting,
+				bIsSprinting ? 1 : 0,
+				EGameplayTagReplicationState::TagOnly);
+		}
+	}
+
+	if (bChanged)
+	{
+		RefreshSprintSpeedForStaminaTier();
+	}
+}
+
+void AMordecaiCharacter::OnRep_IsSprinting()
+{
+	RefreshSprintSpeedForStaminaTier();
+}
+
+void AMordecaiCharacter::RefreshSprintSpeedForStaminaTier()
+{
+	UCharacterMovementComponent* CMC = GetCharacterMovement();
+	if (!CMC || AppliedSprintSpeedFactor <= KINDA_SMALL_NUMBER)
 	{
 		return;
 	}
 
-	// Rescale the current speed rather than write WalkSpeed * multiplier: Block halves MaxWalkSpeed while held and
-	// doubles it on release, so sprint toggled mid-block must compose with that (US-083)
-	// TODO(DECISION): sprint is client-local (no RPC, nothing replicated): a remote client in networked play would be
-	// corrected on every sprinting move. Before networked play, carry it as a CharacterMovementComponent saved-move flag
-	// read in GetMaxSpeed (Block's slow-down with it). Standalone and a listen-server host are unaffected (N28).
-	const float OldFactor = bIsSprinting ? SprintSpeedMultiplier : 1.f;
-	const float NewFactor = bNewSprinting ? SprintSpeedMultiplier : 1.f;
-	bIsSprinting = bNewSprinting;
+	const float TierMultiplier = bIsSprinting
+		? UMordecaiStaminaSystem::GetTierMultiplierFromASC(GetAbilitySystemComponent())
+		: 1.f;
+	const float NewFactor = bIsSprinting ? SprintSpeedMultiplier * TierMultiplier : 1.f;
 
-	UCharacterMovementComponent* CMC = GetCharacterMovement();
-	if (CMC && OldFactor > KINDA_SMALL_NUMBER)
-	{
-		CMC->MaxWalkSpeed = CMC->MaxWalkSpeed / OldFactor * NewFactor;
-	}
+	// Rescale rather than overwrite: Block scales MaxWalkSpeed independently and
+	// sprint toggles/tier changes must continue to compose with it.
+	CMC->MaxWalkSpeed = CMC->MaxWalkSpeed / AppliedSprintSpeedFactor * NewFactor;
+	AppliedSprintSpeedFactor = NewFactor;
 }
 
 // ---------------------------------------------------------------------------
@@ -370,7 +411,20 @@ void AMordecaiCharacter::BindToASC()
 	UnbindFromASC();
 	HealthChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute())
 		.AddUObject(this, &AMordecaiCharacter::OnHealthChanged);
+	GreenTierChangedHandle = ASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::Stamina_Tier_Green, EGameplayTagEventType::AnyCountChange)
+		.AddUObject(this, &AMordecaiCharacter::OnStaminaTierChanged);
+	YellowTierChangedHandle = ASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::Stamina_Tier_Yellow, EGameplayTagEventType::AnyCountChange)
+		.AddUObject(this, &AMordecaiCharacter::OnStaminaTierChanged);
+	RedTierChangedHandle = ASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::Stamina_Tier_Red, EGameplayTagEventType::AnyCountChange)
+		.AddUObject(this, &AMordecaiCharacter::OnStaminaTierChanged);
+	ExhaustedTierChangedHandle = ASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::Stamina_Tier_Exhausted, EGameplayTagEventType::AnyCountChange)
+		.AddUObject(this, &AMordecaiCharacter::OnStaminaTierChanged);
 	HealthBoundASC = ASC;
+	RefreshSprintSpeedForStaminaTier();
 }
 
 void AMordecaiCharacter::UnbindFromASC()
@@ -378,9 +432,30 @@ void AMordecaiCharacter::UnbindFromASC()
 	if (UAbilitySystemComponent* ASC = HealthBoundASC.Get())
 	{
 		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute()).Remove(HealthChangedHandle);
+		ASC->RegisterGameplayTagEvent(
+			MordecaiGameplayTags::Stamina_Tier_Green, EGameplayTagEventType::AnyCountChange)
+			.Remove(GreenTierChangedHandle);
+		ASC->RegisterGameplayTagEvent(
+			MordecaiGameplayTags::Stamina_Tier_Yellow, EGameplayTagEventType::AnyCountChange)
+			.Remove(YellowTierChangedHandle);
+		ASC->RegisterGameplayTagEvent(
+			MordecaiGameplayTags::Stamina_Tier_Red, EGameplayTagEventType::AnyCountChange)
+			.Remove(RedTierChangedHandle);
+		ASC->RegisterGameplayTagEvent(
+			MordecaiGameplayTags::Stamina_Tier_Exhausted, EGameplayTagEventType::AnyCountChange)
+			.Remove(ExhaustedTierChangedHandle);
 	}
 	HealthChangedHandle.Reset();
+	GreenTierChangedHandle.Reset();
+	YellowTierChangedHandle.Reset();
+	RedTierChangedHandle.Reset();
+	ExhaustedTierChangedHandle.Reset();
 	HealthBoundASC.Reset();
+}
+
+void AMordecaiCharacter::OnStaminaTierChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	RefreshSprintSpeedForStaminaTier();
 }
 
 void AMordecaiCharacter::OnHealthChanged(const FOnAttributeChangeData& Data)
@@ -404,6 +479,13 @@ bool AMordecaiCharacter::IsDead() const
 		return ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Dead);
 	}
 	return bDeathHandled;
+}
+
+void AMordecaiCharacter::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AMordecaiCharacter, bIsSprinting);
 }
 
 void AMordecaiCharacter::HandlePlayerDeath()
