@@ -51,6 +51,12 @@ public:
 	/** A persistent HUD must keep Enhanced Input routed to gameplay while it is the active CommonUI leaf. */
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
+	/** Pure cursor policy shared by tick and Tier 1 tests. */
+	static bool ShouldShowAimReticle(
+		bool bHUDActive,
+		bool bMouseAndKeyboard,
+		bool bGamePaused);
+
 	/** Bind all child combat widgets to an AbilitySystemComponent. (AC-052.5, AC-055.10) */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|HUD")
 	void BindToASC(UAbilitySystemComponent* ASC);

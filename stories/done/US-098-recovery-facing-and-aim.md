@@ -30,9 +30,9 @@ Camera mode and character rotation logic in C++ (`UMordecaiCameraMode_Diorama`, 
 - [x] AC-098.8: Melee hit direction, block facing, no-input dodge fallback, Blink and aimed spells consistently consume the character's actor-facing direction
 - [x] AC-098.9: The player capsule remains radius 40, half-height 90 and maximum step height 45
 - [x] AC-098.10: The locally controlled character turns immediately. The existing unreliable aim RPC and normal actor-rotation replication remain in place, but server-authority behavior is not claimed without a real multi-client net world; multiplayer verification/prediction/reconciliation is follow-up scope
-- [x] AC-098.11: Aim-facing is locked when controller look input is ignored and while Dead, MicroStunned, PostureBroken, KnockedDown, Dodging, Parrying, or melee Windup/Active (`State.Attacking`); it resumes in melee Recovery
+- [x] AC-098.11: Aim-facing is locked when controller look input is ignored and while Dead, MicroStunned, PostureBroken, KnockedDown, Dodging, Parrying, or melee Windup/Active (`State.AttackCommitted`); it resumes in melee Recovery while `State.Attacking` remains owned until ability end
 - [x] AC-098.12: Packaged mouse aim follows a real Win32 OS cursor, recomputes every local-player tick, and ignores projected points within the 40 cm capsule-radius dead zone
-- [x] AC-098.13: The gameplay cursor and a hit-test-invisible crosshair are visible while mouse+keyboard is last-used, LMB still starts an attack, and both cursor affordances hide when gamepad is last-used
+- [x] AC-098.13: Exactly one hit-test-invisible HUD reticle is visible while mouse+keyboard is last-used, the OS cursor remains hidden and confined to the viewport, LMB still starts an attack, and the reticle hides when gamepad is last-used or gameplay is paused
 - [x] AC-098.14: The right-stick mapping applies its 0.2 deadzone exactly once, while the movement stick retains its independent 0.25 deadzone
 - [x] AC-098.15: The strengthened tests drive the real look and movement handlers, tick movement after input, perform the real melee arc query, and do not claim net authority without a multi-client net world
 
@@ -51,20 +51,21 @@ Camera mode and character rotation logic in C++ (`UMordecaiCameraMode_Diorama`, 
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- `Scripts/playtests/us001_movement.py` checks `facing_mouse_physical`, `cursor_visible_mouse`, `attack_click_physical`, `movement_keeps_aim`, `facing_stick`, `cursor_hidden_gamepad`, `camera_fixed`, and `no_camera_rotation_input`
+- `Scripts/playtests/us001_movement.py` checks `facing_mouse_physical`, `single_cursor_mouse`, `attack_click_physical`, `combo_hit2`, `movement_keeps_aim`, `facing_stick`, `cursor_hidden_gamepad`, `camera_fixed`, and `no_camera_rotation_input`
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → B_MordecaiArenaExperience; us001's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-001` on the same package
 - **Player steps:** move the mouse to the right of the player; hold W while that +Y aim remains set; hold the right stick left
-- **Visible on screen:** us001 `physical_mouse_off_axis` screenshot: the visible crosshair and green facing arrow point toward the off-axis physical cursor (+Y) after W moved the character camera-relative +X; `facing_arrow` shows the final -Y stick-facing direction; camera angle unchanged
-- **Proof:** Tier 4 checks `facing_mouse_physical`, `cursor_visible_mouse`, `attack_click_physical`, `movement_keeps_aim`, `facing_stick`, `cursor_hidden_gamepad`, `camera_fixed`, and `no_camera_rotation_input` of `Scripts/playtests/us001_movement.py`
+- **Visible on screen:** us001 `physical_mouse_off_axis` screenshot: the single HUD reticle and green facing arrow point toward the off-axis physical cursor (+Y) after W moved the character camera-relative +X; the OS cursor remains hidden; `facing_arrow` shows the final -Y stick-facing direction; camera angle unchanged
+- **Proof:** Tier 4 checks `facing_mouse_physical`, `single_cursor_mouse`, `attack_click_physical`, `combo_hit2`, `movement_keeps_aim`, `facing_stick`, `cursor_hidden_gamepad`, `camera_fixed`, and `no_camera_rotation_input` of `Scripts/playtests/us001_movement.py`
 - **Tier 4 script:** `Scripts/playtests/us001_movement.py` — run: `py Scripts/playtest_story.py US-001`
 - **Steps:**
 
 | Script | Check | Player step → expected | Final packaged result (3b3e8b4c) |
 |---|---|---|---|
 | us001 | `facing_mouse_physical` | Win32 `SetCursorPos` to client (1100, 360), with no bridge mouse command → yaw 90 (+-30) within 1s | PASS: yaw 90 |
-| us001 | `cursor_visible_mouse` / `attack_click_physical` | physical mouse last-used → cursor/crosshair visible; Slate-routed LMB still reaches Enhanced Input | PASS: visible and attack started |
+| us001 | `single_cursor_mouse` / `attack_click_physical` | physical mouse last-used → OS cursor hidden and HUD reticle visible; Slate-routed LMB still reaches Enhanced Input | PENDING ROUND 3 |
+| us001 | `combo_hit2` | click during Hit 1 combo window → second stamina spend and `State.AttackCommitted`, with no Heavy tag | PENDING ROUND 3 |
 | us001 | `movement_keeps_aim` | with mouse aim still +Y, hold W 0.4s → move >100 cm along +X, <30 cm across, yaw remains 90 (+-30) | PASS: +186 cm X, 0 cm across, yaw 90.852 |
 | us001 | `facing_stick` | axis Gamepad_RightX=-1 held (left, -Y) -> wait_until player.rotation yaw -90 (+-30) within 1s | PASS: yaw -90, retained after release |
 | us001 | `cursor_hidden_gamepad` | right stick becomes last-used input | PASS: cursor hidden |

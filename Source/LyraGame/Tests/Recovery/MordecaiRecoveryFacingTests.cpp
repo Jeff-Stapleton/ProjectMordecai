@@ -9,6 +9,7 @@
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/InputSettings.h"
+#include "HAL/IConsoleManager.h"
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
@@ -136,6 +137,26 @@ namespace MordecaiRecoveryFacingTest
 			}
 		}
 		return nullptr;
+	}
+
+	static int32 CountDeadZones(
+		const UInputMappingContext* Context,
+		const FKey& Key)
+	{
+		int32 Count = 0;
+		for (const FEnhancedActionKeyMapping& Mapping :
+			Context ? Context->GetMappings() : TArray<FEnhancedActionKeyMapping>())
+		{
+			if (Mapping.Key == Key)
+			{
+				for (const UInputModifier* Modifier : Mapping.Modifiers)
+				{
+					Count += IsValid(Modifier)
+						&& Modifier->IsA<UInputModifierDeadZone>();
+				}
+			}
+		}
+		return Count;
 	}
 }
 
@@ -279,6 +300,22 @@ bool FMordecai_Recovery_Facing_AimDeadzoneAppliedOnce::RunTest(
 		TEXT("Movement keeps its own 0.25 deadzone"),
 		MoveDeadZone->LowerThreshold,
 		0.25f);
+	TestEqual(
+		TEXT("The real right-stick mapping has exactly one deadzone modifier"),
+		CountDeadZones(Context, EKeys::Gamepad_Right2D),
+		1);
+	const IConsoleVariable* GlobalAxisConfigMode =
+		IConsoleManager::Get().FindConsoleVariable(
+			TEXT("input.GlobalAxisConfigMode"));
+	if (TestNotNull(
+		TEXT("UE 5.7 exposes the legacy-axis compatibility mode"),
+		GlobalAxisConfigMode))
+	{
+		TestEqual(
+			TEXT("UE 5.7 defaults legacy AxisConfig injection to mouse keys only"),
+			GlobalAxisConfigMode->GetInt(),
+			0);
+	}
 
 	const FInputActionValue ModifiedValue = AimDeadZone->ModifyRaw(
 		nullptr,
@@ -300,6 +337,29 @@ bool FMordecai_Recovery_Facing_AimDeadzoneAppliedOnce::RunTest(
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMordecai_Recovery_Facing_AimRPCThreshold,
+	"Mordecai.Recovery.Facing.AimRPCThreshold",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Facing_AimRPCThreshold::RunTest(
+	const FString& Parameters)
+{
+	TestFalse(
+		TEXT("A sub-degree yaw change does not send another unreliable RPC"),
+		AMordecaiCharacter::ShouldSendAimFacingRPC(10.f, 10.9f));
+	TestFalse(
+		TEXT("Exactly one degree remains below the send threshold"),
+		AMordecaiCharacter::ShouldSendAimFacingRPC(10.f, 11.f));
+	TestTrue(
+		TEXT("A yaw change over one degree sends an update"),
+		AMordecaiCharacter::ShouldSendAimFacingRPC(10.f, 11.01f));
+	TestTrue(
+		TEXT("The threshold uses wrapped yaw delta"),
+		AMordecaiCharacter::ShouldSendAimFacingRPC(179.f, -179.f));
+	return true;
+}
+
 IMPLEMENT_COMPLEX_AUTOMATION_TEST(
 	FMordecai_Recovery_Facing_BlockedWhileIncapacitated,
 	"Mordecai.Recovery.Facing.BlockedWhileIncapacitated",
@@ -317,7 +377,7 @@ void FMordecai_Recovery_Facing_BlockedWhileIncapacitated::GetTests(
 		TEXT("KnockedDown"),
 		TEXT("Dodging"),
 		TEXT("Parrying"),
-		TEXT("Attacking"),
+		TEXT("AttackCommitted"),
 	};
 	for (const TCHAR* Case : Cases)
 	{
@@ -377,9 +437,12 @@ bool FMordecai_Recovery_Facing_BlockedWhileIncapacitated::RunTest(
 	{
 		GateTag = MordecaiGameplayTags::State_Parrying;
 	}
-	else if (Parameters == TEXT("Attacking"))
+	else if (Parameters == TEXT("AttackCommitted"))
 	{
-		GateTag = MordecaiGameplayTags::State_Attacking;
+		GateTag = MordecaiGameplayTags::State_AttackCommitted;
+		TestTrue(
+			TEXT("The committed attack phase has its own native facing-lock tag"),
+			GateTag.IsValid());
 	}
 	else
 	{
@@ -451,8 +514,16 @@ bool FMordecai_Recovery_Facing_AttackLockEndsInRecovery::RunTest(
 		Melee->GetCurrentPhase(),
 		EMordecaiAttackPhase::Windup);
 	TestTrue(
-		TEXT("State.Attacking locks facing during windup"),
+		TEXT("State.Attacking remains the whole-ability exclusivity tag"),
 		ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Attacking));
+	const FGameplayTag AttackCommittedTag =
+		MordecaiGameplayTags::State_AttackCommitted;
+	TestTrue(
+		TEXT("AttackCommitted is a native tag"),
+		AttackCommittedTag.IsValid());
+	TestTrue(
+		TEXT("AttackCommitted locks facing during windup"),
+		ASC->HasMatchingGameplayTag(AttackCommittedTag));
 
 	Env.Player->SetActorRotation(FRotator::ZeroRotator);
 	InvokeInputAction(
@@ -472,9 +543,12 @@ bool FMordecai_Recovery_Facing_AttackLockEndsInRecovery::RunTest(
 		TEXT("real swing reaches recovery"),
 		Melee->GetCurrentPhase(),
 		EMordecaiAttackPhase::Recovery);
-	TestFalse(
-		TEXT("State.Attacking ends when recovery begins"),
+	TestTrue(
+		TEXT("State.Attacking remains until the ability ends"),
 		ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Attacking));
+	TestFalse(
+		TEXT("AttackCommitted ends when recovery begins"),
+		ASC->HasMatchingGameplayTag(AttackCommittedTag));
 
 	InvokeInputAction(
 		*this,
@@ -657,13 +731,26 @@ bool FMordecai_Recovery_Facing_PhysicalMouseGameplayContract::RunTest(
 			Config->GetInputMode(),
 			ECommonInputMode::Game);
 		TestEqual(
-			TEXT("The physical cursor remains free except while a click is held"),
+			TEXT("Gameplay keeps physical mouse deltas live except while a click is held"),
 			Config->GetMouseCaptureMode(),
 			EMouseCaptureMode::CaptureDuringMouseDown);
-		TestFalse(
-			TEXT("Attack-click capture does not hide the cursor"),
+		TestEqual(
+			TEXT("Gameplay confines the cursor to the viewport"),
+			Config->GetMouseLockMode(),
+			EMouseLockMode::LockAlways);
+		TestTrue(
+			TEXT("Gameplay hides the OS cursor and leaves the HUD reticle as the one cursor"),
 			Config->HideCursorDuringViewportCapture());
 	}
+	TestTrue(
+		TEXT("Active mouse gameplay draws the HUD aim reticle"),
+		UMordecaiCombatHUDWidget::ShouldShowAimReticle(true, true, false));
+	TestFalse(
+		TEXT("The HUD aim reticle is hidden while paused in a menu"),
+		UMordecaiCombatHUDWidget::ShouldShowAimReticle(true, true, true));
+	TestFalse(
+		TEXT("The HUD aim reticle is hidden for gamepad input"),
+		UMordecaiCombatHUDWidget::ShouldShowAimReticle(true, false, false));
 
 	const UInputSettings* InputSettings = UInputSettings::GetInputSettings();
 	if (TestNotNull(TEXT("project input settings"), InputSettings))

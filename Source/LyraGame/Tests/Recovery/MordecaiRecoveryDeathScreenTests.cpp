@@ -238,8 +238,10 @@ bool FMordecai_Recovery_DeathScreen_KeepsTheViewportCaptureMode::RunTest(const F
 	if (TestTrue("the death screen asks for an input config", Config.IsSet()))
 	{
 		TestTrue("game and menu input both pass (respawn flow not blocked)", Config->GetInputMode() == ECommonInputMode::All);
-		TestTrue("the project's viewport capture mode",
-			Config->GetMouseCaptureMode() == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+		TestTrue("death screen releases gameplay mouse capture",
+			Config->GetMouseCaptureMode() == EMouseCaptureMode::NoCapture);
+		TestTrue("death screen releases the gameplay viewport lock",
+			Config->GetMouseLockMode() == EMouseLockMode::DoNotLock);
 	}
 	return true;
 }

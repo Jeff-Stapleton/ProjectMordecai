@@ -196,7 +196,9 @@ bool FMordecai_Recovery_WeaponHUD_PassesGameplayInput::RunTest(const FString& Pa
 		TestTrue("combat HUD leaves gameplay input enabled", Config->GetInputMode() == ECommonInputMode::Game);
 		TestTrue("combat HUD keeps the physical cursor live outside an attack click",
 			Config->GetMouseCaptureMode() == EMouseCaptureMode::CaptureDuringMouseDown);
-		TestFalse("combat HUD leaves the cursor visible during attack-click capture",
+		TestTrue("combat HUD confines the physical cursor to the gameplay viewport",
+			Config->GetMouseLockMode() == EMouseLockMode::LockAlways);
+		TestTrue("combat HUD hides the OS cursor so only its aim reticle is visible",
 			Config->HideCursorDuringViewportCapture());
 	}
 	return true;

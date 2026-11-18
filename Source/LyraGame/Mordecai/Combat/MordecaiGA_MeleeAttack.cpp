@@ -26,8 +26,9 @@ UMordecaiGA_MeleeAttack::UMordecaiGA_MeleeAttack(const FObjectInitializer& Objec
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
-	// AC-004.14: Prevent concurrent activation (cannot double-swing). State.Attacking is added
-	// explicitly only during Windup/Active so aim can resume as soon as Recovery begins.
+	// AC-004.14: Light and heavy are separate specs, so the running ability must own this
+	// through Recovery to prevent a second swing from activating before the first one ends.
+	ActivationOwnedTags.AddTag(MordecaiGameplayTags::State_Attacking);
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Attacking);
 
 	// AC-007.8: Cannot attack during posture broken or knocked down
@@ -291,11 +292,11 @@ void UMordecaiGA_MeleeAttack::TransitionToPhase(EMordecaiAttackPhase NewPhase)
 		{
 			if (bIsCommitted)
 			{
-				ASC->AddLooseGameplayTag(MordecaiGameplayTags::State_Attacking);
+				ASC->AddLooseGameplayTag(MordecaiGameplayTags::State_AttackCommitted);
 			}
 			else
 			{
-				ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Attacking);
+				ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::State_AttackCommitted);
 			}
 		}
 	}

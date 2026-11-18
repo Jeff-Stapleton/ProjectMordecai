@@ -305,8 +305,8 @@ class TestUs001TodaysGame(PlaytestCase):
                      "no_camera_rotation_input", "walk_lane_wp1", "walk_lane_wp2",
                      "walk_lane_start", "walk_speed_baseline", "walk_lane_reset",
                      "sprint_shift", "walk_lane_reset2", "sprint_l3", "jump_space",
-                     "facing_mouse_physical", "cursor_visible_mouse", "attack_click_physical",
-                     "movement_keeps_aim", "facing_stick", "cursor_hidden_gamepad",
+                     "facing_mouse_physical", "single_cursor_mouse", "attack_click_physical",
+                     "combo_hit2", "movement_keeps_aim", "facing_stick", "cursor_hidden_gamepad",
                      "facing_arrow", "gamepad_move", "no_crash"):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(self.statuses(rep, "FAIL"), KNOWN_FAILS)
@@ -339,7 +339,7 @@ class TestUs001TodaysGame(PlaytestCase):
         code, rep = self.play(server)
         self.assertEqual(code, 0)
         acs = self.acs(rep)
-        self.assertEqual({a["story"] for a in rep["acs"]}, {"US-001"})
+        self.assertEqual({a["story"] for a in rep["acs"]}, {"US-001", "US-004"})
         for ac in ("AC-2.2.5", "AC-2.3.3", "AC-1.2.2", "AC-1.2.4", "AC-2.1.6"):
             self.assertEqual(acs[ac]["status"], "PASS", ac)
         for ac in ("AC-2.1.1", "AC-1.3.2"):
@@ -600,22 +600,30 @@ class TestUs001Failures(PlaytestCase):
 # Offline: the PLAN, the AC ids, the route
 # ---------------------------------------------------------------------------
 class TestUs001Plan(unittest.TestCase):
-    def story_ac_ids(self):
-        if not os.path.isfile(STORY_FILE):
-            self.skipTest(f"{STORY_FILE} moved")
-        with open(STORY_FILE, encoding="utf-8") as f:
+    def story_ac_ids(self, story_file=STORY_FILE):
+        if not os.path.isfile(story_file):
+            self.skipTest(f"{story_file} moved")
+        with open(story_file, encoding="utf-8") as f:
             return set(re.findall(r"^- \[[ xX]\] \**(AC[-\w.]*\w)", f.read(), re.M))
 
     def test_the_plan_is_valid_and_proves_real_acs(self):
         self.assertEqual(kit.plan_problems(us001.Us001Run), [])
         self.assertIs(us001.Run, us001.Us001Run)
         self.assertEqual(us001.Us001Run.STORY, "US-001")
-        self.assertEqual(us001.Us001Run.COVERS, ())
+        self.assertEqual(us001.Us001Run.COVERS, ("US-004",))
         self.assertEqual(us001.Us001Run.FEATURES, ("movement", "camera", "sprint"))
         ids = self.story_ac_ids()
+        covered_ids = {
+            f"US-004:{ac}"
+            for ac in self.story_ac_ids(
+                os.path.join(
+                    os.path.dirname(SCRIPTS),
+                    "stories", "done", "US-004-melee-attack-ability.md")
+            )
+        }
         for step in us001.PLAN:
             for ac in step.proves:
-                self.assertIn(ac, ids, step.check)
+                self.assertIn(ac, ids | covered_ids, step.check)
         for ac in us001.PENDING:
             self.assertIn(ac, ids)
         known = [s.check for s in us001.PLAN if s.known_issue]
@@ -641,8 +649,8 @@ class TestUs001Plan(unittest.TestCase):
 
     def test_aim_acceptance_uses_physical_win32_mouse_not_bridge_mouse(self):
         checks = [step.check for step in us001.PLAN]
-        for check in ("facing_mouse_physical", "attack_click_physical",
-                      "cursor_visible_mouse", "cursor_hidden_gamepad"):
+        for check in ("facing_mouse_physical", "attack_click_physical", "combo_hit2",
+                      "single_cursor_mouse", "cursor_hidden_gamepad"):
             self.assertIn(check, checks)
         self.assertIn("physical_mouse_off_axis", us001.SCREENSHOTS)
         self.assertTrue(hasattr(us001, "Win32PhysicalMouse"))

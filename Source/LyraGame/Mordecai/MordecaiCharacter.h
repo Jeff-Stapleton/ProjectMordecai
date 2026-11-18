@@ -59,6 +59,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Mordecai|Character")
 	bool CanUpdateAimFacing() const;
 
+	/** True when a yaw change is large enough to justify another unreliable aim RPC. */
+	static bool ShouldSendAimFacingRPC(float PreviousYaw, float NewYaw);
+
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Character")
 	UArrowComponent* GetFacingArrow() const { return FacingArrowComponent; }
 
@@ -174,4 +177,7 @@ private:
 	void ServerSetAimFacingDirection(FVector AimDirection);
 
 	void ApplyAimFacingDirection(const FVector& AimDirection);
+
+	float LastSentAimFacingYaw = 0.f;
+	bool bHasSentAimFacingYaw = false;
 };

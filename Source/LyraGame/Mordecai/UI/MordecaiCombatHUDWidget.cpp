@@ -27,6 +27,7 @@
 #include "Components/OverlaySlot.h"
 #include "GameFramework/PlayerController.h"
 #include "Input/UIActionBindingHandle.h"
+#include "Kismet/GameplayStatics.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
 #include "Mordecai/UI/TinTally/MordecaiUITheme.h"
@@ -42,12 +43,22 @@
 
 TOptional<FUIInputConfig> UMordecaiCombatHUDWidget::GetDesiredInputConfig() const
 {
-	// CommonUI leaves the active root's capture mode on the viewport. Keep the project default so
-	// the first click after refocusing the game is delivered to gameplay instead of only capturing.
+	// Keep absolute OS cursor movement live for ground-plane aim, but confine it to the game
+	// window. The HUD draws the one gameplay reticle; menus replace this config with NoCapture /
+	// DoNotLock and show the normal OS cursor.
 	return FUIInputConfig(
 		ECommonInputMode::Game,
 		EMouseCaptureMode::CaptureDuringMouseDown,
-		false);
+		EMouseLockMode::LockAlways,
+		true);
+}
+
+bool UMordecaiCombatHUDWidget::ShouldShowAimReticle(
+	bool bHUDActive,
+	bool bMouseAndKeyboard,
+	bool bGamePaused)
+{
+	return bHUDActive && bMouseAndKeyboard && !bGamePaused;
 }
 
 void UMordecaiCombatHUDWidget::NativeOnInitialized()
@@ -97,6 +108,16 @@ void UMordecaiCombatHUDWidget::NativeOnActivated()
 
 void UMordecaiCombatHUDWidget::NativeOnDeactivated()
 {
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		PC->bShowMouseCursor = true;
+		PC->DefaultMouseCursor = EMouseCursor::Default;
+		PC->CurrentMouseCursor = EMouseCursor::Default;
+	}
+	if (AimCursorRoot)
+	{
+		AimCursorRoot->SetVisibility(ESlateVisibility::Collapsed);
+	}
 	Super::NativeOnDeactivated();
 	SetVisibility(ESlateVisibility::Collapsed);
 }
@@ -353,14 +374,35 @@ void UMordecaiCombatHUDWidget::UpdateAimCursor()
 	}
 
 	APlayerController* PC = GetOwningPlayer();
+	if (!PC)
+	{
+		AimCursorRoot->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
 	const ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
 	const UCommonInputSubsystem* CommonInput =
 		LocalPlayer ? UCommonInputSubsystem::Get(LocalPlayer) : nullptr;
 	const bool bMouseAndKeyboard = PC && (!CommonInput
 		|| CommonInput->GetCurrentInputType() == ECommonInputType::MouseAndKeyboard);
+	const bool bHUDActive =
+		IsActivated() && GetVisibility() != ESlateVisibility::Collapsed;
+	const bool bGamePaused = UGameplayStatics::IsGamePaused(this);
+	const bool bGameplayActive = bHUDActive && !bGamePaused;
+	const bool bShowAimReticle = ShouldShowAimReticle(
+		bHUDActive,
+		bMouseAndKeyboard,
+		bGamePaused);
+	PC->bShowMouseCursor = !bGameplayActive;
+	if (!bGameplayActive)
+	{
+		PC->DefaultMouseCursor = EMouseCursor::Default;
+		PC->CurrentMouseCursor = EMouseCursor::Default;
+	}
 	AimCursorRoot->SetVisibility(
-		bMouseAndKeyboard ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	if (!bMouseAndKeyboard)
+		bShowAimReticle
+			? ESlateVisibility::HitTestInvisible
+			: ESlateVisibility::Collapsed);
+	if (!bShowAimReticle)
 	{
 		return;
 	}

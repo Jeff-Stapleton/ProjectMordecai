@@ -590,14 +590,10 @@ void UMordecaiHeroComponent::UpdateLocalMouseAim()
 		UCommonInputSubsystem::Get(PC->GetLocalPlayer());
 	const bool bMouseAndKeyboard = !CommonInput
 		|| CommonInput->GetCurrentInputType() == ECommonInputType::MouseAndKeyboard;
-	PC->bShowMouseCursor = bMouseAndKeyboard;
 	if (!bMouseAndKeyboard)
 	{
 		return;
 	}
-
-	PC->DefaultMouseCursor = EMouseCursor::Crosshairs;
-	PC->CurrentMouseCursor = EMouseCursor::Crosshairs;
 
 	FVector WorldOrigin;
 	FVector WorldDirection;

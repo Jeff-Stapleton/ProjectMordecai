@@ -26,9 +26,9 @@ UMordecaiDeathScreenWidget::UMordecaiDeathScreenWidget(const FObjectInitializer&
 	// GameAndMenu so respawn flow is not blocked by modal input capture
 	InputConfig = ELyraWidgetInputMode::GameAndMenu;
 
-	// The viewport keeps this capture mode after the screen goes (CommonUI restores none): the project's default
-	// (DefaultInput.ini), so a click that refocuses the game still attacks after a death
-	GameMouseCaptureMode = EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown;
+	// Death is a menu-like overlay: release the gameplay cursor lock and show the normal cursor.
+	// The combat HUD reapplies its gameplay lock when it becomes active after respawn.
+	GameMouseCaptureMode = EMouseCaptureMode::NoCapture;
 }
 
 // ---------------------------------------------------------------------------

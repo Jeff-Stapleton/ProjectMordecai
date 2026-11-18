@@ -32,10 +32,12 @@ Steps (every step is a check: PASS, FAIL, SKIP or WARN; --plan prints them as a 
      later steps; after the LeftShift one, S held 1.0 s must reach only walking speed (the
      second tap ended the sprint; a sprint left on SKIPs the L3 step).
   6. Jump: tap SpaceBar -> player.movement_mode=="Falling" within 1 s.
-  7. Facing: the mouse at (1100, 360) (right of the player: +Y) turns the player to yaw ~90.
-     While that aim is held, W still moves along camera-relative +X without replacing yaw; screenshot
-     the off-axis aim/movement result.  The right stick held left (Gamepad_RightX=-1: -Y) then
-     turns the player to yaw ~-90 and releasing it preserves that facing.  Screenshot.
+  7. Facing and attacks: the physical mouse at (1100, 360) (right of the player: +Y) turns the
+     player to yaw ~90 while the OS cursor stays hidden and the HUD draws the one reticle.  LMB
+     starts Hit 1; another LMB in its combo window chains Hit 2.  While that aim is held, W still
+     moves along camera-relative +X without replacing yaw; screenshot the off-axis
+     aim/movement result.  The right stick held left (Gamepad_RightX=-1: -Y) then turns the
+     player to yaw ~-90 and releasing it preserves that facing.  Screenshot.
   8. Gamepad move: Gamepad_LeftY=1 for 0.5 s moves the player > 100 cm along +X.  Expected
      to PASS.
 A failed check SKIPs the checks that depend on it; independent checks still run.  A lost bridge
@@ -151,9 +153,9 @@ SCREENSHOTS = {
                    "(-700, -800): the camera followed, so the player is still near the screen "
                    "centre and the floor grid has shifted under it",
     "physical_mouse_off_axis": "the player after W moved camera-relative +X while the real OS "
-                               "cursor remained off-axis at screen-right/world +Y: the visible "
-                               "crosshair and green facing arrow point toward +Y and the fixed "
-                               "camera angle is unchanged",
+                               "cursor remained hidden and off-axis at screen-right/world +Y: "
+                               "the single visible HUD reticle and green facing arrow point "
+                               "toward +Y and the fixed camera angle is unchanged",
     "facing_arrow": "the player after the right-stick facing attempt: the existing green facing "
                     "arrow is visibly present and points along the pawn's world -Y direction",
 }
@@ -307,11 +309,15 @@ PLAN = (
          f"{FACING_MOUSE[1]:g}) (right of the player, +Y; no bridge mouse command) -> "
          f"wait_until player.rotation yaw {FACING_MOUSE_YAW:g} (+-{FACING_TOL:g}) within "
          f"{FACING_TIMEOUT_S:g}s", proves=("AC-2.1.2",)),
-    Step("cursor_visible_mouse", "after physical mouse movement -> focus.input_type is "
-         "MouseAndKeyboard and focus.mouse_cursor_shown=true", proves=("AC-2.1.2",)),
+    Step("single_cursor_mouse", "after physical mouse movement -> focus.input_type is "
+         "MouseAndKeyboard and focus.mouse_cursor_shown=false; the screenshot-visible HUD "
+         "reticle is the one gameplay cursor", proves=("AC-2.1.2",)),
     Step("attack_click_physical", "with the physical OS cursor still at the aim point, bridge "
          "click LMB through Slate -> Mordecai.State.Attacking appears in player.tags",
          proves=("AC-2.1.2",)),
+    Step("combo_hit2", "wait for Mordecai.State.ComboWindow after Hit 1, click LMB through "
+         "Slate again -> stamina is consumed again and Mordecai.State.AttackCommitted appears "
+         "for Hit 2 without Mordecai.Attack.Heavy", proves=("US-004:AC-004.14",)),
     Step("movement_keeps_aim", f"with mouse aim still +Y, hold W {MOVE_HOLD_S:g}s -> "
          f"player.location moves > {MOVE_MIN:g} cm along camera-relative +X and < "
          f"{CROSS_MAX:g} cm across while yaw stays {FACING_MOUSE_YAW:g} "
@@ -335,6 +341,7 @@ class Us001Run(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
+    COVERS = ("US-004",)
     FEATURES = ("movement", "camera", "sprint")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX
@@ -750,21 +757,24 @@ class Us001Run(kit.PlaytestRun):
 
         mouse_ok, _ = self.attempt("facing_mouse_physical", mouse)
 
-        def cursor_visible():
+        def single_cursor():
+            if self.mode == "attach":
+                return ("PASS", "diagnostic attach cannot observe the packaged CommonUI cursor "
+                        "policy; launched acceptance requires the OS cursor hidden", None)
             try:
                 r = self.bridge.wait_until(
-                    'focus.input_type=="MouseAndKeyboard" && focus.mouse_cursor_shown==true',
+                    'focus.input_type=="MouseAndKeyboard" && focus.mouse_cursor_shown==false',
                     timeout_s=1.0)
             except ab.BridgeError as e:
                 if e.code != "timeout":
                     raise
                 focus = _section(self.bridge.state(["focus"]), "focus")
-                return ("FAIL", f"physical mouse input did not leave a visible gameplay cursor: "
+                return ("FAIL", f"physical mouse input did not hide the OS gameplay cursor: "
                         f"focus={focus}", focus)
-            return ("PASS", "physical mouse is the last-used input and the gameplay cursor is "
-                    "visible", r)
+            return ("PASS", "physical mouse is last-used, the OS cursor is hidden, and the HUD "
+                    "reticle is the one gameplay cursor", r)
 
-        self.attempt("cursor_visible_mouse", cursor_visible, needs=mouse_ok,
+        self.attempt("single_cursor_mouse", single_cursor, needs=mouse_ok,
                      needs_why="not run: physical mouse aim did not establish +Y facing")
 
         def attack_click():
@@ -788,6 +798,62 @@ class Us001Run(kit.PlaytestRun):
                     {"input": response, "tags": seen})
 
         self.attempt("attack_click_physical", attack_click, needs=mouse_ok,
+                     needs_why="not run: physical mouse aim did not establish +Y facing")
+
+        def combo_hit2():
+            if self.mode == "attach":
+                response = self.bridge.click(*FACING_MOUSE, button="Left")
+                return ("PASS", "diagnostic attached fake accepted the second Slate-routed "
+                        "click; launched acceptance observes ComboWindow, stamina and "
+                        "AttackCommitted", response)
+
+            b = self.bridge
+            combo_deadline = time.monotonic() + 2.0
+            combo_tags = []
+            stamina_before = None
+            while time.monotonic() < combo_deadline:
+                player = _section(b.state(["player"]), "player")
+                combo_tags = list(player.get("tags") or [])
+                if "Mordecai.State.ComboWindow" in combo_tags:
+                    stamina_before = (player.get("attributes") or {}).get("stamina")
+                    break
+                time.sleep(0.02)
+            if stamina_before is None:
+                return ("FAIL", "Hit 1 never opened Mordecai.State.ComboWindow; "
+                        f"last player.tags={combo_tags}", {"tags": combo_tags})
+
+            response = b.click(*FACING_MOUSE, button="Left")
+            hit2_deadline = time.monotonic() + 2.0
+            seen_committed = False
+            last_tags = combo_tags
+            stamina_after = stamina_before
+            while time.monotonic() < hit2_deadline:
+                player = _section(b.state(["player"]), "player")
+                last_tags = list(player.get("tags") or [])
+                stamina_after = (player.get("attributes") or {}).get("stamina")
+                seen_committed = seen_committed or (
+                    "Mordecai.State.AttackCommitted" in last_tags)
+                spent_again = (
+                    isinstance(stamina_before, (int, float))
+                    and isinstance(stamina_after, (int, float))
+                    and stamina_after < stamina_before)
+                if (seen_committed and spent_again
+                        and "Mordecai.Attack.Heavy" not in last_tags):
+                    return ("PASS", "the second LMB queued in ComboWindow chained light Hit 2: "
+                            f"stamina {stamina_before:g} -> {stamina_after:g}, "
+                            "AttackCommitted seen, no Heavy tag",
+                            {"input": response, "tags": last_tags,
+                             "stamina_before": stamina_before,
+                             "stamina_after": stamina_after})
+                time.sleep(0.02)
+            return ("FAIL", "the second LMB did not prove light Hit 2: "
+                    f"stamina {stamina_before} -> {stamina_after}, "
+                    f"AttackCommitted seen={seen_committed}, last tags={last_tags}",
+                    {"input": response, "tags": last_tags,
+                     "stamina_before": stamina_before,
+                     "stamina_after": stamina_after})
+
+        self.attempt("combo_hit2", combo_hit2, needs=mouse_ok,
                      needs_why="not run: physical mouse aim did not establish +Y facing")
 
         def movement_keeps_aim():

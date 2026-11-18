@@ -304,3 +304,11 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - With mouse and keyboard as the last-used input, gameplay shows a live physical cursor plus a simple screenshot-visible ground-aim reticle; attack clicks continue to reach gameplay. The cursor and reticle hide when gamepad becomes the last-used input.
 - Mouse aim is deprojected every tick while mouse and keyboard is active so camera follow and height changes cannot leave stale facing. A dead radius approximately equal to the 40 cm player capsule radius prevents jitter when the projected cursor is too close to the character.
 - Source: owner decisions supplied with the issue #34 round-2 builder task (2026-11-17).
+
+### Round-3 melee ownership and single-cursor policy
+
+- `Mordecai.State.Attacking` remains activation-owned for the full melee ability lifetime so light and heavy attacks stay mutually exclusive through Recovery and light combo chaining remains within the active ability.
+- A separate loose `Mordecai.State.AttackCommitted` tag is present only during melee Windup and Active. It locks aim-facing for the committed swing direction, then is removed on Recovery so facing resumes without ending `State.Attacking`.
+- Gameplay presents exactly one cursor affordance: mouse/keyboard keeps the physical Win32 position live for aiming but hides the OS cursor and displays only the HUD reticle. Menus, pause, inventory and death restore the normal OS cursor; the gameplay reticle is hidden while paused or when gamepad is last-used.
+- During active gameplay, viewport mouse lock confines the physical cursor to the game window. Menu input releases the lock.
+- Source: owner decisions supplied with the issue #34 round-3 builder task (2026-11-17).

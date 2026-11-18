@@ -135,11 +135,21 @@ void AMordecaiCharacter::SetAimFacingDirection(FVector AimDirection)
 	// Apply immediately for the owning player, then let the authority replicate the character's
 	// normal actor rotation. This keeps local aim responsive without making camera rotation the
 	// movement/facing source again.
+	const float AimYaw = AimDirection.Rotation().Yaw;
 	ApplyAimFacingDirection(AimDirection);
-	if (!HasAuthority())
+	if (!HasAuthority()
+		&& (!bHasSentAimFacingYaw
+			|| ShouldSendAimFacingRPC(LastSentAimFacingYaw, AimYaw)))
 	{
 		ServerSetAimFacingDirection(AimDirection);
+		LastSentAimFacingYaw = AimYaw;
+		bHasSentAimFacingYaw = true;
 	}
+}
+
+bool AMordecaiCharacter::ShouldSendAimFacingRPC(float PreviousYaw, float NewYaw)
+{
+	return FMath::Abs(FMath::FindDeltaAngleDegrees(PreviousYaw, NewYaw)) > 1.f;
 }
 
 bool AMordecaiCharacter::CanUpdateAimFacing() const
@@ -158,7 +168,7 @@ bool AMordecaiCharacter::CanUpdateAimFacing() const
 				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_KnockedDown)
 				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Dodging)
 				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Parrying)
-				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Attacking)));
+				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_AttackCommitted)));
 }
 
 void AMordecaiCharacter::ServerSetAimFacingDirection_Implementation(FVector AimDirection)
