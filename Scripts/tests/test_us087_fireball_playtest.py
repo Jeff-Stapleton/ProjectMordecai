@@ -253,7 +253,8 @@ class TestUs087ReportAndAudit(PlaytestCase):
         self.assertLess(abs(world.pos[0] - 300.0), us087.SHOT_TOL + 1)
         self.assertLess(abs(world.pos[1] - 600.0), us087.SHOT_TOL + 1)
         sent = {request.get("cmd") for request in server.received}
-        self.assertLessEqual(sent, {"ping", "state", "key", "screenshot", "wait", "quit"})
+        self.assertLessEqual(
+            sent, {"ping", "state", "key", "mouse", "screenshot", "wait", "quit"})
         self.assertFalse(any(request.get("route") == "viewport" or request.get("unsafe")
                              for request in server.received))
         acs = {(entry["story"], entry["id"]): entry for entry in report["acs"]}
@@ -356,8 +357,9 @@ class TestUs087PickupLane(PlaytestCase):
         self.assertTrue(all(checks[n]["status"] == "PASS" for n in (
             "pickup_lane_preconditions", "fireball_cast", "pickup_trigger_pass_through",
             "pickup_unchanged", "lane_integrity")))
-        self.assertLessEqual({r.get("cmd") for r in server.received},
-                             {"ping", "state", "key", "screenshot", "wait", "quit"})
+        self.assertLessEqual(
+            {r.get("cmd") for r in server.received},
+            {"ping", "state", "key", "mouse", "screenshot", "wait", "quit"})
         keys = {key for r in server.received if r.get("cmd") == "key"
                 for key in (r.get("keys") or [r.get("key")]) if key}
         self.assertIn("Q", keys); self.assertTrue(keys & {"W", "A", "S", "D"})

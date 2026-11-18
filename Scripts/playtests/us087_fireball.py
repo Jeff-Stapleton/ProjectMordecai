@@ -57,7 +57,8 @@ PLAN = (
     Step("target_preconditions", f"state player,actors -> resolve the live {TARGET_LABEL} by "
          f"label/name or nearest ({TARGET_SPAWN[0]:g},{TARGET_SPAWN[1]:g}), retain exact name; "
          "require full health, no death, and stationary over a baseline watch; then walk_to about "
-         f"{SHOT_DISTANCE:g} cm -X and validate a +X shot line inside 1500 range"),
+         f"{SHOT_DISTANCE:g} cm -X, mouse-aim world +X, and validate a +X shot line inside "
+         "1500 range"),
     Step("fireball_cast", f"tap Q through Slate -> spell_points decreases by {SP_COST:g}; clock "
          "starts before the tap and reports wall/game timing", proves=("AC-087.4", "AC-087.5")),
     Step("projectile_visible", f"continuous state polling -> actors[] kind=='projectile' with "
@@ -211,6 +212,7 @@ class Us087FireballRun(kit.PlaytestRun):
 
             shot = (location1[0] - SHOT_DISTANCE, location1[1])
             walked = self.bridge.walk_to(shot[0], shot[1], tol=SHOT_TOL)
+            aim = kit.aim_world_positive_x(self.bridge)
             state2 = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
             player2 = _player(state2)
             target2 = self._exact_target(state2)
@@ -240,7 +242,8 @@ class Us087FireballRun(kit.PlaytestRun):
             self.preconditions_ok = True
             return ("PASS", f"retained {self.target_label}/{self.target_name} live, full "
                     f"{hp2:g}/{max2:g}, stationary; walked to ({player_pos[0]:.0f},"
-                    f"{player_pos[1]:.0f}); shot line dx={dx:.0f}, dy={dy:.0f}", walked)
+                    f"{player_pos[1]:.0f}); aimed world +X ({aim}); shot line dx={dx:.0f}, "
+                    f"dy={dy:.0f}", walked)
 
         self.attempt("target_preconditions", prepare)
 

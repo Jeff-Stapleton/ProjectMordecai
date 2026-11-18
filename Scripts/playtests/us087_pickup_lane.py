@@ -25,8 +25,9 @@ SCREENSHOTS = {"pickup_lane_crossed": "Isolated test map after real Q: pickup re
                "Fireball cleared its trigger; continuous state, not the still, proves trajectory"}
 PLAN = (
     Step("pickup_lane_preconditions", f"retain native {PICKUP_LABEL}; require live player, "
-         f"yaw 0, Fireball cost 3 at 10 SP; real-WASD walk_to pickup.x-{APPROACH_DISTANCE:g}, "
-         f"same y, within {WALK_TOL:g} cm; require an enemy-free +X lane"),
+         f"control yaw 0, Fireball cost 3 at 10 SP; real-WASD walk_to "
+         f"pickup.x-{APPROACH_DISTANCE:g}, same y, within {WALK_TOL:g} cm; mouse-aim actor yaw "
+         "0/world +X; require an enemy-free +X lane"),
     Step("fireball_cast", "tap Q through Slate -> verified Fireball cost 3, SP 10 -> 7"),
     Step("pickup_trigger_pass_through", f"retain one exact visible projectile without a gap from "
          f"x < pickup.x-{ENVELOPE_RADIUS:g} through "
@@ -129,18 +130,23 @@ class Us087PickupLaneRun(kit.PlaytestRun):
                 return "FAIL", "; ".join(problems), None
             target = (self.pickup_location[0] - APPROACH_DISTANCE, self.pickup_location[1])
             walked = self.bridge.walk_to(*target, tol=WALK_TOL)
+            aim = kit.aim_world_positive_x(self.bridge)
             state1 = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
             player1 = _player(state1)
             pickup1 = self._exact(state1, self.pickup_name)
             player_loc = _loc(player1)
             attrs1 = (player1 or {}).get("attributes") or {}
             health1, max1 = _num(attrs1.get("health")), _num(attrs1.get("max_health"))
+            actor_rotation = (player1 or {}).get("rotation") or []
+            actor_yaw = float(actor_rotation[1]) if len(actor_rotation) >= 2 else None
             if player1 is None or player1.get("name") != self.player_name or player1.get("is_dead"):
                 problems.append("retained player missing/dead after walk")
             if pickup1 is None or _loc(pickup1) != self.pickup_location:
                 problems.append("retained pickup missing/moved after walk")
             if health1 != self.player_health or max1 != self.player_max_health:
                 problems.append(f"player health changed on walk: {health1}/{max1}")
+            if actor_yaw is None or abs(actor_yaw) > 2.0:
+                problems.append(f"actor yaw is not world +X/zero after aim: {actor_rotation}")
             if player_loc is None or math.dist(player_loc[:2], target) > WALK_TOL:
                 problems.append(f"walk ended at {player_loc}, expected {target}")
             if player_loc:
@@ -153,7 +159,8 @@ class Us087PickupLaneRun(kit.PlaytestRun):
                 return "FAIL", "; ".join(problems), walked
             self.preconditions_ok = True
             return ("PASS", f"retained {self.pickup_name} at {self.pickup_location}; player "
-                    f"{self.player_name} at {player_loc}, health {health1}/{max1}, yaw 0; "
+                    f"{self.player_name} at {player_loc}, health {health1}/{max1}, actor/control "
+                    f"yaw {actor_yaw:g}/{rotation[1]:g}; aimed world +X ({aim}); "
                     f"Fireball cost {self.spell_cost:g}, SP {sp:g}/{max_sp:g}; lane clear", walked)
         self.attempt("pickup_lane_preconditions", prepare)
     def cast_and_track(self):

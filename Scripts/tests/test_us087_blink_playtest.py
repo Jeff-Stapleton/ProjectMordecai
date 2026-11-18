@@ -172,7 +172,8 @@ class TestUs087BlinkOutcomes(PlaytestCase):
         self.assertIsNotNone(report["blink"]["invulnerable_cleared_at_wall_s"])
         self.assertFalse(any(entry["accepted"] for entry in report["acs"]))
         sent = {request.get("cmd") for request in server.received}
-        self.assertLessEqual(sent, {"ping", "state", "key", "screenshot", "wait", "quit"})
+        self.assertLessEqual(
+            sent, {"ping", "state", "key", "mouse", "screenshot", "wait", "quit"})
         self.assertFalse(any(request.get("route") == "viewport" or request.get("unsafe")
                              for request in server.received))
         e_keys = [request for request in server.received
