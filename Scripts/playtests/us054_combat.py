@@ -229,7 +229,8 @@ PLAN = (
          f"{DUMMY} below max before the death and full at the respawn, or the {ATTACKER} out of "
          f"{IDLE} before the death and {IDLE} at the respawn), else WARN",
          proves=("US-053:AC-053.8", "US-053:AC-053.9")),
-    Step("respawn_moves", f"hold W {MOVE_HOLD_S:g}s -> player x grows by >= {MOVE_MIN_CM:g} cm",
+    Step("respawn_moves", f"hold W {MOVE_HOLD_S:g}s (retry once after a short correct-direction "
+         f"move) -> player x grows by >= {MOVE_MIN_CM:g} cm",
          proves=("US-053:AC-053.6",)),
     Step("kill_counter_text_matches", "state widgets, player -> the 'Kills: N' text equals "
          "player.kills; 0 when a kill and the death were both seen (the death resets the count)",
@@ -1066,19 +1067,29 @@ class Us054CombatRun(kit.PlaytestRun):
         self.measure("arena_reset", reset, needs=ok, needs_why=why)
 
         def moves(b):
-            # The bridge holds W for 0.4 s of simulated time, so the frame hitch right after the
-            # 'respawned' screenshot no longer cuts the hold short (B3)
             p0 = player(b.state(["player"]))
             if p0 is None:
                 return "FAIL", "no valid player after the respawn", None
             x0 = xy(p0.get("location"))[0]
-            r = b.hold("W", MOVE_HOLD_S) or {}
+            responses = [b.hold("W", MOVE_HOLD_S) or {}]
             p1 = player(b.state(["player"])) or {}
             x1 = (xy(p1.get("location")) or (x0, 0))[0]
+            # A respawn can hitch through most of the first wall-time hold. One second real
+            # hold proves the input path without converting a frame stall into a movement FAIL.
+            simulated_s = responses[0].get("simulated_s")
+            frame_short = (isinstance(simulated_s, (int, float))
+                           and simulated_s < MOVE_HOLD_S * 0.8)
+            if 0 <= x1 - x0 < MOVE_MIN_CM and frame_short:
+                responses.append(b.hold("W", MOVE_HOLD_S) or {})
+                p1 = player(b.state(["player"])) or {}
+                x1 = (xy(p1.get("location")) or (x0, 0))[0]
+            timing = "; ".join(
+                f"{r.get('simulated_s')}s simulated/{r.get('held_s')}s wall/"
+                f"{r.get('frames')} frames" for r in responses)
             return ("PASS" if x1 - x0 >= MOVE_MIN_CM else "FAIL",
-                    f"held W {MOVE_HOLD_S:g}s ({r.get('simulated_s')}s simulated, {r.get('held_s')}s "
-                    f"wall time, {r.get('frames')} frames): x {x0:.0f} -> {x1:.0f} (+{x1 - x0:.0f} "
-                    f"cm, need >= {MOVE_MIN_CM:g})", None)
+                    f"held W {MOVE_HOLD_S:g}s x{len(responses)} ({timing}): "
+                    f"x {x0:.0f} -> {x1:.0f} (+{x1 - x0:.0f} cm, need >= "
+                    f"{MOVE_MIN_CM:g})", responses)
 
         self.measure("respawn_moves", moves, needs=ok, needs_why=why)
 

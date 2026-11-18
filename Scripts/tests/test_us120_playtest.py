@@ -235,6 +235,7 @@ class Us120FakeCase(unittest.TestCase):
                     "3t": {"low": (130.0, 40.0), "top": (210.0, 40.0)},
                 },
             ),
+            mock.patch.object(us120, "CLIFF_VIA", (220.0, 0.0)),
             mock.patch.object(us120, "CLIFF_START", (270.0, 0.0)),
             mock.patch.object(us120, "CLIFF_FACE_X", 300.0),
             mock.patch.object(us120, "CLIFF_MIN_X", 250.0, create=True),

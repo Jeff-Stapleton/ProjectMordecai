@@ -277,8 +277,9 @@ PLAN = (
          "registered with a scene proxy, recently rendered, owner visibility unrestricted, "
          f"length={ARROW_LENGTH:g}, size={ARROW_SIZE:g}, and world forward aligned with the "
          "pawn forward vector", proves=("AC-2.1.5",)),
-    *[Step(check, f"hold {key} {MOVE_HOLD_S:g}s -> player.location moves > {MOVE_MIN:g} cm "
-           f"along {d}, < {CROSS_MAX:g} cm across", proves=("AC-2.1.1", "AC-1.3.2"))
+    *[Step(check, f"hold {key} {MOVE_HOLD_S:g}s (retry once if a frame hitch yields a short "
+           f"correct-direction move) -> player.location moves > {MOVE_MIN:g} cm along {d}, "
+           f"< {CROSS_MAX:g} cm across", proves=("AC-2.1.1", "AC-1.3.2"))
       for check, key, _, _, d in MOVES],
     Step("camera_fixed", f"wait_until player.control_rotation == [{CAMERA_PITCH:g}, 0, 0] "
          f"(+-{CAMERA_TOL:g}) after the moves", proves=("AC-1.2.2",)),
@@ -390,7 +391,8 @@ class Us001Run(kit.PlaytestRun):
 
     def _hold_and_measure(self, key, seconds, before=None, after=None):
         """Read the position, [before()], hold `key` for `seconds`, wait for the player to stop,
-        read again, [after()].  Returns ((p0, p1, held_s, stop_s), None) or (None, why)."""
+        read again, [after()]. Returns ((p0, p1, held_s, stop_s, response), None) or
+        (None, why)."""
         b = self.bridge
         p0, raw = self._player(b)
         if p0 is None:
@@ -404,7 +406,7 @@ class Us001Run(kit.PlaytestRun):
             after()
         if p1 is None:
             return None, f"player section invalid after the input ({raw.get('reason')})"
-        return (p0, p1, r.get("held_s"), stop_s), None
+        return (p0, p1, r.get("held_s"), stop_s, r), None
 
     # --- step 1: boot --------------------------------------------------------------------
     def step_boot(self):
@@ -499,14 +501,36 @@ class Us001Run(kit.PlaytestRun):
                 got, err = self._hold_and_measure(key, MOVE_HOLD_S)
                 if got is None:
                     return "FAIL", err, None
-                p0, p1, held_s, stop_s = got
+                p0, p1, held_s, stop_s, response = got
                 along = (p1[axis] - p0[axis]) * sign
                 across = abs(p1[1 - axis] - p0[1 - axis])
-                rec = self._record(check, f"hold {key} {MOVE_HOLD_S:g}s", p0, p1,
+                attempts = 1
+                # The packaged game can advance only a fraction of the requested hold while its
+                # first post-launch frames hitch. Retry one real hold when direction is correct
+                # but displacement is short; wrong-axis mappings still fail without a retry.
+                simulated_s = response.get("simulated_s")
+                frame_short = (isinstance(simulated_s, (int, float))
+                               and simulated_s < MOVE_HOLD_S * 0.8)
+                if 0 <= along <= MOVE_MIN and across < CROSS_MAX and frame_short:
+                    retry, retry_err = self._hold_and_measure(key, MOVE_HOLD_S)
+                    if retry is None:
+                        return "FAIL", retry_err, None
+                    _, p1, retry_held_s, retry_stop_s, retry_response = retry
+                    held_s = round(held_s + retry_held_s, 3)
+                    stop_s = retry_stop_s
+                    attempts = 2
+                    along = (p1[axis] - p0[axis]) * sign
+                    across = abs(p1[1 - axis] - p0[1 - axis])
+                rec = self._record(check, f"hold {key} {MOVE_HOLD_S:g}s x{attempts}", p0, p1,
                                    {"along": round(along, 1), "across": round(across, 1),
-                                    "held_s": held_s, "stop_s": stop_s})
+                                    "held_s": held_s, "stop_s": stop_s,
+                                    "attempts": attempts,
+                                    "simulated_s": [response.get("simulated_s")]
+                                    + ([retry_response.get("simulated_s")]
+                                       if attempts == 2 else [])})
                 ok = along > MOVE_MIN and across < CROSS_MAX
-                detail = (f"held {key} {held_s}s: ({p0[0]:.0f}, {p0[1]:.0f}) -> ({p1[0]:.0f}, "
+                detail = (f"held {key} {held_s}s over {attempts} attempt(s): "
+                          f"({p0[0]:.0f}, {p0[1]:.0f}) -> ({p1[0]:.0f}, "
                           f"{p1[1]:.0f}); {along:.0f} cm along {direction} (need > {MOVE_MIN:g}), "
                           f"{across:.0f} cm across (need < {CROSS_MAX:g})"
                           + ("" if stop_s is not None else
@@ -610,7 +634,7 @@ class Us001Run(kit.PlaytestRun):
                 after=lambda: b.tap(toggle_key, hold_s=self.TAP_S))  # toggle back
             if got is None:
                 return "FAIL", err, None
-            p0, p1, held_s, _ = got
+            p0, p1, held_s, _, _ = got
             dx = p1[0] - p0[0]
             rec = self._record(check, f"tap {toggle_key}, hold W {SPRINT_HOLD_S:g}s", p0, p1,
                                {"held_s": held_s})
@@ -785,7 +809,7 @@ class Us001Run(kit.PlaytestRun):
             got, err = self._hold_and_measure("W", MOVE_HOLD_S)
             if got is None:
                 return "FAIL", err, None
-            p0, p1, held_s, stop_s = got
+            p0, p1, held_s, stop_s, _ = got
             dx, dy = p1[0] - p0[0], p1[1] - p0[1]
             yaw = _section(b.state(["player"]), "player").get("rotation")
             yaw_value = yaw[1] if isinstance(yaw, list) and len(yaw) > 1 else None
