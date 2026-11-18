@@ -33,13 +33,13 @@ The production work is C++ GAS/runtime logic plus automation and packaged real-i
 - [x] AC-122.10: In a clean packaged build, real Left Shift input drains the visible stamina bar while sprinting, the bar changes to the authoritative low tier colour/tag, and after sprint stops and the delay elapses the bar refills to Green.
 
 ### Round 2 review criteria
-- [ ] AC-122.11: Sprint drains stamina and resets the regeneration delay only while the sprint toggle is active and horizontal speed exceeds 10% of base walk speed. Standing still never drains and can regenerate.
-- [ ] AC-122.12: A sprint toggle auto-clears after 0.25 seconds below the movement threshold, and clears immediately on dodge, attack windup, block, parry, micro-stun, posture break, knockdown, death, respawn, and ASC uninitialization; a newly attached pawn starts unsprinted.
-- [ ] AC-122.13: Sprint speed is always the legacy `WalkSpeed × 1.5`, independent of stamina tier, including at zero stamina.
-- [ ] AC-122.14: Dodge and melee snapshot the authoritative stamina tier before applying their own activation cost; melee retains that snapshot until its real hit lands.
-- [ ] AC-122.15: Every `MaxStamina` change refreshes the authoritative tier, including `RecalculateDerivedStats`; respawn restores full stamina and Green.
-- [ ] AC-122.16: A second spend during the regeneration delay restarts the full delay, and regeneration resumes one full delay after the last moving sprint drain stops.
-- [ ] AC-122.17: The packaged real-input playtest proves idle sprint does not drain and auto-clears, and proves low-stamina moving sprint still reaches 1.5× walk speed.
+- [x] AC-122.11: Sprint drains stamina and resets the regeneration delay only while the sprint toggle is active and horizontal speed exceeds 10% of base walk speed. Standing still never drains and can regenerate.
+- [x] AC-122.12: A sprint toggle auto-clears after 0.25 seconds below the movement threshold, and clears immediately on dodge, attack windup, block, parry, micro-stun, posture break, knockdown, death, respawn, and ASC uninitialization; a newly attached pawn starts unsprinted.
+- [x] AC-122.13: Sprint speed is always the legacy `WalkSpeed × 1.5`, independent of stamina tier, including at zero stamina.
+- [x] AC-122.14: Dodge and melee snapshot the authoritative stamina tier before applying their own activation cost; melee retains that snapshot until its real hit lands.
+- [x] AC-122.15: Every `MaxStamina` change refreshes the authoritative tier, including `RecalculateDerivedStats`; respawn restores full stamina and Green.
+- [x] AC-122.16: A second spend during the regeneration delay restarts the full delay, and regeneration resumes one full delay after the last moving sprint drain stops.
+- [x] AC-122.17: The packaged real-input playtest proves idle sprint does not drain and auto-clears, and proves low-stamina moving sprint still reaches 1.5× walk speed.
 
 ## Technical Notes
 - Add one player runtime owner that binds after `OnAbilitySystemInitialized`, because the player's ASC lives on `AMordecaiPlayerState`; execute stamina mutation only on authority.
@@ -116,9 +116,22 @@ The production work is C++ GAS/runtime logic plus automation and packaged real-i
 - Evidence bundle: agent store `core-143-920209dc/`.
 
 ## Round 2 Definition of Done
-- [ ] Round 2 RED tests fail against the reviewed implementation for the intended production-path reasons and are saved as `red-test-r2.log`
-- [ ] Clean build, targeted `Mordecai.Stamina.Runtime`, full `Mordecai.*`, Python tooling, and PIE verification pass
-- [ ] Fresh package records `dirty=false` and `source_changed_during_build=false`
-- [ ] Extended `Scripts/playtests/us122_stamina_runtime.py` passes with idle auto-clear and low-tier 1.5× sprint checks
-- [ ] Full packaged sweep against the existing main baseline has persistent `pass_to_fail: []`
-- [ ] Round 2 evidence is bundled as `core-143-<shortsha>/` and the draft PR body is updated
+- [x] Round 2 RED tests fail against the reviewed implementation for the intended production-path reasons and are saved as `red-test-r2.log`
+- [x] Clean build, targeted `Mordecai.Stamina.Runtime`, full `Mordecai.*`, Python tooling, and PIE verification pass
+- [x] Fresh package records `dirty=false` and `source_changed_during_build=false`
+- [x] Extended `Scripts/playtests/us122_stamina_runtime.py` passes with idle auto-clear and low-tier 1.5× sprint checks
+- [x] Full packaged sweep against the existing main baseline has persistent `pass_to_fail: []`
+- [x] Round 2 evidence is bundled as `core-143-<shortsha>/` and the draft PR body is updated
+
+## Round 2 Completion Notes
+- Delivered commits: production/tests/design decisions `230a614a272b877b088196eb57e946aa0f8154ec`; final playtest contract `2c72d784d4b1cc04847db3906055e2543390dcd4`.
+- RED: `red-test-r2.log` captured 8 intended production-path failures before implementation (12 PASS, 8 FAIL), including activation-tier snapshots, stationary sprint, interrupt cleanup, MaxStamina refresh, respawn and ASC lifecycle.
+- Tier 1: Development Editor build PASS; standalone `Mordecai.AttributeScaling` PASS; `Mordecai.Stamina.Runtime` 20/20 PASS; full `Mordecai.*` 902/902 PASS. Python tooling 716/716 PASS.
+- Tier 2: full PIE verification PASS after a transient editor asset-registry startup race; the successful ready-editor run is bundled as `green-pie.log`.
+- Package: `Saved/Playtests/package-20261118-103611.log`; `PackagedBuilds/Playtest/build_info.json` records commit `2c72d784d4`, `dirty=false`, and `source_changed_during_build=false`.
+- Tier 3: `Saved/Playtests/20261118-104427-boot` PASS on MovementTestMap: correct Mordecai experience/loading screen, cooked content, no crash, and 3/3 engine frames. Script statistics report `engine_loading.png` non-uniform (stddev 18.7) and `engine_01..03.png` non-uniform (stddev 31.9–32.0). Per the coordinator's PNG rule, no image/video was opened directly.
+- Tier 4: `Saved/Playtests/20261118-104450-us122` PASS (17 PASS, 0 WARN/FAIL/SKIP). Idle sprint settled at 0 cm/s and held stamina 100.0 → 100.0 while auto-clearing; moving sprint drained 100.0 → 94.833; Red remained authoritative at 24.214; low-tier sprint reached 900.0 cm/s; the stopped sprint held stamina through the measured delay and then refilled to 95.132 Green.
+- Script-only image verification: `Saved/Playtests/20261118-104450-us122/image-verification.json` PASS. `bridge_01.png` is non-uniform with 671 Red and 0 Green HUD pixels; `bridge_02.png` is non-uniform with 2,079 Green and 0 Red HUD pixels. No PNG/video was opened directly.
+- Sweep: existing main baseline `Saved/Playtests/20261118-051929-sweep`; final first sweep `Saved/Playtests/20261118-104544-sweep`; `Saved/Playtests/core143-comparison-2c72d784.json` records `pass_to_fail: []`, `persistent_pass_to_fail: []`, and no missing checks. The only failures are the same baseline failures: `us054 enemies_present` and `us078 cycle_prev_shift_tab`. No #135/#141 transient occurred, so the permitted rerun was not needed. Sprint-related US-001, US-083, US-097, US-101 and US-122 checks remained PASS; no movement result was waived.
+- Evidence bundle: agent store `core-143-2c72d784/` contains 35 evidence files plus verified `SHA256SUMS.txt`.
+- Playable status: stamina, sprint and combat HUD — PLAYABLE (input) (`Saved/Playtests/20261118-104450-us122/report.md` + `Saved/Playtests/20261118-104427-boot/report.md` @ `2c72d784d4`).
