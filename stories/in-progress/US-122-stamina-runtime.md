@@ -6,7 +6,7 @@
 **Paired story:** none
 
 ## Overview
-Issue #143 connects the shipped US-008 stamina mathematics to the real player runtime. The PlayerState ASC owns authoritative regeneration, spend delay, tier tags, sprint drain, and the tier multipliers used by melee, dodge, block, sprint, and the HUD.
+Issue #143 connects the shipped US-008 stamina mathematics to the real player runtime. The PlayerState ASC owns authoritative regeneration, spend delay, tier tags, sprint drain, and the tier multipliers used by melee, dodge, block, and the HUD.
 
 ## Execution Mode
 **HEADLESS**
@@ -27,16 +27,25 @@ The production work is C++ GAS/runtime logic plus automation and packaged real-i
 - [x] AC-122.4: Exactly one of `Mordecai.Stamina.Tier.Green`, `.Yellow`, `.Red`, or `.Exhausted` is present on the ASC and changes immediately whenever Stamina or MaxStamina changes.
 - [x] AC-122.5: Green/Yellow/Red/Exhausted tier multipliers 1.25/1.0/0.75/0.5 scale real melee health damage, dodge distance, and block stability/stamina mitigation.
 - [x] AC-122.6: Real attack, dodge, and block abilities still activate at zero stamina; low stamina changes effectiveness and never gates activation.
-- [x] AC-122.7: Toggling sprint applies `Mordecai.State.Sprinting` on the authoritative ASC and continuously drains stamina with `ComputeSprintDrain`; stopping sprint removes the tag and permits regeneration after the most recent drain delay.
-- [x] AC-122.8: Sprint remains active at zero stamina and uses the Exhausted 0.5 multiplier; no automatic stop or stamina gate is introduced.
+- [x] AC-122.7: Toggling sprint applies `Mordecai.State.Sprinting` on the authoritative ASC and continuously drains stamina with `ComputeSprintDrain` while moving; stopping sprint removes the tag and permits regeneration after the most recent drain delay.
+- [x] AC-122.8: Sprint remains permitted at zero stamina and keeps the legacy 1.5x walk speed; no stamina gate is introduced.
 - [x] AC-122.9: The HUD stamina bar gets its tier from the authoritative ASC tier tags, rather than deriving a second tier from the attribute ratio.
 - [x] AC-122.10: In a clean packaged build, real Left Shift input drains the visible stamina bar while sprinting, the bar changes to the authoritative low tier colour/tag, and after sprint stops and the delay elapses the bar refills to Green.
+
+### Round 2 review criteria
+- [ ] AC-122.11: Sprint drains stamina and resets the regeneration delay only while the sprint toggle is active and horizontal speed exceeds 10% of base walk speed. Standing still never drains and can regenerate.
+- [ ] AC-122.12: A sprint toggle auto-clears after 0.25 seconds below the movement threshold, and clears immediately on dodge, attack windup, block, parry, micro-stun, posture break, knockdown, death, respawn, and ASC uninitialization; a newly attached pawn starts unsprinted.
+- [ ] AC-122.13: Sprint speed is always the legacy `WalkSpeed × 1.5`, independent of stamina tier, including at zero stamina.
+- [ ] AC-122.14: Dodge and melee snapshot the authoritative stamina tier before applying their own activation cost; melee retains that snapshot until its real hit lands.
+- [ ] AC-122.15: Every `MaxStamina` change refreshes the authoritative tier, including `RecalculateDerivedStats`; respawn restores full stamina and Green.
+- [ ] AC-122.16: A second spend during the regeneration delay restarts the full delay, and regeneration resumes one full delay after the last moving sprint drain stops.
+- [ ] AC-122.17: The packaged real-input playtest proves idle sprint does not drain and auto-clears, and proves low-stamina moving sprint still reaches 1.5× walk speed.
 
 ## Technical Notes
 - Add one player runtime owner that binds after `OnAbilitySystemInitialized`, because the player's ASC lives on `AMordecaiPlayerState`; execute stamina mutation only on authority.
 - Observe the ASC stamina delegate for all decreases so individual abilities do not duplicate spend-delay notifications.
 - Preserve the current full-stamina respawn behavior.
-- Sprint-at-zero decision for issue #143: continue sprinting and apply the Exhausted 0.5 effectiveness multiplier, matching US-008 AC-008.16 and the “never blocks actions” rule. Record this in `Specs/design_decisions_log.md`.
+- Sprint-at-zero decision for issue #143: sprint remains permitted and keeps the legacy 1.5x walk speed independent of stamina tier, matching the “never blocks actions” rule. Record this in `Specs/design_decisions_log.md`.
 - Do not change capsule radius 40, half-height 90, or step height 45.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
@@ -50,7 +59,7 @@ The production work is C++ GAS/runtime logic plus automation and packaged real-i
 - `Mordecai.Stamina.Runtime.LowTierScalesBlockStability` — a real blocked hit drains stamina using tier-scaled stability (AC-122.5)
 - `Mordecai.Stamina.Runtime.SprintDrainsAndTags` — real Character sprint toggle applies the authority tag and drains over runtime ticks (AC-122.7)
 - `Mordecai.Stamina.Runtime.ZeroStaminaActionsActivate` — granted attack, dodge, and block activate through their real input tags at zero (AC-122.6)
-- `Mordecai.Stamina.Runtime.ZeroStaminaSprintContinues` — sprint remains on and uses the exhausted multiplier after crossing zero (AC-122.8)
+- `Mordecai.Stamina.Runtime.ZeroStaminaSprintContinues` — sprint remains on and keeps the tier-independent 1.5x speed after crossing zero (AC-122.8)
 - `Mordecai.Stamina.Runtime.DeadDoesNotRegenerate` — dead players do not regenerate (AC-122.3)
 ### Tier 2 — PIE smoke (editor integration)
 - `Scripts/verify_pie_stamina_runtime.py` — verifies the live PlayerState ASC owns one tier tag and the HUD reads that tag; direct stamina mutations are labelled `[LOGIC]`
@@ -62,20 +71,22 @@ The production work is C++ GAS/runtime logic plus automation and packaged real-i
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → `B_MordecaiArenaExperience`); Tier 4: `py Scripts/playtests/us122_stamina_runtime.py` on the same package
-- **Player steps:** walk with WASD to lane L1; tap Left Shift to start sprint; hold W until stamina reaches a low tier; capture the drained HUD; tap Left Shift to stop; wait through the spend delay and until stamina refills; capture the refilled HUD.
+- **Player steps:** walk with WASD to lane L1; toggle sprint while still and verify it auto-clears without drain; start a moving sprint; hold W/S until stamina reaches a low tier; verify the low-tier sprint still reaches 1.5× walk speed; capture the drained HUD; stop; wait through the spend delay and until stamina refills; capture the refilled HUD.
 - **Visible on screen:** the Mordecai HUD stamina bar is visibly drained and Red/Exhausted in the first capture, then visibly refilled and Green in the second. Image verification is performed by script and recorded in `image-verification.json`; per issue #143 instructions, PNGs/video are not opened with the file-read tool.
-- **Proof:** Tier 3 proves the packaged map and HUD boot; Tier 4 checks `sprint_drains`, `low_tier_authoritative`, `regen_delay`, and `refills_green`, and captures both frames.
+- **Proof:** Tier 3 proves the packaged map and HUD boot; Tier 4 checks `idle_sprint_auto_clears`, `sprint_drains`, `low_tier_authoritative`, `low_tier_sprint_speed`, `regen_delay`, and `refills_green`, and captures both frames.
 - **Tier 4 script:** `Scripts/playtests/us122_stamina_runtime.py` — run: `py Scripts/playtest_story.py US-122`
 - **Steps:**
 
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
 | 1 | `walk_lane` | `walk_to` three open-floor waypoints ending at `(-300, -800)` on lane L1 | - |
-| 2 | `sprint_drains` | tap LeftShift, hold W in real-input pulses → stamina decreases and `Mordecai.State.Sprinting` is present | AC-122.7 |
-| 3 | `low_tier_authoritative` | continue real sprint until an authoritative Red/Exhausted tier tag is present; capture drained HUD | AC-122.4, AC-122.8, AC-122.9, AC-122.10 |
-| 4 | `regen_delay` | tap LeftShift to stop → sprint tag is removed and stamina stays unchanged during the configured delay | AC-122.2, AC-122.7 |
-| 5 | `refills_green` | wait without input → stamina increases to Green; capture refilled HUD | AC-122.1, AC-122.9, AC-122.10 |
-| 6 | `image_verification` | Pillow verifies both frames are non-uniform and detects Red in the drained HUD and Green in the refilled HUD; write `image-verification.json` | AC-122.10 |
+| 2 | `idle_sprint_auto_clears` | tap LeftShift while still, wait 0.4 s → no stamina drain and `Mordecai.State.Sprinting` auto-clears | AC-122.11, AC-122.12, AC-122.17 |
+| 3 | `sprint_drains` | tap LeftShift, hold W in real-input pulses → stamina decreases and `Mordecai.State.Sprinting` is present | AC-122.7 |
+| 4 | `low_tier_authoritative` | continue real sprint until an authoritative Red/Exhausted tier tag is present | AC-122.4, AC-122.8, AC-122.9, AC-122.10 |
+| 5 | `low_tier_sprint_speed` | while low-tier sprint remains active, hold W and sample `player.speed` → 850–950 cm/s (legacy 600 × 1.5); capture drained HUD | AC-122.13, AC-122.17 |
+| 6 | `regen_delay` | tap LeftShift to stop → sprint tag is removed and stamina stays unchanged during the configured delay | AC-122.2, AC-122.7 |
+| 7 | `refills_green` | wait without input → stamina increases to Green; capture refilled HUD | AC-122.1, AC-122.9, AC-122.10 |
+| 8 | `image_verification` | Pillow verifies both frames are non-uniform and detects Red in the drained HUD and Green in the refilled HUD; write `image-verification.json` | AC-122.10 |
 
 - **Playable alone:** YES
 
@@ -103,3 +114,11 @@ The production work is C++ GAS/runtime logic plus automation and packaged real-i
 - Sweep baseline: fresh `origin/main` commit `e89bec569d`, `Saved/Playtests/20261118-051929-sweep`. Final first sweep: `Saved/Playtests/20261118-071005-sweep`; final permitted same-package rerun: `Saved/Playtests/20261118-071955-sweep`.
 - Sweep comparison: `Saved/Playtests/core143-comparison-920209dc.json` records persistent `pass_to_fail: []`. The first run's #135 `deep_bank_blocks` transient passed the rerun. `enemies_present` and `cycle_prev_shift_tab` fail on the baseline as well. Sprint movement checks remained PASS; no movement result was waived. US-101 remains PASS with the intentional Green-tier block drain of 9.375 and runtime refill.
 - Evidence bundle: agent store `core-143-920209dc/`.
+
+## Round 2 Definition of Done
+- [ ] Round 2 RED tests fail against the reviewed implementation for the intended production-path reasons and are saved as `red-test-r2.log`
+- [ ] Clean build, targeted `Mordecai.Stamina.Runtime`, full `Mordecai.*`, Python tooling, and PIE verification pass
+- [ ] Fresh package records `dirty=false` and `source_changed_during_build=false`
+- [ ] Extended `Scripts/playtests/us122_stamina_runtime.py` passes with idle auto-clear and low-tier 1.5× sprint checks
+- [ ] Full packaged sweep against the existing main baseline has persistent `pass_to_fail: []`
+- [ ] Round 2 evidence is bundled as `core-143-<shortsha>/` and the draft PR body is updated

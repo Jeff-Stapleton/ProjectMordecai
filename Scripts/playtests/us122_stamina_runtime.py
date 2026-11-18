@@ -3,9 +3,11 @@
 
 The run reaches MovementTestMap's open lane, toggles sprint with Left Shift,
 alternates W/S so it can drain the authoritative PlayerState stamina without
-running into a boundary, stops sprinting, verifies the post-spend delay, and
-watches stamina refill to Green. Screenshots are verified with Pillow and the
-machine-readable result is written beside the report as image-verification.json.
+running into a boundary, proves an idle toggle auto-clears without draining,
+checks low-tier sprint still reaches the legacy 1.5x speed, stops sprinting,
+verifies the post-spend delay, and watches stamina refill to Green. Screenshots
+are verified with Pillow and the machine-readable result is written beside the
+report as image-verification.json.
 """
 
 import json
@@ -33,9 +35,14 @@ TAG_EXHAUSTED = "Mordecai.Stamina.Tier.Exhausted"
 LOW_TAGS = (TAG_RED, TAG_EXHAUSTED)
 LANE_WAYPOINTS = ((-650.0, 0.0), (-700.0, -650.0), (-300.0, -800.0))
 PULSE_S = 0.5
+IDLE_CLEAR_WAIT_S = 0.4
 LOW_STAMINA = 25.0
 DELAY_OBSERVE_S = 0.75
 REFILLED_STAMINA = 95.0
+LOW_TIER_SPEED_HOLD_S = 0.5
+LOW_TIER_SPRINT_SPEED_MIN = 850.0
+LOW_TIER_SPRINT_SPEED_MAX = 950.0
+SPEED_POLL_S = 0.03
 
 SCREENSHOTS = {
     "drained": "MovementTestMap with the Mordecai HUD stamina bar visibly low and Red/Exhausted",
@@ -44,6 +51,10 @@ SCREENSHOTS = {
 
 PLAN = (
     Step("walk_lane", "walk_to three open-floor waypoints ending at (-300, -800) on lane L1"),
+    Step("idle_sprint_auto_clears",
+         f"tap {SPRINT_KEY} while standing still, wait {IDLE_CLEAR_WAIT_S:g}s -> stamina does "
+         f"not decrease and '{TAG_SPRINTING}' auto-clears", proves=("AC-122.11", "AC-122.12",
+                                                                    "AC-122.17")),
     Step("sprint_drains",
          f"tap {SPRINT_KEY}, hold W {PULSE_S:g}s -> '{TAG_SPRINTING}' in player.tags and "
          "player.attributes.stamina decreases", proves=("AC-122.7",)),
@@ -51,6 +62,10 @@ PLAN = (
          f"alternate real W/S holds while sprint remains tagged until stamina <= {LOW_STAMINA:g}; "
          f"'{TAG_RED}' or '{TAG_EXHAUSTED}' is authoritative; capture drained HUD",
          proves=("AC-122.4", "AC-122.8", "AC-122.9", "AC-122.10")),
+    Step("low_tier_sprint_speed",
+         f"while low-tier sprint remains active, hold W {LOW_TIER_SPEED_HOLD_S:g}s and sample "
+         f"player.speed -> {LOW_TIER_SPRINT_SPEED_MIN:g}..{LOW_TIER_SPRINT_SPEED_MAX:g} cm/s "
+         "(legacy 600 x 1.5 at every tier)", proves=("AC-122.13", "AC-122.17")),
     Step("regen_delay",
          f"tap {SPRINT_KEY} -> sprint tag removed; wait {DELAY_OBSERVE_S:g}s and stamina does "
          "not increase", proves=("AC-122.2", "AC-122.7")),
@@ -124,18 +139,24 @@ class Us122Run(kit.PlaytestRun):
 
     def steps(self):
         reached, _ = self.attempt("walk_lane", self._walk_lane)
+        idle, _ = self.attempt(
+            "idle_sprint_auto_clears", self._idle_sprint_auto_clears,
+            needs=reached, needs_why="not run: lane L1 was not reached")
         sprinted, _ = self.attempt(
             "sprint_drains", self._start_sprint,
-            needs=reached, needs_why="not run: lane L1 was not reached")
+            needs=idle, needs_why="not run: idle sprint did not auto-clear cleanly")
         low, _ = self.attempt(
             "low_tier_authoritative", self._drain_to_low,
             needs=sprinted, needs_why="not run: real sprint did not start and drain stamina")
+        low_speed, _ = self.attempt(
+            "low_tier_sprint_speed", self._low_tier_sprint_speed,
+            needs=low, needs_why="not run: sprint did not reach a low authoritative tier")
         if low:
             self.shot("drained")
             self.drained_path = self.screens[-1]["path"] if self.screens else None
         stopped, _ = self.attempt(
             "regen_delay", self._stop_and_check_delay,
-            needs=sprinted, needs_why="not run: sprint did not start")
+            needs=low_speed, needs_why="not run: low-tier sprint speed was not verified")
         refilled, _ = self.attempt(
             "refills_green", self._wait_for_refill,
             needs=stopped, needs_why="not run: sprint was not stopped cleanly")
@@ -164,6 +185,25 @@ class Us122Run(kit.PlaytestRun):
             "at": round(time.monotonic(), 3),
         })
         return stamina, tags
+
+    def _idle_sprint_auto_clears(self):
+        before, _ = self._sample("before_idle_toggle")
+        if before is None:
+            return "FAIL", "player.attributes.stamina is unavailable", None
+        self.bridge.tap(SPRINT_KEY, hold_s=0.1)
+        time.sleep(IDLE_CLEAR_WAIT_S)
+        after, tags = self._sample("after_idle_clear")
+        problems = []
+        if after is None or after < before - 0.1:
+            problems.append(f"standing sprint drained stamina ({before} -> {after})")
+        if TAG_SPRINTING in tags:
+            problems.append(f"'{TAG_SPRINTING}' did not auto-clear (tags {tags})")
+        detail = (
+            f"tap {SPRINT_KEY} while still, wait {IDLE_CLEAR_WAIT_S:g}s: stamina "
+            f"{before} -> {after}; tags {tags}")
+        return ("FAIL" if problems else "PASS"), (
+            detail + (f" -- {'; '.join(problems)}" if problems else "")), {
+                "before": before, "after": after, "tags": tags}
 
     def _start_sprint(self):
         before, _ = self._sample("before_sprint")
@@ -201,6 +241,32 @@ class Us122Run(kit.PlaytestRun):
             direction = "W" if direction == "S" else "S"
         stamina, tags = self._sample("drain_timeout")
         return "FAIL", f"stamina did not reach {LOW_STAMINA:g} in 15s ({stamina}, tags {tags})", None
+
+    def _low_tier_sprint_speed(self):
+        peak = 0.0
+        self.bridge.press("W")
+        try:
+            deadline = time.monotonic() + LOW_TIER_SPEED_HOLD_S
+            while time.monotonic() < deadline:
+                _, tags, player = player_state(self.bridge)
+                speed = player.get("speed")
+                if isinstance(speed, (int, float)):
+                    peak = max(peak, float(speed))
+                if TAG_SPRINTING not in tags:
+                    return "FAIL", (
+                        f"sprint cleared during the low-tier speed sample (peak {peak}, tags "
+                        f"{tags})"), None
+                time.sleep(SPEED_POLL_S)
+        finally:
+            self.bridge.release("W")
+        stamina, tags = self._sample("low_tier_speed")
+        passed = LOW_TIER_SPRINT_SPEED_MIN <= peak <= LOW_TIER_SPRINT_SPEED_MAX
+        detail = (
+            f"held W {LOW_TIER_SPEED_HOLD_S:g}s at stamina {stamina}: peak speed {peak:.1f} "
+            f"cm/s (expected {LOW_TIER_SPRINT_SPEED_MIN:g}.."
+            f"{LOW_TIER_SPRINT_SPEED_MAX:g}); tags {tags}")
+        return ("PASS" if passed else "FAIL"), detail, {
+            "peak_speed": peak, "stamina": stamina, "tags": tags}
 
     def _stop_and_check_delay(self):
         before, _ = self._sample("before_stop")

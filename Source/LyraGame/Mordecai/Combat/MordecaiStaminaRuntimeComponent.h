@@ -42,6 +42,16 @@ private:
 	void MarkStaminaConsumed();
 	void UpdateTierTags();
 	double GetRuntimeSeconds() const;
+	bool IsSprintingAvatarMoving(const UAbilitySystemComponent* ASC) const;
+	void ClearSprintToggle(UAbilitySystemComponent* ASC);
+
+	/** Horizontal speed above this fraction of base walk speed counts as moving sprint. */
+	UPROPERTY(EditDefaultsOnly, Category = "Mordecai|Stamina|Sprint")
+	float SprintMovementThresholdRatio = 0.1f;
+
+	/** Stationary grace before a toggled sprint clears itself. */
+	UPROPERTY(EditDefaultsOnly, Category = "Mordecai|Stamina|Sprint")
+	float SprintStationaryAutoClearSeconds = 0.25f;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMordecaiStaminaSystem> StaminaSystem;
@@ -49,4 +59,5 @@ private:
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 	FDelegateHandle StaminaChangedHandle;
 	FDelegateHandle MaxStaminaChangedHandle;
+	float StationarySprintSeconds = 0.f;
 };

@@ -2,6 +2,8 @@
 
 #include "MordecaiAttributeSet.h"
 #include "MordecaiAttributeScaling.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiAttributeSet)
@@ -88,8 +90,24 @@ void UMordecaiAttributeSet::RecalculateDerivedStats()
 	AttackSpeedMultiplier.SetBaseValue(1.0f + 0.015f * EffDex);
 	AttackSpeedMultiplier.SetCurrentValue(1.0f + 0.015f * EffDex);
 
-	MaxStamina.SetBaseValue(BaseMaxStaminaValue * (1.0f + 0.04f * EffEnd));
-	MaxStamina.SetCurrentValue(BaseMaxStaminaValue * (1.0f + 0.04f * EffEnd));
+	const float NewMaxStamina =
+		BaseMaxStaminaValue * (1.0f + 0.04f * EffEnd);
+	const AActor* OwningActor = Cast<AActor>(GetOuter());
+	UAbilitySystemComponent* ASC = OwningActor
+		? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwningActor)
+		: nullptr;
+	if (ASC)
+	{
+		// Route the write through the ASC so MaxStamina delegates fire and the
+		// authoritative tier tag refreshes even when only the denominator moves.
+		ASC->SetNumericAttributeBase(GetMaxStaminaAttribute(), NewMaxStamina);
+	}
+	else
+	{
+		// Standalone attribute sets used by pure formula tests have no ASC.
+		MaxStamina.SetBaseValue(NewMaxStamina);
+		MaxStamina.SetCurrentValue(NewMaxStamina);
+	}
 
 	MaxHealth.SetBaseValue(BaseMaxHealthValue * (1.0f + 0.06f * EffCon));
 	MaxHealth.SetCurrentValue(BaseMaxHealthValue * (1.0f + 0.06f * EffCon));

@@ -8,7 +8,6 @@
 #include "Mordecai/MordecaiHeroComponent.h"
 #include "Mordecai/Camera/MordecaiCameraMode_Diorama.h"
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
-#include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiWeaponDataAsset.h"
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
@@ -199,6 +198,9 @@ void AMordecaiCharacter::SetSprinting(bool bNewSprinting)
 {
 	// The owning client predicts the speed change; the server owns the replicated
 	// state, ASC tag, and all stamina mutation.
+	// TODO(DECISION): this immediate client-side toggle is not carried in a
+	// CharacterMovementComponent saved move. Remote-client sprint and movement
+	// prediction need the multiplayer follow-up tracked on issue #95.
 	ApplySprintingState(bNewSprinting);
 	if (!HasAuthority())
 	{
@@ -229,16 +231,16 @@ void AMordecaiCharacter::ApplySprintingState(bool bNewSprinting)
 
 	if (bChanged)
 	{
-		RefreshSprintSpeedForStaminaTier();
+		RefreshSprintSpeed();
 	}
 }
 
 void AMordecaiCharacter::OnRep_IsSprinting()
 {
-	RefreshSprintSpeedForStaminaTier();
+	RefreshSprintSpeed();
 }
 
-void AMordecaiCharacter::RefreshSprintSpeedForStaminaTier()
+void AMordecaiCharacter::RefreshSprintSpeed()
 {
 	UCharacterMovementComponent* CMC = GetCharacterMovement();
 	if (!CMC || AppliedSprintSpeedFactor <= KINDA_SMALL_NUMBER)
@@ -246,13 +248,10 @@ void AMordecaiCharacter::RefreshSprintSpeedForStaminaTier()
 		return;
 	}
 
-	const float TierMultiplier = bIsSprinting
-		? UMordecaiStaminaSystem::GetTierMultiplierFromASC(GetAbilitySystemComponent())
-		: 1.f;
-	const float NewFactor = bIsSprinting ? SprintSpeedMultiplier * TierMultiplier : 1.f;
+	const float NewFactor = bIsSprinting ? SprintSpeedMultiplier : 1.f;
 
 	// Rescale rather than overwrite: Block scales MaxWalkSpeed independently and
-	// sprint toggles/tier changes must continue to compose with it.
+	// sprint toggles must continue to compose with it.
 	CMC->MaxWalkSpeed = CMC->MaxWalkSpeed / AppliedSprintSpeedFactor * NewFactor;
 	AppliedSprintSpeedFactor = NewFactor;
 }
@@ -368,6 +367,8 @@ void AMordecaiCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 void AMordecaiCharacter::OnAbilitySystemInitialized()
 {
 	Super::OnAbilitySystemInitialized();
+	// The PlayerState ASC outlives pawns. Never inherit the old pawn's toggle.
+	ApplySprintingState(false);
 	BindToASC();
 	if (EquipmentComponent)
 	{
@@ -380,6 +381,19 @@ void AMordecaiCharacter::OnAbilitySystemInitialized()
 
 void AMordecaiCharacter::OnAbilitySystemUninitialized()
 {
+	// Clear both the pawn flag and the persistent PlayerState ASC tag before
+	// ALyraCharacter detaches the actor info.
+	ApplySprintingState(false);
+	if (HasAuthority())
+	{
+		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+		{
+			ASC->SetLooseGameplayTagCount(
+				MordecaiGameplayTags::State_Sprinting,
+				0,
+				EGameplayTagReplicationState::TagOnly);
+		}
+	}
 	UnbindFromASC();
 	if (EquipmentComponent)
 	{
@@ -411,20 +425,34 @@ void AMordecaiCharacter::BindToASC()
 	UnbindFromASC();
 	HealthChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute())
 		.AddUObject(this, &AMordecaiCharacter::OnHealthChanged);
-	GreenTierChangedHandle = ASC->RegisterGameplayTagEvent(
-		MordecaiGameplayTags::Stamina_Tier_Green, EGameplayTagEventType::AnyCountChange)
-		.AddUObject(this, &AMordecaiCharacter::OnStaminaTierChanged);
-	YellowTierChangedHandle = ASC->RegisterGameplayTagEvent(
-		MordecaiGameplayTags::Stamina_Tier_Yellow, EGameplayTagEventType::AnyCountChange)
-		.AddUObject(this, &AMordecaiCharacter::OnStaminaTierChanged);
-	RedTierChangedHandle = ASC->RegisterGameplayTagEvent(
-		MordecaiGameplayTags::Stamina_Tier_Red, EGameplayTagEventType::AnyCountChange)
-		.AddUObject(this, &AMordecaiCharacter::OnStaminaTierChanged);
-	ExhaustedTierChangedHandle = ASC->RegisterGameplayTagEvent(
-		MordecaiGameplayTags::Stamina_Tier_Exhausted, EGameplayTagEventType::AnyCountChange)
-		.AddUObject(this, &AMordecaiCharacter::OnStaminaTierChanged);
+	const FGameplayTag SprintInterruptTags[] = {
+		MordecaiGameplayTags::State_Dodging.GetTag(),
+		MordecaiGameplayTags::State_AttackCommitted.GetTag(),
+		MordecaiGameplayTags::State_Blocking.GetTag(),
+		MordecaiGameplayTags::State_Parrying.GetTag(),
+		MordecaiGameplayTags::Status_MicroStunned.GetTag(),
+		MordecaiGameplayTags::State_PostureBroken.GetTag(),
+		MordecaiGameplayTags::State_KnockedDown.GetTag(),
+		MordecaiGameplayTags::State_Dead.GetTag()
+	};
+	for (const FGameplayTag& InterruptTag : SprintInterruptTags)
+	{
+		SprintInterruptTagHandles.Add(
+			InterruptTag,
+			ASC->RegisterGameplayTagEvent(
+				InterruptTag, EGameplayTagEventType::NewOrRemoved)
+				.AddUObject(this, &AMordecaiCharacter::OnSprintInterruptTagChanged));
+	}
 	HealthBoundASC = ASC;
-	RefreshSprintSpeedForStaminaTier();
+	for (const FGameplayTag& InterruptTag : SprintInterruptTags)
+	{
+		if (ASC->HasMatchingGameplayTag(InterruptTag))
+		{
+			ApplySprintingState(false);
+			break;
+		}
+	}
+	RefreshSprintSpeed();
 }
 
 void AMordecaiCharacter::UnbindFromASC()
@@ -432,30 +460,26 @@ void AMordecaiCharacter::UnbindFromASC()
 	if (UAbilitySystemComponent* ASC = HealthBoundASC.Get())
 	{
 		ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute()).Remove(HealthChangedHandle);
-		ASC->RegisterGameplayTagEvent(
-			MordecaiGameplayTags::Stamina_Tier_Green, EGameplayTagEventType::AnyCountChange)
-			.Remove(GreenTierChangedHandle);
-		ASC->RegisterGameplayTagEvent(
-			MordecaiGameplayTags::Stamina_Tier_Yellow, EGameplayTagEventType::AnyCountChange)
-			.Remove(YellowTierChangedHandle);
-		ASC->RegisterGameplayTagEvent(
-			MordecaiGameplayTags::Stamina_Tier_Red, EGameplayTagEventType::AnyCountChange)
-			.Remove(RedTierChangedHandle);
-		ASC->RegisterGameplayTagEvent(
-			MordecaiGameplayTags::Stamina_Tier_Exhausted, EGameplayTagEventType::AnyCountChange)
-			.Remove(ExhaustedTierChangedHandle);
+		for (const TPair<FGameplayTag, FDelegateHandle>& Pair : SprintInterruptTagHandles)
+		{
+			ASC->RegisterGameplayTagEvent(
+				Pair.Key, EGameplayTagEventType::NewOrRemoved)
+				.Remove(Pair.Value);
+		}
 	}
 	HealthChangedHandle.Reset();
-	GreenTierChangedHandle.Reset();
-	YellowTierChangedHandle.Reset();
-	RedTierChangedHandle.Reset();
-	ExhaustedTierChangedHandle.Reset();
+	SprintInterruptTagHandles.Reset();
 	HealthBoundASC.Reset();
 }
 
-void AMordecaiCharacter::OnStaminaTierChanged(const FGameplayTag Tag, int32 NewCount)
+void AMordecaiCharacter::OnSprintInterruptTagChanged(
+	const FGameplayTag Tag,
+	int32 NewCount)
 {
-	RefreshSprintSpeedForStaminaTier();
+	if (NewCount > 0 && bIsSprinting)
+	{
+		SetSprinting(false);
+	}
 }
 
 void AMordecaiCharacter::OnHealthChanged(const FOnAttributeChangeData& Data)
@@ -495,6 +519,7 @@ void AMordecaiCharacter::HandlePlayerDeath()
 		return;
 	}
 	bDeathHandled = true;
+	ApplySprintingState(false);
 
 	// Notify game mode for respawn flow (AC-053.4). First: it also ends the life's kill count (issue #6), which the
 	// death screen shows when State_Dead goes on below.
@@ -536,6 +561,7 @@ void AMordecaiCharacter::HandlePlayerDeath()
 void AMordecaiCharacter::HandlePlayerRespawn()
 {
 	bDeathHandled = false;
+	ApplySprintingState(false);
 
 	// AC-053.5: Remove State_Dead tag and restore attributes
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())

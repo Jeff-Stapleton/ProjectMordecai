@@ -170,15 +170,12 @@ private:
 	void BindToASC();
 	void UnbindFromASC();
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
-	void OnStaminaTierChanged(const FGameplayTag Tag, int32 NewCount);
-	void RefreshSprintSpeedForStaminaTier();
+	void OnSprintInterruptTagChanged(const FGameplayTag Tag, int32 NewCount);
+	void RefreshSprintSpeed();
 	void ApplySprintingState(bool bNewSprinting);
 	bool bDeathHandled = false;
 	FDelegateHandle HealthChangedHandle;
-	FDelegateHandle GreenTierChangedHandle;
-	FDelegateHandle YellowTierChangedHandle;
-	FDelegateHandle RedTierChangedHandle;
-	FDelegateHandle ExhaustedTierChangedHandle;
+	TMap<FGameplayTag, FDelegateHandle> SprintInterruptTagHandles;
 	TWeakObjectPtr<UAbilitySystemComponent> HealthBoundASC;
 
 	UFUNCTION()

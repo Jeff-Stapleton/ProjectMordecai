@@ -6,6 +6,7 @@ pin the real-input route, state assertions, reporting, and failure behavior.
 
 import importlib.util
 import json
+import math
 import os
 import sys
 import tempfile
@@ -45,6 +46,7 @@ class StaminaWorld(fb.FakeWorld):
         self.sprinting = False
         self.stamina = 100.0
         self.last_spend_at = None
+        self.stationary_s = 0.0
         self.delay_s = 0.5
         self.drain_per_s = 200.0
         self.regen_per_s = 300.0
@@ -53,20 +55,28 @@ class StaminaWorld(fb.FakeWorld):
         super()._on_key_pressed(key)
         if key == us122.SPRINT_KEY and not self.ignore_sprint and self.game_input_allowed:
             self.sprinting = not self.sprinting
-            if not self.sprinting:
-                self.last_spend_at = self.world_time
+            self.stationary_s = 0.0
+            self.speed = 900.0 if self.sprinting else 600.0
 
     def tick(self, dt):
         super().tick(dt)
         with self.lock:
-            if self.sprinting:
+            moving = math.hypot(*self.vel) > 60.0
+            if self.sprinting and moving:
+                self.stationary_s = 0.0
                 self.stamina = max(0.0, self.stamina - self.drain_per_s * dt)
                 self.last_spend_at = self.world_time
-            elif (
+            else:
+                if self.sprinting:
+                    self.stationary_s += dt
+                    if self.stationary_s >= 0.25:
+                        self.sprinting = False
+                        self.speed = 600.0
+                if (
                 self.last_spend_at is not None
                 and self.world_time - self.last_spend_at >= self.delay_s
-            ):
-                self.stamina = min(100.0, self.stamina + self.regen_per_s * dt)
+                ):
+                    self.stamina = min(100.0, self.stamina + self.regen_per_s * dt)
 
     def _s_player(self):
         state = super()._s_player()
@@ -128,10 +138,12 @@ class Us122FakeCase(unittest.TestCase):
         patches = (
             mock.patch.object(us122, "LANE_WAYPOINTS", ((0.0, 0.0),)),
             mock.patch.object(us122, "PULSE_S", 0.05),
+            mock.patch.object(us122, "IDLE_CLEAR_WAIT_S", 0.3),
             mock.patch.object(us122, "DELAY_OBSERVE_S", 0.075),
+            mock.patch.object(us122, "LOW_TIER_SPEED_HOLD_S", 0.05),
             mock.patch.object(us122, "analyze_hud_image", fake_analysis),
         )
-        with patches[0], patches[1], patches[2], patches[3]:
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
             code = us122.main([
                 "--attach-port", str(server.port),
                 "--token", TOKEN,
@@ -148,8 +160,8 @@ class TestUs122Playtest(Us122FakeCase):
         self.assertEqual(code, 0)
         checks = {check["name"]: check for check in report["checks"]}
         for name in (
-            "sprint_drains", "low_tier_authoritative", "regen_delay",
-            "refills_green", "image_verification",
+            "idle_sprint_auto_clears", "sprint_drains", "low_tier_authoritative",
+            "low_tier_sprint_speed", "regen_delay", "refills_green", "image_verification",
         ):
             self.assertEqual(checks[name]["status"], "PASS", checks[name]["detail"])
         with open(os.path.join(self.run_dir, "image-verification.json"), encoding="utf-8") as stream:
@@ -175,8 +187,9 @@ class TestUs122Playtest(Us122FakeCase):
         self.assertEqual(
             [step.check for step in us122.PLAN],
             [
-                "walk_lane", "sprint_drains", "low_tier_authoritative",
-                "regen_delay", "refills_green", "image_verification",
+                "walk_lane", "idle_sprint_auto_clears", "sprint_drains",
+                "low_tier_authoritative", "low_tier_sprint_speed", "regen_delay",
+                "refills_green", "image_verification",
             ],
         )
 

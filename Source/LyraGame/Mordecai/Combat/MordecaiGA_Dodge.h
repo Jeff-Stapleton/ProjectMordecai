@@ -130,6 +130,7 @@ protected:
 	EMordecaiDodgePhase CurrentDodgePhase = EMordecaiDodgePhase::None;
 	FVector DodgeDirection = FVector::ZeroVector;
 	bool bPerfectDodgeActive = false;
+	float ActivationStaminaTierMultiplier = 1.f;
 
 	FTimerHandle DodgeTimerHandle;
 	FTimerHandle PerfectDodgeTimerHandle;

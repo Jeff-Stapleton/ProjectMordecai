@@ -6,7 +6,9 @@
 #include "AbilitySystemGlobals.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
+#include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiStaminaRuntimeComponent)
 
@@ -71,6 +73,7 @@ void UMordecaiStaminaRuntimeComponent::UnbindFromAbilitySystem()
 	StaminaChangedHandle.Reset();
 	MaxStaminaChangedHandle.Reset();
 	BoundASC.Reset();
+	StationarySprintSeconds = 0.f;
 }
 
 double UMordecaiStaminaRuntimeComponent::GetRuntimeSeconds() const
@@ -166,6 +169,38 @@ void UMordecaiStaminaRuntimeComponent::UpdateTierTags()
 	}
 }
 
+bool UMordecaiStaminaRuntimeComponent::IsSprintingAvatarMoving(
+	const UAbilitySystemComponent* ASC) const
+{
+	const AMordecaiCharacter* Character =
+		ASC ? Cast<AMordecaiCharacter>(ASC->GetAvatarActor()) : nullptr;
+	if (!Character)
+	{
+		return false;
+	}
+
+	const float MovementThreshold = FMath::Max(
+		0.f,
+		Character->WalkSpeed * SprintMovementThresholdRatio);
+	return Character->GetVelocity().Size2D() > MovementThreshold;
+}
+
+void UMordecaiStaminaRuntimeComponent::ClearSprintToggle(UAbilitySystemComponent* ASC)
+{
+	if (AMordecaiCharacter* Character =
+		ASC ? Cast<AMordecaiCharacter>(ASC->GetAvatarActor()) : nullptr)
+	{
+		Character->SetSprinting(false);
+	}
+	else if (ASC)
+	{
+		ASC->SetLooseGameplayTagCount(
+			MordecaiGameplayTags::State_Sprinting,
+			0,
+			EGameplayTagReplicationState::TagOnly);
+	}
+}
+
 void UMordecaiStaminaRuntimeComponent::TickComponent(
 	float DeltaTime,
 	ELevelTick TickType,
@@ -188,19 +223,44 @@ void UMordecaiStaminaRuntimeComponent::TickComponent(
 	// through AMordecaiCharacter::HandlePlayerRespawn, as it did before US-122.
 	if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Dead))
 	{
+		StationarySprintSeconds = 0.f;
 		return;
 	}
 
 	if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting))
 	{
-		// Reset the delay on every sprint-drain attempt, including at the -50
-		// floor, so stopping an exhausted sprint still receives the full delay.
-		MarkStaminaConsumed();
-		ASC->ApplyModToAttribute(
-			UMordecaiAttributeSet::GetStaminaAttribute(),
-			EGameplayModOp::Additive,
-			-StaminaSystem->ComputeSprintDrain(DeltaTime));
-		return;
+		if (IsSprintingAvatarMoving(ASC))
+		{
+			StationarySprintSeconds = 0.f;
+			// Only a moving sprint spends stamina and resets the delay. Attempts
+			// at the -50 floor still count, so regeneration waits until movement
+			// actually stops.
+			const float StaminaBeforeDrain = ASC->GetNumericAttribute(
+				UMordecaiAttributeSet::GetStaminaAttribute());
+			ASC->ApplyModToAttribute(
+				UMordecaiAttributeSet::GetStaminaAttribute(),
+				EGameplayModOp::Additive,
+				-StaminaSystem->ComputeSprintDrain(DeltaTime));
+			if (StaminaBeforeDrain <= -50.f + KINDA_SMALL_NUMBER)
+			{
+				// At the clamp floor no decrease delegate fires, so explicitly
+				// preserve the moving-spend delay semantics.
+				MarkStaminaConsumed();
+			}
+			return;
+		}
+
+		StationarySprintSeconds += DeltaTime;
+		if (StationarySprintSeconds >= SprintStationaryAutoClearSeconds)
+		{
+			ClearSprintToggle(ASC);
+			StationarySprintSeconds = 0.f;
+		}
+		// A stationary toggle neither spends nor blocks regeneration.
+	}
+	else
+	{
+		StationarySprintSeconds = 0.f;
 	}
 
 	const double Now = GetRuntimeSeconds();
