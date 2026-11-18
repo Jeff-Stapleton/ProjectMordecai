@@ -39,6 +39,7 @@ LANE_WAYPOINTS = ((-650.0, 0.0), (-700.0, -650.0), (-300.0, -800.0))
 PULSE_S = 0.5
 DELAYED_MOVE_WAIT_S = 0.5
 IDLE_CLEAR_WAIT_S = 1.35
+STOP_TAP_HOLD_S = 0.01
 STATIONARY_SPEED_MAX = 5.0
 STATIONARY_WAIT_TIMEOUT_S = 2.0
 LOW_STAMINA = 25.0
@@ -371,7 +372,10 @@ class Us122Run(kit.PlaytestRun):
 
     def _stop_and_check_delay(self):
         before, _ = self._sample("before_stop")
-        self.bridge.tap(SPRINT_KEY, hold_s=0.1)
+        # The delay starts at the final stamina spend, not after this input
+        # helper returns. Use a one-frame real tap so the full 0.75s
+        # observation remains inside the specified 1.0s regeneration delay.
+        self.bridge.tap(SPRINT_KEY, hold_s=STOP_TAP_HOLD_S)
         if self.sprint_direction:
             self.bridge.release(self.sprint_direction)
             self.sprint_direction = None

@@ -194,6 +194,15 @@ class TestUs122Playtest(Us122FakeCase):
             entry["msg"]["cmd"] for entry in entries if entry.get("dir") == "send"
         }
         self.assertLessEqual(commands, INPUT_AND_READ)
+        stop_taps = [
+            entry["msg"] for entry in entries
+            if entry.get("dir") == "send"
+            and entry.get("msg", {}).get("cmd") == "key"
+            and entry["msg"].get("action") == "tap"
+            and entry["msg"].get("key") == us122.SPRINT_KEY
+            and entry["msg"].get("hold_s") == us122.STOP_TAP_HOLD_S
+        ]
+        self.assertEqual(len(stop_taps), 1, "sprint stop must use the one-frame tap")
 
     def test_missing_sprint_runtime_fails_honestly(self):
         server = self.serve(ignore_sprint=True)
