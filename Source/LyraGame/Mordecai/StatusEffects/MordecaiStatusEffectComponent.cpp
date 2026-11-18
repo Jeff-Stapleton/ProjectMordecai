@@ -427,14 +427,8 @@ void UMordecaiStatusEffectComponent::OnBreakFreeEvent(const FGameplayEventData* 
 		return;
 	}
 
-	// Check stamina >= cost
-	float CurrentStamina = ASC->GetNumericAttribute(UMordecaiAttributeSet::GetStaminaAttribute());
-	if (CurrentStamina < CachedBreakFreeStaminaCost)
-	{
-		return;
-	}
-
-	// Deduct stamina via instant GE
+	// Low stamina never blocks an action. Spend the full break-free cost and
+	// let UMordecaiAttributeSet clamp the result to the shared -50 floor.
 	UGameplayEffect* StaminaCostGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiBreakFreeStaminaCost"));
 	StaminaCostGE->DurationPolicy = EGameplayEffectDurationType::Instant;
 

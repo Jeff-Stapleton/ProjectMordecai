@@ -44,6 +44,7 @@ private:
 	double GetRuntimeSeconds() const;
 	bool IsSprintingAvatarMoving(const UAbilitySystemComponent* ASC) const;
 	void ClearSprintToggle(UAbilitySystemComponent* ASC);
+	void ResetSprintTracking();
 
 	/** Horizontal speed above this fraction of base walk speed counts as moving sprint. */
 	UPROPERTY(EditDefaultsOnly, Category = "Mordecai|Stamina|Sprint")
@@ -53,6 +54,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Mordecai|Stamina|Sprint")
 	float SprintStationaryAutoClearSeconds = 0.25f;
 
+	/** Delay before a never-moved toggle starts accumulating stationary clear time. */
+	UPROPERTY(EditDefaultsOnly, Category = "Mordecai|Stamina|Sprint")
+	float SprintToggleGraceSeconds = 1.f;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UMordecaiStaminaSystem> StaminaSystem;
 
@@ -60,4 +65,7 @@ private:
 	FDelegateHandle StaminaChangedHandle;
 	FDelegateHandle MaxStaminaChangedHandle;
 	float StationarySprintSeconds = 0.f;
+	float SprintToggleSeconds = 0.f;
+	bool bSprintMovedSinceToggle = false;
+	bool bWasSprinting = false;
 };

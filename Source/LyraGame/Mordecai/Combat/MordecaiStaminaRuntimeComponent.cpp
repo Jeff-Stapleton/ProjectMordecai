@@ -8,7 +8,6 @@
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
-#include "GameFramework/CharacterMovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiStaminaRuntimeComponent)
 
@@ -73,7 +72,15 @@ void UMordecaiStaminaRuntimeComponent::UnbindFromAbilitySystem()
 	StaminaChangedHandle.Reset();
 	MaxStaminaChangedHandle.Reset();
 	BoundASC.Reset();
+	ResetSprintTracking();
+}
+
+void UMordecaiStaminaRuntimeComponent::ResetSprintTracking()
+{
 	StationarySprintSeconds = 0.f;
+	SprintToggleSeconds = 0.f;
+	bSprintMovedSinceToggle = false;
+	bWasSprinting = false;
 }
 
 double UMordecaiStaminaRuntimeComponent::GetRuntimeSeconds() const
@@ -223,14 +230,24 @@ void UMordecaiStaminaRuntimeComponent::TickComponent(
 	// through AMordecaiCharacter::HandlePlayerRespawn, as it did before US-122.
 	if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Dead))
 	{
-		StationarySprintSeconds = 0.f;
+		ResetSprintTracking();
 		return;
 	}
 
 	if (ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting))
 	{
+		if (!bWasSprinting)
+		{
+			StationarySprintSeconds = 0.f;
+			SprintToggleSeconds = 0.f;
+			bSprintMovedSinceToggle = false;
+			bWasSprinting = true;
+		}
+		SprintToggleSeconds += DeltaTime;
+
 		if (IsSprintingAvatarMoving(ASC))
 		{
+			bSprintMovedSinceToggle = true;
 			StationarySprintSeconds = 0.f;
 			// Only a moving sprint spends stamina and resets the delay. Attempts
 			// at the -50 floor still count, so regeneration waits until movement
@@ -250,17 +267,23 @@ void UMordecaiStaminaRuntimeComponent::TickComponent(
 			return;
 		}
 
-		StationarySprintSeconds += DeltaTime;
-		if (StationarySprintSeconds >= SprintStationaryAutoClearSeconds)
+		// A fresh toggle stays armed long enough for a player to press movement.
+		// Once this toggle has moved, or its grace expires, the ordinary stopped
+		// auto-clear begins counting.
+		if (bSprintMovedSinceToggle || SprintToggleSeconds >= SprintToggleGraceSeconds)
 		{
-			ClearSprintToggle(ASC);
-			StationarySprintSeconds = 0.f;
+			StationarySprintSeconds += DeltaTime;
+			if (StationarySprintSeconds >= SprintStationaryAutoClearSeconds)
+			{
+				ClearSprintToggle(ASC);
+				ResetSprintTracking();
+			}
 		}
 		// A stationary toggle neither spends nor blocks regeneration.
 	}
 	else
 	{
-		StationarySprintSeconds = 0.f;
+		ResetSprintTracking();
 	}
 
 	const double Now = GetRuntimeSeconds();

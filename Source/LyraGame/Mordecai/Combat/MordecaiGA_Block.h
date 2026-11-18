@@ -79,7 +79,7 @@ public:
 	/** Compute final damage after block mitigation: IncomingDamage * (1 - Mitigation) (AC-006.3). */
 	float ComputeBlockedDamage(float IncomingDamage) const;
 
-	/** Compute stamina drain for a blocked hit: IncomingDamage * (1 - Stability) (AC-006.4). */
+	/** Compute tier/status-scaled stamina drain for a blocked hit (AC-006.4). */
 	float ComputeStaminaDrain(float IncomingDamage) const;
 
 	/** Check if a hit that lands at the given time qualifies as a perfect block (AC-006.9).

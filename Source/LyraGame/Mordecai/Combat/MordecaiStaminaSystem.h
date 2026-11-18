@@ -140,7 +140,7 @@ public:
 
 	// --- Static Helper (AC-008.8) ---
 
-	/** Query the current tier multiplier from an ASC by reading tier tags.
+	/** Query the current tier multiplier from ASC tier tags and its penalty-scale attribute.
 	 *  Other systems (dodge, attack, block) call this to get effectiveness. */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Stamina", meta = (DisplayName = "Get Stamina Tier Multiplier"))
 	static float GetTierMultiplierFromASC(UAbilitySystemComponent* ASC);

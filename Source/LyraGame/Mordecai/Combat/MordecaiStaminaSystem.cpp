@@ -1,6 +1,7 @@
 // Project Mordecai — Stamina Tier System (US-008)
 
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
+#include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
 
@@ -123,7 +124,21 @@ float UMordecaiStaminaSystem::GetTierMultiplierFromASC(UAbilitySystemComponent* 
 	{
 		return CDO->YellowMultiplier;
 	}
-	return CDO->GetMultiplierForTier(GetTierFromASC(ASC));
+	const float TierMultiplier = CDO->GetMultiplierForTier(GetTierFromASC(ASC));
+	if (TierMultiplier >= CDO->YellowMultiplier)
+	{
+		// Focused forgives penalties, not Green's resource-management bonus.
+		return TierMultiplier;
+	}
+
+	const float PenaltyScale = FMath::Max(
+		0.f,
+		ASC->GetNumericAttribute(
+			UMordecaiAttributeSet::GetStaminaTierPenaltyMultiplierAttribute()));
+	const float ScaledMultiplier =
+		CDO->YellowMultiplier
+		- (CDO->YellowMultiplier - TierMultiplier) * PenaltyScale;
+	return FMath::Clamp(ScaledMultiplier, 0.25f, CDO->YellowMultiplier);
 }
 
 EMordecaiStaminaTier UMordecaiStaminaSystem::GetTierFromASC(const UAbilitySystemComponent* ASC)

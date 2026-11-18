@@ -359,6 +359,42 @@ bool FMordecaiStatusEffect_Rooted_BreakFreeConsumesStamina::RunTest(const FStrin
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiStatusEffect_Rooted_BreakFreeAtLowStamina,
+	"Mordecai.StatusEffect.Rooted.BreakFreeAtLowStamina",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiStatusEffect_Rooted_BreakFreeAtLowStamina::RunTest(
+	const FString& Parameters)
+{
+	FControlDebuffTestEnv Env;
+	if (!TestTrue("Test environment setup", Env.Setup()))
+	{
+		return true;
+	}
+
+	const UMordecaiGE_Rooted* CDO = GetDefault<UMordecaiGE_Rooted>();
+	const float LowStamina = 10.f;
+	Env.ASC->SetNumericAttributeBase(
+		UMordecaiAttributeSet::GetStaminaAttribute(), LowStamina);
+	Env.StatusComp->ApplyStatusEffect(UMordecaiGE_Rooted::StaticClass(), nullptr);
+	TestTrue("Rooted is active", Env.StatusComp->HasStatusEffect(MordecaiGameplayTags::Status_Rooted));
+
+	FGameplayEventData EventData;
+	EventData.Instigator = Env.TestActor;
+	Env.ASC->HandleGameplayEvent(MordecaiGameplayTags::Event_BreakFree, &EventData);
+
+	TestFalse("low stamina does not block break-free",
+		Env.StatusComp->HasStatusEffect(MordecaiGameplayTags::Status_Rooted));
+	TestTrue("break-free still spends its full cost below zero",
+		FMath::IsNearlyEqual(
+			Env.AttrSet->GetStamina(),
+			LowStamina - CDO->RootedBreakFreeStaminaCost,
+			0.01f));
+
+	Env.Teardown();
+	return true;
+}
+
 // ---------------------------------------------------------------------------
 // AC-017.10: Rooted refreshes duration on re-application
 // ---------------------------------------------------------------------------

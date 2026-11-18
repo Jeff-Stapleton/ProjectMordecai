@@ -66,8 +66,23 @@ float UMordecaiGA_Block::ComputeStaminaDrain(float IncomingDamage) const
 		CurrentActorInfo ? GetAbilitySystemComponentFromActorInfo() : nullptr;
 	const float TierMultiplier =
 		UMordecaiStaminaSystem::GetTierMultiplierFromASC(ASC);
-	const float EffectiveStability = FMath::Clamp(Stability * TierMultiplier, 0.f, 1.f);
-	return IncomingDamage * (1.f - EffectiveStability);
+	const float StabilityMultiplier = ASC
+		? FMath::Max(
+			0.f,
+			ASC->GetNumericAttribute(
+				UMordecaiAttributeSet::GetBlockStabilityMultiplierAttribute()))
+		: 1.f;
+	const float StaminaCostMultiplier = ASC
+		? FMath::Max(
+			0.f,
+			ASC->GetNumericAttribute(
+				UMordecaiAttributeSet::GetBlockStaminaCostMultiplierAttribute()))
+		: 1.f;
+	const float EffectiveStability = FMath::Clamp(
+		Stability * TierMultiplier * StabilityMultiplier,
+		0.f,
+		1.f);
+	return IncomingDamage * (1.f - EffectiveStability) * StaminaCostMultiplier;
 }
 
 float UMordecaiGA_Block::GetEffectiveBlockArcDegrees() const

@@ -4,6 +4,8 @@
 
 #include "AbilitySystem/LyraAbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "Character/LyraPawnData.h"
+#include "Character/LyraPawnExtensionComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameModes/LyraGameState.h"
@@ -91,15 +93,30 @@ namespace MordecaiCombatGrantTest
 		}
 
 		/**
-		 * Give the ASC a pawn avatar, as ULyraPawnExtensionComponent does in the game, so its abilities can activate.
-		 * The character is not spawned; nothing ticks.
+		 * Give the ASC a spawned pawn avatar through ULyraPawnExtensionComponent,
+		 * matching the production attachment path so character-side ASC listeners run.
 		 */
 		AMordecaiCharacter* AttachAvatar()
 		{
-			Avatar = NewObject<AMordecaiCharacter>();
-			if (ULyraAbilitySystemComponent* ASC = GetASC())
+			FActorSpawnParameters Params;
+			Params.SpawnCollisionHandlingOverride =
+				ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			Avatar = World
+				? World->SpawnActor<AMordecaiCharacter>(
+					AMordecaiCharacter::StaticClass(),
+					FVector::ZeroVector,
+					FRotator::ZeroRotator,
+					Params)
+				: nullptr;
+			ULyraPawnExtensionComponent* PawnExtension =
+				Avatar
+					? ULyraPawnExtensionComponent::FindPawnExtensionComponent(Avatar)
+					: nullptr;
+			if (PawnExtension && GetASC())
 			{
-				ASC->InitAbilityActorInfo(PlayerState, Avatar);
+				PawnExtension->SetPawnData(
+					NewObject<ULyraPawnData>(GetTransientPackage()));
+				PawnExtension->InitializeAbilitySystem(GetASC(), PlayerState);
 			}
 			return Avatar;
 		}

@@ -25,6 +25,40 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCharacter)
 
+namespace
+{
+	TConstArrayView<FGameplayTag> GetSprintInterruptTags()
+	{
+		static const FGameplayTag Tags[] = {
+			MordecaiGameplayTags::State_Dodging.GetTag(),
+			MordecaiGameplayTags::State_AttackCommitted.GetTag(),
+			MordecaiGameplayTags::State_Blocking.GetTag(),
+			MordecaiGameplayTags::State_Parrying.GetTag(),
+			MordecaiGameplayTags::Status_MicroStunned.GetTag(),
+			MordecaiGameplayTags::State_PostureBroken.GetTag(),
+			MordecaiGameplayTags::State_KnockedDown.GetTag(),
+			MordecaiGameplayTags::State_Dead.GetTag()
+		};
+		return Tags;
+	}
+
+	bool HasSprintInterrupt(const UAbilitySystemComponent* ASC)
+	{
+		if (!ASC)
+		{
+			return false;
+		}
+		for (const FGameplayTag& Tag : GetSprintInterruptTags())
+		{
+			if (ASC->HasMatchingGameplayTag(Tag))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
 AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, WalkSpeed(600.0f)
@@ -215,6 +249,13 @@ void AMordecaiCharacter::ServerSetSprinting_Implementation(bool bNewSprinting)
 
 void AMordecaiCharacter::ApplySprintingState(bool bNewSprinting)
 {
+	// An interrupt already in progress cannot be bypassed by pressing the
+	// sprint toggle after its 0->1 listener fired.
+	if (bNewSprinting && HasSprintInterrupt(GetAbilitySystemComponent()))
+	{
+		return;
+	}
+
 	const bool bChanged = bIsSprinting != bNewSprinting;
 	bIsSprinting = bNewSprinting;
 
@@ -425,17 +466,7 @@ void AMordecaiCharacter::BindToASC()
 	UnbindFromASC();
 	HealthChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetHealthAttribute())
 		.AddUObject(this, &AMordecaiCharacter::OnHealthChanged);
-	const FGameplayTag SprintInterruptTags[] = {
-		MordecaiGameplayTags::State_Dodging.GetTag(),
-		MordecaiGameplayTags::State_AttackCommitted.GetTag(),
-		MordecaiGameplayTags::State_Blocking.GetTag(),
-		MordecaiGameplayTags::State_Parrying.GetTag(),
-		MordecaiGameplayTags::Status_MicroStunned.GetTag(),
-		MordecaiGameplayTags::State_PostureBroken.GetTag(),
-		MordecaiGameplayTags::State_KnockedDown.GetTag(),
-		MordecaiGameplayTags::State_Dead.GetTag()
-	};
-	for (const FGameplayTag& InterruptTag : SprintInterruptTags)
+	for (const FGameplayTag& InterruptTag : GetSprintInterruptTags())
 	{
 		SprintInterruptTagHandles.Add(
 			InterruptTag,
@@ -444,7 +475,7 @@ void AMordecaiCharacter::BindToASC()
 				.AddUObject(this, &AMordecaiCharacter::OnSprintInterruptTagChanged));
 	}
 	HealthBoundASC = ASC;
-	for (const FGameplayTag& InterruptTag : SprintInterruptTags)
+	for (const FGameplayTag& InterruptTag : GetSprintInterruptTags())
 	{
 		if (ASC->HasMatchingGameplayTag(InterruptTag))
 		{

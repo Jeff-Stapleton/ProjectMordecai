@@ -6,17 +6,22 @@
 #include "Misc/ScopeExit.h"
 
 #include "AbilitySystem/LyraAbilitySystemComponent.h"
+#include "Character/LyraPawnData.h"
 #include "Character/LyraPawnExtensionComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayAbilitySpec.h"
+#include "GameplayEffect.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiGA_Block.h"
 #include "Mordecai/Combat/MordecaiGA_Dodge.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Combat/MordecaiGA_Parry.h"
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiPlayerController.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Fear.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Focused.h"
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
 
@@ -131,6 +136,17 @@ namespace MordecaiStaminaRuntimeTest
 		{
 			const FGameplayAbilitySpec* Spec = GetASC()->FindAbilitySpecFromClass(AbilityClass);
 			return Spec && Spec->IsActive();
+		}
+
+		FActiveGameplayEffectHandle ApplyStatus(
+			TSubclassOf<UGameplayEffect> EffectClass) const
+		{
+			ULyraAbilitySystemComponent* ASC = GetASC();
+			const FGameplayEffectSpecHandle Spec =
+				ASC->MakeOutgoingSpec(EffectClass, 1.f, ASC->MakeEffectContext());
+			return Spec.IsValid()
+				? ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get())
+				: FActiveGameplayEffectHandle();
 		}
 
 		void TeardownRuntime()
@@ -335,6 +351,90 @@ bool FMordecai_StaminaRuntime_LowTierScalesMeleeAndDodge::RunTest(const FString&
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_StaminaRuntime_FocusedForgivesRedPenaltyOnMeleeHit,
+	"Mordecai.Stamina.Runtime.FocusedForgivesRedPenaltyOnMeleeHit",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_StaminaRuntime_FocusedForgivesRedPenaltyOnMeleeHit::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiStaminaRuntimeTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	{
+		return true;
+	}
+	AMordecaiEnemyCharacter* Target =
+		Env.SpawnEnemy(FVector(100.f, 0.f, 0.f), {});
+	if (!TestNotNull("real melee target", Target))
+	{
+		return true;
+	}
+	UAbilitySystemComponent* TargetASC = Target->GetAbilitySystemComponent();
+	const float HealthBefore = TargetASC->GetNumericAttribute(
+		UMordecaiAttributeSet::GetHealthAttribute());
+	TestTrue("real Focused effect applied",
+		Env.ApplyStatus(UMordecaiGE_Focused::StaticClass()).IsValid());
+	Env.SetStamina(20.f);
+	Env.Press(MordecaiGameplayTags::Input_LightAttack);
+	for (int32 Frame = 0; Frame < 10
+		&& FMath::IsNearlyEqual(
+			TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute()),
+			HealthBefore);
+		++Frame)
+	{
+		Env.TickFrames(1);
+	}
+	TestEqual("Focused treats the Red penalty as Normal on a real hit",
+		TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute()),
+		HealthBefore - 20.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_StaminaRuntime_FearAmplifiesRedPenaltyOnMeleeHit,
+	"Mordecai.Stamina.Runtime.FearAmplifiesRedPenaltyOnMeleeHit",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_StaminaRuntime_FearAmplifiesRedPenaltyOnMeleeHit::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiStaminaRuntimeTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	{
+		return true;
+	}
+	AMordecaiEnemyCharacter* Target =
+		Env.SpawnEnemy(FVector(100.f, 0.f, 0.f), {});
+	if (!TestNotNull("real melee target", Target))
+	{
+		return true;
+	}
+	UAbilitySystemComponent* TargetASC = Target->GetAbilitySystemComponent();
+	const float HealthBefore = TargetASC->GetNumericAttribute(
+		UMordecaiAttributeSet::GetHealthAttribute());
+	TestTrue("real Fear effect applied",
+		Env.ApplyStatus(UMordecaiGE_Fear::StaticClass()).IsValid());
+	Env.SetStamina(20.f);
+	Env.Press(MordecaiGameplayTags::Input_LightAttack);
+	for (int32 Frame = 0; Frame < 10
+		&& FMath::IsNearlyEqual(
+			TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute()),
+			HealthBefore);
+		++Frame)
+	{
+		Env.TickFrames(1);
+	}
+	TestTrue("Fear scales the Red penalty by 1.5 on a real hit",
+		FMath::IsNearlyEqual(
+			TargetASC->GetNumericAttribute(UMordecaiAttributeSet::GetHealthAttribute()),
+			HealthBefore - 12.5f,
+			0.01f));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_StaminaRuntime_ActivationTierSnapshottedBeforeCost,
 	"Mordecai.Stamina.Runtime.ActivationTierSnapshottedBeforeCost",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -433,6 +533,41 @@ bool FMordecai_StaminaRuntime_LowTierScalesBlockStability::RunTest(const FString
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_StaminaRuntime_BlockAttributesScaleRealDrain,
+	"Mordecai.Stamina.Runtime.BlockAttributesScaleRealDrain",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_StaminaRuntime_BlockAttributesScaleRealDrain::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiStaminaRuntimeTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	{
+		return true;
+	}
+	Env.SetStamina(50.f);
+	Env.GetASC()->SetNumericAttributeBase(
+		UMordecaiAttributeSet::GetBlockStabilityMultiplierAttribute(), 0.5f);
+	Env.GetASC()->SetNumericAttributeBase(
+		UMordecaiAttributeSet::GetBlockStaminaCostMultiplierAttribute(), 2.f);
+	Env.Press(MordecaiGameplayTags::Input_Block);
+	UMordecaiGA_Block* Block = Env.Instance<UMordecaiGA_Block>();
+	if (!TestNotNull("real block instance", Block))
+	{
+		return true;
+	}
+	Env.TickSeconds(Block->GetPerfectBlockWindowSeconds() + 0.05f);
+	const float Before = Env.Stamina();
+	Block->ReceiveBlockedHit(10.f, Env.World->GetTimeSeconds());
+	const float EffectiveStability = Block->Stability * 0.5f;
+	const float ExpectedDrain = 10.f * (1.f - EffectiveStability) * 2.f;
+	TestTrue("block stability and stamina-cost attributes both scale the real drain",
+		FMath::IsNearlyEqual(Before - Env.Stamina(), ExpectedDrain, 0.01f));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_StaminaRuntime_SprintDrainsAndTags,
 	"Mordecai.Stamina.Runtime.SprintDrainsAndTags",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -478,11 +613,64 @@ bool FMordecai_StaminaRuntime_StandingSprintDoesNotDrain::RunTest(
 	const float BeforeToggle = Env.Stamina();
 	Env.Player->GetCharacterMovement()->Velocity = FVector::ZeroVector;
 	Env.Player->SetSprinting(true);
-	Env.TickSeconds(0.35f);
+	Env.TickSeconds(0.75f);
 	TestTrue("standing still with sprint toggled continues regenerating",
 		Env.Stamina() > BeforeToggle);
-	TestFalse("stationary sprint auto-clears after 0.25 seconds", Env.Player->bIsSprinting);
+	TestTrue("the one-second toggle grace keeps an idle sprint available",
+		Env.Player->bIsSprinting);
+	const float DuringGrace = Env.Stamina();
+	Env.TickSeconds(0.55f);
+	TestTrue("standing still never drains stamina", Env.Stamina() >= DuringGrace);
+	TestFalse("stationary sprint clears after grace plus stopped threshold", Env.Player->bIsSprinting);
 	TestFalse("stationary sprint removes the authoritative tag",
+		Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_StaminaRuntime_SprintGraceAllowsDelayedMovement,
+	"Mordecai.Stamina.Runtime.SprintGraceAllowsDelayedMovement",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_StaminaRuntime_SprintGraceAllowsDelayedMovement::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiStaminaRuntimeTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	{
+		return true;
+	}
+	const float Before = Env.Stamina();
+	Env.Player->SetSprinting(true);
+	Env.TickSeconds(0.5f);
+	TestTrue("Shift then waiting 0.5 seconds keeps sprint toggled", Env.Player->bIsSprinting);
+	TestEqual("the stationary grace spends no stamina", Env.Stamina(), Before);
+	Env.TickMovingSeconds(0.15f);
+	TestTrue("starting movement after 0.5 seconds keeps sprint toggled", Env.Player->bIsSprinting);
+	TestTrue("the delayed moving sprint drains stamina", Env.Stamina() < Before);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_StaminaRuntime_MovingSprintSurvivesOneSecond,
+	"Mordecai.Stamina.Runtime.MovingSprintSurvivesOneSecond",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_StaminaRuntime_MovingSprintSurvivesOneSecond::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiStaminaRuntimeTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	{
+		return true;
+	}
+	Env.Player->SetSprinting(true);
+	Env.TickMovingSeconds(1.1f);
+	TestTrue("a continuously moving sprint remains toggled after one second",
+		Env.Player->bIsSprinting);
+	TestTrue("a continuously moving sprint retains its authoritative tag",
 		Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting));
 	return true;
 }
@@ -525,13 +713,15 @@ bool FMordecai_StaminaRuntime_SprintInterruptsClearToggle::RunTest(
 	{
 		FRuntimeEnv Env;
 		ON_SCOPE_EXIT { Env.TeardownRuntime(); };
-		if (!TestTrue("stop runtime world", Env.SetupRuntime()))
+		if (!TestTrue("attack runtime world", Env.SetupRuntime()))
 		{
 			return true;
 		}
 		Env.Player->SetSprinting(true);
-		Env.TickSeconds(0.35f);
-		TestFalse("stopping for 0.25 seconds clears sprint", Env.Player->bIsSprinting);
+		Env.Press(MordecaiGameplayTags::Input_LightAttack);
+		TestFalse("real attack windup clears sprint", Env.Player->bIsSprinting);
+		TestFalse("real attack windup removes sprint tag",
+			Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting));
 	}
 	{
 		FRuntimeEnv Env;
@@ -549,6 +739,35 @@ bool FMordecai_StaminaRuntime_SprintInterruptsClearToggle::RunTest(
 	{
 		FRuntimeEnv Env;
 		ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+		if (!TestTrue("block runtime world", Env.SetupRuntime()))
+		{
+			return true;
+		}
+		Env.Player->SetSprinting(true);
+		Env.Press(MordecaiGameplayTags::Input_Block);
+		TestTrue("real block activates",
+			Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Blocking));
+		TestFalse("real block activation clears sprint", Env.Player->bIsSprinting);
+		TestFalse("real block activation removes sprint tag",
+			Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting));
+	}
+	{
+		FRuntimeEnv Env;
+		ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+		if (!TestTrue("parry runtime world", Env.SetupRuntime()))
+		{
+			return true;
+		}
+		Env.Player->SetSprinting(true);
+		Env.Press(MordecaiGameplayTags::Input_Parry);
+		TestTrue("real parry activates", Env.Active(UMordecaiGA_Parry::StaticClass()));
+		TestFalse("real parry activation clears sprint", Env.Player->bIsSprinting);
+		TestFalse("real parry activation removes sprint tag",
+			Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting));
+	}
+	{
+		FRuntimeEnv Env;
+		ON_SCOPE_EXIT { Env.TeardownRuntime(); };
 		if (!TestTrue("death runtime world", Env.SetupRuntime()))
 		{
 			return true;
@@ -559,6 +778,34 @@ bool FMordecai_StaminaRuntime_SprintInterruptsClearToggle::RunTest(
 		TestFalse("real death removes sprint tag",
 			Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting));
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_StaminaRuntime_SprintToggleRefusedWhileBlocking,
+	"Mordecai.Stamina.Runtime.SprintToggleRefusedWhileBlocking",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_StaminaRuntime_SprintToggleRefusedWhileBlocking::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiStaminaRuntimeTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	{
+		return true;
+	}
+	Env.Press(MordecaiGameplayTags::Input_Block);
+	TestTrue("real block activation owns the blocking tag",
+		Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Blocking));
+	Env.Player->SetSprinting(true);
+	TestFalse("sprint toggle is refused while the real block is active",
+		Env.Player->bIsSprinting);
+	TestFalse("refused sprint adds no authoritative tag",
+		Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting));
+	Env.Release(MordecaiGameplayTags::Input_Block);
+	TestFalse("releasing block does not resurrect the refused sprint",
+		Env.Player->bIsSprinting);
 	return true;
 }
 
@@ -776,9 +1023,33 @@ bool FMordecai_StaminaRuntime_ASCUninitializeClearsSprint::RunTest(
 	TestFalse("ASC uninitialization resets the old pawn toggle", Env.Player->bIsSprinting);
 	TestFalse("ASC uninitialization clears the persistent PlayerState tag",
 		PersistentASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting));
-	PawnExtension->InitializeAbilitySystem(
+
+	// Simulate stale persistent PlayerState state before a replacement pawn attaches.
+	// The new pawn's OnAbilitySystemInitialized reset must clear this independently
+	// of the old pawn's uninitialization cleanup above.
+	PersistentASC->SetLooseGameplayTagCount(
+		MordecaiGameplayTags::State_Sprinting,
+		1,
+		EGameplayTagReplicationState::TagOnly);
+	AMordecaiCharacter* NewPawn = Env.World->SpawnActor<AMordecaiCharacter>(
+		AMordecaiCharacter::StaticClass(),
+		FVector(500.f, 0.f, 0.f),
+		FRotator::ZeroRotator,
+		MordecaiRecoveryTest::FRecoveryTestEnv::AlwaysSpawn());
+	if (!TestNotNull("replacement pawn", NewPawn))
+	{
+		return true;
+	}
+	ULyraPawnExtensionComponent* NewPawnExtension =
+		ULyraPawnExtensionComponent::FindPawnExtensionComponent(NewPawn);
+	if (!TestNotNull("replacement pawn extension", NewPawnExtension))
+	{
+		return true;
+	}
+	NewPawnExtension->SetPawnData(NewObject<ULyraPawnData>(GetTransientPackage()));
+	NewPawnExtension->InitializeAbilitySystem(
 		Env.PlayerState->GetLyraAbilitySystemComponent(), Env.PlayerState);
-	TestFalse("a newly attached pawn starts unsprinted", Env.Player->bIsSprinting);
+	TestFalse("a newly attached pawn starts unsprinted", NewPawn->bIsSprinting);
 	TestFalse("a newly attached pawn does not inherit the sprint tag",
 		PersistentASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting));
 	return true;

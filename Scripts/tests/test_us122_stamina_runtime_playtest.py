@@ -24,7 +24,7 @@ from tests import fake_bridge as fb  # noqa: E402
 
 PLAYTEST = os.path.join(SCRIPTS, "playtests", "us122_stamina_runtime.py")
 TOKEN = "us122-offline-token"
-INPUT_AND_READ = {"ping", "state", "key", "wait", "screenshot"}
+INPUT_AND_READ = {"ping", "state", "key", "axis", "wait", "screenshot"}
 
 
 def load_playtest():
@@ -44,6 +44,9 @@ class StaminaWorld(fb.FakeWorld):
         super().__init__(**kwargs)
         self.ignore_sprint = ignore_sprint
         self.sprinting = False
+        self.blocking = False
+        self.sprint_has_moved = False
+        self.sprint_toggle_s = 0.0
         self.stamina = 100.0
         self.last_spend_at = None
         self.stationary_s = 0.0
@@ -54,20 +57,34 @@ class StaminaWorld(fb.FakeWorld):
     def _on_key_pressed(self, key):
         super()._on_key_pressed(key)
         if key == us122.SPRINT_KEY and not self.ignore_sprint and self.game_input_allowed:
+            if self.blocking:
+                return
             self.sprinting = not self.sprinting
             self.stationary_s = 0.0
+            self.sprint_has_moved = False
+            self.sprint_toggle_s = 0.0
             self.speed = 900.0 if self.sprinting else 600.0
+
+    def set_axis(self, conn_id, key, value):
+        super().set_axis(conn_id, key, value)
+        if key == us122.BLOCK_AXIS:
+            self.blocking = float(value) > 0.0
 
     def tick(self, dt):
         super().tick(dt)
         with self.lock:
             moving = math.hypot(*self.vel) > 60.0
+            if self.sprinting:
+                self.sprint_toggle_s += dt
             if self.sprinting and moving:
+                self.sprint_has_moved = True
                 self.stationary_s = 0.0
                 self.stamina = max(0.0, self.stamina - self.drain_per_s * dt)
                 self.last_spend_at = self.world_time
             else:
-                if self.sprinting:
+                if self.sprinting and (
+                    self.sprint_has_moved or self.sprint_toggle_s >= 1.0
+                ):
                     self.stationary_s += dt
                     if self.stationary_s >= 0.25:
                         self.sprinting = False
@@ -82,6 +99,8 @@ class StaminaWorld(fb.FakeWorld):
         state = super()._s_player()
         state["attributes"]["stamina"] = round(self.stamina, 2)
         tags = list(state["tags"])
+        if self.blocking:
+            tags.append(us122.TAG_BLOCKING)
         if self.sprinting:
             tags.append(us122.TAG_SPRINTING)
         if self.stamina <= 0.0:
@@ -138,12 +157,14 @@ class Us122FakeCase(unittest.TestCase):
         patches = (
             mock.patch.object(us122, "LANE_WAYPOINTS", ((0.0, 0.0),)),
             mock.patch.object(us122, "PULSE_S", 0.05),
-            mock.patch.object(us122, "IDLE_CLEAR_WAIT_S", 0.3),
             mock.patch.object(us122, "DELAY_OBSERVE_S", 0.075),
             mock.patch.object(us122, "LOW_TIER_SPEED_HOLD_S", 0.05),
             mock.patch.object(us122, "analyze_hud_image", fake_analysis),
         )
-        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
+        with (
+            patches[0], patches[1], patches[2],
+            patches[3], patches[4]
+        ):
             code = us122.main([
                 "--attach-port", str(server.port),
                 "--token", TOKEN,
@@ -160,7 +181,8 @@ class TestUs122Playtest(Us122FakeCase):
         self.assertEqual(code, 0)
         checks = {check["name"]: check for check in report["checks"]}
         for name in (
-            "idle_sprint_auto_clears", "sprint_drains", "low_tier_authoritative",
+            "idle_sprint_auto_clears", "block_rejects_sprint", "sprint_drains",
+            "low_tier_authoritative",
             "low_tier_sprint_speed", "regen_delay", "refills_green", "image_verification",
         ):
             self.assertEqual(checks[name]["status"], "PASS", checks[name]["detail"])
@@ -187,7 +209,7 @@ class TestUs122Playtest(Us122FakeCase):
         self.assertEqual(
             [step.check for step in us122.PLAN],
             [
-                "walk_lane", "idle_sprint_auto_clears", "sprint_drains",
+                "walk_lane", "idle_sprint_auto_clears", "block_rejects_sprint", "sprint_drains",
                 "low_tier_authoritative", "low_tier_sprint_speed", "regen_delay",
                 "refills_green", "image_verification",
             ],
