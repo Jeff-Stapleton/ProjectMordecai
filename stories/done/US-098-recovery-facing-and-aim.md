@@ -61,12 +61,12 @@ Camera mode and character rotation logic in C++ (`UMordecaiCameraMode_Diorama`, 
 - **Tier 4 script:** `Scripts/playtests/us001_movement.py` — run: `py Scripts/playtest_story.py US-001`
 - **Steps:**
 
-| Script | Check | Player step → expected | Final packaged result (3b3e8b4c) |
+| Script | Check | Player step → expected | Round-3 packaged result (791eac20) |
 |---|---|---|---|
 | us001 | `facing_mouse_physical` | Win32 `SetCursorPos` to client (1100, 360), with no bridge mouse command → yaw 90 (+-30) within 1s | PASS: yaw 90 |
-| us001 | `single_cursor_mouse` / `attack_click_physical` | physical mouse last-used → OS cursor hidden and HUD reticle visible; Slate-routed LMB still reaches Enhanced Input | PENDING ROUND 3 |
-| us001 | `combo_hit2` | click during Hit 1 combo window → second stamina spend and `State.AttackCommitted`, with no Heavy tag | PENDING ROUND 3 |
-| us001 | `movement_keeps_aim` | with mouse aim still +Y, hold W 0.4s → move >100 cm along +X, <30 cm across, yaw remains 90 (+-30) | PASS: +186 cm X, 0 cm across, yaw 90.852 |
+| us001 | `single_cursor_mouse` / `attack_click_physical` | physical mouse last-used → OS cursor hidden and HUD reticle visible; Slate-routed LMB still reaches Enhanced Input | PASS: one HUD reticle detected; attack started |
+| us001 | `combo_hit2` | click during Hit 1 combo window → second stamina spend and `State.AttackCommitted`, with no Heavy tag | PASS: stamina 92 → 82; no Heavy tag |
+| us001 | `movement_keeps_aim` | with mouse aim still +Y, hold W 0.4s → move >100 cm along +X, <30 cm across, yaw remains 90 (+-30) | PASS: +243 cm X, 0 cm across, yaw 90.307 |
 | us001 | `facing_stick` | axis Gamepad_RightX=-1 held (left, -Y) -> wait_until player.rotation yaw -90 (+-30) within 1s | PASS: yaw -90, retained after release |
 | us001 | `cursor_hidden_gamepad` | right stick becomes last-used input | PASS: cursor hidden |
 
@@ -79,7 +79,7 @@ Camera mode and character rotation logic in C++ (`UMordecaiCameraMode_Diorama`, 
 - [x] Content: none; `py Scripts/check_content_committed.py` exits 0
 - [x] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` exits 0 — never `--allow-stale`
-- [x] On that same fresh package `py Scripts/playtest_story.py US-001`: physical mouse, visible cursor/crosshair, attack click, movement-independent aim, stick aim, gamepad cursor hiding, `camera_fixed`, and `no_camera_rotation_input` all PASS; `--lint` exits 0 — never `--allow-stale`
+- [x] On that same fresh package `py Scripts/playtest_story.py US-001`: physical mouse with hidden OS cursor and one HUD reticle, attack click, combo Hit 2, movement-independent aim, stick aim, gamepad cursor hiding, `camera_fixed`, and `no_camera_rotation_input` all PASS; `--lint` exits 0 — never `--allow-stale`
 - [x] Known issues "Facing and aim are pinned to +X" and N12 marked FIXED/decided in `Specs/agent_playtest_plan_v1.md`
 - [x] Every screenshot is preserved and validated by script into `image-verification.json`; the draft PR remains subject to Mordecai Bot image review before merge (laptop-builder rule in `Specs/design_decisions_log.md`)
 - [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-098]` closing commit
@@ -96,3 +96,14 @@ Camera mode and character rotation logic in C++ (`UMordecaiCameraMode_Diorama`, 
 - Exact-main baseline: `Saved/Playtests/20261117-134636-sweep/summary.json` at `9176ce1f`. Final-package first sweep: `Saved/Playtests/20261117-213159-sweep/summary.json`; same-package rerun: `Saved/Playtests/20261117-214149-sweep/summary.json`. The first sweep passed `move_a`, `respawn_moves`, `cliff_jump_blocked`, and `deep_bank_blocks`; the rerun again passed the two formerly missed short inputs (`move_a`, `respawn_moves`). `%TEMP%\core-34-r2-comparison-3b3e8b4c.json` compares 424 common checks and reports persistent `pass_to_fail=[]`; it records baseline FAIL→PASS for `facing_stick`, `move_a`, `respawn_moves`, and `deep_bank_blocks`. The first sweep retained only baseline failures (`enemies_present`, known `cycle_prev_shift_tab`); rerun-only `sprint_shift` and cliff-approach stalls were not persistent and do not replace first-run passes.
 - Direction audit: the real melee arc query, no-input dodge fallback, Blink, and aimed spells consume actor forward and therefore the new facing. Block remains direction-agnostic because there is no block cone yet.
 - Multiplayer follow-ups only: aim RPC throttling; stale facing after a dropped unreliable packet; saved-move rotation merge; predicted aim path. Server-authority is not claimed without a real multi-client net world.
+
+### Round-3 evidence (2026-11-18)
+
+- Implementation commit `791eac204a26f34f7d65ca3322479fa6564b453e` restores activation-owned `State.Attacking` through Recovery, uses `State.AttackCommitted` only for Windup/Active facing lock, preserves Hit 2 chaining and recovery cancels, presents one HUD reticle with the OS cursor hidden/confined in gameplay, and coalesces aim RPCs until yaw changes by more than 1 degree.
+- RED: `%TEMP%\core-34-r3-red-melee.log` failed the missing activation-owned `State.Attacking` contract; `%TEMP%\core-34-r3-red-exclusivity.log` failed light→heavy and heavy→light Recovery exclusion; `%TEMP%\core-34-r3-red-facing.log` failed the missing committed-facing tag and single-cursor/lock contracts.
+- GREEN: `%TEMP%\core-34-r3-green-build.log` compiled cleanly; `%TEMP%\core-34-r3-green-melee.log` passed 14/14; `%TEMP%\core-34-r3-green-recovery.log` passed 120/120; `%TEMP%\core-34-r3-green-full.log` passed 875/875 Mordecai tests; `%TEMP%\core-34-r3-green-python-full-final.log` passed 712/712 Python tests; `%TEMP%\core-34-r3-green-pie.log` passed all 21 PIE smoke suites. US-001 lint, content guard and LFS smudge check passed.
+- Fresh package PASS: `Saved/Playtests/package-20261117-235916.log`; `PackagedBuilds/Playtest/build_info.json` records `791eac204a26f34f7d65ca3322479fa6564b453e`, `dirty=false`, `source_changed_during_build=false`.
+- Tier 3 PASS: `Saved/Playtests/20261118-001221-boot/report.md`. Script verification found the Mordecai loading capture and all three engine frames non-uniform; each gameplay engine frame contains the centered green facing indicator over MovementTestMap. Desktop captures were non-uniform but partly covered, so engine captures remain primary.
+- Tier 4 PASS: `Saved/Playtests/20261118-001245-us001/report.md`. Win32 `SetCursorPos` produced yaw 90 with `mouse_cursor_shown=false`; the HUD reticle was the single gameplay cursor; Slate LMB started light melee; the ComboWindow LMB chained Hit 2 with stamina 92→82 and no Heavy tag; W moved +243 cm X / 0 cm across at yaw 90.307; right-stick aim reached and retained yaw -90; all short movement inputs passed on their first attempt.
+- Script-only image verification (no PNG was opened by the builder): `%TEMP%\core-34-r3-image-verification-791eac20.json` is PASS. `bridge_01.png` is the open MovementTestMap with combat HUD and centered green facing indicator; `bridge_02.png` retains the fixed camera after lane movement; required `bridge_03.png` is non-uniform (luminance standard deviation 32.942), contains 335 central green pixels at `[654,334,713,343]`, and detects the single white/black HUD reticle at `[1100,360]` (52 white, 8 black pixels); `bridge_04.png` contains the final -Y green facing indicator.
+- Exact-main comparison: baseline `Saved/Playtests/20261117-134636-sweep/summary.json` at `9176ce1f`; first sweep `Saved/Playtests/20261118-001454-sweep/summary.json`; permitted same-package rerun `Saved/Playtests/20261118-002400-sweep/summary.json`; `%TEMP%\core-34-r3-comparison-791eac20.json` compares 424 common checks and reports `pass_to_fail=[]`. Both sweeps passed `move_a`, all other US-001 short movement inputs, `respawn_moves`, and `cliff_jump_blocked`. The repeated `enemies_present` and `deep_bank_blocks` failures were already FAIL on the exact-main baseline; `cycle_prev_shift_tab` remains known.
