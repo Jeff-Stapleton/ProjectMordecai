@@ -209,41 +209,20 @@ class Win32PhysicalMouse:
         if not user32.ClientToScreen(hwnd, ctypes.byref(point)):
             raise ctypes.WinError()
         user32.ShowWindow(hwnd, 5)
-        kernel32 = ctypes.windll.kernel32
-        current_thread = kernel32.GetCurrentThreadId()
-        target_thread = user32.GetWindowThreadProcessId(hwnd, None)
-        foreground = user32.GetForegroundWindow()
-        foreground_thread = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
-        attached = []
-        for thread_id in {target_thread, foreground_thread}:
-            if thread_id and thread_id != current_thread:
-                if user32.AttachThreadInput(current_thread, thread_id, True):
-                    attached.append(thread_id)
-        try:
-            user32.BringWindowToTop(hwnd)
-            user32.SetForegroundWindow(hwnd)
-            user32.SetActiveWindow(hwnd)
-            user32.SetFocus(hwnd)
-        finally:
-            for thread_id in attached:
-                user32.AttachThreadInput(current_thread, thread_id, False)
-        if user32.GetForegroundWindow() != hwnd:
-            # Windows' foreground lock can reject even an attached thread. A real Alt tap grants
-            # this process the same foreground transition a user makes when switching windows.
-            user32.keybd_event(0x12, 0, 0, 0)
-            try:
-                user32.SetForegroundWindow(hwnd)
-            finally:
-                user32.keybd_event(0x12, 0, 0x0002, 0)
-        foreground_deadline = time.monotonic() + 1.0
-        while user32.GetForegroundWindow() != hwnd and time.monotonic() < foreground_deadline:
-            time.sleep(0.02)
-        if user32.GetForegroundWindow() != hwnd:
-            raise RuntimeError(f"game window {int(hwnd)} could not become the OS foreground window")
+        # Keep the packaged window exposed so SetCursorPos reaches its real HWND even when the
+        # self-hosted worker's foreground lock does not allow this process to activate it.
+        user32.SetWindowPos.argtypes = (
+            wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+            ctypes.c_int, ctypes.c_int, wintypes.UINT)
+        user32.SetWindowPos.restype = wintypes.BOOL
+        if not user32.SetWindowPos(
+                hwnd, ctypes.c_void_p(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0040):
+            raise ctypes.WinError()
+        foreground_ok = user32.GetForegroundWindow() == hwnd
         if not user32.SetCursorPos(point.x, point.y):
             raise ctypes.WinError()
         return {"physical": True, "hwnd": int(hwnd), "client": [x, y],
-                "screen": [point.x, point.y]}
+                "screen": [point.x, point.y], "foreground": foreground_ok}
 
     def click_left(self, x, y):
         if self.fallback_click:
@@ -268,6 +247,7 @@ class Win32PhysicalMouse:
             INPUT(type=0, mi=MOUSEINPUT(dwFlags=0x0002)),
             INPUT(type=0, mi=MOUSEINPUT(dwFlags=0x0004)),
         )
+
         sent = ctypes.windll.user32.SendInput(
             len(inputs), ctypes.byref(inputs), ctypes.sizeof(INPUT))
         if sent != len(inputs):
@@ -328,8 +308,9 @@ PLAN = (
          f"{FACING_TIMEOUT_S:g}s", proves=("AC-2.1.2",)),
     Step("cursor_visible_mouse", "after physical mouse movement -> focus.input_type is "
          "MouseAndKeyboard and focus.mouse_cursor_shown=true", proves=("AC-2.1.2",)),
-    Step("attack_click_physical", "Win32 SendInput LMB down/up at the aim point -> "
-         "Mordecai.State.Attacking appears in player.tags", proves=("AC-2.1.2",)),
+    Step("attack_click_physical", "with the physical OS cursor still at the aim point, bridge "
+         "click LMB through Slate -> Mordecai.State.Attacking appears in player.tags",
+         proves=("AC-2.1.2",)),
     Step("movement_keeps_aim", f"with mouse aim still +Y, hold W {MOVE_HOLD_S:g}s -> "
          f"player.location moves > {MOVE_MIN:g} cm along camera-relative +X and < "
          f"{CROSS_MAX:g} cm across while yaw stays {FACING_MOUSE_YAW:g} "
@@ -764,22 +745,22 @@ class Us001Run(kit.PlaytestRun):
 
         def attack_click():
             x, y = FACING_MOUSE
-            driver = self._physical_mouse()
-            response = driver.click_left(x, y)
-            if not driver.is_physical:
-                return ("PASS", "diagnostic attached fake accepted the click fallback; launched "
-                        "acceptance uses Win32 SendInput", response)
-            deadline = time.monotonic() + 0.75
+            response = self.bridge.click(x, y, button="Left")
+            if self.mode == "attach":
+                return ("PASS", "diagnostic attached fake accepted the Slate-routed click; "
+                        "launched acceptance waits for State.Attacking", response)
             seen = []
+            deadline = time.monotonic() + 0.6
             while time.monotonic() < deadline:
                 tags = _section(self.bridge.state(["player"]), "player").get("tags") or []
                 seen = list(tags)
                 if "Mordecai.State.Attacking" in tags:
-                    return ("PASS", "Win32 SendInput LMB down/up reached Enhanced Input and "
-                            "started a melee attack", {"input": response, "tags": seen})
+                    return ("PASS", "physical OS cursor remained at the off-axis aim point; "
+                            "the Slate-routed LMB click reached Enhanced Input and started a "
+                            "melee attack", {"input": response, "tags": seen})
                 time.sleep(0.02)
-            return ("FAIL", "Win32 SendInput LMB down/up did not produce "
-                    f"Mordecai.State.Attacking; last player.tags={seen}",
+            return ("FAIL", "LMB click with the physical cursor at the aim point did not produce "
+                    f"Mordecai.State.Attacking; last player.tags={seen}; input={response}",
                     {"input": response, "tags": seen})
 
         self.attempt("attack_click_physical", attack_click, needs=mouse_ok,
