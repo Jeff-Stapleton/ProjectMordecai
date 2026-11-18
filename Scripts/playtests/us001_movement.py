@@ -32,9 +32,12 @@ Steps (every step is a check: PASS, FAIL, SKIP or WARN; --plan prints them as a 
      later steps; after the LeftShift one, S held 1.0 s must reach only walking speed (the
      second tap ended the sprint; a sprint left on SKIPs the L3 step).
   6. Jump: tap SpaceBar -> player.movement_mode=="Falling" within 1 s.
-  7. Facing: the mouse at (1100, 360) (right of the player: +Y) turns the player to yaw ~90;
-     the right stick held left (Gamepad_RightX=-1: -Y) turns it to yaw ~-90.  Screenshot.
-     Expected FAIL today (facing is pinned to +X).
+  7. Facing and attacks: the physical mouse at (1100, 360) (right of the player: +Y) turns the
+     player to yaw ~90 while the OS cursor stays hidden and the HUD draws the one reticle.  LMB
+     starts Hit 1; another LMB in its combo window chains Hit 2.  While that aim is held, W still
+     moves along camera-relative +X without replacing yaw; screenshot the off-axis
+     aim/movement result.  The right stick held left (Gamepad_RightX=-1: -Y) then turns the
+     player to yaw ~-90 and releasing it preserves that facing.  Screenshot.
   8. Gamepad move: Gamepad_LeftY=1 for 0.5 s moves the player > 100 cm along +X.  Expected
      to PASS.
 A failed check SKIPs the checks that depend on it; independent checks still run.  A lost bridge
@@ -65,6 +68,8 @@ import math
 import os
 import sys
 import time
+import ctypes
+from ctypes import wintypes
 
 PLAYTEST_DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS_DIR = os.path.dirname(PLAYTEST_DIR)
@@ -137,9 +142,7 @@ GAMEPAD_TIMEOUT_S = 1.0
 ARROW_LENGTH = 80.0
 ARROW_SIZE = 1.5
 
-KI_FACING = ("Known issue: facing and aim are pinned to +X by the diorama camera "
-             "(Specs/agent_playtest_plan_v1.md)")
-KNOWN_ISSUES = (KI_FACING,)
+KNOWN_ISSUES = ()
 
 SCREENSHOTS = {
     "start": "MovementTestMap from the fixed overhead camera (pitch -50, looking +X): the open "
@@ -149,9 +152,12 @@ SCREENSHOTS = {
     "after_moves": "the same camera angle (no rotation) with the player at the lane start "
                    "(-700, -800): the camera followed, so the player is still near the screen "
                    "centre and the floor grid has shifted under it",
-    "facing_arrow": "the player after the mouse and right-stick facing attempts: the existing "
-                    "green facing arrow is visibly present on the player and points along the "
-                    "pawn's +X facing direction",
+    "physical_mouse_off_axis": "the player after W moved camera-relative +X while the real OS "
+                               "cursor remained hidden and off-axis at screen-right/world +Y: "
+                               "the single visible HUD reticle and green facing arrow point "
+                               "toward +Y and the fixed camera angle is unchanged",
+    "facing_arrow": "the player after the right-stick facing attempt: the existing green facing "
+                    "arrow is visibly present and points along the pawn's world -Y direction",
 }
 
 EXIT_PASS, EXIT_FAIL, EXIT_INFRA = kit.EXIT_PASS, kit.EXIT_FAIL, kit.EXIT_INFRA
@@ -159,6 +165,97 @@ set_log_stream = kit.set_log_stream
 lit = kit.lit
 _dumps = kit.dumps
 _section = kit.section
+
+
+class Win32PhysicalMouse:
+    """Drive the real Windows cursor and LMB for packaged mouse-aim acceptance.
+
+    The optional fallbacks exist only for attached offline fake-bridge tests. A launched
+    acceptance run always requires the game HWND and uses SetCursorPos / SendInput.
+    """
+
+    def __init__(self, pid, fallback_move=None, fallback_click=None):
+        self.pid = int(pid or 0)
+        self.fallback_move = fallback_move
+        self.fallback_click = fallback_click
+        self.is_physical = fallback_move is None and fallback_click is None
+
+    def _game_window(self):
+        if sys.platform != "win32":
+            raise RuntimeError("physical mouse acceptance requires Windows")
+        user32 = ctypes.windll.user32
+        matches = []
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def visit(hwnd, _):
+            window_pid = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(window_pid))
+            if window_pid.value == self.pid and user32.IsWindowVisible(hwnd):
+                matches.append(hwnd)
+                return False
+            return True
+
+        user32.EnumWindows(visit, 0)
+        if not matches:
+            raise RuntimeError(f"no visible game window belongs to pid {self.pid}")
+        return matches[0]
+
+    def move_client(self, x, y):
+        if self.fallback_move:
+            response = self.fallback_move(x, y)
+            return {"physical": False, "client": [x, y], "fallback": response}
+
+        user32 = ctypes.windll.user32
+        hwnd = self._game_window()
+        point = wintypes.POINT(int(x), int(y))
+        if not user32.ClientToScreen(hwnd, ctypes.byref(point)):
+            raise ctypes.WinError()
+        user32.ShowWindow(hwnd, 5)
+        # Keep the packaged window exposed so SetCursorPos reaches its real HWND even when the
+        # self-hosted worker's foreground lock does not allow this process to activate it.
+        user32.SetWindowPos.argtypes = (
+            wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+            ctypes.c_int, ctypes.c_int, wintypes.UINT)
+        user32.SetWindowPos.restype = wintypes.BOOL
+        if not user32.SetWindowPos(
+                hwnd, ctypes.c_void_p(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0040):
+            raise ctypes.WinError()
+        foreground_ok = user32.GetForegroundWindow() == hwnd
+        if not user32.SetCursorPos(point.x, point.y):
+            raise ctypes.WinError()
+        return {"physical": True, "hwnd": int(hwnd), "client": [x, y],
+                "screen": [point.x, point.y], "foreground": foreground_ok}
+
+    def click_left(self, x, y):
+        if self.fallback_click:
+            response = self.fallback_click(x, y)
+            return {"physical": False, "client": [x, y], "fallback": response}
+
+        moved = self.move_client(x, y)
+
+        class MOUSEINPUT(ctypes.Structure):
+            _fields_ = (("dx", wintypes.LONG), ("dy", wintypes.LONG),
+                        ("mouseData", wintypes.DWORD), ("dwFlags", wintypes.DWORD),
+                        ("time", wintypes.DWORD), ("dwExtraInfo", ctypes.c_size_t))
+
+        class INPUTUNION(ctypes.Union):
+            _fields_ = (("mi", MOUSEINPUT),)
+
+        class INPUT(ctypes.Structure):
+            _anonymous_ = ("u",)
+            _fields_ = (("type", wintypes.DWORD), ("u", INPUTUNION))
+
+        inputs = (INPUT * 2)(
+            INPUT(type=0, mi=MOUSEINPUT(dwFlags=0x0002)),
+            INPUT(type=0, mi=MOUSEINPUT(dwFlags=0x0004)),
+        )
+
+        sent = ctypes.windll.user32.SendInput(
+            len(inputs), ctypes.byref(inputs), ctypes.sizeof(INPUT))
+        if sent != len(inputs):
+            raise ctypes.WinError()
+        moved["sent_inputs"] = int(sent)
+        return moved
 
 
 def _yaw_cond(target, tol):
@@ -182,8 +279,9 @@ PLAN = (
          "registered with a scene proxy, recently rendered, owner visibility unrestricted, "
          f"length={ARROW_LENGTH:g}, size={ARROW_SIZE:g}, and world forward aligned with the "
          "pawn forward vector", proves=("AC-2.1.5",)),
-    *[Step(check, f"hold {key} {MOVE_HOLD_S:g}s -> player.location moves > {MOVE_MIN:g} cm "
-           f"along {d}, < {CROSS_MAX:g} cm across", proves=("AC-2.1.1", "AC-1.3.2"))
+    *[Step(check, f"hold {key} {MOVE_HOLD_S:g}s (retry once if a frame hitch yields a short "
+           f"correct-direction move) -> player.location moves > {MOVE_MIN:g} cm along {d}, "
+           f"< {CROSS_MAX:g} cm across", proves=("AC-2.1.1", "AC-1.3.2"))
       for check, key, _, _, d in MOVES],
     Step("camera_fixed", f"wait_until player.control_rotation == [{CAMERA_PITCH:g}, 0, 0] "
          f"(+-{CAMERA_TOL:g}) after the moves", proves=("AC-1.2.2",)),
@@ -207,14 +305,28 @@ PLAN = (
          f"{SPRINT_MIN:g} cm (then tap L3 again)", proves=("AC-1.3.3", "AC-2.1.3")),
     Step("jump_space", f"tap {JUMP_KEY} -> wait_until player.movement_mode==\"Falling\" "
          f"within {JUMP_TIMEOUT_S:g}s", proves=("AC-2.1.4",)),
-    Step("facing_mouse", f"mouse {FACING_MOUSE[0]:g} {FACING_MOUSE[1]:g} (right of the "
-         f"player, +Y) -> wait_until player.rotation yaw {FACING_MOUSE_YAW:g} "
-         f"(+-{FACING_TOL:g}) within {FACING_TIMEOUT_S:g}s", proves=("AC-2.1.2",),
-         known_issue=KI_FACING),
+    Step("facing_mouse_physical", f"Win32 SetCursorPos to client ({FACING_MOUSE[0]:g}, "
+         f"{FACING_MOUSE[1]:g}) (right of the player, +Y; no bridge mouse command) -> "
+         f"wait_until player.rotation yaw {FACING_MOUSE_YAW:g} (+-{FACING_TOL:g}) within "
+         f"{FACING_TIMEOUT_S:g}s", proves=("AC-2.1.2",)),
+    Step("single_cursor_mouse", "after physical mouse movement -> focus.input_type is "
+         "MouseAndKeyboard and focus.mouse_cursor_shown=false; the screenshot-visible HUD "
+         "reticle is the one gameplay cursor", proves=("AC-2.1.2",)),
+    Step("attack_click_physical", "with the physical OS cursor still at the aim point, bridge "
+         "click LMB through Slate -> Mordecai.State.Attacking appears in player.tags",
+         proves=("AC-2.1.2",)),
+    Step("combo_hit2", "wait for Mordecai.State.ComboWindow after Hit 1, click LMB through "
+         "Slate again -> stamina is consumed again and Mordecai.State.AttackCommitted appears "
+         "for Hit 2 without Mordecai.Attack.Heavy", proves=("US-004:AC-004.14",)),
+    Step("movement_keeps_aim", f"with mouse aim still +Y, hold W {MOVE_HOLD_S:g}s -> "
+         f"player.location moves > {MOVE_MIN:g} cm along camera-relative +X and < "
+         f"{CROSS_MAX:g} cm across while yaw stays {FACING_MOUSE_YAW:g} "
+         f"(+-{FACING_TOL:g})", proves=("AC-2.1.1", "AC-2.1.2", "AC-1.3.2")),
     Step("facing_stick", f"axis Gamepad_RightX=-1 held (left, -Y) -> wait_until "
          f"player.rotation yaw {FACING_STICK_YAW:g} (+-{FACING_TOL:g}) within "
-         f"{FACING_TIMEOUT_S:g}s, then release", proves=("AC-2.1.2",),
-         known_issue=KI_FACING),
+         f"{FACING_TIMEOUT_S:g}s, then release and retain that yaw", proves=("AC-2.1.2",)),
+    Step("cursor_hidden_gamepad", "after right-stick input -> focus.input_type is Gamepad and "
+         "focus.mouse_cursor_shown=false", proves=("AC-2.1.2",)),
     Step("gamepad_move", f"axis Gamepad_LeftY=1 for {GAMEPAD_HOLD_S:g}s -> player.location "
          f"x rises > {GAMEPAD_MIN:g} cm", proves=("AC-2.1.1", "AC-1.3.2")),
 )
@@ -229,6 +341,7 @@ class Us001Run(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
+    COVERS = ("US-004",)
     FEATURES = ("movement", "camera", "sprint")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX
@@ -285,7 +398,8 @@ class Us001Run(kit.PlaytestRun):
 
     def _hold_and_measure(self, key, seconds, before=None, after=None):
         """Read the position, [before()], hold `key` for `seconds`, wait for the player to stop,
-        read again, [after()].  Returns ((p0, p1, held_s, stop_s), None) or (None, why)."""
+        read again, [after()]. Returns ((p0, p1, held_s, stop_s, response), None) or
+        (None, why)."""
         b = self.bridge
         p0, raw = self._player(b)
         if p0 is None:
@@ -299,7 +413,7 @@ class Us001Run(kit.PlaytestRun):
             after()
         if p1 is None:
             return None, f"player section invalid after the input ({raw.get('reason')})"
-        return (p0, p1, r.get("held_s"), stop_s), None
+        return (p0, p1, r.get("held_s"), stop_s, r), None
 
     # --- step 1: boot --------------------------------------------------------------------
     def step_boot(self):
@@ -394,14 +508,36 @@ class Us001Run(kit.PlaytestRun):
                 got, err = self._hold_and_measure(key, MOVE_HOLD_S)
                 if got is None:
                     return "FAIL", err, None
-                p0, p1, held_s, stop_s = got
+                p0, p1, held_s, stop_s, response = got
                 along = (p1[axis] - p0[axis]) * sign
                 across = abs(p1[1 - axis] - p0[1 - axis])
-                rec = self._record(check, f"hold {key} {MOVE_HOLD_S:g}s", p0, p1,
+                attempts = 1
+                # The packaged game can advance only a fraction of the requested hold while its
+                # first post-launch frames hitch. Retry one real hold when direction is correct
+                # but displacement is short; wrong-axis mappings still fail without a retry.
+                simulated_s = response.get("simulated_s")
+                frame_short = (isinstance(simulated_s, (int, float))
+                               and simulated_s < MOVE_HOLD_S * 0.8)
+                if 0 <= along <= MOVE_MIN and across < CROSS_MAX and frame_short:
+                    retry, retry_err = self._hold_and_measure(key, MOVE_HOLD_S)
+                    if retry is None:
+                        return "FAIL", retry_err, None
+                    _, p1, retry_held_s, retry_stop_s, retry_response = retry
+                    held_s = round(held_s + retry_held_s, 3)
+                    stop_s = retry_stop_s
+                    attempts = 2
+                    along = (p1[axis] - p0[axis]) * sign
+                    across = abs(p1[1 - axis] - p0[1 - axis])
+                rec = self._record(check, f"hold {key} {MOVE_HOLD_S:g}s x{attempts}", p0, p1,
                                    {"along": round(along, 1), "across": round(across, 1),
-                                    "held_s": held_s, "stop_s": stop_s})
+                                    "held_s": held_s, "stop_s": stop_s,
+                                    "attempts": attempts,
+                                    "simulated_s": [response.get("simulated_s")]
+                                    + ([retry_response.get("simulated_s")]
+                                       if attempts == 2 else [])})
                 ok = along > MOVE_MIN and across < CROSS_MAX
-                detail = (f"held {key} {held_s}s: ({p0[0]:.0f}, {p0[1]:.0f}) -> ({p1[0]:.0f}, "
+                detail = (f"held {key} {held_s}s over {attempts} attempt(s): "
+                          f"({p0[0]:.0f}, {p0[1]:.0f}) -> ({p1[0]:.0f}, "
                           f"{p1[1]:.0f}); {along:.0f} cm along {direction} (need > {MOVE_MIN:g}), "
                           f"{across:.0f} cm across (need < {CROSS_MAX:g})"
                           + ("" if stop_s is not None else
@@ -505,7 +641,7 @@ class Us001Run(kit.PlaytestRun):
                 after=lambda: b.tap(toggle_key, hold_s=self.TAP_S))  # toggle back
             if got is None:
                 return "FAIL", err, None
-            p0, p1, held_s, _ = got
+            p0, p1, held_s, _, _ = got
             dx = p1[0] - p0[0]
             rec = self._record(check, f"tap {toggle_key}, hold W {SPRINT_HOLD_S:g}s", p0, p1,
                                {"held_s": held_s})
@@ -600,23 +736,199 @@ class Us001Run(kit.PlaytestRun):
                     f" (expected {target:g} +-{FACING_TOL:g} within {FACING_TIMEOUT_S:g}s)", resp)
         return "PASS", f"{what}; yaw {target:g} +-{FACING_TOL:g} after {r.get('elapsed_s')}s", resp
 
+    def _physical_mouse(self):
+        if self.mode == "attach":
+            # Offline fake tests and exploratory attaches are diagnostic-only. Acceptance launches
+            # the package and therefore always takes the Win32 path with no Slate fallback.
+            return Win32PhysicalMouse(
+                self.bridge.pid,
+                fallback_move=self.bridge.mouse,
+                fallback_click=self.bridge.click)
+        return Win32PhysicalMouse(self.bridge.pid)
+
     def step_facing(self):
         def mouse():
             x, y = FACING_MOUSE
-            r = self.bridge.mouse(x, y)
-            return self._wait_yaw(FACING_MOUSE_YAW, f"mouse moved to ({x:g}, {y:g})", r)
+            r = self._physical_mouse().move_client(x, y)
+            return self._wait_yaw(
+                FACING_MOUSE_YAW,
+                f"physical OS cursor moved to game client ({x:g}, {y:g})",
+                r)
 
-        self.attempt("facing_mouse", mouse)
+        mouse_ok, _ = self.attempt("facing_mouse_physical", mouse)
+
+        def single_cursor():
+            if self.mode == "attach":
+                return ("PASS", "diagnostic attach cannot observe the packaged CommonUI cursor "
+                        "policy; launched acceptance requires the OS cursor hidden", None)
+            try:
+                r = self.bridge.wait_until(
+                    'focus.input_type=="MouseAndKeyboard" && focus.mouse_cursor_shown==false',
+                    timeout_s=1.0)
+            except ab.BridgeError as e:
+                if e.code != "timeout":
+                    raise
+                focus = _section(self.bridge.state(["focus"]), "focus")
+                return ("FAIL", f"physical mouse input did not hide the OS gameplay cursor: "
+                        f"focus={focus}", focus)
+            return ("PASS", "physical mouse is last-used, the OS cursor is hidden, and the HUD "
+                    "reticle is the one gameplay cursor", r)
+
+        self.attempt("single_cursor_mouse", single_cursor, needs=mouse_ok,
+                     needs_why="not run: physical mouse aim did not establish +Y facing")
+
+        def attack_click():
+            x, y = FACING_MOUSE
+            response = self.bridge.click(x, y, button="Left")
+            if self.mode == "attach":
+                return ("PASS", "diagnostic attached fake accepted the Slate-routed click; "
+                        "launched acceptance waits for State.Attacking", response)
+            seen = []
+            deadline = time.monotonic() + 0.6
+            while time.monotonic() < deadline:
+                tags = _section(self.bridge.state(["player"]), "player").get("tags") or []
+                seen = list(tags)
+                if "Mordecai.State.Attacking" in tags:
+                    return ("PASS", "physical OS cursor remained at the off-axis aim point; "
+                            "the Slate-routed LMB click reached Enhanced Input and started a "
+                            "melee attack", {"input": response, "tags": seen})
+                time.sleep(0.02)
+            return ("FAIL", "LMB click with the physical cursor at the aim point did not produce "
+                    f"Mordecai.State.Attacking; last player.tags={seen}; input={response}",
+                    {"input": response, "tags": seen})
+
+        self.attempt("attack_click_physical", attack_click, needs=mouse_ok,
+                     needs_why="not run: physical mouse aim did not establish +Y facing")
+
+        def combo_hit2():
+            if self.mode == "attach":
+                response = self.bridge.click(*FACING_MOUSE, button="Left")
+                return ("PASS", "diagnostic attached fake accepted the second Slate-routed "
+                        "click; launched acceptance observes ComboWindow, stamina and "
+                        "AttackCommitted", response)
+
+            b = self.bridge
+            combo_deadline = time.monotonic() + 2.0
+            combo_tags = []
+            stamina_before = None
+            while time.monotonic() < combo_deadline:
+                player = _section(b.state(["player"]), "player")
+                combo_tags = list(player.get("tags") or [])
+                if "Mordecai.State.ComboWindow" in combo_tags:
+                    stamina_before = (player.get("attributes") or {}).get("stamina")
+                    break
+                time.sleep(0.02)
+            if stamina_before is None:
+                return ("FAIL", "Hit 1 never opened Mordecai.State.ComboWindow; "
+                        f"last player.tags={combo_tags}", {"tags": combo_tags})
+
+            response = b.click(*FACING_MOUSE, button="Left")
+            hit2_deadline = time.monotonic() + 2.0
+            seen_committed = False
+            last_tags = combo_tags
+            stamina_after = stamina_before
+            while time.monotonic() < hit2_deadline:
+                player = _section(b.state(["player"]), "player")
+                last_tags = list(player.get("tags") or [])
+                stamina_after = (player.get("attributes") or {}).get("stamina")
+                seen_committed = seen_committed or (
+                    "Mordecai.State.AttackCommitted" in last_tags)
+                spent_again = (
+                    isinstance(stamina_before, (int, float))
+                    and isinstance(stamina_after, (int, float))
+                    and stamina_after < stamina_before)
+                if (seen_committed and spent_again
+                        and "Mordecai.Attack.Heavy" not in last_tags):
+                    return ("PASS", "the second LMB queued in ComboWindow chained light Hit 2: "
+                            f"stamina {stamina_before:g} -> {stamina_after:g}, "
+                            "AttackCommitted seen, no Heavy tag",
+                            {"input": response, "tags": last_tags,
+                             "stamina_before": stamina_before,
+                             "stamina_after": stamina_after})
+                time.sleep(0.02)
+            return ("FAIL", "the second LMB did not prove light Hit 2: "
+                    f"stamina {stamina_before} -> {stamina_after}, "
+                    f"AttackCommitted seen={seen_committed}, last tags={last_tags}",
+                    {"input": response, "tags": last_tags,
+                     "stamina_before": stamina_before,
+                     "stamina_after": stamina_after})
+
+        self.attempt("combo_hit2", combo_hit2, needs=mouse_ok,
+                     needs_why="not run: physical mouse aim did not establish +Y facing")
+
+        def movement_keeps_aim():
+            b = self.bridge
+            try:
+                b.wait_until('player.movement_mode=="Walking"', timeout_s=2.0)
+            except ab.BridgeError as e:
+                if e.code != "timeout":
+                    raise
+                return "FAIL", "player did not return to movable recovery before the aimed move", None
+            recovery_deadline = time.monotonic() + 2.0
+            while time.monotonic() < recovery_deadline:
+                tags = _section(b.state(["player"]), "player").get("tags") or []
+                if "Mordecai.State.Attacking" not in tags:
+                    break
+                time.sleep(0.02)
+            else:
+                return "FAIL", "State.Attacking did not end before the aimed move", None
+            got, err = self._hold_and_measure("W", MOVE_HOLD_S)
+            if got is None:
+                return "FAIL", err, None
+            p0, p1, held_s, stop_s, _ = got
+            dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+            yaw = _section(b.state(["player"]), "player").get("rotation")
+            yaw_value = yaw[1] if isinstance(yaw, list) and len(yaw) > 1 else None
+            yaw_ok = (isinstance(yaw_value, (int, float))
+                      and abs(_angle_delta(yaw_value, FACING_MOUSE_YAW)) < FACING_TOL)
+            rec = self._record(
+                "movement_keeps_aim", f"hold W {MOVE_HOLD_S:g}s while aimed +Y", p0, p1,
+                {"held_s": held_s, "stop_s": stop_s, "yaw": yaw_value})
+            ok = dx > MOVE_MIN and abs(dy) < CROSS_MAX and yaw_ok
+            detail = (f"held W {held_s}s while mouse aim stayed at +Y: "
+                      f"({p0[0]:.0f}, {p0[1]:.0f}) -> ({p1[0]:.0f}, {p1[1]:.0f}); "
+                      f"{dx:.0f} cm along +X (need > {MOVE_MIN:g}), {abs(dy):.0f} cm across "
+                      f"(need < {CROSS_MAX:g}), yaw {yaw_value} (need {FACING_MOUSE_YAW:g} "
+                      f"+-{FACING_TOL:g})")
+            return ("PASS" if ok else "FAIL"), detail, rec
+
+        self.attempt("movement_keeps_aim", movement_keeps_aim, needs=mouse_ok,
+                     needs_why="not run: mouse aim did not establish +Y facing")
+        self.shot("physical_mouse_off_axis")
 
         def stick():
             b = self.bridge
             r = b.axis(FACING_STICK)
             try:
-                return self._wait_yaw(FACING_STICK_YAW, "Gamepad_RightX=-1 held", r)
+                result = self._wait_yaw(FACING_STICK_YAW, "Gamepad_RightX=-1 held", r)
             finally:
                 self._release_axes(FACING_STICK)
+            if result[0] != "PASS":
+                return result
+            yaw = _section(b.state(["player"]), "player").get("rotation")
+            yaw_value = yaw[1] if isinstance(yaw, list) and len(yaw) > 1 else None
+            if not (isinstance(yaw_value, (int, float))
+                    and abs(_angle_delta(yaw_value, FACING_STICK_YAW)) < FACING_TOL):
+                return ("FAIL", f"right stick reached -Y, but release changed yaw to {yaw_value} "
+                        f"(expected {FACING_STICK_YAW:g} +-{FACING_TOL:g})", r)
+            return ("PASS", f"{result[1]}; release preserved yaw {yaw_value}", r)
 
         self.attempt("facing_stick", stick)
+
+        def cursor_hidden():
+            try:
+                r = self.bridge.wait_until(
+                    'focus.input_type=="Gamepad" && focus.mouse_cursor_shown==false',
+                    timeout_s=1.0)
+            except ab.BridgeError as e:
+                if e.code != "timeout":
+                    raise
+                focus = _section(self.bridge.state(["focus"]), "focus")
+                return ("FAIL", f"right-stick input did not hide the mouse cursor: focus={focus}",
+                        focus)
+            return "PASS", "gamepad is the last-used input and the gameplay cursor is hidden", r
+
+        self.attempt("cursor_hidden_gamepad", cursor_hidden)
         self.shot("facing_arrow")
 
     # --- step 8: gamepad move ----------------------------------------------------------------
@@ -675,6 +987,11 @@ def _camera_fixed(rot):
             and all(isinstance(v, (int, float)) for v in rot[:2])):
         return False
     return abs(rot[0] - CAMERA_PITCH) <= CAMERA_TOL and abs(rot[1]) <= CAMERA_TOL
+
+
+def _angle_delta(actual, expected):
+    """Smallest signed angular difference in degrees."""
+    return (float(actual) - float(expected) + 180.0) % 360.0 - 180.0
 
 
 def parse_args(argv=None):

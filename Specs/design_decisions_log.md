@@ -283,3 +283,32 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - **R2 — material slots:** The FBX `ImportedMaterialSlotName` set is authoritative. Match by name, never pad or positionally rename, require `ImportedMaterialSlotName == MaterialSlotName`, and require every slot to be used by a mesh section. The six pond FBXs omit the catalog's `CliffFace` slot (FBX has `Grass`, `YarnRoot`); preserve and report that catalog mismatch.
 - **R3 — textures and budget:** Derive each mesh's texture references from its actual slots/material instances and import only sampled textures. Omit unused CliffFaceB/C, Moss, WoodSlat, Pond_N, StitchSeam, and Height maps until sampled. Give the terrain master neutral engine defaults, set role-appropriate texture LOD groups (`WorldNormalMap` for normals, `World` otherwise), and report complete packaged `.pak + .ucas + .utoc` totals plus cooked terrain size.
 - Source: coordinator rulings for Jeff from the two read-only PR reviews (2026-11-14).
+
+---
+
+## 2026-11-17 — Player aim drives facing (issue #34, US-098)
+
+- **Final decision:** the player character faces the aim direction.
+- Mouse and keyboard aim toward the mouse cursor projected onto the horizontal plane at the character's height.
+- Gamepad aim follows the right-stick direction with a deadzone. Releasing the stick preserves the last facing; movement does not replace an established aim direction.
+- The camera remains fixed at yaw 0 (map north / screen-up is Unreal +X), while WASD and the left stick remain camera-relative and independent of character facing.
+- Melee direction, block facing, backward-dodge fallback and spell aim use the character's facing. Existing combat and spell code that reads `GetActorForwardVector()` remains the shared direction source.
+- Keep the existing player capsule radius 40, half-height 90 and maximum step height 45.
+- Scope remains the local player plus the existing server-authoritative actor-rotation replication path. Any broader multiplayer prediction or reconciliation work is a follow-up, not part of issue #34.
+- Source: owner decision supplied with the issue #34 builder task (2026-11-17).
+
+### Round-2 facing locks and physical mouse
+
+- **Final decision:** aim-facing is locked while the controller ignores look input, the pawn is dead, or the ASC has the real stunned/posture-broken, knocked-down, dodging or parrying state.
+- A melee swing commits its direction during Windup and Active (`Mordecai.State.Attacking`). Aim-facing resumes when Recovery begins.
+- With mouse and keyboard as the last-used input, gameplay shows a live physical cursor plus a simple screenshot-visible ground-aim reticle; attack clicks continue to reach gameplay. The cursor and reticle hide when gamepad becomes the last-used input.
+- Mouse aim is deprojected every tick while mouse and keyboard is active so camera follow and height changes cannot leave stale facing. A dead radius approximately equal to the 40 cm player capsule radius prevents jitter when the projected cursor is too close to the character.
+- Source: owner decisions supplied with the issue #34 round-2 builder task (2026-11-17).
+
+### Round-3 melee ownership and single-cursor policy
+
+- `Mordecai.State.Attacking` remains activation-owned for the full melee ability lifetime so light and heavy attacks stay mutually exclusive through Recovery and light combo chaining remains within the active ability.
+- A separate loose `Mordecai.State.AttackCommitted` tag is present only during melee Windup and Active. It locks aim-facing for the committed swing direction, then is removed on Recovery so facing resumes without ending `State.Attacking`.
+- Gameplay presents exactly one cursor affordance: mouse/keyboard keeps the physical Win32 position live for aiming but hides the OS cursor and displays only the HUD reticle. Menus, pause, inventory and death restore the normal OS cursor; the gameplay reticle is hidden while paused or when gamepad is last-used.
+- During active gameplay, viewport mouse lock confines the physical cursor to the game window. Menu input releases the lock.
+- Source: owner decisions supplied with the issue #34 round-3 builder task (2026-11-17).

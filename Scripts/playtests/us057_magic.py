@@ -13,7 +13,7 @@ steps.  --plan prints the Steps table.
 SP plan (max SP 10, no regeneration): 10 -> Fireball 7 -> Blink 5 -> Stone Skin 1 -> Restoration
 (cost 3) refused.  The loadout costs 12 per round, more than the pool (design question N6).
 
-Route (CombatTestMap, issue #46 T1; facing is pinned to +X, so every spell goes +X):
+Route (CombatTestMap, issue #46 T1; each attack lane explicitly aims world +X):
   - spawn (0, 0) -> (ex - 300, ey) of the TestDummy (its live location; it never moves and spawns
     at (600, 600), so the shot spot is (300, 600)), re-walked once when the dummy is more than
     40 cm off the player's line in Y.  The TestDummy is found by its label, else it is the enemy
@@ -167,7 +167,8 @@ PLAN = (
          f"location, actors radius {ACTOR_RADIUS}; label match, else the enemy nearest "
          f"({TARGET_SPAWN[0]:g}, {TARGET_SPAWN[1]:g})) within {SHOT_TOL:g} cm; walk again if "
          f"|player.y - ey| > {REWALK_DY:g}"),
-    Step("fireball_cast", f"tap Q -> player.attributes.spell_points 10 -> 7 within "
+    Step("fireball_cast", f"mouse to viewport-up/world +X, tap Q -> "
+         f"player.attributes.spell_points 10 -> 7 within "
          f"{SP_TIMEOUT_S:g}s (fast poll of player, actors, widgets)",
          proves=("AC-057.1", "AC-057.5", "AC-057.10", "US-055:AC-055.2")),
     Step("fireball_projectile", f"same poll -> an actors[] entry with kind==\"projectile\" "
@@ -183,8 +184,9 @@ PLAN = (
          "time", proves=("US-055:AC-055.8", "US-055:AC-055.9")),
     Step("walk_blink_lane", f"walk_to({LANE_POINT[0]:g}, {LANE_POINT[1]:g}) -> within "
          f"{WALK_TOL:g} cm (the start of the Blink lane, clear +X)"),
-    Step("blink", f"tap E -> player.location.x rises > {BLINK_MIN_DX:g} and spell_points 7 -> 5 "
-         f"within {BLINK_TIMEOUT_S:g}s, |dy| < {BLINK_MAX_DY:g}",
+    Step("blink", f"mouse to viewport-up/world +X, tap E -> player.location.x rises > "
+         f"{BLINK_MIN_DX:g} and spell_points 7 -> 5 within {BLINK_TIMEOUT_S:g}s, "
+         f"|dy| < {BLINK_MAX_DY:g}",
          proves=("AC-057.2", "AC-057.5")),
     Step("stone_skin", f"tap R -> {STONE_SKIN_TAG} in player.tags and spell_points 5 -> 1 within "
          f"{STONE_SKIN_TIMEOUT_S:g}s", proves=("AC-057.3",)),
@@ -498,6 +500,7 @@ class Us057Run(kit.PlaytestRun):
 
         def cast():
             b = self.bridge
+            aim = kit.aim_world_positive_x(b)
             st0 = b.state(["player", "actors"], radius=ACTOR_RADIUS)
             sp0, max0 = _sp(st0), _max_sp(st0)
             pos = _xy(st0) or (0.0, 0.0)
@@ -564,8 +567,9 @@ class Us057Run(kit.PlaytestRun):
             sps = " -> ".join(_fmt(v) for v in obs["sp_values"])
             if obs["sp_at"] is not None and obs["sp_at"] <= SP_TIMEOUT_S:
                 self.sp_log.append(("Fireball", sp0, want_sp))
-                return ("PASS", f"tapped Q; spell_points {_fmt(sp0)} -> {_fmt(want_sp)} after "
-                        f"{obs['sp_at']}s (values seen: {sps}; {obs['polls']} polls)", obs)
+                return ("PASS", f"aimed world +X ({aim}); tapped Q; spell_points {_fmt(sp0)} -> "
+                        f"{_fmt(want_sp)} after {obs['sp_at']}s (values seen: {sps}; "
+                        f"{obs['polls']} polls)", obs)
             return ("FAIL", f"tapped Q; spell_points did not drop {_fmt(sp0)} -> {_fmt(want_sp)} "
                     f"within {SP_TIMEOUT_S:g}s (values seen: {sps})", obs)
 
@@ -653,6 +657,7 @@ class Us057Run(kit.PlaytestRun):
 
         def blink():
             b = self.bridge
+            aim = kit.aim_world_positive_x(b)
             st0 = b.state(["player"])
             xy0, sp0 = _xy(st0), _sp(st0)
             if xy0 is None:
@@ -681,8 +686,9 @@ class Us057Run(kit.PlaytestRun):
             dx, dy = x1 - x0, y1 - y0
             self.blink_result = {"from": [x0, y0], "to": [x1, y1], "dx": dx, "dy": dy}
             self.sp_log.append(("Blink", sp0, want_sp))
-            text = (f"tapped E: ({x0:.0f}, {y0:.0f}) -> ({x1:.0f}, {y1:.0f}), dx {dx:+.0f}, dy "
-                    f"{dy:+.0f}; spell_points {_fmt(sp0)} -> {_fmt(want_sp)}")
+            text = (f"aimed world +X ({aim}); tapped E: ({x0:.0f}, {y0:.0f}) -> "
+                    f"({x1:.0f}, {y1:.0f}), dx {dx:+.0f}, dy {dy:+.0f}; spell_points "
+                    f"{_fmt(sp0)} -> {_fmt(want_sp)}")
             if abs(dy) >= BLINK_MAX_DY:
                 return "FAIL", f"{text}: |dy| >= {BLINK_MAX_DY:g} (Blink should go +X)", None
             return "PASS", text, self.blink_result

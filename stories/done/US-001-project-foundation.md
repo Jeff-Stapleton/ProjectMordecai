@@ -130,11 +130,11 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 1 | `hud_visible` | state widgets -> a CombatHUD, a HealthBar and a StaminaBar widget on screen and the text "10 / 10" (SP bar) | AC-2.2.5 |
 | 2 | `spawn_state` | state player, actors -> player.valid && !player.is_dead, within 100 cm of (0, 0), pawn native class MordecaiCharacter | AC-2.3.3 |
 | 3 | `imc_active` | state input -> "MordecaiIMC_Runtime" in input.mapping_contexts | AC-1.3.2 |
-| 4 | `facing_arrow` | state player.facing_arrow -> not hidden from the game or owner, registered, owner visibility unrestricted, scene proxy present, recently rendered, length 80, size 1.5, and world forward aligned with the pawn forward vector | AC-2.1.5 |
-| 5 | `move_a` | hold A 0.4s -> player.location moves > 100 cm along -Y, < 30 cm across | AC-2.1.1, AC-1.3.2 |
-| 6 | `move_w` | hold W 0.4s -> player.location moves > 100 cm along +X, < 30 cm across | AC-2.1.1, AC-1.3.2 |
-| 7 | `move_d` | hold D 0.4s -> player.location moves > 100 cm along +Y, < 30 cm across | AC-2.1.1, AC-1.3.2 |
-| 8 | `move_s` | hold S 0.4s -> player.location moves > 100 cm along -X, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 4 | `facing_arrow` | state player.facing_arrow -> hidden_in_game=false, owner hidden=false, registered with a scene proxy, recently rendered, owner visibility unrestricted, length=80, size=1.5, and world forward aligned with the pawn forward vector | AC-2.1.5 |
+| 5 | `move_a` | hold A 0.4s (retry once if a frame hitch yields a short correct-direction move) -> player.location moves > 100 cm along -Y, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 6 | `move_w` | hold W 0.4s (retry once if a frame hitch yields a short correct-direction move) -> player.location moves > 100 cm along +X, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 7 | `move_d` | hold D 0.4s (retry once if a frame hitch yields a short correct-direction move) -> player.location moves > 100 cm along +Y, < 30 cm across | AC-2.1.1, AC-1.3.2 |
+| 8 | `move_s` | hold S 0.4s (retry once if a frame hitch yields a short correct-direction move) -> player.location moves > 100 cm along -X, < 30 cm across | AC-2.1.1, AC-1.3.2 |
 | 9 | `camera_fixed` | wait_until player.control_rotation == [-50, 0, 0] (+-0.5) after the moves | AC-1.2.2 |
 | 10 | `no_camera_rotation_input` | axis Gamepad_RightX=1, Gamepad_RightY=1 held; mouse to (200,100), (1100,620), (640,360) -> player.control_rotation stays [-50, 0, 0] at every sample | AC-1.2.4, AC-1.2.2 |
 | 11 | `walk_lane_wp1` | walk_to(0, -650) -> within 60 cm (waypoint to lane L1) | - |
@@ -144,11 +144,16 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 15 | `walk_lane_reset` | walk_to(-700, -800) -> within 60 cm | - |
 | 16 | `sprint_shift` | tap LeftShift, hold W 1s -> dx > 700 cm; tap LeftShift again, hold S 1s -> back to a walk (peak player.speed 500..750 cm/s) | AC-1.3.3, AC-2.1.3 |
 | 17 | `walk_lane_reset2` | walk_to(-700, -800) -> within 60 cm | - |
-| 18 | `sprint_l3` | tap Gamepad_LeftThumbstick (L3), hold W 1s -> dx > 700 cm (then tap L3 again) _(known issue: gamepad stick and L3 mappings use invalid FKey names (Specs/agent_playtest_plan_v1.md))_ | AC-1.3.3, AC-2.1.3 |
+| 18 | `sprint_l3` | tap Gamepad_LeftThumbstick (L3), hold W 1s -> dx > 700 cm (then tap L3 again) | AC-1.3.3, AC-2.1.3 |
 | 19 | `jump_space` | tap SpaceBar -> wait_until player.movement_mode=="Falling" within 1s | AC-2.1.4 |
-| 20 | `facing_mouse` | mouse 1100 360 (right of the player, +Y) -> wait_until player.rotation yaw 90 (+-30) within 1s _(known issue: facing and aim are pinned to +X by the diorama camera (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.2 |
-| 21 | `facing_stick` | axis Gamepad_RightX=-1 held (left, -Y) -> wait_until player.rotation yaw -90 (+-30) within 1s, then release _(known issue: facing and aim are pinned to +X by the diorama camera (Specs/agent_playtest_plan_v1.md); Known issue: gamepad stick and L3 mappings use invalid FKey names (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.2 |
-| 22 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm _(known issue: gamepad stick and L3 mappings use invalid FKey names (Specs/agent_playtest_plan_v1.md))_ | AC-2.1.1, AC-1.3.2 |
+| 20 | `facing_mouse_physical` | Win32 SetCursorPos to client (1100, 360) (right of the player, +Y; no bridge mouse command) -> wait_until player.rotation yaw 90 (+-30) within 1s | AC-2.1.2 |
+| 21 | `single_cursor_mouse` | after physical mouse movement -> focus.input_type is MouseAndKeyboard and focus.mouse_cursor_shown=false; the screenshot-visible HUD reticle is the one gameplay cursor | AC-2.1.2 |
+| 22 | `attack_click_physical` | with the physical OS cursor still at the aim point, bridge click LMB through Slate -> Mordecai.State.Attacking appears in player.tags | AC-2.1.2 |
+| 23 | `combo_hit2` | wait for Mordecai.State.ComboWindow after Hit 1, click LMB through Slate again -> stamina is consumed again and Mordecai.State.AttackCommitted appears for Hit 2 without Mordecai.Attack.Heavy | US-004:AC-004.14 |
+| 24 | `movement_keeps_aim` | with mouse aim still +Y, hold W 0.4s -> player.location moves > 100 cm along camera-relative +X and < 30 cm across while yaw stays 90 (+-30) | AC-2.1.1, AC-2.1.2, AC-1.3.2 |
+| 25 | `facing_stick` | axis Gamepad_RightX=-1 held (left, -Y) -> wait_until player.rotation yaw -90 (+-30) within 1s, then release and retain that yaw | AC-2.1.2 |
+| 26 | `cursor_hidden_gamepad` | after right-stick input -> focus.input_type is Gamepad and focus.mouse_cursor_shown=false | AC-2.1.2 |
+| 27 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm | AC-2.1.1, AC-1.3.2 |
 
 ### Issue #17 / N12 evidence (2026-11-09)
 - The exact-`4b3dd65` package's Tier 3 MovementTestMap boot `Saved/Playtests/20261109-144453-boot` (part of sweep `Saved/Playtests/20261109-144434-sweep`) supports AC-2.1.5: exit 0, with the placeholder player and green facing arrow visible in the engine captures. The complete `us001_movement.py` run still exits 1 only on older gamepad/facing known issues; its arrow check passes. Acceptance is pending Jeff's review of PR #94.

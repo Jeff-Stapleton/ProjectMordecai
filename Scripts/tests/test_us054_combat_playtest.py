@@ -39,7 +39,9 @@ from tests import fake_bridge as fb  # noqa: E402
 
 PLAYTESTS = os.path.join(SCRIPTS, "playtests")
 TOKEN = "us054c-token"
-INPUT_AND_READ_CMDS = {"ping", "state", "key", "click", "screenshot", "wait_until", "wait", "quit"}
+INPUT_AND_READ_CMDS = {
+    "ping", "state", "key", "mouse", "click", "screenshot", "wait_until", "wait", "quit"
+}
 
 
 def load(name):

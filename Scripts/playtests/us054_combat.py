@@ -82,7 +82,7 @@ ENEMY_MAX_HEALTH = 200.0               # AC-054.2 (both targets' CDO DefaultMaxH
 ENEMY_RADIUS = 3000                    # actors radius: the attacker is 2100 cm from the spawn
 SPAWN_TOL_CM = 100.0                   # "at its spawn"
 AGGRO_RANGE_CM = 900.0                 # AMordecaiEnemyAIController::AggroRange
-DUMMY_MELEE_SPOT = (440.0, 600.0)      # 160 cm -X of the dummy (facing is pinned to +X)
+DUMMY_MELEE_SPOT = (440.0, 600.0)      # 160 cm -X of the dummy; explicitly aim +X before swings
 ATTACKER_VIA = (440.0, 0.0)            # the straight line to the fight spot passes the dummy
 ATTACKER_FIGHT_SPOT = (2000.0, 0.0)    # 100 cm -X of the attacker: inside its 150 cm reach
                                        # even when walk_to stops SPOT_TOL off
@@ -174,7 +174,8 @@ PLAN = (
          "from the player"),
     Step("walk_to_dummy", f"walk_to({DUMMY_MELEE_SPOT[0]:g}, {DUMMY_MELEE_SPOT[1]:g}) -> within "
          f"{SPOT_TOL:g} cm (the melee spot, 160 cm -X of the {DUMMY})"),
-    Step("melee_lmb", f"click Left at {ATTACK_POINT} -> within {ATTACK_TIMEOUT_S:g}s "
+    Step("melee_lmb", f"mouse to viewport-up/world +X, click Left at {ATTACK_POINT} -> within "
+         f"{ATTACK_TIMEOUT_S:g}s "
          f"'{TAG_ATTACKING}' in player.tags or the {DUMMY}'s health below its value before the "
          "click", proves=("AC-054.6", "AC-054.5")),
     Step("combo_hit_two", f"wait for '{TAG_COMBO_WINDOW}' and widget text 'Hit 1', click Left "
@@ -183,7 +184,7 @@ PLAN = (
     Step("dodge_lalt", f"tap LeftAlt -> within {DODGE_TIMEOUT_S:g}s a Dodging tag in player.tags "
          "or a displacement > 150 cm", proves=("AC-054.6", "AC-054.5")),
     Step("kill_enemy_melee", f"walk_to({DUMMY_MELEE_SPOT[0]:g}, {DUMMY_MELEE_SPOT[1]:g}) if the "
-         f"dodge moved the player > {SPOT_TOL:g} cm off the melee spot, then click Left at "
+         f"dodge moved the player > {SPOT_TOL:g} cm off the melee spot, aim world +X, then click Left at "
          f"{ATTACK_POINT} every {KILL_CLICK_GAP_S:g}s -> the {DUMMY} (by label, else class name) "
          f"is_dead==true within {KILL_TIMEOUT_S:g}s (FAIL with its last health and the damage per "
          "hit)", proves=("US-086:AC-086.5", "AC-054.13")),
@@ -228,7 +229,8 @@ PLAN = (
          f"{DUMMY} below max before the death and full at the respawn, or the {ATTACKER} out of "
          f"{IDLE} before the death and {IDLE} at the respawn), else WARN",
          proves=("US-053:AC-053.8", "US-053:AC-053.9")),
-    Step("respawn_moves", f"hold W {MOVE_HOLD_S:g}s -> player x grows by >= {MOVE_MIN_CM:g} cm",
+    Step("respawn_moves", f"hold W {MOVE_HOLD_S:g}s (retry once after a short correct-direction "
+         f"move) -> player x grows by >= {MOVE_MIN_CM:g} cm",
          proves=("US-053:AC-053.6",)),
     Step("kill_counter_text_matches", "state widgets, player -> the 'Kills: N' text equals "
          "player.kills; 0 when a kill and the death were both seen (the death resets the count)",
@@ -571,6 +573,7 @@ class Us054CombatRun(kit.PlaytestRun):
         self.shot("near_dummy")
 
         def melee(b):
+            aim = kit.aim_world_positive_x(b)
             st0 = b.state(["player", "actors"], radius=ENEMY_RADIUS)
             self._note(st0, "melee_lmb")
             p0 = player(st0)
@@ -602,7 +605,8 @@ class Us054CombatRun(kit.PlaytestRun):
             self._poll(["player", "actors"], hit, ATTACK_TIMEOUT_S)
             low = (seen["dummy"] or (None, None))[0]
             self.dummy_hit = (h0, low)
-            what = (f"Left click at {ATTACK_POINT}, Slate hit {r.get('hit')}; player.tags "
+            what = (f"aimed world +X ({aim}); Left click at {ATTACK_POINT}, Slate hit "
+                    f"{r.get('hit')}; player.tags "
                     f"{seen['tags']}, '{TAG_ATTACKING}' seen: {seen['tag']}; {DUMMY} health "
                     f"{h0} before the click, {seen['dummy']} after"
                     + ("" if walked else " (the walk to the dummy failed)"))
@@ -725,6 +729,7 @@ class Us054CombatRun(kit.PlaytestRun):
                             f"{e}", None)
                 back = (f"walked back from {fmt_xy(pos)} to ({r['final'][0]:.0f}, "
                         f"{r['final'][1]:.0f}); ")
+            aim = kit.aim_world_positive_x(b)
             healths = [enemy_health(d)[0]]
             clicks, gaps, last_click = 0, [], None
             t0 = time.monotonic()
@@ -750,7 +755,8 @@ class Us054CombatRun(kit.PlaytestRun):
                              "elapsed_s": round(elapsed, 1),
                              "max_click_gap_s": round(max(gaps), 3) if gaps else None,
                              "walked_back": bool(back)}
-                what = (f"{back}{clicks} clicks (max gap {self.kill['max_click_gap_s']}s), "
+                what = (f"{back}aimed world +X ({aim}); {clicks} clicks "
+                        f"(max gap {self.kill['max_click_gap_s']}s), "
                         f"{DUMMY} health {healths}, damage per hit {hits}")
                 if d is not None and d.get("is_dead") is True:
                     return "PASS", f"{what}; dead after {elapsed:.1f}s", None
@@ -1061,19 +1067,29 @@ class Us054CombatRun(kit.PlaytestRun):
         self.measure("arena_reset", reset, needs=ok, needs_why=why)
 
         def moves(b):
-            # The bridge holds W for 0.4 s of simulated time, so the frame hitch right after the
-            # 'respawned' screenshot no longer cuts the hold short (B3)
             p0 = player(b.state(["player"]))
             if p0 is None:
                 return "FAIL", "no valid player after the respawn", None
             x0 = xy(p0.get("location"))[0]
-            r = b.hold("W", MOVE_HOLD_S) or {}
+            responses = [b.hold("W", MOVE_HOLD_S) or {}]
             p1 = player(b.state(["player"])) or {}
             x1 = (xy(p1.get("location")) or (x0, 0))[0]
+            # A respawn can hitch through most of the first wall-time hold. One second real
+            # hold proves the input path without converting a frame stall into a movement FAIL.
+            simulated_s = responses[0].get("simulated_s")
+            frame_short = (isinstance(simulated_s, (int, float))
+                           and simulated_s < MOVE_HOLD_S * 0.8)
+            if 0 <= x1 - x0 < MOVE_MIN_CM and frame_short:
+                responses.append(b.hold("W", MOVE_HOLD_S) or {})
+                p1 = player(b.state(["player"])) or {}
+                x1 = (xy(p1.get("location")) or (x0, 0))[0]
+            timing = "; ".join(
+                f"{r.get('simulated_s')}s simulated/{r.get('held_s')}s wall/"
+                f"{r.get('frames')} frames" for r in responses)
             return ("PASS" if x1 - x0 >= MOVE_MIN_CM else "FAIL",
-                    f"held W {MOVE_HOLD_S:g}s ({r.get('simulated_s')}s simulated, {r.get('held_s')}s "
-                    f"wall time, {r.get('frames')} frames): x {x0:.0f} -> {x1:.0f} (+{x1 - x0:.0f} "
-                    f"cm, need >= {MOVE_MIN_CM:g})", None)
+                    f"held W {MOVE_HOLD_S:g}s x{len(responses)} ({timing}): "
+                    f"x {x0:.0f} -> {x1:.0f} (+{x1 - x0:.0f} cm, need >= "
+                    f"{MOVE_MIN_CM:g})", responses)
 
         self.measure("respawn_moves", moves, needs=ok, needs_why=why)
 

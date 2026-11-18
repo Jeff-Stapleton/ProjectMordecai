@@ -65,8 +65,9 @@ SCREENSHOTS = {
 PLAN = (
     Step("blink_preconditions", f"state player,actors -> retain exact live/full-health stationary "
          f"{TARGET_LABEL}; real-WASD walk_to about {APPROACH_DISTANCE:g} cm -X; require a "
-         f"{MIN_GAP:g}-{MAX_GAP:g} cm +X gap, low Y/Z offset, yaw 0, live full-health stationary "
-         f"player, exact SP {SP_BEFORE:g}, granted slot-1 E/Blink cost {SP_COST:g}, and neither "
+         f"{MIN_GAP:g}-{MAX_GAP:g} cm +X gap, low Y/Z offset, mouse-aim world +X/yaw 0, live "
+         f"full-health stationary player, exact SP {SP_BEFORE:g}, granted slot-1 E/Blink cost "
+         f"{SP_COST:g}, and neither "
          "Stone Skin nor Invulnerable; capture a supplemental pre-cast frame"),
     Step("blink_past_enemy", f"press E through Slate and release it in finally; continuously sample "
          f"the retained player/target -> SP {SP_BEFORE:g}->{SP_BEFORE - SP_COST:g} and player +X "
@@ -250,6 +251,7 @@ class Us087BlinkRun(kit.PlaytestRun):
             approach = (location1[0] - APPROACH_DISTANCE, location1[1])
             walked = self.bridge.walk_to(approach[0], approach[1], tol=APPROACH_TOL)
             self.bridge.wait(POST_WALK_SETTLE_S)
+            aim = kit.aim_world_positive_x(self.bridge)
             state2 = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
             player2 = _player(state2)
             target2 = self._exact_target(state2)
@@ -310,7 +312,8 @@ class Us087BlinkRun(kit.PlaytestRun):
                     f"{hp2:g}/{max2:g}, stationary; player {self.player_name} full "
                     f"{player_hp:g}/{player_max:g}, stationary at {player_pos}; gap "
                     f"dx={dx:.1f}, dy={dy:.1f}, dz={dz:.1f}; yaw actor/control "
-                    f"{actor_yaw:g}/{control_yaw:g}; SP {sp:g}; {screenshot}", walked)
+                    f"{actor_yaw:g}/{control_yaw:g}; aimed world +X ({aim}); SP {sp:g}; "
+                    f"{screenshot}", walked)
 
         self.attempt("blink_preconditions", prepare)
 

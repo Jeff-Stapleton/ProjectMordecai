@@ -9,6 +9,7 @@ namespace MordecaiGameplayTags
 
 	// State tags (US-004)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Attacking,   "Mordecai.State.Attacking",   "Character is currently executing an attack");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_AttackCommitted, "Mordecai.State.AttackCommitted", "Attack direction is committed during Windup and Active");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_ComboWindow, "Mordecai.State.ComboWindow", "Combo input window is open during Recovery phase");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Rooted,      "Mordecai.State.Rooted",      "Character movement is disabled");
 

@@ -150,6 +150,15 @@ def section(st, name):
     return value if isinstance(value, dict) else {}
 
 
+def aim_world_positive_x(bridge):
+    """Aim toward map north/world +X through the real mouse-input path.
+
+    The fixed diorama camera maps viewport-up to world +X. Combat-lane playtests call this
+    explicitly because movement no longer rotates the actor after US-098.
+    """
+    return bridge.mouse(640, 120)
+
+
 def keys_text(key_or_keys):
     if isinstance(key_or_keys, (list, tuple)):
         return "+".join(str(k) for k in key_or_keys)

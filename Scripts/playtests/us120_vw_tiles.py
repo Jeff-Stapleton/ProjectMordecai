@@ -59,6 +59,7 @@ RAMPS = {
     },
 }
 CLIFF_START = (1100.0, 0.0)
+CLIFF_VIA = (800.0, 0.0)
 CLIFF_FACE_X = LANE_BY_LABEL["VW_Lane_Cliff"]["location_cm"][0]
 CLIFF_MIN_X = 1330.0
 CLIFF_MAX_X = 1370.0
@@ -179,7 +180,8 @@ PLAN = (
     ),
     Step(
         "cliff_walk_blocked",
-        "walk_to the cliff approach and hold W into the 200 cm face -> remain below/on the near side",
+        "walk_to a safe west waypoint, then the cliff approach, and hold W into the 200 cm face "
+        "-> remain below/on the near side",
         proves=("AC-120.7",),
     ),
     Step(
@@ -485,8 +487,15 @@ class Us120Run(kit.PlaytestRun):
         )
 
     def step_cliff(self):
+        def approach_cliff(bridge):
+            # The prior ramp can leave the pawn east or off-axis from this narrow probe lane.
+            # Stage west first so walk_to cannot overshoot into the cliff face and report stuck
+            # while trying to reverse away from collision.
+            bridge.walk_to(*CLIFF_VIA, tol=self.WALK_TOL, timeout_s=20.0)
+            return bridge.walk_to(*CLIFF_START, tol=PROBE_START_TOL, timeout_s=20.0)
+
         def walk_blocked():
-            self.bridge.walk_to(*CLIFF_START, tol=PROBE_START_TOL, timeout_s=20.0)
+            approach_cliff(self.bridge)
             response = self.bridge.hold("W", BLOCK_HOLD_S)
             location = _player(self.bridge)
             minimum_x = measured_cliff_minimum_x()
@@ -509,7 +518,7 @@ class Us120Run(kit.PlaytestRun):
 
         def jump_blocked():
             bridge = self.bridge
-            bridge.walk_to(*CLIFF_START, tol=PROBE_START_TOL, timeout_s=20.0)
+            approach_cliff(bridge)
             max_z = -math.inf
             max_x = -math.inf
             bridge.press("W")

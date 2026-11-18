@@ -270,8 +270,12 @@ bool FMordecai_Recovery_InputGamepadAcceptPassesThroughGameplayHUD::RunTest(cons
 
 	TestEqual("Combat HUD keeps gameplay input active",
 		Config->GetInputMode(), ECommonInputMode::Game);
-	TestEqual("Combat HUD preserves the first mouse click when capturing",
-		Config->GetMouseCaptureMode(), EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+	TestEqual("Combat HUD keeps the physical cursor live except during an attack click",
+		Config->GetMouseCaptureMode(), EMouseCaptureMode::CaptureDuringMouseDown);
+	TestEqual("Combat HUD confines the cursor to the viewport",
+		Config->GetMouseLockMode(), EMouseLockMode::LockAlways);
+	TestTrue("Combat HUD hides the OS cursor so its reticle is the only gameplay cursor",
+		Config->HideCursorDuringViewportCapture());
 
 	TestFalse("Gameplay mode passes virtual gamepad Accept to Enhanced Input",
 		FMordecaiCommonAnalogCursor::ShouldSimulateVirtualAccept(ECommonInputMode::Game));

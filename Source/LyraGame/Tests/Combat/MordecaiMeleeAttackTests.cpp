@@ -477,8 +477,9 @@ bool FMordecai_MeleeAttack_NoDoubleActivate::RunTest(const FString& Parameters)
 	FGameplayTag AttackingTag = MordecaiGameplayTags::State_Attacking;
 	TestTrue("Attacking tag is valid", AttackingTag.IsValid());
 
-	// Ability should apply Attacking tag while active
-	TestTrue("ActivationOwnedTags has Attacking",
+	// State.Attacking is the whole-ability mutual-exclusion contract: light and heavy are
+	// separate specs, so both must own it until the running ability ends (AC-004.14).
+	TestTrue("ActivationOwnedTags holds Attacking through Recovery",
 		CDO->HasActivationOwnedTag(AttackingTag));
 
 	// Ability should be blocked when Attacking tag is already present

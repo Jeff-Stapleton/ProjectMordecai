@@ -16,6 +16,7 @@
 #include "Input/CommonUIInputSettings.h"
 #include "Input/CommonUIInputTypes.h"
 #include "Input/UIActionBinding.h"
+#include "Input/UIActionBindingHandle.h"
 #include "InputCoreTypes.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/UI/MordecaiCharacterSheetWidget.h"
@@ -247,6 +248,36 @@ bool FMordecai_Recovery_PauseMenu_UIActionKeysConfigured::RunTest(const FString&
 				TestFalse(FString::Printf(TEXT("%s does not take the back key %s"), *Tag, *BackKey.ToString()), Mapping.Key == BackKey);
 			}
 		}
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMordecai_Recovery_PauseMenu_ReleasesGameplayCursorLock,
+	"Mordecai.Recovery.PauseMenu.ReleasesGameplayCursorLock",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_PauseMenu_ReleasesGameplayCursorLock::RunTest(
+	const FString& Parameters)
+{
+	const UMordecaiPauseMenuWidget* Menu =
+		GetDefault<UMordecaiPauseMenuWidget>();
+	const TOptional<FUIInputConfig> Config =
+		Menu->GetDesiredInputConfig();
+	if (TestTrue("pause/inventory menu has an input config", Config.IsSet()))
+	{
+		TestEqual(
+			"pause/inventory uses menu input",
+			Config->GetInputMode(),
+			ECommonInputMode::Menu);
+		TestEqual(
+			"pause/inventory releases mouse capture",
+			Config->GetMouseCaptureMode(),
+			EMouseCaptureMode::NoCapture);
+		TestEqual(
+			"pause/inventory releases the gameplay viewport lock",
+			Config->GetMouseLockMode(),
+			EMouseLockMode::DoNotLock);
 	}
 	return true;
 }

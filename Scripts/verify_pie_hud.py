@@ -133,11 +133,20 @@ def _run():
         # (child properties are protected, so we use GetBoundChildCount instead)
         try:
             child_count = hud_widget.get_bound_child_count()
-            check(f"All HUD child widgets present ({child_count}/18)",
-                  child_count == 18,
-                  f"{child_count}/18 -- expected all final-map children plus IndicatorLayer")
+            check(f"All HUD child widgets present ({child_count}/19)",
+                  child_count == 19,
+                  f"{child_count}/19 -- expected final-map children, IndicatorLayer and aim cursor")
         except Exception as e:
             check("GetBoundChildCount accessible", False, str(e))
+
+        aim_cursor = named_widget(hud_widget, "AimCursorRoot")
+        check("AimCursorRoot exists", aim_cursor is not None)
+        if aim_cursor:
+            check("AimCursorRoot never consumes attack clicks",
+                  aim_cursor.get_visibility() in (
+                      unreal.SlateVisibility.HIT_TEST_INVISIBLE,
+                      unreal.SlateVisibility.COLLAPSED,
+                  ))
 
         gauge = check_box(
             hud_widget, "GaugePlate", (0.0, 0.0), (32.0, 32.0),

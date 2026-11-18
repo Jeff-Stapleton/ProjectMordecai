@@ -250,6 +250,127 @@ bool FMordecai_Recovery_CombatHeavyInputStartsHeavyAttack::RunTest(const FString
 }
 
 // ---------------------------------------------------------------------------
+// Mordecai.Recovery.Combat.LightAndHeavyRemainExclusiveThroughRecovery (AC-004.14)
+// Light and heavy are separate specs. Recovery remains part of the running swing, so the
+// other spec must stay blocked until the first ability ends.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_CombatAttackRecoveryExclusivity,
+	"Mordecai.Recovery.Combat.LightAndHeavyRemainExclusiveThroughRecovery",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_CombatAttackRecoveryExclusivity::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiCombatInputAbilityTestHelpers;
+
+	{
+		FMordecaiCombatGrantTestEnv Env;
+		ON_SCOPE_EXIT { Env.Teardown(); };
+		if (!SetupArmedPlayer(*this, Env))
+		{
+			return true;
+		}
+
+		Env.PressInput(MordecaiGameplayTags::Input_LightAttack);
+		FGameplayAbilitySpec* LightSpec =
+			Env.FindSpec(UMordecaiGA_MeleeAttack::StaticClass());
+		UMordecaiGA_MeleeAttack* Light = LightSpec
+			? Cast<UMordecaiGA_MeleeAttack>(LightSpec->GetPrimaryInstance())
+			: nullptr;
+		if (!TestNotNull("Light instance", Light)
+			|| !TestTrue("Light is active", LightSpec->IsActive()))
+		{
+			return true;
+		}
+		Light->TransitionToPhase(EMordecaiAttackPhase::Recovery);
+		Env.PressInput(MordecaiGameplayTags::Input_HeavyAttack);
+		TestTrue("Light remains active in Recovery", LightSpec->IsActive());
+		TestFalse(
+			"Heavy cannot start during light Recovery",
+			IsAbilityActive(Env, UMordecaiGA_HeavyAttack::StaticClass()));
+	}
+
+	{
+		FMordecaiCombatGrantTestEnv Env;
+		ON_SCOPE_EXIT { Env.Teardown(); };
+		if (!SetupArmedPlayer(*this, Env))
+		{
+			return true;
+		}
+
+		Env.PressInput(MordecaiGameplayTags::Input_HeavyAttack);
+		FGameplayAbilitySpec* HeavySpec =
+			Env.FindSpec(UMordecaiGA_HeavyAttack::StaticClass());
+		UMordecaiGA_HeavyAttack* Heavy = HeavySpec
+			? Cast<UMordecaiGA_HeavyAttack>(HeavySpec->GetPrimaryInstance())
+			: nullptr;
+		if (!TestNotNull("Heavy instance", Heavy)
+			|| !TestTrue("Heavy is active", HeavySpec->IsActive()))
+		{
+			return true;
+		}
+		Heavy->TransitionToPhase(EMordecaiAttackPhase::Recovery);
+		Env.PressInput(MordecaiGameplayTags::Input_LightAttack);
+		TestTrue("Heavy remains active in Recovery", HeavySpec->IsActive());
+		TestFalse(
+			"Light cannot start during heavy Recovery",
+			IsAbilityActive(Env, UMordecaiGA_MeleeAttack::StaticClass()));
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// Mordecai.Recovery.Combat.LightComboChainsHitTwo
+// State.Attacking blocks the other attack spec, but it must not block a queued continuation
+// inside the already-running light ability (PR137).
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_CombatLightComboChainsHitTwo,
+	"Mordecai.Recovery.Combat.LightComboChainsHitTwo",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_CombatLightComboChainsHitTwo::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiCombatInputAbilityTestHelpers;
+
+	FMordecaiCombatGrantTestEnv Env;
+	ON_SCOPE_EXIT { Env.Teardown(); };
+	if (!SetupArmedPlayer(*this, Env))
+	{
+		return true;
+	}
+
+	Env.PressInput(MordecaiGameplayTags::Input_LightAttack);
+	FGameplayAbilitySpec* LightSpec =
+		Env.FindSpec(UMordecaiGA_MeleeAttack::StaticClass());
+	UMordecaiGA_MeleeAttack* Light = LightSpec
+		? Cast<UMordecaiGA_MeleeAttack>(LightSpec->GetPrimaryInstance())
+		: nullptr;
+	if (!TestNotNull("Light instance", Light)
+		|| !TestTrue("Hit 1 is active", LightSpec->IsActive()))
+	{
+		return true;
+	}
+
+	Light->TransitionToPhase(EMordecaiAttackPhase::Recovery);
+	Env.PressInput(MordecaiGameplayTags::Input_LightAttack);
+	Light->OnRecoveryComplete();
+
+	TestTrue("The same light ability remains active for Hit 2", LightSpec->IsActive());
+	TestEqual("Hit 2 advances to combo index 1", Light->GetCurrentComboIndex(), 1);
+	TestEqual("Hit 2 begins its windup", Light->GetCurrentPhase(), EMordecaiAttackPhase::Windup);
+	TestTrue(
+		"Whole-ability State.Attacking remains owned across the chain",
+		Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Attacking));
+	TestTrue(
+		"Hit 2 commits facing again",
+		Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_AttackCommitted));
+	TestFalse(
+		"Combo chaining did not activate the heavy spec",
+		IsAbilityActive(Env, UMordecaiGA_HeavyAttack::StaticClass()));
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 // Mordecai.Recovery.Combat.SprintComposesWithBlockSpeed
 // Sprint and block both scale the walk speed; toggling sprint mid-block must not leave a wrong speed.
 // ---------------------------------------------------------------------------

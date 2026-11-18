@@ -26,7 +26,8 @@ UMordecaiGA_MeleeAttack::UMordecaiGA_MeleeAttack(const FObjectInitializer& Objec
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
-	// AC-004.14: Prevent concurrent activation (cannot double-swing)
+	// AC-004.14: Light and heavy are separate specs, so the running ability must own this
+	// through Recovery to prevent a second swing from activating before the first one ends.
 	ActivationOwnedTags.AddTag(MordecaiGameplayTags::State_Attacking);
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Attacking);
 
@@ -279,6 +280,26 @@ FGameplayTag UMordecaiGA_MeleeAttack::GetDamageTagForType(EMordecaiDamageType Da
 
 void UMordecaiGA_MeleeAttack::TransitionToPhase(EMordecaiAttackPhase NewPhase)
 {
+	const bool bWasCommitted = CurrentPhase == EMordecaiAttackPhase::Windup
+		|| CurrentPhase == EMordecaiAttackPhase::Active;
+	const bool bIsCommitted = NewPhase == EMordecaiAttackPhase::Windup
+		|| NewPhase == EMordecaiAttackPhase::Active;
+	if (bWasCommitted != bIsCommitted)
+	{
+		if (UAbilitySystemComponent* ASC = CurrentActorInfo
+			? CurrentActorInfo->AbilitySystemComponent.Get()
+			: nullptr)
+		{
+			if (bIsCommitted)
+			{
+				ASC->AddLooseGameplayTag(MordecaiGameplayTags::State_AttackCommitted);
+			}
+			else
+			{
+				ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::State_AttackCommitted);
+			}
+		}
+	}
 	CurrentPhase = NewPhase;
 	UpdateRooting();
 }
@@ -359,7 +380,7 @@ void UMordecaiGA_MeleeAttack::EndAbility(
 		bIsRooted = false;
 	}
 
-	CurrentPhase = EMordecaiAttackPhase::None;
+	TransitionToPhase(EMordecaiAttackPhase::None);
 	bComboInputReceived = false;
 	SetComboWindowOpen(false);
 
