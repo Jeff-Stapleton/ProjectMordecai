@@ -119,7 +119,7 @@ RT = "Gamepad_RightTriggerAxis"
 FORWARD_KEY = "W"                      # +X: toward the attacker
 DODGE_KEY = "LeftAlt"
 JUMP_KEY = "SpaceBar"
-AIM_Y = "Gamepad_RightY"              # +1 faces +X (attacker); -1 faces -X (away)
+AIM_Y = "Gamepad_RightY"              # -1 faces +X (attacker); +1 faces -X (away)
 TAP_S = 0.1
 RT_TAP_S = 0.1
 AIM_HOLD_S = 0.15
@@ -200,14 +200,14 @@ PLAN = (
          f"-{FULL_POSTURE:g} (+-{TOL:g}): the control, the swing lands at this spot",
          proves=("AC-101.10",)),
     Step("block_mitigates", f"axis {LT}=1 held from the attacker's Recover ('{TAG_BLOCKING}' seen "
-         f"before the edge), after axis {AIM_Y}=1 faces the attacker, through its swing -> health -{BLOCKED_HEALTH:g}, not "
+         f"before the edge), after axis {AIM_Y}=-1 faces the attacker, through its swing -> health -{BLOCKED_HEALTH:g}, not "
          f"-{SLASH_DAMAGE:g}, and stamina -{BLOCKED_STAMINA:g} (+-{TOL:g}); then {LT}=0",
          proves=("AC-101.11", "US-006:AC-006.3", "US-006:AC-006.4", "US-121:AC-121.5")),
-    Step("rear_unblocked", f"axis {AIM_Y}=-1 faces away from the attacker, then {LT}=1 held from "
+    Step("rear_unblocked", f"axis {AIM_Y}=1 faces away from the attacker, then {LT}=1 held from "
          f"Recover ('{TAG_BLOCKING}' seen) through its swing -> health -{SLASH_DAMAGE:g}, posture "
          f"-{FULL_POSTURE:g}, stamina unchanged (+-{TOL:g}); then {LT}=0",
          proves=("US-121:AC-121.5",)),
-    Step("perfect_block", f"axis {AIM_Y}=1 faces the attacker again; {LT} up at the edge; "
+    Step("perfect_block", f"axis {AIM_Y}=-1 faces the attacker again; {LT} up at the edge; "
          f"~{PERFECT_BLOCK_DELAY_S:g}s after it (shifted by "
          f"the measured hit time) axis {LT}=1, wait_until health drops -> health "
          f"-{BLOCKED_HEALTH:g} and stamina unchanged (+-{TOL:g}); the edge, LT and hit times are in "
@@ -222,7 +222,8 @@ PLAN = (
          f"health unchanged (+-{TOL:g}), within reach around the expected hit, and no "
          f"'{TAG_AIRBORNE}' once Walking again (needs the control)",
          proves=("AC-101.14", "US-003:AC-003.7")),
-    Step("parry_negates", f"axis {LT}=1 held from Recover ('{TAG_BLOCKING}' seen), axis {RT}=1 "
+    Step("parry_negates", f"axis {AIM_Y}=-1 faces the attacker; axis {LT}=1 held from Recover "
+         f"('{TAG_BLOCKING}' seen), axis {RT}=1 "
          f"for {RT_TAP_S:g}s ~{PARRY_DELAY_S:g}s after the edge (the parry chord) -> health "
          f"unchanged (+-{TOL:g}), '{TAG_RIPOSTE}' in player.tags and '{TAG_PARRIED}' in the "
          f"attacker's actors[] tags; then {LT}=0 (last: N33; needs the control)",
@@ -665,7 +666,7 @@ class Us101Run(kit.PlaytestRun):
 
     def _aim_at_attacker(self, toward):
         """Use real right-stick input to face +X toward the attacker or -X away from it."""
-        value = 1.0 if toward else -1.0
+        value = -1.0 if toward else 1.0
         self.bridge.axis({AIM_Y: value}, hold_s=AIM_HOLD_S)
         condition = (f"player.rotation[1]>-{FACING_TOL:g} && "
                      f"player.rotation[1]<{FACING_TOL:g}") if toward else (
@@ -962,6 +963,7 @@ class Us101Run(kit.PlaytestRun):
     # --- 7: parry (last: N33) ---------------------------------------------------------------------------
     def step_parry(self):
         note = self._ensure_at_spot()
+        note += self._aim_at_attacker(True) + "; "
         note += self._raise_guard() + " before the swing; "
 
         def pre(p0, a0):

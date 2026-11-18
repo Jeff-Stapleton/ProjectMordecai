@@ -109,9 +109,9 @@ class DefenseWorld(CombatWorld):
         held = self._held_union()
         lt, rt = abs(held.get(LT, 0.0)), abs(held.get(RT, 0.0))
         aim_y = float(held.get(us101.AIM_Y, 0.0))
-        if aim_y > 0.2:
+        if aim_y < -0.2:
             self.aim_yaw = 0.0
-        elif aim_y < -0.2:
+        elif aim_y > 0.2:
             self.aim_yaw = 180.0
         lt_down, rt_down, rt_was = lt >= 0.5, rt >= 0.5, self.prev_rt >= 0.5
         if self.parry_active and now >= self.parry_until:
