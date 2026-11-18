@@ -56,6 +56,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Block")
 	float PerfectBlockPostureDamage = 30.f;
 
+	/** Full unshielded block/parry arc centred on actor forward (US-121 / issue #71). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Block", meta = (ClampMin = "0.0", ClampMax = "360.0"))
+	float BlockArcDegrees = 120.f;
+
 	// --- Public Getters (testable API) ---
 
 	/** Get current block phase. */
@@ -87,6 +91,9 @@ public:
 
 	/** Get perfect block window in seconds. */
 	float GetPerfectBlockWindowSeconds() const { return PerfectBlockWindowMs / 1000.f; }
+
+	/** Equipped shield arc when present; otherwise BlockArcDegrees. */
+	float GetEffectiveBlockArcDegrees() const;
 
 	/** Transition to a new block phase. Public for testing. */
 	void TransitionToBlockPhase(EMordecaiBlockPhase NewPhase);

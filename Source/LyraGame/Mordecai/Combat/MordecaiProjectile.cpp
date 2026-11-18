@@ -4,6 +4,8 @@
 #include "Mordecai/Combat/MordecaiHitDetectionSubsystem.h"
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Combat/MordecaiHitDefense.h"
+#include "Mordecai/Combat/MordecaiPostureSystem.h"
 #include "Mordecai/Magic/MordecaiGA_Blur.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
@@ -455,6 +457,18 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 		SourceASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(ProjectileInstigator.Get());
 	}
 
+	const UWorld* World = GetWorld();
+	const FMordecaiIncomingHitSource HitSource = FMordecaiIncomingHitSource::FromProjectile(
+		GetActorLocation(),
+		ProjectileMovement ? ProjectileMovement->Velocity : GetVelocity());
+	const FMordecaiHitDefenseResult Defense = FMordecaiHitDefense::ResolveIncomingHit(
+		TargetASC, SourceASC, DamageMagnitude, World ? World->GetTimeSeconds() : 0.0, HitSource);
+	if (Defense.IsNegated())
+	{
+		return;
+	}
+	const bool bBlocked = Defense.IsBlocked();
+
 	FGameplayEffectContextHandle Context;
 	if (SourceASC)
 	{
@@ -466,7 +480,8 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 	}
 	Context.AddSourceObject(this);
 
-	// AC-009.28: Health damage via instant GE (same pipeline as melee)
+	// AC-009.28: Health damage via instant GE (a block already applied its mitigated health damage).
+	if (!bBlocked)
 	{
 		UGameplayEffect* HealthGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiProjectileHealthDamage"));
 		HealthGE->DurationPolicy = EGameplayEffectDurationType::Instant;
@@ -488,7 +503,7 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 		TargetASC->ApplyGameplayEffectSpecToSelf(HealthSpec);
 	}
 
-	// Posture damage if applicable
+	// Posture damage if applicable; directional blocks use the same posture scaling as melee.
 	if (DamageProfile.AppliesPostureDamage)
 	{
 		UGameplayEffect* PostureGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiProjectilePostureDamage"));
@@ -497,7 +512,10 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 		FGameplayModifierInfo& Mod = PostureGE->Modifiers.AddDefaulted_GetRef();
 		Mod.Attribute = UMordecaiAttributeSet::GetPostureAttribute();
 		Mod.ModifierOp = EGameplayModOp::Additive;
-		Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(-DamageMagnitude));
+		const float PostureMultiplier =
+			bBlocked ? GetDefault<UMordecaiPostureSystem>()->BlockPostureDamageMultiplier : 1.f;
+		Mod.ModifierMagnitude =
+			FGameplayEffectModifierMagnitude(FScalableFloat(-DamageMagnitude * PostureMultiplier));
 
 		FGameplayEffectSpec PostureSpec(PostureGE, Context, 1.0f);
 
@@ -517,7 +535,8 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 	// US-065: Fire floating damage number
 	{
 		FGameplayTag DamageTag = UMordecaiGA_MeleeAttack::GetDamageTagForType(DamageProfile.DamageType);
-		int32 DisplayDamage = FMath::Abs(FMath::RoundToInt32(DamageMagnitude));
+		const float DisplayMagnitude = bBlocked ? Defense.BlockedHealthDamage : DamageMagnitude;
+		int32 DisplayDamage = FMath::Abs(FMath::RoundToInt32(DisplayMagnitude));
 		UMordecaiDamagePopComponent::BroadcastDamagePop(
 			TargetActor->GetWorld(), DisplayDamage, DamageTag, TargetActor->GetActorLocation(), /*bIsCritical=*/false);
 	}

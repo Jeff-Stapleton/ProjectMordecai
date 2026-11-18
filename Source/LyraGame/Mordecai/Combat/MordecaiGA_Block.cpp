@@ -3,6 +3,8 @@
 #include "Mordecai/Combat/MordecaiGA_Block.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
+#include "Mordecai/Weapons/MordecaiShieldDataAsset.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -60,6 +62,19 @@ float UMordecaiGA_Block::ComputeStaminaDrain(float IncomingDamage) const
 {
 	// StaminaDrain = IncomingDamage × (1 − Stability)
 	return IncomingDamage * (1.f - FMath::Clamp(Stability, 0.f, 1.f));
+}
+
+float UMordecaiGA_Block::GetEffectiveBlockArcDegrees() const
+{
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	const UMordecaiEquipmentComponent* Equipment =
+		AvatarActor ? AvatarActor->FindComponentByClass<UMordecaiEquipmentComponent>() : nullptr;
+	const FMordecaiWeaponInstance* OffHand =
+		Equipment ? Equipment->GetEquippedWeapon(EMordecaiEquipSlot::OffHand) : nullptr;
+	const UMordecaiShieldDataAsset* Shield =
+		OffHand ? Cast<UMordecaiShieldDataAsset>(OffHand->WeaponDataAsset) : nullptr;
+	const float ConfiguredArc = Shield ? Shield->BlockArcDegrees : BlockArcDegrees;
+	return FMath::Clamp(ConfiguredArc, 0.f, 360.f);
 }
 
 // ---------------------------------------------------------------------------

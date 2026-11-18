@@ -61,10 +61,11 @@ def load_playtest():
 
 us101 = load_playtest()
 LT, RT = us101.LT, us101.RT
-PLAN_ORDER = ["walk_to_fight_spot", "undefended_hit", "block_mitigates", "perfect_block",
-              "dodge_evades", "jump_evades", "parry_negates"]
-DEFENSE_CHECKS = PLAN_ORDER[2:]
-SHOTS = ["fight_spot", "undefended", "blocked", "perfect_block", "dodged", "jumped", "parried"]
+PLAN_ORDER = ["walk_to_fight_spot", "undefended_hit", "block_mitigates", "rear_unblocked",
+              "perfect_block", "dodge_evades", "jump_evades", "parry_negates"]
+DEFENSE_CHECKS = [name for name in PLAN_ORDER[2:] if name != "rear_unblocked"]
+SHOTS = ["fight_spot", "undefended", "blocked", "rear_hit", "perfect_block", "dodged",
+         "jumped", "parried"]
 
 
 class DefenseWorld(CombatWorld):
@@ -84,6 +85,7 @@ class DefenseWorld(CombatWorld):
         self.jump_s = float(jump_s)
         self.stamina = self.posture = 100.0
         self.prev_rt = 0.0
+        self.aim_yaw = 0.0
         self.blocking, self.block_since = False, None
         self.parry_active, self.parry_hit = False, False
         self.parry_until = self.whiff_until = -1.0
@@ -106,6 +108,11 @@ class DefenseWorld(CombatWorld):
     def _pad(self, now):
         held = self._held_union()
         lt, rt = abs(held.get(LT, 0.0)), abs(held.get(RT, 0.0))
+        aim_y = float(held.get(us101.AIM_Y, 0.0))
+        if aim_y < -0.2:
+            self.aim_yaw = 0.0
+        elif aim_y > 0.2:
+            self.aim_yaw = 180.0
         lt_down, rt_down, rt_was = lt >= 0.5, rt >= 0.5, self.prev_rt >= 0.5
         if self.parry_active and now >= self.parry_until:
             self.parry_active = False
@@ -173,9 +180,10 @@ class DefenseWorld(CombatWorld):
             return "none"    # N32: nothing consults the defenses
         if now < self.dodge_until:
             return "evaded"
-        if self.parry_active:
+        in_arc = abs(((self.aim_yaw + 180.0) % 360.0) - 180.0) <= 60.0
+        if self.parry_active and in_arc:
             return "parried"
-        if self.blocking:
+        if self.blocking and in_arc:
             return "perfect" if now - self.block_since <= self.perfect_window_s else "blocked"
         return "none"
 
@@ -206,6 +214,7 @@ class DefenseWorld(CombatWorld):
         d = super()._s_player()
         if not d.get("valid"):
             return d
+        d["rotation"] = [0.0, self.aim_yaw, 0.0]
         now = self.real_time()
         t = list(d["tags"])
         if self.blocking:
@@ -301,7 +310,7 @@ class TestUs101Plan(unittest.TestCase):
         self.assertIn("MAP", run.__dict__)
         self.assertEqual(run.expected_experience(), kit.DEFAULT_EXPERIENCE)
         self.assertEqual(run.FEATURES, ("block_parry", "dodge", "stamina", "enemies", "movement"))
-        self.assertEqual(set(run.COVERS), {"US-003", "US-005", "US-006"})
+        self.assertEqual(set(run.COVERS), {"US-003", "US-005", "US-006", "US-121"})
         self.assertEqual(run.PENDING, {})
 
     def test_plan_order_and_proves(self):
@@ -311,12 +320,16 @@ class TestUs101Plan(unittest.TestCase):
         own = {name: [a for a in plan[name].proves if not a.startswith("US-")]
                for name in PLAN_ORDER}
         self.assertEqual(own, {"walk_to_fight_spot": [], "undefended_hit": ["AC-101.10"],
-                               "block_mitigates": ["AC-101.11"], "perfect_block": ["AC-101.12"],
+                               "block_mitigates": ["AC-101.11"], "rear_unblocked": [],
+                               "perfect_block": ["AC-101.12"],
                                "dodge_evades": ["AC-101.13"], "jump_evades": ["AC-101.14"],
                                "parry_negates": ["AC-101.15"]})
-        self.assertEqual(plan["block_mitigates"].proves[1:], ("US-006:AC-006.3", "US-006:AC-006.4"))
+        self.assertEqual(plan["block_mitigates"].proves[1:3],
+                         ("US-006:AC-006.3", "US-006:AC-006.4"))
         self.assertEqual(plan["dodge_evades"].proves[1:], ("US-005:AC-005.3",))
         self.assertEqual(plan["jump_evades"].proves[1:], ("US-003:AC-003.7",))
+        self.assertIn("US-121:AC-121.5", plan["block_mitigates"].proves)
+        self.assertEqual(plan["rear_unblocked"].proves, ("US-121:AC-121.5",))
         self.assertFalse([s.check for s in us101.PLAN if s.known_issue])
         self.assertTrue(all(s.kind == "gameplay" for s in us101.PLAN))
 
@@ -444,6 +457,10 @@ class TestUs101Helpers(unittest.TestCase):
         self.assertIn("full 15 landed through the block (N32)", detail)
         status, detail = us101.judge_block(self.rec(7.5, 0.0))
         self.assertIn("read as a perfect block", detail)
+        self.assertEqual(us101.judge_rear_unblocked(self.rec(15.0, 0.0, 4.5))[0], "PASS")
+        status, detail = us101.judge_rear_unblocked(self.rec(7.5, 10.5, 2.25))
+        self.assertEqual(status, "FAIL")
+        self.assertIn("expected full -15", detail)
 
     def test_judge_perfect_reports_the_timing(self):
         timeline = [(f"{LT}=1 sent", 0.300), (f"{LT}=1 answered", 0.305)]
@@ -528,6 +545,9 @@ class TestUs101AgainstTheFake(Us101Case):
         self.assertIn("posture -4.5", checks["undefended_hit"]["detail"])
         self.assertIn("health -7.5", checks["block_mitigates"]["detail"])
         self.assertIn("stamina -10.5", checks["block_mitigates"]["detail"])
+        self.assertIn("health -15", checks["rear_unblocked"]["detail"])
+        self.assertIn("stamina -0", checks["rear_unblocked"]["detail"])
+        self.assertIn("posture -4.5", checks["rear_unblocked"]["detail"])
         self.assertRegex(checks["perfect_block"]["detail"],
                          r"LT went up 0\.\d+s before the hit was seen \(window 0\.25s\)")
         self.assertIn("stamina -0", checks["perfect_block"]["detail"])
@@ -538,7 +558,7 @@ class TestUs101AgainstTheFake(Us101Case):
                       checks["parry_negates"]["detail"])
         self.assertIn("'Mordecai.State.ParryWhiff' seen: False", checks["parry_negates"]["detail"])
         # The measured hit times drove the later delays (about 0.5 s after the edge here)
-        self.assertEqual(len(rep["hit_offsets_s"]), 3)
+        self.assertEqual(len(rep["hit_offsets_s"]), 4)
         self.assertTrue(all(0.45 <= t <= 0.65 for t in rep["hit_offsets_s"]), rep["hit_offsets_s"])
         self.assertEqual([s["check"] for s in rep["swings"]], PLAN_ORDER[1:])
         md = self.md()
@@ -552,6 +572,7 @@ class TestUs101AgainstTheFake(Us101Case):
             self.assertEqual(acs[("US-101", f"AC-101.{n}")]["status"], "PASS", n)
         for ac in (("US-006", "AC-006.3"), ("US-005", "AC-005.3"), ("US-003", "AC-003.7")):
             self.assertEqual(acs[ac]["status"], "PASS", ac)
+        self.assertEqual(acs[("US-121", "AC-121.5")]["status"], "PASS")
         self.assert_real_input_only(server)
 
     def assert_real_input_only(self, server):
@@ -560,11 +581,14 @@ class TestUs101AgainstTheFake(Us101Case):
         self.assertLessEqual(set(sent), INPUT_AND_READ_CMDS)
         axes = [r for r in server.received if r.get("cmd") == "axis"]
         self.assertTrue(axes)
-        self.assertLessEqual({k for r in axes for k in r["values"]}, {LT, RT})
+        self.assertLessEqual({k for r in axes for k in r["values"]}, {LT, RT, us101.AIM_Y})
         lt = [r["values"][LT] for r in axes if LT in r["values"] and "hold_s" not in r]
         self.assertEqual(lt[-1], 0.0, "LT is released at the end")
         # RT only as a timed press (the parry), never held across reads
         self.assertTrue(all("hold_s" in r for r in axes if RT in r["values"]))
+        aim = [r["values"][us101.AIM_Y] for r in axes if us101.AIM_Y in r["values"]]
+        self.assertIn(1.0, aim)
+        self.assertIn(-1.0, aim)
         keys = [(r.get("action", "tap"), r.get("key") or tuple(r.get("keys") or ()))
                 for r in server.received if r.get("cmd") == "key"]
         self.assertIn(("tap", us101.DODGE_KEY), keys)
@@ -579,6 +603,7 @@ class TestUs101AgainstTheFake(Us101Case):
     def test_every_defense_fails_with_the_n32_bug(self):
         # Issue #53 as filed: every swing does the full 15, whatever the player does; no Airborne
         world, server = self.serve(defenses=False, airborne_tag=False)
+        world.health = 130.0  # the extra issue #71 rear control must not kill the fake before parry
         code, rep = self.play(server)
         self.assertEqual(code, 1, self.tail())
         checks = self.by_name(rep)
@@ -596,9 +621,9 @@ class TestUs101AgainstTheFake(Us101Case):
         self.assertIn("'Mordecai.State.Airborne' not in player.tags", checks["jump_evades"]["detail"])
         self.assertIn("no 'Mordecai.State.Riposte' on the player",
                       checks["parry_negates"]["detail"])
-        # Every swing landed in full: the seventh one (the parry's) killed the player
+        # Every swing landed in full; the raised fake health lets every defense produce its own failure.
         self.assertTrue(all(k == "none" for _, k, *_ in world.defense_log))
-        self.assertEqual(world.deaths, 1)
+        self.assertEqual(world.deaths, 0)
         acs = self.acs(rep)
         self.assertEqual(acs[("US-101", "AC-101.10")]["status"], "PASS")
         for n in range(11, 16):
