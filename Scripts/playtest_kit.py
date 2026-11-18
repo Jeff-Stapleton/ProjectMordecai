@@ -154,8 +154,11 @@ def aim_world_positive_x(bridge):
     """Aim toward map north/world +X through the real mouse-input path.
 
     The fixed diorama camera maps viewport-up to world +X. Combat-lane playtests call this
-    explicitly because movement no longer rotates the actor after US-098.
+    explicitly because movement no longer rotates the actor after US-098. Move one pixel away
+    first so repeated calls still emit a fresh Slate mouse-move event; an unchanged virtual
+    cursor coordinate does not refresh facing after camera-relative movement.
     """
+    bridge.mouse(640, 121)
     return bridge.mouse(640, 120)
 
 

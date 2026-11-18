@@ -5,7 +5,8 @@ TestAttacker at (2100, 0) following AMordecaiEnemyAIController -- Idle until the
 within 900 cm, then Approach, Attack within 150 cm; the hit lands 0.5 s into each 1.1 s swing,
 then Recover for 1.5 s; the death at health 0 and the respawn) with the defenses as US-101 makes
 them work:
-  - LT held (>= 0.5) blocks: a hit takes health x 0.5, stamina 0.7 x damage, posture x 0.5; a hit
+  - LT held (>= 0.5) blocks: a hit takes health x 0.5, stamina 0.625 x damage at the Green
+    stamina tier, posture x 0.5; a hit
     within perfect_window_s (0.25 s) of raising the block drains no stamina (a perfect block).
   - A fresh RT press while LT is held parries: 20 stamina, a 0.5 s window with the guard down; a
     hit in it does nothing to the player, gives the player Riposte and the attacker Parried, and
@@ -197,7 +198,7 @@ class DefenseWorld(CombatWorld):
                 self.parry_hit, self.parry_active, self.parry_until = True, False, now
         elif kind in ("perfect", "blocked"):
             dh, dp = dmg * 0.5, dmg * 0.3 * 0.5
-            ds = 0.0 if kind == "perfect" else dmg * 0.7
+            ds = 0.0 if kind == "perfect" else dmg * 0.625
         else:
             dh, ds, dp = dmg, 0.0, dmg * 0.3
         self.health = max(0.0, self.health - dh)
@@ -352,8 +353,8 @@ class TestUs101Plan(unittest.TestCase):
         self.assertLess(math.dist(us101.FIGHT_SPOT, us101.ATTACKER_SPAWN) + us101.SPOT_TOL,
                         us101.REACH_CM)
         self.assertEqual((us101.BLOCKED_HEALTH, us101.BLOCKED_STAMINA, us101.FULL_POSTURE),
-                         (7.5, 10.5, 4.5))
-        # Stamina never regenerates (N30): the run never empties it (no guard break)
+                         (7.5, 9.375, 4.5))
+        # Even without relying on runtime regeneration, the run never empties stamina.
         left = (100.0 - us101.BLOCKED_STAMINA - us101.DODGE_STAMINA - us101.PARRY_STAMINA)
         self.assertGreater(left, us101.BLOCKED_STAMINA)
         # Each timed input lands inside its window around the nominal hit
@@ -451,14 +452,15 @@ class TestUs101Helpers(unittest.TestCase):
         status, detail = us101.judge_undefended(self.rec(15.0, hit_s=None))
         self.assertEqual(status, "FAIL")
         self.assertIn("no health drop", detail)
-        self.assertEqual(us101.judge_block(self.rec(7.5, 10.5, 2.25))[0], "PASS")
+        self.assertEqual(us101.judge_block(self.rec(7.5, 9.375, 2.25))[0], "PASS")
         status, detail = us101.judge_block(self.rec(15.0, posture=4.5))
         self.assertEqual(status, "FAIL")
         self.assertIn("full 15 landed through the block (N32)", detail)
         status, detail = us101.judge_block(self.rec(7.5, 0.0))
         self.assertIn("read as a perfect block", detail)
         self.assertEqual(us101.judge_rear_unblocked(self.rec(15.0, 0.0, 4.5))[0], "PASS")
-        status, detail = us101.judge_rear_unblocked(self.rec(7.5, 10.5, 2.25))
+        self.assertEqual(us101.judge_rear_unblocked(self.rec(15.0, -7.5, 4.5))[0], "PASS")
+        status, detail = us101.judge_rear_unblocked(self.rec(7.5, 9.375, 2.25))
         self.assertEqual(status, "FAIL")
         self.assertIn("expected full -15", detail)
 
@@ -469,7 +471,7 @@ class TestUs101Helpers(unittest.TestCase):
         self.assertIn("LT went up 0.215s before the hit was seen", detail)
         self.assertIn(f"{LT}=1 sent +0.300s", detail)
         self.assertIn("hit seen +0.520s", detail)
-        status, detail = us101.judge_perfect(self.rec(7.5, 10.5, timeline=timeline))
+        status, detail = us101.judge_perfect(self.rec(7.5, 9.375, timeline=timeline))
         self.assertEqual(status, "FAIL")
         self.assertIn("a normal block, not a perfect one", detail)
 
@@ -531,7 +533,7 @@ class TestUs101AgainstTheFake(Us101Case):
         undefended = sum(1 for _, k, *_ in world.defense_log if k == "none")
         self.assertGreaterEqual(undefended, 2)   # the walk's swing and the control
         self.assertAlmostEqual(world.health, 100.0 - 15.0 * undefended - 7.5 * 2)
-        self.assertAlmostEqual(world.stamina, 100.0 - 10.5 - 15.0 - 20.0)
+        self.assertAlmostEqual(world.stamina, 100.0 - 9.375 - 15.0 - 20.0)
         self.assertEqual(world.deaths, 0)
         self.assertEqual(world.jumps, 1)
         self.assertEqual(world.parries, 1)
@@ -544,7 +546,7 @@ class TestUs101AgainstTheFake(Us101Case):
         self.assertIn("health -15", checks["undefended_hit"]["detail"])
         self.assertIn("posture -4.5", checks["undefended_hit"]["detail"])
         self.assertIn("health -7.5", checks["block_mitigates"]["detail"])
-        self.assertIn("stamina -10.5", checks["block_mitigates"]["detail"])
+        self.assertIn("stamina -9.375", checks["block_mitigates"]["detail"])
         self.assertIn("health -15", checks["rear_unblocked"]["detail"])
         self.assertIn("stamina -0", checks["rear_unblocked"]["detail"])
         self.assertIn("posture -4.5", checks["rear_unblocked"]["detail"])
