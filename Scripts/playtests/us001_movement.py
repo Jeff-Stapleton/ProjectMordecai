@@ -209,7 +209,32 @@ class Win32PhysicalMouse:
         if not user32.ClientToScreen(hwnd, ctypes.byref(point)):
             raise ctypes.WinError()
         user32.ShowWindow(hwnd, 5)
-        user32.SetForegroundWindow(hwnd)
+        kernel32 = ctypes.windll.kernel32
+        current_thread = kernel32.GetCurrentThreadId()
+        target_thread = user32.GetWindowThreadProcessId(hwnd, None)
+        foreground = user32.GetForegroundWindow()
+        foreground_thread = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
+        attached = []
+        for thread_id in {target_thread, foreground_thread}:
+            if thread_id and thread_id != current_thread:
+                if user32.AttachThreadInput(current_thread, thread_id, True):
+                    attached.append(thread_id)
+        try:
+            user32.BringWindowToTop(hwnd)
+            user32.SetForegroundWindow(hwnd)
+            user32.SetActiveWindow(hwnd)
+            user32.SetFocus(hwnd)
+        finally:
+            for thread_id in attached:
+                user32.AttachThreadInput(current_thread, thread_id, False)
+        if user32.GetForegroundWindow() != hwnd:
+            # Windows' foreground lock can reject even an attached thread. A real Alt tap grants
+            # this process the same foreground transition a user makes when switching windows.
+            user32.keybd_event(0x12, 0, 0, 0)
+            try:
+                user32.SetForegroundWindow(hwnd)
+            finally:
+                user32.keybd_event(0x12, 0, 0x0002, 0)
         foreground_deadline = time.monotonic() + 1.0
         while user32.GetForegroundWindow() != hwnd and time.monotonic() < foreground_deadline:
             time.sleep(0.02)
