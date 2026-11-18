@@ -71,7 +71,7 @@ The production work is C++ GAS/runtime logic plus automation and packaged real-i
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → `B_MordecaiArenaExperience`); Tier 4: `py Scripts/playtests/us122_stamina_runtime.py` on the same package
-- **Player steps:** walk with WASD to lane L1; toggle sprint while still and verify it auto-clears without drain; start a moving sprint; hold W/S until stamina reaches a low tier; verify the low-tier sprint still reaches 1.5× walk speed; capture the drained HUD; stop; wait through the spend delay and until stamina refills; capture the refilled HUD.
+- **Player steps:** walk with WASD to lane L1; toggle sprint while still and verify it auto-clears without drain; start a moving sprint; cycle WASD until stamina reaches a low tier; verify the low-tier sprint still reaches 1.5× walk speed; capture the drained HUD; stop; wait through the spend delay and until stamina refills; capture the refilled HUD.
 - **Visible on screen:** the Mordecai HUD stamina bar is visibly drained and Red/Exhausted in the first capture, then visibly refilled and Green in the second. Image verification is performed by script and recorded in `image-verification.json`; per issue #143 instructions, PNGs/video are not opened with the file-read tool.
 - **Proof:** Tier 3 proves the packaged map and HUD boot; Tier 4 checks `idle_sprint_auto_clears`, `sprint_drains`, `low_tier_authoritative`, `low_tier_sprint_speed`, `regen_delay`, and `refills_green`, and captures both frames.
 - **Tier 4 script:** `Scripts/playtests/us122_stamina_runtime.py` — run: `py Scripts/playtest_story.py US-122`
@@ -80,10 +80,10 @@ The production work is C++ GAS/runtime logic plus automation and packaged real-i
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
 | 1 | `walk_lane` | `walk_to` three open-floor waypoints ending at `(-300, -800)` on lane L1 | - |
-| 2 | `idle_sprint_auto_clears` | tap LeftShift while still, wait 0.4 s → no stamina drain and `Mordecai.State.Sprinting` auto-clears | AC-122.11, AC-122.12, AC-122.17 |
+| 2 | `idle_sprint_auto_clears` | release movement, observe speed ≤ 5 cm/s, tap LeftShift, wait 0.4 s → no stamina drain and `Mordecai.State.Sprinting` auto-clears | AC-122.11, AC-122.12, AC-122.17 |
 | 3 | `sprint_drains` | tap LeftShift, hold W in real-input pulses → stamina decreases and `Mordecai.State.Sprinting` is present | AC-122.7 |
 | 4 | `low_tier_authoritative` | continue real sprint until an authoritative Red/Exhausted tier tag is present | AC-122.4, AC-122.8, AC-122.9, AC-122.10 |
-| 5 | `low_tier_sprint_speed` | while low-tier sprint remains active, hold W and sample `player.speed` → 850–950 cm/s (legacy 600 × 1.5); capture drained HUD | AC-122.13, AC-122.17 |
+| 5 | `low_tier_sprint_speed` | while low-tier sprint remains active, continue the held movement direction and sample `player.speed` → 850–950 cm/s (legacy 600 × 1.5); capture drained HUD | AC-122.13, AC-122.17 |
 | 6 | `regen_delay` | tap LeftShift to stop → sprint tag is removed and stamina stays unchanged during the configured delay | AC-122.2, AC-122.7 |
 | 7 | `refills_green` | wait without input → stamina increases to Green; capture refilled HUD | AC-122.1, AC-122.9, AC-122.10 |
 | 8 | `image_verification` | Pillow verifies both frames are non-uniform and detects Red in the drained HUD and Green in the refilled HUD; write `image-verification.json` | AC-122.10 |

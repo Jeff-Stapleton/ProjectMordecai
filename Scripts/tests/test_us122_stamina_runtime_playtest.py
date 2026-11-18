@@ -24,7 +24,7 @@ from tests import fake_bridge as fb  # noqa: E402
 
 PLAYTEST = os.path.join(SCRIPTS, "playtests", "us122_stamina_runtime.py")
 TOKEN = "us122-offline-token"
-INPUT_AND_READ = {"ping", "state", "key", "screenshot"}
+INPUT_AND_READ = {"ping", "state", "key", "wait", "screenshot"}
 
 
 def load_playtest():
