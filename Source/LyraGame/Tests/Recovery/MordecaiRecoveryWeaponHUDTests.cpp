@@ -194,8 +194,10 @@ bool FMordecai_Recovery_WeaponHUD_PassesGameplayInput::RunTest(const FString& Pa
 	if (TestTrue("the active combat HUD supplies an explicit input config", Config.IsSet()))
 	{
 		TestTrue("combat HUD leaves gameplay input enabled", Config->GetInputMode() == ECommonInputMode::Game);
-		TestTrue("combat HUD preserves the project's initial-click capture mode",
-			Config->GetMouseCaptureMode() == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+		TestTrue("combat HUD keeps the physical cursor live outside an attack click",
+			Config->GetMouseCaptureMode() == EMouseCaptureMode::CaptureDuringMouseDown);
+		TestFalse("combat HUD leaves the cursor visible during attack-click capture",
+			Config->HideCursorDuringViewportCapture());
 	}
 	return true;
 }

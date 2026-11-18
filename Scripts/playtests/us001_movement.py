@@ -66,6 +66,8 @@ import math
 import os
 import sys
 import time
+import ctypes
+from ctypes import wintypes
 
 PLAYTEST_DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS_DIR = os.path.dirname(PLAYTEST_DIR)
@@ -148,9 +150,10 @@ SCREENSHOTS = {
     "after_moves": "the same camera angle (no rotation) with the player at the lane start "
                    "(-700, -800): the camera followed, so the player is still near the screen "
                    "centre and the floor grid has shifted under it",
-    "mouse_facing_off_axis": "the player after W moved camera-relative +X while the mouse remained "
-                             "off-axis at screen-right/world +Y: the green facing arrow points "
-                             "toward +Y and the fixed camera angle is unchanged",
+    "physical_mouse_off_axis": "the player after W moved camera-relative +X while the real OS "
+                               "cursor remained off-axis at screen-right/world +Y: the visible "
+                               "crosshair and green facing arrow point toward +Y and the fixed "
+                               "camera angle is unchanged",
     "facing_arrow": "the player after the right-stick facing attempt: the existing green facing "
                     "arrow is visibly present and points along the pawn's world -Y direction",
 }
@@ -160,6 +163,92 @@ set_log_stream = kit.set_log_stream
 lit = kit.lit
 _dumps = kit.dumps
 _section = kit.section
+
+
+class Win32PhysicalMouse:
+    """Drive the real Windows cursor and LMB for packaged mouse-aim acceptance.
+
+    The optional fallbacks exist only for attached offline fake-bridge tests. A launched
+    acceptance run always requires the game HWND and uses SetCursorPos / SendInput.
+    """
+
+    def __init__(self, pid, fallback_move=None, fallback_click=None):
+        self.pid = int(pid or 0)
+        self.fallback_move = fallback_move
+        self.fallback_click = fallback_click
+        self.is_physical = fallback_move is None and fallback_click is None
+
+    def _game_window(self):
+        if sys.platform != "win32":
+            raise RuntimeError("physical mouse acceptance requires Windows")
+        user32 = ctypes.windll.user32
+        matches = []
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def visit(hwnd, _):
+            window_pid = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(window_pid))
+            if window_pid.value == self.pid and user32.IsWindowVisible(hwnd):
+                matches.append(hwnd)
+                return False
+            return True
+
+        user32.EnumWindows(visit, 0)
+        if not matches:
+            raise RuntimeError(f"no visible game window belongs to pid {self.pid}")
+        return matches[0]
+
+    def move_client(self, x, y):
+        if self.fallback_move:
+            response = self.fallback_move(x, y)
+            return {"physical": False, "client": [x, y], "fallback": response}
+
+        user32 = ctypes.windll.user32
+        hwnd = self._game_window()
+        point = wintypes.POINT(int(x), int(y))
+        if not user32.ClientToScreen(hwnd, ctypes.byref(point)):
+            raise ctypes.WinError()
+        user32.ShowWindow(hwnd, 5)
+        user32.SetForegroundWindow(hwnd)
+        foreground_deadline = time.monotonic() + 1.0
+        while user32.GetForegroundWindow() != hwnd and time.monotonic() < foreground_deadline:
+            time.sleep(0.02)
+        if user32.GetForegroundWindow() != hwnd:
+            raise RuntimeError(f"game window {int(hwnd)} could not become the OS foreground window")
+        if not user32.SetCursorPos(point.x, point.y):
+            raise ctypes.WinError()
+        return {"physical": True, "hwnd": int(hwnd), "client": [x, y],
+                "screen": [point.x, point.y]}
+
+    def click_left(self, x, y):
+        if self.fallback_click:
+            response = self.fallback_click(x, y)
+            return {"physical": False, "client": [x, y], "fallback": response}
+
+        moved = self.move_client(x, y)
+
+        class MOUSEINPUT(ctypes.Structure):
+            _fields_ = (("dx", wintypes.LONG), ("dy", wintypes.LONG),
+                        ("mouseData", wintypes.DWORD), ("dwFlags", wintypes.DWORD),
+                        ("time", wintypes.DWORD), ("dwExtraInfo", ctypes.c_size_t))
+
+        class INPUTUNION(ctypes.Union):
+            _fields_ = (("mi", MOUSEINPUT),)
+
+        class INPUT(ctypes.Structure):
+            _anonymous_ = ("u",)
+            _fields_ = (("type", wintypes.DWORD), ("u", INPUTUNION))
+
+        inputs = (INPUT * 2)(
+            INPUT(type=0, mi=MOUSEINPUT(dwFlags=0x0002)),
+            INPUT(type=0, mi=MOUSEINPUT(dwFlags=0x0004)),
+        )
+        sent = ctypes.windll.user32.SendInput(
+            len(inputs), ctypes.byref(inputs), ctypes.sizeof(INPUT))
+        if sent != len(inputs):
+            raise ctypes.WinError()
+        moved["sent_inputs"] = int(sent)
+        return moved
 
 
 def _yaw_cond(target, tol):
@@ -208,9 +297,14 @@ PLAN = (
          f"{SPRINT_MIN:g} cm (then tap L3 again)", proves=("AC-1.3.3", "AC-2.1.3")),
     Step("jump_space", f"tap {JUMP_KEY} -> wait_until player.movement_mode==\"Falling\" "
          f"within {JUMP_TIMEOUT_S:g}s", proves=("AC-2.1.4",)),
-    Step("facing_mouse", f"mouse {FACING_MOUSE[0]:g} {FACING_MOUSE[1]:g} (right of the "
-         f"player, +Y) -> wait_until player.rotation yaw {FACING_MOUSE_YAW:g} "
-         f"(+-{FACING_TOL:g}) within {FACING_TIMEOUT_S:g}s", proves=("AC-2.1.2",)),
+    Step("facing_mouse_physical", f"Win32 SetCursorPos to client ({FACING_MOUSE[0]:g}, "
+         f"{FACING_MOUSE[1]:g}) (right of the player, +Y; no bridge mouse command) -> "
+         f"wait_until player.rotation yaw {FACING_MOUSE_YAW:g} (+-{FACING_TOL:g}) within "
+         f"{FACING_TIMEOUT_S:g}s", proves=("AC-2.1.2",)),
+    Step("cursor_visible_mouse", "after physical mouse movement -> focus.input_type is "
+         "MouseAndKeyboard and focus.mouse_cursor_shown=true", proves=("AC-2.1.2",)),
+    Step("attack_click_physical", "Win32 SendInput LMB down/up at the aim point -> "
+         "Mordecai.State.Attacking appears in player.tags", proves=("AC-2.1.2",)),
     Step("movement_keeps_aim", f"with mouse aim still +Y, hold W {MOVE_HOLD_S:g}s -> "
          f"player.location moves > {MOVE_MIN:g} cm along camera-relative +X and < "
          f"{CROSS_MAX:g} cm across while yaw stays {FACING_MOUSE_YAW:g} "
@@ -218,6 +312,8 @@ PLAN = (
     Step("facing_stick", f"axis Gamepad_RightX=-1 held (left, -Y) -> wait_until "
          f"player.rotation yaw {FACING_STICK_YAW:g} (+-{FACING_TOL:g}) within "
          f"{FACING_TIMEOUT_S:g}s, then release and retain that yaw", proves=("AC-2.1.2",)),
+    Step("cursor_hidden_gamepad", "after right-stick input -> focus.input_type is Gamepad and "
+         "focus.mouse_cursor_shown=false", proves=("AC-2.1.2",)),
     Step("gamepad_move", f"axis Gamepad_LeftY=1 for {GAMEPAD_HOLD_S:g}s -> player.location "
          f"x rises > {GAMEPAD_MIN:g} cm", proves=("AC-2.1.1", "AC-1.3.2")),
 )
@@ -603,13 +699,66 @@ class Us001Run(kit.PlaytestRun):
                     f" (expected {target:g} +-{FACING_TOL:g} within {FACING_TIMEOUT_S:g}s)", resp)
         return "PASS", f"{what}; yaw {target:g} +-{FACING_TOL:g} after {r.get('elapsed_s')}s", resp
 
+    def _physical_mouse(self):
+        if self.mode == "attach":
+            # Offline fake tests and exploratory attaches are diagnostic-only. Acceptance launches
+            # the package and therefore always takes the Win32 path with no Slate fallback.
+            return Win32PhysicalMouse(
+                self.bridge.pid,
+                fallback_move=self.bridge.mouse,
+                fallback_click=self.bridge.click)
+        return Win32PhysicalMouse(self.bridge.pid)
+
     def step_facing(self):
         def mouse():
             x, y = FACING_MOUSE
-            r = self.bridge.mouse(x, y)
-            return self._wait_yaw(FACING_MOUSE_YAW, f"mouse moved to ({x:g}, {y:g})", r)
+            r = self._physical_mouse().move_client(x, y)
+            return self._wait_yaw(
+                FACING_MOUSE_YAW,
+                f"physical OS cursor moved to game client ({x:g}, {y:g})",
+                r)
 
-        mouse_ok, _ = self.attempt("facing_mouse", mouse)
+        mouse_ok, _ = self.attempt("facing_mouse_physical", mouse)
+
+        def cursor_visible():
+            try:
+                r = self.bridge.wait_until(
+                    'focus.input_type=="MouseAndKeyboard" && focus.mouse_cursor_shown==true',
+                    timeout_s=1.0)
+            except ab.BridgeError as e:
+                if e.code != "timeout":
+                    raise
+                focus = _section(self.bridge.state(["focus"]), "focus")
+                return ("FAIL", f"physical mouse input did not leave a visible gameplay cursor: "
+                        f"focus={focus}", focus)
+            return ("PASS", "physical mouse is the last-used input and the gameplay cursor is "
+                    "visible", r)
+
+        self.attempt("cursor_visible_mouse", cursor_visible, needs=mouse_ok,
+                     needs_why="not run: physical mouse aim did not establish +Y facing")
+
+        def attack_click():
+            x, y = FACING_MOUSE
+            driver = self._physical_mouse()
+            response = driver.click_left(x, y)
+            if not driver.is_physical:
+                return ("PASS", "diagnostic attached fake accepted the click fallback; launched "
+                        "acceptance uses Win32 SendInput", response)
+            deadline = time.monotonic() + 0.75
+            seen = []
+            while time.monotonic() < deadline:
+                tags = _section(self.bridge.state(["player"]), "player").get("tags") or []
+                seen = list(tags)
+                if "Mordecai.State.Attacking" in tags:
+                    return ("PASS", "Win32 SendInput LMB down/up reached Enhanced Input and "
+                            "started a melee attack", {"input": response, "tags": seen})
+                time.sleep(0.02)
+            return ("FAIL", "Win32 SendInput LMB down/up did not produce "
+                    f"Mordecai.State.Attacking; last player.tags={seen}",
+                    {"input": response, "tags": seen})
+
+        self.attempt("attack_click_physical", attack_click, needs=mouse_ok,
+                     needs_why="not run: physical mouse aim did not establish +Y facing")
 
         def movement_keeps_aim():
             b = self.bridge
@@ -618,7 +767,15 @@ class Us001Run(kit.PlaytestRun):
             except ab.BridgeError as e:
                 if e.code != "timeout":
                     raise
-                return "FAIL", "player did not return to Walking before the aimed move", None
+                return "FAIL", "player did not return to movable recovery before the aimed move", None
+            recovery_deadline = time.monotonic() + 2.0
+            while time.monotonic() < recovery_deadline:
+                tags = _section(b.state(["player"]), "player").get("tags") or []
+                if "Mordecai.State.Attacking" not in tags:
+                    break
+                time.sleep(0.02)
+            else:
+                return "FAIL", "State.Attacking did not end before the aimed move", None
             got, err = self._hold_and_measure("W", MOVE_HOLD_S)
             if got is None:
                 return "FAIL", err, None
@@ -641,7 +798,7 @@ class Us001Run(kit.PlaytestRun):
 
         self.attempt("movement_keeps_aim", movement_keeps_aim, needs=mouse_ok,
                      needs_why="not run: mouse aim did not establish +Y facing")
-        self.shot("mouse_facing_off_axis")
+        self.shot("physical_mouse_off_axis")
 
         def stick():
             b = self.bridge
@@ -661,6 +818,21 @@ class Us001Run(kit.PlaytestRun):
             return ("PASS", f"{result[1]}; release preserved yaw {yaw_value}", r)
 
         self.attempt("facing_stick", stick)
+
+        def cursor_hidden():
+            try:
+                r = self.bridge.wait_until(
+                    'focus.input_type=="Gamepad" && focus.mouse_cursor_shown==false',
+                    timeout_s=1.0)
+            except ab.BridgeError as e:
+                if e.code != "timeout":
+                    raise
+                focus = _section(self.bridge.state(["focus"]), "focus")
+                return ("FAIL", f"right-stick input did not hide the mouse cursor: focus={focus}",
+                        focus)
+            return "PASS", "gamepad is the last-used input and the gameplay cursor is hidden", r
+
+        self.attempt("cursor_hidden_gamepad", cursor_hidden)
         self.shot("facing_arrow")
 
     # --- step 8: gamepad move ----------------------------------------------------------------

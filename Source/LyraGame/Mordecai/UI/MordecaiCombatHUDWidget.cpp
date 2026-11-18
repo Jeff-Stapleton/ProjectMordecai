@@ -16,12 +16,16 @@
 #include "Mordecai/Magic/MordecaiSpellDataAsset.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
 #include "Blueprint/WidgetTree.h"
+#include "CommonInputSubsystem.h"
+#include "CommonInputTypeEnum.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "GameFramework/PlayerController.h"
 #include "Input/UIActionBindingHandle.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/UI/TinTally/MordecaiUIPrimitives.h"
@@ -42,7 +46,8 @@ TOptional<FUIInputConfig> UMordecaiCombatHUDWidget::GetDesiredInputConfig() cons
 	// the first click after refocusing the game is delivered to gameplay instead of only capturing.
 	return FUIInputConfig(
 		ECommonInputMode::Game,
-		EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+		EMouseCaptureMode::CaptureDuringMouseDown,
+		false);
 }
 
 void UMordecaiCombatHUDWidget::NativeOnInitialized()
@@ -101,6 +106,7 @@ void UMordecaiCombatHUDWidget::NativeTick(const FGeometry& MyGeometry, float InD
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	(void)InDeltaTime;
 	UpdateLowHealthRimForTime(GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f);
+	UpdateAimCursor();
 }
 
 void UMordecaiCombatHUDWidget::BuildDefaultLayout()
@@ -118,6 +124,7 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 	IndicatorSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
 	IndicatorSlot->SetOffsets(FMargin(0.f));
 	IndicatorSlot->SetZOrder(-1);
+	BuildAimCursor(Root);
 
 	// Helper: every final-map box is fixed-size in 1920x1080 design pixels.
 	auto AddChild = [Root](UWidget* Child, FAnchors Anchors, FVector2D Position, FVector2D Size, FVector2D Alignment = FVector2D::ZeroVector)
@@ -298,6 +305,77 @@ void UMordecaiCombatHUDWidget::BuildDefaultLayout()
 	SetHUDMargin(32.f);
 }
 
+void UMordecaiCombatHUDWidget::BuildAimCursor(UCanvasPanel* Root)
+{
+	if (!Root || AimCursorRoot)
+	{
+		return;
+	}
+
+	AimCursorRoot = WidgetTree->ConstructWidget<UCanvasPanel>(
+		UCanvasPanel::StaticClass(), TEXT("AimCursorRoot"));
+	AimCursorRoot->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	auto AddBar = [this](const TCHAR* Name, const FVector2D& Position,
+		const FVector2D& Size, const FLinearColor& Color)
+	{
+		UBorder* Bar = WidgetTree->ConstructWidget<UBorder>(
+			UBorder::StaticClass(), FName(Name));
+		Bar->SetBrushColor(Color);
+		Bar->SetPadding(FMargin(0.f));
+		Bar->SetVisibility(ESlateVisibility::HitTestInvisible);
+		if (UCanvasPanelSlot* Slot = AimCursorRoot->AddChildToCanvas(Bar))
+		{
+			Slot->SetPosition(Position);
+			Slot->SetSize(Size);
+		}
+	};
+
+	// High-contrast temporary ground-aim crosshair. Art can replace this without changing input behavior.
+	AddBar(TEXT("AimCursorHorizontalInk"), FVector2D(0.f, 10.f), FVector2D(24.f, 4.f), FLinearColor::Black);
+	AddBar(TEXT("AimCursorVerticalInk"), FVector2D(10.f, 0.f), FVector2D(4.f, 24.f), FLinearColor::Black);
+	AddBar(TEXT("AimCursorHorizontal"), FVector2D(2.f, 11.f), FVector2D(20.f, 2.f), FLinearColor::White);
+	AddBar(TEXT("AimCursorVertical"), FVector2D(11.f, 2.f), FVector2D(2.f, 20.f), FLinearColor::White);
+
+	if (UCanvasPanelSlot* CursorSlot = Root->AddChildToCanvas(AimCursorRoot))
+	{
+		CursorSlot->SetPosition(FVector2D::ZeroVector);
+		CursorSlot->SetSize(FVector2D(24.f));
+		CursorSlot->SetZOrder(110);
+	}
+}
+
+void UMordecaiCombatHUDWidget::UpdateAimCursor()
+{
+	if (!AimCursorRoot)
+	{
+		return;
+	}
+
+	APlayerController* PC = GetOwningPlayer();
+	const ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
+	const UCommonInputSubsystem* CommonInput =
+		LocalPlayer ? UCommonInputSubsystem::Get(LocalPlayer) : nullptr;
+	const bool bMouseAndKeyboard = PC && (!CommonInput
+		|| CommonInput->GetCurrentInputType() == ECommonInputType::MouseAndKeyboard);
+	AimCursorRoot->SetVisibility(
+		bMouseAndKeyboard ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	if (!bMouseAndKeyboard)
+	{
+		return;
+	}
+
+	float MouseX = 0.f;
+	float MouseY = 0.f;
+	if (UWidgetLayoutLibrary::GetMousePositionScaledByDPI(PC, MouseX, MouseY))
+	{
+		if (UCanvasPanelSlot* CursorSlot = Cast<UCanvasPanelSlot>(AimCursorRoot->Slot))
+		{
+			CursorSlot->SetPosition(FVector2D(MouseX - 12.f, MouseY - 12.f));
+		}
+	}
+}
+
 void UMordecaiCombatHUDWidget::BuildLowHealthFrame(UCanvasPanel* Root)
 {
 	if (!Root || LowHealthFrame)
@@ -374,6 +452,7 @@ int32 UMordecaiCombatHUDWidget::GetBoundChildCount() const
 	if (PickupPrompt) Count++;
 	if (EquippedWeaponWidget) Count++;
 	if (LowHealthFrame) Count++;
+	if (AimCursorRoot) Count++;
 	return Count;
 }
 

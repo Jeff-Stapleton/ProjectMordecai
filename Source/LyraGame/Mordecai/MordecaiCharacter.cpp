@@ -121,6 +121,11 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 
 void AMordecaiCharacter::SetAimFacingDirection(FVector AimDirection)
 {
+	if (!CanUpdateAimFacing())
+	{
+		return;
+	}
+
 	AimDirection.Z = 0.f;
 	if (AimDirection.ContainsNaN() || !AimDirection.Normalize())
 	{
@@ -137,8 +142,32 @@ void AMordecaiCharacter::SetAimFacingDirection(FVector AimDirection)
 	}
 }
 
+bool AMordecaiCharacter::CanUpdateAimFacing() const
+{
+	if (const AController* OwningController = GetController();
+		OwningController && OwningController->IsLookInputIgnored())
+	{
+		return false;
+	}
+
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	return !IsDead()
+		&& (!ASC
+			|| (!ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Status_MicroStunned)
+				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_PostureBroken)
+				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_KnockedDown)
+				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Dodging)
+				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Parrying)
+				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Attacking)));
+}
+
 void AMordecaiCharacter::ServerSetAimFacingDirection_Implementation(FVector AimDirection)
 {
+	if (!CanUpdateAimFacing())
+	{
+		return;
+	}
+
 	AimDirection.Z = 0.f;
 	if (AimDirection.ContainsNaN() || !AimDirection.Normalize())
 	{

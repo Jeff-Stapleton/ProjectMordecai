@@ -26,8 +26,8 @@ UMordecaiGA_MeleeAttack::UMordecaiGA_MeleeAttack(const FObjectInitializer& Objec
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
-	// AC-004.14: Prevent concurrent activation (cannot double-swing)
-	ActivationOwnedTags.AddTag(MordecaiGameplayTags::State_Attacking);
+	// AC-004.14: Prevent concurrent activation (cannot double-swing). State.Attacking is added
+	// explicitly only during Windup/Active so aim can resume as soon as Recovery begins.
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Attacking);
 
 	// AC-007.8: Cannot attack during posture broken or knocked down
@@ -279,6 +279,26 @@ FGameplayTag UMordecaiGA_MeleeAttack::GetDamageTagForType(EMordecaiDamageType Da
 
 void UMordecaiGA_MeleeAttack::TransitionToPhase(EMordecaiAttackPhase NewPhase)
 {
+	const bool bWasCommitted = CurrentPhase == EMordecaiAttackPhase::Windup
+		|| CurrentPhase == EMordecaiAttackPhase::Active;
+	const bool bIsCommitted = NewPhase == EMordecaiAttackPhase::Windup
+		|| NewPhase == EMordecaiAttackPhase::Active;
+	if (bWasCommitted != bIsCommitted)
+	{
+		if (UAbilitySystemComponent* ASC = CurrentActorInfo
+			? CurrentActorInfo->AbilitySystemComponent.Get()
+			: nullptr)
+		{
+			if (bIsCommitted)
+			{
+				ASC->AddLooseGameplayTag(MordecaiGameplayTags::State_Attacking);
+			}
+			else
+			{
+				ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Attacking);
+			}
+		}
+	}
 	CurrentPhase = NewPhase;
 	UpdateRooting();
 }
@@ -359,7 +379,7 @@ void UMordecaiGA_MeleeAttack::EndAbility(
 		bIsRooted = false;
 	}
 
-	CurrentPhase = EMordecaiAttackPhase::None;
+	TransitionToPhase(EMordecaiAttackPhase::None);
 	bComboInputReceived = false;
 	SetComboWindowOpen(false);
 

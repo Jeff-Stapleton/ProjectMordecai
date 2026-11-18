@@ -172,9 +172,15 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UCanvasPanel> LowHealthFrame;
 
+	/** Screenshot-visible reticle that follows the live OS cursor without participating in hit testing. */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UCanvasPanel> AimCursorRoot;
+
 private:
 	void BuildDefaultLayout();
 	void BuildLowHealthFrame(UCanvasPanel* Root);
+	void BuildAimCursor(UCanvasPanel* Root);
+	void UpdateAimCursor();
 	void OnHUDHealthChanged(const FOnAttributeChangeData& Data);
 	void OnHUDMaxHealthChanged(const FOnAttributeChangeData& Data);
 	void UpdateLowHealthFrame();

@@ -7,6 +7,9 @@
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/UI/MordecaiInventoryWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuSubsystem.h"
+#include "CommonInputSubsystem.h"
+#include "CommonInputTypeEnum.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/GameInstance.h"
 #include "GameFeatures/GameFeatureAction_AddInputContextMapping.h"
 #include "AbilitySystemComponent.h"
@@ -33,6 +36,8 @@ UMordecaiHeroComponent::UMordecaiHeroComponent(const FObjectInitializer& ObjectI
 	// Note: We no longer rely on DefaultInputMappings for the IMC_Mordecai .uasset
 	// because its modifiers can't be serialized via Python. Instead, we create a
 	// programmatic IMC in EnsureMordecaiInputBound with proper C++ modifiers.
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = true;
 }
 
 void UMordecaiHeroComponent::EnsureMordecaiInputBound(APlayerController* PC)
@@ -166,7 +171,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 			// Gamepad Left Stick
 			FEnhancedActionKeyMapping& Stick = MordecaiIMC->MapKey(MoveAction, EKeys::Gamepad_Left2D);
 			UInputModifierDeadZone* DZ = NewObject<UInputModifierDeadZone>(MordecaiIMC);
-			DZ->LowerThreshold = AimStickDeadzone;
+			DZ->LowerThreshold = 0.25f;
 			Stick.Modifiers.Add(DZ);
 		}
 
@@ -430,6 +435,15 @@ void UMordecaiHeroComponent::InitializePlayerInput(UInputComponent* PlayerInputC
 	}
 }
 
+void UMordecaiHeroComponent::TickComponent(
+	float DeltaTime,
+	ELevelTick TickType,
+	FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	UpdateLocalMouseAim();
+}
+
 int32 UMordecaiHeroComponent::RemoveNativeBindingsForTag(UEnhancedInputComponent* EIC, const ULyraInputConfig* InputConfig,
 	const FGameplayTag& InputTag, const UObject* BoundObject)
 {
@@ -515,7 +529,8 @@ void UMordecaiHeroComponent::Input_LookStick(const FInputActionValue& InputActio
 bool UMordecaiHeroComponent::ApplyMouseAimFromRay(FVector WorldOrigin, FVector WorldDirection)
 {
 	AMordecaiCharacter* Character = Cast<AMordecaiCharacter>(GetOwner());
-	if (!Character || WorldOrigin.ContainsNaN() || WorldDirection.ContainsNaN()
+	if (!Character || !Character->CanUpdateAimFacing()
+		|| WorldOrigin.ContainsNaN() || WorldDirection.ContainsNaN()
 		|| FMath::IsNearlyZero(WorldDirection.Z))
 	{
 		return false;
@@ -532,6 +547,12 @@ bool UMordecaiHeroComponent::ApplyMouseAimFromRay(FVector WorldOrigin, FVector W
 	FVector AimDirection =
 		(WorldOrigin + WorldDirection * RayDistance) - CharacterLocation;
 	AimDirection.Z = 0.f;
+	const UCapsuleComponent* Capsule = Character->GetCapsuleComponent();
+	const float DeadRadius = Capsule ? Capsule->GetScaledCapsuleRadius() : 40.f;
+	if (AimDirection.SizeSquared2D() <= FMath::Square(DeadRadius))
+	{
+		return false;
+	}
 	if (!AimDirection.Normalize())
 	{
 		return false;
@@ -544,8 +565,8 @@ bool UMordecaiHeroComponent::ApplyMouseAimFromRay(FVector WorldOrigin, FVector W
 bool UMordecaiHeroComponent::ApplyGamepadAim(FVector2D StickInput)
 {
 	AMordecaiCharacter* Character = Cast<AMordecaiCharacter>(GetOwner());
-	if (!Character || StickInput.ContainsNaN()
-		|| StickInput.SizeSquared() <= FMath::Square(AimStickDeadzone))
+	if (!Character || !Character->CanUpdateAimFacing()
+		|| StickInput.ContainsNaN() || StickInput.IsNearlyZero())
 	{
 		return false;
 	}
@@ -554,6 +575,36 @@ bool UMordecaiHeroComponent::ApplyGamepadAim(FVector2D StickInput)
 	Character->SetAimFacingDirection(
 		FVector(StickInput.Y, StickInput.X, 0.f));
 	return true;
+}
+
+void UMordecaiHeroComponent::UpdateLocalMouseAim()
+{
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	APlayerController* PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
+	if (!PC || !PC->IsLocalController())
+	{
+		return;
+	}
+
+	const UCommonInputSubsystem* CommonInput =
+		UCommonInputSubsystem::Get(PC->GetLocalPlayer());
+	const bool bMouseAndKeyboard = !CommonInput
+		|| CommonInput->GetCurrentInputType() == ECommonInputType::MouseAndKeyboard;
+	PC->bShowMouseCursor = bMouseAndKeyboard;
+	if (!bMouseAndKeyboard)
+	{
+		return;
+	}
+
+	PC->DefaultMouseCursor = EMouseCursor::Crosshairs;
+	PC->CurrentMouseCursor = EMouseCursor::Crosshairs;
+
+	FVector WorldOrigin;
+	FVector WorldDirection;
+	if (PC->DeprojectMousePositionToWorld(WorldOrigin, WorldDirection))
+	{
+		ApplyMouseAimFromRay(WorldOrigin, WorldDirection);
+	}
 }
 
 // ---------------------------------------------------------------------------

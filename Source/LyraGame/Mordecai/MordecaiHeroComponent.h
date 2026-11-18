@@ -68,10 +68,19 @@ protected:
 	virtual void InitializePlayerInput(UInputComponent* PlayerInputComponent) override;
 	//~ End ULyraHeroComponent interface
 
+	//~ UActorComponent interface
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	//~ End UActorComponent interface
+
 private:
 	// Fixed-camera input handlers. Movement stays in the yaw-zero camera basis while aim rotates only the pawn.
+	UFUNCTION()
 	void Input_Move(const FInputActionValue& InputActionValue);
+
+	UFUNCTION()
 	void Input_LookMouse(const FInputActionValue& InputActionValue);
+
+	UFUNCTION()
 	void Input_LookStick(const FInputActionValue& InputActionValue);
 
 	/** Project a deprojected cursor ray onto the horizontal plane at the character's height. */
@@ -81,6 +90,9 @@ private:
 	/** Apply right-stick aim in the fixed-camera basis; false inside the deadzone preserves last facing. */
 	UFUNCTION()
 	bool ApplyGamepadAim(FVector2D StickInput);
+
+	/** Deproject the live OS cursor for local mouse aim and update cursor visibility for the last-used device. */
+	void UpdateLocalMouseAim();
 
 	// Spell input handlers (AC-057.5) — each activates the spell in the corresponding slot
 	void HandleSpell1Input(const FInputActionValue& InputActionValue);

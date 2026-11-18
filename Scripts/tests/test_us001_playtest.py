@@ -98,6 +98,7 @@ class HudWorld(UnboundWorld):
         self.jump_until = -1.0
         self.sprint_taps = 0
         self.yaw = 0.0
+        self.last_input_type = "MouseAndKeyboard"
 
     def _on_key_pressed(self, key):
         super()._on_key_pressed(key)
@@ -129,9 +130,21 @@ class HudWorld(UnboundWorld):
     def move_cursor(self, x, y):
         with self.lock:
             super().move_cursor(x, y)
+            self.last_input_type = "MouseAndKeyboard"
             wx, wy = (fb.VIEWPORT_H / 2.0) - y, x - (fb.VIEWPORT_W / 2.0)
             if math.hypot(wx, wy) > 1:
                 self.yaw = math.degrees(math.atan2(wy, wx))
+
+    def set_axis(self, conn_id, key, value):
+        super().set_axis(conn_id, key, value)
+        if value and key.startswith("Gamepad_"):
+            self.last_input_type = "Gamepad"
+
+    def _s_focus(self):
+        out = super()._s_focus()
+        out["input_type"] = self.last_input_type
+        out["mouse_cursor_shown"] = self.last_input_type == "MouseAndKeyboard"
+        return out
 
     def tick(self, dt):
         with self.lock:
@@ -292,7 +305,8 @@ class TestUs001TodaysGame(PlaytestCase):
                      "no_camera_rotation_input", "walk_lane_wp1", "walk_lane_wp2",
                      "walk_lane_start", "walk_speed_baseline", "walk_lane_reset",
                      "sprint_shift", "walk_lane_reset2", "sprint_l3", "jump_space",
-                     "facing_mouse", "movement_keeps_aim", "facing_stick",
+                     "facing_mouse_physical", "cursor_visible_mouse", "attack_click_physical",
+                     "movement_keeps_aim", "facing_stick", "cursor_hidden_gamepad",
                      "facing_arrow", "gamepad_move", "no_crash"):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertEqual(self.statuses(rep, "FAIL"), KNOWN_FAILS)
@@ -308,7 +322,7 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertFalse(world.sprinting, "the sprint was toggled back")
         self.assertIn("need > 700", checks["sprint_l3"]["detail"])
         self.assertNotIn(" -- ", checks["sprint_l3"]["detail"])
-        self.assertIn("yaw 90", checks["facing_mouse"]["detail"])
+        self.assertIn("yaw 90", checks["facing_mouse_physical"]["detail"])
         self.assertIn("yaw 90.0", checks["movement_keeps_aim"]["detail"])
         self.assertIn("release preserved yaw -90", checks["facing_stick"]["detail"])
         self.assertIn("need > 100", checks["gamepad_move"]["detail"])
@@ -356,7 +370,7 @@ class TestUs001TodaysGame(PlaytestCase):
         code, rep = self.play(server)
         self.assertEqual(code, 0)
         self.assertEqual([s["label"] for s in rep["screenshots"]],
-                         ["start", "after_moves", "mouse_facing_off_axis", "facing_arrow"])
+                         ["start", "after_moves", "physical_mouse_off_axis", "facing_arrow"])
         for s in rep["screenshots"]:
             self.assertTrue(ab.file_complete(s["path"]), s["path"])
             self.assertEqual(s["expect"], us001.SCREENSHOTS[s["label"]])
@@ -397,7 +411,8 @@ class TestUs001BeforeUs083(PlaytestCase):
             self.assertEqual(checks[name]["status"], "FAIL", name)
         self.assertEqual(
             rep["new_failures"],
-            ["sprint_shift", "sprint_l3", "jump_space", "facing_mouse", "facing_stick"])
+            ["sprint_shift", "sprint_l3", "jump_space", "facing_mouse_physical",
+             "facing_stick", "cursor_hidden_gamepad"])
         self.assertIn("need > 700", checks["sprint_shift"]["detail"])
         self.assertIn("player.movement_mode", checks["jump_space"]["detail"])
         self.assertIn('"Walking"', checks["jump_space"]["detail"])
@@ -623,6 +638,19 @@ class TestUs001Plan(unittest.TestCase):
         self.assertEqual(kit.MOVEMENT_TEST_MAP, fb.MOVEMENT_TEST_MAP)
         self.assertEqual(us001.Us001Run.expected_experience(), kit.DEFAULT_EXPERIENCE)
         self.assertNotIn("DevTestMap", us001.__doc__)
+
+    def test_aim_acceptance_uses_physical_win32_mouse_not_bridge_mouse(self):
+        checks = [step.check for step in us001.PLAN]
+        for check in ("facing_mouse_physical", "attack_click_physical",
+                      "cursor_visible_mouse", "cursor_hidden_gamepad"):
+            self.assertIn(check, checks)
+        self.assertIn("physical_mouse_off_axis", us001.SCREENSHOTS)
+        self.assertTrue(hasattr(us001, "Win32PhysicalMouse"))
+        source = open(PLAYTEST, encoding="utf-8").read()
+        facing_body = source[source.index("def step_facing"):source.index("def step_gamepad_move")]
+        self.assertIn("SetCursorPos", source)
+        self.assertIn("SendInput", source)
+        self.assertNotIn("self.bridge.mouse(", facing_body)
 
     def test_the_route_and_the_lane_stay_clear_on_the_movement_map(self):
         boxes = ([b for _, b in fb.MOVEMENT_TEST_MAP_WALLS]

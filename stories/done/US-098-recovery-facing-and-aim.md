@@ -29,12 +29,17 @@ Camera mode and character rotation logic in C++ (`UMordecaiCameraMode_Diorama`, 
 - [x] AC-098.7: With a +Y aim established, W / left-stick up still moves along camera-relative +X without changing yaw; releasing the right stick keeps the last facing
 - [x] AC-098.8: Melee hit direction, block facing, no-input dodge fallback, Blink and aimed spells consistently consume the character's actor-facing direction
 - [x] AC-098.9: The player capsule remains radius 40, half-height 90 and maximum step height 45
-- [x] AC-098.10: The locally controlled character turns immediately, and non-authority aim updates are sent to the authority through the existing replicated character rotation path; broader multiplayer prediction/reconciliation is documented as follow-up scope
+- [x] AC-098.10: The locally controlled character turns immediately. The existing unreliable aim RPC and normal actor-rotation replication remain in place, but server-authority behavior is not claimed without a real multi-client net world; multiplayer verification/prediction/reconciliation is follow-up scope
+- [ ] AC-098.11: Aim-facing is locked when controller look input is ignored and while Dead, MicroStunned, PostureBroken, KnockedDown, Dodging, Parrying, or melee Windup/Active (`State.Attacking`); it resumes in melee Recovery
+- [ ] AC-098.12: Packaged mouse aim follows a real Win32 OS cursor, recomputes every local-player tick, and ignores projected points within the 40 cm capsule-radius dead zone
+- [ ] AC-098.13: The gameplay cursor and a hit-test-invisible crosshair are visible while mouse+keyboard is last-used, LMB still starts an attack, and both cursor affordances hide when gamepad is last-used
+- [ ] AC-098.14: The right-stick mapping applies its 0.2 deadzone exactly once, while the movement stick retains its independent 0.25 deadzone
+- [ ] AC-098.15: The strengthened tests drive the real look and movement handlers, tick movement after input, perform the real melee arc query, and do not claim net authority without a multi-client net world
 
 ## Technical Notes
 - The camera keeps writing its fixed view/control rotation, but character yaw no longer derives from controller desired rotation. Character yaw comes from aim vectors set by the Look actions. Movement uses the fixed camera-yaw-zero basis, not actor or control rotation.
 - Melee, no-input dodge fallback, Blink, Fireball, Magic Missile, Illusion, Enfeeble, Snare, Sleep and Cone of Cold already read `GetActorForwardVector()` / actor rotation and therefore follow the new facing. Block is currently direction-agnostic (`MordecaiHitDefense.cpp` TODO); keeping actor facing current ensures a future frontal block uses the same source without inventing a block cone in this story.
-- Mouse aim: deproject the cursor to the ground plane at the player's Z. Watch the agent bridge's virtual cursor: the playtest sets the cursor with `mouse X Y`.
+- Mouse aim: deproject the live OS cursor to the ground plane at the player's Z every tick while CommonInput reports MouseAndKeyboard. The packaged acceptance step uses Win32 `SetCursorPos`/`SendInput`, not the agent bridge's virtual Slate cursor.
 - Script bookkeeping (before packaging): remove the facing `known_issue` from `facing_mouse` and `facing_stick`, add an aimed-movement independence check and refresh US-001's Steps table so `--lint` passes.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 

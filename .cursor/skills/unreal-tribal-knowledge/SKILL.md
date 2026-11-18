@@ -1019,6 +1019,26 @@ struct FSlateUserReadAccess : public FSlateUser
 ```
 Use it read-only. Prefer a public API whenever one exists.
 
+### Twin-stick aim: deadzone once, and a gameplay cursor needs uncaptured physical motion (issue #34)
+
+**Problem:** Right-stick aim felt as if it had a roughly 0.36 deadzone despite a configured 0.2
+threshold, while packaged mouse aim passed bridge-cursor tests but a real mouse could not move the
+aim point.
+
+**Root cause:** Enhanced Input's radial `UInputModifierDeadZone` rescales the post-threshold value.
+Rejecting the resulting value against 0.2 again in the gameplay handler applies the threshold
+twice. Separately, `CapturePermanently_IncludingInitialMouseDown` with a hidden cursor keeps the
+physical cursor pinned/captured; moving Slate's in-memory cursor does not prove a player's OS mouse
+can update cursor-ground projection.
+
+**Fix:** Apply the right-stick deadzone only on the mapping and let the handler accept every
+non-zero mapped value. Give the movement stick its own deadzone. For mouse aim, use
+`CaptureDuringMouseDown` with `bHideCursorDuringViewportCapture=false`, show a hit-test-invisible
+UMG reticle while CommonInput reports MouseAndKeyboard, hide it for Gamepad, and deproject the live
+cursor every local-player tick. Reject projected points within the capsule radius to prevent
+near-centre jitter. Acceptance must use Win32 `SetCursorPos`/`SendInput`; the bridge's virtual Slate
+cursor remains useful for other playtests but cannot prove this physical-mouse contract.
+
 ### The `mcp` Python SDK 2.x moved FastMCP: `mcp.server.fastmcp` raises ModuleNotFoundError
 
 **Problem:** `from mcp.server.fastmcp import FastMCP`, the import in every 1.x example, raises `ModuleNotFoundError` after `pip install mcp` (2.3.0).

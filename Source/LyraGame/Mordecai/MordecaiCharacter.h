@@ -55,6 +55,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Character")
 	void SetAimFacingDirection(FVector AimDirection);
 
+	/** True while this pawn is allowed to accept a new mouse/right-stick facing direction. */
+	UFUNCTION(BlueprintPure, Category = "Mordecai|Character")
+	bool CanUpdateAimFacing() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Character")
 	UArrowComponent* GetFacingArrow() const { return FacingArrowComponent; }
 

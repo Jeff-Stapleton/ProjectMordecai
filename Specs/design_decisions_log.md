@@ -296,3 +296,11 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Keep the existing player capsule radius 40, half-height 90 and maximum step height 45.
 - Scope remains the local player plus the existing server-authoritative actor-rotation replication path. Any broader multiplayer prediction or reconciliation work is a follow-up, not part of issue #34.
 - Source: owner decision supplied with the issue #34 builder task (2026-11-17).
+
+### Round-2 facing locks and physical mouse
+
+- **Final decision:** aim-facing is locked while the controller ignores look input, the pawn is dead, or the ASC has the real stunned/posture-broken, knocked-down, dodging or parrying state.
+- A melee swing commits its direction during Windup and Active (`Mordecai.State.Attacking`). Aim-facing resumes when Recovery begins.
+- With mouse and keyboard as the last-used input, gameplay shows a live physical cursor plus a simple screenshot-visible ground-aim reticle; attack clicks continue to reach gameplay. The cursor and reticle hide when gamepad becomes the last-used input.
+- Mouse aim is deprojected every tick while mouse and keyboard is active so camera follow and height changes cannot leave stale facing. A dead radius approximately equal to the 40 cm player capsule radius prevents jitter when the projected cursor is too close to the character.
+- Source: owner decisions supplied with the issue #34 round-2 builder task (2026-11-17).
