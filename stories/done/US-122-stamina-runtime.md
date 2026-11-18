@@ -21,16 +21,16 @@ The production work is C++ GAS/runtime logic plus automation and packaged real-i
 - Existing code: `Source/LyraGame/Mordecai/Combat/MordecaiStaminaSystem.*`, `MordecaiAttributeSet.cpp`, `MordecaiCharacter.cpp`, and `MordecaiStaminaBarWidget.cpp`
 
 ## Acceptance Criteria
-- [ ] AC-122.1: On the authority, the real player runtime passively regenerates stamina after the US-008 delay, using `UMordecaiStaminaSystem::ComputeRegenAmount` scaled by the ASC's `StaminaRegenMultiplier`.
-- [ ] AC-122.2: Every authoritative stamina decrease (attack, dodge, blocked hit, parry, or sprint) resets one centralized regeneration delay; stamina does not regenerate during that delay.
-- [ ] AC-122.3: Regeneration stops while `Mordecai.State.Dead` is present; the existing respawn path still restores stamina to MaxStamina.
-- [ ] AC-122.4: Exactly one of `Mordecai.Stamina.Tier.Green`, `.Yellow`, `.Red`, or `.Exhausted` is present on the ASC and changes immediately whenever Stamina or MaxStamina changes.
-- [ ] AC-122.5: Green/Yellow/Red/Exhausted tier multipliers 1.25/1.0/0.75/0.5 scale real melee health damage, dodge distance, and block stability/stamina mitigation.
-- [ ] AC-122.6: Real attack, dodge, and block abilities still activate at zero stamina; low stamina changes effectiveness and never gates activation.
-- [ ] AC-122.7: Toggling sprint applies `Mordecai.State.Sprinting` on the authoritative ASC and continuously drains stamina with `ComputeSprintDrain`; stopping sprint removes the tag and permits regeneration after the most recent drain delay.
-- [ ] AC-122.8: Sprint remains active at zero stamina and uses the Exhausted 0.5 multiplier; no automatic stop or stamina gate is introduced.
-- [ ] AC-122.9: The HUD stamina bar gets its tier from the authoritative ASC tier tags, rather than deriving a second tier from the attribute ratio.
-- [ ] AC-122.10: In a clean packaged build, real Left Shift input drains the visible stamina bar while sprinting, the bar changes to the authoritative low tier colour/tag, and after sprint stops and the delay elapses the bar refills to Green.
+- [x] AC-122.1: On the authority, the real player runtime passively regenerates stamina after the US-008 delay, using `UMordecaiStaminaSystem::ComputeRegenAmount` scaled by the ASC's `StaminaRegenMultiplier`.
+- [x] AC-122.2: Every authoritative stamina decrease (attack, dodge, blocked hit, parry, or sprint) resets one centralized regeneration delay; stamina does not regenerate during that delay.
+- [x] AC-122.3: Regeneration stops while `Mordecai.State.Dead` is present; the existing respawn path still restores stamina to MaxStamina.
+- [x] AC-122.4: Exactly one of `Mordecai.Stamina.Tier.Green`, `.Yellow`, `.Red`, or `.Exhausted` is present on the ASC and changes immediately whenever Stamina or MaxStamina changes.
+- [x] AC-122.5: Green/Yellow/Red/Exhausted tier multipliers 1.25/1.0/0.75/0.5 scale real melee health damage, dodge distance, and block stability/stamina mitigation.
+- [x] AC-122.6: Real attack, dodge, and block abilities still activate at zero stamina; low stamina changes effectiveness and never gates activation.
+- [x] AC-122.7: Toggling sprint applies `Mordecai.State.Sprinting` on the authoritative ASC and continuously drains stamina with `ComputeSprintDrain`; stopping sprint removes the tag and permits regeneration after the most recent drain delay.
+- [x] AC-122.8: Sprint remains active at zero stamina and uses the Exhausted 0.5 multiplier; no automatic stop or stamina gate is introduced.
+- [x] AC-122.9: The HUD stamina bar gets its tier from the authoritative ASC tier tags, rather than deriving a second tier from the attribute ratio.
+- [x] AC-122.10: In a clean packaged build, real Left Shift input drains the visible stamina bar while sprinting, the bar changes to the authoritative low tier colour/tag, and after sprint stops and the delay elapses the bar refills to Green.
 
 ## Technical Notes
 - Add one player runtime owner that binds after `OnAbilitySystemInitialized`, because the player's ASC lives on `AMordecaiPlayerState`; execute stamina mutation only on authority.
@@ -80,16 +80,26 @@ The production work is C++ GAS/runtime logic plus automation and packaged real-i
 - **Playable alone:** YES
 
 ## Definition of Done
-- [ ] All ACs checked off
-- [ ] Tier 1: project compiles; targeted tests and ALL `Mordecai.*` automation tests pass
-- [ ] Tier 2: PIE smoke tests pass; direct-call checks labelled LOGIC
-- [ ] Content guard: `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed first, then `py Scripts/package_playtest.py` produces `dirty=false` and `source_changed_during_build=false`
-- [ ] `py Scripts/playtest_story.py US-122` exits 0 on that fresh package with every input-driven AC accepted
-- [ ] Drained/refilled screenshots are verified by script only and `image-verification.json` records the checks
-- [ ] A fresh-main packaged sweep baseline and delivered-package full sweep compare with persistent `pass_to_fail: []`; one same-package rerun is allowed only for #135/#141 transients
-- [ ] Evidence is bundled under the agent store as `core-143-<shortsha>/` with SHA-256 manifest
-- [ ] Pushed; story moves to `stories/done/` only after all evidence passes
+- [x] All ACs checked off
+- [x] Tier 1: project compiles; targeted tests and ALL `Mordecai.*` automation tests pass
+- [x] Tier 2: PIE smoke tests pass; direct-call checks labelled LOGIC
+- [x] Content guard: `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed first, then `py Scripts/package_playtest.py` produces `dirty=false` and `source_changed_during_build=false`
+- [x] `py Scripts/playtest_story.py US-122` exits 0 on that fresh package with every input-driven AC accepted
+- [x] Drained/refilled screenshots are verified by script only and `image-verification.json` records the checks
+- [x] A fresh-main packaged sweep baseline and delivered-package full sweep compare with persistent `pass_to_fail: []`; one same-package rerun is allowed only for #135/#141 transients
+- [x] Evidence is bundled under the agent store as `core-143-<shortsha>/` with SHA-256 manifest
+- [x] Pushed; story moves to `stories/done/` only after all evidence passes
 
 ## Completion Notes
-Pending implementation and verification.
+- Delivered code commit: `920209dc3b7285be47badaf15d3aa31f38ed2b5a`.
+- Tier 1: Development Editor build PASS; `Mordecai.Stamina.Runtime` 11/11 PASS; full `Mordecai.*` 893/893 PASS. Python playtest tooling 716/716 PASS after the sweep-harness updates.
+- Tier 2: full PIE verification PASS; stamina runtime smoke 8/8 PASS. Direct attribute mutations are labelled `[LOGIC]`.
+- Content/LFS guards: PASS; no uncommitted content and no LFS pointers.
+- Package: `Saved/Playtests/package-20261118-070505.log`; `PackagedBuilds/Playtest/build_info.json` records commit `920209dc3b`, `dirty=false`, and `source_changed_during_build=false`.
+- Tier 3: `Saved/Playtests/20261118-070835-boot` PASS on MovementTestMap: fresh build, correct Mordecai experience/loading screen, cooked content, no crash, and 3/3 engine frames. Desktop captures were covered and are advisory only.
+- Tier 4: `Saved/Playtests/20261118-070859-us122` PASS (15 PASS, 0 WARN/FAIL/SKIP). Real Left Shift + W drained stamina 100.0 → 93.667, reached Red at 23.997, stopped sprint, held 20.907 throughout the measured 0.75 s delay, then refilled to 95.16 with the authoritative Green tag. All input-driven ACs were accepted.
+- Script-only image verification: `Saved/Playtests/20261118-070859-us122/image-verification.json` PASS. No PNG/video was opened with a file-read tool. `engine_loading.png` was non-uniform; `engine_01.png`, `engine_02.png`, and `engine_03.png` were non-uniform with 2,149 Green HUD pixels each; `bridge_01.png` (drained) was non-uniform with 734 Red HUD pixels; `bridge_02.png` (refilled) was non-uniform with 2,079 Green HUD pixels. The three covered desktop captures were non-uniform but advisory.
+- Sweep baseline: fresh `origin/main` commit `e89bec569d`, `Saved/Playtests/20261118-051929-sweep`. Final first sweep: `Saved/Playtests/20261118-071005-sweep`; final permitted same-package rerun: `Saved/Playtests/20261118-071955-sweep`.
+- Sweep comparison: `Saved/Playtests/core143-comparison-920209dc.json` records persistent `pass_to_fail: []`. The first run's #135 `deep_bank_blocks` transient passed the rerun. `enemies_present` and `cycle_prev_shift_tab` fail on the baseline as well. Sprint movement checks remained PASS; no movement result was waived. US-101 remains PASS with the intentional Green-tier block drain of 9.375 and runtime refill.
+- Evidence bundle: agent store `core-143-920209dc/`.
