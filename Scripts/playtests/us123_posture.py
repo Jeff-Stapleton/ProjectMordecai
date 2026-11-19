@@ -327,7 +327,7 @@ class Us123Run(kit.PlaytestRun):
 
     def _pin_yellow_at_fight(self, target=75.0):
         last = None
-        for _ in range(2):
+        for _ in range(3):
             last = self._pin_yellow(target)
             # Opposing drain pulses keep the player at the fight spot. Any
             # extra wait or aim pulse here would let stamina regenerate across
@@ -500,9 +500,9 @@ class Us123Run(kit.PlaytestRun):
                 lambda value: TAG_DODGING not in _tags(_player(value)),
                 2.0, "headroom dodge completion")
         headroom = _stamina(_player(self._read()))
-        if headroom is None or not 40.0 <= headroom <= 70.0:
+        if headroom is None or not 40.0 <= headroom <= 60.0:
             raise RuntimeError(
-                f"two real dodges left stamina {headroom}, expected Yellow headroom")
+                f"three real dodges left stamina {headroom}, expected Yellow headroom")
         self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
         self._aim()
         self._walk_fight()
