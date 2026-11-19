@@ -65,9 +65,10 @@ PLAN = (
          "wait past 1 second -> PostureBroken/Parried gone, posture=max and the attacker swings again",
          proves=("AC-123.1", "AC-123.6", "AC-123.10")),
     Step("knockdown",
-         "move out, refill, return, pin Longsword+Yellow again, parry twice, then RT L1->L2 "
-         "inside the break: 24+27=51 actual health reaches the 50 threshold and KnockedDown "
-         "replaces PostureBroken for about 2 seconds; capture it",
+         "move out, refill, return with the Longsword, parry twice, assert the resulting "
+         "authoritative tier is Yellow, then RT L1->L2 inside the break: 24+27=51 actual "
+         "health reaches the 50 threshold and KnockedDown replaces PostureBroken for about "
+         "2 seconds; capture it",
          proves=("AC-123.4", "AC-123.11")),
     Step("image_verification",
          "Pillow verifies all three evidence/marketing frames are 1280x720 and non-blank; "
@@ -231,7 +232,7 @@ class Us123Run(kit.PlaytestRun):
         self.attacker_name = actor.get("name")
         return result, state
 
-    def _pin_yellow(self, target=73.0):
+    def _pin_yellow(self, target=74.0):
         # Sprint short closed-loop W/S legs. Keeping this one-dimensional avoids
         # camera-relative lateral correction near the attacker while every
         # mutation still comes from real key input.
@@ -240,7 +241,7 @@ class Us123Run(kit.PlaytestRun):
         at_fight_spot = False
         try:
             while time.monotonic() < deadline:
-                leg_x = FIGHT_SPOT[0] if at_fight_spot else FIGHT_SPOT[0] - 80.0
+                leg_x = FIGHT_SPOT[0] if at_fight_spot else FIGHT_SPOT[0] - 50.0
                 state = self._read()
                 player = _player(state)
                 location = (player or {}).get("location") or []
@@ -250,7 +251,7 @@ class Us123Run(kit.PlaytestRun):
                     if TAG_SPRINTING not in _tags(player):
                         self.bridge.tap(SPRINT, hold_s=0.1)
                     key = "W" if float(location[0]) < leg_x else "S"
-                    hold = min(0.12, max(0.03, abs(float(location[0]) - leg_x) / 600.0))
+                    hold = min(0.08, max(0.03, abs(float(location[0]) - leg_x) / 600.0))
                     self.bridge.tap(key, hold_s=hold)
                     continue
                 at_fight_spot = not at_fight_spot
@@ -292,7 +293,7 @@ class Us123Run(kit.PlaytestRun):
             raise RuntimeError("; ".join(problems))
         return stamina, name
 
-    def _pin_yellow_at_fight(self, target=73.0):
+    def _pin_yellow_at_fight(self, target=74.0):
         last = None
         for _ in range(3):
             last = self._pin_yellow(target)
@@ -363,9 +364,8 @@ class Us123Run(kit.PlaytestRun):
         actor = self._attacker(state)
         if _posture(actor) is None or _max_posture(actor) is None:
             return "FAIL", "bridge actor posture/max_posture are unavailable", None
-        # The control hit snapshots immediately, so leave extra headroom below
-        # Green. The knockdown route uses 73 so two parries plus L1 keep L2 Yellow.
-        pinned_stamina, weapon, tags = self._pin_yellow_at_fight(target=71.0)
+        # Stay just below Green so two immediate parries plus L1 keep L2 Yellow.
+        pinned_stamina, weapon, tags = self._pin_yellow_at_fight()
         return "PASS", (
             f"fight spot {result.get('final')}; bridge posture {_posture(actor)}/"
             f"{_max_posture(actor)}; pinned {weapon} and "
@@ -384,7 +384,8 @@ class Us123Run(kit.PlaytestRun):
         first = self._parry_once()
         first_actor = self._attacker(first)
         first_posture = _posture(first_actor)
-        self._wait_parried_expiry()
+        # Raise guard while Parried is still active so the first post-stagger
+        # swing cannot race ahead and give posture time to regenerate.
         second = self._parry_once()
         actor = self._attacker(second)
         tags = _tags(actor)
@@ -450,23 +451,30 @@ class Us123Run(kit.PlaytestRun):
 
     def _prepare_second_route(self):
         self.bridge.walk_to(*SAFE_SPOT, tol=40.0)
-        self._wait_state(
+        full = self._wait_state(
             lambda state: (
                 _stamina(_player(state)) is not None
                 and _stamina(_player(state)) >= 95.0
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
         self._walk_fight()
-        stamina, weapon, _ = self._pin_yellow_at_fight()
-        return stamina, weapon
+        player = _player(full)
+        weapon = (player or {}).get("weapon") or {}
+        name = str(weapon.get("display_name") or weapon.get("id") or "")
+        if name.lower() != "longsword":
+            raise RuntimeError(f"weapon is {name!r}, expected Longsword")
+        return _stamina(player), name
 
     def _knockdown(self):
-        stamina, weapon = self._prepare_second_route()
+        refill_stamina, weapon = self._prepare_second_route()
         first = self._parry_once()
-        self._wait_parried_expiry()
+        # As above, arm the second parry before the first stagger expires.
         second = self._parry_once()
         if TAG_BROKEN not in _tags(self._attacker(second)):
             return "FAIL", "second route did not enter PostureBroken", None
+        stamina, pinned_weapon = self._weapon_and_tier()
+        if pinned_weapon != weapon:
+            return "FAIL", f"weapon changed from {weapon} to {pinned_weapon}", None
 
         l1, _ = self._tap_light_and_damage(combo=True)
         self._wait_state(
@@ -488,7 +496,8 @@ class Us123Run(kit.PlaytestRun):
         if actor.get("ai_state") != "Staggered":
             problems.append(f"ai_state {actor.get('ai_state')}, expected Staggered")
         detail = (
-            f"pinned {weapon}, Yellow stamina {stamina}; L1 {l1:g} + L2 {l2:g} = "
+            f"pinned {weapon}, refill stamina {refill_stamina:g}, post-parry Yellow stamina "
+            f"{stamina:g}; L1 {l1:g} + L2 {l2:g} = "
             f"{l1 + l2:g} actual health; tags {tags}; ai_state {actor.get('ai_state')}")
         return ("FAIL" if problems else "PASS"), (
             detail + (f" -- {'; '.join(problems)}" if problems else "")), {
