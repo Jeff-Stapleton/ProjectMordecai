@@ -20,7 +20,6 @@ TITLE = "US-123 enemy posture break, critical window and knockdown"
 ATTACKER = "TestAttacker"
 FIGHT_SPOT = (2000.0, 0.0)
 PIN_SPOT = (1850.0, 0.0)
-SAFE_SPOT = (900.0, -600.0)
 RADIUS = 3000
 SPOT_TOL = 25.0
 LT = "Gamepad_LeftTriggerAxis"
@@ -40,7 +39,7 @@ TAG_ATTACKING = "Mordecai.State.Attacking"
 TAG_COMBO = "Mordecai.State.ComboWindow"
 # wait_until observes the Attack edge in-game per frame; center the 0.5-second
 # parry window on the fixed-cadence hit at roughly edge + 0.52 seconds.
-PARRY_DELAY_S = 0.25
+PARRY_DELAY_S = 0.45
 STATE_POLL_S = 0.03
 BASE_L1_YELLOW = 16.0
 STAGGERED_L1_YELLOW = 24.0
@@ -387,12 +386,14 @@ class Us123Run(kit.PlaytestRun):
         return taken, state
 
     def _setup(self):
+        self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
+        self._aim()
+        self._pin_yellow(center=PIN_SPOT)
         result, state = self._walk_fight()
         actor = self._attacker(state)
         if _posture(actor) is None or _max_posture(actor) is None:
             return "FAIL", "bridge actor posture/max_posture are unavailable", None
-        # Stay just below Green so two immediate parries plus L1 keep L2 Yellow.
-        pinned_stamina, weapon, tags = self._pin_yellow_at_fight()
+        pinned_stamina, weapon, tags = self._weapon_and_tier()
         return "PASS", (
             f"fight spot {result.get('final')}; bridge posture {_posture(actor)}/"
             f"{_max_posture(actor)}; pinned {weapon} and "
@@ -477,18 +478,18 @@ class Us123Run(kit.PlaytestRun):
             f"attacker resumed ai_state {actor2.get('ai_state')}"), None
 
     def _prepare_second_route(self):
-        self.bridge.walk_to(*SAFE_SPOT, tol=40.0)
+        self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
         self._wait_state(
             lambda state: (
                 _stamina(_player(state)) is not None
                 and _stamina(_player(state)) >= 95.0
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
-        self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
         self._aim()
+        self._pin_yellow(center=PIN_SPOT)
         # Leave enough headroom that regeneration between the two one-second
         # parry staggers cannot cross back into Green before L1 commits.
-        for _ in range(3):
+        for _ in range(1):
             self._wait_state(
                 lambda value: TAG_DODGE_COOLDOWN not in _tags(_player(value)),
                 2.0, "headroom dodge cooldown")
@@ -499,12 +500,11 @@ class Us123Run(kit.PlaytestRun):
             self._wait_state(
                 lambda value: TAG_DODGING not in _tags(_player(value)),
                 2.0, "headroom dodge completion")
+            self.bridge.wait(0.5)
         headroom = _stamina(_player(self._read()))
-        if headroom is None or not 40.0 <= headroom <= 60.0:
+        if headroom is None or not 35.0 <= headroom <= 60.0:
             raise RuntimeError(
-                f"three real dodges left stamina {headroom}, expected Yellow headroom")
-        self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
-        self._aim()
+                f"one real dodge left stamina {headroom}, expected Yellow headroom")
         self._walk_fight()
         stamina, weapon, _ = self._weapon_and_tier()
         return stamina, weapon
