@@ -37,7 +37,7 @@ class PostureWorld(DefenseWorld):
     """Small gameplay double for the real-input route; it is not acceptance evidence."""
 
     def __init__(self, broken_runtime=True):
-        super().__init__(windup_s=0.5, attack_s=0.7, cooldown_s=1.0,
+        super().__init__(windup_s=0.5, attack_s=0.7, cooldown_s=2.0,
                          click_damage=0.0, arena_walls=False)
         self.PARRY_S = 1.0
         self.health = self.max_health = 1000.0
@@ -152,6 +152,8 @@ class PostureWorld(DefenseWorld):
                 tags.append(us123.TAG_YELLOW)
             else:
                 tags.append("Mordecai.Stamina.Tier.Red")
+            if self.sprinting:
+                tags.append(us123.TAG_SPRINTING)
             value["tags"] = tags
             value["attributes"]["stamina"] = round(self.stamina, 3)
             value["weapon"] = {

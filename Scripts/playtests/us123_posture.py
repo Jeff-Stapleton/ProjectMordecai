@@ -327,7 +327,7 @@ class Us123Run(kit.PlaytestRun):
 
     def _pin_yellow_at_fight(self, target=75.0):
         last = None
-        for _ in range(3):
+        for _ in range(2):
             last = self._pin_yellow(target)
             # Opposing drain pulses keep the player at the fight spot. Any
             # extra wait or aim pulse here would let stamina regenerate across
@@ -488,12 +488,7 @@ class Us123Run(kit.PlaytestRun):
         self._aim()
         # Leave enough headroom that regeneration between the two one-second
         # parry staggers cannot cross back into Green before L1 commits.
-        self._pin_yellow(center=PIN_SPOT)
         for _ in range(3):
-            state = self._read()
-            stamina = _stamina(_player(state))
-            if stamina is not None and stamina <= 55.0:
-                break
             self._wait_state(
                 lambda value: TAG_DODGE_COOLDOWN not in _tags(_player(value)),
                 2.0, "headroom dodge cooldown")
@@ -504,10 +499,12 @@ class Us123Run(kit.PlaytestRun):
             self._wait_state(
                 lambda value: TAG_DODGING not in _tags(_player(value)),
                 2.0, "headroom dodge completion")
-            self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
-            self._aim()
-        if (_stamina(_player(self._read())) or 100.0) > 55.0:
-            raise RuntimeError("real dodges did not create Yellow stamina headroom")
+        headroom = _stamina(_player(self._read()))
+        if headroom is None or not 40.0 <= headroom <= 70.0:
+            raise RuntimeError(
+                f"two real dodges left stamina {headroom}, expected Yellow headroom")
+        self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
+        self._aim()
         self._walk_fight()
         stamina, weapon, _ = self._weapon_and_tier()
         return stamina, weapon
