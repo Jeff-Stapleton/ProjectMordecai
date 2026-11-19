@@ -42,9 +42,9 @@ STAGGERED_L2_YELLOW = 27.0
 TOL = 0.6
 
 SCREENSHOTS = {
-    "posture_broken": "the parried TestAttacker beside the player in its PostureBroken stagger",
     "staggered_critical": "the staggered TestAttacker beside the player with the critical 24 damage number",
     "knocked_down": "the TestAttacker in Staggered AI state with Mordecai.State.KnockedDown",
+    "knocked_down_detail": "a second clean frame of the knocked-down TestAttacker during its two-second window",
 }
 
 PLAN = (
@@ -166,9 +166,6 @@ class Us123Run(kit.PlaytestRun):
         broken, _ = self.attempt(
             "break_by_parry", self._guarded(self._break_by_parry), needs=control,
             needs_why="not run: the unbroken control hit did not pass")
-        if broken:
-            self.shot("posture_broken")
-            self.image_paths.append(self.screens[-1]["path"])
         staggered, _ = self.attempt(
             "staggered_hit", self._guarded(self._staggered_hit), needs=broken,
             needs_why="not run: two real parries did not break posture")
@@ -183,6 +180,8 @@ class Us123Run(kit.PlaytestRun):
             needs_why="not run: the first break did not recover")
         if down:
             self.shot("knocked_down")
+            self.image_paths.append(self.screens[-1]["path"])
+            self.shot("knocked_down_detail")
             self.image_paths.append(self.screens[-1]["path"])
         self.attempt(
             "image_verification", self._verify_images, kind="infra",
