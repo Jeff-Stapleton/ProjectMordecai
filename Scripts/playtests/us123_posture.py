@@ -19,7 +19,6 @@ STORY = "US-123"
 TITLE = "US-123 enemy posture break, critical window and knockdown"
 ATTACKER = "TestAttacker"
 FIGHT_SPOT = (2000.0, 0.0)
-PIN_SPOT = (1850.0, 0.0)
 SAFE_SPOT = (900.0, -600.0)
 RADIUS = 3000
 SPOT_TOL = 25.0
@@ -477,11 +476,8 @@ class Us123Run(kit.PlaytestRun):
                 and _stamina(_player(state)) >= 95.0
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
-        self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
-        self._aim()
-        self._pin_yellow(center=PIN_SPOT)
         self._walk_fight()
-        stamina, weapon, _ = self._weapon_and_tier()
+        stamina, weapon, _ = self._pin_yellow_at_fight()
         return stamina, weapon
 
     def _knockdown(self):
