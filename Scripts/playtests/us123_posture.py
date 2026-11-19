@@ -233,16 +233,18 @@ class Us123Run(kit.PlaytestRun):
         return result, state
 
     def _pin_yellow(self, target=73.0):
-        # Alternate opposite directions in short real-input pulses while sprinting,
-        # keeping the player near the fight spot and limiting threshold overshoot.
+        # Sprint short closed-loop lateral legs. walk_to uses only real WASD
+        # input, and returning to the fight spot prevents raw key timing from
+        # drifting outside the TestAttacker's range.
         self.bridge.tap(SPRINT, hold_s=0.1)
-        # Drain laterally so neither pulse runs into the attacker capsule.
-        direction = "A"
-        self.bridge.press(direction)
         deadline = time.monotonic() + 8.0
         pinned = None
+        side = -1.0
         try:
             while time.monotonic() < deadline:
+                self.bridge.walk_to(
+                    FIGHT_SPOT[0], FIGHT_SPOT[1] + side * 80.0, tol=20.0)
+                side *= -1.0
                 state = self._read()
                 player = _player(state)
                 stamina = _stamina(player)
@@ -250,25 +252,13 @@ class Us123Run(kit.PlaytestRun):
                 if stamina is not None and stamina <= target + 0.5 and TAG_YELLOW in tags:
                     pinned = (stamina, tags)
                     break
-                self.bridge.wait(0.02)
-                other = "D" if direction == "A" else "A"
-                self.bridge.press(other)
-                self.bridge.release(direction)
-                direction = other
         finally:
-            self.bridge.release(direction)
             self.bridge.tap(SPRINT, hold_s=0.01)
         if pinned is None:
             raise RuntimeError(f"real sprint did not reach Yellow stamina near {target:g}")
-        if pinned[0] < target:
-            state = self._wait_state(
-                lambda value: (
-                    _stamina(_player(value)) is not None
-                    and _stamina(_player(value)) >= target
-                    and TAG_YELLOW in _tags(_player(value))
-                ), 3.0, "Yellow stamina recovery to the deterministic route margin")
-            pinned = (_stamina(_player(state)), _tags(_player(state)))
-        return pinned
+        self.bridge.walk_to(*FIGHT_SPOT, tol=SPOT_TOL)
+        state = self._read()
+        return _stamina(_player(state)), _tags(_player(state))
 
     def _weapon_and_tier(self):
         state = self._read()
