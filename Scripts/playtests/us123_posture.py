@@ -42,6 +42,7 @@ STAGGERED_L2_YELLOW = 27.0
 TOL = 0.6
 
 SCREENSHOTS = {
+    "posture_broken": "the parried TestAttacker beside the player in its PostureBroken stagger",
     "staggered_critical": "the staggered TestAttacker beside the player with the critical 24 damage number",
     "knocked_down": "the TestAttacker in Staggered AI state with Mordecai.State.KnockedDown",
 }
@@ -69,7 +70,8 @@ PLAN = (
          "replaces PostureBroken for about 2 seconds; capture it",
          proves=("AC-123.4", "AC-123.11")),
     Step("image_verification",
-         "Pillow verifies both evidence frames are 1280x720 and non-blank; write image-verification.json",
+         "Pillow verifies all three evidence/marketing frames are 1280x720 and non-blank; "
+         "write image-verification.json",
          kind="infra"),
 )
 
@@ -164,6 +166,9 @@ class Us123Run(kit.PlaytestRun):
         broken, _ = self.attempt(
             "break_by_parry", self._guarded(self._break_by_parry), needs=control,
             needs_why="not run: the unbroken control hit did not pass")
+        if broken:
+            self.shot("posture_broken")
+            self.image_paths.append(self.screens[-1]["path"])
         staggered, _ = self.attempt(
             "staggered_hit", self._guarded(self._staggered_hit), needs=broken,
             needs_why="not run: two real parries did not break posture")
@@ -181,8 +186,8 @@ class Us123Run(kit.PlaytestRun):
             self.image_paths.append(self.screens[-1]["path"])
         self.attempt(
             "image_verification", self._verify_images, kind="infra",
-            needs=len(self.image_paths) == 2,
-            needs_why="not run: both posture evidence screenshots were not captured")
+            needs=len(self.image_paths) == 3,
+            needs_why="not run: all three posture evidence screenshots were not captured")
 
     @staticmethod
     def _guarded(fn):
@@ -227,11 +232,12 @@ class Us123Run(kit.PlaytestRun):
         self.attacker_name = actor.get("name")
         return result, state
 
-    def _pin_yellow(self):
+    def _pin_yellow(self, target=73.0):
         # Alternate opposite directions in short real-input pulses while sprinting,
         # keeping the player near the fight spot and limiting threshold overshoot.
         self.bridge.tap(SPRINT, hold_s=0.1)
-        direction = "W"
+        # Drain laterally so neither pulse runs into the attacker capsule.
+        direction = "A"
         self.bridge.press(direction)
         deadline = time.monotonic() + 8.0
         pinned = None
@@ -241,11 +247,11 @@ class Us123Run(kit.PlaytestRun):
                 player = _player(state)
                 stamina = _stamina(player)
                 tags = _tags(player)
-                if stamina is not None and stamina <= 74.5 and TAG_YELLOW in tags:
+                if stamina is not None and stamina <= target + 0.5 and TAG_YELLOW in tags:
                     pinned = (stamina, tags)
                     break
                 self.bridge.wait(0.02)
-                other = "S" if direction == "W" else "W"
+                other = "D" if direction == "A" else "A"
                 self.bridge.press(other)
                 self.bridge.release(direction)
                 direction = other
@@ -253,12 +259,12 @@ class Us123Run(kit.PlaytestRun):
             self.bridge.release(direction)
             self.bridge.tap(SPRINT, hold_s=0.01)
         if pinned is None:
-            raise RuntimeError("real sprint did not reach Yellow stamina near 74")
-        if pinned[0] < 74.0:
+            raise RuntimeError(f"real sprint did not reach Yellow stamina near {target:g}")
+        if pinned[0] < target:
             state = self._wait_state(
                 lambda value: (
                     _stamina(_player(value)) is not None
-                    and _stamina(_player(value)) >= 74.0
+                    and _stamina(_player(value)) >= target
                     and TAG_YELLOW in _tags(_player(value))
                 ), 3.0, "Yellow stamina recovery to the deterministic route margin")
             pinned = (_stamina(_player(state)), _tags(_player(state)))
@@ -280,11 +286,13 @@ class Us123Run(kit.PlaytestRun):
             raise RuntimeError("; ".join(problems))
         return stamina, name
 
-    def _pin_yellow_at_fight(self):
+    def _pin_yellow_at_fight(self, target=73.0):
         last = None
         for _ in range(3):
-            last = self._pin_yellow()
-            self._walk_fight()
+            last = self._pin_yellow(target)
+            # Opposing drain pulses keep the player at the fight spot. Any
+            # extra wait or aim pulse here would let stamina regenerate across
+            # the 75-point Green/Yellow boundary before attack activation.
             state = self._read()
             player = _player(state)
             if TAG_YELLOW in _tags(player):
@@ -349,7 +357,9 @@ class Us123Run(kit.PlaytestRun):
         actor = self._attacker(state)
         if _posture(actor) is None or _max_posture(actor) is None:
             return "FAIL", "bridge actor posture/max_posture are unavailable", None
-        pinned_stamina, weapon, tags = self._pin_yellow_at_fight()
+        # The control hit snapshots immediately, so leave extra headroom below
+        # Green. The knockdown route uses 73 so two parries plus L1 keep L2 Yellow.
+        pinned_stamina, weapon, tags = self._pin_yellow_at_fight(target=71.0)
         return "PASS", (
             f"fight spot {result.get('final')}; bridge posture {_posture(actor)}/"
             f"{_max_posture(actor)}; pinned {weapon} and "
@@ -357,10 +367,6 @@ class Us123Run(kit.PlaytestRun):
                 "weapon": weapon, "stamina": pinned_stamina, "tags": tags}
 
     def _unbroken_control(self):
-        self._wait_state(
-            lambda state: (find_attacker(state) or {}).get("ai_state") != "Attack",
-            4.0, "safe control opening")
-        self._aim()
         taken, _ = self._tap_light_and_damage()
         self.control_damage = taken
         ok = abs(taken - BASE_L1_YELLOW) <= TOL
@@ -486,7 +492,7 @@ class Us123Run(kit.PlaytestRun):
         results = [_image_stats(path) for path in self.image_paths]
         payload = {
             "story": STORY,
-            "result": "PASS" if len(results) == 2 and all(item["passed"] for item in results)
+            "result": "PASS" if len(results) == 3 and all(item["passed"] for item in results)
             else "FAIL",
             "images": results,
         }
