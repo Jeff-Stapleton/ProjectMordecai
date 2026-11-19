@@ -352,16 +352,16 @@ class Us123Run(kit.PlaytestRun):
             2.0, f"{label} dodge completion")
         self.bridge.wait(0.35)
 
-    def _drain_with_dodges(self, label):
+    def _drain_with_dodges(self, label, target):
         for _ in range(10):
             stamina = _stamina(_player(self._read()))
-            if stamina is not None and stamina <= 25.0:
+            if stamina is not None and stamina <= target:
                 return stamina
             self._wait_state(
                 lambda value: TAG_DODGE_COOLDOWN not in _tags(_player(value)),
                 2.0, f"{label} dodge cooldown")
             self._spend_dodge_headroom(label)
-        raise RuntimeError(f"{label} did not reach 25 stamina through real dodges")
+        raise RuntimeError(f"{label} did not reach {target:g} stamina through real dodges")
 
     def _wait_attack_edge(self):
         self._wait_attacker_ai(False, 4.0, "attacker outside Attack")
@@ -421,7 +421,7 @@ class Us123Run(kit.PlaytestRun):
     def _setup(self):
         self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
         self._aim()
-        self._drain_with_dodges("control-route headroom")
+        self._drain_with_dodges("control-route headroom", 25.0)
         result, state = self._walk_fight()
         actor = self._attacker(state)
         if _posture(actor) is None or _max_posture(actor) is None:
@@ -521,7 +521,7 @@ class Us123Run(kit.PlaytestRun):
         self._aim()
         # Leave enough headroom that regeneration between the two one-second
         # parry staggers cannot cross back into Green before L1 commits.
-        self._drain_with_dodges("knockdown-route headroom")
+        self._drain_with_dodges("knockdown-route headroom", 10.0)
         self._walk_fight()
         stamina, weapon, _ = self._weapon_and_tier()
         return stamina, weapon

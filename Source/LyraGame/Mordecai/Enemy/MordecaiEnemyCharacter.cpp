@@ -526,6 +526,16 @@ void AMordecaiEnemyCharacter::EnterParriedState()
 void AMordecaiEnemyCharacter::ExitParriedState()
 {
 	SetPostureRuntimeState(MordecaiGameplayTags::State_Parried, false);
+	if (HasAuthority() && PostureSystem)
+	{
+		if (const UWorld* World = GetWorld())
+		{
+			// A full Parried duration consumes the normal regen delay. Restart
+			// it here so the fixed-cadence follow-up swing cannot regenerate
+			// posture between the two parries required to break an enemy.
+			PostureSystem->NotifyPostureDamageApplied(World->GetTimeSeconds());
+		}
+	}
 }
 
 void AMordecaiEnemyCharacter::SetPostureRuntimeState(const FGameplayTag StateTag, const bool bEnabled)
