@@ -71,6 +71,7 @@ class ArenaWorld(fb.FakeWorld):
                  approach=True, approach_speed=400.0, stop_cm=150.0, damage=True,
                  hit_damage=5.0, hit_interval=0.3, hit_range=200.0, indicators=True,
                  enemy_bars=False, hud_layout_ok=True, kills_text=0,
+                 converged=False,
                  **kwargs):
         kwargs.setdefault("obstacles", fb.DEVTESTMAP_OBSTACLES)
         super().__init__(enemies=False, **kwargs)
@@ -84,8 +85,14 @@ class ArenaWorld(fb.FakeWorld):
         self.hud_layout_ok, self.kills_text = hud_layout_ok, kills_text
         self.aggroed = False
         self.hits = 0
-        self.arena = [{"location": [s[0], s[1], 100.0], "health": self.enemy_hp,
-                       "ai_state": "Idle", "next_hit": 0.0} for s in ARENA_SPAWNS]
+        converged_locations = ((150.0, 0.0), (-92.0, 115.0), (-92.0, -115.0))
+        self.arena = [
+            {"location": [p[0], p[1], 100.0], "spawn_location": [s[0], s[1], 100.0],
+             "health": self.enemy_hp, "ai_state": "Attack" if converged else "Idle",
+             "next_hit": 0.0}
+            for s, p in zip(ARENA_SPAWNS, converged_locations if converged else ARENA_SPAWNS)
+        ]
+        self.aggroed = converged
 
     # --- simulation -------------------------------------------------------------------------
     def tick(self, dt):
@@ -148,6 +155,7 @@ class ArenaWorld(fb.FakeWorld):
                 "label": f"BP_MordecaiEnemy_Frontliner_C_{i}", "name": f"Frontliner_{i}",
                 "class": "BP_MordecaiEnemy_Frontliner_C", "native_class": "MordecaiEnemyCharacter",
                 "kind": "enemy", "location": [round(v, 2) for v in loc], "distance": round(d, 1),
+                "spawn_location": [round(v, 2) for v in e["spawn_location"]],
                 "hidden": False, "has_visible_mesh": self.visible_mesh,
                 "health": {"current": e["health"], "max": self.enemy_hp},
                 "is_dead": False, "ai_state": e["ai_state"], "tags": [],
@@ -294,6 +302,14 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertEqual(acs[("US-054", "AC-054.13")]["status"], "PASS")
         self.assertEqual(acs[("US-051", "AC-051.5")]["status"], "PASS")
         self.assertNotIn(("US-053", "AC-053.1"), acs)
+
+    def test_converged_attackers_use_their_original_spawn_spacing(self):
+        _, server = self.serve(converged=True, approach=False)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["enemies_present"]
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertIn("(600, 0)", check["detail"])
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
 
     def test_invisible_enemies_fail_enemies_visible_as_new(self):
         # The game before issue #19: the Frontliners had no mesh.  Now that is a regression.

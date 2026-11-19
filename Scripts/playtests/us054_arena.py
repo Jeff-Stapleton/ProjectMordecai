@@ -182,6 +182,10 @@ def enemies(st):
             if a.get("kind") == "enemy" and xy(a.get("location")) is not None]
 
 
+def enemy_spawn(a):
+    return xy(a.get("spawn_location"))
+
+
 def enemy_health(a):
     h = a.get("health") if isinstance(a.get("health"), dict) else {}
     return _num(h.get("current")), _num(h.get("max"))
@@ -282,7 +286,7 @@ class Us054Run(kit.PlaytestRun):
         def present(b):
             st = b.state(["actors"], radius=ENEMY_RADIUS)
             es = enemies(st)
-            self.enemies_start = [xy(a["location"]) for a in es]
+            self.enemies_start = [enemy_spawn(a) for a in es if enemy_spawn(a) is not None]
             problems = []
             if len(es) != 3:
                 problems.append(f"{len(es)} enemies (expected 3)")
@@ -291,13 +295,16 @@ class Us054Run(kit.PlaytestRun):
                 if cur != ENEMY_MAX_HEALTH or mx != ENEMY_MAX_HEALTH:
                     problems.append(f"enemy at {fmt_xy(xy(a['location']))} health {cur}/{mx} "
                                     f"(expected {ENEMY_MAX_HEALTH:g}/{ENEMY_MAX_HEALTH:g})")
+                if enemy_spawn(a) is None:
+                    problems.append(f"enemy at {fmt_xy(xy(a['location']))} has no spawn_location")
             pts = self.enemies_start
             for i in range(len(pts)):
                 for j in range(i + 1, len(pts)):
                     if dist(pts[i], pts[j]) <= MIN_ENEMY_SPACING:
                         problems.append(f"enemies at {fmt_xy(pts[i])} and {fmt_xy(pts[j])} are "
                                         f"only {dist(pts[i], pts[j]):.0f} cm apart")
-            detail = (f"spawn locations {[fmt_xy(p) for p in pts]}; {describe_enemies(es)}")
+            detail = (f"spawn locations {[fmt_xy(p) for p in pts]}; live actors: "
+                      f"{describe_enemies(es)}")
             return ("FAIL" if problems else "PASS",
                     ("; ".join(problems) + "; " + detail) if problems else detail, es)
 
