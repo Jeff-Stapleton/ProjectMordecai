@@ -239,12 +239,14 @@ class Us123Run(kit.PlaytestRun):
         self.bridge.tap(SPRINT, hold_s=0.1)
         deadline = time.monotonic() + 8.0
         pinned = None
-        side = -1.0
+        at_fight_spot = False
         try:
             while time.monotonic() < deadline:
                 self.bridge.walk_to(
-                    FIGHT_SPOT[0], FIGHT_SPOT[1] + side * 80.0, tol=20.0)
-                side *= -1.0
+                    FIGHT_SPOT[0] if at_fight_spot else FIGHT_SPOT[0] - 80.0,
+                    FIGHT_SPOT[1],
+                    tol=20.0)
+                at_fight_spot = not at_fight_spot
                 state = self._read()
                 player = _player(state)
                 stamina = _stamina(player)
