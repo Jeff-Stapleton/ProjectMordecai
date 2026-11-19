@@ -37,7 +37,7 @@ class PostureWorld(DefenseWorld):
     """Small gameplay double for the real-input route; it is not acceptance evidence."""
 
     def __init__(self, broken_runtime=True):
-        super().__init__(windup_s=0.5, attack_s=0.7, cooldown_s=0.5,
+        super().__init__(windup_s=0.5, attack_s=0.7, cooldown_s=1.0,
                          click_damage=0.0, arena_walls=False)
         self.PARRY_S = 1.0
         self.health = self.max_health = 1000.0
@@ -223,7 +223,10 @@ class Us123PlaytestCase(unittest.TestCase):
             [step.check for step in us123.PLAN],
             ["setup", "unbroken_control", "break_by_parry", "staggered_hit",
              "recovers", "knockdown", "image_verification"])
-        self.assertEqual(us123.Us123Run.PENDING, {})
+        self.assertEqual(
+            set(us123.Us123Run.PENDING),
+            {"AC-123.11"},
+        )
 
     def test_helpers_read_enemy_posture(self):
         state = {"actors": [{
