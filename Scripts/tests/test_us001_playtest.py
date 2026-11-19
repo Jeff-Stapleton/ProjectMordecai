@@ -86,6 +86,9 @@ class HudWorld(UnboundWorld):
     US-097; mouse and right-stick aim turn the pawn after US-098."""
 
     SPRINT_MULT = 1.5
+    SPRINT_MOVEMENT_THRESHOLD_RATIO = 0.1
+    SPRINT_STATIONARY_AUTO_CLEAR_S = 0.25
+    SPRINT_TOGGLE_GRACE_S = 1.0
     JUMP_S = 0.6
     SPRINT_KEYS = ("LeftShift", "Gamepad_LeftThumbstick")
     STICKY_SPRINT = False   # True: a second tap does not end the sprint
@@ -95,6 +98,9 @@ class HudWorld(UnboundWorld):
         super().__init__(**kw)
         self.base_speed = self.speed
         self.sprinting = False
+        self.sprint_toggled_at = None
+        self.sprint_moved = False
+        self.sprint_stationary_since = None
         self.jump_until = -1.0
         self.sprint_taps = 0
         self.yaw = 0.0
@@ -108,16 +114,29 @@ class HudWorld(UnboundWorld):
             self.sprint_taps += 1
             if self.DROP_FIRST_SPRINT_TAP and self.sprint_taps == 1:
                 return
-            self.sprinting = True if self.STICKY_SPRINT else not self.sprinting
-            self.speed = self.base_speed * (self.SPRINT_MULT if self.sprinting else 1.0)
+            self._set_sprinting(True if self.STICKY_SPRINT else not self.sprinting)
         elif key == "SpaceBar":
             self.jump_until = self.real_time() + self.JUMP_S
+
+    def _set_sprinting(self, enabled):
+        self.sprinting = bool(enabled)
+        self.speed = self.base_speed * (self.SPRINT_MULT if self.sprinting else 1.0)
+        if self.sprinting:
+            self.sprint_toggled_at = self.real_time()
+            self.sprint_moved = False
+            self.sprint_stationary_since = None
+        else:
+            self.sprint_toggled_at = None
+            self.sprint_moved = False
+            self.sprint_stationary_since = None
 
     def _s_player(self):
         out = super()._s_player()
         if out.get("valid") and self.real_time() < self.jump_until:
             out["movement_mode"] = "Falling"
         if out.get("valid"):
+            if self.sprinting:
+                out["tags"].append("Mordecai.State.Sprinting")
             out["rotation"] = [0.0, round(self.yaw, 2), 0.0]
             radians = math.radians(self.yaw)
             forward = [round(math.cos(radians), 4), round(math.sin(radians), 4), 0.0]
@@ -153,6 +172,24 @@ class HudWorld(UnboundWorld):
             if math.hypot(rx, ry) > 0.25:
                 self.yaw = math.degrees(math.atan2(rx, ry))
         super().tick(dt)
+        if not self.sprinting:
+            return
+        now = self.real_time()
+        moving = math.hypot(*self.vel) > self.base_speed * self.SPRINT_MOVEMENT_THRESHOLD_RATIO
+        if moving:
+            self.sprint_moved = True
+            self.sprint_stationary_since = None
+            return
+        grace_expired = (
+            self.sprint_toggled_at is not None
+            and now - self.sprint_toggled_at >= self.SPRINT_TOGGLE_GRACE_S
+        )
+        if not self.sprint_moved and not grace_expired:
+            return
+        if self.sprint_stationary_since is None:
+            self.sprint_stationary_since = now
+        elif now - self.sprint_stationary_since >= self.SPRINT_STATIONARY_AUTO_CLEAR_S:
+            self._set_sprinting(False)
 
 
 class StickySprintWorld(HudWorld):
@@ -165,6 +202,45 @@ class DroppedSprintTapWorld(HudWorld):
     """The first LeftShift tap is lost, so the second one starts the sprint."""
 
     DROP_FIRST_SPRINT_TAP = True
+
+
+class AutoClearBeforeToggleOffWorld(HudWorld):
+    """Reproduces sweep load ordering: sprint clears after W, before the scripted off tap."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.forced_auto_clear = False
+
+    def _s_player(self):
+        if (self.sprinting and self.sprint_moved and math.hypot(*self.vel) < 1
+                and not self.forced_auto_clear):
+            self.forced_auto_clear = True
+            self._set_sprinting(False)
+        return super()._s_player()
+
+
+class DelayedAutoClearObservationWorld(HudWorld):
+    """A direct post-release state round trip misses the active stationary interval."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.stop_threshold_observed = False
+
+    def _set_sprinting(self, enabled):
+        super()._set_sprinting(enabled)
+        if enabled:
+            self.stop_threshold_observed = False
+
+    def state(self, sections=None, radius=1500.0, include_all_actors=False):
+        names = list(sections or fb.SECTIONS)
+        stopped_moved_sprint = self.sprinting and self.sprint_moved and math.hypot(*self.vel) < 1
+        if stopped_moved_sprint and names == ["player"]:
+            # wait_until gathers only the player root and catches the stop threshold promptly.
+            self.stop_threshold_observed = True
+        elif stopped_moved_sprint and "game" in names and not self.stop_threshold_observed:
+            # Model the slow direct state round trip that caused the packaged 0.000 s reading.
+            self._set_sprinting(False)
+        return super().state(names, radius, include_all_actors)
 
 
 class FixedWorld(HudWorld):
@@ -304,7 +380,8 @@ class TestUs001TodaysGame(PlaytestCase):
                      "move_a", "move_w", "move_d", "move_s", "camera_fixed",
                      "no_camera_rotation_input", "walk_lane_wp1", "walk_lane_wp2",
                      "walk_lane_start", "walk_speed_baseline", "walk_lane_reset",
-                     "sprint_shift", "walk_lane_reset2", "sprint_l3", "jump_space",
+                     "sprint_shift", "sprint_auto_clear_restart", "walk_lane_reset2",
+                     "sprint_l3", "jump_space",
                      "facing_mouse_physical", "single_cursor_mouse", "attack_click_physical",
                      "combo_hit2", "movement_keeps_aim", "facing_stick", "cursor_hidden_gamepad",
                      "facing_arrow", "gamepad_move", "no_crash"):
@@ -319,6 +396,10 @@ class TestUs001TodaysGame(PlaytestCase):
         self.assertIn("need > 700", checks["sprint_shift"]["detail"])
         self.assertIn("then held S 1s: peak speed 600 cm/s", checks["sprint_shift"]["detail"])
         self.assertNotIn(" -- ", checks["sprint_shift"]["detail"])
+        self.assertRegex(checks["sprint_auto_clear_restart"]["detail"],
+                         r"auto-cleared in 0\.[0-5]\d{2}s")
+        self.assertIn("the next LeftShift tap restored the tag",
+                      checks["sprint_auto_clear_restart"]["detail"])
         self.assertFalse(world.sprinting, "the sprint was toggled back")
         self.assertIn("need > 700", checks["sprint_l3"]["detail"])
         self.assertNotIn(" -- ", checks["sprint_l3"]["detail"])
@@ -351,7 +432,8 @@ class TestUs001TodaysGame(PlaytestCase):
             self.assertEqual(acs[ac]["status"], "PASS", ac)
         self.assertEqual(acs["AC-2.1.2"]["status"], "PASS")
         self.assertFalse(acs["AC-2.1.2"]["known_issue"])
-        self.assertEqual(acs["AC-1.3.3"]["checks"], ["sprint_shift", "sprint_l3"])
+        self.assertEqual(acs["AC-1.3.3"]["checks"],
+                         ["sprint_shift", "sprint_auto_clear_restart", "sprint_l3"])
         self.assertEqual(acs["AC-2.1.4"]["status"], "PASS")
         self.assertEqual(acs["AC-1.2.1"]["status"], "PENDING")
         self.assertIn("no camera transform", acs["AC-1.2.1"]["pending"])
@@ -384,7 +466,8 @@ class TestUs001TodaysGame(PlaytestCase):
         keys = [m.get("key") or tuple(m.get("keys") or ()) for m in sent if m["cmd"] == "key"]
         for k in ("A", "W", "D", "S", "LeftShift", "Gamepad_LeftThumbstick", "SpaceBar"):
             self.assertIn(k, keys)
-        self.assertEqual(keys.count("LeftShift"), 2, "the sprint toggle is tapped back")
+        self.assertEqual(keys.count("LeftShift"), 5,
+                         "toggle-off plus auto-clear start, restart, and cleanup are input taps")
         axes = [m["values"] for m in sent if m["cmd"] == "axis"]
         self.assertIn({"Gamepad_LeftY": 1.0}, axes)
         self.assertIn({"Gamepad_RightX": -1.0}, axes)
@@ -411,7 +494,8 @@ class TestUs001BeforeUs083(PlaytestCase):
             self.assertEqual(checks[name]["status"], "FAIL", name)
         self.assertEqual(
             rep["new_failures"],
-            ["sprint_shift", "sprint_l3", "jump_space", "facing_mouse_physical",
+            ["sprint_shift", "sprint_auto_clear_restart", "sprint_l3", "jump_space",
+             "facing_mouse_physical",
              "facing_stick", "cursor_hidden_gamepad"])
         self.assertIn("need > 700", checks["sprint_shift"]["detail"])
         self.assertIn("player.movement_mode", checks["jump_space"]["detail"])
@@ -426,23 +510,45 @@ class TestUs001BeforeUs083(PlaytestCase):
         self.assertIn("the second tap did not end the sprint", check["detail"])
         self.assertIn("sprint_shift", rep["new_failures"])
         self.assertEqual(self.acs(rep)["AC-1.3.3"]["status"], "FAIL")
-        self.assertTrue(world.sprinting)
+        self.assertFalse(world.sprinting, "the modeled stationary auto-clear eventually ran")
         # The sprint left on cannot make the dead L3 key look fixed
         l3 = self.by_name(rep)["sprint_l3"]
         self.assertEqual(l3["status"], "SKIP", l3["detail"])
         self.assertIn("LeftShift sprint is still on", l3["detail"])
         self.assertEqual(rep["fixed_candidates"], [])
 
-    def test_a_lost_first_sprint_tap_is_reported_out_of_phase(self):
+    def test_a_lost_first_sprint_tap_does_not_trigger_an_out_of_phase_second_tap(self):
         world, server = self.serve(DroppedSprintTapWorld)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         checks = self.by_name(rep)
         self.assertEqual(checks["sprint_shift"]["status"], "FAIL")
-        self.assertIn("toggle out of phase", checks["sprint_shift"]["detail"])
-        self.assertEqual(checks["sprint_l3"]["status"], "SKIP")
+        self.assertIn("the first tap did not start sprint", checks["sprint_shift"]["detail"])
+        self.assertIn("no second LeftShift tap was sent", checks["sprint_shift"]["detail"])
+        self.assertEqual(checks["sprint_auto_clear_restart"]["status"], "PASS")
+        self.assertEqual(checks["sprint_l3"]["status"], "PASS")
         self.assertEqual(rep["fixed_candidates"], [])
-        self.assertTrue(world.sprinting)
+        self.assertFalse(world.sprinting)
+
+    def test_auto_clear_before_toggle_off_fails_without_restarting_sprint(self):
+        world, server = self.serve(AutoClearBeforeToggleOffWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["sprint_shift"]
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("auto-cleared before the toggle-off tap", check["detail"])
+        sprint = next(m for m in rep["movement"] if m["check"] == "sprint_shift")
+        self.assertIs(sprint["toggle_off_sent"], False)
+        self.assertTrue(world.forced_auto_clear)
+        self.assertEqual(self.by_name(rep)["sprint_auto_clear_restart"]["status"], "PASS")
+
+    def test_bridge_side_stop_threshold_precedes_auto_clear_measurement(self):
+        world, server = self.serve(DelayedAutoClearObservationWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        check = self.by_name(rep)["sprint_auto_clear_restart"]
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertTrue(world.stop_threshold_observed)
 
 
 class TestUs001FixedGame(PlaytestCase):
@@ -639,7 +745,7 @@ class TestUs001Plan(unittest.TestCase):
         self.assertEqual(us001.main(["--plan"]), 0)
         rows = [line for line in out.getvalue().splitlines() if line.startswith("| ")]
         self.assertEqual(len(rows), 1 + len(us001.PLAN))
-        self.assertTrue(any(r.startswith("| 19 | `jump_space` |") for r in rows))
+        self.assertTrue(any(r.startswith("| 20 | `jump_space` |") for r in rows))
 
     def test_the_script_launches_the_movement_test_map(self):
         self.assertEqual(us001.Us001Run.launch_map(), kit.MOVEMENT_TEST_MAP)

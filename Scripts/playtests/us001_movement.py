@@ -28,9 +28,10 @@ Steps (every step is a check: PASS, FAIL, SKIP or WARN; --plan prints them as a 
   4. Walk to lane L1 (y=-800) via (0,-650) and (-700,-650).  Screenshot.  Hold W 1.0 s: the
      walk covers 400..700 cm and the player stops within 0.75 s of the release.
   5. Sprint: tap LeftShift (then, from the lane start again, the L3 button) and hold W 1.0 s:
-     > 700 cm.  Each toggle is tapped again afterwards so a working sprint does not leak into
-     later steps; after the LeftShift one, S held 1.0 s must reach only walking speed (the
-     second tap ended the sprint; a sprint left on SKIPs the L3 step).
+     > 700 cm.  A toggle-off tap is sent only while the Sprinting tag is present; after the
+     LeftShift one, S held 1.0 s must reach only walking speed.  Separately, move while
+     sprinting, stop, verify the tag auto-clears about 0.25 s after speed drops below 60 cm/s,
+     and verify the next Shift starts a new sprint.  A sprint left on SKIPs the L3 step.
   6. Jump: tap SpaceBar -> player.movement_mode=="Falling" within 1 s.
   7. Facing and attacks: the physical mouse at (1100, 360) (right of the player: +Y) turns the
      player to yaw ~90 while the OS cursor stays hidden and the HUD draws the one reticle.  LMB
@@ -68,6 +69,7 @@ import math
 import os
 import sys
 import time
+import threading
 import ctypes
 from ctypes import wintypes
 
@@ -124,6 +126,13 @@ WALK_SPEED_MIN = 500.0                      # cm/s: a free walk reaches 600
 SPEED_POLL_S = 0.05
 SPRINT_KEY = "LeftShift"
 SPRINT_PAD_KEY = "Gamepad_LeftThumbstick"   # L3
+SPRINT_TAG = "Mordecai.State.Sprinting"
+SPRINT_AUTO_CLEAR_MOVE_S = 0.35
+SPRINT_STOP_SPEED = 60.0                    # runtime threshold: 10% of 600 cm/s walk speed
+SPRINT_AUTO_CLEAR_EXPECTED_S = 0.25
+SPRINT_AUTO_CLEAR_RANGE = (0.15, 0.60)      # bridge polling/frame tolerance around 0.25 s
+SPRINT_AUTO_CLEAR_TIMEOUT_S = 1.25
+SPRINT_RESTART_TIMEOUT_S = 0.5
 JUMP_KEY = "SpaceBar"
 JUMP_TIMEOUT_S = 1.0
 FACING_MOUSE = (1100.0, 360.0)              # right of the player (screen right = +Y): yaw 90
@@ -297,8 +306,14 @@ PLAN = (
          f"within {STOP_TIMEOUT_S:g}s of the release", proves=("AC-2.1.6",)),
     Step("walk_lane_reset", f"walk_to({LANE_START[0]:g}, {LANE_START[1]:g}) -> within 60 cm"),
     Step("sprint_shift", f"tap {SPRINT_KEY}, hold W {SPRINT_HOLD_S:g}s -> dx > {SPRINT_MIN:g} "
-         f"cm; tap {SPRINT_KEY} again, hold S {SPRINT_HOLD_S:g}s -> back to a walk (peak "
-         f"player.speed {WALK_SPEED_MIN:g}..{SPRINT_SPEED_MIN:g} cm/s)",
+         f"cm; only while {SPRINT_TAG} is present, tap {SPRINT_KEY} again, then hold S "
+         f"{SPRINT_HOLD_S:g}s -> back to a walk (peak player.speed {WALK_SPEED_MIN:g}.."
+         f"{SPRINT_SPEED_MIN:g} cm/s)",
+         proves=("AC-1.3.3", "AC-2.1.3")),
+    Step("sprint_auto_clear_restart", f"tap {SPRINT_KEY}, hold W "
+         f"{SPRINT_AUTO_CLEAR_MOVE_S:g}s, release and observe speed <= {SPRINT_STOP_SPEED:g} "
+         f"cm/s -> {SPRINT_TAG} auto-clears about {SPRINT_AUTO_CLEAR_EXPECTED_S:g}s later; "
+         f"tap {SPRINT_KEY} -> the tag returns (then state-aware cleanup tap)",
          proves=("AC-1.3.3", "AC-2.1.3")),
     Step("walk_lane_reset2", f"walk_to({LANE_START[0]:g}, {LANE_START[1]:g}) -> within 60 cm"),
     Step("sprint_l3", f"tap {SPRINT_PAD_KEY} (L3), hold W {SPRINT_HOLD_S:g}s -> dx > "
@@ -632,25 +647,48 @@ class Us001Run(kit.PlaytestRun):
 
     # --- step 5: sprint ------------------------------------------------------------------
     def _sprint(self, check, toggle_key, label, verify_toggle_back=False):
-        """Tap the toggle, hold W and measure; tap the toggle again.  With verify_toggle_back,
-        then hold S as long and require a walk's distance back (the second tap ended the sprint)."""
+        """Tap the toggle, hold W and measure, then toggle off only while Sprinting is present."""
         def fn():
             b = self.bridge
-            got, err = self._hold_and_measure(
-                "W", SPRINT_HOLD_S, before=lambda: b.tap(toggle_key, hold_s=self.TAP_S),
-                after=lambda: b.tap(toggle_key, hold_s=self.TAP_S))  # toggle back
-            if got is None:
-                return "FAIL", err, None
-            p0, p1, held_s, _, _ = got
+            if self._settle(b, SETTLE_TIMEOUT_S) is None:
+                return "FAIL", "player did not stop before the sprint toggle", None
+            p0, raw = self._player(b)
+            if p0 is None:
+                return "FAIL", f"player section invalid before the input ({raw.get('reason')})", None
+            b.tap(toggle_key, hold_s=self.TAP_S)
+            response = b.hold("W", SPRINT_HOLD_S)
+            _, post_hold = self._player(b)
+            tags = [str(tag) for tag in post_hold.get("tags", [])
+                    ] if isinstance(post_hold.get("tags"), list) else []
+            toggle_off_sent = SPRINT_TAG in tags
+            if toggle_off_sent:
+                b.tap(toggle_key, hold_s=self.TAP_S)
+            stop_s = self._settle(b, SETTLE_TIMEOUT_S)
+            p1, raw = self._player(b)
+            if p1 is None:
+                return "FAIL", f"player section invalid after the input ({raw.get('reason')})", None
+            held_s = response.get("held_s")
             dx = p1[0] - p0[0]
             rec = self._record(check, f"tap {toggle_key}, hold W {SPRINT_HOLD_S:g}s", p0, p1,
-                               {"held_s": held_s})
+                               {"held_s": held_s, "stop_s": stop_s,
+                                "post_hold_tags": tags,
+                                "toggle_off_sent": toggle_off_sent})
             walk = next((m["dx"] for m in self.measurements
                          if m["check"] == "walk_speed_baseline"), None)
             vs = f" (walk baseline {walk:.0f} cm)" if walk is not None else ""
             detail = (f"tapped {label}, held W {held_s}s: dx {dx:.0f} cm (need > "
-                      f"{SPRINT_MIN:g}){vs}; tapped {label} again to toggle back")
+                      f"{SPRINT_MIN:g}){vs}")
             sprinted = dx > SPRINT_MIN
+            if not toggle_off_sent:
+                if sprinted:
+                    detail += f"; {SPRINT_TAG} auto-cleared before the toggle-off tap"
+                else:
+                    detail += (f"; {SPRINT_TAG} was absent before the toggle-off tap "
+                               "(the first tap did not start sprint or it cleared too early)")
+                detail += (f" (tags {tags}); no second {label} tap was sent, so sprint was not "
+                           "accidentally restarted")
+                return "FAIL", detail, rec
+            detail += f"; {SPRINT_TAG} was present, so tapped {label} again to toggle back"
             if not verify_toggle_back:
                 return ("PASS" if sprinted else "FAIL"), detail, rec
 
@@ -679,6 +717,123 @@ class Us001Run(kit.PlaytestRun):
             return ("PASS" if sprinted else "FAIL"), detail, rec
 
         return fn
+
+    def _sprint_auto_clear_restart(self):
+        """Prove moved sprint's stationary auto-clear and that the next Shift starts anew."""
+        b = self.bridge
+
+        def sample():
+            state = b.state(["player", "game"])
+            player = _section(state, "player")
+            game = _section(state, "game")
+            tags = [str(tag) for tag in player.get("tags", [])
+                    ] if isinstance(player.get("tags"), list) else []
+            speed = player.get("speed")
+            world_time = game.get("world_time_s")
+            return tags, (float(speed) if isinstance(speed, (int, float)) else None), (
+                float(world_time) if isinstance(world_time, (int, float)) else None)
+
+        tags, _, _ = sample()
+        if SPRINT_TAG in tags:
+            return ("FAIL", f"{SPRINT_TAG} was already present before the auto-clear check; "
+                    "refusing to send an ambiguous Shift tap", {"initial_tags": tags})
+
+        b.tap(SPRINT_KEY, hold_s=self.TAP_S)
+        tags, _, _ = sample()
+        if SPRINT_TAG not in tags:
+            return ("FAIL", f"tap {SPRINT_KEY} did not start sprint (tags {tags})",
+                    {"initial_tags": tags})
+        # A second connection owns W so the primary can watch state while key-up is processed.
+        # Otherwise a hitch can consume the entire 0.25 s clear window before release() replies.
+        move_conn = ab.BridgeConnection(
+            b.port, host=b.host, transcript=b.transcript)
+        release_error = []
+
+        def release_movement():
+            try:
+                move_conn.request("key", action="release", key="W")
+            except Exception as e:
+                release_error.append(e)
+
+        try:
+            move_conn.request("key", action="press", key="W")
+            b.wait(SPRINT_AUTO_CLEAR_MOVE_S)
+            release_thread = threading.Thread(target=release_movement, daemon=True)
+            release_thread.start()
+
+            try:
+                threshold = b.wait_until(f"player.speed<={SPRINT_STOP_SPEED:g}",
+                                         timeout_s=SPRINT_AUTO_CLEAR_TIMEOUT_S,
+                                         poll_s=SPEED_POLL_S)
+            except ab.BridgeError as e:
+                if e.code != "timeout":
+                    raise
+                return ("FAIL", f"player.speed did not reach <= {SPRINT_STOP_SPEED:g} cm/s "
+                        f"within {SPRINT_AUTO_CLEAR_TIMEOUT_S:g}s after releasing W",
+                        {"values": (e.response or {}).get("values")})
+
+            tags, speed, threshold_at = sample()
+        finally:
+            if "release_thread" not in locals():
+                release_movement()
+            else:
+                release_thread.join(timeout=2.0)
+            move_conn.close()
+        if release_error:
+            raise release_error[0]
+
+        samples = [{"world_time_s": threshold_at, "speed": speed, "tags": tags}]
+        if SPRINT_TAG not in tags:
+            return ("FAIL", f"{SPRINT_TAG} cleared before the bridge could observe it after "
+                    f"player.speed reached <= {SPRINT_STOP_SPEED:g} cm/s",
+                    {"threshold": threshold, "samples": samples})
+        if threshold_at is None:
+            return "FAIL", "game.world_time_s is unavailable at the stop threshold", {
+                "threshold": threshold, "samples": samples}
+
+        cleared_at = None
+        deadline = time.monotonic() + SPRINT_AUTO_CLEAR_TIMEOUT_S
+        while time.monotonic() < deadline:
+            b.wait(SPEED_POLL_S)
+            tags, speed, world_time = sample()
+            samples.append({"world_time_s": world_time, "speed": speed, "tags": tags})
+            if SPRINT_TAG not in tags:
+                cleared_at = world_time
+                break
+
+        if cleared_at is None:
+            return ("FAIL", f"{SPRINT_TAG} did not auto-clear within "
+                    f"{SPRINT_AUTO_CLEAR_TIMEOUT_S:g}s after releasing W", {"samples": samples})
+        clear_s = cleared_at - threshold_at
+        lo, hi = SPRINT_AUTO_CLEAR_RANGE
+        if not lo <= clear_s <= hi:
+            return ("FAIL", f"{SPRINT_TAG} cleared {clear_s:.3f}s after speed reached <= "
+                    f"{SPRINT_STOP_SPEED:g} cm/s (expected about "
+                    f"{SPRINT_AUTO_CLEAR_EXPECTED_S:g}s, accepted {lo:g}..{hi:g}s)",
+                    {"clear_s": clear_s, "samples": samples})
+
+        b.tap(SPRINT_KEY, hold_s=self.TAP_S)
+        restarted = False
+        restart_deadline = time.monotonic() + SPRINT_RESTART_TIMEOUT_S
+        restart_tags = []
+        while time.monotonic() < restart_deadline:
+            restart_tags, _, _ = sample()
+            if SPRINT_TAG in restart_tags:
+                restarted = True
+                break
+            b.wait(SPEED_POLL_S)
+        if not restarted:
+            return ("FAIL", f"after auto-clear, the next {SPRINT_KEY} tap did not start a new "
+                    f"sprint (tags {restart_tags})", {"clear_s": clear_s, "samples": samples})
+
+        # State-aware cleanup: this tap is sent only after the state above proves sprint is active.
+        b.tap(SPRINT_KEY, hold_s=self.TAP_S)
+        detail = (f"held W {SPRINT_AUTO_CLEAR_MOVE_S:g}s; after speed reached <= "
+                  f"{SPRINT_STOP_SPEED:g} cm/s, {SPRINT_TAG} auto-cleared in {clear_s:.3f}s "
+                  f"(expected about {SPRINT_AUTO_CLEAR_EXPECTED_S:g}s); the next "
+                  f"{SPRINT_KEY} tap restored the tag; sent one state-aware cleanup tap")
+        return "PASS", detail, {"clear_s": round(clear_s, 3), "samples": samples,
+                                "restart_tags": restart_tags}
 
     def _hold_watching_speed(self, key, seconds):
         """Press `key`, read player.speed every SPEED_POLL_S for `seconds`, release it, wait for
@@ -709,6 +864,8 @@ class Us001Run(kit.PlaytestRun):
         _, shift = self.attempt("sprint_shift", self._sprint("sprint_shift", SPRINT_KEY,
                                                              SPRINT_KEY, verify_toggle_back=True),
                                 needs=lane, needs_why=why)
+        self.attempt("sprint_auto_clear_restart", self._sprint_auto_clear_restart,
+                     needs=lane, needs_why=why)
         reset, _ = self.walk("walk_lane_reset2", *LANE_START)
         # A LeftShift sprint left on would make the L3 measurement pass on its own
         leaked = bool((shift or {}).get("sprint_left_on"))

@@ -142,18 +142,19 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 13 | `walk_lane_start` | walk_to(-700, -800) -> within 60 cm (lane L1 start) | - |
 | 14 | `walk_speed_baseline` | hold W 1s -> dx in [400, 700] cm and wait_until player.speed<1 within 0.75s of the release | AC-2.1.6 |
 | 15 | `walk_lane_reset` | walk_to(-700, -800) -> within 60 cm | - |
-| 16 | `sprint_shift` | tap LeftShift, hold W 1s -> dx > 700 cm; tap LeftShift again, hold S 1s -> back to a walk (peak player.speed 500..750 cm/s) | AC-1.3.3, AC-2.1.3 |
-| 17 | `walk_lane_reset2` | walk_to(-700, -800) -> within 60 cm | - |
-| 18 | `sprint_l3` | tap Gamepad_LeftThumbstick (L3), hold W 1s -> dx > 700 cm (then tap L3 again) | AC-1.3.3, AC-2.1.3 |
-| 19 | `jump_space` | tap SpaceBar -> wait_until player.movement_mode=="Falling" within 1s | AC-2.1.4 |
-| 20 | `facing_mouse_physical` | Win32 SetCursorPos to client (1100, 360) (right of the player, +Y; no bridge mouse command) -> wait_until player.rotation yaw 90 (+-30) within 1s | AC-2.1.2 |
-| 21 | `single_cursor_mouse` | after physical mouse movement -> focus.input_type is MouseAndKeyboard and focus.mouse_cursor_shown=false; the screenshot-visible HUD reticle is the one gameplay cursor | AC-2.1.2 |
-| 22 | `attack_click_physical` | with the physical OS cursor still at the aim point, bridge click LMB through Slate -> Mordecai.State.Attacking appears in player.tags | AC-2.1.2 |
-| 23 | `combo_hit2` | wait for Mordecai.State.ComboWindow after Hit 1, click LMB through Slate again -> stamina is consumed again and Mordecai.State.AttackCommitted appears for Hit 2 without Mordecai.Attack.Heavy | US-004:AC-004.14 |
-| 24 | `movement_keeps_aim` | with mouse aim still +Y, hold W 0.4s -> player.location moves > 100 cm along camera-relative +X and < 30 cm across while yaw stays 90 (+-30) | AC-2.1.1, AC-2.1.2, AC-1.3.2 |
-| 25 | `facing_stick` | axis Gamepad_RightX=-1 held (left, -Y) -> wait_until player.rotation yaw -90 (+-30) within 1s, then release and retain that yaw | AC-2.1.2 |
-| 26 | `cursor_hidden_gamepad` | after right-stick input -> focus.input_type is Gamepad and focus.mouse_cursor_shown=false | AC-2.1.2 |
-| 27 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm | AC-2.1.1, AC-1.3.2 |
+| 16 | `sprint_shift` | tap LeftShift, hold W 1s -> dx > 700 cm; only while Mordecai.State.Sprinting is present, tap LeftShift again, then hold S 1s -> back to a walk (peak player.speed 500..750 cm/s) | AC-1.3.3, AC-2.1.3 |
+| 17 | `sprint_auto_clear_restart` | tap LeftShift, hold W 0.35s, release and observe speed <= 60 cm/s -> Mordecai.State.Sprinting auto-clears about 0.25s later; tap LeftShift -> the tag returns (then state-aware cleanup tap) | AC-1.3.3, AC-2.1.3 |
+| 18 | `walk_lane_reset2` | walk_to(-700, -800) -> within 60 cm | - |
+| 19 | `sprint_l3` | tap Gamepad_LeftThumbstick (L3), hold W 1s -> dx > 700 cm (then tap L3 again) | AC-1.3.3, AC-2.1.3 |
+| 20 | `jump_space` | tap SpaceBar -> wait_until player.movement_mode=="Falling" within 1s | AC-2.1.4 |
+| 21 | `facing_mouse_physical` | Win32 SetCursorPos to client (1100, 360) (right of the player, +Y; no bridge mouse command) -> wait_until player.rotation yaw 90 (+-30) within 1s | AC-2.1.2 |
+| 22 | `single_cursor_mouse` | after physical mouse movement -> focus.input_type is MouseAndKeyboard and focus.mouse_cursor_shown=false; the screenshot-visible HUD reticle is the one gameplay cursor | AC-2.1.2 |
+| 23 | `attack_click_physical` | with the physical OS cursor still at the aim point, bridge click LMB through Slate -> Mordecai.State.Attacking appears in player.tags | AC-2.1.2 |
+| 24 | `combo_hit2` | wait for Mordecai.State.ComboWindow after Hit 1, click LMB through Slate again -> stamina is consumed again and Mordecai.State.AttackCommitted appears for Hit 2 without Mordecai.Attack.Heavy | US-004:AC-004.14 |
+| 25 | `movement_keeps_aim` | with mouse aim still +Y, hold W 0.4s -> player.location moves > 100 cm along camera-relative +X and < 30 cm across while yaw stays 90 (+-30) | AC-2.1.1, AC-2.1.2, AC-1.3.2 |
+| 26 | `facing_stick` | axis Gamepad_RightX=-1 held (left, -Y) -> wait_until player.rotation yaw -90 (+-30) within 1s, then release and retain that yaw | AC-2.1.2 |
+| 27 | `cursor_hidden_gamepad` | after right-stick input -> focus.input_type is Gamepad and focus.mouse_cursor_shown=false | AC-2.1.2 |
+| 28 | `gamepad_move` | axis Gamepad_LeftY=1 for 0.5s -> player.location x rises > 100 cm | AC-2.1.1, AC-1.3.2 |
 
 ### Issue #17 / N12 evidence (2026-11-09)
 - The exact-`4b3dd65` package's Tier 3 MovementTestMap boot `Saved/Playtests/20261109-144453-boot` (part of sweep `Saved/Playtests/20261109-144434-sweep`) supports AC-2.1.5: exit 0, with the placeholder player and green facing arrow visible in the engine captures. The complete `us001_movement.py` run still exits 1 only on older gamepad/facing known issues; its arrow check passes. Acceptance is pending Jeff's review of PR #94.
