@@ -32,6 +32,7 @@ TAG_BROKEN = "Mordecai.State.PostureBroken"
 TAG_DOWN = "Mordecai.State.KnockedDown"
 TAG_YELLOW = "Mordecai.Stamina.Tier.Yellow"
 TAG_GREEN = "Mordecai.Stamina.Tier.Green"
+TAG_SPRINTING = "Mordecai.State.Sprinting"
 TAG_ATTACKING = "Mordecai.State.Attacking"
 TAG_COMBO = "Mordecai.State.ComboWindow"
 PARRY_DELAY_S = 0.25
@@ -236,12 +237,13 @@ class Us123Run(kit.PlaytestRun):
         # Sprint short closed-loop lateral legs. walk_to uses only real WASD
         # input, and returning to the fight spot prevents raw key timing from
         # drifting outside the TestAttacker's range.
-        self.bridge.tap(SPRINT, hold_s=0.1)
-        deadline = time.monotonic() + 8.0
+        deadline = time.monotonic() + 12.0
         pinned = None
         at_fight_spot = False
         try:
             while time.monotonic() < deadline:
+                if TAG_SPRINTING not in _tags(_player(self._read())):
+                    self.bridge.tap(SPRINT, hold_s=0.1)
                 self.bridge.walk_to(
                     FIGHT_SPOT[0] if at_fight_spot else FIGHT_SPOT[0] - 80.0,
                     FIGHT_SPOT[1],
@@ -255,7 +257,8 @@ class Us123Run(kit.PlaytestRun):
                     pinned = (stamina, tags)
                     break
         finally:
-            self.bridge.tap(SPRINT, hold_s=0.01)
+            if TAG_SPRINTING in _tags(_player(self._read())):
+                self.bridge.tap(SPRINT, hold_s=0.01)
         if pinned is None:
             raise RuntimeError(f"real sprint did not reach Yellow stamina near {target:g}")
         self.bridge.walk_to(*FIGHT_SPOT, tol=SPOT_TOL)
