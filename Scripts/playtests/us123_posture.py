@@ -27,6 +27,7 @@ RT = "Gamepad_RightTriggerAxis"
 SPRINT = "LeftShift"
 TAG_PARRIED = "Mordecai.State.Parried"
 TAG_RIPOSTE = "Mordecai.State.Riposte"
+TAG_PARRY_WHIFF = "Mordecai.State.ParryWhiff"
 TAG_BROKEN = "Mordecai.State.PostureBroken"
 TAG_DOWN = "Mordecai.State.KnockedDown"
 TAG_YELLOW = "Mordecai.Stamina.Tier.Yellow"
@@ -39,7 +40,7 @@ TAG_ATTACKING = "Mordecai.State.Attacking"
 TAG_COMBO = "Mordecai.State.ComboWindow"
 # wait_until observes the Attack edge in-game per frame; center the 0.5-second
 # parry window on the fixed-cadence hit at roughly edge + 0.52 seconds.
-PARRY_DELAY_S = 0.45
+PARRY_DELAY_S = 0.35
 STATE_POLL_S = 0.03
 BASE_L1_YELLOW = 16.0
 STAGGERED_L1_YELLOW = 24.0
@@ -59,8 +60,8 @@ PENDING = {
 
 PLAN = (
     Step("setup",
-         "walk to the TestAttacker, pin the equipped Longsword and drain with real sprint input "
-         "until the authoritative stamina tier is Yellow"),
+         "walk just outside the TestAttacker's reach, pin the equipped Longsword and spend real "
+         "dodges so the authoritative stamina tier is Yellow, then enter range"),
     Step("unbroken_control",
          "tap RT once at Yellow stamina against the unbroken TestAttacker -> exactly 16 health taken"),
     Step("break_by_parry",
@@ -339,31 +340,66 @@ class Us123Run(kit.PlaytestRun):
         raise RuntimeError(
             f"could not keep Yellow stamina while correcting to the fight spot; last {last}")
 
+    def _spend_dodge_headroom(self, label):
+        before = _stamina(_player(self._read()))
+        if before is None:
+            raise RuntimeError(f"{label} stamina unavailable before dodge")
+        self.bridge.tap("LeftAlt", hold_s=0.1)
+        self._wait_state(
+            lambda value: (
+                _stamina(_player(value)) is not None
+                and _stamina(_player(value)) < before - 5.0
+            ), 1.0, f"{label} dodge stamina spend")
+        self._wait_state(
+            lambda value: TAG_DODGING not in _tags(_player(value)),
+            2.0, f"{label} dodge completion")
+        self.bridge.wait(0.35)
+
+    def _drain_with_dodges(self, label):
+        for _ in range(10):
+            stamina = _stamina(_player(self._read()))
+            if stamina is not None and stamina <= 25.0:
+                return stamina
+            self._wait_state(
+                lambda value: TAG_DODGE_COOLDOWN not in _tags(_player(value)),
+                2.0, f"{label} dodge cooldown")
+            self._spend_dodge_headroom(label)
+        raise RuntimeError(f"{label} did not reach 25 stamina through real dodges")
+
     def _wait_attack_edge(self):
         self._wait_attacker_ai(False, 4.0, "attacker outside Attack")
         return self._wait_attacker_ai(True, 6.0, "attacker Attack edge")
 
     def _parry_once(self):
-        self._wait_attacker_ai(False, 4.0, "attacker outside Attack before raising guard")
-        before = self._attacker()
-        posture_before = _posture(before)
-        self.bridge.axis({LT: 1.0})
-        try:
+        last_error = None
+        for attempt in range(2):
+            self._wait_attacker_ai(False, 4.0, "attacker outside Attack before raising guard")
+            before = self._attacker()
+            posture_before = _posture(before)
+            self.bridge.axis({LT: 1.0})
+            try:
+                self._wait_state(
+                    lambda state: TAG_BLOCKING in _tags(_player(state)),
+                    1.0, "blocking guard before parry")
+                self._wait_attacker_ai(True, 6.0, "attacker Attack edge")
+                self.bridge.wait(PARRY_DELAY_S)
+                self.bridge.axis({RT: 1.0}, hold_s=0.1)
+                return self._wait_state(
+                    lambda value: (
+                        TAG_PARRIED in _tags(find_attacker(value))
+                        and (_posture(find_attacker(value)) or 0.0) < (posture_before or 0.0)
+                    ) or TAG_BROKEN in _tags(find_attacker(value)),
+                    1.0, "parried posture change")
+            except RuntimeError as error:
+                last_error = error
+                if attempt:
+                    raise
+            finally:
+                self.bridge.axis({LT: 0.0})
             self._wait_state(
-                lambda state: TAG_BLOCKING in _tags(_player(state)),
-                1.0, "blocking guard before parry")
-            self._wait_attacker_ai(True, 6.0, "attacker Attack edge")
-            self.bridge.wait(PARRY_DELAY_S)
-            self.bridge.axis({RT: 1.0}, hold_s=0.1)
-            state = self._wait_state(
-                lambda value: (
-                    TAG_PARRIED in _tags(find_attacker(value))
-                    and (_posture(find_attacker(value)) or 0.0) < (posture_before or 0.0)
-                ) or TAG_BROKEN in _tags(find_attacker(value)),
-                1.0, "parried posture change")
-            return state
-        finally:
-            self.bridge.axis({LT: 0.0})
+                lambda value: TAG_PARRY_WHIFF not in _tags(_player(value)),
+                2.0, "parry whiff recovery before one retry")
+        raise last_error or RuntimeError("parry did not resolve")
 
     def _wait_parried_expiry(self):
         return self._wait_state(
@@ -388,7 +424,7 @@ class Us123Run(kit.PlaytestRun):
     def _setup(self):
         self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
         self._aim()
-        self._pin_yellow(center=PIN_SPOT)
+        self._drain_with_dodges("control-route headroom")
         result, state = self._walk_fight()
         actor = self._attacker(state)
         if _posture(actor) is None or _max_posture(actor) is None:
@@ -486,25 +522,9 @@ class Us123Run(kit.PlaytestRun):
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
         self._aim()
-        self._pin_yellow(center=PIN_SPOT)
         # Leave enough headroom that regeneration between the two one-second
         # parry staggers cannot cross back into Green before L1 commits.
-        for _ in range(1):
-            self._wait_state(
-                lambda value: TAG_DODGE_COOLDOWN not in _tags(_player(value)),
-                2.0, "headroom dodge cooldown")
-            self.bridge.tap("LeftAlt", hold_s=0.1)
-            self._wait_state(
-                lambda value: TAG_DODGING in _tags(_player(value)),
-                1.0, "headroom dodge start")
-            self._wait_state(
-                lambda value: TAG_DODGING not in _tags(_player(value)),
-                2.0, "headroom dodge completion")
-            self.bridge.wait(0.5)
-        headroom = _stamina(_player(self._read()))
-        if headroom is None or not 35.0 <= headroom <= 60.0:
-            raise RuntimeError(
-                f"one real dodge left stamina {headroom}, expected Yellow headroom")
+        self._drain_with_dodges("knockdown-route headroom")
         self._walk_fight()
         stamina, weapon, _ = self._weapon_and_tier()
         return stamina, weapon
