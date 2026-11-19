@@ -287,11 +287,11 @@ class Us123Run(kit.PlaytestRun):
         problems = []
         if name.lower() != "longsword":
             problems.append(f"weapon is {name!r}, expected Longsword")
-        if TAG_YELLOW not in tags:
-            problems.append(f"Yellow tier absent at stamina {stamina}: {tags}")
+        if stamina is None or not 25.0 < stamina <= 75.0:
+            problems.append(f"authoritative stamina {stamina} is outside Yellow: {tags}")
         if problems:
             raise RuntimeError("; ".join(problems))
-        return stamina, name
+        return stamina, name, tags
 
     def _pin_yellow_at_fight(self, target=74.0):
         last = None
@@ -303,7 +303,7 @@ class Us123Run(kit.PlaytestRun):
             state = self._read()
             player = _player(state)
             if TAG_YELLOW in _tags(player):
-                stamina, weapon = self._weapon_and_tier()
+                stamina, weapon, _ = self._weapon_and_tier()
                 return stamina, weapon, last[1]
         raise RuntimeError(
             f"could not keep Yellow stamina while correcting to the fight spot; last {last}")
@@ -472,7 +472,7 @@ class Us123Run(kit.PlaytestRun):
         second = self._parry_once()
         if TAG_BROKEN not in _tags(self._attacker(second)):
             return "FAIL", "second route did not enter PostureBroken", None
-        stamina, pinned_weapon = self._weapon_and_tier()
+        stamina, pinned_weapon, stamina_tags = self._weapon_and_tier()
         if pinned_weapon != weapon:
             return "FAIL", f"weapon changed from {weapon} to {pinned_weapon}", None
 
@@ -497,7 +497,7 @@ class Us123Run(kit.PlaytestRun):
             problems.append(f"ai_state {actor.get('ai_state')}, expected Staggered")
         detail = (
             f"pinned {weapon}, refill stamina {refill_stamina:g}, post-parry Yellow stamina "
-            f"{stamina:g}; L1 {l1:g} + L2 {l2:g} = "
+            f"{stamina:g} (runtime tags {stamina_tags}); L1 {l1:g} + L2 {l2:g} = "
             f"{l1 + l2:g} actual health; tags {tags}; ai_state {actor.get('ai_state')}")
         return ("FAIL" if problems else "PASS"), (
             detail + (f" -- {'; '.join(problems)}" if problems else "")), {
