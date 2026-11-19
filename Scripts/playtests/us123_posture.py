@@ -19,6 +19,7 @@ STORY = "US-123"
 TITLE = "US-123 enemy posture break, critical window and knockdown"
 ATTACKER = "TestAttacker"
 FIGHT_SPOT = (2000.0, 0.0)
+PIN_SPOT = (1850.0, 0.0)
 SAFE_SPOT = (900.0, -600.0)
 RADIUS = 3000
 SPOT_TOL = 25.0
@@ -481,8 +482,30 @@ class Us123Run(kit.PlaytestRun):
                 and _stamina(_player(state)) >= 95.0
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
+        self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
+        self._aim()
+        # Leave enough headroom that regeneration between the two one-second
+        # parry staggers cannot cross back into Green before L1 commits.
+        self._pin_yellow(center=PIN_SPOT)
+        for _ in range(4):
+            state = self._read()
+            stamina = _stamina(_player(state))
+            if stamina is not None and stamina <= 55.0:
+                break
+            self._wait_state(
+                lambda value: TAG_ATTACKING not in _tags(_player(value)),
+                2.0, "headroom attack idle")
+            self.bridge.axis({RT: 1.0}, hold_s=0.1)
+            self._wait_state(
+                lambda value: TAG_ATTACKING in _tags(_player(value)),
+                1.0, "headroom attack start")
+            self._wait_state(
+                lambda value: TAG_ATTACKING not in _tags(_player(value)),
+                2.0, "headroom attack completion")
+        if (_stamina(_player(self._read())) or 100.0) > 55.0:
+            raise RuntimeError("real light attacks did not create Yellow stamina headroom")
         self._walk_fight()
-        stamina, weapon, _ = self._pin_yellow_at_fight()
+        stamina, weapon, _ = self._weapon_and_tier()
         return stamina, weapon
 
     def _knockdown(self):
