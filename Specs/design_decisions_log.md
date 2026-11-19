@@ -390,3 +390,18 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
   locked rule that low stamina never blocks actions, break-free remains
   available below its cost and spends down to the shared -50 stamina floor.
 - Source: coordinator decisions supplied for issue #145 (2026-11-18).
+
+---
+
+## 2026-11-19 — Posture runtime (US-123, issue #152)
+
+- `ParriedDurationMs` and `RiposteWindowMs` are both **1000ms**.
+- A riposte is a **critical 1.5x** hit. It does not stack multiplicatively
+  with stagger or knockdown; the larger active multiplier wins.
+- Knockdown begins at **50 health actually taken after all multipliers** while
+  posture-broken, lasts **2000ms**, and applies a **2.0x** damage multiplier.
+  It replaces stagger rather than stacking with it.
+- Player posture will use the same break behavior as enemy posture in US-124.
+  US-123 adds shared player regeneration only: the player does not posture
+  break in this story.
+- Source: Jeff's decisions supplied with US-123 on 2026-11-19.

@@ -78,6 +78,12 @@ void AMordecaiEnemyAIController::BindTagDelegates()
 	CachedASC->RegisterGameplayTagEvent(
 		MordecaiGameplayTags::State_PostureBroken, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &AMordecaiEnemyAIController::OnPostureBrokenTagChanged);
+	CachedASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::State_KnockedDown, EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &AMordecaiEnemyAIController::OnPostureBrokenTagChanged);
+	CachedASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::State_Parried, EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &AMordecaiEnemyAIController::OnPostureBrokenTagChanged);
 
 	CachedASC->RegisterGameplayTagEvent(
 		MordecaiGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
@@ -93,6 +99,12 @@ void AMordecaiEnemyAIController::UnbindTagDelegates()
 
 	CachedASC->RegisterGameplayTagEvent(
 		MordecaiGameplayTags::State_PostureBroken, EGameplayTagEventType::NewOrRemoved)
+		.RemoveAll(this);
+	CachedASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::State_KnockedDown, EGameplayTagEventType::NewOrRemoved)
+		.RemoveAll(this);
+	CachedASC->RegisterGameplayTagEvent(
+		MordecaiGameplayTags::State_Parried, EGameplayTagEventType::NewOrRemoved)
 		.RemoveAll(this);
 
 	CachedASC->RegisterGameplayTagEvent(
@@ -118,8 +130,14 @@ void AMordecaiEnemyAIController::OnPostureBrokenTagChanged(const FGameplayTag Ta
 	}
 	else if (CurrentState == EMordecaiEnemyAIState::Staggered)
 	{
-		// AC-051.7: Tag removed — resume normal behavior
-		TransitionToState(EMordecaiEnemyAIState::Idle);
+		const bool bStillIncapacitated = CachedASC.IsValid()
+			&& (CachedASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_PostureBroken)
+				|| CachedASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_KnockedDown)
+				|| CachedASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Parried));
+		if (!bStillIncapacitated)
+		{
+			TransitionToState(EMordecaiEnemyAIState::Idle);
+		}
 	}
 }
 

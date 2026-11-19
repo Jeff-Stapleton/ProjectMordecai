@@ -35,6 +35,7 @@ UMordecaiGA_MeleeAttack::UMordecaiGA_MeleeAttack(const FObjectInitializer& Objec
 	// AC-007.8: Cannot attack during posture broken or knocked down
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_PostureBroken);
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_KnockedDown);
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Parried);
 
 	// US-083: no attack out of a parry (the click that parried also reaches the attack input on release) or its whiff
 	// lock (AC-006.14), and none from a dead player
@@ -159,6 +160,40 @@ float UMordecaiGA_MeleeAttack::ComputePostureDamage() const
 	// AC-024.11: Add weapon posture bonus
 	const float WeaponPostureBonus = GetWeaponPostureDamageBonus();
 	return -((Profile->DamageProfile.BasePower * Profile->PostureDamageScalar) + WeaponPostureBonus);
+}
+
+float UMordecaiGA_MeleeAttack::ResolvePostureRuntimeDamage(
+	UAbilitySystemComponent* SourceASC,
+	UAbilitySystemComponent* TargetASC) const
+{
+	const float VulnerabilityMultiplier =
+		UMordecaiPostureSystem::GetVulnerabilityDamageMultiplier(TargetASC);
+	const bool bIsRiposte = SourceASC && TargetASC
+		&& SourceASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Riposte)
+		&& TargetASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Parried);
+	const float RiposteMultiplier = bIsRiposte
+		? GetDefault<UMordecaiPostureSystem>()->RiposteDamageMultiplier
+		: 1.f;
+	return -ComputeHealthDamage() * FMath::Max(VulnerabilityMultiplier, RiposteMultiplier);
+}
+
+bool UMordecaiGA_MeleeAttack::ConsumeRiposte(
+	UAbilitySystemComponent* SourceASC,
+	UAbilitySystemComponent* TargetASC) const
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!AvatarActor || !AvatarActor->HasAuthority() || !SourceASC || !TargetASC
+		|| !SourceASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Riposte)
+		|| !TargetASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Parried))
+	{
+		return false;
+	}
+
+	SourceASC->SetLooseGameplayTagCount(
+		MordecaiGameplayTags::State_Riposte,
+		0,
+		EGameplayTagReplicationState::TagOnly);
+	return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -416,6 +451,12 @@ void UMordecaiGA_MeleeAttack::OnWindupComplete()
 	// AC-004.4: Hit detection fires once during Active
 	PerformHitDetectionAndApplyDamage();
 
+	// A parry can cancel this ability from inside hit resolution.
+	if (!IsActive() || CurrentPhase != EMordecaiAttackPhase::Active)
+	{
+		return;
+	}
+
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(
@@ -581,9 +622,17 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
 	if (!SourceASC) return;
 
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!AvatarActor || !AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
 	// US-101 (issue #53): the target's defenses meet the hit before any of it lands. I-frames and a parry negate all of
 	// it; a block applies its own mitigated health damage, stamina drain and guard break.
-	const float IncomingHealthDamage = -ComputeHealthDamage();
+	const float IncomingHealthDamage = ResolvePostureRuntimeDamage(SourceASC, TargetASC);
+	const float BaseHealthDamage = -ComputeHealthDamage();
+	const bool bIsCritical = IncomingHealthDamage > BaseHealthDamage + KINDA_SMALL_NUMBER;
 	const UWorld* World = GetWorld();
 	const FMordecaiHitDefenseResult Defense = FMordecaiHitDefense::ResolveIncomingHit(
 		TargetASC, SourceASC, IncomingHealthDamage, World ? World->GetTimeSeconds() : 0.0);
@@ -592,6 +641,7 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 		return;
 	}
 	const bool bBlocked = Defense.IsBlocked();
+	ConsumeRiposte(SourceASC, TargetASC);
 
 	FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
 	Context.AddSourceObject(this);
@@ -605,7 +655,7 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 		FGameplayModifierInfo& Mod = HealthGE->Modifiers.AddDefaulted_GetRef();
 		Mod.Attribute = UMordecaiAttributeSet::GetHealthAttribute();
 		Mod.ModifierOp = EGameplayModOp::Additive;
-		Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(ComputeHealthDamage()));
+		Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(-IncomingHealthDamage));
 
 		FGameplayEffectSpec HealthSpec(HealthGE, Context, 1.0f);
 
@@ -621,7 +671,12 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 
 	// AC-004.5: Posture damage via instant GE; AC-007.5: a blocked hit applies it at BlockPostureDamageMultiplier
 	{
-		const float PostureMultiplier = bBlocked ? GetDefault<UMordecaiPostureSystem>()->BlockPostureDamageMultiplier : 1.f;
+		const float ResolvedPostureDamage =
+			UMordecaiPostureSystem::ComputePostureDamageFromAttributes(
+				SourceASC,
+				TargetASC,
+				-ComputePostureDamage(),
+				bBlocked);
 
 		UGameplayEffect* PostureGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiMeleePostureDamage"));
 		PostureGE->DurationPolicy = EGameplayEffectDurationType::Instant;
@@ -629,7 +684,7 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 		FGameplayModifierInfo& Mod = PostureGE->Modifiers.AddDefaulted_GetRef();
 		Mod.Attribute = UMordecaiAttributeSet::GetPostureAttribute();
 		Mod.ModifierOp = EGameplayModOp::Additive;
-		Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(ComputePostureDamage() * PostureMultiplier));
+		Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(-ResolvedPostureDamage));
 
 		FGameplayEffectSpec PostureSpec(PostureGE, Context, 1.0f);
 
@@ -661,7 +716,7 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 		int32 DisplayDamage = FMath::Abs(FMath::RoundToInt32(TakenDamage));
 		FVector PopLocation = HitLocation.IsNearlyZero() ? TargetActor->GetActorLocation() : HitLocation;
 		UMordecaiDamagePopComponent::BroadcastDamagePop(
-			TargetActor->GetWorld(), DisplayDamage, DamageTag, PopLocation, /*bIsCritical=*/false);
+			TargetActor->GetWorld(), DisplayDamage, DamageTag, PopLocation, bIsCritical);
 	}
 }
 

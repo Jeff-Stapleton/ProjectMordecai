@@ -70,6 +70,10 @@ public:
 	 *  Returns true if parry was successful. */
 	bool ReceiveParriedHit(UAbilitySystemComponent* AttackerASC);
 
+	/** Apply the configured parry posture damage through the shared attribute route. */
+	UFUNCTION()
+	void ApplyParryPostureDamage(UAbilitySystemComponent* AttackerASC);
+
 	/** Transition to a new parry phase. Public for testing. */
 	void TransitionToParryPhase(EMordecaiParryPhase NewPhase);
 
@@ -98,6 +102,7 @@ protected:
 	void ApplyParryWhiffTag();
 	void RemoveParryWhiffTag();
 	void ApplyParriedTagToAttacker(UAbilitySystemComponent* AttackerASC);
+	void RemoveParriedTagFromAttacker();
 	void ApplyRiposteTag();
 	void RemoveRiposteTag();
 
@@ -107,4 +112,7 @@ protected:
 
 	FTimerHandle ParryWindowTimerHandle;
 	FTimerHandle WhiffTimerHandle;
+	FTimerHandle RiposteTimerHandle;
+	FTimerHandle ParriedAttackerTimerHandle;
+	TWeakObjectPtr<UAbilitySystemComponent> ParriedAttackerASC;
 };

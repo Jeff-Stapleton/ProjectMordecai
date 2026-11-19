@@ -424,7 +424,7 @@ void AMordecaiProjectile::AttemptRicochet(const FVector& HitLocation)
 
 void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageMagnitude)
 {
-	if (!TargetActor)
+	if (!HasAuthority() || !TargetActor)
 	{
 		return;
 	}
@@ -457,12 +457,16 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 		SourceASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(ProjectileInstigator.Get());
 	}
 
+	const float VulnerabilityMultiplier =
+		UMordecaiPostureSystem::GetVulnerabilityDamageMultiplier(TargetASC);
+	const float ResolvedHealthDamage = DamageMagnitude * VulnerabilityMultiplier;
+	const bool bIsCritical = VulnerabilityMultiplier > 1.f + KINDA_SMALL_NUMBER;
 	const UWorld* World = GetWorld();
 	const FMordecaiIncomingHitSource HitSource = FMordecaiIncomingHitSource::FromProjectile(
 		GetActorLocation(),
 		ProjectileMovement ? ProjectileMovement->Velocity : GetVelocity());
 	const FMordecaiHitDefenseResult Defense = FMordecaiHitDefense::ResolveIncomingHit(
-		TargetASC, SourceASC, DamageMagnitude, World ? World->GetTimeSeconds() : 0.0, HitSource);
+		TargetASC, SourceASC, ResolvedHealthDamage, World ? World->GetTimeSeconds() : 0.0, HitSource);
 	if (Defense.IsNegated())
 	{
 		return;
@@ -489,7 +493,7 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 		FGameplayModifierInfo& Mod = HealthGE->Modifiers.AddDefaulted_GetRef();
 		Mod.Attribute = UMordecaiAttributeSet::GetHealthAttribute();
 		Mod.ModifierOp = EGameplayModOp::Additive;
-		Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(-DamageMagnitude));
+		Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(-ResolvedHealthDamage));
 
 		FGameplayEffectSpec HealthSpec(HealthGE, Context, 1.0f);
 
@@ -512,10 +516,14 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 		FGameplayModifierInfo& Mod = PostureGE->Modifiers.AddDefaulted_GetRef();
 		Mod.Attribute = UMordecaiAttributeSet::GetPostureAttribute();
 		Mod.ModifierOp = EGameplayModOp::Additive;
-		const float PostureMultiplier =
-			bBlocked ? GetDefault<UMordecaiPostureSystem>()->BlockPostureDamageMultiplier : 1.f;
+		const float ResolvedPostureDamage =
+			UMordecaiPostureSystem::ComputePostureDamageFromAttributes(
+				SourceASC,
+				TargetASC,
+				DamageMagnitude,
+				bBlocked);
 		Mod.ModifierMagnitude =
-			FGameplayEffectModifierMagnitude(FScalableFloat(-DamageMagnitude * PostureMultiplier));
+			FGameplayEffectModifierMagnitude(FScalableFloat(-ResolvedPostureDamage));
 
 		FGameplayEffectSpec PostureSpec(PostureGE, Context, 1.0f);
 
@@ -535,10 +543,10 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 	// US-065: Fire floating damage number
 	{
 		FGameplayTag DamageTag = UMordecaiGA_MeleeAttack::GetDamageTagForType(DamageProfile.DamageType);
-		const float DisplayMagnitude = bBlocked ? Defense.BlockedHealthDamage : DamageMagnitude;
+		const float DisplayMagnitude = bBlocked ? Defense.BlockedHealthDamage : ResolvedHealthDamage;
 		int32 DisplayDamage = FMath::Abs(FMath::RoundToInt32(DisplayMagnitude));
 		UMordecaiDamagePopComponent::BroadcastDamagePop(
-			TargetActor->GetWorld(), DisplayDamage, DamageTag, TargetActor->GetActorLocation(), /*bIsCritical=*/false);
+			TargetActor->GetWorld(), DisplayDamage, DamageTag, TargetActor->GetActorLocation(), bIsCritical);
 	}
 }
 

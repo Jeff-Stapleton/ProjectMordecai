@@ -563,6 +563,10 @@ void AMordecaiCharacter::HandlePlayerDeath()
 	// AC-053.1: Apply State_Dead tag and broadcast Event_PlayerDeath
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
 	{
+		ASC->SetLooseGameplayTagCount(
+			MordecaiGameplayTags::State_Riposte,
+			0,
+			EGameplayTagReplicationState::TagOnly);
 		ASC->AddLooseGameplayTag(MordecaiGameplayTags::State_Dead);
 
 		// AC-053.3: Broadcast Event_PlayerDeath gameplay event

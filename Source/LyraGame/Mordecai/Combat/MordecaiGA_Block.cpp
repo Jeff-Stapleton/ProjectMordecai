@@ -3,6 +3,7 @@
 #include "Mordecai/Combat/MordecaiGA_Block.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Combat/MordecaiPostureSystem.h"
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiShieldDataAsset.h"
@@ -134,6 +135,11 @@ float UMordecaiGA_Block::ReceiveBlockedHit(float IncomingDamage, double HitTime,
 	if (CurrentBlockPhase != EMordecaiBlockPhase::Active) return IncomingDamage;
 
 	UAbilitySystemComponent* OwnerASC = GetAbilitySystemComponentFromActorInfo();
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!AvatarActor || !AvatarActor->HasAuthority())
+	{
+		return IncomingDamage;
+	}
 
 	// Check for perfect block
 	bool bIsPerfectBlock = bPerfectBlockWindowActive && IsHitWithinPerfectBlockWindow(HitTime);
@@ -146,10 +152,15 @@ float UMordecaiGA_Block::ReceiveBlockedHit(float IncomingDamage, double HitTime,
 		// Apply posture damage to attacker
 		if (AttackerASC)
 		{
+			const float ResolvedPostureDamage =
+				UMordecaiPostureSystem::ComputePostureDamageFromAttributes(
+					OwnerASC,
+					AttackerASC,
+					PerfectBlockPostureDamage);
 			AttackerASC->ApplyModToAttribute(
 				UMordecaiAttributeSet::GetPostureAttribute(),
 				EGameplayModOp::Additive,
-				-PerfectBlockPostureDamage);
+				-ResolvedPostureDamage);
 		}
 
 		// Compute mitigated damage (still mitigated even on perfect block)

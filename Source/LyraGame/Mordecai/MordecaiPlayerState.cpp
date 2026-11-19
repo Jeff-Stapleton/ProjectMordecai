@@ -3,6 +3,7 @@
 #include "MordecaiPlayerState.h"
 #include "Mordecai/AbilitySystem/MordecaiAbilitySystemComponent.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Combat/MordecaiPostureRuntimeComponent.h"
 #include "Mordecai/Combat/MordecaiStaminaRuntimeComponent.h"
 #include "Mordecai/Skills/MordecaiSkillComponent.h"
 #include "Mordecai/Feats/MordecaiFeatComponent.h"
@@ -19,6 +20,8 @@ AMordecaiPlayerState::AMordecaiPlayerState(const FObjectInitializer& ObjectIniti
 	FeatComponent = CreateDefaultSubobject<UMordecaiFeatComponent>(TEXT("MordecaiFeatComponent"));
 	StaminaRuntimeComponent =
 		CreateDefaultSubobject<UMordecaiStaminaRuntimeComponent>(TEXT("StaminaRuntimeComponent"));
+	PostureRuntimeComponent =
+		CreateDefaultSubobject<UMordecaiPostureRuntimeComponent>(TEXT("PostureRuntimeComponent"));
 }
 
 void AMordecaiPlayerState::PostInitializeComponents()

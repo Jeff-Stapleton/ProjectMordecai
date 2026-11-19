@@ -2,6 +2,10 @@
 
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
 
+#include "AbilitySystemComponent.h"
+#include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/MordecaiGameplayTags.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPostureSystem)
 
 // ---------------------------------------------------------------------------
@@ -24,6 +28,48 @@ float UMordecaiPostureSystem::ComputePostureDamage(float BasePower, float Postur
 	// AC-007.16: x BrittlePostureMultiplier (target debuff, default 1.0)
 	float BlockMult = bIsBlocking ? BlockPostureDamageMultiplier : 1.0f;
 	return BasePower * PostureDamageScalar * BlockMult * WeakenedPostureMultiplier * BrittlePostureMultiplier;
+}
+
+float UMordecaiPostureSystem::ComputePostureDamageFromAttributes(
+	const UAbilitySystemComponent* AttackerASC,
+	const UAbilitySystemComponent* TargetASC,
+	float BasePostureDamage,
+	bool bIsBlocking)
+{
+	const float OutgoingMultiplier = AttackerASC
+		? FMath::Max(0.f, AttackerASC->GetNumericAttribute(
+			UMordecaiAttributeSet::GetOutgoingPostureDamageMultiplierAttribute()))
+		: 1.f;
+	const float IncomingMultiplier = TargetASC
+		? FMath::Max(0.f, TargetASC->GetNumericAttribute(
+			UMordecaiAttributeSet::GetIncomingPostureDamageMultiplierAttribute()))
+		: 1.f;
+	const float BlockMultiplier = bIsBlocking
+		? GetDefault<UMordecaiPostureSystem>()->BlockPostureDamageMultiplier
+		: 1.f;
+	return FMath::Max(0.f, BasePostureDamage)
+		* OutgoingMultiplier
+		* IncomingMultiplier
+		* BlockMultiplier;
+}
+
+float UMordecaiPostureSystem::GetVulnerabilityDamageMultiplier(
+	const UAbilitySystemComponent* TargetASC)
+{
+	if (!TargetASC)
+	{
+		return 1.f;
+	}
+	const UMordecaiPostureSystem* Defaults = GetDefault<UMordecaiPostureSystem>();
+	if (TargetASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_KnockedDown))
+	{
+		return Defaults->KnockDownDamageMultiplier;
+	}
+	if (TargetASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_PostureBroken))
+	{
+		return Defaults->StaggeredDamageMultiplier;
+	}
+	return 1.f;
 }
 
 float UMordecaiPostureSystem::ComputeStaggeredDamage(float IncomingDamage) const

@@ -1,7 +1,7 @@
 # Agent Bridge v1: protocol and design
 
 **Status:** Phase 2 of `Specs/agent_playtest_plan_v1.md`. This is the contract between the in-game bridge (C++), the Python client (`Scripts/agent_bridge.py`), the MCP server (`Scripts/mordecai_play_mcp.py`) and the Tier 4 playtests (`Scripts/playtests/`).
-**Last updated:** 2026-10-28 (`actors[].text_labels`, issues #30 and #38).
+**Last updated:** 2026-11-19 (`actors[].posture`, US-123).
 
 ## 1. Purpose and the one rule
 
@@ -178,7 +178,8 @@ pause_menu:{valid, open, active_tab, tabs:[{id,name}],
                            list_placeholder, ledger_placeholder}|null}
 widgets:   [{class, name, rect:[x,y,w,h], texts:[str], buttons:[{id,label,center:[x,y],enabled}]}]
 actors:    [{label, name, class, native_class, kind:"enemy"|"pickup"|"pawn"|"projectile"|"illusion"|"other",
-             location, distance, hidden, has_visible_mesh, health:{current,max}|null, is_dead|null,
+             location, distance, hidden, has_visible_mesh, health:{current,max}|null,
+             posture:number|null, max_posture:number|null, is_dead|null,
              ai_state|null, spawn_location|null, tags:[...], widgets:[{component,class,space,visible}],
              text_labels:[{component,text,visible,facing|null,upright|null}]}]
 ```
@@ -190,6 +191,10 @@ actors:    [{label, name, class, native_class, kind:"enemy"|"pickup"|"pawn"|"pro
 - **`widgets`** lists only user widgets whose native class name starts with `Mordecai` and whose Slate widget chain is visible all the way up to an `SWindow`. Pooled and stale CommonUI instances fail that test and are skipped.
 - **`actors[].widgets` and `actors[].text_labels`.** `widgets` lists the actor's `UWidgetComponent`s (enemy health bars); `visible` is `IsWidgetVisible()`. `text_labels` lists its `UTextRenderComponent`s (a pickup's `NameLabel`), in component order, `[]` when it has none. A component is in only one of the two lists. The actor filter is unchanged: a text label alone does not make an actor interesting.
 - **`actors[].spawn_location`.** For an enemy possessed by `AMordecaiEnemyAIController`, this is the location captured when the controller possessed it. It remains fixed while `location` follows the live actor, so placement checks do not mistake normal approach movement for a spawn-layout change. It is `null` for actors without that controller.
+- **`actors[].posture` / `max_posture`.** Current and maximum posture from
+  the actor's `UMordecaiAttributeSet`; both are `null` when the actor has no
+  matching ASC attribute set. They expose enemy break/recovery transitions to
+  input-only playtests without adding a gameplay mutation command.
   - `component`: the component's object name (`NameLabel`).
   - `text`: the text the component renders. A pickup's label is its `UMordecaiItemLibrary::GetDisplayName`, so an unidentified item reads its partial name (`Unidentified Purple Amulet`).
   - `visible`: the label is drawn: the component is registered and visible, not hidden in game, and its actor is not hidden. A visible label with empty `text` draws nothing; check both.

@@ -278,27 +278,12 @@ void AMordecaiEnemyCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (IsDead() || !EnemyAbilitySystemComponent || !AttributeSet || !PostureSystem)
+	if (!HasAuthority() || IsDead() || !EnemyAbilitySystemComponent || !AttributeSet || !PostureSystem)
 	{
 		return;
 	}
 
-	const float CurrentPosture = AttributeSet->GetPosture();
-	const float MaxPosture = AttributeSet->GetMaxPosture();
-
-	if (CurrentPosture < MaxPosture)
-	{
-		if (const UWorld* World = GetWorld())
-		{
-			if (PostureSystem->IsRegenAllowed(World->GetTimeSeconds()))
-			{
-				const float RegenAmount = PostureSystem->ComputeRegenAmount(DeltaTime);
-				const float NewPosture = FMath::Min(CurrentPosture + RegenAmount, MaxPosture);
-				EnemyAbilitySystemComponent->SetNumericAttributeBase(
-					UMordecaiAttributeSet::GetPostureAttribute(), NewPosture);
-			}
-		}
-	}
+	RegeneratePosture(DeltaTime);
 }
 
 // ---------------------------------------------------------------------------
@@ -317,6 +302,23 @@ void AMordecaiEnemyCharacter::OnHealthChanged(const FOnAttributeChangeData& Data
 	if (Data.NewValue <= 0.f && !IsDead())
 	{
 		EnterDeathState(FindPlayerKiller(Data));
+		return;
+	}
+
+	// Count only health actually taken from a player while the authoritative target is staggered.
+	if (HasAuthority()
+		&& Data.NewValue < Data.OldValue
+		&& FindPlayerKiller(Data)
+		&& PostureSystem
+		&& EnemyAbilitySystemComponent
+		&& EnemyAbilitySystemComponent->HasMatchingGameplayTag(
+			MordecaiGameplayTags::State_PostureBroken))
+	{
+		PostureSystem->AccumulateStaggerDamage(Data.OldValue - Data.NewValue);
+		if (PostureSystem->ShouldKnockDown())
+		{
+			EnterKnockDownState();
+		}
 	}
 }
 
@@ -349,6 +351,11 @@ APlayerState* AMordecaiEnemyCharacter::FindPlayerKiller(const FOnAttributeChange
 
 void AMordecaiEnemyCharacter::OnPostureChanged(const FOnAttributeChangeData& Data)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	// Track posture damage for regen delay (AC-050.9)
 	if (Data.NewValue < Data.OldValue && PostureSystem)
 	{
@@ -361,7 +368,8 @@ void AMordecaiEnemyCharacter::OnPostureChanged(const FOnAttributeChangeData& Dat
 	// AC-050.8: When Posture reaches <= 0, enter posture broken state
 	if (Data.NewValue <= 0.f && !IsDead()
 		&& EnemyAbilitySystemComponent
-		&& !EnemyAbilitySystemComponent->HasMatchingGameplayTag(MordecaiGameplayTags::State_PostureBroken))
+		&& !EnemyAbilitySystemComponent->HasMatchingGameplayTag(MordecaiGameplayTags::State_PostureBroken)
+		&& !EnemyAbilitySystemComponent->HasMatchingGameplayTag(MordecaiGameplayTags::State_KnockedDown))
 	{
 		EnterPostureBrokenState();
 	}
@@ -378,6 +386,8 @@ void AMordecaiEnemyCharacter::EnterDeathState(APlayerState* Killer)
 	{
 		return;
 	}
+
+	ClearPostureRuntimeStates();
 
 	// AC-050.6: Apply State_Dead tag (replicated via ASC, AC-050.11)
 	EnemyAbilitySystemComponent->AddLooseGameplayTag(MordecaiGameplayTags::State_Dead);
@@ -424,18 +434,19 @@ void AMordecaiEnemyCharacter::EnterDeathState(APlayerState* Killer)
 
 void AMordecaiEnemyCharacter::EnterPostureBrokenState()
 {
-	if (!EnemyAbilitySystemComponent || !PostureSystem)
+	if (!HasAuthority() || !EnemyAbilitySystemComponent || !PostureSystem)
 	{
 		return;
 	}
 
-	// AC-050.8: Apply PostureBroken tag (replicated via ASC, AC-050.11)
-	EnemyAbilitySystemComponent->AddLooseGameplayTag(MordecaiGameplayTags::State_PostureBroken);
+	SetPostureRuntimeState(MordecaiGameplayTags::State_KnockedDown, false);
+	SetPostureRuntimeState(MordecaiGameplayTags::State_PostureBroken, true);
 	PostureSystem->EnterPostureBroken();
+	CancelInFlightMelee();
 
-	// Set timer to exit posture broken state after PostureBrokenDurationMs (AC-050.8)
 	if (UWorld* World = GetWorld())
 	{
+		World->GetTimerManager().ClearTimer(PostureBrokenTimerHandle);
 		World->GetTimerManager().SetTimer(PostureBrokenTimerHandle, this,
 			&AMordecaiEnemyCharacter::ExitPostureBrokenState,
 			PostureSystem->GetPostureBrokenDurationSeconds(), false);
@@ -444,13 +455,12 @@ void AMordecaiEnemyCharacter::EnterPostureBrokenState()
 
 void AMordecaiEnemyCharacter::ExitPostureBrokenState()
 {
-	if (!EnemyAbilitySystemComponent || !PostureSystem || !AttributeSet)
+	if (!HasAuthority() || !EnemyAbilitySystemComponent || !PostureSystem || !AttributeSet)
 	{
 		return;
 	}
 
-	// Remove PostureBroken tag
-	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_PostureBroken);
+	SetPostureRuntimeState(MordecaiGameplayTags::State_PostureBroken, false);
 
 	// Reset posture to MaxPosture (AC-050.8, matches UMordecaiPostureSystem pattern)
 	const float MaxPosture = AttributeSet->GetMaxPosture();
@@ -459,26 +469,161 @@ void AMordecaiEnemyCharacter::ExitPostureBrokenState()
 		UMordecaiAttributeSet::GetPostureAttribute(), MaxPosture);
 }
 
+void AMordecaiEnemyCharacter::EnterKnockDownState()
+{
+	if (!HasAuthority() || !EnemyAbilitySystemComponent || !PostureSystem)
+	{
+		return;
+	}
+
+	GetWorldTimerManager().ClearTimer(PostureBrokenTimerHandle);
+	SetPostureRuntimeState(MordecaiGameplayTags::State_KnockedDown, true);
+	SetPostureRuntimeState(MordecaiGameplayTags::State_PostureBroken, false);
+	PostureSystem->EnterKnockDown();
+	CancelInFlightMelee();
+
+	GetWorldTimerManager().ClearTimer(KnockDownTimerHandle);
+	GetWorldTimerManager().SetTimer(
+		KnockDownTimerHandle,
+		this,
+		&ThisClass::ExitKnockDownState,
+		PostureSystem->GetKnockDownDurationSeconds(),
+		false);
+}
+
+void AMordecaiEnemyCharacter::ExitKnockDownState()
+{
+	if (!HasAuthority() || !EnemyAbilitySystemComponent || !AttributeSet || !PostureSystem)
+	{
+		return;
+	}
+
+	SetPostureRuntimeState(MordecaiGameplayTags::State_KnockedDown, false);
+	const float MaxPosture = AttributeSet->GetMaxPosture();
+	PostureSystem->ExitKnockDown(MaxPosture);
+	EnemyAbilitySystemComponent->SetNumericAttributeBase(
+		UMordecaiAttributeSet::GetPostureAttribute(), MaxPosture);
+}
+
+void AMordecaiEnemyCharacter::EnterParriedState()
+{
+	if (!HasAuthority() || !EnemyAbilitySystemComponent || !PostureSystem)
+	{
+		return;
+	}
+
+	SetPostureRuntimeState(MordecaiGameplayTags::State_Parried, true);
+	CancelInFlightMelee();
+	GetWorldTimerManager().ClearTimer(ParriedTimerHandle);
+	GetWorldTimerManager().SetTimer(
+		ParriedTimerHandle,
+		this,
+		&ThisClass::ExitParriedState,
+		PostureSystem->GetParriedDurationSeconds(),
+		false);
+}
+
+void AMordecaiEnemyCharacter::ExitParriedState()
+{
+	SetPostureRuntimeState(MordecaiGameplayTags::State_Parried, false);
+}
+
+void AMordecaiEnemyCharacter::SetPostureRuntimeState(const FGameplayTag StateTag, const bool bEnabled)
+{
+	if (!HasAuthority() || !EnemyAbilitySystemComponent || !StateTag.IsValid())
+	{
+		return;
+	}
+
+	EnemyAbilitySystemComponent->SetLooseGameplayTagCount(
+		StateTag,
+		bEnabled ? 1 : 0,
+		EGameplayTagReplicationState::TagOnly);
+}
+
+void AMordecaiEnemyCharacter::CancelInFlightMelee()
+{
+	if (!HasAuthority() || !EnemyAbilitySystemComponent)
+	{
+		return;
+	}
+
+	for (const FGameplayAbilitySpec& Spec : EnemyAbilitySystemComponent->GetActivatableAbilities())
+	{
+		if (Spec.IsActive() && Spec.Ability && Spec.Ability->IsA<UMordecaiGA_MeleeAttack>())
+		{
+			EnemyAbilitySystemComponent->CancelAbilityHandle(Spec.Handle);
+		}
+	}
+}
+
+void AMordecaiEnemyCharacter::RegeneratePosture(const float DeltaTime)
+{
+	if (!HasAuthority() || !EnemyAbilitySystemComponent || !AttributeSet || !PostureSystem
+		|| IsDead()
+		|| EnemyAbilitySystemComponent->HasMatchingGameplayTag(MordecaiGameplayTags::State_PostureBroken)
+		|| EnemyAbilitySystemComponent->HasMatchingGameplayTag(MordecaiGameplayTags::State_KnockedDown))
+	{
+		return;
+	}
+
+	const float CurrentPosture = AttributeSet->GetPosture();
+	const float MaxPosture = AttributeSet->GetMaxPosture();
+	const UWorld* World = GetWorld();
+	if (CurrentPosture >= MaxPosture || !World
+		|| !PostureSystem->IsRegenAllowed(World->GetTimeSeconds()))
+	{
+		return;
+	}
+
+	const float RecoveryMultiplier = FMath::Max(
+		0.f,
+		EnemyAbilitySystemComponent->GetNumericAttribute(
+			UMordecaiAttributeSet::GetPostureRecoveryMultiplierAttribute()));
+	const float RegenAmount = PostureSystem->ComputeRegenAmount(DeltaTime) * RecoveryMultiplier;
+	EnemyAbilitySystemComponent->SetNumericAttributeBase(
+		UMordecaiAttributeSet::GetPostureAttribute(),
+		FMath::Min(CurrentPosture + RegenAmount, MaxPosture));
+}
+
+void AMordecaiEnemyCharacter::ClearPostureRuntimeStates()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PostureBrokenTimerHandle);
+		World->GetTimerManager().ClearTimer(KnockDownTimerHandle);
+		World->GetTimerManager().ClearTimer(ParriedTimerHandle);
+	}
+	SetPostureRuntimeState(MordecaiGameplayTags::State_PostureBroken, false);
+	SetPostureRuntimeState(MordecaiGameplayTags::State_KnockedDown, false);
+	SetPostureRuntimeState(MordecaiGameplayTags::State_Parried, false);
+	SetPostureRuntimeState(MordecaiGameplayTags::State_Riposte, false);
+	if (PostureSystem)
+	{
+		PostureSystem->Reset();
+	}
+}
+
 // ---------------------------------------------------------------------------
 // US-053: Arena Reset
 // ---------------------------------------------------------------------------
 
 void AMordecaiEnemyCharacter::ResetForArena()
 {
-	if (!EnemyAbilitySystemComponent || !AttributeSet)
+	if (!HasAuthority() || !EnemyAbilitySystemComponent || !AttributeSet)
 	{
 		return;
 	}
 
-	// Remove death and posture broken tags
-	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Dead);
-	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_PostureBroken);
+	ClearPostureRuntimeStates();
 
-	// Cancel posture broken timer if active
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(PostureBrokenTimerHandle);
-	}
+	// Remove death tag
+	EnemyAbilitySystemComponent->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Dead);
 
 	// Restore health and posture to max (AC-053.9)
 	const float MaxHealth = AttributeSet->GetMaxHealth();
@@ -500,12 +645,6 @@ void AMordecaiEnemyCharacter::ResetForArena()
 	if (EnemyIndicatorComponent)
 	{
 		EnemyIndicatorComponent->NotifyArenaReset();
-	}
-
-	// Reset posture system state
-	if (PostureSystem)
-	{
-		PostureSystem->ExitPostureBroken(MaxPosture);
 	}
 
 	// Re-enable collision, and show the body again (issue #19)

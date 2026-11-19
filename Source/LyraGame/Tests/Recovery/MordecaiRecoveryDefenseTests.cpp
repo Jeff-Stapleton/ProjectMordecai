@@ -625,10 +625,7 @@ bool FMordecai_Recovery_Defense_ParryNegatesEnemyHit::RunTest(const FString& Par
 	const float StaminaAfterCost = Env.GetPlayer(UMordecaiAttributeSet::GetStaminaAttribute());
 	TestEqual("the parry costs its stamina up front", StaminaAfterCost, 100.f - Parry->ParryStaminaCost);
 
-	if (!TestTrue("the swing lands", Env.LandSwing(Enemy)))
-	{
-		return true;
-	}
+	TestFalse("the parried swing is cancelled before it remains Active", Env.LandSwing(Enemy));
 	TestEqual("no health lost", Env.GetPlayer(UMordecaiAttributeSet::GetHealthAttribute()), 100.f);
 	TestEqual("no posture lost", Env.GetPlayer(UMordecaiAttributeSet::GetPostureAttribute()), 100.f);
 	TestEqual("no further stamina", Env.GetPlayer(UMordecaiAttributeSet::GetStaminaAttribute()), StaminaAfterCost);
