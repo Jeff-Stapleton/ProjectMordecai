@@ -39,7 +39,7 @@ class PostureWorld(DefenseWorld):
     def __init__(self, broken_runtime=True):
         super().__init__(windup_s=0.5, attack_s=0.7, cooldown_s=0.12,
                          click_damage=0.0, arena_walls=False)
-        self.PARRY_S = 0.8
+        self.PARRY_S = 1.0
         self.health = self.max_health = 1000.0
         self.broken_runtime = broken_runtime
         self.sprinting = False

@@ -65,10 +65,10 @@ PLAN = (
          "wait past 1 second -> PostureBroken/Parried gone, posture=max and the attacker swings again",
          proves=("AC-123.1", "AC-123.6", "AC-123.10")),
     Step("knockdown",
-         "move out, refill, return with the Longsword, parry twice, assert the resulting "
-         "authoritative tier is Yellow, then RT L1->L2 inside the break: 24+27=51 actual "
-         "health reaches the 50 threshold and KnockedDown replaces PostureBroken for about "
-         "2 seconds; capture it",
+         "move out, refill, return, pin Longsword+Yellow, parry twice, assert the resulting "
+         "authoritative tier remains Yellow, then RT L1->L2 inside the break: 24+27=51 "
+         "actual health reaches the 50 threshold and KnockedDown replaces PostureBroken "
+         "for about 2 seconds; capture it",
          proves=("AC-123.4", "AC-123.11")),
     Step("image_verification",
          "Pillow verifies all three evidence/marketing frames are 1280x720 and non-blank; "
@@ -451,22 +451,18 @@ class Us123Run(kit.PlaytestRun):
 
     def _prepare_second_route(self):
         self.bridge.walk_to(*SAFE_SPOT, tol=40.0)
-        full = self._wait_state(
+        self._wait_state(
             lambda state: (
                 _stamina(_player(state)) is not None
                 and _stamina(_player(state)) >= 95.0
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
         self._walk_fight()
-        player = _player(full)
-        weapon = (player or {}).get("weapon") or {}
-        name = str(weapon.get("display_name") or weapon.get("id") or "")
-        if name.lower() != "longsword":
-            raise RuntimeError(f"weapon is {name!r}, expected Longsword")
-        return _stamina(player), name
+        stamina, weapon, _ = self._pin_yellow_at_fight()
+        return stamina, weapon
 
     def _knockdown(self):
-        refill_stamina, weapon = self._prepare_second_route()
+        pinned_stamina, weapon = self._prepare_second_route()
         first = self._parry_once()
         # As above, arm the second parry before the first stagger expires.
         second = self._parry_once()
@@ -496,7 +492,7 @@ class Us123Run(kit.PlaytestRun):
         if actor.get("ai_state") != "Staggered":
             problems.append(f"ai_state {actor.get('ai_state')}, expected Staggered")
         detail = (
-            f"pinned {weapon}, refill stamina {refill_stamina:g}, post-parry Yellow stamina "
+            f"pinned {weapon} at Yellow stamina {pinned_stamina:g}, post-parry Yellow stamina "
             f"{stamina:g} (runtime tags {stamina_tags}); L1 {l1:g} + L2 {l2:g} = "
             f"{l1 + l2:g} actual health; tags {tags}; ai_state {actor.get('ai_state')}")
         return ("FAIL" if problems else "PASS"), (
