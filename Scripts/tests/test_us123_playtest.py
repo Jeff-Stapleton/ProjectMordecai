@@ -246,7 +246,8 @@ class Us123PlaytestCase(unittest.TestCase):
         self.assertEqual(report["knockdown_route"], [24.0, 27.0])
         self.assertGreater(world.down_until, world.real_time())
         sent = [request.get("cmd") for request in server.received]
-        self.assertLessEqual(set(sent), {"ping", "state", "key", "axis", "screenshot", "wait"})
+        self.assertLessEqual(
+            set(sent), {"ping", "state", "key", "axis", "mouse", "screenshot", "wait"})
         self.assertTrue(any(request.get("cmd") == "axis" and us123.LT in request.get("values", {})
                             for request in server.received))
         self.assertTrue(any(request.get("cmd") == "axis" and us123.RT in request.get("values", {})

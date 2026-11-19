@@ -24,7 +24,6 @@ RADIUS = 3000
 SPOT_TOL = 25.0
 LT = "Gamepad_LeftTriggerAxis"
 RT = "Gamepad_RightTriggerAxis"
-AIM_Y = "Gamepad_RightY"
 SPRINT = "LeftShift"
 TAG_PARRIED = "Mordecai.State.Parried"
 TAG_RIPOSTE = "Mordecai.State.Riposte"
@@ -223,7 +222,7 @@ class Us123Run(kit.PlaytestRun):
         return actor
 
     def _aim(self):
-        self.bridge.axis({AIM_Y: -1.0}, hold_s=0.15)
+        kit.aim_world_positive_x(self.bridge)
 
     def _walk_fight(self):
         result = self.bridge.walk_to(*FIGHT_SPOT, tol=SPOT_TOL)
