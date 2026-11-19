@@ -219,6 +219,30 @@ class AutoClearBeforeToggleOffWorld(HudWorld):
         return super()._s_player()
 
 
+class DelayedAutoClearObservationWorld(HudWorld):
+    """A direct post-release state round trip misses the active stationary interval."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.stop_threshold_observed = False
+
+    def _set_sprinting(self, enabled):
+        super()._set_sprinting(enabled)
+        if enabled:
+            self.stop_threshold_observed = False
+
+    def state(self, sections=None, radius=1500.0, include_all_actors=False):
+        names = list(sections or fb.SECTIONS)
+        stopped_moved_sprint = self.sprinting and self.sprint_moved and math.hypot(*self.vel) < 1
+        if stopped_moved_sprint and names == ["player"]:
+            # wait_until gathers only the player root and catches the stop threshold promptly.
+            self.stop_threshold_observed = True
+        elif stopped_moved_sprint and "game" in names and not self.stop_threshold_observed:
+            # Model the slow direct state round trip that caused the packaged 0.000 s reading.
+            self._set_sprinting(False)
+        return super().state(names, radius, include_all_actors)
+
+
 class FixedWorld(HudWorld):
     """Explicit fixed-game alias retained for the focused all-green test."""
 
@@ -517,6 +541,14 @@ class TestUs001BeforeUs083(PlaytestCase):
         self.assertIs(sprint["toggle_off_sent"], False)
         self.assertTrue(world.forced_auto_clear)
         self.assertEqual(self.by_name(rep)["sprint_auto_clear_restart"]["status"], "PASS")
+
+    def test_bridge_side_stop_threshold_precedes_auto_clear_measurement(self):
+        world, server = self.serve(DelayedAutoClearObservationWorld)
+        code, rep = self.play(server)
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        check = self.by_name(rep)["sprint_auto_clear_restart"]
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertTrue(world.stop_threshold_observed)
 
 
 class TestUs001FixedGame(PlaytestCase):

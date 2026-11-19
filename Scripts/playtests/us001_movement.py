@@ -742,27 +742,40 @@ class Us001Run(kit.PlaytestRun):
                     {"initial_tags": tags})
         b.hold("W", SPRINT_AUTO_CLEAR_MOVE_S)
 
-        threshold_at = None
+        try:
+            threshold = b.wait_until(f"player.speed<={SPRINT_STOP_SPEED:g}",
+                                     timeout_s=SPRINT_AUTO_CLEAR_TIMEOUT_S,
+                                     poll_s=SPEED_POLL_S)
+        except ab.BridgeError as e:
+            if e.code != "timeout":
+                raise
+            return ("FAIL", f"player.speed did not reach <= {SPRINT_STOP_SPEED:g} cm/s within "
+                    f"{SPRINT_AUTO_CLEAR_TIMEOUT_S:g}s after releasing W",
+                    {"values": (e.response or {}).get("values")})
+
+        tags, speed, threshold_at = sample()
+        samples = [{"world_time_s": threshold_at, "speed": speed, "tags": tags}]
+        if SPRINT_TAG not in tags:
+            return ("FAIL", f"{SPRINT_TAG} cleared before the bridge could observe it after "
+                    f"player.speed reached <= {SPRINT_STOP_SPEED:g} cm/s",
+                    {"threshold": threshold, "samples": samples})
+        if threshold_at is None:
+            return "FAIL", "game.world_time_s is unavailable at the stop threshold", {
+                "threshold": threshold, "samples": samples}
+
         cleared_at = None
-        samples = []
         deadline = time.monotonic() + SPRINT_AUTO_CLEAR_TIMEOUT_S
         while time.monotonic() < deadline:
+            b.wait(SPEED_POLL_S)
             tags, speed, world_time = sample()
             samples.append({"world_time_s": world_time, "speed": speed, "tags": tags})
-            if (threshold_at is None and speed is not None and world_time is not None
-                    and speed <= SPRINT_STOP_SPEED):
-                threshold_at = world_time
             if SPRINT_TAG not in tags:
                 cleared_at = world_time
                 break
-            b.wait(SPEED_POLL_S)
 
         if cleared_at is None:
             return ("FAIL", f"{SPRINT_TAG} did not auto-clear within "
                     f"{SPRINT_AUTO_CLEAR_TIMEOUT_S:g}s after releasing W", {"samples": samples})
-        if threshold_at is None or cleared_at is None:
-            return ("FAIL", f"{SPRINT_TAG} cleared before a measurable speed <= "
-                    f"{SPRINT_STOP_SPEED:g} cm/s sample", {"samples": samples})
         clear_s = cleared_at - threshold_at
         lo, hi = SPRINT_AUTO_CLEAR_RANGE
         if not lo <= clear_s <= hi:
