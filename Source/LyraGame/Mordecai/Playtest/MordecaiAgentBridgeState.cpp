@@ -1053,6 +1053,7 @@ namespace MordecaiAgentBridge::State
 
 		const AMordecaiEnemyAIController* AI = Enemy ? Cast<AMordecaiEnemyAIController>(Enemy->GetController()) : nullptr;
 		Entry->SetField(TEXT("ai_state"), AI ? StringValue(EnumName(AI->GetCurrentState())) : NullValue());
+		Entry->SetField(TEXT("spawn_location"), AI ? MakeVector(AI->GetSpawnLocation()) : NullValue());
 
 		const UAbilitySystemComponent* ASC = FindASC(Actor);
 		Entry->SetArrayField(TEXT("tags"), ASC ? TagsToJson(ASC->GetOwnedGameplayTags()) : TArray<TSharedPtr<FJsonValue>>());

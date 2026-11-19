@@ -24,6 +24,7 @@
 #include "GameModes/LyraGameState.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiProjectile.h"
+#include "Mordecai/Enemy/MordecaiEnemyAIController.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
 #include "Mordecai/Items/MordecaiItemDefinition.h"
@@ -486,6 +487,7 @@ bool FMordecai_Playtest_AgentBridge_State_EnemyActorEntry::RunTest(const FString
 	}
 	TestTrue("is_dead is a bool for enemies", Entry->HasTypedField<EJson::Boolean>(TEXT("is_dead")) && !Entry->GetBoolField(TEXT("is_dead")));
 	TestTrue("no AI controller -> ai_state null", IsNullField(Entry, TEXT("ai_state")));
+	TestTrue("no AI controller -> spawn_location null", IsNullField(Entry, TEXT("spawn_location")));
 	TestFalse("no mesh asset -> not visible", Entry->GetBoolField(TEXT("has_visible_mesh")));
 	TestTrue("tags array", Entry->HasTypedField<EJson::Array>(TEXT("tags")));
 	TestTrue("widgets array", Entry->HasTypedField<EJson::Array>(TEXT("widgets")));
@@ -507,6 +509,42 @@ bool FMordecai_Playtest_AgentBridge_State_EnemyActorEntry::RunTest(const FString
 	TestEqual("projectile kind", MordecaiAgentBridge::State::ClassifyActorKind(NewObject<AMordecaiProjectile>()), FString(TEXT("projectile")));
 	TestEqual("native class of a native class", MordecaiAgentBridge::State::GetNativeClassName(AMordecaiEnemyCharacter::StaticClass()), FString(TEXT("MordecaiEnemyCharacter")));
 	TestFalse("null actor has no health", MordecaiAgentBridge::State::GetActorHealth(nullptr, Current, Max));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_AgentBridge_State_EnemySpawnLocationSurvivesApproach,
+	"Mordecai.Playtest.AgentBridge.State.EnemySpawnLocationSurvivesApproach",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_AgentBridge_State_EnemySpawnLocationSurvivesApproach::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiAgentBridgeStateTestHelpers;
+
+	FBridgeStateTestWorld Env;
+	if (!TestTrue("world created", Env.Setup()))
+	{
+		return true;
+	}
+
+	const FVector SpawnLocation(600.0, 0.0, 92.0);
+	AMordecaiEnemyCharacter* Enemy = Env.World->SpawnActor<AMordecaiEnemyCharacter>(
+		AMordecaiEnemyCharacter::StaticClass(), SpawnLocation, FRotator::ZeroRotator, FActorSpawnParameters());
+	AMordecaiEnemyAIController* AI = Env.World->SpawnActor<AMordecaiEnemyAIController>(
+		AMordecaiEnemyAIController::StaticClass(), FTransform::Identity, FActorSpawnParameters());
+	if (!TestNotNull("enemy spawned", Enemy) || !TestNotNull("AI spawned", AI))
+	{
+		Env.Teardown();
+		return true;
+	}
+
+	AI->Possess(Enemy);
+	Enemy->SetActorLocation(FVector(150.0, 0.0, 92.0));
+
+	const TSharedRef<FJsonObject> Entry = MordecaiAgentBridge::State::MakeActorEntry(Enemy, nullptr);
+	TestEqual("location follows the approached enemy", VectorField(Entry, TEXT("location")), FVector(150.0, 0.0, 92.0));
+	TestEqual("spawn_location remains the possession location", VectorField(Entry, TEXT("spawn_location")), SpawnLocation);
+
+	Env.Teardown();
 	return true;
 }
 

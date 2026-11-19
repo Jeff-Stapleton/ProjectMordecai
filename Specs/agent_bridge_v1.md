@@ -179,7 +179,7 @@ pause_menu:{valid, open, active_tab, tabs:[{id,name}],
 widgets:   [{class, name, rect:[x,y,w,h], texts:[str], buttons:[{id,label,center:[x,y],enabled}]}]
 actors:    [{label, name, class, native_class, kind:"enemy"|"pickup"|"pawn"|"projectile"|"illusion"|"other",
              location, distance, hidden, has_visible_mesh, health:{current,max}|null, is_dead|null,
-             ai_state|null, tags:[...], widgets:[{component,class,space,visible}],
+             ai_state|null, spawn_location|null, tags:[...], widgets:[{component,class,space,visible}],
              text_labels:[{component,text,visible,facing|null,upright|null}]}]
 ```
 
@@ -189,6 +189,7 @@ actors:    [{label, name, class, native_class, kind:"enemy"|"pickup"|"pawn"|"pro
 - **`pickups.prompt.text`** is the text actually rendered in the HUD prompt widget's `PromptText` text block, and `visible` is its real visibility. They are not the widget's cached model.
 - **`widgets`** lists only user widgets whose native class name starts with `Mordecai` and whose Slate widget chain is visible all the way up to an `SWindow`. Pooled and stale CommonUI instances fail that test and are skipped.
 - **`actors[].widgets` and `actors[].text_labels`.** `widgets` lists the actor's `UWidgetComponent`s (enemy health bars); `visible` is `IsWidgetVisible()`. `text_labels` lists its `UTextRenderComponent`s (a pickup's `NameLabel`), in component order, `[]` when it has none. A component is in only one of the two lists. The actor filter is unchanged: a text label alone does not make an actor interesting.
+- **`actors[].spawn_location`.** For an enemy possessed by `AMordecaiEnemyAIController`, this is the location captured when the controller possessed it. It remains fixed while `location` follows the live actor, so placement checks do not mistake normal approach movement for a spawn-layout change. It is `null` for actors without that controller.
   - `component`: the component's object name (`NameLabel`).
   - `text`: the text the component renders. A pickup's label is its `UMordecaiItemLibrary::GetDisplayName`, so an unidentified item reads its partial name (`Unidentified Purple Amulet`).
   - `visible`: the label is drawn: the component is registered and visible, not hidden in game, and its actor is not hidden. A visible label with empty `text` draws nothing; check both.
