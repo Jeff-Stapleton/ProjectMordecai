@@ -33,6 +33,7 @@ TAG_DOWN = "Mordecai.State.KnockedDown"
 TAG_YELLOW = "Mordecai.Stamina.Tier.Yellow"
 TAG_GREEN = "Mordecai.Stamina.Tier.Green"
 TAG_SPRINTING = "Mordecai.State.Sprinting"
+TAG_BLOCKING = "Mordecai.State.Blocking"
 TAG_ATTACKING = "Mordecai.State.Attacking"
 TAG_COMBO = "Mordecai.State.ComboWindow"
 # State polling can observe the Attack edge a few frames late. Start the
@@ -330,6 +331,9 @@ class Us123Run(kit.PlaytestRun):
         posture_before = _posture(before)
         self.bridge.axis({LT: 1.0})
         try:
+            self._wait_state(
+                lambda state: TAG_BLOCKING in _tags(_player(state)),
+                1.0, "blocking guard before parry")
             self._wait_state(
                 lambda state: (find_attacker(state) or {}).get("ai_state") == "Attack",
                 6.0, "attacker Attack edge")
