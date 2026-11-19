@@ -69,6 +69,7 @@ import math
 import os
 import sys
 import time
+import threading
 import ctypes
 from ctypes import wintypes
 
@@ -742,26 +743,45 @@ class Us001Run(kit.PlaytestRun):
         if SPRINT_TAG not in tags:
             return ("FAIL", f"tap {SPRINT_KEY} did not start sprint (tags {tags})",
                     {"initial_tags": tags})
-        # Keep W down until a separate release reply. A timed key tap releases in the game
-        # before its reply reaches Python, so a hitch can consume the entire 0.25 s clear window.
-        b.press("W")
+        # A second connection owns W so the primary can watch state while key-up is processed.
+        # Otherwise a hitch can consume the entire 0.25 s clear window before release() replies.
+        move_conn = ab.BridgeConnection(
+            b.port, host=b.host, transcript=b.transcript)
+        release_error = []
+
+        def release_movement():
+            try:
+                move_conn.request("key", action="release", key="W")
+            except Exception as e:
+                release_error.append(e)
+
         try:
+            move_conn.request("key", action="press", key="W")
             b.wait(SPRINT_AUTO_CLEAR_MOVE_S)
+            release_thread = threading.Thread(target=release_movement, daemon=True)
+            release_thread.start()
+
+            try:
+                threshold = b.wait_until(f"player.speed<={SPRINT_STOP_SPEED:g}",
+                                         timeout_s=SPRINT_AUTO_CLEAR_TIMEOUT_S,
+                                         poll_s=SPEED_POLL_S)
+            except ab.BridgeError as e:
+                if e.code != "timeout":
+                    raise
+                return ("FAIL", f"player.speed did not reach <= {SPRINT_STOP_SPEED:g} cm/s "
+                        f"within {SPRINT_AUTO_CLEAR_TIMEOUT_S:g}s after releasing W",
+                        {"values": (e.response or {}).get("values")})
+
+            tags, speed, threshold_at = sample()
         finally:
-            b.release("W")
+            if "release_thread" not in locals():
+                release_movement()
+            else:
+                release_thread.join(timeout=2.0)
+            move_conn.close()
+        if release_error:
+            raise release_error[0]
 
-        try:
-            threshold = b.wait_until(f"player.speed<={SPRINT_STOP_SPEED:g}",
-                                     timeout_s=SPRINT_AUTO_CLEAR_TIMEOUT_S,
-                                     poll_s=SPEED_POLL_S)
-        except ab.BridgeError as e:
-            if e.code != "timeout":
-                raise
-            return ("FAIL", f"player.speed did not reach <= {SPRINT_STOP_SPEED:g} cm/s within "
-                    f"{SPRINT_AUTO_CLEAR_TIMEOUT_S:g}s after releasing W",
-                    {"values": (e.response or {}).get("values")})
-
-        tags, speed, threshold_at = sample()
         samples = [{"world_time_s": threshold_at, "speed": speed, "tags": tags}]
         if SPRINT_TAG not in tags:
             return ("FAIL", f"{SPRINT_TAG} cleared before the bridge could observe it after "
