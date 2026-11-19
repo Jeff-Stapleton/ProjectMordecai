@@ -219,6 +219,24 @@ class Us123Run(kit.PlaytestRun):
             self.bridge.wait(STATE_POLL_S)
         raise RuntimeError(f"{description} not seen in {timeout_s:g}s; last={kit.dumps(last, 1200)}")
 
+    def _wait_attacker_ai(self, attacking, timeout_s, description):
+        name = kit.lit(self.attacker_name)
+        expected = "Attack"
+        parts = []
+        for index in range(12):
+            actor = f"actors[{index}]"
+            op = "==" if attacking else "!="
+            parts.append(
+                f"({actor}.name=={name} && {actor}.ai_state{op}\"{expected}\" "
+                f"&& {actor}.ai_state!=null)")
+        try:
+            return self.bridge.wait_until(
+                " || ".join(parts), timeout_s=timeout_s, poll_s=0.0)
+        except ab.BridgeError as error:
+            if error.code != "timeout":
+                raise
+            raise RuntimeError(f"{description} not seen in {timeout_s:g}s") from error
+
     def _attacker(self, state=None):
         actor = find_attacker(state or self._read())
         if actor is None:
@@ -316,17 +334,11 @@ class Us123Run(kit.PlaytestRun):
             f"could not keep Yellow stamina while correcting to the fight spot; last {last}")
 
     def _wait_attack_edge(self):
-        self._wait_state(
-            lambda state: (find_attacker(state) or {}).get("ai_state") != "Attack",
-            4.0, "attacker outside Attack")
-        return self._wait_state(
-            lambda state: (find_attacker(state) or {}).get("ai_state") == "Attack",
-            6.0, "attacker Attack edge")
+        self._wait_attacker_ai(False, 4.0, "attacker outside Attack")
+        return self._wait_attacker_ai(True, 6.0, "attacker Attack edge")
 
     def _parry_once(self):
-        self._wait_state(
-            lambda state: (find_attacker(state) or {}).get("ai_state") != "Attack",
-            4.0, "attacker outside Attack before raising guard")
+        self._wait_attacker_ai(False, 4.0, "attacker outside Attack before raising guard")
         before = self._attacker()
         posture_before = _posture(before)
         self.bridge.axis({LT: 1.0})
@@ -334,9 +346,7 @@ class Us123Run(kit.PlaytestRun):
             self._wait_state(
                 lambda state: TAG_BLOCKING in _tags(_player(state)),
                 1.0, "blocking guard before parry")
-            self._wait_state(
-                lambda state: (find_attacker(state) or {}).get("ai_state") == "Attack",
-                6.0, "attacker Attack edge")
+            self._wait_attacker_ai(True, 6.0, "attacker Attack edge")
             self.bridge.wait(PARRY_DELAY_S)
             self.bridge.axis({RT: 1.0}, hold_s=0.1)
             state = self._wait_state(
