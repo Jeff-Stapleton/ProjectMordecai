@@ -234,35 +234,48 @@ class Us123Run(kit.PlaytestRun):
         return result, state
 
     def _pin_yellow(self, target=73.0):
-        # Sprint short closed-loop lateral legs. walk_to uses only real WASD
-        # input, and returning to the fight spot prevents raw key timing from
-        # drifting outside the TestAttacker's range.
-        deadline = time.monotonic() + 12.0
+        # Sprint short closed-loop W/S legs. Keeping this one-dimensional avoids
+        # camera-relative lateral correction near the attacker while every
+        # mutation still comes from real key input.
+        deadline = time.monotonic() + 20.0
         pinned = None
         at_fight_spot = False
         try:
             while time.monotonic() < deadline:
-                if TAG_SPRINTING not in _tags(_player(self._read())):
-                    self.bridge.tap(SPRINT, hold_s=0.1)
-                self.bridge.walk_to(
-                    FIGHT_SPOT[0] if at_fight_spot else FIGHT_SPOT[0] - 80.0,
-                    FIGHT_SPOT[1],
-                    tol=20.0)
-                at_fight_spot = not at_fight_spot
+                leg_x = FIGHT_SPOT[0] if at_fight_spot else FIGHT_SPOT[0] - 80.0
                 state = self._read()
                 player = _player(state)
+                location = (player or {}).get("location") or []
+                if len(location) < 2:
+                    raise RuntimeError(f"player location unavailable: {player}")
+                if abs(float(location[0]) - leg_x) > SPOT_TOL:
+                    if TAG_SPRINTING not in _tags(player):
+                        self.bridge.tap(SPRINT, hold_s=0.1)
+                    key = "W" if float(location[0]) < leg_x else "S"
+                    hold = min(0.12, max(0.03, abs(float(location[0]) - leg_x) / 600.0))
+                    self.bridge.tap(key, hold_s=hold)
+                    continue
+                at_fight_spot = not at_fight_spot
                 stamina = _stamina(player)
                 tags = _tags(player)
                 if stamina is not None and stamina <= target + 0.5 and TAG_YELLOW in tags:
                     pinned = (stamina, tags)
                     break
+                if TAG_SPRINTING not in tags:
+                    self.bridge.tap(SPRINT, hold_s=0.1)
         finally:
             if TAG_SPRINTING in _tags(_player(self._read())):
                 self.bridge.tap(SPRINT, hold_s=0.01)
         if pinned is None:
             raise RuntimeError(f"real sprint did not reach Yellow stamina near {target:g}")
-        self.bridge.walk_to(*FIGHT_SPOT, tol=SPOT_TOL)
         state = self._read()
+        for _ in range(8):
+            location = (_player(state) or {}).get("location") or []
+            if len(location) >= 2 and abs(float(location[0]) - FIGHT_SPOT[0]) <= SPOT_TOL:
+                break
+            key = "W" if not location or float(location[0]) < FIGHT_SPOT[0] else "S"
+            self.bridge.tap(key, hold_s=0.05)
+            state = self._read()
         return _stamina(_player(state)), _tags(_player(state))
 
     def _weapon_and_tier(self):
