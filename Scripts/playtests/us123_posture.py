@@ -19,6 +19,7 @@ STORY = "US-123"
 TITLE = "US-123 enemy posture break, critical window and knockdown"
 ATTACKER = "TestAttacker"
 FIGHT_SPOT = (2000.0, 0.0)
+PIN_SPOT = (1850.0, 0.0)
 SAFE_SPOT = (900.0, -600.0)
 RADIUS = 3000
 SPOT_TOL = 25.0
@@ -34,7 +35,9 @@ TAG_GREEN = "Mordecai.Stamina.Tier.Green"
 TAG_SPRINTING = "Mordecai.State.Sprinting"
 TAG_ATTACKING = "Mordecai.State.Attacking"
 TAG_COMBO = "Mordecai.State.ComboWindow"
-PARRY_DELAY_S = 0.25
+# State polling can observe the Attack edge a few frames late. Start the
+# 0.5-second parry window promptly enough to cover the fixed-cadence hit.
+PARRY_DELAY_S = 0.1
 STATE_POLL_S = 0.03
 BASE_L1_YELLOW = 16.0
 STAGGERED_L1_YELLOW = 24.0
@@ -232,7 +235,7 @@ class Us123Run(kit.PlaytestRun):
         self.attacker_name = actor.get("name")
         return result, state
 
-    def _pin_yellow(self, target=74.0):
+    def _pin_yellow(self, target=75.0, center=FIGHT_SPOT):
         # Sprint short closed-loop W/S legs. Keeping this one-dimensional avoids
         # camera-relative lateral correction near the attacker while every
         # mutation still comes from real key input.
@@ -241,7 +244,7 @@ class Us123Run(kit.PlaytestRun):
         at_fight_spot = False
         try:
             while time.monotonic() < deadline:
-                leg_x = FIGHT_SPOT[0] if at_fight_spot else FIGHT_SPOT[0] - 50.0
+                leg_x = center[0] if at_fight_spot else center[0] - 50.0
                 state = self._read()
                 player = _player(state)
                 location = (player or {}).get("location") or []
@@ -267,12 +270,15 @@ class Us123Run(kit.PlaytestRun):
                 self.bridge.tap(SPRINT, hold_s=0.01)
         if pinned is None:
             raise RuntimeError(f"real sprint did not reach Yellow stamina near {target:g}")
+        self._wait_state(
+            lambda value: TAG_SPRINTING not in _tags(_player(value)),
+            1.0, "sprint toggle off before fight-spot correction")
         state = self._read()
         for _ in range(8):
             location = (_player(state) or {}).get("location") or []
-            if len(location) >= 2 and abs(float(location[0]) - FIGHT_SPOT[0]) <= SPOT_TOL:
+            if len(location) >= 2 and abs(float(location[0]) - center[0]) <= SPOT_TOL:
                 break
-            key = "W" if not location or float(location[0]) < FIGHT_SPOT[0] else "S"
+            key = "W" if not location or float(location[0]) < center[0] else "S"
             self.bridge.tap(key, hold_s=0.05)
             state = self._read()
         return _stamina(_player(state)), _tags(_player(state))
@@ -293,7 +299,7 @@ class Us123Run(kit.PlaytestRun):
             raise RuntimeError("; ".join(problems))
         return stamina, name, tags
 
-    def _pin_yellow_at_fight(self, target=74.0):
+    def _pin_yellow_at_fight(self, target=75.0):
         last = None
         for _ in range(3):
             last = self._pin_yellow(target)
@@ -457,8 +463,11 @@ class Us123Run(kit.PlaytestRun):
                 and _stamina(_player(state)) >= 95.0
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
+        self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
+        self._aim()
+        self._pin_yellow(center=PIN_SPOT)
         self._walk_fight()
-        stamina, weapon, _ = self._pin_yellow_at_fight()
+        stamina, weapon, _ = self._weapon_and_tier()
         return stamina, weapon
 
     def _knockdown(self):
