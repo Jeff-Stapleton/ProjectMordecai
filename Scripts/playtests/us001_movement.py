@@ -649,6 +649,8 @@ class Us001Run(kit.PlaytestRun):
         """Tap the toggle, hold W and measure, then toggle off only while Sprinting is present."""
         def fn():
             b = self.bridge
+            if self._settle(b, SETTLE_TIMEOUT_S) is None:
+                return "FAIL", "player did not stop before the sprint toggle", None
             p0, raw = self._player(b)
             if p0 is None:
                 return "FAIL", f"player section invalid before the input ({raw.get('reason')})", None
@@ -740,7 +742,13 @@ class Us001Run(kit.PlaytestRun):
         if SPRINT_TAG not in tags:
             return ("FAIL", f"tap {SPRINT_KEY} did not start sprint (tags {tags})",
                     {"initial_tags": tags})
-        b.hold("W", SPRINT_AUTO_CLEAR_MOVE_S)
+        # Keep W down until a separate release reply. A timed key tap releases in the game
+        # before its reply reaches Python, so a hitch can consume the entire 0.25 s clear window.
+        b.press("W")
+        try:
+            b.wait(SPRINT_AUTO_CLEAR_MOVE_S)
+        finally:
+            b.release("W")
 
         try:
             threshold = b.wait_until(f"player.speed<={SPRINT_STOP_SPEED:g}",
