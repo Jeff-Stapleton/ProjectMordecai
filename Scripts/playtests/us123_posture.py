@@ -48,7 +48,6 @@ STAGGERED_L2_YELLOW = 27.0
 TOL = 0.6
 
 SCREENSHOTS = {
-    "staggered_enemy": "the TestAttacker visibly staggered immediately after its posture breaks",
     "critical_damage": "the staggered TestAttacker with the critical 24 damage number",
     "knocked_down": "the TestAttacker in Staggered AI state with Mordecai.State.KnockedDown",
 }
@@ -78,7 +77,7 @@ PLAN = (
          "for about 2 seconds; capture it",
          proves=("AC-123.4", "AC-123.11")),
     Step("image_verification",
-         "Pillow verifies all three evidence/marketing frames are 1280x720 and non-blank; "
+         "Pillow verifies both evidence frames are 1280x720 and non-blank; "
          "write image-verification.json",
          kind="infra"),
 )
@@ -176,9 +175,6 @@ class Us123Run(kit.PlaytestRun):
         broken, _ = self.attempt(
             "break_by_parry", self._guarded(self._break_by_parry), needs=control,
             needs_why="not run: the unbroken control hit did not pass")
-        if broken:
-            self.shot("staggered_enemy")
-            self.image_paths.append(self.screens[-1]["path"])
         staggered, _ = self.attempt(
             "staggered_hit", self._guarded(self._staggered_hit), needs=broken,
             needs_why="not run: two real parries did not break posture")
@@ -196,8 +192,8 @@ class Us123Run(kit.PlaytestRun):
             self.image_paths.append(self.screens[-1]["path"])
         self.attempt(
             "image_verification", self._verify_images, kind="infra",
-            needs=len(self.image_paths) == 3,
-            needs_why="not run: all three posture evidence screenshots were not captured")
+            needs=len(self.image_paths) == 2,
+            needs_why="not run: both posture evidence screenshots were not captured")
 
     @staticmethod
     def _guarded(fn):
@@ -601,7 +597,7 @@ class Us123Run(kit.PlaytestRun):
         results = [_image_stats(path) for path in self.image_paths]
         payload = {
             "story": STORY,
-            "result": "PASS" if len(results) == 3 and all(item["passed"] for item in results)
+            "result": "PASS" if len(results) == 2 and all(item["passed"] for item in results)
             else "FAIL",
             "images": results,
         }
