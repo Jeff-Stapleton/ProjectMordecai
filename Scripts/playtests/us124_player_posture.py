@@ -62,8 +62,8 @@ PLAN = (
          "the next real enemy swing while KnockedDown takes 10 health, 2x its 5 base damage",
          proves=("AC-124.2",)),
     Step("recovery",
-         "after two seconds KnockedDown clears, posture=max, movement is Walking, and W moves "
-         "the player again; capture recovery",
+         "after two seconds KnockedDown clears, posture=max, movement is Walking, and S moves "
+         "the player away from the fixture again; capture recovery",
          proves=("AC-124.1", "AC-124.4", "AC-124.5")),
     Step("image_verification",
          "Pillow verifies all evidence frames are 16:9, at least 1280x720 and non-blank; "
@@ -365,16 +365,16 @@ class Us124Run(kit.PlaytestRun):
                 and (_player(value) or {}).get("movement_mode") == "Walking"
             ), 3.0, "knockdown recovery with full posture and Walking")
         before = _location(_player(state))
-        self.bridge.tap("W", hold_s=0.20)
+        self.bridge.tap("S", hold_s=0.30)
         after_state = self._read()
         after = _location(_player(after_state))
         moved = math.dist(before, after) if before is not None and after is not None else 0.0
         if moved < 50.0:
-            return "FAIL", f"W moved the recovered player only {moved:.1f} cm", None
+            return "FAIL", f"S moved the recovered player only {moved:.1f} cm", None
         player = _player(after_state)
         return "PASS", (
             f"tags cleared; posture {_posture(player):g}/{_max_posture(player):g}; "
-            f"movement {player.get('movement_mode')}; W moved {moved:.1f} cm"), {
+            f"movement {player.get('movement_mode')}; S moved {moved:.1f} cm"), {
                 "moved_cm": moved}
 
     def _verify_images(self):
