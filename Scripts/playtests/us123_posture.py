@@ -51,11 +51,7 @@ SCREENSHOTS = {
     "critical_damage": "the staggered TestAttacker with the critical 24 damage number",
     "knocked_down": "the TestAttacker in Staggered AI state with Mordecai.State.KnockedDown",
 }
-PENDING = {
-    "AC-123.11": "bridge cannot drive: in three fresh-package attempts, Longsword L2 queued "
-                 "at the earliest observed combo frame resolved after the one-second posture-"
-                 "break window (or the combo/parry setup was not observed)"
-}
+PENDING = {}
 
 PLAN = (
     Step("setup",
@@ -188,10 +184,10 @@ class Us123Run(kit.PlaytestRun):
         recovered, _ = self.attempt(
             "recovers", self._guarded(self._recovers), needs=staggered,
             needs_why="not run: the staggered critical hit did not pass")
-        down, down_data = self.attempt(
-            "knockdown", self._knockdown_or_pending, needs=recovered,
+        down, _ = self.attempt(
+            "knockdown", self._guarded(self._knockdown), needs=recovered,
             needs_why="not run: the first break did not recover")
-        if down and not (down_data or {}).get("pending"):
+        if down:
             self.shot("knocked_down")
             self.image_paths.append(self.screens[-1]["path"])
         self.attempt(
@@ -211,23 +207,6 @@ class Us123Run(kit.PlaytestRun):
                     raise
                 return "FAIL", str(error), error.response
         return run
-
-    def _knockdown_or_pending(self):
-        try:
-            status, detail, data = self._knockdown()
-        except RuntimeError as error:
-            status, detail, data = "FAIL", str(error), None
-        except ab.BridgeError as error:
-            if error.kind != "gameplay":
-                raise
-            status, detail, data = "FAIL", str(error), error.response
-        if status != "FAIL":
-            return status, detail, data
-        payload = dict(data) if isinstance(data, dict) else {}
-        payload["pending"] = True
-        return "WARN", (
-            f"PENDING TIER 4 ({PENDING['AC-123.11']}): {detail}"
-        ), payload
 
     def _read(self):
         return self.bridge.state(["player", "actors"], radius=RADIUS)
@@ -610,22 +589,11 @@ class Us123Run(kit.PlaytestRun):
             f"{stamina:g} (runtime tags {stamina_tags}); L1 {l1:g} + L2 {l2:g} = "
             f"{l1 + l2:g} actual health; timing {self.knockdown_timing}; "
             f"tags {tags}; ai_state {actor.get('ai_state')}")
-        pending = (
-            TAG_DOWN not in tags
-            and l1 + l2 >= 40.0 - TOL
-            and self.knockdown_timing.get("combo_present_at_l2_press") is True
-            and self.knockdown_timing.get("broken_present_at_l2_press") is True
-            and TAG_YELLOW in self.knockdown_timing.get("l2_press_tags", [])
+        return (
+            "FAIL" if problems else "PASS",
+            detail + (f" -- {'; '.join(problems)}" if problems else ""),
+            {"weapon": weapon, "stamina": stamina, "damage": [l1, l2], "tags": tags},
         )
-        status = "WARN" if pending else ("FAIL" if problems else "PASS")
-        if pending:
-            problems.append(
-                "PENDING TIER 4: L2 was queued at the earliest observed combo frame while "
-                "Yellow and PostureBroken, but resolved after the one-second break window")
-        return status, (
-            detail + (f" -- {'; '.join(problems)}" if problems else "")), {
-                "weapon": weapon, "stamina": stamina, "damage": [l1, l2], "tags": tags,
-                "pending": pending}
 
     def _verify_images(self):
         results = [_image_stats(path) for path in self.image_paths]
