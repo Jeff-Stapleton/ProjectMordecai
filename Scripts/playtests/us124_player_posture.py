@@ -24,6 +24,7 @@ FIGHT_TOLERANCE = 40.0
 RADIUS = 2000
 TAG_BROKEN = "Mordecai.State.PostureBroken"
 TAG_DOWN = "Mordecai.State.KnockedDown"
+LOCKED_MOVEMENT_MODE = "NULL"  # UCharacterMovementComponent::GetMovementName for MOVE_None
 CONTROL_DAMAGE = 20.0
 BROKEN_DAMAGE = 30.0
 DOWN_DAMAGE = 10.0
@@ -46,8 +47,8 @@ PLAN = (
          "the first real enemy swing lands before posture breaks -> exactly 20 health taken",
          proves=("AC-124.2",)),
     Step("break_and_lock",
-         "the posture-breaker swing reaches posture 0 -> PostureBroken, movement mode None, "
-         "W input cannot move the player; capture the break HUD",
+         "the posture-breaker swing reaches posture 0 -> PostureBroken, movement mode NULL "
+         "(MOVE_None), W input cannot move the player; capture the break HUD",
          proves=("AC-124.1", "AC-124.4", "AC-124.5")),
     Step("broken_bonus",
          "the next real enemy swing during PostureBroken takes 30 health, exactly 1.5x the "
@@ -278,8 +279,10 @@ class Us124Run(kit.PlaytestRun):
         problems = []
         if TAG_BROKEN not in _tags(after_player):
             problems.append(f"missing '{TAG_BROKEN}' after lockout input")
-        if after_player.get("movement_mode") != "None":
-            problems.append(f"movement_mode is {after_player.get('movement_mode')}, expected None")
+        if after_player.get("movement_mode") != LOCKED_MOVEMENT_MODE:
+            problems.append(
+                f"movement_mode is {after_player.get('movement_mode')}, "
+                f"expected {LOCKED_MOVEMENT_MODE} (MOVE_None)")
         if moved > 5.0:
             problems.append(f"W moved the broken player {moved:.1f} cm")
         return ("FAIL" if problems else "PASS"), (
@@ -323,8 +326,10 @@ class Us124Run(kit.PlaytestRun):
             problems.append(f"second broken hit {second_bonus:g}, expected {BROKEN_DAMAGE:g}")
         if TAG_BROKEN in _tags(player):
             problems.append("PostureBroken was not replaced")
-        if player.get("movement_mode") != "None":
-            problems.append(f"movement_mode is {player.get('movement_mode')}, expected None")
+        if player.get("movement_mode") != LOCKED_MOVEMENT_MODE:
+            problems.append(
+                f"movement_mode is {player.get('movement_mode')}, "
+                f"expected {LOCKED_MOVEMENT_MODE} (MOVE_None)")
         self.damage_route.append(second_bonus)
         return ("FAIL" if problems else "PASS"), (
             f"broken-window damage {self.damage_route[-2]:g}+{second_bonus:g}=60; "

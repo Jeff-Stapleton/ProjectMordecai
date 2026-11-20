@@ -121,7 +121,9 @@ class PlayerPostureWorld(fb.FakeWorld):
         value["attributes"]["posture"] = self.posture
         value["attributes"]["max_posture"] = self.max_posture
         value["movement_mode"] = (
-            "None" if now < self.broken_until or now < self.down_until else "Walking")
+            us124.LOCKED_MOVEMENT_MODE
+            if now < self.broken_until or now < self.down_until
+            else "Walking")
         return value
 
 
@@ -213,7 +215,7 @@ class Us124PlaytestCase(unittest.TestCase):
         code, report = self.play(server)
         check = self.checks(report)["recovery"]
         self.assertEqual(code, 1)
-        self.assertEqual(check["status"], "FAIL")
+        self.assertEqual(check["status"], "FAIL", json.dumps(report, indent=2))
         self.assertNotEqual(check["status"], "WARN")
 
 
