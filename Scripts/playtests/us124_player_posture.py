@@ -20,6 +20,7 @@ STORY = "US-124"
 TITLE = "US-124 player posture break, input lock and vulnerability"
 PLAYER_POSTURE_TEST_MAP = kit.PLAYER_POSTURE_TEST_MAP
 FIGHT_SPOT = (-100.0, 0.0)
+FIGHT_TOLERANCE = 40.0
 RADIUS = 2000
 TAG_BROKEN = "Mordecai.State.PostureBroken"
 TAG_DOWN = "Mordecai.State.KnockedDown"
@@ -229,7 +230,7 @@ class Us124Run(kit.PlaytestRun):
             return "FAIL", f"player attributes unavailable: {player}", None
         if abs(posture - maximum) > 0.1:
             return "FAIL", f"player posture starts {posture}/{maximum}, expected full", None
-        result = self.bridge.walk_to(*FIGHT_SPOT, tol=20.0)
+        result = self.bridge.walk_to(*FIGHT_SPOT, tol=FIGHT_TOLERANCE)
         state = self._read()
         actors = _fixture_actors(state)
         if len(actors) != 5:
