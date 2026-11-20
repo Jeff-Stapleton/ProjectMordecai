@@ -400,7 +400,7 @@ class Us123Run(kit.PlaytestRun):
     def _setup(self):
         self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
         self._aim()
-        pinned_stamina, weapon, tags = self._pin_yellow_at_fight(target=55.0)
+        pinned_stamina, weapon, tags = self._pin_yellow_at_fight(target=74.0)
         state = self._read()
         actor = self._attacker(state)
         self.attacker_name = actor.get("name")
