@@ -34,6 +34,8 @@ TAG_YELLOW = "Mordecai.Stamina.Tier.Yellow"
 TAG_GREEN = "Mordecai.Stamina.Tier.Green"
 TAG_SPRINTING = "Mordecai.State.Sprinting"
 TAG_BLOCKING = "Mordecai.State.Blocking"
+TAG_DODGING = "Mordecai.State.Dodging"
+TAG_DODGE_COOLDOWN = "Mordecai.State.DodgeCooldown"
 TAG_ATTACKING = "Mordecai.State.Attacking"
 TAG_COMBO = "Mordecai.State.ComboWindow"
 # wait_until observes the Attack edge in-game per frame; center the 0.5-second
@@ -53,8 +55,8 @@ PENDING = {}
 
 PLAN = (
     Step("setup",
-         "walk just outside the TestAttacker's reach, pin the equipped Longsword and use real "
-         "sprint input to set the authoritative stamina tier to Yellow immediately before combat"),
+         "walk just outside the TestAttacker's reach, pin the equipped Longsword and spend real "
+         "dodges so the authoritative stamina tier is Yellow, then enter range"),
     Step("unbroken_control",
          "tap RT once at Yellow stamina against the unbroken TestAttacker -> exactly 16 health taken"),
     Step("break_by_parry",
@@ -260,7 +262,7 @@ class Us123Run(kit.PlaytestRun):
         # Sprint short closed-loop W/S legs. Keeping this one-dimensional avoids
         # camera-relative lateral correction near the attacker while every
         # mutation still comes from real key input.
-        deadline = time.monotonic() + 35.0
+        deadline = time.monotonic() + 20.0
         pinned = None
         at_fight_spot = False
         try:
@@ -287,11 +289,8 @@ class Us123Run(kit.PlaytestRun):
                 if TAG_SPRINTING not in tags:
                     self.bridge.tap(SPRINT, hold_s=0.1)
         finally:
-            for _ in range(3):
-                if TAG_SPRINTING not in _tags(_player(self._read())):
-                    break
-                self.bridge.tap(SPRINT, hold_s=0.1)
-                self.bridge.wait(0.1)
+            if TAG_SPRINTING in _tags(_player(self._read())):
+                self.bridge.tap(SPRINT, hold_s=0.01)
         if pinned is None:
             raise RuntimeError(f"real sprint did not reach Yellow stamina near {target:g}")
         self._wait_state(
@@ -326,17 +325,43 @@ class Us123Run(kit.PlaytestRun):
     def _pin_yellow_at_fight(self, target=75.0):
         last = None
         for _ in range(3):
-            # Drain at the safe pin spot, then make the short real-input
-            # approach. Draining beside the attacker allowed its swings to
-            # perturb both health and stamina before the route began.
-            last = self._pin_yellow(target, center=PIN_SPOT)
-            _, state = self._walk_fight()
+            last = self._pin_yellow(target)
+            # Opposing drain pulses keep the player at the fight spot. Any
+            # extra wait or aim pulse here would let stamina regenerate across
+            # the 75-point Green/Yellow boundary before attack activation.
+            state = self._read()
             player = _player(state)
             if TAG_YELLOW in _tags(player):
                 stamina, weapon, _ = self._weapon_and_tier()
                 return stamina, weapon, last[1]
         raise RuntimeError(
             f"could not keep Yellow stamina while correcting to the fight spot; last {last}")
+
+    def _spend_dodge_headroom(self, label):
+        before = _stamina(_player(self._read()))
+        if before is None:
+            raise RuntimeError(f"{label} stamina unavailable before dodge")
+        self.bridge.tap("LeftAlt", hold_s=0.1)
+        self._wait_state(
+            lambda value: (
+                _stamina(_player(value)) is not None
+                and _stamina(_player(value)) < before - 5.0
+            ), 1.0, f"{label} dodge stamina spend")
+        self._wait_state(
+            lambda value: TAG_DODGING not in _tags(_player(value)),
+            2.0, f"{label} dodge completion")
+        self.bridge.wait(0.35)
+
+    def _drain_with_dodges(self, label, target):
+        for _ in range(10):
+            stamina = _stamina(_player(self._read()))
+            if stamina is not None and stamina <= target:
+                return stamina
+            self._wait_state(
+                lambda value: TAG_DODGE_COOLDOWN not in _tags(_player(value)),
+                2.0, f"{label} dodge cooldown")
+            self._spend_dodge_headroom(label)
+        raise RuntimeError(f"{label} did not reach {target:g} stamina through real dodges")
 
     def _wait_attack_edge(self):
         self._wait_attacker_ai(False, 4.0, "attacker outside Attack")
@@ -404,14 +429,14 @@ class Us123Run(kit.PlaytestRun):
     def _setup(self):
         self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
         self._aim()
-        pinned_stamina, weapon, tags = self._pin_yellow_at_fight(target=55.0)
-        state = self._read()
+        self._drain_with_dodges("control-route headroom", 25.0)
+        result, state = self._walk_fight()
         actor = self._attacker(state)
-        self.attacker_name = actor.get("name")
         if _posture(actor) is None or _max_posture(actor) is None:
             return "FAIL", "bridge actor posture/max_posture are unavailable", None
+        pinned_stamina, weapon, tags = self._weapon_and_tier()
         return "PASS", (
-            f"fight spot {_player(state).get('location')}; bridge posture {_posture(actor)}/"
+            f"fight spot {result.get('final')}; bridge posture {_posture(actor)}/"
             f"{_max_posture(actor)}; pinned {weapon} and "
             f"'{TAG_YELLOW}' at stamina {pinned_stamina}"), {
                 "weapon": weapon, "stamina": pinned_stamina, "tags": tags}
@@ -506,10 +531,11 @@ class Us123Run(kit.PlaytestRun):
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
         self._aim()
-        # Pin the route immediately before the parries. Draining far from the
-        # fight allowed variable walk/parry time to regenerate across the
-        # Yellow/Green boundary, which changed the deterministic damage tier.
-        stamina, weapon, _ = self._pin_yellow_at_fight(target=68.0)
+        # Leave enough headroom that regeneration between the two one-second
+        # parry staggers cannot cross back into Green before L1 commits.
+        self._drain_with_dodges("knockdown-route headroom", 10.0)
+        self._walk_fight()
+        stamina, weapon, _ = self._weapon_and_tier()
         return stamina, weapon
 
     def _knockdown(self):
