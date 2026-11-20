@@ -280,7 +280,7 @@ class Us123Run(kit.PlaytestRun):
                 at_fight_spot = not at_fight_spot
                 stamina = _stamina(player)
                 tags = _tags(player)
-                if stamina is not None and 25.0 < stamina <= target + 0.5:
+                if stamina is not None and stamina <= target + 0.5 and TAG_YELLOW in tags:
                     pinned = (stamina, tags)
                     break
                 if TAG_SPRINTING not in tags:
@@ -293,12 +293,6 @@ class Us123Run(kit.PlaytestRun):
         self._wait_state(
             lambda value: TAG_SPRINTING not in _tags(_player(value)),
             1.0, "sprint toggle off before fight-spot correction")
-        self._wait_state(
-            lambda value: (
-                _stamina(_player(value)) is not None
-                and 25.0 < _stamina(_player(value)) <= 75.0
-                and TAG_YELLOW in _tags(_player(value))
-            ), 1.0, "authoritative Yellow tier after sprint pin")
         state = self._read()
         for _ in range(8):
             location = (_player(state) or {}).get("location") or []
@@ -328,11 +322,11 @@ class Us123Run(kit.PlaytestRun):
     def _pin_yellow_at_fight(self, target=75.0):
         last = None
         for _ in range(3):
-            last = self._pin_yellow(target)
-            # Opposing drain pulses keep the player at the fight spot. Any
-            # extra wait or aim pulse here would let stamina regenerate across
-            # the 75-point Green/Yellow boundary before attack activation.
-            state = self._read()
+            # Drain at the safe pin spot, then make the short real-input
+            # approach. Draining beside the attacker allowed its swings to
+            # perturb both health and stamina before the route began.
+            last = self._pin_yellow(target, center=PIN_SPOT)
+            _, state = self._walk_fight()
             player = _player(state)
             if TAG_YELLOW in _tags(player):
                 stamina, weapon, _ = self._weapon_and_tier()
