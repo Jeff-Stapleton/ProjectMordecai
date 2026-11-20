@@ -34,8 +34,6 @@ TAG_YELLOW = "Mordecai.Stamina.Tier.Yellow"
 TAG_GREEN = "Mordecai.Stamina.Tier.Green"
 TAG_SPRINTING = "Mordecai.State.Sprinting"
 TAG_BLOCKING = "Mordecai.State.Blocking"
-TAG_DODGING = "Mordecai.State.Dodging"
-TAG_DODGE_COOLDOWN = "Mordecai.State.DodgeCooldown"
 TAG_ATTACKING = "Mordecai.State.Attacking"
 TAG_COMBO = "Mordecai.State.ComboWindow"
 # wait_until observes the Attack edge in-game per frame; center the 0.5-second
@@ -55,8 +53,8 @@ PENDING = {}
 
 PLAN = (
     Step("setup",
-         "walk just outside the TestAttacker's reach, pin the equipped Longsword and spend real "
-         "dodges so the authoritative stamina tier is Yellow, then enter range"),
+         "walk just outside the TestAttacker's reach, pin the equipped Longsword and use real "
+         "sprint input to set the authoritative stamina tier to Yellow immediately before combat"),
     Step("unbroken_control",
          "tap RT once at Yellow stamina against the unbroken TestAttacker -> exactly 16 health taken"),
     Step("break_by_parry",
@@ -336,32 +334,6 @@ class Us123Run(kit.PlaytestRun):
         raise RuntimeError(
             f"could not keep Yellow stamina while correcting to the fight spot; last {last}")
 
-    def _spend_dodge_headroom(self, label):
-        before = _stamina(_player(self._read()))
-        if before is None:
-            raise RuntimeError(f"{label} stamina unavailable before dodge")
-        self.bridge.tap("LeftAlt", hold_s=0.1)
-        self._wait_state(
-            lambda value: (
-                _stamina(_player(value)) is not None
-                and _stamina(_player(value)) < before - 5.0
-            ), 1.0, f"{label} dodge stamina spend")
-        self._wait_state(
-            lambda value: TAG_DODGING not in _tags(_player(value)),
-            2.0, f"{label} dodge completion")
-        self.bridge.wait(0.35)
-
-    def _drain_with_dodges(self, label, target):
-        for _ in range(10):
-            stamina = _stamina(_player(self._read()))
-            if stamina is not None and stamina <= target:
-                return stamina
-            self._wait_state(
-                lambda value: TAG_DODGE_COOLDOWN not in _tags(_player(value)),
-                2.0, f"{label} dodge cooldown")
-            self._spend_dodge_headroom(label)
-        raise RuntimeError(f"{label} did not reach {target:g} stamina through real dodges")
-
     def _wait_attack_edge(self):
         self._wait_attacker_ai(False, 4.0, "attacker outside Attack")
         return self._wait_attacker_ai(True, 6.0, "attacker Attack edge")
@@ -428,14 +400,14 @@ class Us123Run(kit.PlaytestRun):
     def _setup(self):
         self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
         self._aim()
-        self._drain_with_dodges("control-route headroom", 25.0)
-        result, state = self._walk_fight()
+        pinned_stamina, weapon, tags = self._pin_yellow_at_fight(target=55.0)
+        state = self._read()
         actor = self._attacker(state)
+        self.attacker_name = actor.get("name")
         if _posture(actor) is None or _max_posture(actor) is None:
             return "FAIL", "bridge actor posture/max_posture are unavailable", None
-        pinned_stamina, weapon, tags = self._weapon_and_tier()
         return "PASS", (
-            f"fight spot {result.get('final')}; bridge posture {_posture(actor)}/"
+            f"fight spot {_player(state).get('location')}; bridge posture {_posture(actor)}/"
             f"{_max_posture(actor)}; pinned {weapon} and "
             f"'{TAG_YELLOW}' at stamina {pinned_stamina}"), {
                 "weapon": weapon, "stamina": pinned_stamina, "tags": tags}
