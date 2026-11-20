@@ -194,7 +194,7 @@ class Us123Run(kit.PlaytestRun):
         down, _ = self.attempt(
             "knockdown", self._guarded(self._knockdown), needs=recovered,
             needs_why="not run: the first break did not recover")
-        if down:
+        if down and TAG_DOWN in _tags(self._attacker()):
             self.shot("knocked_down")
             self.image_paths.append(self.screens[-1]["path"])
         self.attempt(

@@ -282,6 +282,7 @@ class Us123PlaytestCase(unittest.TestCase):
         self.assertEqual(check["status"], "WARN")
         self.assertIn("missing 'Mordecai.State.KnockedDown'", check["detail"])
         self.assertIn("AC-123.11", report["pending"])
+        self.assertNotIn("screenshot_knocked_down", self.checks(report))
 
     def test_missing_runtime_fails_posture_acceptance(self):
         _, server = self.serve(broken_runtime=False)
