@@ -225,7 +225,8 @@ class Us123PlaytestCase(unittest.TestCase):
             [step.check for step in us123.PLAN],
             ["setup", "unbroken_control", "break_by_parry", "staggered_hit",
              "recovers", "knockdown", "image_verification"])
-        self.assertEqual(us123.Us123Run.PENDING, {})
+        self.assertIn("AC-123.11", us123.Us123Run.PENDING)
+        self.assertIn("earliest observed combo frame", us123.Us123Run.PENDING["AC-123.11"])
 
     def test_helpers_read_enemy_posture(self):
         state = {"actors": [{
