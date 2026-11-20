@@ -280,7 +280,7 @@ class Us123Run(kit.PlaytestRun):
                 at_fight_spot = not at_fight_spot
                 stamina = _stamina(player)
                 tags = _tags(player)
-                if stamina is not None and stamina <= target + 0.5 and TAG_YELLOW in tags:
+                if stamina is not None and 25.0 < stamina <= target + 0.5:
                     pinned = (stamina, tags)
                     break
                 if TAG_SPRINTING not in tags:
@@ -293,6 +293,12 @@ class Us123Run(kit.PlaytestRun):
         self._wait_state(
             lambda value: TAG_SPRINTING not in _tags(_player(value)),
             1.0, "sprint toggle off before fight-spot correction")
+        self._wait_state(
+            lambda value: (
+                _stamina(_player(value)) is not None
+                and 25.0 < _stamina(_player(value)) <= 75.0
+                and TAG_YELLOW in _tags(_player(value))
+            ), 1.0, "authoritative Yellow tier after sprint pin")
         state = self._read()
         for _ in range(8):
             location = (_player(state) or {}).get("location") or []
@@ -338,10 +344,22 @@ class Us123Run(kit.PlaytestRun):
         self._wait_attacker_ai(False, 4.0, "attacker outside Attack")
         return self._wait_attacker_ai(True, 6.0, "attacker Attack edge")
 
-    def _parry_once(self):
+    def _parry_once(self, pause_idle_regen=False):
         last_error = None
         for attempt in range(2):
-            self._wait_attacker_ai(False, 4.0, "attacker outside Attack before raising guard")
+            if pause_idle_regen:
+                self.bridge.tap(SPRINT, hold_s=0.1)
+                self._wait_state(
+                    lambda state: TAG_SPRINTING in _tags(_player(state)),
+                    1.0, "sprint regen pause before raising guard")
+            try:
+                self._wait_attacker_ai(False, 4.0, "attacker outside Attack before raising guard")
+            finally:
+                if pause_idle_regen and TAG_SPRINTING in _tags(_player(self._read())):
+                    self.bridge.tap(SPRINT, hold_s=0.01)
+                    self._wait_state(
+                        lambda state: TAG_SPRINTING not in _tags(_player(state)),
+                        1.0, "sprint regen pause release before raising guard")
             before = self._attacker()
             posture_before = _posture(before)
             self.bridge.axis({LT: 1.0})
@@ -400,7 +418,7 @@ class Us123Run(kit.PlaytestRun):
     def _setup(self):
         self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
         self._aim()
-        pinned_stamina, weapon, tags = self._pin_yellow_at_fight(target=74.0)
+        pinned_stamina, weapon, tags = self._pin_yellow_at_fight(target=68.0)
         state = self._read()
         actor = self._attacker(state)
         self.attacker_name = actor.get("name")
@@ -421,12 +439,12 @@ class Us123Run(kit.PlaytestRun):
             f"(expected {BASE_L1_YELLOW:g} +/- {TOL:g})"), {"damage": taken}
 
     def _break_by_parry(self):
-        first = self._parry_once()
+        first = self._parry_once(pause_idle_regen=True)
         first_actor = self._attacker(first)
         first_posture = _posture(first_actor)
         # Raise guard while Parried is still active so the first post-stagger
         # swing cannot race ahead and give posture time to regenerate.
-        second = self._parry_once()
+        second = self._parry_once(pause_idle_regen=True)
         actor = self._attacker(second)
         tags = _tags(actor)
         posture = _posture(actor)
@@ -501,7 +519,7 @@ class Us123Run(kit.PlaytestRun):
         # Pin the route immediately before the parries. Draining far from the
         # fight allowed variable walk/parry time to regenerate across the
         # Yellow/Green boundary, which changed the deterministic damage tier.
-        stamina, weapon, _ = self._pin_yellow_at_fight(target=30.0)
+        stamina, weapon, _ = self._pin_yellow_at_fight(target=55.0)
         return stamina, weapon
 
     def _knockdown(self):
