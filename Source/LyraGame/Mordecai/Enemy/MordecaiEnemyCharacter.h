@@ -113,19 +113,15 @@ public:
 	void ExitParriedState();
 
 	/** Tag-only replicated posture-state mutation. No-op without authority. */
-	UFUNCTION()
 	void SetPostureRuntimeState(FGameplayTag StateTag, bool bEnabled);
 
 	/** Cancel an active melee ability before its windup can land. */
-	UFUNCTION()
 	void CancelInFlightMelee();
 
 	/** One authoritative regeneration step, scaled by PostureRecoveryMultiplier. */
-	UFUNCTION()
 	void RegeneratePosture(float DeltaTime);
 
 	/** Clear timers and all break/parry/riposte/knockdown tags. */
-	UFUNCTION()
 	void ClearPostureRuntimeStates();
 
 	/** Initialize ASC, attributes, tags, and delegates. Idempotent — safe to call multiple times. */

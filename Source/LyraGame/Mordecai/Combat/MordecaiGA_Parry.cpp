@@ -50,22 +50,19 @@ void UMordecaiGA_Parry::TransitionToParryPhase(EMordecaiParryPhase NewPhase)
 // Receive Parried Hit (AC-006.13)
 // ---------------------------------------------------------------------------
 
-bool UMordecaiGA_Parry::ReceiveParriedHit(UAbilitySystemComponent* AttackerASC)
+bool UMordecaiGA_Parry::ReceiveParriedHit(
+	UAbilitySystemComponent* AttackerASC,
+	const bool bApplyParriedState)
 {
 	if (CurrentParryPhase != EMordecaiParryPhase::Active)
 	{
 		return false;
 	}
 
-	// Pure unit fixtures have no actor info. Preserve the phase contract without
-	// mutating tags or attributes; runtime mutation below always requires authority.
 	if (!CurrentActorInfo)
 	{
-		bParrySuccessful = true;
-		TransitionToParryPhase(EMordecaiParryPhase::None);
-		return true;
+		return false;
 	}
-
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	if (!AvatarActor || !AvatarActor->HasAuthority())
 	{
@@ -77,7 +74,10 @@ bool UMordecaiGA_Parry::ReceiveParriedHit(UAbilitySystemComponent* AttackerASC)
 	// Apply Parried tag to attacker (stagger)
 	if (AttackerASC)
 	{
-		ApplyParriedTagToAttacker(AttackerASC);
+		if (bApplyParriedState)
+		{
+			ApplyParriedTagToAttacker(AttackerASC);
+		}
 
 		ApplyParryPostureDamage(AttackerASC);
 	}
@@ -363,24 +363,21 @@ void UMordecaiGA_Parry::ApplyRiposteTag()
 		if (UWorld* World = GetWorld())
 		{
 			World->GetTimerManager().ClearTimer(RiposteTimerHandle);
+			const TWeakObjectPtr<UAbilitySystemComponent> WeakASC = ASC;
 			World->GetTimerManager().SetTimer(
 				RiposteTimerHandle,
-				this,
-				&ThisClass::RemoveRiposteTag,
+				FTimerDelegate::CreateLambda([WeakASC]()
+				{
+					if (UAbilitySystemComponent* RiposteASC = WeakASC.Get())
+					{
+						RiposteASC->SetLooseGameplayTagCount(
+							MordecaiGameplayTags::State_Riposte,
+							0,
+							EGameplayTagReplicationState::TagOnly);
+					}
+				}),
 				GetDefault<UMordecaiPostureSystem>()->GetRiposteWindowSeconds(),
 				false);
 		}
-	}
-}
-
-void UMordecaiGA_Parry::RemoveRiposteTag()
-{
-	if (!CurrentActorInfo) return;
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		ASC->SetLooseGameplayTagCount(
-			MordecaiGameplayTags::State_Riposte,
-			0,
-			EGameplayTagReplicationState::TagOnly);
 	}
 }

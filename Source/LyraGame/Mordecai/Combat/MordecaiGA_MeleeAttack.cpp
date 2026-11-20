@@ -11,68 +11,11 @@
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/UI/MordecaiDamagePopComponent.h"
-#include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiPlayerController.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
 #include "TimerManager.h"
-
-namespace
-{
-	float GetCommittedAttackStaminaMultiplier(UAbilitySystemComponent* ASC)
-	{
-		if (!ASC)
-		{
-			return GetDefault<UMordecaiStaminaSystem>()->YellowMultiplier;
-		}
-		if (!Cast<AMordecaiCharacter>(ASC->GetAvatarActor()))
-		{
-			return UMordecaiStaminaSystem::GetTierMultiplierFromASC(ASC);
-		}
-		const bool bHasRuntimeTier =
-			ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Green)
-			|| ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Yellow)
-			|| ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Red)
-			|| ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Stamina_Tier_Exhausted);
-		if (!bHasRuntimeTier)
-		{
-			return UMordecaiStaminaSystem::GetTierMultiplierFromASC(ASC);
-		}
-
-		const UMordecaiStaminaSystem* Stamina = GetDefault<UMordecaiStaminaSystem>();
-		const float Current = ASC->GetNumericAttribute(
-			UMordecaiAttributeSet::GetStaminaAttribute());
-		const float Maximum = ASC->GetNumericAttribute(
-			UMordecaiAttributeSet::GetMaxStaminaAttribute());
-		const EMordecaiStaminaTier NumericTier = Stamina->IsExhausted(Current)
-			? EMordecaiStaminaTier::Exhausted
-			: Stamina->GetTierForStamina(Current, Maximum);
-
-		// A locally-predicted attack can commit in the frame between the
-		// authoritative resource update and its replicated tier-tag update.
-		// Keep the normal tag route when both sources agree.
-		if (NumericTier == UMordecaiStaminaSystem::GetTierFromASC(ASC))
-		{
-			return UMordecaiStaminaSystem::GetTierMultiplierFromASC(ASC);
-		}
-
-		const float TierMultiplier = Stamina->GetMultiplierForTier(NumericTier);
-		if (TierMultiplier >= Stamina->YellowMultiplier)
-		{
-			return TierMultiplier;
-		}
-		const float PenaltyScale = FMath::Max(
-			0.f,
-			ASC->GetNumericAttribute(
-				UMordecaiAttributeSet::GetStaminaTierPenaltyMultiplierAttribute()));
-		return FMath::Clamp(
-			Stamina->YellowMultiplier
-				- (Stamina->YellowMultiplier - TierMultiplier) * PenaltyScale,
-			0.25f,
-			Stamina->YellowMultiplier);
-	}
-}
 
 // ---------------------------------------------------------------------------
 // Constructor
@@ -234,14 +177,11 @@ float UMordecaiGA_MeleeAttack::ResolvePostureRuntimeDamage(
 	return -ComputeHealthDamage() * FMath::Max(VulnerabilityMultiplier, RiposteMultiplier);
 }
 
-bool UMordecaiGA_MeleeAttack::ConsumeRiposte(
-	UAbilitySystemComponent* SourceASC,
-	UAbilitySystemComponent* TargetASC) const
+bool UMordecaiGA_MeleeAttack::ConsumeRiposte(UAbilitySystemComponent* SourceASC) const
 {
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!AvatarActor || !AvatarActor->HasAuthority() || !SourceASC || !TargetASC
-		|| !SourceASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Riposte)
-		|| !TargetASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Parried))
+	if (!AvatarActor || !AvatarActor->HasAuthority() || !SourceASC
+		|| !SourceASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Riposte))
 	{
 		return false;
 	}
@@ -433,7 +373,7 @@ void UMordecaiGA_MeleeAttack::ActivateAbility(
 
 	// Snapshot before paying this attack's cost and retain it through the hit.
 	ActivationStaminaTierMultiplier =
-		GetCommittedAttackStaminaMultiplier(
+		UMordecaiStaminaSystem::GetTierMultiplierFromASC(
 			GetAbilitySystemComponentFromActorInfo());
 
 	// AC-004.7: Consume stamina on activation
@@ -578,7 +518,7 @@ void UMordecaiGA_MeleeAttack::OnRecoveryComplete()
 			// Each combo step is a new committed attack. Snapshot its visible
 			// tier before that step pays its stamina cost.
 			ActivationStaminaTierMultiplier =
-				GetCommittedAttackStaminaMultiplier(
+				UMordecaiStaminaSystem::GetTierMultiplierFromASC(
 					GetAbilitySystemComponentFromActorInfo());
 			ApplyStaminaCost();
 			TransitionToPhase(EMordecaiAttackPhase::Windup);
@@ -659,6 +599,10 @@ void UMordecaiGA_MeleeAttack::PerformHitDetectionAndApplyDamage()
 
 	for (const FMordecaiHitResult& Hit : HitResults)
 	{
+		if (!IsActive())
+		{
+			break;
+		}
 		if (Hit.HitActor.IsValid())
 		{
 			ApplyDamageToTarget(Hit.HitActor.Get(), Hit.HitLocation);
@@ -698,7 +642,7 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 		return;
 	}
 	const bool bBlocked = Defense.IsBlocked();
-	ConsumeRiposte(SourceASC, TargetASC);
+	ConsumeRiposte(SourceASC);
 
 	FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
 	Context.AddSourceObject(this);
@@ -773,7 +717,7 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 		int32 DisplayDamage = FMath::Abs(FMath::RoundToInt32(TakenDamage));
 		FVector PopLocation = HitLocation.IsNearlyZero() ? TargetActor->GetActorLocation() : HitLocation;
 		UMordecaiDamagePopComponent::BroadcastDamagePop(
-			TargetActor->GetWorld(), DisplayDamage, DamageTag, PopLocation, bIsCritical);
+			TargetActor->GetWorld(), DisplayDamage, DamageTag, PopLocation, bIsCritical && !bBlocked);
 	}
 }
 

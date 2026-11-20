@@ -48,9 +48,9 @@ STAGGERED_L2_YELLOW = 27.0
 TOL = 0.6
 
 SCREENSHOTS = {
-    "staggered_critical": "the staggered TestAttacker beside the player with the critical 24 damage number",
+    "staggered_enemy": "the TestAttacker visibly staggered immediately after its posture breaks",
+    "critical_damage": "the staggered TestAttacker with the critical 24 damage number",
     "knocked_down": "the TestAttacker in Staggered AI state with Mordecai.State.KnockedDown",
-    "knocked_down_detail": "a second clean frame of the knocked-down TestAttacker during its two-second window",
 }
 PENDING = {}
 
@@ -73,8 +73,8 @@ PLAN = (
          proves=("AC-123.1", "AC-123.6", "AC-123.10")),
     Step("knockdown",
          "move out, refill, return, pin Longsword+Yellow, parry twice, assert the resulting "
-         "authoritative tier remains Yellow, then RT L1->L2 inside the break: 24+27=51 "
-         "actual health reaches the 50 threshold and KnockedDown replaces PostureBroken "
+         "authoritative tier remains Yellow, then RT L1->L2 inside the break: 24+at least 16 "
+         "actual health reaches the 40 threshold and KnockedDown replaces PostureBroken "
          "for about 2 seconds; capture it",
          proves=("AC-123.4", "AC-123.11")),
     Step("image_verification",
@@ -165,6 +165,7 @@ class Us123Run(kit.PlaytestRun):
         self.control_damage = None
         self.stagger_l1 = None
         self.knockdown_route = []
+        self.knockdown_timing = {}
         self.image_paths = []
 
     def steps(self):
@@ -175,11 +176,14 @@ class Us123Run(kit.PlaytestRun):
         broken, _ = self.attempt(
             "break_by_parry", self._guarded(self._break_by_parry), needs=control,
             needs_why="not run: the unbroken control hit did not pass")
+        if broken:
+            self.shot("staggered_enemy")
+            self.image_paths.append(self.screens[-1]["path"])
         staggered, _ = self.attempt(
             "staggered_hit", self._guarded(self._staggered_hit), needs=broken,
             needs_why="not run: two real parries did not break posture")
         if staggered:
-            self.shot("staggered_critical")
+            self.shot("critical_damage")
             self.image_paths.append(self.screens[-1]["path"])
         recovered, _ = self.attempt(
             "recovers", self._guarded(self._recovers), needs=staggered,
@@ -189,8 +193,6 @@ class Us123Run(kit.PlaytestRun):
             needs_why="not run: the first break did not recover")
         if down:
             self.shot("knocked_down")
-            self.image_paths.append(self.screens[-1]["path"])
-            self.shot("knocked_down_detail")
             self.image_paths.append(self.screens[-1]["path"])
         self.attempt(
             "image_verification", self._verify_images, kind="infra",
@@ -213,14 +215,15 @@ class Us123Run(kit.PlaytestRun):
     def _read(self):
         return self.bridge.state(["player", "actors"], radius=RADIUS)
 
-    def _wait_state(self, predicate, timeout_s, description):
+    def _wait_state(self, predicate, timeout_s, description, poll_s=STATE_POLL_S):
         deadline = time.monotonic() + timeout_s
         last = None
         while time.monotonic() < deadline:
             last = self._read()
             if predicate(last):
                 return last
-            self.bridge.wait(STATE_POLL_S)
+            if poll_s > 0.0:
+                self.bridge.wait(poll_s)
         raise RuntimeError(f"{description} not seen in {timeout_s:g}s; last={kit.dumps(last, 1200)}")
 
     def _wait_attacker_ai(self, attacking, timeout_s, description):
@@ -403,14 +406,22 @@ class Us123Run(kit.PlaytestRun):
             lambda state: TAG_PARRIED not in _tags(find_attacker(state)),
             2.0, "Parried expiry")
 
-    def _tap_light_and_damage(self, combo=False):
-        before = self._attacker()
-        health_before = _health(before)
+    def _route_ms(self):
+        started = self.knockdown_timing.get("_started_at")
+        return round((time.monotonic() - started) * 1000.0, 3) if started is not None else None
+
+    def _tap_light_and_damage(self, combo=False, health_before=None, timing_prefix=None):
+        if health_before is None:
+            health_before = _health(self._attacker())
+        if timing_prefix:
+            self.knockdown_timing[f"{timing_prefix}_pressed_ms"] = self._route_ms()
         self.bridge.axis({RT: 1.0}, hold_s=0.1)
         state = self._wait_state(
             lambda value: (_health(find_attacker(value)) or health_before) < health_before - 0.1,
             1.2, "light attack health change")
         taken = health_before - _health(find_attacker(state))
+        if timing_prefix:
+            self.knockdown_timing[f"{timing_prefix}_damage_observed_ms"] = self._route_ms()
         if combo:
             return taken, state
         self._wait_state(
@@ -533,15 +544,36 @@ class Us123Run(kit.PlaytestRun):
         second = self._parry_once()
         if TAG_BROKEN not in _tags(self._attacker(second)):
             return "FAIL", "second route did not enter PostureBroken", None
+        self.knockdown_timing = {
+            "_started_at": time.monotonic(),
+            "break_observed_ms": 0.0,
+        }
         stamina, pinned_weapon, stamina_tags = self._weapon_and_tier()
         if pinned_weapon != weapon:
             return "FAIL", f"weapon changed from {weapon} to {pinned_weapon}", None
 
-        l1, _ = self._tap_light_and_damage(combo=True)
-        self._wait_state(
-            lambda state: TAG_COMBO in _tags(_player(state)),
-            0.9, "L1 combo window")
-        l2, state = self._tap_light_and_damage(combo=True)
+        l1, l1_state = self._tap_light_and_damage(combo=True, timing_prefix="l1")
+        combo_state = l1_state
+        if TAG_COMBO not in _tags(_player(combo_state)):
+            combo_state = self._wait_state(
+                lambda state: TAG_COMBO in _tags(_player(state)),
+                0.9, "L1 combo window", poll_s=0.0)
+        self.knockdown_timing["combo_observed_ms"] = self._route_ms()
+        l2_player = _player(combo_state)
+        l2_actor = self._attacker(combo_state)
+        l2_press_tags = _tags(l2_player)
+        l2_health_before = _health(l2_actor)
+        self.knockdown_timing.update({
+            "combo_present_at_l2_press": TAG_COMBO in l2_press_tags,
+            "broken_present_at_l2_press": TAG_BROKEN in _tags(l2_actor),
+            "l2_press_stamina": _stamina(l2_player),
+            "l2_press_tags": l2_press_tags,
+            "l2_press_enemy_tags": _tags(l2_actor),
+        })
+        l2, state = self._tap_light_and_damage(
+            combo=True, health_before=l2_health_before, timing_prefix="l2")
+        self.knockdown_timing["l2_damage"] = l2
+        self.knockdown_timing.pop("_started_at", None)
         self.knockdown_route = [l1, l2]
         actor = self._attacker(state)
         tags = _tags(actor)
@@ -559,7 +591,8 @@ class Us123Run(kit.PlaytestRun):
         detail = (
             f"pinned {weapon} at Yellow stamina {pinned_stamina:g}, post-parry Yellow stamina "
             f"{stamina:g} (runtime tags {stamina_tags}); L1 {l1:g} + L2 {l2:g} = "
-            f"{l1 + l2:g} actual health; tags {tags}; ai_state {actor.get('ai_state')}")
+            f"{l1 + l2:g} actual health; timing {self.knockdown_timing}; "
+            f"tags {tags}; ai_state {actor.get('ai_state')}")
         return ("FAIL" if problems else "PASS"), (
             detail + (f" -- {'; '.join(problems)}" if problems else "")), {
                 "weapon": weapon, "stamina": stamina, "damage": [l1, l2], "tags": tags}
@@ -584,6 +617,7 @@ class Us123Run(kit.PlaytestRun):
             "control_damage": self.control_damage,
             "stagger_l1": self.stagger_l1,
             "knockdown_route": self.knockdown_route,
+            "knockdown_timing": self.knockdown_timing,
             "image_verification": os.path.join(self.run_dir, "image-verification.json"),
         }
 

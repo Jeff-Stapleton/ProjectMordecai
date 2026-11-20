@@ -398,9 +398,14 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - `ParriedDurationMs` and `RiposteWindowMs` are both **1000ms**.
 - A riposte is a **critical 1.5x** hit. It does not stack multiplicatively
   with stagger or knockdown; the larger active multiplier wins.
-- Knockdown begins at **50 health actually taken after all multipliers** while
+- Knockdown begins at **40 health actually taken after all multipliers** while
   posture-broken, lasts **2000ms**, and applies a **2.0x** damage multiplier.
   It replaces stagger rather than stacking with it.
+- This threshold was changed from **50** to **40** by Jeff on 2026-11-19
+  because the 50-health route was too difficult to land in real play.
+- The perfect-parry versus normal-parry reward split is out of scope for
+  US-123. Any landed player melee hit consumes `Mordecai.State.Riposte` and
+  counts as the riposte attack, regardless of which enemy it hits.
 - Player posture will use the same break behavior as enemy posture in US-124.
   US-123 adds shared player regeneration only: the player does not posture
   break in this story.

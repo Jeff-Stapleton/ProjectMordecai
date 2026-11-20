@@ -128,7 +128,7 @@ class PostureWorld(DefenseWorld):
                 world.riposte = False
             if world.real_time() < world.broken_until:
                 world.stagger_damage += damage
-                if world.stagger_damage >= 50.0 and world.broken_runtime:
+                if world.stagger_damage >= 40.0 and world.broken_runtime:
                     world.broken_until = -1.0
                     world.down_until = world.real_time() + 2.0
                     world._set_ai(enemy, "Staggered")
@@ -246,6 +246,12 @@ class Us123PlaytestCase(unittest.TestCase):
         self.assertAlmostEqual(report["control_damage"], 16.0)
         self.assertAlmostEqual(report["stagger_l1"], 24.0)
         self.assertEqual(report["knockdown_route"], [24.0, 27.0])
+        timing = report["knockdown_timing"]
+        self.assertTrue(timing["combo_present_at_l2_press"])
+        self.assertIn(us123.TAG_YELLOW, timing["l2_press_tags"])
+        self.assertGreaterEqual(timing["l2_pressed_ms"], timing["combo_observed_ms"])
+        self.assertLessEqual(timing["l2_pressed_ms"] - timing["combo_observed_ms"], 50.0)
+        self.assertEqual(timing["l2_damage"], 27.0)
         self.assertGreater(world.down_until, world.real_time())
         sent = [request.get("cmd") for request in server.received]
         self.assertLessEqual(

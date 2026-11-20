@@ -43,7 +43,7 @@ public:
 
 	/** Damage threshold during stagger that triggers knock down (AC-007.10a). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
-	float KnockDownDamageThreshold = 50.f;
+	float KnockDownDamageThreshold = 40.f;
 
 	/** Duration of knocked down state in milliseconds (AC-007.10a). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
@@ -97,7 +97,6 @@ public:
 	 * Shared runtime route for melee, projectiles, parries and perfect blocks.
 	 * BasePostureDamage is positive; the caller subtracts the returned amount.
 	 */
-	UFUNCTION(BlueprintPure, Category = "Mordecai|Posture")
 	static float ComputePostureDamageFromAttributes(
 		const UAbilitySystemComponent* AttackerASC,
 		const UAbilitySystemComponent* TargetASC,

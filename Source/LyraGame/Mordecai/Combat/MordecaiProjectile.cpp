@@ -546,7 +546,8 @@ void AMordecaiProjectile::ApplyDamageToTarget(AActor* TargetActor, float DamageM
 		const float DisplayMagnitude = bBlocked ? Defense.BlockedHealthDamage : ResolvedHealthDamage;
 		int32 DisplayDamage = FMath::Abs(FMath::RoundToInt32(DisplayMagnitude));
 		UMordecaiDamagePopComponent::BroadcastDamagePop(
-			TargetActor->GetWorld(), DisplayDamage, DamageTag, TargetActor->GetActorLocation(), bIsCritical);
+			TargetActor->GetWorld(), DisplayDamage, DamageTag, TargetActor->GetActorLocation(),
+			bIsCritical && !bBlocked);
 	}
 }
 

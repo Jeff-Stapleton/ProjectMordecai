@@ -68,10 +68,11 @@ public:
 	/** Simulate receiving a hit during parry window. If in Active phase,
 	 *  applies parried state to attacker and riposte state to self.
 	 *  Returns true if parry was successful. */
-	bool ReceiveParriedHit(UAbilitySystemComponent* AttackerASC);
+	bool ReceiveParriedHit(
+		UAbilitySystemComponent* AttackerASC,
+		bool bApplyParriedState = true);
 
 	/** Apply the configured parry posture damage through the shared attribute route. */
-	UFUNCTION()
 	void ApplyParryPostureDamage(UAbilitySystemComponent* AttackerASC);
 
 	/** Transition to a new parry phase. Public for testing. */
@@ -104,7 +105,6 @@ protected:
 	void ApplyParriedTagToAttacker(UAbilitySystemComponent* AttackerASC);
 	void RemoveParriedTagFromAttacker();
 	void ApplyRiposteTag();
-	void RemoveRiposteTag();
 
 	// --- State ---
 	EMordecaiParryPhase CurrentParryPhase = EMordecaiParryPhase::None;
