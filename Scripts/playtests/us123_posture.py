@@ -287,8 +287,11 @@ class Us123Run(kit.PlaytestRun):
                 if TAG_SPRINTING not in tags:
                     self.bridge.tap(SPRINT, hold_s=0.1)
         finally:
-            if TAG_SPRINTING in _tags(_player(self._read())):
-                self.bridge.tap(SPRINT, hold_s=0.01)
+            for _ in range(3):
+                if TAG_SPRINTING not in _tags(_player(self._read())):
+                    break
+                self.bridge.tap(SPRINT, hold_s=0.1)
+                self.bridge.wait(0.1)
         if pinned is None:
             raise RuntimeError(f"real sprint did not reach Yellow stamina near {target:g}")
         self._wait_state(
