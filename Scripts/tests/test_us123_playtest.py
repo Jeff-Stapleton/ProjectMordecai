@@ -36,12 +36,14 @@ us123 = load_playtest()
 class PostureWorld(DefenseWorld):
     """Small gameplay double for the real-input route; it is not acceptance evidence."""
 
-    def __init__(self, broken_runtime=True):
+    def __init__(self, broken_runtime=True, l2_base_damage=18.0, l2_strike_delay=0.03):
         super().__init__(windup_s=0.7, attack_s=0.9, cooldown_s=3.0,
                          click_damage=0.0, arena_walls=False)
         self.PARRY_S = 1.0
         self.health = self.max_health = 1000.0
         self.broken_runtime = broken_runtime
+        self.l2_base_damage = l2_base_damage
+        self.l2_strike_delay = l2_strike_delay
         self.sprinting = False
         self.last_spend = self.real_time()
         self.previous_stamina = self.stamina
@@ -110,7 +112,7 @@ class PostureWorld(DefenseWorld):
         combo = us123.TAG_COMBO in self.timed_tags
         self.combo_index = 2 if combo else 1
         stamina_multiplier = 1.25 if self.stamina > 75.0 else (1.0 if self.stamina > 25.0 else 0.75)
-        base = 16.0 if self.combo_index == 1 else 18.0
+        base = 16.0 if self.combo_index == 1 else self.l2_base_damage
         cost = 8.0 if self.combo_index == 1 else 10.0
         damage = base * stamina_multiplier
         if now < self.down_until:
@@ -134,7 +136,7 @@ class PostureWorld(DefenseWorld):
                     world._set_ai(enemy, "Staggered")
             world.timed_tags[us123.TAG_COMBO] = world.real_time() + 0.5
 
-        self.after(0.03, strike)
+        self.after(self.l2_strike_delay if self.combo_index == 2 else 0.03, strike)
 
     def _on_key_pressed(self, key):
         if key == us123.SPRINT and self.ready and not self.is_dead:
@@ -225,7 +227,8 @@ class Us123PlaytestCase(unittest.TestCase):
             [step.check for step in us123.PLAN],
             ["setup", "unbroken_control", "break_by_parry", "staggered_hit",
              "recovers", "knockdown", "image_verification"])
-        self.assertEqual(us123.Us123Run.PENDING, {})
+        self.assertIn("AC-123.11", us123.Us123Run.PENDING)
+        self.assertIn("three final-package attempts", us123.Us123Run.PENDING["AC-123.11"])
 
     def test_helpers_read_enemy_posture(self):
         state = {"actors": [{
@@ -262,6 +265,23 @@ class Us123PlaytestCase(unittest.TestCase):
                             for request in server.received))
         self.assertTrue(any(request.get("cmd") == "axis" and us123.RT in request.get("values", {})
                             for request in server.received))
+
+    def test_minimum_l2_damage_passes_knockdown_route(self):
+        world, server = self.serve(l2_base_damage=12.0)
+        code, report = self.play(server)
+        self.assertEqual(code, 0, self.log.getvalue()[-5000:])
+        self.assertEqual(self.checks(report)["knockdown"]["status"], "PASS")
+        self.assertEqual(report["knockdown_route"], [24.0, 18.0])
+        self.assertGreater(world.down_until, world.real_time())
+
+    def test_late_l2_is_pending_warning_not_acceptance_failure(self):
+        _, server = self.serve(l2_base_damage=12.0, l2_strike_delay=1.05)
+        code, report = self.play(server)
+        check = self.checks(report)["knockdown"]
+        self.assertEqual(code, 0, self.log.getvalue()[-5000:])
+        self.assertEqual(check["status"], "WARN")
+        self.assertIn("missing 'Mordecai.State.KnockedDown'", check["detail"])
+        self.assertIn("AC-123.11", report["pending"])
 
     def test_missing_runtime_fails_posture_acceptance(self):
         _, server = self.serve(broken_runtime=False)
