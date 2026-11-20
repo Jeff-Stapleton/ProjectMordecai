@@ -526,11 +526,10 @@ class Us123Run(kit.PlaytestRun):
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
         self._aim()
-        # Leave enough headroom that regeneration between the two one-second
-        # parry staggers cannot cross back into Green before L1 commits.
-        self._drain_with_dodges("knockdown-route headroom", 10.0)
-        self._walk_fight()
-        stamina, weapon, _ = self._weapon_and_tier()
+        # Pin the route immediately before the parries. Draining far from the
+        # fight allowed variable walk/parry time to regenerate across the
+        # Yellow/Green boundary, which changed the deterministic damage tier.
+        stamina, weapon, _ = self._pin_yellow_at_fight(target=30.0)
         return stamina, weapon
 
     def _knockdown(self):
