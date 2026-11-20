@@ -78,9 +78,9 @@ class PlayerPostureWorld(fb.FakeWorld):
                 self.fixture_started = True
                 self.after(0.20, lambda world: world.hit_player(20.0, 0.0))
                 self.after(0.50, lambda world: world.hit_player(1.0, 100.0))
-                self.after(0.80, lambda world: world.hit_player(20.0, 0.0))
                 self.after(1.00, lambda world: world.hit_player(20.0, 0.0))
-                self.after(1.30, lambda world: world.hit_player(5.0, 0.0))
+                self.after(1.40, lambda world: world.hit_player(20.0, 0.0))
+                self.after(1.80, lambda world: world.hit_player(5.0, 0.0))
 
     def _move(self, dt):
         now = self.real_time()
