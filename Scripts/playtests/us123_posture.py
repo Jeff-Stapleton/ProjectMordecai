@@ -338,22 +338,10 @@ class Us123Run(kit.PlaytestRun):
         self._wait_attacker_ai(False, 4.0, "attacker outside Attack")
         return self._wait_attacker_ai(True, 6.0, "attacker Attack edge")
 
-    def _parry_once(self, pause_idle_regen=False):
+    def _parry_once(self):
         last_error = None
         for attempt in range(2):
-            if pause_idle_regen:
-                self.bridge.tap(SPRINT, hold_s=0.1)
-                self._wait_state(
-                    lambda state: TAG_SPRINTING in _tags(_player(state)),
-                    1.0, "sprint regen pause before raising guard")
-            try:
-                self._wait_attacker_ai(False, 4.0, "attacker outside Attack before raising guard")
-            finally:
-                if pause_idle_regen and TAG_SPRINTING in _tags(_player(self._read())):
-                    self.bridge.tap(SPRINT, hold_s=0.01)
-                    self._wait_state(
-                        lambda state: TAG_SPRINTING not in _tags(_player(state)),
-                        1.0, "sprint regen pause release before raising guard")
+            self._wait_attacker_ai(False, 4.0, "attacker outside Attack before raising guard")
             before = self._attacker()
             posture_before = _posture(before)
             self.bridge.axis({LT: 1.0})
@@ -433,12 +421,12 @@ class Us123Run(kit.PlaytestRun):
             f"(expected {BASE_L1_YELLOW:g} +/- {TOL:g})"), {"damage": taken}
 
     def _break_by_parry(self):
-        first = self._parry_once(pause_idle_regen=True)
+        first = self._parry_once()
         first_actor = self._attacker(first)
         first_posture = _posture(first_actor)
         # Raise guard while Parried is still active so the first post-stagger
         # swing cannot race ahead and give posture time to regenerate.
-        second = self._parry_once(pause_idle_regen=True)
+        second = self._parry_once()
         actor = self._attacker(second)
         tags = _tags(actor)
         posture = _posture(actor)
