@@ -51,14 +51,7 @@ SCREENSHOTS = {
     "critical_damage": "the staggered TestAttacker with the critical 24 damage number",
     "knocked_down": "the TestAttacker in Staggered AI state with Mordecai.State.KnockedDown",
 }
-PENDING = {
-    "AC-123.11": (
-        "bridge cannot drive: real-input L2 timing inside the 1 s PostureBroken window "
-        "is intermittent; "
-        "three final-package attempts sent L2 at the earliest observed combo-window frame, "
-        "but L2 resolved after PostureBroken expired"
-    ),
-}
+PENDING = {}
 
 PLAN = (
     Step("setup",
@@ -604,7 +597,7 @@ class Us123Run(kit.PlaytestRun):
             f"{l1 + l2:g} actual health; timing {self.knockdown_timing}; "
             f"tags {tags}; ai_state {actor.get('ai_state')}")
         problems = route_problems + timing_problems
-        status = "FAIL" if route_problems else ("WARN" if timing_problems else "PASS")
+        status = "FAIL" if problems else "PASS"
         return (
             status,
             detail + (f" -- {'; '.join(problems)}" if problems else ""),

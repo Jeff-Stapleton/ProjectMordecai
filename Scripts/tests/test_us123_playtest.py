@@ -227,8 +227,7 @@ class Us123PlaytestCase(unittest.TestCase):
             [step.check for step in us123.PLAN],
             ["setup", "unbroken_control", "break_by_parry", "staggered_hit",
              "recovers", "knockdown", "image_verification"])
-        self.assertIn("AC-123.11", us123.Us123Run.PENDING)
-        self.assertIn("three final-package attempts", us123.Us123Run.PENDING["AC-123.11"])
+        self.assertEqual(us123.Us123Run.PENDING, {})
 
     def test_helpers_read_enemy_posture(self):
         state = {"actors": [{
@@ -274,14 +273,14 @@ class Us123PlaytestCase(unittest.TestCase):
         self.assertEqual(report["knockdown_route"], [24.0, 18.0])
         self.assertGreater(world.down_until, world.real_time())
 
-    def test_late_l2_is_pending_warning_not_acceptance_failure(self):
+    def test_late_l2_fails_acceptance_without_false_knockdown_screenshot(self):
         _, server = self.serve(l2_base_damage=12.0, l2_strike_delay=1.05)
         code, report = self.play(server)
         check = self.checks(report)["knockdown"]
-        self.assertEqual(code, 0, self.log.getvalue()[-5000:])
-        self.assertEqual(check["status"], "WARN")
+        self.assertEqual(code, 1)
+        self.assertEqual(check["status"], "FAIL")
         self.assertIn("missing 'Mordecai.State.KnockedDown'", check["detail"])
-        self.assertIn("AC-123.11", report["pending"])
+        self.assertNotIn("AC-123.11", report["pending"])
         self.assertNotIn("screenshot_knocked_down", self.checks(report))
 
     def test_missing_runtime_fails_posture_acceptance(self):
