@@ -262,8 +262,8 @@ bool FMordecai_Enemy_PostureBreakAtZero::RunTest(const FString& Parameters)
 	TestTrue("Break when posture negative", System->ShouldBreakPosture(-5.f));
 	TestFalse("No break when posture is 50", System->ShouldBreakPosture(50.f));
 
-	// Default PostureBrokenDurationMs is 1000ms (per design_decisions_log)
-	TestEqual("Default PostureBrokenDurationMs is 1000", System->PostureBrokenDurationMs, 1000.f);
+	// Default PostureBrokenDurationMs is 1500ms (per design_decisions_log)
+	TestEqual("Default PostureBrokenDurationMs is 1500", System->PostureBrokenDurationMs, 1500.f);
 
 	// Verify enemy's EnterPostureBrokenState applies the tag
 	AMordecaiEnemyCharacter* Enemy = NewObject<AMordecaiEnemyCharacter>();

@@ -36,12 +36,14 @@ us123 = load_playtest()
 class PostureWorld(DefenseWorld):
     """Small gameplay double for the real-input route; it is not acceptance evidence."""
 
-    def __init__(self, broken_runtime=True, l2_base_damage=18.0, l2_strike_delay=0.03):
+    def __init__(self, broken_runtime=True, knockdown_runtime=True,
+                 l2_base_damage=18.0, l2_strike_delay=0.03):
         super().__init__(windup_s=0.7, attack_s=0.9, cooldown_s=3.0,
                          click_damage=0.0, arena_walls=False)
         self.PARRY_S = 1.0
         self.health = self.max_health = 1000.0
         self.broken_runtime = broken_runtime
+        self.knockdown_runtime = knockdown_runtime
         self.l2_base_damage = l2_base_damage
         self.l2_strike_delay = l2_strike_delay
         self.sprinting = False
@@ -103,7 +105,7 @@ class PostureWorld(DefenseWorld):
             self.last_spend = now
             self.enemy_posture = max(0.0, self.enemy_posture - 50.0)
             if self.enemy_posture <= 0.0 and self.broken_runtime:
-                self.broken_until = now + 1.0
+                self.broken_until = now + 1.5
                 self.stagger_damage = 0.0
                 self._set_ai(self.attacker(), "Staggered", now)
 
@@ -130,7 +132,7 @@ class PostureWorld(DefenseWorld):
                 world.riposte = False
             if world.real_time() < world.broken_until:
                 world.stagger_damage += damage
-                if world.stagger_damage >= 40.0 and world.broken_runtime:
+                if world.stagger_damage >= 40.0 and world.knockdown_runtime:
                     world.broken_until = -1.0
                     world.down_until = world.real_time() + 2.0
                     world._set_ai(enemy, "Staggered")
@@ -274,14 +276,14 @@ class Us123PlaytestCase(unittest.TestCase):
         self.assertEqual(report["knockdown_route"], [24.0, 18.0])
         self.assertGreater(world.down_until, world.real_time())
 
-    def test_late_l2_is_pending_without_false_knockdown_screenshot(self):
-        _, server = self.serve(l2_base_damage=12.0, l2_strike_delay=1.05)
+    def test_qualifying_route_without_knockdown_fails(self):
+        _, server = self.serve(l2_base_damage=12.0, knockdown_runtime=False)
         code, report = self.play(server)
         check = self.checks(report)["knockdown"]
-        self.assertEqual(code, 0, self.log.getvalue()[-5000:])
-        self.assertEqual(check["status"], "WARN")
+        self.assertEqual(code, 1, self.log.getvalue()[-5000:])
+        self.assertEqual(check["status"], "FAIL")
+        self.assertEqual(report["knockdown_route"], [24.0, 18.0])
         self.assertIn("missing 'Mordecai.State.KnockedDown'", check["detail"])
-        self.assertIn("AC-123.11", report["pending"])
         self.assertNotIn("screenshot_knocked_down", self.checks(report))
 
     def test_missing_runtime_fails_posture_acceptance(self):

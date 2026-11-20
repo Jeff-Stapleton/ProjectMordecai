@@ -179,22 +179,22 @@ bool FMordecai_Posture_BrokenBlocksAbilities::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
-// 6. Mordecai.Posture.StaggerLastsOneSecond (AC-007.9)
-// Break posture, verify PostureBroken expires after 1000ms
+// 6. Mordecai.Posture.StaggerLastsOnePointFiveSeconds (AC-007.9 / AC-123.3)
+// Break posture, verify PostureBroken expires after 1500ms
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Posture_StaggerDuration,
-	"Mordecai.Posture.StaggerLastsOneSecond",
+	"Mordecai.Posture.StaggerLastsOnePointFiveSeconds",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FMordecai_Posture_StaggerDuration::RunTest(const FString& Parameters)
 {
 	UMordecaiPostureSystem* System = NewObject<UMordecaiPostureSystem>();
 
-	// AC-007.9: Default PostureBrokenDuration is 1000ms
-	TestEqual("Default stagger duration is 1000ms",
-		System->PostureBrokenDurationMs, 1000.f);
-	TestEqual("Stagger duration in seconds is 1.0",
-		System->GetPostureBrokenDurationSeconds(), 1.0f);
+	// AC-123.3: Default PostureBrokenDuration is 1500ms
+	TestEqual("Default stagger duration is 1500ms",
+		System->PostureBrokenDurationMs, 1500.f);
+	TestEqual("Stagger duration in seconds is 1.5",
+		System->GetPostureBrokenDurationSeconds(), 1.5f);
 
 	// Configurable
 	System->PostureBrokenDurationMs = 1500.f;

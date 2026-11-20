@@ -179,8 +179,19 @@ bool FMordecai_Posture_Runtime_BreakIsServerOnlyAndReplicated::RunTest(const FSt
 	TestFalse(
 		"non-authority copy never starts a break",
 		EnemyHas(ClientCopy, MordecaiGameplayTags::State_PostureBroken));
+	TestFalse(
+		"non-authority posture system never enters broken state",
+		ClientCopy->GetPostureSystem()->IsPostureBroken());
 	TestEqual(
 		"non-authority copy does not restore posture",
+		GetAttribute(ClientCopy, UMordecaiAttributeSet::GetPostureAttribute()),
+		0.f);
+	Env.TickFrames(31);
+	TestFalse(
+		"non-authority copy has no break timer to expire",
+		ClientCopy->GetPostureSystem()->IsPostureBroken());
+	TestEqual(
+		"non-authority copy still has no timer-driven posture restore",
 		GetAttribute(ClientCopy, UMordecaiAttributeSet::GetPostureAttribute()),
 		0.f);
 	return true;
@@ -212,7 +223,12 @@ bool FMordecai_Posture_Runtime_ExpiryRestoresMax::RunTest(const FString& Paramet
 	AMordecaiEnemyAIController* AI = Cast<AMordecaiEnemyAIController>(Enemy->GetController());
 	TestTrue("AI is staggered", AI && AI->GetCurrentState() == EMordecaiEnemyAIState::Staggered);
 
-	Env.TickFrames(21);
+	Env.TickFrames(29);
+	TestTrue("break remains before one and a half seconds", EnemyHas(
+		Enemy, MordecaiGameplayTags::State_PostureBroken));
+	TestTrue("AI remains staggered before one and a half seconds",
+		AI && AI->GetCurrentState() == EMordecaiEnemyAIState::Staggered);
+	Env.TickFrames(2);
 	TestFalse("break tag expires", EnemyHas(Enemy, MordecaiGameplayTags::State_PostureBroken));
 	TestEqual(
 		"expiry restores max posture",
@@ -413,6 +429,55 @@ bool FMordecai_Posture_Runtime_KnockdownReplacesStagger::RunTest(const FString& 
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Posture_Runtime_TwoHitsKnockDownEndToEnd,
+	"Mordecai.Posture.Runtime.TwoHitsKnockDownEndToEnd",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Posture_Runtime_TwoHitsKnockDownEndToEnd::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiPostureRuntimeTest;
+	using namespace MordecaiRecoveryDefenseTest;
+
+	FDefenseTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownDefender(); };
+	UMordecaiAttackProfileDataAsset* Slash = MakePlayerSlash(16.f, 0.f);
+	if (!TestTrue("player setup", Env.SetupDefender(FVector::ZeroVector, { Slash })))
+	{
+		return true;
+	}
+	PinPlayerYellow(Env);
+	AMordecaiEnemyCharacter* Enemy =
+		Env.SpawnEnemy(FVector(100.f, 0.f, 0.f), { Slash });
+	if (!TestNotNull("enemy", Enemy))
+	{
+		return true;
+	}
+	Enemy->EnterPostureBrokenState();
+	const float HealthBefore = GetAttribute(Enemy, UMordecaiAttributeSet::GetHealthAttribute());
+
+	TestTrue("first staggered melee lands", LandPlayerMelee(Env));
+	TestEqual(
+		"first hit takes 24 actual health",
+		GetAttribute(Enemy, UMordecaiAttributeSet::GetHealthAttribute()),
+		HealthBefore - 24.f);
+	TestTrue("first hit keeps posture break", EnemyHas(
+		Enemy, MordecaiGameplayTags::State_PostureBroken));
+	TestFalse("first hit is below knockdown threshold", EnemyHas(
+		Enemy, MordecaiGameplayTags::State_KnockedDown));
+
+	Env.TickFrames(21);
+	TestTrue("second staggered melee lands in the extended window", LandPlayerMelee(Env));
+	TestEqual(
+		"two staggered hits take 24 plus 24 actual health",
+		GetAttribute(Enemy, UMordecaiAttributeSet::GetHealthAttribute()),
+		HealthBefore - 48.f);
+	TestFalse("knockdown replaces posture break", EnemyHas(
+		Enemy, MordecaiGameplayTags::State_PostureBroken));
+	TestTrue("24 plus 24 knocks down end to end", EnemyHas(
+		Enemy, MordecaiGameplayTags::State_KnockedDown));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Posture_Runtime_KnockdownExpiry,
 	"Mordecai.Posture.Runtime.KnockdownExpiry",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -462,6 +527,13 @@ bool FMordecai_Posture_Runtime_NoRegenWhileDown::RunTest(const FString& Paramete
 	}
 	AMordecaiEnemyCharacter* Enemy =
 		Env.SpawnEnemy(FVector(100.f, 0.f, 0.f), { MakePlayerSlash() });
+	SetEnemyAttribute(Enemy, UMordecaiAttributeSet::GetPostureAttribute(), 30.f);
+	Env.TickFrames(61);
+	Enemy->RegeneratePosture(1.f);
+	TestEqual(
+		"control proves posture regenerates while not down",
+		GetAttribute(Enemy, UMordecaiAttributeSet::GetPostureAttribute()),
+		40.f);
 	SetEnemyAttribute(Enemy, UMordecaiAttributeSet::GetPostureAttribute(), 30.f);
 	Enemy->EnterKnockDownState();
 	Env.TickFrames(20);
@@ -757,6 +829,56 @@ bool FMordecai_Posture_Runtime_RiposteHitIsCritical::RunTest(const FString& Para
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Posture_Runtime_RiposteMultiTargetDecidedPerSwing,
+	"Mordecai.Posture.Runtime.RiposteMultiTargetDecidedPerSwing",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Posture_Runtime_RiposteMultiTargetDecidedPerSwing::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiPostureRuntimeTest;
+	using namespace MordecaiRecoveryDefenseTest;
+
+	FDefenseTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownDefender(); };
+	UMordecaiAttackProfileDataAsset* Slash = MakePlayerSlash(16.f, 0.f);
+	if (!TestTrue("player setup", Env.SetupDefender(FVector::ZeroVector, { Slash })))
+	{
+		return true;
+	}
+	PinPlayerYellow(Env);
+	AMordecaiEnemyCharacter* Left =
+		Env.SpawnEnemy(FVector(100.f, -30.f, 0.f), { Slash });
+	AMordecaiEnemyCharacter* Right =
+		Env.SpawnEnemy(FVector(100.f, 30.f, 0.f), { Slash });
+	if (!TestNotNull("left enemy", Left) || !TestNotNull("right enemy", Right))
+	{
+		return true;
+	}
+	Left->EnterParriedState();
+	Right->EnterParriedState();
+	Env.GetPlayerASC()->SetLooseGameplayTagCount(
+		MordecaiGameplayTags::State_Riposte,
+		1,
+		EGameplayTagReplicationState::TagOnly);
+	const float LeftBefore = GetAttribute(Left, UMordecaiAttributeSet::GetHealthAttribute());
+	const float RightBefore = GetAttribute(Right, UMordecaiAttributeSet::GetHealthAttribute());
+
+	TestTrue("multi-target riposte swing lands", LandPlayerMelee(Env));
+	TestEqual(
+		"left target receives the swing-level riposte decision",
+		GetAttribute(Left, UMordecaiAttributeSet::GetHealthAttribute()),
+		LeftBefore - 24.f);
+	TestEqual(
+		"right target receives the same swing-level riposte decision",
+		GetAttribute(Right, UMordecaiAttributeSet::GetHealthAttribute()),
+		RightBefore - 24.f);
+	TestEqual("one damage pop is emitted per target", Env.PopCount(), 2);
+	TestTrue("the final multi-target pop is also critical", Env.LastPopIsCritical());
+	TestFalse("the swing consumes Riposte once after resolving its targets", Env.PlayerHas(
+		MordecaiGameplayTags::State_Riposte));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Posture_Runtime_RiposteDoesNotStackWithStagger,
 	"Mordecai.Posture.Runtime.RiposteDoesNotStackWithStagger",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -922,6 +1044,17 @@ bool FMordecai_Posture_Runtime_ProjectileParryDoesNotStagger::RunTest(const FStr
 	TickProjectile(Env, Projectile);
 	TestFalse("projectile parry does not apply Parried to its source", EnemyHas(
 		Enemy, MordecaiGameplayTags::State_Parried));
+
+	Env.TeardownDefender();
+	if (!TestTrue("melee control player setup", Env.SetupDefender(FVector(100.f, 0.f, 0.f))))
+	{
+		return true;
+	}
+	AMordecaiEnemyCharacter* MeleeEnemy = Env.SpawnAttacker(MakePlayerSlash());
+	Env.Press(MordecaiGameplayTags::Input_Parry);
+	TestFalse("melee control swing is cancelled", Env.LandSwing(MeleeEnemy));
+	TestTrue("melee parry applies Parried to its source", EnemyHas(
+		MeleeEnemy, MordecaiGameplayTags::State_Parried));
 	return true;
 }
 
