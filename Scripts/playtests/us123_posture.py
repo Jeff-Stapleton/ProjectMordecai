@@ -48,16 +48,11 @@ STAGGERED_L2_YELLOW = 27.0
 TOL = 0.6
 
 SCREENSHOTS = {
+    "staggered": "the posture-broken TestAttacker visibly staggered before the riposte",
     "critical_damage": "the staggered TestAttacker with the critical 24 damage number",
     "knocked_down": "the TestAttacker in Staggered AI state with Mordecai.State.KnockedDown",
 }
-PENDING = {
-    "AC-123.11": (
-        "bridge cannot drive: real-input L2 timing inside the 1 s PostureBroken window "
-        "is intermittent; three final-package attempts sent L2 at the earliest observed "
-        "combo-window frame, but the route did not reproduce KnockedDown"
-    ),
-}
+PENDING = {}
 
 PLAN = (
     Step("setup",
@@ -74,7 +69,7 @@ PLAN = (
          "control), Riposte consumed; capture the critical number",
          proves=("AC-123.3", "AC-123.7", "AC-123.10")),
     Step("recovers",
-         "wait past 1 second -> PostureBroken/Parried gone, posture=max and the attacker swings again",
+         "wait past 1.5 seconds -> PostureBroken/Parried gone, posture=max and the attacker swings again",
          proves=("AC-123.1", "AC-123.6", "AC-123.10")),
     Step("knockdown",
          "move out, refill, return, pin Longsword+Yellow, parry twice, assert the resulting "
@@ -83,7 +78,7 @@ PLAN = (
          "for about 2 seconds; capture it",
          proves=("AC-123.4", "AC-123.11")),
     Step("image_verification",
-         "Pillow verifies both evidence frames are 1280x720 and non-blank; "
+         "Pillow verifies all three evidence frames are 16:9, at least 1280x720 and non-blank; "
          "write image-verification.json",
          kind="infra"),
 )
@@ -149,7 +144,12 @@ def _image_stats(path):
         "height": height,
         "rgb_stddev": [round(value, 3) for value in stddev],
         "non_blank": max(stddev) >= 3.0,
-        "passed": (width, height) == (1280, 720) and max(stddev) >= 3.0,
+        "passed": (
+            width >= 1280
+            and height >= 720
+            and abs((width / height) - (16 / 9)) <= 0.01
+            and max(stddev) >= 3.0
+        ),
     }
 
 
@@ -181,6 +181,9 @@ class Us123Run(kit.PlaytestRun):
         broken, _ = self.attempt(
             "break_by_parry", self._guarded(self._break_by_parry), needs=control,
             needs_why="not run: the unbroken control hit did not pass")
+        if broken:
+            self.shot("staggered")
+            self.image_paths.append(self.screens[-1]["path"])
         staggered, _ = self.attempt(
             "staggered_hit", self._guarded(self._staggered_hit), needs=broken,
             needs_why="not run: two real parries did not break posture")
@@ -532,7 +535,7 @@ class Us123Run(kit.PlaytestRun):
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
         self._aim()
-        # Leave enough headroom that regeneration between the two one-second
+        # Leave enough headroom that regeneration between the two 1.5-second
         # parry staggers cannot cross back into Green before L1 commits.
         self._drain_with_dodges("knockdown-route headroom", 10.0)
         self._walk_fight()
@@ -603,7 +606,7 @@ class Us123Run(kit.PlaytestRun):
             f"{l1 + l2:g} actual health; timing {self.knockdown_timing}; "
             f"tags {tags}; ai_state {actor.get('ai_state')}")
         problems = route_problems + timing_problems
-        status = "FAIL" if route_problems else ("WARN" if timing_problems else "PASS")
+        status = "FAIL" if problems else "PASS"
         return (
             status,
             detail + (f" -- {'; '.join(problems)}" if problems else ""),

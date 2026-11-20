@@ -404,9 +404,17 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - This threshold was changed from **50** to **40** by Jeff on 2026-11-19
   because the 50-health route was too difficult to land in real play.
 - The perfect-parry versus normal-parry reward split is out of scope for
-  US-123. Any landed player melee hit consumes `Mordecai.State.Riposte` and
-  counts as the riposte attack, regardless of which enemy it hits.
+  US-123. Any landed player melee swing counts as the riposte and consumes
+  `Mordecai.State.Riposte` once after its whole hit sweep, regardless of which
+  enemy it hits. The 1.5x critical multiplier applies to eligible targets that
+  carry `Mordecai.State.Parried`; every eligible target in a multi-target sweep
+  uses the same swing-level Riposte snapshot, independent of hit order.
 - Player posture will use the same break behavior as enemy posture in US-124.
   US-123 adds shared player regeneration only: the player does not posture
   break in this story.
-- Source: Jeff's decisions supplied with US-123 on 2026-11-19.
+- On **2026-11-20**, Jeff increased `PostureBrokenDurationMs` from **1000ms**
+  to **1500ms**. A Longsword L2 lands about 750–900ms after its press, so L1
+  and L2 could not both land inside the old 1-second stagger window. Knockdown
+  remains a 40-health threshold, 2000ms duration and 2.0x multiplier; Parried
+  and Riposte remain 1000ms each.
+- Source: Jeff's decisions supplied with US-123 on 2026-11-19 and 2026-11-20.

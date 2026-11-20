@@ -497,6 +497,14 @@ The contract is `Specs/story_playtests_v1.md`.
     count. Riposte is also consumed by its first landed melee hit.
   - US-123 makes Parried cancel an in-flight enemy swing and makes Riposte a
     critical 1.5x punish that does not multiply with stagger/knockdown.
+- **N35 Longsword L1 -> L2 could not reliably fit inside the 1-second posture-break window (DESIGN QUESTION RESOLVED by US-123, issue #152).**
+  - This was the accurate blocker for AC-123.11, not a bridge limitation: the
+    bridge sent L2 at the earliest observed combo-window frame, but L2 lands
+    about 750–900ms after its press, after L1 had already used part of the old
+    1000ms break.
+  - Jeff increased `PostureBrokenDurationMs` to 1500ms on 2026-11-20 so both
+    hits can land. The 40-health knockdown threshold, 2000ms knockdown duration,
+    2.0x knockdown multiplier and 1000ms Parried/Riposte windows are unchanged.
 
 **Found while fixing issue #6** (2026-11-04, US-086).
 - **N34 A reset enemy's floating health bar kept its old value (FIXED in code by US-092, issue #81).** `AMordecaiEnemyCharacter::ResetForArena` restores Health and Posture with `InitHealth` / `InitPosture`. Those writes fire no attribute-change delegate, and `UMordecaiEnemyIndicatorWidget` updates an already-bound bar only from that delegate.

@@ -29,7 +29,7 @@ Pivot: bottom-centre, anchored at Z +120 above the enemy origin. The gauge is th
 | Statuses | Any of the 16 watched statuses | Up to 3 tokens, sorted Control > DoT > Debuff > Environmental > Buff, then "+N". |
 | Elite and up | Tier Elite, Champion or Miniboss | Visible whenever living and within range, with its diamonds (and the ribbon for Miniboss). |
 | Summon | Tier Summon | The `summon` glyph before the name, the lighter pill. |
-| Posture Broken | `Mordecai.State.PostureBroken` (1000 ms) | The posture lane opens to 8 px and floods with `good` / `ink` stripes that drain over the 1 s. Chip "Broken ×1.5". |
+| Posture Broken | `Mordecai.State.PostureBroken` (1500 ms) | The posture lane opens to 8 px and floods with `good` / `ink` stripes that drain over the 1.5 s. Chip "Broken ×1.5". |
 | Knocked Down | `Mordecai.State.KnockedDown` (50+ damage during the stagger; 2000 ms) | Same stripes, draining over 2 s. Chip "Down ×2.0". |
 | Critical window | The enemy can be riposted (see the open item below) | Broken state + critical brackets + Riposte tag. |
 | Far | Beyond 1400 cm from the player | Tier diamonds + the health lane only (112 px). No name, posture, chip or statuses. |
@@ -52,7 +52,7 @@ Motion: the trail is DamageTrail. The tag appears with the living enemy and uses
 - **Health:** Health / MaxHealth from the enemy ASC.
   - The implementation uses one `HealthColorRed` at every level; the theme pass replaces that literal with the single `foe` token. Low health reads from the notch and the trail.
 - **Posture:** Posture / MaxPosture (`UMordecaiAttributeSet`). The numbers come from `MordecaiPostureSystem`:
-  - Break at 0: `PostureBrokenDurationMs` 1000, `StaggeredDamageMultiplier` 1.5.
+  - Break at 0: `PostureBrokenDurationMs` 1500, `StaggeredDamageMultiplier` 1.5.
   - Knock-down: 50 damage during the stagger, `KnockDownDurationMs` 2000, x2.0.
   - Regen 10/s after 3000 ms.
   - The chip text is built from these values, not typed in.

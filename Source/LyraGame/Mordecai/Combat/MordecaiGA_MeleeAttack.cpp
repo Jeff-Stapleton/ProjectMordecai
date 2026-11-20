@@ -166,10 +166,18 @@ float UMordecaiGA_MeleeAttack::ResolvePostureRuntimeDamage(
 	UAbilitySystemComponent* SourceASC,
 	UAbilitySystemComponent* TargetASC) const
 {
+	const bool bRiposteAvailable = SourceASC
+		&& SourceASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Riposte);
+	return ResolvePostureRuntimeDamageForSwing(TargetASC, bRiposteAvailable);
+}
+
+float UMordecaiGA_MeleeAttack::ResolvePostureRuntimeDamageForSwing(
+	UAbilitySystemComponent* TargetASC,
+	bool bRiposteAvailableForSwing) const
+{
 	const float VulnerabilityMultiplier =
 		UMordecaiPostureSystem::GetVulnerabilityDamageMultiplier(TargetASC);
-	const bool bIsRiposte = SourceASC && TargetASC
-		&& SourceASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Riposte)
+	const bool bIsRiposte = bRiposteAvailableForSwing && TargetASC
 		&& TargetASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Parried);
 	const float RiposteMultiplier = bIsRiposte
 		? GetDefault<UMordecaiPostureSystem>()->RiposteDamageMultiplier
@@ -597,6 +605,10 @@ void UMordecaiGA_MeleeAttack::PerformHitDetectionAndApplyDamage()
 	TArray<FMordecaiHitResult> HitResults = HitDetection->PerformMeleeHitDetection(
 		Profile, Origin, Forward, AvatarActor);
 
+	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
+	const bool bRiposteAvailableForSwing = SourceASC
+		&& SourceASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Riposte);
+	bool bAnyLandedHit = false;
 	for (const FMordecaiHitResult& Hit : HitResults)
 	{
 		if (!IsActive())
@@ -605,33 +617,42 @@ void UMordecaiGA_MeleeAttack::PerformHitDetectionAndApplyDamage()
 		}
 		if (Hit.HitActor.IsValid())
 		{
-			ApplyDamageToTarget(Hit.HitActor.Get(), Hit.HitLocation);
+			bAnyLandedHit |= ApplyDamageToTarget(
+				Hit.HitActor.Get(), Hit.HitLocation, bRiposteAvailableForSwing);
 		}
+	}
+	if (bAnyLandedHit && bRiposteAvailableForSwing)
+	{
+		ConsumeRiposte(SourceASC);
 	}
 }
 
-void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVector& HitLocation)
+bool UMordecaiGA_MeleeAttack::ApplyDamageToTarget(
+	AActor* TargetActor,
+	const FVector& HitLocation,
+	bool bRiposteAvailableForSwing)
 {
-	if (!TargetActor) return;
+	if (!TargetActor) return false;
 
 	const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
-	if (!Profile) return;
+	if (!Profile) return false;
 
 	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(TargetActor);
-	if (!TargetASC) return;
+	if (!TargetASC) return false;
 
 	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
-	if (!SourceASC) return;
+	if (!SourceASC) return false;
 
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	if (!AvatarActor || !AvatarActor->HasAuthority())
 	{
-		return;
+		return false;
 	}
 
 	// US-101 (issue #53): the target's defenses meet the hit before any of it lands. I-frames and a parry negate all of
 	// it; a block applies its own mitigated health damage, stamina drain and guard break.
-	const float IncomingHealthDamage = ResolvePostureRuntimeDamage(SourceASC, TargetASC);
+	const float IncomingHealthDamage =
+		ResolvePostureRuntimeDamageForSwing(TargetASC, bRiposteAvailableForSwing);
 	const float BaseHealthDamage = -ComputeHealthDamage();
 	const bool bIsCritical = IncomingHealthDamage > BaseHealthDamage + KINDA_SMALL_NUMBER;
 	const UWorld* World = GetWorld();
@@ -639,10 +660,9 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 		TargetASC, SourceASC, IncomingHealthDamage, World ? World->GetTimeSeconds() : 0.0);
 	if (Defense.IsNegated())
 	{
-		return;
+		return false;
 	}
 	const bool bBlocked = Defense.IsBlocked();
-	ConsumeRiposte(SourceASC);
 
 	FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
 	Context.AddSourceObject(this);
@@ -719,6 +739,7 @@ void UMordecaiGA_MeleeAttack::ApplyDamageToTarget(AActor* TargetActor, const FVe
 		UMordecaiDamagePopComponent::BroadcastDamagePop(
 			TargetActor->GetWorld(), DisplayDamage, DamageTag, PopLocation, bIsCritical && !bBlocked);
 	}
+	return true;
 }
 
 // ---------------------------------------------------------------------------

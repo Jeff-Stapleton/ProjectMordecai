@@ -35,7 +35,7 @@ public:
 
 	/** Duration of posture broken (stagger) state in milliseconds (AC-007.9). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
-	float PostureBrokenDurationMs = 1000.f;
+	float PostureBrokenDurationMs = 1500.f;
 
 	/** Damage multiplier during stagger (AC-007.10). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")

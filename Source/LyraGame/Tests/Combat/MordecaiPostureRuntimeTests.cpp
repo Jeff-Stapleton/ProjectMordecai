@@ -228,7 +228,7 @@ bool FMordecai_Posture_Runtime_ExpiryRestoresMax::RunTest(const FString& Paramet
 		Enemy, MordecaiGameplayTags::State_PostureBroken));
 	TestTrue("AI remains staggered before one and a half seconds",
 		AI && AI->GetCurrentState() == EMordecaiEnemyAIState::Staggered);
-	Env.TickFrames(2);
+	Env.TickFrames(4);
 	TestFalse("break tag expires", EnemyHas(Enemy, MordecaiGameplayTags::State_PostureBroken));
 	TestEqual(
 		"expiry restores max posture",
