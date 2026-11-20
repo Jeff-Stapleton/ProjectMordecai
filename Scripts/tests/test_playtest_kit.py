@@ -359,6 +359,10 @@ class TestKitMapCheck(KitCase):
         self.assertEqual(kit.MOVEMENT_TEST_MAP, "/MordecaiCore/Game/Maps/MovementTestMap")
         self.assertEqual(kit.COMBAT_TEST_MAP, "/MordecaiCore/Game/Maps/CombatTestMap")
         self.assertEqual(
+            kit.PLAYER_POSTURE_TEST_MAP,
+            "/MordecaiCore/Game/Maps/PlayerPostureTestMap",
+        )
+        self.assertEqual(
             kit.PICKUP_PROJECTILE_TEST_MAP,
             "/MordecaiCore/Game/Maps/PickupProjectileTestMap",
         )
@@ -371,6 +375,7 @@ class TestKitMapCheck(KitCase):
             (
                 kit.MOVEMENT_TEST_MAP,
                 kit.COMBAT_TEST_MAP,
+                kit.PLAYER_POSTURE_TEST_MAP,
                 kit.PICKUP_PROJECTILE_TEST_MAP,
                 kit.VW_TILE_TEST_MAP,
             ),
@@ -378,6 +383,7 @@ class TestKitMapCheck(KitCase):
         for name in (
             "MOVEMENT_TEST_MAP",
             "COMBAT_TEST_MAP",
+            "PLAYER_POSTURE_TEST_MAP",
             "PICKUP_PROJECTILE_TEST_MAP",
             "VW_TILE_TEST_MAP",
             "TEST_MAPS",

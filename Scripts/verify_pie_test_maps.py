@@ -4,6 +4,7 @@
 #   CombatTestMap: the same, plus TestDummy (BP_MordecaiEnemy_TestDummy_C, AI BP_MordecaiEnemyAI_TestDummy_C) and
 #   TestAttacker (BP_MordecaiEnemy_TestAttacker_C, the native MordecaiEnemyAIController), both alive at 200/200,
 #   Idle, with MaxWalkSpeed 0; the attacker farther than its AggroRange from the pawn; navigation data present.
+#   PlayerPostureTestMap: the dedicated player spawn and five stationary, timed posture attackers.
 #   PickupProjectileTestMap: the same spawn, no enemy, and one native pickup at (400, 0, 30).
 #   Any other map (DevTestMap, the default suite): SKIP lines only, and the test passes.
 # PIE applies the PIE-only ExperienceOverride to every map, so this cannot prove the packaged route to the
@@ -22,8 +23,10 @@ import unreal
 
 MOVEMENT_TEST_MAP = "MovementTestMap"
 COMBAT_TEST_MAP = "CombatTestMap"
+PLAYER_POSTURE_TEST_MAP = "PlayerPostureTestMap"
 PICKUP_PROJECTILE_TEST_MAP = "PickupProjectileTestMap"
 SPAWN = (0.0, 0.0)
+PLAYER_POSTURE_SPAWN = (-1200.0, 0.0)
 SPAWN_TOLERANCE_CM = 100.0
 EXPECTED_MAX_HEALTH = 200.0
 # (label, enemy class, AI controller class, spawn)
@@ -74,13 +77,15 @@ def _run():
         return
 
     map_name = unreal.GameplayStatics.get_current_level_name(world, True)
-    if map_name not in (MOVEMENT_TEST_MAP, COMBAT_TEST_MAP, PICKUP_PROJECTILE_TEST_MAP):
+    if map_name not in (
+            MOVEMENT_TEST_MAP, COMBAT_TEST_MAP, PLAYER_POSTURE_TEST_MAP,
+            PICKUP_PROJECTILE_TEST_MAP):
         print(f"  SKIP: PIE is on {map_name}, not a test map (run_pie_verify.py --map <test map> to check one)")
         finish()
         return
     print(f"  PIE map: {map_name}")
 
-    # --- Both maps: the Mordecai game mode and the spawn ---
+    # --- Every test map: the Mordecai game mode and its spawn ---
     game_mode = unreal.GameplayStatics.get_game_mode(world)
     check(f"{map_name} game mode is MordecaiGameMode", isinstance(game_mode, unreal.MordecaiGameMode),
           game_mode.get_class().get_name() if game_mode else "no game mode")
@@ -89,8 +94,10 @@ def _run():
     check("Player pawn exists", pawn is not None)
     pawn_loc = pawn.get_actor_location() if pawn else None
     if pawn_loc:
-        offset = math.dist((pawn_loc.x, pawn_loc.y), SPAWN)
-        check("Pawn spawned near (0, 0)", offset <= SPAWN_TOLERANCE_CM,
+        expected_spawn = (
+            PLAYER_POSTURE_SPAWN if map_name == PLAYER_POSTURE_TEST_MAP else SPAWN)
+        offset = math.dist((pawn_loc.x, pawn_loc.y), expected_spawn)
+        check(f"Pawn spawned near {expected_spawn}", offset <= SPAWN_TOLERANCE_CM,
               f"({pawn_loc.x:.0f}, {pawn_loc.y:.0f}, {pawn_loc.z:.0f}), {offset:.0f} cm from the spawn")
 
     enemies = list(unreal.GameplayStatics.get_all_actors_of_class(world, unreal.MordecaiEnemyCharacter))
@@ -120,6 +127,39 @@ def _run():
 
     if map_name == MOVEMENT_TEST_MAP:
         check("MovementTestMap has no enemies", not enemies, f"{[e.get_actor_label() for e in enemies]}")
+        finish()
+        return
+
+    if map_name == PLAYER_POSTURE_TEST_MAP:
+        expected_labels = {
+            f"PostureTestAttacker_{name}"
+            for name in ("Control", "Breaker", "BonusA", "BonusB", "Down")
+        }
+        labels = {enemy.get_actor_label() for enemy in enemies}
+        check("PlayerPostureTestMap has the five timed attackers",
+              len(enemies) == 5 and labels == expected_labels,
+              f"{[(enemy.get_actor_label(), enemy.get_class().get_name()) for enemy in enemies]}")
+        for enemy in enemies:
+            label = enemy.get_actor_label()
+            expected_class = f"BP_MordecaiEnemy_{label.replace('Attacker_', '')}_C"
+            check(f"{label} uses its fixture class",
+                  enemy.get_class().get_name() == expected_class,
+                  enemy.get_class().get_name())
+            controller = enemy.get_controller()
+            controller_class = controller.get_class().get_name() if controller else None
+            check(f"{label} uses the fixture AI",
+                  controller_class == "BP_MordecaiEnemyAI_PlayerPostureTest_C",
+                  str(controller_class))
+            movement = enemy.get_editor_property("character_movement")
+            speed = movement.get_editor_property("max_walk_speed") if movement else None
+            check(f"{label} MaxWalkSpeed is 0", speed == 0.0, str(speed))
+            if isinstance(controller, unreal.MordecaiEnemyAIController):
+                state = controller.get_current_state()
+                check(f"{label} is armed but not attacking before the player route",
+                      state in (
+                          unreal.MordecaiEnemyAIState.IDLE,
+                          unreal.MordecaiEnemyAIState.APPROACH),
+                      str(state))
         finish()
         return
 

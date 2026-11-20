@@ -1,4 +1,4 @@
-// Project Mordecai — authoritative player posture regeneration (US-123)
+// Project Mordecai — authoritative player posture runtime (US-123, US-124)
 
 #pragma once
 
@@ -11,8 +11,8 @@ class UAbilitySystemComponent;
 class UMordecaiPostureSystem;
 
 /**
- * Observes every player posture spend on the PlayerState ASC and owns the
- * authority-only regeneration delay. Player posture cannot break until US-124.
+ * Observes the PlayerState ASC and owns authority-only player posture
+ * regeneration, break, vulnerability, knockdown, lockout and recovery.
  */
 UCLASS(ClassGroup = (Mordecai), meta = (BlueprintSpawnableComponent))
 class LYRAGAME_API UMordecaiPostureRuntimeComponent : public UActorComponent
@@ -35,6 +35,18 @@ private:
 	void BindToAbilitySystem();
 	void UnbindFromAbilitySystem();
 	void OnPostureChanged(const FOnAttributeChangeData& Data);
+	void OnHealthChanged(const FOnAttributeChangeData& Data);
+	void OnDeadTagChanged(const FGameplayTag Tag, int32 NewCount);
+	void EnterPostureBrokenState();
+	void ExitPostureBrokenState();
+	void EnterKnockDownState();
+	void ExitKnockDownState();
+	void ClearPostureRuntimeStates();
+	void SetPostureRuntimeState(FGameplayTag StateTag, bool bEnabled);
+	void CancelActiveAbilities();
+	void LockMovement();
+	void UnlockMovement();
+	bool IsEnemyDamage(const FOnAttributeChangeData& Data) const;
 	double GetRuntimeSeconds() const;
 
 	UPROPERTY(Transient)
@@ -42,4 +54,11 @@ private:
 
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 	FDelegateHandle PostureChangedHandle;
+	FDelegateHandle HealthChangedHandle;
+	FDelegateHandle DeadTagChangedHandle;
+	FTimerHandle PostureBrokenTimerHandle;
+	FTimerHandle KnockDownTimerHandle;
+	bool bMovementLocked = false;
+	uint8 SavedMovementMode = 0;
+	uint8 SavedCustomMovementMode = 0;
 };

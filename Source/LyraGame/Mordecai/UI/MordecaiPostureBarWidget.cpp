@@ -152,8 +152,7 @@ void UMordecaiPostureBarWidget::BindToASC(UAbilitySystemComponent* ASC)
 	ASC->GetGameplayAttributeValueChangeDelegate(UMordecaiAttributeSet::GetMaxPostureAttribute())
 		.AddUObject(this, &UMordecaiPostureBarWidget::OnMaxPostureChanged);
 
-	// TODO(DECISION): the combat owner still must decide the player-posture-break signal and consequences.
-	// Listen for the existing posture broken tag so the HUD is ready for that decision (AC-052.4).
+	// Player and enemy posture runtimes both use the shared replicated break tag.
 	ASC->RegisterGameplayTagEvent(MordecaiGameplayTags::State_PostureBroken, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &UMordecaiPostureBarWidget::OnPostureBrokenTagChanged);
 

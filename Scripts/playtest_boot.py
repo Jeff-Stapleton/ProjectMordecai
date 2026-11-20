@@ -90,9 +90,11 @@ DEFAULT_MAP = "/MordecaiCore/Game/Maps/DevTestMap"
 # (World Settings GameMode = MordecaiGameMode, no World Settings experience).
 MOVEMENT_TEST_MAP = "/MordecaiCore/Game/Maps/MovementTestMap"   # open floor, steps, no enemies
 COMBAT_TEST_MAP = "/MordecaiCore/Game/Maps/CombatTestMap"       # TestDummy + TestAttacker
+PLAYER_POSTURE_TEST_MAP = "/MordecaiCore/Game/Maps/PlayerPostureTestMap"  # timed TestAttacker fixture
 PICKUP_PROJECTILE_TEST_MAP = "/MordecaiCore/Game/Maps/PickupProjectileTestMap"  # one real pickup
 VW_TILE_TEST_MAP = "/MordecaiCore/Game/Maps/L_VW_TileTest"  # US-120 terrain kit fixture
-TEST_MAPS = (MOVEMENT_TEST_MAP, COMBAT_TEST_MAP, PICKUP_PROJECTILE_TEST_MAP, VW_TILE_TEST_MAP)
+TEST_MAPS = (MOVEMENT_TEST_MAP, COMBAT_TEST_MAP, PLAYER_POSTURE_TEST_MAP,
+             PICKUP_PROJECTILE_TEST_MAP, VW_TILE_TEST_MAP)
 DEFAULT_EXPERIENCE = "B_MordecaiArenaExperience"
 FRONTEND_EXPERIENCE = "B_LyraFrontEnd_Experience"
 RES_X, RES_Y = 1280, 720

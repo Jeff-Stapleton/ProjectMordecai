@@ -74,11 +74,6 @@ public:
 	/** Compute posture damage from active profile. Returns negative value (AC-004.5). */
 	float ComputePostureDamage() const;
 
-	/** Resolve the larger of posture vulnerability and the one-hit riposte multiplier. */
-	float ResolvePostureRuntimeDamage(
-		UAbilitySystemComponent* SourceASC,
-		UAbilitySystemComponent* TargetASC) const;
-
 	/** Consume Riposte after any landed player melee hit. */
 	bool ConsumeRiposte(UAbilitySystemComponent* SourceASC) const;
 

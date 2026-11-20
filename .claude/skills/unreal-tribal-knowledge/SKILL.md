@@ -842,6 +842,14 @@ del _run
 
 **A leftover global can also crash the next map load.** Every smoke script runs in the editor's `__main__` namespace, so module-level names outlive it. `verify_pie_weapon.py` keeps `pie_world`, `pawn` and others as globals. After PIE ends they still hold the PIE world, and the next map load (`EditorDestroyWorld` → `CheckForWorldGCLeaks`) dies with the fatal "World Memory Leaks". US-100 hit it when `run_pie_verify.py --map` opened MovementTestMap right after the default DevTestMap suite (`Saved/Logs/ProjectMordecai-backup-2026.10.29-13.29.17.log`, 13.29.15-17: `UEditorEngine::CheckForWorldGCLeaks` from `LoadMap`). Since then `run_pie_verify.py` drops every editor-Python global that references a world's objects (`DROP_WORLD_REFS_CODE`) before it stops PIE and before it opens a map, and logs the names it dropped. Still write new scripts with `_run()`.
 
+### Do not load a duplicated map in the same editor-Python command
+
+**Problem:** An asset script called `EditorAssetLibrary.duplicate_asset` for a `.umap` and then immediately called `LevelEditorSubsystem.load_level` for the duplicate. The editor fatally stopped in `UEditorEngine::CheckForWorldGCLeaks` with "World Memory Leaks", even though the script kept no module-level `UObject` references.
+
+**Root cause:** The duplicate operation retains the new standalone `UWorld`/package for the rest of that Python command. Loading the same package asks the editor to replace a world that still has `KEEPFLAGS` references, so the map-load GC check rejects it. `collect_garbage()` cannot safely make this same-command transition.
+
+**Fix:** Make map duplication a two-editor-pass operation. In pass 1, duplicate and explicitly `save_asset` the map, then return without loading it. Restart the editor. In pass 2, detect that the map exists, load it, make the level edits, and save it. `Scripts/us124_create_player_posture_fixture.py` follows this pattern.
+
 ### A navigation path query from Python during PIE trips an ensure: check paths in the editor world
 
 **Problem:** `unreal.NavigationSystemV1.find_path_to_location_synchronously(world, start, end)` called from a smoke script during PIE logs a handled ensure (`NavigationSystem.h:297`) instead of quietly returning a path.

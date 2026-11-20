@@ -479,9 +479,9 @@ void UMordecaiHeroComponent::SetAbilitySystemOverride(ULyraAbilitySystemComponen
 
 void UMordecaiHeroComponent::Input_Move(const FInputActionValue& InputActionValue)
 {
-	APawn* Pawn = Cast<APawn>(GetOwner());
+	AMordecaiCharacter* Pawn = Cast<AMordecaiCharacter>(GetOwner());
 	AController* Controller = Pawn ? Pawn->GetController() : nullptr;
-	if (!Pawn || !Controller)
+	if (!Pawn || !Controller || !Pawn->CanAcceptMovementInput())
 	{
 		return;
 	}
