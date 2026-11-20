@@ -15,6 +15,7 @@ struct FMordecaiIncomingHitSource
 	FVector SourceLocation = FVector::ZeroVector;
 	FVector IncomingTravelDirection = FVector::ZeroVector;
 	bool bHasSourceLocation = false;
+	bool bIsProjectile = false;
 
 	static FMordecaiIncomingHitSource FromLocation(const FVector& InSourceLocation)
 	{
@@ -30,6 +31,7 @@ struct FMordecaiIncomingHitSource
 	{
 		FMordecaiIncomingHitSource Source = FromLocation(InOrigin);
 		Source.IncomingTravelDirection = InTravelDirection;
+		Source.bIsProjectile = true;
 		return Source;
 	}
 };

@@ -64,15 +64,16 @@ bool FMordecai_Parry_StaggersAttacker::RunTest(const FString& Parameters)
 	FGameplayTag RiposteTag = MordecaiGameplayTags::State_Riposte;
 	TestTrue("Mordecai.State.Riposte tag is valid", RiposteTag.IsValid());
 
-	// During Active phase, receiving a hit should succeed
+	// An Active phase alone is insufficient: runtime parries require an
+	// authoritative avatar. The spawned-world behavioral coverage exercises
+	// the successful route.
 	Ability->TransitionToParryPhase(EMordecaiParryPhase::Active);
 	TestFalse("Not yet successful before hit", Ability->WasParrySuccessful());
 
-	// ReceiveParriedHit with nullptr ASC (unit test — no ASC available)
-	// should still return true to indicate successful parry during Active phase
+	// A bare UObject has no actor info and must not mutate runtime state.
 	bool bSuccess = Ability->ReceiveParriedHit(nullptr);
-	TestTrue("Parry succeeds during Active phase", bSuccess);
-	TestTrue("Parry marked as successful", Ability->WasParrySuccessful());
+	TestFalse("Parry without authoritative actor info is rejected", bSuccess);
+	TestFalse("Rejected parry is not marked successful", Ability->WasParrySuccessful());
 
 	// Outside Active phase, parry should fail
 	UMordecaiGA_Parry* Ability2 = NewObject<UMordecaiGA_Parry>();

@@ -491,10 +491,20 @@ The contract is `Specs/story_playtests_v1.md`.
   - Recovery story: **US-101** (`stories/in-progress/US-101-recovery-defenses-against-enemy-melee.md`, branch `fix/issue-53-defenses`). Its decisions are recorded in `Specs/design_decisions_log.md` 2026-10-30.
 
 **Found while fixing issue #53** (2026-10-30, US-101).
-- **N33 `Mordecai.State.Parried` and `Mordecai.State.Riposte` are never removed.** `UMordecaiGA_Parry::ReceiveParriedHit` adds `Parried` to the attacker's ASC and `Riposte` to the player's ASC as loose tags. Nothing removes `Parried`, and `RemoveRiposteTag` has no caller.
-  - Before US-101 only tests called `ReceiveParriedHit`. Since US-101 a real parry adds one more count of each, and they stay on for the rest of the session.
-  - Nothing in game reads either tag (the combat feedback widget listens for `Parried` on the player's own ASC, so its "Parried!" never shows), so the only effect is in `player.tags` / `actors[].tags`.
-  - Not fixed by US-101: no spec gives the stagger or punish-window durations (AC-006.13). A playtest check must not assume either tag goes away. `us101_defenses.py` parries last for that reason.
+- **N33 `Mordecai.State.Parried` and `Mordecai.State.Riposte` were never removed (FIXED by US-123, issue #152).**
+  - Both states now replicate with tag-only loose-tag counts, last 1000ms, and
+    reapplication restarts the authoritative timer without increasing the
+    count. Riposte is also consumed by its first landed melee hit.
+  - US-123 makes Parried cancel an in-flight enemy swing and makes Riposte a
+    critical 1.5x punish that does not multiply with stagger/knockdown.
+- **N35 Longsword L1 -> L2 could not reliably fit inside the 1-second posture-break window (DESIGN QUESTION RESOLVED by US-123, issue #152).**
+  - This was the accurate blocker for AC-123.11, not a bridge limitation: the
+    bridge sent L2 at the earliest observed combo-window frame, but L2 lands
+    about 750–900ms after its press, after L1 had already used part of the old
+    1000ms break.
+  - Jeff increased `PostureBrokenDurationMs` to 1500ms on 2026-11-20 so both
+    hits can land. The 40-health knockdown threshold, 2000ms knockdown duration,
+    2.0x knockdown multiplier and 1000ms Parried/Riposte windows are unchanged.
 
 **Found while fixing issue #6** (2026-11-04, US-086).
 - **N34 A reset enemy's floating health bar kept its old value (FIXED in code by US-092, issue #81).** `AMordecaiEnemyCharacter::ResetForArena` restores Health and Posture with `InitHealth` / `InitPosture`. Those writes fire no attribute-change delegate, and `UMordecaiEnemyIndicatorWidget` updates an already-bound bar only from that delegate.

@@ -7,6 +7,8 @@
 
 #include "MordecaiPostureSystem.generated.h"
 
+class UAbilitySystemComponent;
+
 /**
  * UMordecaiPostureSystem
  *
@@ -33,7 +35,7 @@ public:
 
 	/** Duration of posture broken (stagger) state in milliseconds (AC-007.9). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
-	float PostureBrokenDurationMs = 1000.f;
+	float PostureBrokenDurationMs = 1500.f;
 
 	/** Damage multiplier during stagger (AC-007.10). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
@@ -41,7 +43,7 @@ public:
 
 	/** Damage threshold during stagger that triggers knock down (AC-007.10a). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
-	float KnockDownDamageThreshold = 50.f;
+	float KnockDownDamageThreshold = 40.f;
 
 	/** Duration of knocked down state in milliseconds (AC-007.10a). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
@@ -50,6 +52,18 @@ public:
 	/** Damage multiplier during knocked down state (AC-007.10a). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
 	float KnockDownDamageMultiplier = 2.0f;
+
+	/** Duration of the attacker's Parried state in milliseconds (US-123). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
+	float ParriedDurationMs = 1000.f;
+
+	/** Duration of the defender's one-hit Riposte window in milliseconds (US-123). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
+	float RiposteWindowMs = 1000.f;
+
+	/** Critical damage multiplier consumed by a riposte hit (US-123). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
+	float RiposteDamageMultiplier = 1.5f;
 
 	/** Posture regeneration rate in units per second (AC-007.12). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Posture")
@@ -78,6 +92,19 @@ public:
 	/** Compute posture damage: BasePower x PostureDamageScalar x BlockMult x WeakenedMult x BrittleMult.
 	 *  Returns a positive value representing the amount of posture to subtract (AC-007.4, AC-007.5). */
 	float ComputePostureDamage(float BasePower, float PostureDamageScalar, bool bIsBlocking = false) const;
+
+	/**
+	 * Shared runtime route for melee, projectiles, parries and perfect blocks.
+	 * BasePostureDamage is positive; the caller subtracts the returned amount.
+	 */
+	static float ComputePostureDamageFromAttributes(
+		const UAbilitySystemComponent* AttackerASC,
+		const UAbilitySystemComponent* TargetASC,
+		float BasePostureDamage,
+		bool bIsBlocking = false);
+
+	/** The target's replicated vulnerability multiplier (KnockedDown wins over PostureBroken). */
+	static float GetVulnerabilityDamageMultiplier(const UAbilitySystemComponent* TargetASC);
 
 	/** Compute damage during stagger: IncomingDamage x StaggeredDamageMultiplier (AC-007.10). */
 	float ComputeStaggeredDamage(float IncomingDamage) const;
@@ -142,6 +169,8 @@ public:
 
 	float GetPostureBrokenDurationSeconds() const { return PostureBrokenDurationMs / 1000.f; }
 	float GetKnockDownDurationSeconds() const { return KnockDownDurationMs / 1000.f; }
+	float GetParriedDurationSeconds() const { return ParriedDurationMs / 1000.f; }
+	float GetRiposteWindowSeconds() const { return RiposteWindowMs / 1000.f; }
 	float GetPostureRegenDelaySeconds() const { return PostureRegenDelayMs / 1000.f; }
 	float GetCumulativeDamageDuringStagger() const { return CumulativeDamageDuringStagger; }
 

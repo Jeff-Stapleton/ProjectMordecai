@@ -145,7 +145,7 @@ FMordecaiHitDefenseResult FMordecaiHitDefense::ResolveIncomingHit(
 	// 2. An in-arc parry window takes the whole hit (AC-006.13). Found first, called after the scan: a parry ends its ability.
 	if (UMordecaiGA_Parry* Parry = FindActiveParry(TargetASC))
 	{
-		if (bInsideDefenseArc && Parry->ReceiveParriedHit(AttackerASC))
+		if (bInsideDefenseArc && Parry->ReceiveParriedHit(AttackerASC, !HitSource.bIsProjectile))
 		{
 			Result.Defense = EMordecaiHitDefense::Parried;
 			UE_LOG(LogMordecaiDefense, Log, TEXT("%s parried %s's hit (%.1f)"),

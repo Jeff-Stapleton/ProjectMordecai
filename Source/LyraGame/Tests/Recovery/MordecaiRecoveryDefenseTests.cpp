@@ -24,16 +24,11 @@
 #include "Mordecai/UI/MordecaiDamagePopComponent.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiShieldDataAsset.h"
+#include "Tests/Recovery/MordecaiDefenseTestEnv.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
 
 namespace MordecaiRecoveryDefenseTest
 {
-	/** One test frame. Small enough that a 250 ms perfect-block window or a 400 ms dodge is several frames long. */
-	static constexpr float FrameSeconds = 0.05f;
-
-	static const TCHAR* const TestAttackerClassPath =
-		TEXT("/MordecaiCore/Enemies/BP_MordecaiEnemy_TestAttacker.BP_MordecaiEnemy_TestAttacker_C");
-
 	/** DA_EnemyAttack_BasicSlash's swing (150 cm / 90 degrees, 15 Slash, posture scalar 0.3, jump-avoidable), 0.1 s phases. */
 	inline UMordecaiAttackProfileDataAsset* MakeSlashProfile()
 	{
@@ -73,217 +68,6 @@ namespace MordecaiRecoveryDefenseTest
 		return Data;
 	}
 
-	inline void SetFalling(ACharacter* Character, bool bFalling)
-	{
-		if (UCharacterMovementComponent* CMC = Character ? Character->GetCharacterMovement() : nullptr)
-		{
-			CMC->SetMovementMode(bFalling ? MOVE_Falling : MOVE_Walking);
-		}
-	}
-
-	inline float GetAttribute(const AActor* Actor, const FGameplayAttribute& Attribute)
-	{
-		const UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor);
-		return ASC ? ASC->GetNumericAttribute(Attribute) : -1.f;
-	}
-
-	inline UMordecaiGA_MeleeAttack* GetMelee(AMordecaiEnemyCharacter* Enemy)
-	{
-		UAbilitySystemComponent* ASC = Enemy ? Enemy->GetAbilitySystemComponent() : nullptr;
-		FGameplayAbilitySpec* Spec = ASC ? ASC->FindAbilitySpecFromClass(UMordecaiGA_MeleeAttack::StaticClass()) : nullptr;
-		return Spec ? Cast<UMordecaiGA_MeleeAttack>(Spec->GetPrimaryInstance()) : nullptr;
-	}
-
-	/**
-	 * FRecoveryTestEnv's player (PlayerState ASC attached through the pawn extension) on the ground, with its combat
-	 * abilities granted by the controller's real grant (Block, Parry, Dodge and the attacks, each with its input tag),
-	 * and a player controller in the world whose damage-pop component receives the melee damage numbers. World time
-	 * starts at 10 s and advances with every frame, so the perfect-block window and duration effects see time pass.
-	 */
-	struct FDefenseTestEnv : MordecaiRecoveryTest::FRecoveryTestEnv
-	{
-		AMordecaiPlayerController* GrantPC = nullptr;
-		UMordecaiDamagePopComponent* Pops = nullptr;
-
-		bool SetupDefender(const FVector& PlayerLocation, const TArray<UMordecaiAttackProfileDataAsset*>& PlayerProfiles = {})
-		{
-			if (!Setup(PlayerLocation))
-			{
-				return false;
-			}
-			World->TimeSeconds = 10.0;
-			SetFalling(Player, false);
-
-			GrantPC = NewObject<AMordecaiPlayerController>();
-			GrantPC->PlayerState = PlayerState;
-			GrantPC->DefaultSpellAbilities.Reset();
-			GrantPC->MeleeAttackProfiles.Reset();
-			for (UMordecaiAttackProfileDataAsset* Profile : PlayerProfiles)
-			{
-				GrantPC->MeleeAttackProfiles.Add(Profile);
-			}
-			GrantPC->GrantCombatAbilities();
-
-			APlayerController* PopPC = World->SpawnActor<APlayerController>(APlayerController::StaticClass());
-			if (!PopPC)
-			{
-				return false;
-			}
-			Pops = NewObject<UMordecaiDamagePopComponent>(PopPC);
-			Pops->RegisterComponent();
-			return World->GetFirstPlayerController() == PopPC && FindSpec(UMordecaiGA_Block::StaticClass()) != nullptr;
-		}
-
-		/** An enemy 100 cm in front of and facing the defender, on the ground. */
-		AMordecaiEnemyCharacter* SpawnAttacker(UMordecaiAttackProfileDataAsset* Profile) const
-		{
-			AMordecaiEnemyCharacter* Enemy = SpawnEnemy(FVector::ZeroVector, { Profile });
-			SetFalling(Enemy, false);
-			PlaceAttackerAtDefenseAngle(Enemy, 0.f);
-			return Enemy;
-		}
-
-		/** The CombatTestMap TestAttacker Blueprint (its DA_EnemyAttack_BasicSlash), in front and facing the defender. */
-		AMordecaiEnemyCharacter* SpawnTestAttacker() const
-		{
-			UClass* AttackerClass = FSoftClassPath(TestAttackerClassPath).TryLoadClass<AMordecaiEnemyCharacter>();
-			AMordecaiEnemyCharacter* Enemy = AttackerClass ? SpawnEnemyOfClass(AttackerClass, FVector::ZeroVector) : nullptr;
-			SetFalling(Enemy, false);
-			PlaceAttackerAtDefenseAngle(Enemy, 0.f);
-			return Enemy;
-		}
-
-		ULyraAbilitySystemComponent* GetLyraASC() const
-		{
-			return Cast<ULyraAbilitySystemComponent>(GetPlayerASC());
-		}
-
-		FGameplayAbilitySpec* FindSpec(TSubclassOf<UGameplayAbility> AbilityClass) const
-		{
-			UAbilitySystemComponent* ASC = GetPlayerASC();
-			return ASC ? ASC->FindAbilitySpecFromClass(AbilityClass) : nullptr;
-		}
-
-		template <typename AbilityT>
-		AbilityT* FindInstance() const
-		{
-			FGameplayAbilitySpec* Spec = FindSpec(AbilityT::StaticClass());
-			return Spec ? Cast<AbilityT>(Spec->GetPrimaryInstance()) : nullptr;
-		}
-
-		bool IsActive(TSubclassOf<UGameplayAbility> AbilityClass) const
-		{
-			const FGameplayAbilitySpec* Spec = FindSpec(AbilityClass);
-			return Spec && Spec->IsActive();
-		}
-
-		/** Press and release go through Lyra's input path, as the hero component's bindings do in the game. */
-		void Press(const FGameplayTag& InputTag) const
-		{
-			ULyraAbilitySystemComponent* ASC = GetLyraASC();
-			ASC->AbilityInputTagPressed(InputTag);
-			ASC->ProcessAbilityInput(0.f, false);
-		}
-
-		void Release(const FGameplayTag& InputTag) const
-		{
-			ULyraAbilitySystemComponent* ASC = GetLyraASC();
-			ASC->AbilityInputTagReleased(InputTag);
-			ASC->ProcessAbilityInput(0.f, false);
-		}
-
-		float GetPlayer(const FGameplayAttribute& Attribute) const
-		{
-			return GetAttribute(Player, Attribute);
-		}
-
-		bool PlayerHas(const FGameplayTag& Tag) const
-		{
-			const UAbilitySystemComponent* ASC = GetPlayerASC();
-			return ASC && ASC->HasMatchingGameplayTag(Tag);
-		}
-
-		/**
-		 * Advance timers and world time one frame at a time. The timer manager ticks once per frame and only activates
-		 * the timers set before a frame's first tick, so each tick gets its own frame; duration effects expire by world
-		 * time, which a test world never advances by itself.
-		 */
-		void TickFrames(int32 Frames) const
-		{
-			for (int32 Frame = 0; Frame < Frames; ++Frame)
-			{
-				++GFrameCounter;
-				World->TimeSeconds += FrameSeconds;
-				World->GetTimerManager().Tick(FrameSeconds);
-			}
-		}
-
-		/** Start the enemy's swing and run its windup: the hit query and damage happen as it enters Active. */
-		bool LandSwing(AMordecaiEnemyCharacter* Enemy) const
-		{
-			UAbilitySystemComponent* EnemyASC = Enemy ? Enemy->GetAbilitySystemComponent() : nullptr;
-			const UMordecaiGA_MeleeAttack* Melee = GetMelee(Enemy);
-			if (!EnemyASC || !Melee || !EnemyASC->TryActivateAbilityByClass(UMordecaiGA_MeleeAttack::StaticClass()))
-			{
-				return false;
-			}
-			for (int32 Frame = 0; Frame < 200 && Melee->GetCurrentPhase() == EMordecaiAttackPhase::Windup; ++Frame)
-			{
-				TickFrames(1);
-			}
-			return Melee->GetCurrentPhase() == EMordecaiAttackPhase::Active;
-		}
-
-		/** Run the rest of the swing (Active, Recovery) so the enemy can swing again. */
-		void FinishSwing(AMordecaiEnemyCharacter* Enemy) const
-		{
-			UAbilitySystemComponent* EnemyASC = Enemy ? Enemy->GetAbilitySystemComponent() : nullptr;
-			const FGameplayAbilitySpec* Spec = EnemyASC ? EnemyASC->FindAbilitySpecFromClass(UMordecaiGA_MeleeAttack::StaticClass()) : nullptr;
-			for (int32 Frame = 0; Frame < 200 && Spec && Spec->IsActive(); ++Frame)
-			{
-				TickFrames(1);
-			}
-		}
-
-		/**
-		 * Place the attacker at DefenseAngleDegrees around the defender's +X actor forward and face it toward the
-		 * defender. 0 is directly in front, +90 is the defender's right, and 180 is behind.
-		 */
-		void PlaceAttackerAtDefenseAngle(AMordecaiEnemyCharacter* Enemy, float DefenseAngleDegrees) const
-		{
-			if (!Enemy || !Player)
-			{
-				return;
-			}
-			const FVector TowardSource =
-				FRotator(0.f, DefenseAngleDegrees, 0.f).RotateVector(FVector::ForwardVector);
-			Enemy->SetActorLocation(
-				Player->GetActorLocation() + TowardSource * 100.f,
-				false, nullptr, ETeleportType::TeleportPhysics);
-			Enemy->SetActorRotation((-TowardSource).Rotation());
-		}
-
-		int32 PopCount() const
-		{
-			return Pops ? Pops->GetActivePopCount() : -1;
-		}
-
-		int32 LastPopAmount() const
-		{
-			return Pops && Pops->GetActivePopCount() > 0 ? Pops->GetActivePops().Last().DamageAmount : -1;
-		}
-
-		void TeardownDefender()
-		{
-			if (GrantPC)
-			{
-				GrantPC->PlayerState = nullptr;
-			}
-			GrantPC = nullptr;
-			Pops = nullptr;
-			Teardown();
-		}
-	};
 }
 
 namespace MordecaiDefenseArcTest
@@ -625,10 +409,7 @@ bool FMordecai_Recovery_Defense_ParryNegatesEnemyHit::RunTest(const FString& Par
 	const float StaminaAfterCost = Env.GetPlayer(UMordecaiAttributeSet::GetStaminaAttribute());
 	TestEqual("the parry costs its stamina up front", StaminaAfterCost, 100.f - Parry->ParryStaminaCost);
 
-	if (!TestTrue("the swing lands", Env.LandSwing(Enemy)))
-	{
-		return true;
-	}
+	TestFalse("the parried swing is cancelled before it remains Active", Env.LandSwing(Enemy));
 	TestEqual("no health lost", Env.GetPlayer(UMordecaiAttributeSet::GetHealthAttribute()), 100.f);
 	TestEqual("no posture lost", Env.GetPlayer(UMordecaiAttributeSet::GetPostureAttribute()), 100.f);
 	TestEqual("no further stamina", Env.GetPlayer(UMordecaiAttributeSet::GetStaminaAttribute()), StaminaAfterCost);

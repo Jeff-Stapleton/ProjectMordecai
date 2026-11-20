@@ -2,6 +2,8 @@
 
 #include "Mordecai/Combat/MordecaiGA_Parry.h"
 #include "Mordecai/Combat/MordecaiGA_Block.h"
+#include "Mordecai/Combat/MordecaiPostureSystem.h"
+#include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "AbilitySystemComponent.h"
@@ -48,22 +50,36 @@ void UMordecaiGA_Parry::TransitionToParryPhase(EMordecaiParryPhase NewPhase)
 // Receive Parried Hit (AC-006.13)
 // ---------------------------------------------------------------------------
 
-bool UMordecaiGA_Parry::ReceiveParriedHit(UAbilitySystemComponent* AttackerASC)
+bool UMordecaiGA_Parry::ReceiveParriedHit(
+	UAbilitySystemComponent* AttackerASC,
+	const bool bApplyParriedState)
 {
-	if (CurrentParryPhase != EMordecaiParryPhase::Active) return false;
+	if (CurrentParryPhase != EMordecaiParryPhase::Active)
+	{
+		return false;
+	}
+
+	if (!CurrentActorInfo)
+	{
+		return false;
+	}
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!AvatarActor || !AvatarActor->HasAuthority())
+	{
+		return false;
+	}
 
 	bParrySuccessful = true;
 
 	// Apply Parried tag to attacker (stagger)
 	if (AttackerASC)
 	{
-		ApplyParriedTagToAttacker(AttackerASC);
+		if (bApplyParriedState)
+		{
+			ApplyParriedTagToAttacker(AttackerASC);
+		}
 
-		// Apply posture damage to attacker
-		AttackerASC->ApplyModToAttribute(
-			UMordecaiAttributeSet::GetPostureAttribute(),
-			EGameplayModOp::Additive,
-			-ParryPostureDamage);
+		ApplyParryPostureDamage(AttackerASC);
 	}
 
 	// Apply Riposte tag to self (punish window)
@@ -86,6 +102,25 @@ bool UMordecaiGA_Parry::ReceiveParriedHit(UAbilitySystemComponent* AttackerASC)
 	}
 
 	return true;
+}
+
+void UMordecaiGA_Parry::ApplyParryPostureDamage(UAbilitySystemComponent* AttackerASC)
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UAbilitySystemComponent* DefenderASC = GetAbilitySystemComponentFromActorInfo();
+	if (!AvatarActor || !AvatarActor->HasAuthority() || !AttackerASC || !DefenderASC)
+	{
+		return;
+	}
+
+	const float ResolvedDamage = UMordecaiPostureSystem::ComputePostureDamageFromAttributes(
+		DefenderASC,
+		AttackerASC,
+		ParryPostureDamage);
+	AttackerASC->ApplyModToAttribute(
+		UMordecaiAttributeSet::GetPostureAttribute(),
+		EGameplayModOp::Additive,
+		-ResolvedDamage);
 }
 
 // ---------------------------------------------------------------------------
@@ -280,7 +315,40 @@ void UMordecaiGA_Parry::RemoveParryWhiffTag()
 void UMordecaiGA_Parry::ApplyParriedTagToAttacker(UAbilitySystemComponent* AttackerASC)
 {
 	if (!AttackerASC) return;
-	AttackerASC->AddLooseGameplayTag(MordecaiGameplayTags::State_Parried);
+	if (AMordecaiEnemyCharacter* Enemy =
+		Cast<AMordecaiEnemyCharacter>(AttackerASC->GetAvatarActor()))
+	{
+		Enemy->EnterParriedState();
+		return;
+	}
+
+	AttackerASC->SetLooseGameplayTagCount(
+		MordecaiGameplayTags::State_Parried,
+		1,
+		EGameplayTagReplicationState::TagOnly);
+	ParriedAttackerASC = AttackerASC;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ParriedAttackerTimerHandle);
+		World->GetTimerManager().SetTimer(
+			ParriedAttackerTimerHandle,
+			this,
+			&ThisClass::RemoveParriedTagFromAttacker,
+			GetDefault<UMordecaiPostureSystem>()->GetParriedDurationSeconds(),
+			false);
+	}
+}
+
+void UMordecaiGA_Parry::RemoveParriedTagFromAttacker()
+{
+	if (UAbilitySystemComponent* AttackerASC = ParriedAttackerASC.Get())
+	{
+		AttackerASC->SetLooseGameplayTagCount(
+			MordecaiGameplayTags::State_Parried,
+			0,
+			EGameplayTagReplicationState::TagOnly);
+	}
+	ParriedAttackerASC.Reset();
 }
 
 void UMordecaiGA_Parry::ApplyRiposteTag()
@@ -288,15 +356,28 @@ void UMordecaiGA_Parry::ApplyRiposteTag()
 	if (!CurrentActorInfo) return;
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
-		ASC->AddLooseGameplayTag(MordecaiGameplayTags::State_Riposte);
-	}
-}
-
-void UMordecaiGA_Parry::RemoveRiposteTag()
-{
-	if (!CurrentActorInfo) return;
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Riposte);
+		ASC->SetLooseGameplayTagCount(
+			MordecaiGameplayTags::State_Riposte,
+			1,
+			EGameplayTagReplicationState::TagOnly);
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().ClearTimer(RiposteTimerHandle);
+			const TWeakObjectPtr<UAbilitySystemComponent> WeakASC = ASC;
+			World->GetTimerManager().SetTimer(
+				RiposteTimerHandle,
+				FTimerDelegate::CreateLambda([WeakASC]()
+				{
+					if (UAbilitySystemComponent* RiposteASC = WeakASC.Get())
+					{
+						RiposteASC->SetLooseGameplayTagCount(
+							MordecaiGameplayTags::State_Riposte,
+							0,
+							EGameplayTagReplicationState::TagOnly);
+					}
+				}),
+				GetDefault<UMordecaiPostureSystem>()->GetRiposteWindowSeconds(),
+				false);
+		}
 	}
 }

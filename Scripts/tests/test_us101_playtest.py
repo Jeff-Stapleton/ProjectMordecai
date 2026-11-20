@@ -91,6 +91,7 @@ class DefenseWorld(CombatWorld):
         self.parry_active, self.parry_hit = False, False
         self.parry_until = self.whiff_until = -1.0
         self.riposte = self.attacker_parried = False
+        self.posture_state_until = -1.0
         self.dodge_until = self.dodge_cd_until = self.jump_until = -1.0
         self.defense_log = []      # (real time, kind, health, stamina, posture taken) per hit
         self.dodges = []           # (x before, x after)
@@ -119,6 +120,8 @@ class DefenseWorld(CombatWorld):
             self.parry_active = False
             if not self.parry_hit:
                 self.whiff_until = now + self.WHIFF_S
+        if now >= self.posture_state_until:
+            self.riposte = self.attacker_parried = False
         if lt_down and rt_down and not rt_was and not self.parry_active and now >= self.whiff_until:
             self.parry_active, self.parry_hit = True, False
             self.parry_until = now + self.PARRY_S
@@ -195,6 +198,7 @@ class DefenseWorld(CombatWorld):
             dh = ds = dp = 0.0
             if kind == "parried":
                 self.riposte = self.attacker_parried = True
+                self.posture_state_until = now + 1.0
                 self.parry_hit, self.parry_active, self.parry_until = True, False, now
         elif kind in ("perfect", "blocked"):
             dh, dp = dmg * 0.5, dmg * 0.3 * 0.5

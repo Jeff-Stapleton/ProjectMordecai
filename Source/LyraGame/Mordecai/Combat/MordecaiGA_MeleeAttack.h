@@ -74,6 +74,14 @@ public:
 	/** Compute posture damage from active profile. Returns negative value (AC-004.5). */
 	float ComputePostureDamage() const;
 
+	/** Resolve the larger of posture vulnerability and the one-hit riposte multiplier. */
+	float ResolvePostureRuntimeDamage(
+		UAbilitySystemComponent* SourceASC,
+		UAbilitySystemComponent* TargetASC) const;
+
+	/** Consume Riposte after any landed player melee hit. */
+	bool ConsumeRiposte(UAbilitySystemComponent* SourceASC) const;
+
 	/** Get stamina cost from active profile (AC-004.7). */
 	float GetStaminaCost() const;
 
@@ -177,7 +185,13 @@ protected:
 
 	// --- Hit Detection & Damage ---
 	void PerformHitDetectionAndApplyDamage();
-	void ApplyDamageToTarget(AActor* TargetActor, const FVector& HitLocation);
+	bool ApplyDamageToTarget(
+		AActor* TargetActor,
+		const FVector& HitLocation,
+		bool bRiposteAvailableForSwing);
+	float ResolvePostureRuntimeDamageForSwing(
+		UAbilitySystemComponent* TargetASC,
+		bool bRiposteAvailableForSwing) const;
 	void ApplyEnchantWeaponBonusDamage(UAbilitySystemComponent* TargetASC);
 	void ApplyStaminaCost();
 	void ApplyOnUsePayloads();

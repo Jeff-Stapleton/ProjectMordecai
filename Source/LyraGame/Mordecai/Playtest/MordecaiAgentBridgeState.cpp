@@ -1033,7 +1033,29 @@ namespace MordecaiAgentBridge::State
 			Entry->SetField(TEXT("health"), NullValue());
 		}
 
+		const UAbilitySystemComponent* ASC = FindASC(Actor);
 		const AMordecaiEnemyCharacter* Enemy = Cast<AMordecaiEnemyCharacter>(Actor);
+		const UMordecaiAttributeSet* PostureAttributes =
+			ASC ? ASC->GetSet<UMordecaiAttributeSet>() : nullptr;
+		if (!PostureAttributes && Enemy)
+		{
+			PostureAttributes = Enemy->GetMordecaiAttributeSet();
+		}
+		if (PostureAttributes)
+		{
+			Entry->SetField(
+				TEXT("posture"),
+				MakeNumber(PostureAttributes->GetPosture()));
+			Entry->SetField(
+				TEXT("max_posture"),
+				MakeNumber(PostureAttributes->GetMaxPosture()));
+		}
+		else
+		{
+			Entry->SetField(TEXT("posture"), NullValue());
+			Entry->SetField(TEXT("max_posture"), NullValue());
+		}
+
 		const AMordecaiCharacter* Hero = Cast<AMordecaiCharacter>(Actor);
 		const UArrowComponent* FacingArrow = Enemy ? Enemy->GetFacingArrow() : (Hero ? Hero->GetFacingArrow() : nullptr);
 		Entry->SetField(TEXT("facing_arrow"), FacingArrow
@@ -1055,7 +1077,6 @@ namespace MordecaiAgentBridge::State
 		Entry->SetField(TEXT("ai_state"), AI ? StringValue(EnumName(AI->GetCurrentState())) : NullValue());
 		Entry->SetField(TEXT("spawn_location"), AI ? MakeVector(AI->GetSpawnLocation()) : NullValue());
 
-		const UAbilitySystemComponent* ASC = FindASC(Actor);
 		Entry->SetArrayField(TEXT("tags"), ASC ? TagsToJson(ASC->GetOwnedGameplayTags()) : TArray<TSharedPtr<FJsonValue>>());
 
 		TArray<TSharedPtr<FJsonValue>> Widgets;

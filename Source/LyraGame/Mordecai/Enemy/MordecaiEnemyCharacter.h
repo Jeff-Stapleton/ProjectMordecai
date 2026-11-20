@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Character/LyraCharacter.h"
+#include "GameplayTagContainer.h"
 
 #include "MordecaiEnemyCharacter.generated.h"
 
@@ -103,6 +104,26 @@ public:
 	/** Exit posture broken state: remove tag, reset posture to MaxPosture. */
 	void ExitPostureBrokenState();
 
+	/** Replace PostureBroken with KnockedDown and recover after the configured duration. */
+	void EnterKnockDownState();
+	void ExitKnockDownState();
+
+	/** Apply/expire the timed Parried state on the authoritative enemy. */
+	void EnterParriedState();
+	void ExitParriedState();
+
+	/** Tag-only replicated posture-state mutation. No-op without authority. */
+	void SetPostureRuntimeState(FGameplayTag StateTag, bool bEnabled);
+
+	/** Cancel an active melee ability before its windup can land. */
+	void CancelInFlightMelee();
+
+	/** One authoritative regeneration step, scaled by PostureRecoveryMultiplier. */
+	void RegeneratePosture(float DeltaTime);
+
+	/** Clear timers and all break/parry/riposte/knockdown tags. */
+	void ClearPostureRuntimeStates();
+
 	/** Initialize ASC, attributes, tags, and delegates. Idempotent — safe to call multiple times. */
 	void InitializeAbilitySystem();
 
@@ -149,6 +170,8 @@ private:
 
 	bool bAbilitySystemInitialized = false;
 	FTimerHandle PostureBrokenTimerHandle;
+	FTimerHandle KnockDownTimerHandle;
+	FTimerHandle ParriedTimerHandle;
 
 	void GrantDefaultAbilities();
 };

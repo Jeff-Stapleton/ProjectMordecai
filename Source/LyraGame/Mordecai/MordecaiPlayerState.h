@@ -11,6 +11,7 @@ class UMordecaiAbilitySystemComponent;
 class UMordecaiSkillComponent;
 class UMordecaiFeatComponent;
 class UMordecaiStaminaRuntimeComponent;
+class UMordecaiPostureRuntimeComponent;
 
 /**
  * AMordecaiPlayerState
@@ -40,6 +41,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Stamina")
 	UMordecaiStaminaRuntimeComponent* GetStaminaRuntimeComponent() const { return StaminaRuntimeComponent; }
 
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Posture")
+	UMordecaiPostureRuntimeComponent* GetPostureRuntimeComponent() const { return PostureRuntimeComponent; }
+
 private:
 	UPROPERTY()
 	TObjectPtr<UMordecaiAttributeSet> MordecaiAttributeSet;
@@ -52,4 +56,7 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Mordecai|Stamina")
 	TObjectPtr<UMordecaiStaminaRuntimeComponent> StaminaRuntimeComponent;
+
+	UPROPERTY(VisibleAnywhere, Category = "Mordecai|Posture")
+	TObjectPtr<UMordecaiPostureRuntimeComponent> PostureRuntimeComponent;
 };

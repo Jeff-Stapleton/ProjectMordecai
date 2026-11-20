@@ -46,9 +46,8 @@ Steps (--plan prints them as the story's Steps table):
      Mordecai.State.Dodging seen, the player within 150 cm of the attacker around the hit.
   7  Jump: SpaceBar tapped ~0.15 s after the edge: no health lost, Mordecai.State.Airborne in
      player.tags while movement_mode is Falling, and gone after the landing.
-  8  Parry, last (Riposte and Parried are never removed today, N33): LT held from Recover, RT
-     pressed ~0.25 s after the edge: no health lost, Mordecai.State.Riposte on the player,
-     Mordecai.State.Parried on the attacker.
+  8  Parry: LT held from Recover, RT pressed ~0.25 s after the edge: no health lost, and the
+     1-second Mordecai.State.Riposte / Mordecai.State.Parried windows are sampled around the hit.
   A screenshot after the walk and after each swing shows the HUD bars.  Steps 5-7 need the control
   to have passed (a defended swing that does no damage proves nothing if swings never land here),
   and steps 5-7 FAIL when the player was out of the 150 cm reach at the hit.
@@ -178,8 +177,8 @@ SCREENSHOTS = {
                "the TestAttacker may be staggered",
 }
 KNOWN_ISSUES = (
-    "Riposte and Parried are loose tags that nothing removes (N33): parry_negates runs last, and "
-    "it FAILs if either tag is already there before its swing.",
+    "Parried and Riposte last 1 second (US-123), so parry_negates samples both tags around the "
+    "hit instead of requiring them after the full swing has ended.",
     "A dodge travels about 110 cm (N27); with no move input it goes backward (-X), out of the "
     "150 cm reach, which would make dodge_evades prove nothing.  So W is held into the dodge "
     "(+X, into the attacker), and the check FAILs when the player was out of reach at the hit.",
@@ -227,7 +226,7 @@ PLAN = (
          f"('{TAG_BLOCKING}' seen), axis {RT}=1 "
          f"for {RT_TAP_S:g}s ~{PARRY_DELAY_S:g}s after the edge (the parry chord) -> health "
          f"unchanged (+-{TOL:g}), '{TAG_RIPOSTE}' in player.tags and '{TAG_PARRIED}' in the "
-         f"attacker's actors[] tags; then {LT}=0 (last: N33; needs the control)",
+         f"attacker's actors[] tags inside their 1-second windows; then {LT}=0 (needs the control)",
          proves=("AC-101.15",)),
 )
 
@@ -605,7 +604,6 @@ class Us101Run(kit.PlaytestRun):
             self.attempt("jump_evades", self._guarded(self.step_jump), needs=control,
                          needs_why=why_control)
             self._shot_after("jumped", control)
-            # Last: Riposte and Parried are never removed (N33)
             self.attempt("parry_negates", self._guarded(self.step_parry), needs=control,
                          needs_why=why_control)
             self._shot_after("parried", control)
@@ -977,9 +975,9 @@ class Us101Run(kit.PlaytestRun):
             if TAG_BLOCKING not in tags(p0):
                 problems.append(f"'{TAG_BLOCKING}' is gone (tags {tags(p0)})")
             if TAG_RIPOSTE in tags(p0):
-                problems.append(f"'{TAG_RIPOSTE}' is already on the player (N33)")
+                problems.append(f"'{TAG_RIPOSTE}' is already on the player")
             if TAG_PARRIED in tags(a0):
-                problems.append(f"'{TAG_PARRIED}' is already on the {ATTACKER} (N33)")
+                problems.append(f"'{TAG_PARRIED}' is already on the {ATTACKER}")
             return "; ".join(problems) or None
 
         def act(t_edge, rec):
