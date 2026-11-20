@@ -241,6 +241,19 @@ class Us123PlaytestCase(unittest.TestCase):
         self.assertEqual(us123._posture(actor), 25.0)
         self.assertEqual(us123._max_posture(actor), 100.0)
 
+    def test_weapon_and_tier_rejects_stale_red_tag_at_yellow_numeric_stamina(self):
+        run = object.__new__(us123.Us123Run)
+        run._read = lambda: {
+            "player": {
+                "valid": True,
+                "attributes": {"stamina": 30.0},
+                "tags": ["Mordecai.Stamina.Tier.Red"],
+                "weapon": {"display_name": "Longsword"},
+            }
+        }
+        with self.assertRaisesRegex(RuntimeError, "runtime tier is not Yellow"):
+            run._weapon_and_tier()
+
     def test_full_real_input_route_passes_against_fake_bridge(self):
         world, server = self.serve()
         code, report = self.play(server)

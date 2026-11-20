@@ -326,6 +326,8 @@ class Us123Run(kit.PlaytestRun):
             problems.append(f"weapon is {name!r}, expected Longsword")
         if stamina is None or not 25.0 < stamina <= 75.0:
             problems.append(f"authoritative stamina {stamina} is outside Yellow: {tags}")
+        if TAG_YELLOW not in tags:
+            problems.append(f"runtime tier is not Yellow at stamina {stamina}: {tags}")
         if problems:
             raise RuntimeError("; ".join(problems))
         return stamina, name, tags
@@ -537,7 +539,7 @@ class Us123Run(kit.PlaytestRun):
         self._aim()
         # Leave enough headroom that regeneration between the two 1.5-second
         # parry staggers cannot cross back into Green before L1 commits.
-        self._drain_with_dodges("knockdown-route headroom", 10.0)
+        self._drain_with_dodges("knockdown-route headroom", 25.0)
         self._walk_fight()
         stamina, weapon, _ = self._weapon_and_tier()
         return stamina, weapon
