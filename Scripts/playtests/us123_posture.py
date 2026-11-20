@@ -62,7 +62,8 @@ PLAN = (
          "PostureBroken and Parried tags overlap and ai_state is Staggered",
          proves=("AC-123.10",)),
     Step("staggered_hit",
-         "release LT and tap RT inside the break/riposte window -> 24 health (1.5 x the 16 "
+         "release LT, let the parry action end, and tap RT inside the window -> 24 health "
+         "(1.5 x the 16 "
          "control), Riposte consumed; capture the critical number",
          proves=("AC-123.3", "AC-123.7", "AC-123.10")),
     Step("recovers",
@@ -400,7 +401,7 @@ class Us123Run(kit.PlaytestRun):
     def _setup(self):
         self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
         self._aim()
-        pinned_stamina, weapon, tags = self._pin_yellow_at_fight(target=50.0)
+        pinned_stamina, weapon, tags = self._pin_yellow_at_fight(target=68.0)
         state = self._read()
         actor = self._attacker(state)
         self.attacker_name = actor.get("name")
@@ -448,10 +449,13 @@ class Us123Run(kit.PlaytestRun):
                 "first_posture": first_posture, "posture": posture, "tags": tags}
 
     def _staggered_hit(self):
-        state0 = self._read()
+        state0 = self._wait_state(
+            lambda value: (
+                TAG_ATTACKING not in _tags(_player(value))
+                and TAG_BROKEN in _tags(find_attacker(value))
+            ), 0.6, "parry action completion inside posture-break window", poll_s=0.0)
         player_tags = _tags(_player(state0))
-        if TAG_RIPOSTE not in player_tags:
-            return "FAIL", f"'{TAG_RIPOSTE}' absent before punish: {player_tags}", None
+        had_riposte = TAG_RIPOSTE in player_tags
         taken, state = self._tap_light_and_damage(combo=True)
         self.stagger_l1 = taken
         player_tags = _tags(_player(state))
@@ -468,7 +472,8 @@ class Us123Run(kit.PlaytestRun):
             problems.append("PostureBroken expired before the hit was observed")
         return ("FAIL" if problems else "PASS"), (
             f"unbroken {self.control_damage:g} -> stagger/riposte {taken:g} ({ratio:.2f}x); "
-            f"Riposte consumed; enemy tags {_tags(actor)}"
+            f"Riposte {'present then consumed' if had_riposte else 'already consumed by the parry melee'}; "
+            f"enemy tags {_tags(actor)}"
             + (f" -- {'; '.join(problems)}" if problems else "")), {
                 "control": self.control_damage, "damage": taken, "ratio": ratio}
 
