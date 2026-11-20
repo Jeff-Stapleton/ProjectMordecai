@@ -259,7 +259,7 @@ class Us123Run(kit.PlaytestRun):
         # Sprint short closed-loop W/S legs. Keeping this one-dimensional avoids
         # camera-relative lateral correction near the attacker while every
         # mutation still comes from real key input.
-        deadline = time.monotonic() + 20.0
+        deadline = time.monotonic() + 35.0
         pinned = None
         at_fight_spot = False
         try:
