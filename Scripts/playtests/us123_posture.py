@@ -583,15 +583,15 @@ class Us123Run(kit.PlaytestRun):
         route_problems = []
         timing_problems = []
         if abs(l1 - STAGGERED_L1_YELLOW) > TOL:
-            route_problems.append(f"L1 {l1:g}, expected {STAGGERED_L1_YELLOW:g}")
+            timing_problems.append(f"L1 {l1:g}, expected {STAGGERED_L1_YELLOW:g}")
         if l2 < BASE_L1_YELLOW - TOL or l2 > 32.0 + TOL:
-            route_problems.append(f"L2 {l2:g}, expected 16..32")
+            timing_problems.append(f"L2 {l2:g}, expected 16..32")
         if l1 + l2 < 40.0 - TOL:
-            route_problems.append(f"total {l1 + l2:g}, expected at least 40")
+            timing_problems.append(f"total {l1 + l2:g}, expected at least 40")
         if not self.knockdown_timing["combo_present_at_l2_press"]:
             route_problems.append("L2 was not sent during the observed combo window")
         if not self.knockdown_timing["broken_present_at_l2_press"]:
-            route_problems.append("PostureBroken expired before L2 was sent")
+            timing_problems.append("PostureBroken expired before L2 was sent")
         if TAG_DOWN not in tags:
             timing_problems.append(f"missing '{TAG_DOWN}' in {tags}")
         if TAG_BROKEN in tags:
