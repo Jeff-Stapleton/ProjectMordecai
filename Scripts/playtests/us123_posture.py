@@ -506,7 +506,7 @@ class Us123Run(kit.PlaytestRun):
         # Pin the route immediately before the parries. Draining far from the
         # fight allowed variable walk/parry time to regenerate across the
         # Yellow/Green boundary, which changed the deterministic damage tier.
-        stamina, weapon, _ = self._pin_yellow_at_fight(target=55.0)
+        stamina, weapon, _ = self._pin_yellow_at_fight(target=68.0)
         return stamina, weapon
 
     def _knockdown(self):
