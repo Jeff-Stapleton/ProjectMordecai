@@ -2,6 +2,7 @@
 
 #include "Mordecai/Combat/MordecaiHitDefense.h"
 #include "Mordecai/Combat/MordecaiGA_Block.h"
+#include "Mordecai/Combat/MordecaiGA_Dodge.h"
 #include "Mordecai/Combat/MordecaiGA_Parry.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "AbilitySystemComponent.h"
@@ -128,9 +129,20 @@ FMordecaiHitDefenseResult FMordecaiHitDefense::ResolveIncomingHit(
 		return Result;
 	}
 
-	// 1. i-frames: the hit never connects (AC-005.3 dodge, AC-021.3 Blink)
+	// 1. i-frames: the hit never connects (AC-005.3 dodge, AC-021.3 Blink).
+	// Only a real hit evaded by an active Dodge can earn its one perfect-action reward.
+	const bool bDodging =
+		TargetASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Dodging);
+	if (bDodging)
+	{
+		if (UMordecaiGA_Dodge* Dodge =
+			FindInstance<UMordecaiGA_Dodge>(TargetASC, true))
+		{
+			Dodge->NotifySuccessfulEvade();
+		}
+	}
 	if (TargetASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Invulnerable)
-		|| TargetASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Dodging))
+		|| bDodging)
 	{
 		Result.Defense = EMordecaiHitDefense::Evaded;
 		UE_LOG(LogMordecaiDefense, Log, TEXT("%s evaded %s's hit (%.1f) with i-frames"),

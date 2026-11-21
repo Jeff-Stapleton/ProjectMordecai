@@ -4,6 +4,7 @@
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
+#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiShieldDataAsset.h"
@@ -225,12 +226,42 @@ bool UMordecaiGA_Block::HasActivationOwnedTag(const FGameplayTag& Tag) const
 // Ability Activation (AC-006.1, AC-006.2)
 // ---------------------------------------------------------------------------
 
+bool UMordecaiGA_Block::CanActivateAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags,
+	FGameplayTagContainer* OptionalRelevantTags) const
+{
+	if (!Super::CanActivateAbility(
+		Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
+	{
+		return false;
+	}
+	UAbilitySystemComponent* ASC = ActorInfo
+		? ActorInfo->AbilitySystemComponent.Get()
+		: nullptr;
+	const UMordecaiGA_MeleeAttack* Melee =
+		UMordecaiGA_MeleeAttack::FindActiveMelee(ASC);
+	return !Melee || Melee->CanCancelIntoBlock();
+}
+
 void UMordecaiGA_Block::ActivateAbility(
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
+	if (UMordecaiGA_MeleeAttack* Melee =
+		UMordecaiGA_MeleeAttack::FindActiveMelee(
+			ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr))
+	{
+		if (!Melee->TryCancelIntoBlock())
+		{
+			EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+			return;
+		}
+	}
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	TransitionToBlockPhase(EMordecaiBlockPhase::Active);

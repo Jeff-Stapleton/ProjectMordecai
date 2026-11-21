@@ -462,7 +462,11 @@ bool FMordecai_Recovery_Defense_DodgeIFramesNegateEnemyHit::RunTest(const FStrin
 	TestTrue("still inside the i-frames at the hit", Env.PlayerHas(MordecaiGameplayTags::State_Dodging));
 	TestEqual("no health lost", Env.GetPlayer(UMordecaiAttributeSet::GetHealthAttribute()), 100.f);
 	TestEqual("no posture lost", Env.GetPlayer(UMordecaiAttributeSet::GetPostureAttribute()), 100.f);
-	TestEqual("no stamina beyond the dodge's cost", Env.GetPlayer(UMordecaiAttributeSet::GetStaminaAttribute()), StaminaAfterCost);
+	TestEqual("a real perfect evasion refunds 10 stamina once",
+		Env.GetPlayer(UMordecaiAttributeSet::GetStaminaAttribute()),
+		StaminaAfterCost + 10.f);
+	TestTrue("perfect evasion exposes the success feedback tag",
+		Env.PlayerHas(MordecaiGameplayTags::State_PerfectDodge));
 	TestFalse("no on-hit status", Env.PlayerHas(MordecaiGameplayTags::Status_Weakened));
 	TestEqual("no damage number", Env.PopCount(), 0);
 

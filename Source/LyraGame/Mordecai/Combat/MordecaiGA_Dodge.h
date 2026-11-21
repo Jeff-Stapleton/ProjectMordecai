@@ -8,6 +8,8 @@
 
 #include "MordecaiGA_Dodge.generated.h"
 
+class UAbilityTask_ApplyRootMotionConstantForce;
+
 /**
  * UMordecaiGA_Dodge
  *
@@ -100,8 +102,17 @@ public:
 	/** Check if ActivationBlockedTags contains the given tag. */
 	bool HasActivationBlockedTag(const FGameplayTag& Tag) const;
 
+	/** Called by hit defense after a real hit is evaded. Grants the perfect reward at most once. */
+	bool NotifySuccessfulEvade();
+
 protected:
 	//~ UGameplayAbility interface
+	virtual bool CanActivateAbility(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayTagContainer* SourceTags = nullptr,
+		const FGameplayTagContainer* TargetTags = nullptr,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	//~ End UGameplayAbility interface
@@ -130,7 +141,11 @@ protected:
 	EMordecaiDodgePhase CurrentDodgePhase = EMordecaiDodgePhase::None;
 	FVector DodgeDirection = FVector::ZeroVector;
 	bool bPerfectDodgeActive = false;
+	bool bPerfectDodgeRewardGranted = false;
 	float ActivationStaminaTierMultiplier = 1.f;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_ApplyRootMotionConstantForce> DodgeRootMotionTask;
 
 	FTimerHandle DodgeTimerHandle;
 	FTimerHandle PerfectDodgeTimerHandle;

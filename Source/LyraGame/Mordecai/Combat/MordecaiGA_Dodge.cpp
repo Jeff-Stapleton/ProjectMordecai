@@ -3,7 +3,9 @@
 #include "Mordecai/Combat/MordecaiGA_Dodge.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
+#include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -97,6 +99,56 @@ bool UMordecaiGA_Dodge::HasActivationBlockedTag(const FGameplayTag& Tag) const
 	return ActivationBlockedTags.HasTag(Tag);
 }
 
+bool UMordecaiGA_Dodge::CanActivateAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags,
+	FGameplayTagContainer* OptionalRelevantTags) const
+{
+	if (!Super::CanActivateAbility(
+		Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
+	{
+		return false;
+	}
+	UAbilitySystemComponent* ASC = ActorInfo
+		? ActorInfo->AbilitySystemComponent.Get()
+		: nullptr;
+	const UMordecaiGA_MeleeAttack* Melee =
+		UMordecaiGA_MeleeAttack::FindActiveMelee(ASC);
+	return !Melee || Melee->CanCancelIntoDodge();
+}
+
+bool UMordecaiGA_Dodge::NotifySuccessfulEvade()
+{
+	if (!bPerfectDodgeActive || bPerfectDodgeRewardGranted)
+	{
+		return false;
+	}
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!AvatarActor || !AvatarActor->HasAuthority() || !ASC)
+	{
+		return false;
+	}
+
+	bPerfectDodgeRewardGranted = true;
+	ASC->ApplyModToAttribute(
+		UMordecaiAttributeSet::GetStaminaAttribute(),
+		EGameplayModOp::Additive,
+		PerfectDodgeStaminaRefund);
+	ApplyPerfectDodgeTag();
+
+	FGameplayEventData EventData;
+	EventData.EventTag = MordecaiGameplayTags::Event_PerfectAction;
+	EventData.Instigator = AvatarActor;
+	EventData.Target = AvatarActor;
+	ASC->HandleGameplayEvent(
+		MordecaiGameplayTags::Event_PerfectAction,
+		&EventData);
+	return true;
+}
+
 // ---------------------------------------------------------------------------
 // Ability Activation (AC-005.1, AC-005.2)
 // ---------------------------------------------------------------------------
@@ -107,6 +159,16 @@ void UMordecaiGA_Dodge::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
+	if (UMordecaiGA_MeleeAttack* Melee =
+		UMordecaiGA_MeleeAttack::FindActiveMelee(
+			ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr))
+	{
+		if (!Melee->TryCancelIntoDodge())
+		{
+			EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+			return;
+		}
+	}
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	// Snapshot before paying this dodge's cost: the action uses the tier the
@@ -139,9 +201,10 @@ void UMordecaiGA_Dodge::ActivateAbility(
 	TransitionToDodgePhase(EMordecaiDodgePhase::Active);
 	ApplyDodgingTag();
 
-	// AC-005.8: Apply PerfectDodge tag for the timing window
+	// AC-005.8: Open the timing window. The HUD success tag is applied only if a
+	// real incoming hit is evaded during this window.
 	bPerfectDodgeActive = true;
-	ApplyPerfectDodgeTag();
+	bPerfectDodgeRewardGranted = false;
 
 	// AC-005.5: Apply movement impulse in dodge direction
 	ApplyDodgeMovement();
@@ -201,6 +264,8 @@ void UMordecaiGA_Dodge::EndAbility(
 	CurrentDodgePhase = EMordecaiDodgePhase::None;
 	DodgeDirection = FVector::ZeroVector;
 	ActivationStaminaTierMultiplier = 1.f;
+	bPerfectDodgeRewardGranted = false;
+	DodgeRootMotionTask = nullptr;
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -273,29 +338,38 @@ void UMordecaiGA_Dodge::ApplyStaminaCost()
 
 void UMordecaiGA_Dodge::ApplyDodgeMovement()
 {
-	if (!CurrentActorInfo) return;
-	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	ACharacter* Character = Cast<ACharacter>(AvatarActor);
-	if (!Character) return;
-
-	FVector Velocity = ComputeImpulseVelocity(DodgeDirection);
-
-	// Use LaunchCharacter to apply dodge velocity.
-	// bXYOverride=true locks to dodge direction (AC-005.13: no steering).
-	Character->LaunchCharacter(Velocity, true, false);
+	if (!CurrentActorInfo || DodgeDurationMs <= 0.f)
+	{
+		return;
+	}
+	const float DurationSeconds = GetDodgeDurationSeconds();
+	const float Strength =
+		DodgeDistanceCm * ActivationStaminaTierMultiplier / DurationSeconds;
+	DodgeRootMotionTask =
+		UAbilityTask_ApplyRootMotionConstantForce::ApplyRootMotionConstantForce(
+			this,
+			TEXT("MordecaiDodge"),
+			DodgeDirection.GetSafeNormal(),
+			Strength,
+			DurationSeconds,
+			false,
+			nullptr,
+			ERootMotionFinishVelocityMode::SetVelocity,
+			FVector::ZeroVector,
+			0.f,
+			false);
+	if (DodgeRootMotionTask)
+	{
+		DodgeRootMotionTask->ReadyForActivation();
+	}
 }
 
 void UMordecaiGA_Dodge::StopDodgeMovement()
 {
-	if (!CurrentActorInfo) return;
-	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	ACharacter* Character = Cast<ACharacter>(AvatarActor);
-	if (!Character) return;
-
-	if (UCharacterMovementComponent* CMC = Character->GetCharacterMovement())
+	if (DodgeRootMotionTask)
 	{
-		// Zero out velocity to stop dodge momentum
-		CMC->StopMovementImmediately();
+		DodgeRootMotionTask->EndTask();
+		DodgeRootMotionTask = nullptr;
 	}
 }
 

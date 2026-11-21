@@ -4,6 +4,7 @@
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiPlayerController.h"
+#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/UI/MordecaiInventoryWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuSubsystem.h"
@@ -656,12 +657,48 @@ void UMordecaiHeroComponent::HandleAbilityInputPressed(FGameplayTag InputTag)
 {
 	if (ULyraAbilitySystemComponent* ASC = FindLyraAbilitySystemComponent())
 	{
+		if (InputTag == MordecaiGameplayTags::Input_Block)
+		{
+			if (bBlockSuppressedUntilRelease)
+			{
+				return;
+			}
+			if (UMordecaiGA_MeleeAttack* Melee =
+				UMordecaiGA_MeleeAttack::FindActiveMelee(ASC))
+			{
+				if (!Melee->TryCancelIntoBlock())
+				{
+					bBlockSuppressedUntilRelease = true;
+					return;
+				}
+			}
+		}
+		else if (InputTag == MordecaiGameplayTags::Input_Dodge)
+		{
+			if (UMordecaiGA_MeleeAttack* Melee =
+				UMordecaiGA_MeleeAttack::FindActiveMelee(ASC))
+			{
+				if (!Melee->TryCancelIntoDodge())
+				{
+					return;
+				}
+			}
+		}
+		else if (InputTag == MordecaiGameplayTags::Input_Parry
+			&& UMordecaiGA_MeleeAttack::FindActiveMelee(ASC))
+		{
+			return;
+		}
 		ASC->AbilityInputTagPressed(InputTag);
 	}
 }
 
 void UMordecaiHeroComponent::HandleAbilityInputReleased(FGameplayTag InputTag)
 {
+	if (InputTag == MordecaiGameplayTags::Input_Block)
+	{
+		bBlockSuppressedUntilRelease = false;
+	}
 	if (ULyraAbilitySystemComponent* ASC = FindLyraAbilitySystemComponent())
 	{
 		ASC->AbilityInputTagReleased(InputTag);

@@ -5,11 +5,13 @@
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/LyraGameplayAbility.h"
 #include "MordecaiCombatTypes.h"
+#include "Mordecai/Weapons/MordecaiWeaponTypes.h"
 
 #include "MordecaiGA_MeleeAttack.generated.h"
 
 class UMordecaiAttackProfileDataAsset;
 class UMordecaiEquipmentComponent;
+class UMordecaiWeaponDataAsset;
 class UAbilitySystemComponent;
 struct FMordecaiHitResult;
 
@@ -88,6 +90,13 @@ public:
 
 	/** Check if ability can be cancelled into block in current state (AC-004.13). */
 	bool CanCancelIntoBlock() const;
+
+	/** Find the active instanced melee ability on an ASC, if any. */
+	static UMordecaiGA_MeleeAttack* FindActiveMelee(UAbilitySystemComponent* ASC);
+
+	/** End this attack only when its pinned Recovery profile permits the requested defense. */
+	bool TryCancelIntoDodge();
+	bool TryCancelIntoBlock();
 
 	/** Advance combo to next step. Returns true if advanced (AC-004.9). */
 	bool AdvanceCombo();
@@ -177,6 +186,14 @@ protected:
 	void OnComboWindowTimeout();
 	void SetComboWindowOpen(bool bOpen);
 	bool IsComboContinuationBlocked() const;
+	bool SnapshotCurrentStep();
+	void BindWeaponChange();
+	void UnbindWeaponChange();
+
+	UFUNCTION()
+	void HandleWeaponChanged(
+		EMordecaiEquipSlot ChangedSlot,
+		const UMordecaiWeaponDataAsset* NewWeapon);
 
 	// --- Hit Detection & Damage ---
 	void PerformHitDetectionAndApplyDamage();
@@ -201,6 +218,16 @@ protected:
 	bool bComboInputReceived = false;
 	bool bIsRooted = false;
 	float ActivationStaminaTierMultiplier = 1.f;
+	bool bWeaponChangedDuringAttack = false;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMordecaiAttackProfileDataAsset> PinnedAttackProfile;
+	float PinnedWeaponBaseDamage = 0.f;
+	float PinnedWeaponAttackSpeedMultiplier = 1.f;
+	float PinnedWeaponPostureDamageBonus = 0.f;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMordecaiEquipmentComponent> BoundEquipmentComponent;
 
 	FTimerHandle PhaseTimerHandle;
 	FTimerHandle ComboWindowTimerHandle;

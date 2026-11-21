@@ -132,4 +132,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ULyraAbilitySystemComponent> AbilitySystemOverride;
+
+	/** A rejected held Block cannot retry every Triggered frame; release arms the next press. */
+	bool bBlockSuppressedUntilRelease = false;
 };

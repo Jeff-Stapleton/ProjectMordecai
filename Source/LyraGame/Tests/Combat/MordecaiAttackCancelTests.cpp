@@ -54,6 +54,8 @@ namespace MordecaiAttackCancelTest
 			FloorCollision->SetCollisionResponseToAllChannels(ECR_Block);
 			FloorCollision->RegisterComponent();
 			Floor->SetActorLocation(FVector(0.f, 0.f, -100.f));
+			Player->GetCharacterMovement()->Activate(true);
+			Player->GetCharacterMovement()->SetComponentTickEnabled(true);
 			Player->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 
 			AttackProfile = MordecaiRecoveryTest::MakeStubProfile();
@@ -103,8 +105,10 @@ namespace MordecaiAttackCancelTest
 				World->Tick(LEVELTICK_All, FrameSeconds);
 				// The recovery test world never begins play, so its character movement component
 				// is not in the world's normal tick list. Tick it explicitly for runtime dodge travel.
-				Player->GetCharacterMovement()->TickComponent(
-					FrameSeconds, LEVELTICK_All, nullptr);
+				UCharacterMovementComponent* Movement =
+					Player->GetCharacterMovement();
+				Movement->TickComponent(
+					FrameSeconds, LEVELTICK_All, &Movement->PrimaryComponentTick);
 			}
 		}
 
@@ -251,6 +255,61 @@ bool FMordecai_AttackCancel_CommittedDefenseRejected::RunTest(const FString& Par
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_AttackCancel_HeavyRecoveryRemainsCommitted,
+	"Mordecai.AttackCancel.HeavyRecoveryRemainsCommitted",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_AttackCancel_HeavyRecoveryRemainsCommitted::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiAttackCancelTest;
+	for (const FGameplayTag& DefenseInput :
+		{ MordecaiGameplayTags::Input_Dodge.GetTag(), MordecaiGameplayTags::Input_Block.GetTag() })
+	{
+		FRuntimeEnv Env;
+		if (!TestTrue("runtime world", Env.SetupRuntime()))
+		{
+			Env.TeardownRuntime();
+			continue;
+		}
+		Env.AttackProfile->InputSlot = EMordecaiInputSlot::Heavy;
+		Env.EnterRecovery();
+		Env.Press(DefenseInput);
+		TestTrue("heavy attack remains active in Recovery",
+			Env.Active<UMordecaiGA_MeleeAttack>());
+		TestFalse("Dodge cannot cancel heavy Recovery", Env.Active<UMordecaiGA_Dodge>());
+		TestFalse("Block cannot cancel heavy Recovery", Env.Active<UMordecaiGA_Block>());
+		Env.TeardownRuntime();
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_AttackCancel_ProfileFlagsGateRecoveryCancel,
+	"Mordecai.AttackCancel.ProfileFlagsGateRecoveryCancel",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_AttackCancel_ProfileFlagsGateRecoveryCancel::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiAttackCancelTest;
+	for (const FGameplayTag& DefenseInput :
+		{ MordecaiGameplayTags::Input_Dodge.GetTag(), MordecaiGameplayTags::Input_Block.GetTag() })
+	{
+		FRuntimeEnv Env;
+		if (!TestTrue("runtime world", Env.SetupRuntime(false, false)))
+		{
+			Env.TeardownRuntime();
+			continue;
+		}
+		Env.EnterRecovery();
+		Env.Press(DefenseInput);
+		TestTrue("uncancelable light Recovery remains active",
+			Env.Active<UMordecaiGA_MeleeAttack>());
+		TestFalse("Dodge respects its profile flag", Env.Active<UMordecaiGA_Dodge>());
+		TestFalse("Block respects its profile flag", Env.Active<UMordecaiGA_Block>());
+		Env.TeardownRuntime();
+	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_AttackCancel_ParryDoesNotCancelAttack,
 	"Mordecai.AttackCancel.ParryDoesNotCancelAttack",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -299,13 +358,25 @@ bool FMordecai_Dodge_RuntimeTravelsTierScaledDistance::RunTest(const FString& Pa
 			continue;
 		}
 		Env.SetStamina(Case.Stamina);
-		const FVector Start = Env.Player->GetActorLocation();
 		Env.Press(MordecaiGameplayTags::Input_Dodge);
+		const UMordecaiGA_Dodge* Dodge = Env.Instance<UMordecaiGA_Dodge>();
+		if (!TestNotNull(*FString::Printf(TEXT("%s active Dodge instance"), Case.Tier), Dodge))
+		{
+			Env.TeardownRuntime();
+			continue;
+		}
+		TestTrue(*FString::Printf(TEXT("%s runtime constant-force source is active"), Case.Tier),
+			Env.Player->GetCharacterMovement()->CurrentRootMotion.HasActiveRootMotionSources());
+		const float RuntimeDistance =
+			Dodge->ComputeImpulseVelocity(Dodge->GetDodgeDirection()).Size2D()
+			* Dodge->GetDodgeDurationSeconds();
+		TestTrue(*FString::Printf(TEXT("%s runtime source travels %.0f +/-10%% cm (configured %.1f)"),
+			Case.Tier, Case.ExpectedDistance, RuntimeDistance),
+			FMath::IsNearlyEqual(
+				RuntimeDistance,
+				Case.ExpectedDistance,
+				Case.ExpectedDistance * 0.1f));
 		Env.TickSeconds(0.45f);
-		const float Distance = FVector::Dist2D(Start, Env.Player->GetActorLocation());
-		TestTrue(*FString::Printf(TEXT("%s dodge travels %.0f +/-10%% cm (actual %.1f)"),
-			Case.Tier, Case.ExpectedDistance, Distance),
-			FMath::IsNearlyEqual(Distance, Case.ExpectedDistance, Case.ExpectedDistance * 0.1f));
 		TestEqual(*FString::Printf(TEXT("%s dodge finishes at zero horizontal speed"), Case.Tier),
 			static_cast<float>(Env.Player->GetCharacterMovement()->Velocity.Size2D()), 0.f, 1.f);
 		Env.TeardownRuntime();

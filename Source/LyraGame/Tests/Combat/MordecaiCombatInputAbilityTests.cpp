@@ -199,9 +199,13 @@ bool FMordecai_Recovery_CombatInputBlockedWhileParryingOrDead::RunTest(const FSt
 	Env.PressInput(MordecaiGameplayTags::Input_LightAttack);
 	TestTrue("Light attack activates from its input tag", IsAbilityActive(Env, UMordecaiGA_MeleeAttack::StaticClass()));
 	TestTrue("Attacking tag", ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Attacking));
+	ASC->CancelAbilityHandle(
+		Env.FindSpec(UMordecaiGA_MeleeAttack::StaticClass())->Handle);
 	Env.PressInput(MordecaiGameplayTags::Input_Dodge);
 	TestTrue("Dodge activates from its input tag", IsAbilityActive(Env, UMordecaiGA_Dodge::StaticClass()));
 	TestTrue("Dodging tag", ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Dodging));
+	ASC->CancelAbilityHandle(
+		Env.FindSpec(UMordecaiGA_Dodge::StaticClass())->Handle);
 	Env.PressInput(MordecaiGameplayTags::Input_Block);
 	TestTrue("Block activates from its input tag", IsAbilityActive(Env, UMordecaiGA_Block::StaticClass()));
 	return true;
