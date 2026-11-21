@@ -2,12 +2,16 @@
 
 #include "MordecaiCameraMode_Diorama.h"
 #include "GameFramework/Character.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCameraMode_Diorama)
 
 UMordecaiCameraMode_Diorama::UMordecaiCameraMode_Diorama()
 	: PitchAngle(-50.0f)
-	, Distance(1800.0f)
+	, Distance(FParse::Param(FCommandLine::Get(), TEXT("MordecaiMarketingCapture"))
+		? 1000.0f
+		: 1800.0f)
 	, FollowSpeed(8.0f)
 	, SmoothedPivotLocation(FVector::ZeroVector)
 	, bFirstUpdate(true)

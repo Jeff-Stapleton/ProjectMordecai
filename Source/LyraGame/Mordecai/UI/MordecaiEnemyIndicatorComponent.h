@@ -78,6 +78,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Indicator")
 	bool IsIndicatorRegistered() const { return bIndicatorRegistered; }
 
+	/** Capture-only launch mode suppresses actor-name/health indicators. */
+	UFUNCTION(BlueprintCallable, Category = "Mordecai|Indicator")
+	bool IsSuppressedForMarketingCapture() const { return bSuppressedForMarketingCapture; }
+
 	/** Returns true if the given distance is within IndicatorVisibilityRange (AC-064.4). */
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Indicator")
 	bool IsWithinVisibilityRange(float Distance) const;
@@ -100,4 +104,5 @@ private:
 	FTimerHandle VisibilityTimerHandle;
 	bool bIndicatorRequested = false;
 	bool bIndicatorRegistered = false;
+	bool bSuppressedForMarketingCapture = false;
 };

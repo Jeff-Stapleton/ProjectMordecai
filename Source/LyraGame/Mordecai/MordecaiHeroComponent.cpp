@@ -666,20 +666,9 @@ void UMordecaiHeroComponent::HandleAbilityInputPressed(FGameplayTag InputTag)
 			if (UMordecaiGA_MeleeAttack* Melee =
 				UMordecaiGA_MeleeAttack::FindActiveMelee(ASC))
 			{
-				if (!Melee->TryCancelIntoBlock())
+				if (!Melee->CanCancelIntoBlock())
 				{
 					bBlockSuppressedUntilRelease = true;
-					return;
-				}
-			}
-		}
-		else if (InputTag == MordecaiGameplayTags::Input_Dodge)
-		{
-			if (UMordecaiGA_MeleeAttack* Melee =
-				UMordecaiGA_MeleeAttack::FindActiveMelee(ASC))
-			{
-				if (!Melee->TryCancelIntoDodge())
-				{
 					return;
 				}
 			}

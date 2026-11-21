@@ -4,9 +4,11 @@
 #include "Misc/ScopeExit.h"
 
 #include "AbilitySystem/LyraAbilitySystemComponent.h"
+#include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
 #include "Components/BoxComponent.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/RootMotionSource.h"
 #include "GameplayAbilitySpec.h"
 #include "InputAction.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
@@ -485,7 +487,21 @@ bool FMordecai_Dodge_RuntimeTravelsTierScaledDistance::RunTest(const FString& Pa
 		}
 		TestTrue(*FString::Printf(TEXT("%s runtime constant-force source is active"), Case.Tier),
 			Env.Player->GetCharacterMovement()->CurrentRootMotion.HasActiveRootMotionSources());
+		const TSharedPtr<FRootMotionSource> RootMotion =
+			Env.Player->GetCharacterMovement()->CurrentRootMotion.GetRootMotionSource(
+				TEXT("MordecaiDodge"));
+		TestTrue(*FString::Printf(TEXT("%s dodge leaves gravity enabled"), Case.Tier),
+			RootMotion
+				&& RootMotion->Settings.HasFlag(
+					ERootMotionSourceSettingsFlags::IgnoreZAccumulate));
 		Env.TickSeconds(0.45f);
+		if (UAbilityTask_ApplyRootMotionConstantForce* Task =
+			Dodge->GetRootMotionTask())
+		{
+			// This headless world never begins play, so tick the duration-owning
+			// task explicitly after advancing its world clock.
+			Task->TickTask(0.f);
+		}
 		const float RuntimeDistance =
 			FVector::Dist2D(Start, Env.Player->GetActorLocation());
 		TestTrue(*FString::Printf(TEXT("%s measured runtime travel %.1f cm is %.0f +/-10%% cm"),
@@ -496,6 +512,8 @@ bool FMordecai_Dodge_RuntimeTravelsTierScaledDistance::RunTest(const FString& Pa
 				Case.ExpectedDistance * 0.1f));
 		TestEqual(*FString::Printf(TEXT("%s dodge finishes at zero horizontal speed"), Case.Tier),
 			static_cast<float>(Env.Player->GetCharacterMovement()->Velocity.Size2D()), 0.f, 1.f);
+		TestFalse(*FString::Printf(TEXT("%s duration task closes i-frames"), Case.Tier),
+			Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Dodging));
 		TestEqual(*FString::Printf(TEXT("%s dodge preserves twin-stick facing"), Case.Tier),
 			static_cast<float>(Env.Player->GetActorRotation().Yaw),
 			static_cast<float>(InitialFacing.Yaw),
@@ -536,7 +554,9 @@ bool FMordecai_Dodge_PerfectEvadeRefundsOnce::RunTest(const FString& Parameters)
 	TestEqual("second hit is also evaded", Second.Defense, EMordecaiHitDefense::Evaded);
 	TestEqual("one 10-stamina refund", Env.Stamina(), 95.f);
 	TestEqual("one PerfectAction event", PerfectEvents, 1);
-	TestTrue("successful evasion exposes PerfectDodge feedback tag",
+	TestEqual("one owning-client feedback RPC",
+		Env.Player->GetPerfectDodgeFeedbackCount(), 1);
+	TestFalse("perfect feedback does not rely on a loose gameplay tag",
 		Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_PerfectDodge));
 	return true;
 }
@@ -571,6 +591,8 @@ bool FMordecai_Dodge_OrdinaryEvadeDoesNotRefund::RunTest(const FString& Paramete
 	TestEqual("ordinary evade sends no PerfectAction", PerfectEvents, 0);
 	TestFalse("ordinary evade produces no PerfectDodge feedback tag",
 		Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_PerfectDodge));
+	TestEqual("ordinary evade sends no owning-client feedback RPC",
+		Env.Player->GetPerfectDodgeFeedbackCount(), 0);
 	return true;
 }
 

@@ -5,11 +5,14 @@
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
+#include "Mordecai/MordecaiCharacter.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogMordecaiDodge, Log, All);
 
 // ---------------------------------------------------------------------------
 // Constructor
@@ -87,7 +90,6 @@ void UMordecaiGA_Dodge::TransitionToDodgePhase(EMordecaiDodgePhase NewPhase)
 void UMordecaiGA_Dodge::EndPerfectDodgeWindow()
 {
 	bPerfectDodgeActive = false;
-	RemovePerfectDodgeTag();
 }
 
 // ---------------------------------------------------------------------------
@@ -137,7 +139,10 @@ bool UMordecaiGA_Dodge::NotifySuccessfulEvade()
 		UMordecaiAttributeSet::GetStaminaAttribute(),
 		EGameplayModOp::Additive,
 		PerfectDodgeStaminaRefund);
-	ApplyPerfectDodgeTag();
+	if (AMordecaiCharacter* Character = Cast<AMordecaiCharacter>(AvatarActor))
+	{
+		Character->ClientShowPerfectDodgeFeedback();
+	}
 
 	FGameplayEventData EventData;
 	EventData.EventTag = MordecaiGameplayTags::Event_PerfectAction;
@@ -192,7 +197,15 @@ void UMordecaiGA_Dodge::ActivateAbility(
 		Forward = Character->GetActorForwardVector();
 		if (UCharacterMovementComponent* CMC = Character->GetCharacterMovement())
 		{
-			MoveInput = CMC->GetLastInputVector();
+			// A dedicated server's remote pawn receives movement acceleration
+			// through CharacterMovement's ServerMove path; LastInputVector is
+			// local-only and otherwise makes every remote dodge go backward.
+			const bool bRemoteAutonomousPawn =
+				Character->HasAuthority()
+				&& Character->GetRemoteRole() == ROLE_AutonomousProxy;
+			MoveInput = bRemoteAutonomousPawn
+				? CMC->GetCurrentAcceleration()
+				: CMC->GetLastInputVector();
 		}
 	}
 
@@ -223,12 +236,6 @@ void UMordecaiGA_Dodge::ActivateAbility(
 				false);
 		}
 
-		// Timer: end dodge active phase after DodgeDurationMs
-		World->GetTimerManager().SetTimer(
-			DodgeTimerHandle,
-			this, &UMordecaiGA_Dodge::OnDodgeComplete,
-			DodgeDurationMs / 1000.f,
-			false);
 	}
 }
 
@@ -242,7 +249,6 @@ void UMordecaiGA_Dodge::EndAbility(
 	// Clear all timers
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().ClearTimer(DodgeTimerHandle);
 		World->GetTimerManager().ClearTimer(PerfectDodgeTimerHandle);
 		World->GetTimerManager().ClearTimer(CooldownTimerHandle);
 	}
@@ -255,7 +261,6 @@ void UMordecaiGA_Dodge::EndAbility(
 	}
 	if (bPerfectDodgeActive)
 	{
-		RemovePerfectDodgeTag();
 		bPerfectDodgeActive = false;
 	}
 	if (CurrentDodgePhase == EMordecaiDodgePhase::Cooldown)
@@ -280,11 +285,33 @@ void UMordecaiGA_Dodge::EndAbility(
 
 void UMordecaiGA_Dodge::OnDodgeComplete()
 {
-	// End dodge active phase: remove i-frames, stop movement
+	// The root-motion task owns this duration and removes its source after this
+	// delegate returns. Do not race it with a second world timer or snap the pawn.
+	DodgeRootMotionTask = nullptr;
 	RemoveDodgingTag();
-	StopDodgeMovement();
-	ClampDodgeTravelToConfiguredDistance();
-	RestoreDodgeFacing();
+
+	if (const ACharacter* Character =
+		Cast<ACharacter>(GetAvatarActorFromActorInfo()))
+	{
+		const float Travel =
+			FVector::Dist2D(DodgeStartLocation, Character->GetActorLocation());
+		const float Expected =
+			DodgeDistanceCm * ActivationStaminaTierMultiplier;
+		const bool bWithinTolerance =
+			FMath::IsNearlyEqual(Travel, Expected, Expected * 0.1f);
+		if (bWithinTolerance)
+		{
+			UE_LOG(LogMordecaiDodge, Log,
+				TEXT("Dodge travel measured %.2f cm (expected %.2f +/-10%%)"),
+				Travel, Expected);
+		}
+		else
+		{
+			UE_LOG(LogMordecaiDodge, Error,
+				TEXT("Dodge travel measured %.2f cm outside expected %.2f +/-10%%"),
+				Travel, Expected);
+		}
+	}
 
 	if (bPerfectDodgeActive)
 	{
@@ -363,9 +390,11 @@ void UMordecaiGA_Dodge::ApplyDodgeMovement()
 			ERootMotionFinishVelocityMode::SetVelocity,
 			FVector::ZeroVector,
 			0.f,
-			false);
+			true);
 	if (DodgeRootMotionTask)
 	{
+		DodgeRootMotionTask->OnFinish.AddDynamic(
+			this, &UMordecaiGA_Dodge::OnDodgeComplete);
 		DodgeRootMotionTask->ReadyForActivation();
 	}
 }
@@ -376,51 +405,6 @@ void UMordecaiGA_Dodge::StopDodgeMovement()
 	{
 		DodgeRootMotionTask->EndTask();
 		DodgeRootMotionTask = nullptr;
-	}
-}
-
-void UMordecaiGA_Dodge::ClampDodgeTravelToConfiguredDistance()
-{
-	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-	if (!Character || DodgeDirection.IsNearlyZero())
-	{
-		return;
-	}
-
-	FVector FlatDirection = DodgeDirection.GetSafeNormal2D();
-	FVector Travel = Character->GetActorLocation() - DodgeStartLocation;
-	Travel.Z = 0.f;
-	const float AlongDirection = FVector::DotProduct(Travel, FlatDirection);
-	const float MaximumDistance =
-		DodgeDistanceCm * ActivationStaminaTierMultiplier;
-	if (AlongDirection <= MaximumDistance + KINDA_SMALL_NUMBER)
-	{
-		return;
-	}
-
-	// Constant-force root motion can consume one oversized final frame before its
-	// duration expires. Sweep back along the already-cleared route so hitches
-	// cannot make the dodge exceed its tier distance, while retaining collision.
-	FVector CorrectedLocation =
-		Character->GetActorLocation()
-		- FlatDirection * (AlongDirection - MaximumDistance);
-	CorrectedLocation.Z = Character->GetActorLocation().Z;
-	FHitResult Hit;
-	Character->SetActorLocation(
-		CorrectedLocation,
-		true,
-		&Hit,
-		ETeleportType::None);
-}
-
-void UMordecaiGA_Dodge::RestoreDodgeFacing()
-{
-	if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
-	{
-		// Root-motion movement must not turn the twin-stick actor toward a
-		// backwards dodge. Aim input is intentionally locked while Dodging, so
-		// the activation-facing snapshot remains authoritative for this action.
-		Character->SetActorRotation(DodgeStartRotation);
 	}
 }
 
@@ -443,24 +427,6 @@ void UMordecaiGA_Dodge::RemoveDodgingTag()
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
 		ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::State_Dodging);
-	}
-}
-
-void UMordecaiGA_Dodge::ApplyPerfectDodgeTag()
-{
-	if (!CurrentActorInfo) return;
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		ASC->AddLooseGameplayTag(MordecaiGameplayTags::State_PerfectDodge);
-	}
-}
-
-void UMordecaiGA_Dodge::RemovePerfectDodgeTag()
-{
-	if (!CurrentActorInfo) return;
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		ASC->RemoveLooseGameplayTag(MordecaiGameplayTags::State_PerfectDodge);
 	}
 }
 

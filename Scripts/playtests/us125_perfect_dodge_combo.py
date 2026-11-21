@@ -24,7 +24,7 @@ RADIUS = 3000
 TAG_ATTACK = "Mordecai.State.Attacking"
 TAG_COMBO = "Mordecai.State.ComboWindow"
 TAG_DODGE = "Mordecai.State.Dodging"
-TAG_PERFECT = "Mordecai.State.PerfectDodge"
+PERFECT_TEXT = "Perfect Dodge!"
 RT = "Gamepad_RightTriggerAxis"
 TAP = 0.1
 
@@ -40,7 +40,7 @@ PLAN = (
     Step("perfect_dodge",
          "sync to the TestAttacker attack edge and tap LeftAlt about 0.40 s later -> hit evaded "
          "inside the 150 ms perfect window, health unchanged, net dodge stamina cost 5, and "
-         "PerfectDodge success tag observed",
+         "networked 'Perfect Dodge!' HUD feedback observed",
          proves=("AC4", "AC7")),
     Step("equip_dagger",
          "press Tab with real input until the weapon state reports Dagger"),
@@ -129,7 +129,7 @@ class Us125PerfectDodgeComboRun(kit.PlaytestRun):
     SCRIPT = os.path.abspath(__file__)
 
     def _read(self):
-        return self.bridge.state(["player", "actors"], radius=RADIUS)
+        return self.bridge.state(["player", "actors", "widgets"], radius=RADIUS)
 
     def _wait(self, predicate, timeout, description, sections=("player",)):
         try:
@@ -198,7 +198,7 @@ class Us125PerfectDodgeComboRun(kit.PlaytestRun):
             while time.monotonic() < deadline:
                 latest = self._read()
                 seen_dodge |= TAG_DODGE in _tags(latest)
-                seen_perfect |= TAG_PERFECT in _tags(latest)
+                seen_perfect |= PERFECT_TEXT in _texts(latest)
                 time.sleep(0.01)
             health1 = float(_attrs(latest).get("health"))
             stamina1 = float(_attrs(latest).get("stamina"))
@@ -206,7 +206,8 @@ class Us125PerfectDodgeComboRun(kit.PlaytestRun):
             problems = perfect_result_problems(
                 health0, health1, stamina0, stamina1, seen_dodge, seen_perfect)
             detail = (f"health {health0}->{health1}; stamina {stamina0}->{stamina1}; "
-                      f"Dodging seen={seen_dodge}; PerfectDodge success seen={seen_perfect}")
+                      f"Dodging seen={seen_dodge}; networked {PERFECT_TEXT!r} HUD "
+                      f"feedback seen={seen_perfect}")
             return ("FAIL", detail + " -- " + "; ".join(problems), None) if problems \
                 else ("PASS", detail, None)
         except (ab.BridgeError, RuntimeError, TypeError, ValueError) as exc:

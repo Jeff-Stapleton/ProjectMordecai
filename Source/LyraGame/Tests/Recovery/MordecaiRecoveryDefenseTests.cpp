@@ -5,6 +5,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
+#include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
 #include "AbilitySystem/LyraAbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayAbilitySpec.h"
@@ -447,6 +448,11 @@ bool FMordecai_Recovery_Defense_DodgeIFramesNegateEnemyHit::RunTest(const FStrin
 	{
 		return true;
 	}
+	if (!Env.PlayerState->HasActorBegunPlay())
+	{
+		// Root-motion ability tasks tick through the PlayerState-owned ASC.
+		Env.PlayerState->DispatchBeginPlay();
+	}
 
 	Env.Press(MordecaiGameplayTags::Input_Dodge);
 	if (!TestTrue("dodging", Env.PlayerHas(MordecaiGameplayTags::State_Dodging)))
@@ -465,14 +471,45 @@ bool FMordecai_Recovery_Defense_DodgeIFramesNegateEnemyHit::RunTest(const FStrin
 	TestEqual("a real perfect evasion refunds 10 stamina once",
 		Env.GetPlayer(UMordecaiAttributeSet::GetStaminaAttribute()),
 		StaminaAfterCost + 10.f);
-	TestTrue("perfect evasion exposes the success feedback tag",
+	TestEqual("perfect evasion dispatches owning-client feedback once",
+		Env.Player->GetPerfectDodgeFeedbackCount(), 1);
+	TestFalse("perfect evasion feedback does not rely on a loose tag",
 		Env.PlayerHas(MordecaiGameplayTags::State_PerfectDodge));
 	TestFalse("no on-hit status", Env.PlayerHas(MordecaiGameplayTags::Status_Weakened));
 	TestEqual("no damage number", Env.PopCount(), 0);
 
 	// After the dodge's 400 ms active phase the i-frames are over
 	Env.FinishSwing(Enemy);
-	Env.TickFrames(10);
+	UCharacterMovementComponent* Movement =
+		Env.Player->GetCharacterMovement();
+	Movement->bRunPhysicsWithNoController = true;
+	Movement->Activate(true);
+	const FVector DefenseLocation = Env.Player->GetActorLocation();
+	UMordecaiGA_Dodge* Dodge = Env.FindInstance<UMordecaiGA_Dodge>();
+	if (Dodge)
+	{
+		// This defense-only test world has no floor and does not simulate travel;
+		// place the pawn at the source's expected endpoint before its duration
+		// completes so the production pre-clamp diagnostic remains meaningful.
+		Env.Player->SetActorLocation(
+			DefenseLocation + Dodge->GetDodgeDirection() * 500.f);
+	}
+	for (int32 Frame = 0; Frame < 10; ++Frame)
+	{
+		++GFrameCounter;
+		Env.World->Tick(LEVELTICK_All, FrameSeconds);
+		Movement->TickComponent(
+			FrameSeconds, LEVELTICK_All, &Movement->PrimaryComponentTick);
+	}
+	if (Dodge)
+	{
+		if (UAbilityTask_ApplyRootMotionConstantForce* Task =
+			Dodge->GetRootMotionTask())
+		{
+			Task->TickTask(0.f);
+		}
+	}
+	Env.Player->SetActorLocation(DefenseLocation);
 	if (!TestFalse("the dodge is over", Env.PlayerHas(MordecaiGameplayTags::State_Dodging)) || !TestTrue("the next swing lands", Env.LandSwing(Enemy)))
 	{
 		return true;

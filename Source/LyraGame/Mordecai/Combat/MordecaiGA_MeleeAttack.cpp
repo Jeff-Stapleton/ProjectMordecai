@@ -42,6 +42,8 @@ UMordecaiGA_MeleeAttack::UMordecaiGA_MeleeAttack(const FObjectInitializer& Objec
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Parrying);
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_ParryWhiff);
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Dead);
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Blocking);
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Dodging);
 }
 
 // ---------------------------------------------------------------------------
@@ -472,7 +474,11 @@ void UMordecaiGA_MeleeAttack::EndAbility(
 	}
 
 	TransitionToPhase(EMordecaiAttackPhase::None);
-	bComboInputReceived = false;
+	// Any EndAbility path is the end of the chain. The only continuation path
+	// returns from OnRecoveryComplete without ending this per-actor instance.
+	// Reset here so cancel, posture break, weapon swap and null-profile exits
+	// cannot carry an out-of-range step into the next activation.
+	ResetCombo();
 	SetComboWindowOpen(false);
 	ActivationStaminaTierMultiplier = 1.f;
 	UnbindWeaponChange();

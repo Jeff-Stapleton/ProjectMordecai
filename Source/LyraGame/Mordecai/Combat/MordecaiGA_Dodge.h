@@ -105,6 +105,12 @@ public:
 	/** Called by hit defense after a real hit is evaded. Grants the perfect reward at most once. */
 	bool NotifySuccessfulEvade();
 
+	/** Active duration-owning root-motion task (test/diagnostic visibility). */
+	UAbilityTask_ApplyRootMotionConstantForce* GetRootMotionTask() const
+	{
+		return DodgeRootMotionTask;
+	}
+
 protected:
 	//~ UGameplayAbility interface
 	virtual bool CanActivateAbility(
@@ -118,6 +124,7 @@ protected:
 	//~ End UGameplayAbility interface
 
 	// --- Phase Callbacks ---
+	UFUNCTION()
 	void OnDodgeComplete();
 	void OnPerfectDodgeWindowEnd();
 	void OnCooldownComplete();
@@ -128,14 +135,10 @@ protected:
 	// --- Movement ---
 	void ApplyDodgeMovement();
 	void StopDodgeMovement();
-	void ClampDodgeTravelToConfiguredDistance();
-	void RestoreDodgeFacing();
 
 	// --- Tag Management ---
 	void ApplyDodgingTag();
 	void RemoveDodgingTag();
-	void ApplyPerfectDodgeTag();
-	void RemovePerfectDodgeTag();
 	void ApplyDodgeCooldownTag();
 	void RemoveDodgeCooldownTag();
 
@@ -151,7 +154,6 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_ApplyRootMotionConstantForce> DodgeRootMotionTask;
 
-	FTimerHandle DodgeTimerHandle;
 	FTimerHandle PerfectDodgeTimerHandle;
 	FTimerHandle CooldownTimerHandle;
 };
