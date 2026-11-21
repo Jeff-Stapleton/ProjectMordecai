@@ -358,6 +358,8 @@ bool FMordecai_Dodge_RuntimeTravelsTierScaledDistance::RunTest(const FString& Pa
 			continue;
 		}
 		Env.SetStamina(Case.Stamina);
+		const FRotator InitialFacing(0.f, 37.f, 0.f);
+		Env.Player->SetActorRotation(InitialFacing);
 		Env.Press(MordecaiGameplayTags::Input_Dodge);
 		const UMordecaiGA_Dodge* Dodge = Env.Instance<UMordecaiGA_Dodge>();
 		if (!TestNotNull(*FString::Printf(TEXT("%s active Dodge instance"), Case.Tier), Dodge))
@@ -379,6 +381,10 @@ bool FMordecai_Dodge_RuntimeTravelsTierScaledDistance::RunTest(const FString& Pa
 		Env.TickSeconds(0.45f);
 		TestEqual(*FString::Printf(TEXT("%s dodge finishes at zero horizontal speed"), Case.Tier),
 			static_cast<float>(Env.Player->GetCharacterMovement()->Velocity.Size2D()), 0.f, 1.f);
+		TestEqual(*FString::Printf(TEXT("%s dodge preserves twin-stick facing"), Case.Tier),
+			static_cast<float>(Env.Player->GetActorRotation().Yaw),
+			static_cast<float>(InitialFacing.Yaw),
+			0.1f);
 		Env.TeardownRuntime();
 	}
 	return true;

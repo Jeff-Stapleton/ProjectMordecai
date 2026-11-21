@@ -188,6 +188,7 @@ void UMordecaiGA_Dodge::ActivateAbility(
 	if (ACharacter* Character = Cast<ACharacter>(AvatarActor))
 	{
 		DodgeStartLocation = Character->GetActorLocation();
+		DodgeStartRotation = Character->GetActorRotation();
 		Forward = Character->GetActorForwardVector();
 		if (UCharacterMovementComponent* CMC = Character->GetCharacterMovement())
 		{
@@ -265,6 +266,7 @@ void UMordecaiGA_Dodge::EndAbility(
 	CurrentDodgePhase = EMordecaiDodgePhase::None;
 	DodgeDirection = FVector::ZeroVector;
 	DodgeStartLocation = FVector::ZeroVector;
+	DodgeStartRotation = FRotator::ZeroRotator;
 	ActivationStaminaTierMultiplier = 1.f;
 	bPerfectDodgeRewardGranted = false;
 	DodgeRootMotionTask = nullptr;
@@ -282,6 +284,7 @@ void UMordecaiGA_Dodge::OnDodgeComplete()
 	RemoveDodgingTag();
 	StopDodgeMovement();
 	ClampDodgeTravelToConfiguredDistance();
+	RestoreDodgeFacing();
 
 	if (bPerfectDodgeActive)
 	{
@@ -408,6 +411,17 @@ void UMordecaiGA_Dodge::ClampDodgeTravelToConfiguredDistance()
 		true,
 		&Hit,
 		ETeleportType::None);
+}
+
+void UMordecaiGA_Dodge::RestoreDodgeFacing()
+{
+	if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
+	{
+		// Root-motion movement must not turn the twin-stick actor toward a
+		// backwards dodge. Aim input is intentionally locked while Dodging, so
+		// the activation-facing snapshot remains authoritative for this action.
+		Character->SetActorRotation(DodgeStartRotation);
+	}
 }
 
 // ---------------------------------------------------------------------------

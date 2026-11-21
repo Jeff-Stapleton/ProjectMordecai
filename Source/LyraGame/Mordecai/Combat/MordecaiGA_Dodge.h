@@ -129,6 +129,7 @@ protected:
 	void ApplyDodgeMovement();
 	void StopDodgeMovement();
 	void ClampDodgeTravelToConfiguredDistance();
+	void RestoreDodgeFacing();
 
 	// --- Tag Management ---
 	void ApplyDodgingTag();
@@ -142,6 +143,7 @@ protected:
 	EMordecaiDodgePhase CurrentDodgePhase = EMordecaiDodgePhase::None;
 	FVector DodgeDirection = FVector::ZeroVector;
 	FVector DodgeStartLocation = FVector::ZeroVector;
+	FRotator DodgeStartRotation = FRotator::ZeroRotator;
 	bool bPerfectDodgeActive = false;
 	bool bPerfectDodgeRewardGranted = false;
 	float ActivationStaminaTierMultiplier = 1.f;
