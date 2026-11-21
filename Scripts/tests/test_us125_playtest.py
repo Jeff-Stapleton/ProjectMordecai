@@ -64,6 +64,10 @@ class TestUs125PlaytestsAgainstFakeBridge(unittest.TestCase):
         self.assertIn("Attacking", checks["setup_yellow"]["detail"])
         self.assertEqual(checks["recovery_dodge_cancel"]["status"], "SKIP")
 
+    def test_attack_cancel_accepts_zero_as_a_settled_speed(self):
+        state = {"player": {"valid": True, "speed": 0}}
+        self.assertEqual(attack_cancel._speed(state), 0.0)
+
     def test_perfect_combo_skips_when_test_attacker_is_absent(self):
         options = dict(fb.MAP_PRESETS[fb.COMBAT_TEST_MAP])
         options["enemies"] = []

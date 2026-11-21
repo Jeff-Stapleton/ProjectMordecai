@@ -72,6 +72,11 @@ def _stamina(state):
     return float(value) if isinstance(value, (int, float)) else None
 
 
+def _speed(state):
+    value = (_player(state) or {}).get("speed")
+    return float(value) if isinstance(value, (int, float)) else None
+
+
 class Us125AttackCancelRun(kit.PlaytestRun):
     STORY = STORY
     TITLE = TITLE
@@ -154,7 +159,7 @@ class Us125AttackCancelRun(kit.PlaytestRun):
             activated = TAG_DODGE in tags_after_input or TAG_COOLDOWN in tags_after_input
             overlap = TAG_ATTACK in tags_after_input or TAG_COMBO in tags_after_input
             self._wait_tag(TAG_DODGE, False, 2.0)
-            self._wait(lambda state: float((_player(state) or {}).get("speed") or 999) < 1.0,
+            self._wait(lambda state: _speed(state) is not None and _speed(state) < 1.0,
                        2.0, "dodge settle")
             p1 = _loc(self._state())
             distance = math.dist(p0, p1) if p0 and p1 else None
