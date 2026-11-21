@@ -148,9 +148,11 @@ class Us125AttackCancelRun(kit.PlaytestRun):
             before = self._state()
             p0 = _loc(before)
             stamina = _stamina(before)
-            self.bridge.tap("LeftAlt", hold_s=TAP)
-            active = self._wait_tag(TAG_DODGE)
-            overlap = TAG_ATTACK in _tags(active) or TAG_COMBO in _tags(active)
+            response = self.bridge.tap("LeftAlt", hold_s=TAP)
+            active = self._state()
+            tags_after_input = _tags(active)
+            activated = TAG_DODGE in tags_after_input or TAG_COOLDOWN in tags_after_input
+            overlap = TAG_ATTACK in tags_after_input or TAG_COMBO in tags_after_input
             self._wait_tag(TAG_DODGE, False, 2.0)
             self._wait(lambda state: float((_player(state) or {}).get("speed") or 999) < 1.0,
                        2.0, "dodge settle")
@@ -159,11 +161,14 @@ class Us125AttackCancelRun(kit.PlaytestRun):
             self.measurements.append({"check": "recovery_dodge_cancel", "start": p0, "end": p1,
                                       "distance_cm": distance, "stamina_at_dodge": stamina})
             problems = []
+            if not activated:
+                problems.append(f"Dodge/DodgeCooldown not observed after input: {tags_after_input}")
             if overlap:
-                problems.append(f"attack/dodge states overlapped: {_tags(active)}")
+                problems.append(f"attack remained after Dodge input: {tags_after_input}")
             if distance is None or not 360.0 <= distance <= 440.0:
                 problems.append(f"settled distance {distance}, expected 360..440 cm")
-            detail = (f"Recovery at stamina {stamina}; dodge state tags {_tags(active)}; "
+            detail = (f"Recovery at stamina {stamina}; Dodge input held "
+                      f"{response.get('held_s')}s; post-input tags {tags_after_input}; "
                       f"settled {distance} cm from {p0} to {p1}")
             return ("FAIL", detail + " -- " + "; ".join(problems), None) if problems \
                 else ("PASS", detail, {"distance_cm": distance})

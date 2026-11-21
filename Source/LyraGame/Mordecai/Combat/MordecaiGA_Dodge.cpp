@@ -187,6 +187,7 @@ void UMordecaiGA_Dodge::ActivateAbility(
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	if (ACharacter* Character = Cast<ACharacter>(AvatarActor))
 	{
+		DodgeStartLocation = Character->GetActorLocation();
 		Forward = Character->GetActorForwardVector();
 		if (UCharacterMovementComponent* CMC = Character->GetCharacterMovement())
 		{
@@ -263,6 +264,7 @@ void UMordecaiGA_Dodge::EndAbility(
 
 	CurrentDodgePhase = EMordecaiDodgePhase::None;
 	DodgeDirection = FVector::ZeroVector;
+	DodgeStartLocation = FVector::ZeroVector;
 	ActivationStaminaTierMultiplier = 1.f;
 	bPerfectDodgeRewardGranted = false;
 	DodgeRootMotionTask = nullptr;
@@ -279,6 +281,7 @@ void UMordecaiGA_Dodge::OnDodgeComplete()
 	// End dodge active phase: remove i-frames, stop movement
 	RemoveDodgingTag();
 	StopDodgeMovement();
+	ClampDodgeTravelToConfiguredDistance();
 
 	if (bPerfectDodgeActive)
 	{
@@ -371,6 +374,40 @@ void UMordecaiGA_Dodge::StopDodgeMovement()
 		DodgeRootMotionTask->EndTask();
 		DodgeRootMotionTask = nullptr;
 	}
+}
+
+void UMordecaiGA_Dodge::ClampDodgeTravelToConfiguredDistance()
+{
+	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	if (!Character || DodgeDirection.IsNearlyZero())
+	{
+		return;
+	}
+
+	FVector FlatDirection = DodgeDirection.GetSafeNormal2D();
+	FVector Travel = Character->GetActorLocation() - DodgeStartLocation;
+	Travel.Z = 0.f;
+	const float AlongDirection = FVector::DotProduct(Travel, FlatDirection);
+	const float MaximumDistance =
+		DodgeDistanceCm * ActivationStaminaTierMultiplier;
+	if (AlongDirection <= MaximumDistance + KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	// Constant-force root motion can consume one oversized final frame before its
+	// duration expires. Sweep back along the already-cleared route so hitches
+	// cannot make the dodge exceed its tier distance, while retaining collision.
+	FVector CorrectedLocation =
+		Character->GetActorLocation()
+		- FlatDirection * (AlongDirection - MaximumDistance);
+	CorrectedLocation.Z = Character->GetActorLocation().Z;
+	FHitResult Hit;
+	Character->SetActorLocation(
+		CorrectedLocation,
+		true,
+		&Hit,
+		ETeleportType::None);
 }
 
 // ---------------------------------------------------------------------------
