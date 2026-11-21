@@ -519,6 +519,11 @@ The contract is `Specs/story_playtests_v1.md`.
   - Tier 1: `Mordecai.Playtest.AgentBridge.State.PickupEntries`, `.ActorsMeasureLabelsAgainstTheLocalCamera` (red before the fix).
   - Verified on `92e7575` (fresh package): `pickup_labels` FAIL (known) → PASS in `Saved/Playtests/20261028-232550-us079`: 6/6 labels visible, text = display name, facing/upright 1.000. That us079 run exited 0 (55/55, 15/15 ACs accepted): the player outran the swarm (T1) that time.
 - **B2 Other missing state.** No camera transform (AC-1.2.1), no progress-bar fill or colour (HUD bars, stamina tiers, rarity colours), no equip slot on `player.weapon` (AC-078.15), no damage-pop events (US-065), no texts from world-space widget components (enemy bars). Mouse buttons cannot be held across reads by the playtest client, which blocks block and parry on the mouse (AC-083.11). The gamepad triggers can be held with `axis` (no `hold_s`), so `us083_combat_input.py` plays block and parry on LT/RT, and the heavy attack fires on release since US-083, so a held click checks it. The `wait_until` grammar has no "array contains", so tag checks need client-side predicates.
+- **B4 No two-client packaged harness (US-124 AC-124.6).** The bridge owns one
+  packaged process and `PlayerPostureTestMap` has no second-client orchestration, so it cannot
+  observe player posture tags from a remote client. US-124 tests authority-only mutation and
+  the existing loose-tag replication route, but leaves AC-124.6
+  `PENDING TIER 4 (bridge cannot drive: no two-client MultiplayerTestMap harness exists)`.
 - **B3 A hold was timed in wall time, so a frame hitch cut it short (FIXED 2026-10-29, US-100).**
   - What happened: the packaged game hitches for a few hundred ms after a `screenshot`, and often during its first launches after a package. us001 runs first in a sweep, and 31-46% of its 0.4 s holds ran at under 30 fps, in every sweep since Phase 3, on DevTestMap as on MovementTestMap.
   - The bridge let a held input up once `hold_s` of wall time had passed, at the end of a frame. A long frame's delta is simulated by the frame after it, so a hitch inside a hold left the character almost no input. Evidence (ad62476 and ea0205f sweeps):

@@ -14,9 +14,10 @@ This script runs OUTSIDE the editor.  It invokes:
 
 Default maps: /Game/System/FrontEnd/Maps/L_LyraFrontEnd (the real player
 entry point) + /MordecaiCore/Game/Maps/DevTestMap + the playtest test maps
-/MordecaiCore/Game/Maps/MovementTestMap, /MordecaiCore/Game/Maps/CombatTestMap and
-/MordecaiCore/Game/Maps/PickupProjectileTestMap, plus the Verdant Wilds terrain
-fixture /MordecaiCore/Game/Maps/L_VW_TileTest.
+/MordecaiCore/Game/Maps/MovementTestMap, /MordecaiCore/Game/Maps/CombatTestMap,
+/MordecaiCore/Game/Maps/PlayerPostureTestMap and
+/MordecaiCore/Game/Maps/PickupProjectileTestMap, plus the Verdant Wilds terrain fixture
+/MordecaiCore/Game/Maps/L_VW_TileTest.
 
 --all-maps adds -CookAll -CookMapsOnly (every map in the project plus what it
 references) and still passes the default maps explicitly.  UAT has no -allmaps
@@ -112,6 +113,7 @@ DEFAULT_MAPS = [
     "/MordecaiCore/Game/Maps/DevTestMap",
     "/MordecaiCore/Game/Maps/MovementTestMap",
     "/MordecaiCore/Game/Maps/CombatTestMap",
+    "/MordecaiCore/Game/Maps/PlayerPostureTestMap",
     "/MordecaiCore/Game/Maps/PickupProjectileTestMap",
     "/MordecaiCore/Game/Maps/L_VW_TileTest",
 ]
@@ -467,7 +469,7 @@ def main():
     parser.add_argument("--all-maps", action="store_true",
                         help="Cook every map (-CookAll -CookMapsOnly) in addition to the default "
                              "maps (front end, DevTestMap, MovementTestMap, CombatTestMap, "
-                             "PickupProjectileTestMap, L_VW_TileTest)")
+                             "PlayerPostureTestMap, PickupProjectileTestMap, L_VW_TileTest)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Print the UAT command and exit 0")
     parser.add_argument("--config", choices=CONFIGS, default="Development",

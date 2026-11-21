@@ -206,6 +206,27 @@ bool AMordecaiCharacter::CanUpdateAimFacing() const
 				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_AttackCommitted)));
 }
 
+bool AMordecaiCharacter::CanAcceptMovementInput() const
+{
+	if (const AController* OwningController = GetController();
+		OwningController && OwningController->IsMoveInputIgnored())
+	{
+		return false;
+	}
+
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	return !IsDead()
+		&& (!ASC
+			|| (!ASC->HasMatchingGameplayTag(MordecaiGameplayTags::Status_MicroStunned)
+				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_PostureBroken)
+				&& !ASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_KnockedDown)));
+}
+
+bool AMordecaiCharacter::CanJumpInternal_Implementation() const
+{
+	return CanAcceptMovementInput() && Super::CanJumpInternal_Implementation();
+}
+
 void AMordecaiCharacter::ServerSetAimFacingDirection_Implementation(FVector AimDirection)
 {
 	if (!CanUpdateAimFacing())

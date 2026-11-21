@@ -162,15 +162,6 @@ float UMordecaiGA_MeleeAttack::ComputePostureDamage() const
 	return -((Profile->DamageProfile.BasePower * Profile->PostureDamageScalar) + WeaponPostureBonus);
 }
 
-float UMordecaiGA_MeleeAttack::ResolvePostureRuntimeDamage(
-	UAbilitySystemComponent* SourceASC,
-	UAbilitySystemComponent* TargetASC) const
-{
-	const bool bRiposteAvailable = SourceASC
-		&& SourceASC->HasMatchingGameplayTag(MordecaiGameplayTags::State_Riposte);
-	return ResolvePostureRuntimeDamageForSwing(TargetASC, bRiposteAvailable);
-}
-
 float UMordecaiGA_MeleeAttack::ResolvePostureRuntimeDamageForSwing(
 	UAbilitySystemComponent* TargetASC,
 	bool bRiposteAvailableForSwing) const

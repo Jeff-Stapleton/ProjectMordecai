@@ -60,6 +60,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Mordecai|Character")
 	bool CanUpdateAimFacing() const;
 
+	/** True while movement input is allowed through the current replicated control state. */
+	UFUNCTION(BlueprintPure, Category = "Mordecai|Character")
+	bool CanAcceptMovementInput() const;
+
 	/** True when a yaw change is large enough to justify another unreliable aim RPC. */
 	static bool ShouldSendAimFacingRPC(float PreviousYaw, float NewYaw);
 
@@ -127,6 +131,7 @@ protected:
 
 	//~ ALyraCharacter: Mordecai.State.Airborne follows the movement mode (US-101, AC-003.7)
 	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode) override;
+	virtual bool CanJumpInternal_Implementation() const override;
 
 private:
 	// Hero component — handles input binding and camera mode from PawnData
