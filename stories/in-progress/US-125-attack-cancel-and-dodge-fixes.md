@@ -111,7 +111,7 @@ Production changes are C++ GAS/movement logic and Python playtests using existin
 
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| 1 | `setup_yellow` | walk to lane L1 and spend three real light attacks to reach 55 stamina | - |
+| 1 | `setup_yellow` | walk to lane L1 and spend five real light attacks to reach about 60 stamina | - |
 | 2 | `recovery_dodge_cancel` | tap RT, wait for ComboWindow, tap LeftAlt -> Attacking/ComboWindow clear before Dodging; settled displacement is 400 +/-40 cm at Yellow | AC1, AC3, AC7 |
 | 3 | `committed_dodge_rejected` | tap RT and immediately tap LeftAlt during AttackCommitted -> attack remains and no dodge | AC2 |
 | 4 | `held_block_needs_fresh_press` | hold LT during AttackCommitted and through Recovery -> Block never activates; release LT | AC2 |
