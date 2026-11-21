@@ -35,7 +35,7 @@ SCREENSHOTS = {
 }
 
 PLAN = (
-    Step("setup_yellow", "walk to lane L1 and spend five real light attacks to reach about 60 stamina"),
+    Step("setup_yellow", "walk to lane L1 and spend six real light attacks to reach Yellow stamina"),
     Step("recovery_dodge_cancel",
          "tap RT, wait for ComboWindow, tap LeftAlt -> Attacking/ComboWindow clear before Dodging; "
          "settled displacement is 400 +/-40 cm at Yellow",
@@ -132,7 +132,7 @@ class Us125AttackCancelRun(kit.PlaytestRun):
     def step_setup(self):
         try:
             result = self.bridge.walk_to(-300.0, -800.0, tol=60.0)
-            for index in range(5):
+            for index in range(6):
                 self._idle()
                 self._tap_attack()
                 self._wait_tag(TAG_ATTACK)
@@ -140,7 +140,7 @@ class Us125AttackCancelRun(kit.PlaytestRun):
             state = self._state()
             stamina = _stamina(state)
             ok = stamina is not None and 45.0 <= stamina <= 65.0
-            detail = f"reached {result.get('final')}; stamina after five real attacks {stamina}"
+            detail = f"reached {result.get('final')}; stamina after six real attacks {stamina}"
             return ("PASS" if ok else "FAIL"), detail, {"stamina": stamina}
         except (ab.BridgeError, RuntimeError) as exc:
             return "FAIL", str(exc), None
