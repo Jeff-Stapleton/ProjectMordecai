@@ -516,6 +516,11 @@ class TestUs054CombatPlan(unittest.TestCase):
                         + us054c.SPOT_TOL, 150.0)
         self.assertLess(math.dist(us054c.DUMMY_MELEE_SPOT, us054c.DUMMY_SPAWN) + us054c.SPOT_TOL,
                         CombatWorld().melee_reach)
+        self.assertLess(
+            math.dist(us054c.DUMMY_REENGAGE_SPOT, us054c.DUMMY_SPAWN)
+            + us054c.DUMMY_REENGAGE_TOL,
+            175.0,
+        )
 
     def test_plan_prints(self):
         out = io.StringIO()

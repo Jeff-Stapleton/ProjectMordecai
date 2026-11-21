@@ -83,6 +83,8 @@ ENEMY_RADIUS = 3000                    # actors radius: the attacker is 2100 cm 
 SPAWN_TOL_CM = 100.0                   # "at its spawn"
 AGGRO_RANGE_CM = 900.0                 # AMordecaiEnemyAIController::AggroRange
 DUMMY_MELEE_SPOT = (440.0, 600.0)      # 160 cm -X of the dummy; explicitly aim +X before swings
+DUMMY_REENGAGE_SPOT = (460.0, 600.0)   # post-dodge kill loop needs margin inside light reach
+DUMMY_REENGAGE_TOL = 25.0
 ATTACKER_VIA = (440.0, 0.0)            # the straight line to the fight spot passes the dummy
 ATTACKER_FIGHT_SPOT = (2000.0, 0.0)    # 100 cm -X of the attacker: inside its 150 cm reach
                                        # even when walk_to stops SPOT_TOL off
@@ -183,8 +185,9 @@ PLAN = (
          f"{DUMMY}'s health decreases again (issue #136)"),
     Step("dodge_lalt", f"tap LeftAlt -> within {DODGE_TIMEOUT_S:g}s a Dodging tag in player.tags "
          "or a displacement > 150 cm", proves=("AC-054.6", "AC-054.5")),
-    Step("kill_enemy_melee", f"walk_to({DUMMY_MELEE_SPOT[0]:g}, {DUMMY_MELEE_SPOT[1]:g}) if the "
-         f"dodge moved the player > {SPOT_TOL:g} cm off the melee spot, aim world +X, then click Left at "
+    Step("kill_enemy_melee", f"walk_to({DUMMY_REENGAGE_SPOT[0]:g}, "
+         f"{DUMMY_REENGAGE_SPOT[1]:g}) within {DUMMY_REENGAGE_TOL:g} cm after the dodge, "
+         "aim world +X, then click Left at "
          f"{ATTACK_POINT} every {KILL_CLICK_GAP_S:g}s -> the {DUMMY} (by label, else class name) "
          f"is_dead==true within {KILL_TIMEOUT_S:g}s (FAIL with its last health and the damage per "
          "hit)", proves=("US-086:AC-086.5", "AC-054.13")),
@@ -719,9 +722,9 @@ class Us054CombatRun(kit.PlaytestRun):
             if d is None:
                 return "FAIL", f"no {DUMMY} in actors[]: {describe_targets(st)}", None
             pos, back = xy(p.get("location")), ""
-            if pos is None or dist(pos, DUMMY_MELEE_SPOT) > SPOT_TOL:
+            if pos is None or dist(pos, DUMMY_REENGAGE_SPOT) > DUMMY_REENGAGE_TOL:
                 try:
-                    r = b.walk_to(*DUMMY_MELEE_SPOT, tol=SPOT_TOL)
+                    r = b.walk_to(*DUMMY_REENGAGE_SPOT, tol=DUMMY_REENGAGE_TOL)
                 except ab.BridgeError as e:
                     if e.kind != "gameplay":
                         raise
