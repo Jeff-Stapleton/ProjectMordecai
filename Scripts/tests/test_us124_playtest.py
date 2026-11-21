@@ -36,7 +36,7 @@ class PlayerPostureWorld(fb.FakeWorld):
     """Gameplay double for the packaged fixture; never acceptance evidence."""
 
     def __init__(self, *, break_runtime=True, vulnerability=True,
-                 knockdown_runtime=True, recovery=True):
+                 knockdown_runtime=True, recovery=True, lock_runtime=True):
         enemies = [
             {"label": f"PostureTestAttacker_{name}",
              "class": f"BP_MordecaiEnemy_PostureTest{name}_C",
@@ -57,6 +57,7 @@ class PlayerPostureWorld(fb.FakeWorld):
         self.vulnerability = vulnerability
         self.knockdown_runtime = knockdown_runtime
         self.recovery = recovery
+        self.lock_runtime = lock_runtime
         self.posture = self.max_posture = 100.0
         self.broken_until = -1.0
         self.down_until = -1.0
@@ -74,7 +75,8 @@ class PlayerPostureWorld(fb.FakeWorld):
                 self.broken_until = -1.0
                 self.stagger_damage = 0.0
                 self.posture = self.max_posture
-            if not self.fixture_started and self.pos[0] >= us124.FIGHT_SPOT[0] - 25.0:
+            if (not self.fixture_started
+                    and self.pos[0] >= us124.FIGHT_SPOT[0] - us124.FIGHT_TOLERANCE):
                 self.fixture_started = True
                 self.after(0.20, lambda world: world.hit_player(20.0, 0.0))
                 self.after(0.50, lambda world: world.hit_player(1.0, 100.0))
@@ -84,7 +86,7 @@ class PlayerPostureWorld(fb.FakeWorld):
 
     def _move(self, dt):
         now = self.real_time()
-        if now < self.broken_until or now < self.down_until:
+        if self.lock_runtime and (now < self.broken_until or now < self.down_until):
             self.vel = [0.0, 0.0]
             return
         super()._move(dt)
@@ -185,6 +187,15 @@ class Us124PlaytestCase(unittest.TestCase):
         self.assertLessEqual(
             sent, {"ping", "state", "key", "axis", "mouse", "screenshot",
                    "wait", "wait_until"})
+        s_presses = [
+            request for request in server.received
+            if request.get("cmd") == "key"
+            and request.get("key") == "S"
+            and request.get("action") == "tap"
+        ]
+        self.assertGreaterEqual(
+            len(s_presses), 2,
+            "S must be both the broken lockout probe and recovered positive control")
 
     def test_missing_break_is_a_hard_failure(self):
         _, server = self.serve(break_runtime=False)
@@ -193,6 +204,14 @@ class Us124PlaytestCase(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(check["status"], "FAIL")
         self.assertIn(us124.TAG_BROKEN, check["detail"])
+
+    def test_missing_lock_is_a_hard_failure(self):
+        _, server = self.serve(lock_runtime=False)
+        code, report = self.play(server)
+        check = self.checks(report)["break_and_lock"]
+        self.assertEqual(code, 1)
+        self.assertEqual(check["status"], "FAIL")
+        self.assertIn("moved the broken player", check["detail"])
 
     def test_missing_bonus_damage_is_a_hard_failure(self):
         _, server = self.serve(vulnerability=False)

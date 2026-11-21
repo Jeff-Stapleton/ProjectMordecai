@@ -48,7 +48,7 @@ PLAN = (
          proves=("AC-124.2",)),
     Step("break_and_lock",
          "the posture-breaker swing reaches posture 0 -> PostureBroken, movement mode NULL "
-         "(MOVE_None), W input cannot move the player; capture the break HUD",
+         "(MOVE_None), S input cannot move the player; capture the break HUD",
          proves=("AC-124.1", "AC-124.4", "AC-124.5")),
     Step("broken_bonus",
          "the next real enemy swing during PostureBroken takes 30 health, exactly 1.5x the "
@@ -271,9 +271,13 @@ class Us124Run(kit.PlaytestRun):
         before = _location(player)
         if before is None:
             return "FAIL", f"player location unavailable at break: {player}", None
-        self.bridge.tap("W", hold_s=0.10)
+        self.bridge.tap("S", hold_s=0.10)
         after_state = self._read()
         after_player = _player(after_state)
+        if after_player is None:
+            return "FAIL", (
+                f"player state unavailable after S lockout probe: "
+                f"{kit.dumps(after_state, 1400)}"), None
         after = _location(after_player)
         moved = math.dist(before, after) if after is not None else 9999.0
         problems = []
@@ -284,9 +288,9 @@ class Us124Run(kit.PlaytestRun):
                 f"movement_mode is {after_player.get('movement_mode')}, "
                 f"expected {LOCKED_MOVEMENT_MODE} (MOVE_None)")
         if moved > 5.0:
-            problems.append(f"W moved the broken player {moved:.1f} cm")
+            problems.append(f"S moved the broken player {moved:.1f} cm")
         return ("FAIL" if problems else "PASS"), (
-            f"PostureBroken at health {self.break_health:g}; W moved {moved:.1f} cm; "
+            f"PostureBroken at health {self.break_health:g}; S moved {moved:.1f} cm; "
             f"movement_mode {after_player.get('movement_mode')}"
             + (f" -- {'; '.join(problems)}" if problems else "")), {
                 "health": self.break_health, "moved_cm": moved, "tags": _tags(after_player)}

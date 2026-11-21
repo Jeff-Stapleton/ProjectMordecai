@@ -4,6 +4,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "AbilitySystem/Abilities/LyraGameplayAbility.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
@@ -145,7 +146,7 @@ void UMordecaiPostureRuntimeComponent::EnterPostureBrokenState()
 	SetPostureRuntimeState(MordecaiGameplayTags::State_KnockedDown, false);
 	SetPostureRuntimeState(MordecaiGameplayTags::State_PostureBroken, true);
 	PostureSystem->EnterPostureBroken();
-	CancelActiveAbilities();
+	CancelActiveNonPassiveAbilities();
 	LockMovement();
 
 	if (UWorld* World = GetWorld())
@@ -191,7 +192,7 @@ void UMordecaiPostureRuntimeComponent::EnterKnockDownState()
 	SetPostureRuntimeState(MordecaiGameplayTags::State_KnockedDown, true);
 	SetPostureRuntimeState(MordecaiGameplayTags::State_PostureBroken, false);
 	PostureSystem->EnterKnockDown();
-	CancelActiveAbilities();
+	CancelActiveNonPassiveAbilities();
 	LockMovement();
 
 	if (UWorld* World = GetWorld())
@@ -259,11 +260,31 @@ void UMordecaiPostureRuntimeComponent::SetPostureRuntimeState(
 		EGameplayTagReplicationState::TagOnly);
 }
 
-void UMordecaiPostureRuntimeComponent::CancelActiveAbilities()
+void UMordecaiPostureRuntimeComponent::CancelActiveNonPassiveAbilities()
 {
 	if (UAbilitySystemComponent* ASC = BoundASC.Get())
 	{
-		ASC->CancelAllAbilities();
+		TArray<FGameplayAbilitySpecHandle> AbilitiesToCancel;
+		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+		{
+			if (!Spec.IsActive() || !Spec.Ability)
+			{
+				continue;
+			}
+			const ULyraGameplayAbility* LyraAbility =
+				Cast<ULyraGameplayAbility>(Spec.Ability);
+			if (LyraAbility
+				&& LyraAbility->GetActivationPolicy()
+					== ELyraAbilityActivationPolicy::OnSpawn)
+			{
+				continue;
+			}
+			AbilitiesToCancel.Add(Spec.Handle);
+		}
+		for (const FGameplayAbilitySpecHandle Handle : AbilitiesToCancel)
+		{
+			ASC->CancelAbilityHandle(Handle);
+		}
 	}
 }
 

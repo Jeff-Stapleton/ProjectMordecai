@@ -43,7 +43,7 @@ private:
 	void ExitKnockDownState();
 	void ClearPostureRuntimeStates();
 	void SetPostureRuntimeState(FGameplayTag StateTag, bool bEnabled);
-	void CancelActiveAbilities();
+	void CancelActiveNonPassiveAbilities();
 	void LockMovement();
 	void UnlockMovement();
 	bool IsEnemyDamage(const FOnAttributeChangeData& Data) const;

@@ -3,6 +3,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 
+#include "AbilitySystem/Abilities/LyraGameplayAbility.h"
 #include "Dom/JsonObject.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SphereComponent.h"
@@ -21,6 +22,7 @@
 #include "Mordecai/Playtest/MordecaiAgentBridgeState.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Tests/Recovery/MordecaiDefenseTestEnv.h"
+#include "UObject/UnrealType.h"
 
 namespace MordecaiPostureRuntimeTest
 {
@@ -160,6 +162,44 @@ namespace MordecaiPostureRuntimeTest
 		{
 			ASC->SetNumericAttributeBase(Attribute, Value);
 		}
+	}
+
+	UAbilitySystemComponent* MakeNonHostileDamageSource(FDefenseTestEnv& Env)
+	{
+		AActor* SourceActor = Env.World
+			? Env.World->SpawnActor<AActor>(AActor::StaticClass())
+			: nullptr;
+		if (!SourceActor)
+		{
+			return nullptr;
+		}
+		UAbilitySystemComponent* SourceASC =
+			NewObject<UAbilitySystemComponent>(SourceActor, TEXT("HazardASC"));
+		SourceActor->AddInstanceComponent(SourceASC);
+		SourceASC->RegisterComponent();
+		SourceASC->InitAbilityActorInfo(SourceActor, SourceActor);
+		return SourceASC;
+	}
+
+	bool SetActivationPolicy(
+		ULyraGameplayAbility* AbilityCDO,
+		const ELyraAbilityActivationPolicy Policy,
+		ELyraAbilityActivationPolicy& OutPrevious)
+	{
+		FEnumProperty* Property = FindFProperty<FEnumProperty>(
+			ULyraGameplayAbility::StaticClass(),
+			TEXT("ActivationPolicy"));
+		if (!AbilityCDO || !Property || !Property->GetUnderlyingProperty())
+		{
+			return false;
+		}
+		void* ValuePtr = Property->ContainerPtrToValuePtr<void>(AbilityCDO);
+		OutPrevious = static_cast<ELyraAbilityActivationPolicy>(
+			Property->GetUnderlyingProperty()->GetSignedIntPropertyValue(ValuePtr));
+		Property->GetUnderlyingProperty()->SetIntPropertyValue(
+			ValuePtr,
+			static_cast<int64>(Policy));
+		return true;
 	}
 }
 
@@ -1215,6 +1255,83 @@ bool FMordecai_Posture_Runtime_PlayerBreakLocksAndRecovers::RunTest(const FStrin
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Posture_Runtime_PlayerBreakPreservesPassiveAbilities,
+	"Mordecai.Posture.Runtime.PlayerBreakPreservesPassiveAbilities",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Posture_Runtime_PlayerBreakPreservesPassiveAbilities::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiPostureRuntimeTest;
+	using namespace MordecaiRecoveryDefenseTest;
+
+	FDefenseTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownDefender(); };
+	UMordecaiAttackProfileDataAsset* PlayerSlash = MakePlayerSlash(10.f, 0.f);
+	PlayerSlash->WindupTimeMs = 5000.f;
+	if (!TestTrue("player setup", Env.SetupDefender(FVector::ZeroVector, { PlayerSlash }))
+		|| !TestNotNull("player runtime", StartPlayerPostureRuntime(Env)))
+	{
+		return true;
+	}
+	FGameplayAbilitySpec* MeleeSpec =
+		Env.FindSpec(UMordecaiGA_MeleeAttack::StaticClass());
+	ULyraGameplayAbility* MeleeCDO =
+		MeleeSpec ? Cast<ULyraGameplayAbility>(MeleeSpec->Ability) : nullptr;
+	if (!TestNotNull("melee spec", MeleeSpec)
+		|| !TestNotNull("melee CDO", MeleeCDO))
+	{
+		return true;
+	}
+
+	Env.Press(MordecaiGameplayTags::Input_LightAttack);
+	TestTrue("non-passive positive control is active before break", MeleeSpec->IsActive());
+	SetPlayerAttribute(Env, UMordecaiAttributeSet::GetPostureAttribute(), 0.f);
+	TestFalse("break cancels the active non-passive ability", MeleeSpec->IsActive());
+
+	Env.TeardownDefender();
+	UMordecaiAttackProfileDataAsset* PassiveSlash = MakePlayerSlash(10.f, 0.f);
+	PassiveSlash->WindupTimeMs = 5000.f;
+	if (!TestTrue(
+			"passive player setup",
+			Env.SetupDefender(FVector::ZeroVector, { PassiveSlash }))
+		|| !TestNotNull("passive player runtime", StartPlayerPostureRuntime(Env)))
+	{
+		return true;
+	}
+	MeleeSpec = Env.FindSpec(UMordecaiGA_MeleeAttack::StaticClass());
+	MeleeCDO = MeleeSpec ? Cast<ULyraGameplayAbility>(MeleeSpec->Ability) : nullptr;
+	if (!TestNotNull("passive melee spec", MeleeSpec)
+		|| !TestNotNull("passive melee CDO", MeleeCDO))
+	{
+		return true;
+	}
+
+	ELyraAbilityActivationPolicy OriginalPolicy =
+		ELyraAbilityActivationPolicy::OnInputTriggered;
+	Env.Press(MordecaiGameplayTags::Input_LightAttack);
+	TestTrue("passive control is active before classification", MeleeSpec->IsActive());
+	if (!TestTrue(
+		"test marks the control ability passive",
+		SetActivationPolicy(
+			MeleeCDO,
+			ELyraAbilityActivationPolicy::OnSpawn,
+			OriginalPolicy)))
+	{
+		return true;
+	}
+	ON_SCOPE_EXIT
+	{
+		ELyraAbilityActivationPolicy Ignored = OriginalPolicy;
+		SetActivationPolicy(MeleeCDO, OriginalPolicy, Ignored);
+	};
+
+	TestTrue("passive control is active before break", MeleeSpec->IsActive());
+	SetPlayerAttribute(Env, UMordecaiAttributeSet::GetPostureAttribute(), 0.f);
+	TestTrue("break preserves the active passive ability", MeleeSpec->IsActive());
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Posture_Runtime_PlayerBreakIsServerOnly,
 	"Mordecai.Posture.Runtime.PlayerBreakIsServerOnly",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -1346,6 +1463,68 @@ bool FMordecai_Posture_Runtime_PlayerVulnerabilityMeleeAndProjectile::RunTest(co
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Posture_Runtime_PlayerKnockdownCountsOnlyHostileDamage,
+	"Mordecai.Posture.Runtime.PlayerKnockdownCountsOnlyHostileDamage",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Posture_Runtime_PlayerKnockdownCountsOnlyHostileDamage::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiPostureRuntimeTest;
+	using namespace MordecaiRecoveryDefenseTest;
+
+	FDefenseTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownDefender(); };
+	if (!TestTrue("player setup", Env.SetupDefender(FVector::ZeroVector))
+		|| !TestNotNull("player runtime", StartPlayerPostureRuntime(Env)))
+	{
+		return true;
+	}
+	AMordecaiEnemyCharacter* Enemy = Env.SpawnAttacker(MakePlayerSlash(10.f, 0.f));
+	UAbilitySystemComponent* EnemyASC =
+		Enemy ? Enemy->GetAbilitySystemComponent() : nullptr;
+	UAbilitySystemComponent* HazardASC = MakeNonHostileDamageSource(Env);
+	UAbilitySystemComponent* PlayerASC = Env.GetPlayerASC();
+	if (!TestNotNull("enemy source", EnemyASC)
+		|| !TestNotNull("environmental source", HazardASC)
+		|| !TestNotNull("self source", PlayerASC))
+	{
+		return true;
+	}
+	SetPlayerAttribute(Env, UMordecaiAttributeSet::GetMaxHealthAttribute(), 1000.f);
+	SetPlayerAttribute(Env, UMordecaiAttributeSet::GetHealthAttribute(), 1000.f);
+	SetPlayerAttribute(Env, UMordecaiAttributeSet::GetPostureAttribute(), 0.f);
+	TestTrue("player break starts", Env.PlayerHas(
+		MordecaiGameplayTags::State_PostureBroken));
+
+	MordecaiRecoveryTest::FRecoveryTestEnv::ApplyHealthDelta(
+		PlayerASC, Env.Player, -100.f);
+	TestTrue("self damage does not replace break", Env.PlayerHas(
+		MordecaiGameplayTags::State_PostureBroken));
+	TestFalse("self damage does not count toward knockdown", Env.PlayerHas(
+		MordecaiGameplayTags::State_KnockedDown));
+	MordecaiRecoveryTest::FRecoveryTestEnv::ApplyHealthDelta(
+		HazardASC, Env.Player, -100.f);
+	TestTrue("environmental damage does not replace break", Env.PlayerHas(
+		MordecaiGameplayTags::State_PostureBroken));
+	TestFalse("environmental damage does not count toward knockdown", Env.PlayerHas(
+		MordecaiGameplayTags::State_KnockedDown));
+
+	MordecaiRecoveryTest::FRecoveryTestEnv::ApplyHealthDelta(
+		EnemyASC, Env.Player, -39.f);
+	TestTrue("39 hostile damage keeps break", Env.PlayerHas(
+		MordecaiGameplayTags::State_PostureBroken));
+	TestFalse("39 hostile damage stays below knockdown threshold", Env.PlayerHas(
+		MordecaiGameplayTags::State_KnockedDown));
+	MordecaiRecoveryTest::FRecoveryTestEnv::ApplyHealthDelta(
+		EnemyASC, Env.Player, -1.f);
+	TestFalse("40 hostile damage replaces break", Env.PlayerHas(
+		MordecaiGameplayTags::State_PostureBroken));
+	TestTrue("40 hostile damage knocks the player down", Env.PlayerHas(
+		MordecaiGameplayTags::State_KnockedDown));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Posture_Runtime_PlayerKnockdownDeathAndRespawn,
 	"Mordecai.Posture.Runtime.PlayerKnockdownDeathAndRespawn",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -1425,5 +1604,117 @@ bool FMordecai_Posture_Runtime_PlayerKnockdownDeathAndRespawn::RunTest(const FSt
 		"respawn restores maximum posture",
 		Env.GetPlayer(UMordecaiAttributeSet::GetPostureAttribute()),
 		Env.GetPlayer(UMordecaiAttributeSet::GetMaxPostureAttribute()));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Posture_Runtime_PlayerLiveBreakDeathRespawn,
+	"Mordecai.Posture.Runtime.PlayerLiveBreakDeathRespawn",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Posture_Runtime_PlayerLiveBreakDeathRespawn::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiPostureRuntimeTest;
+	using namespace MordecaiRecoveryDefenseTest;
+
+	FDefenseTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownDefender(); };
+	auto RunCase = [this, &Env](const bool bKnockDown)
+	{
+		const FString StateName = bKnockDown ? TEXT("knockdown") : TEXT("break");
+		if (!TestTrue(
+				*FString::Printf(TEXT("%s player setup"), *StateName),
+				Env.SetupDefender(FVector::ZeroVector))
+			|| !TestNotNull(
+				*FString::Printf(TEXT("%s player runtime"), *StateName),
+				StartPlayerPostureRuntime(Env)))
+		{
+			return;
+		}
+		AMordecaiEnemyCharacter* Enemy =
+			Env.SpawnAttacker(MakePlayerSlash(10.f, 0.f));
+		UAbilitySystemComponent* EnemyASC =
+			Enemy ? Enemy->GetAbilitySystemComponent() : nullptr;
+		UAbilitySystemComponent* ASC = Env.GetPlayerASC();
+		UCharacterMovementComponent* Movement =
+			Env.Player ? Env.Player->GetCharacterMovement() : nullptr;
+		if (!TestNotNull(
+				*FString::Printf(TEXT("%s enemy ASC"), *StateName),
+				EnemyASC)
+			|| !TestNotNull(
+				*FString::Printf(TEXT("%s player ASC"), *StateName),
+				ASC)
+			|| !TestNotNull(
+				*FString::Printf(TEXT("%s movement"), *StateName),
+				Movement))
+		{
+			return;
+		}
+
+		SetPlayerAttribute(Env, UMordecaiAttributeSet::GetMaxHealthAttribute(), 500.f);
+		SetPlayerAttribute(Env, UMordecaiAttributeSet::GetHealthAttribute(), 500.f);
+		SetPlayerAttribute(Env, UMordecaiAttributeSet::GetPostureAttribute(), 0.f);
+		if (bKnockDown)
+		{
+			MordecaiRecoveryTest::FRecoveryTestEnv::ApplyHealthDelta(
+				EnemyASC, Env.Player, -40.f);
+		}
+		const FGameplayTag LiveState = bKnockDown
+			? MordecaiGameplayTags::State_KnockedDown.GetTag()
+			: MordecaiGameplayTags::State_PostureBroken.GetTag();
+		TestTrue(
+			*FString::Printf(TEXT("live %s timer state is present"), *StateName),
+			Env.PlayerHas(LiveState));
+		TestEqual(
+			*FString::Printf(TEXT("live %s locks movement"), *StateName),
+			Movement->MovementMode,
+			MOVE_None);
+
+		MordecaiRecoveryTest::FRecoveryTestEnv::ApplyHealthDelta(
+			EnemyASC, Env.Player, -1000.f);
+		TestTrue(
+			*FString::Printf(TEXT("enemy damage kills during live %s"), *StateName),
+			Env.Player->IsDead());
+		for (const FGameplayTag Tag : {
+			MordecaiGameplayTags::State_PostureBroken.GetTag(),
+			MordecaiGameplayTags::State_KnockedDown.GetTag(),
+			MordecaiGameplayTags::State_Parried.GetTag(),
+			MordecaiGameplayTags::State_Riposte.GetTag() })
+		{
+			TestFalse(
+				FString::Printf(TEXT("%s death clears %s"), *StateName, *Tag.ToString()),
+				ASC->HasMatchingGameplayTag(Tag));
+		}
+
+		Env.Player->HandlePlayerRespawn();
+		TestFalse(
+			*FString::Printf(TEXT("%s respawn removes death"), *StateName),
+			Env.Player->IsDead());
+		TestEqual(
+			*FString::Printf(TEXT("%s respawn restores Walking"), *StateName),
+			Movement->MovementMode,
+			MOVE_Walking);
+		Env.Player->ConsumeMovementInputVector();
+		Env.Player->AddMovementInput(FVector::BackwardVector, 1.f);
+		TestTrue(
+			*FString::Printf(TEXT("%s respawn accepts movement input"), *StateName),
+			Env.Player->GetPendingMovementInputVector().SizeSquared() > 0.5f);
+		Env.Player->ConsumeMovementInputVector();
+
+		SetPlayerAttribute(Env, UMordecaiAttributeSet::GetPostureAttribute(), 42.f);
+		Env.TickFrames(bKnockDown ? 45 : 35);
+		TestEqual(
+			*FString::Printf(TEXT("%s stale timer does not restore posture"), *StateName),
+			Env.GetPlayer(UMordecaiAttributeSet::GetPostureAttribute()),
+			42.f);
+		TestEqual(
+			*FString::Printf(TEXT("%s stale timer does not relock movement"), *StateName),
+			Movement->MovementMode,
+			MOVE_Walking);
+	};
+
+	RunCase(false);
+	Env.TeardownDefender();
+	RunCase(true);
 	return true;
 }

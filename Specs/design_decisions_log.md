@@ -418,3 +418,16 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
   remains a 40-health threshold, 2000ms duration and 2.0x multiplier; Parried
   and Riposte remain 1000ms each.
 - Source: Jeff's decisions supplied with US-123 on 2026-11-19 and 2026-11-20.
+
+### US-124 round-2 player knockdown attribution
+
+- Player knockdown accumulation counts only health damage attributed to a
+  hostile enemy instigator, matching the enemy posture runtime's player-source
+  rule. Environmental damage and self damage do not advance the 40-health
+  knockdown threshold.
+- The existing orphaned-projectile fallback remains unchanged: attribution
+  checks the original instigator, effect causer, and either actor's instigator.
+  A projectile whose enemy instigator relationship has already been cleared is
+  a follow-up issue rather than US-124 round-2 scope.
+- Source: coordinator decision supplied for issue #153 round-2 review
+  (2026-11-20).
