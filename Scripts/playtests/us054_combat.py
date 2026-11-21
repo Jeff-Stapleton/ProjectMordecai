@@ -732,7 +732,25 @@ class Us054CombatRun(kit.PlaytestRun):
                             f"{e}", None)
                 back = (f"walked back from {fmt_xy(pos)} to ({r['final'][0]:.0f}, "
                         f"{r['final'][1]:.0f}); ")
-            aim = kit.aim_world_positive_x(b)
+            # Re-arm aim after the full-distance dodge and long camera-follow
+            # walk. Refresh the cursor's camera-relative world point, then use a
+            # real right-stick pulse to deterministically face world +X even
+            # when the unattended virtual mouse retained a stale world point.
+            mouse_aim = kit.aim_world_positive_x(b)
+            stick_aim = b.axis({"Gamepad_RightY": -1.0}, hold_s=0.1)
+            aim = {"mouse": mouse_aim, "stick": stick_aim}
+            try:
+                facing = b.wait_for(
+                    lambda value: (
+                        ((player(value) or {}).get("facing_arrow") or {}).get("forward", [0])[0]
+                        > 0.9
+                    ),
+                    timeout_s=1.0,
+                    sections=["player"],
+                    poll_s=0.02,
+                )
+            except ab.BridgeError as error:
+                return "FAIL", f"world +X aim was not restored after the dodge: {error}", None
             healths = [enemy_health(d)[0]]
             clicks, gaps, last_click = 0, [], None
             t0 = time.monotonic()
