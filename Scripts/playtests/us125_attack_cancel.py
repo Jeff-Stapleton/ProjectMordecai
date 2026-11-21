@@ -26,6 +26,8 @@ TAG_COMBO = "Mordecai.State.ComboWindow"
 TAG_DODGE = "Mordecai.State.Dodging"
 TAG_BLOCK = "Mordecai.State.Blocking"
 TAG_COOLDOWN = "Mordecai.State.DodgeCooldown"
+TAG_PERFECT = "Mordecai.State.PerfectDodge"
+PERFECT_TEXT = "Perfect Dodge!"
 TAP = 0.1
 
 SCREENSHOTS = {
@@ -40,6 +42,10 @@ PLAN = (
          "tap RT, wait for ComboWindow, tap LeftAlt -> Attacking/ComboWindow clear before Dodging; "
          "settled displacement is 400 +/-40 cm at Yellow",
          proves=("AC1", "AC3", "AC7")),
+    Step("ordinary_dodge_has_no_perfect_feedback",
+         "on enemy-free MovementTestMap, observe the completed dodge -> no PerfectDodge tag and "
+         "no 'Perfect Dodge!' HUD text",
+         proves=("AC4", "AC7")),
     Step("committed_dodge_rejected",
          "tap RT and immediately tap LeftAlt during AttackCommitted -> attack remains and no dodge",
          proves=("AC2",)),
@@ -75,6 +81,23 @@ def _stamina(state):
 def _speed(state):
     value = (_player(state) or {}).get("speed")
     return float(value) if isinstance(value, (int, float)) else None
+
+
+def _texts(state):
+    return [str(text) for widget in ((state or {}).get("widgets") or [])
+            if isinstance(widget, dict) and widget.get("visible", True) is not False
+            for text in (widget.get("texts") or [])]
+
+
+def dodge_cancel_problems(activated, tags_after_input, distance):
+    problems = []
+    if not activated:
+        problems.append(f"Dodge/DodgeCooldown not observed after input: {tags_after_input}")
+    if TAG_ATTACK in tags_after_input or TAG_COMBO in tags_after_input:
+        problems.append(f"attack remained after Dodge input: {tags_after_input}")
+    if distance is None or not 360.0 <= distance <= 440.0:
+        problems.append(f"settled distance {distance}, expected 360..440 cm")
+    return problems
 
 
 class Us125AttackCancelRun(kit.PlaytestRun):
@@ -121,8 +144,11 @@ class Us125AttackCancelRun(kit.PlaytestRun):
         dodge, _ = self.attempt("recovery_dodge_cancel", self.step_dodge_cancel,
                                 needs=setup, needs_why="not run: Yellow setup failed")
         self.shot("dodge_cancel", needs=dodge, needs_why="not taken: dodge cancel failed")
+        ordinary, _ = self.attempt(
+            "ordinary_dodge_has_no_perfect_feedback", self.step_ordinary_feedback,
+            needs=dodge, needs_why="not run: ordinary dodge did not complete")
         self.attempt("committed_dodge_rejected", self.step_committed_dodge,
-                     needs=dodge, needs_why="not run: dodge cancel failed")
+                     needs=ordinary, needs_why="not run: ordinary dodge feedback failed")
         held, _ = self.attempt("held_block_needs_fresh_press", self.step_held_block,
                                needs=dodge, needs_why="not run: dodge cancel failed")
         block, _ = self.attempt("recovery_block_cancel", self.step_block_cancel,
@@ -157,7 +183,6 @@ class Us125AttackCancelRun(kit.PlaytestRun):
             active = self._state()
             tags_after_input = _tags(active)
             activated = TAG_DODGE in tags_after_input or TAG_COOLDOWN in tags_after_input
-            overlap = TAG_ATTACK in tags_after_input or TAG_COMBO in tags_after_input
             self._wait_tag(TAG_DODGE, False, 2.0)
             self._wait(lambda state: _speed(state) is not None and _speed(state) < 1.0,
                        2.0, "dodge settle")
@@ -165,19 +190,38 @@ class Us125AttackCancelRun(kit.PlaytestRun):
             distance = math.dist(p0, p1) if p0 and p1 else None
             self.measurements.append({"check": "recovery_dodge_cancel", "start": p0, "end": p1,
                                       "distance_cm": distance, "stamina_at_dodge": stamina})
-            problems = []
-            if not activated:
-                problems.append(f"Dodge/DodgeCooldown not observed after input: {tags_after_input}")
-            if overlap:
-                problems.append(f"attack remained after Dodge input: {tags_after_input}")
-            if distance is None or not 360.0 <= distance <= 440.0:
-                problems.append(f"settled distance {distance}, expected 360..440 cm")
+            problems = dodge_cancel_problems(activated, tags_after_input, distance)
             detail = (f"Recovery at stamina {stamina}; Dodge input held "
                       f"{response.get('held_s')}s; post-input tags {tags_after_input}; "
                       f"settled {distance} cm from {p0} to {p1}")
             return ("FAIL", detail + " -- " + "; ".join(problems), None) if problems \
                 else ("PASS", detail, {"distance_cm": distance})
         except (ab.BridgeError, RuntimeError) as exc:
+            return "FAIL", str(exc), None
+
+    def step_ordinary_feedback(self):
+        try:
+            seen_tag = False
+            seen_text = False
+            samples = []
+            deadline = time.monotonic() + 0.5
+            while time.monotonic() < deadline:
+                state = self.bridge.state(["player", "widgets"])
+                tags = _tags(state)
+                texts = _texts(state)
+                seen_tag |= TAG_PERFECT in tags
+                seen_text |= PERFECT_TEXT in texts
+                samples.append({"tags": tags, "texts": texts})
+                time.sleep(0.02)
+            ok = not seen_tag and not seen_text
+            return ("PASS" if ok else "FAIL"), (
+                f"enemy-free dodge: PerfectDodge tag seen={seen_tag}; "
+                f"{PERFECT_TEXT!r} HUD text seen={seen_text}"), {
+                    "perfect_tag_seen": seen_tag,
+                    "perfect_text_seen": seen_text,
+                    "sample_count": len(samples),
+                }
+        except ab.BridgeError as exc:
             return "FAIL", str(exc), None
 
     def step_committed_dodge(self):
@@ -201,19 +245,22 @@ class Us125AttackCancelRun(kit.PlaytestRun):
             self._wait_tag(TAG_COMMITTED)
             self.bridge.axis({LT: 1.0})
             seen_block = False
+            seen_combo = False
             deadline = time.monotonic() + 0.8
             last = []
             while time.monotonic() < deadline:
                 last = _tags(self._state())
                 seen_block |= TAG_BLOCK in last
+                seen_combo |= TAG_COMBO in last
                 if TAG_ATTACK not in last:
                     break
                 time.sleep(0.02)
             self.bridge.axis({LT: 0.0})
             self._wait_tag(TAG_ATTACK, False, 3.0)
-            return ("FAIL" if seen_block else "PASS"), (
+            failed = seen_block or not seen_combo
+            return ("FAIL" if failed else "PASS"), (
                 f"held LT from committed phase through Recovery; Blocking seen={seen_block}; "
-                f"last tags {last}"), None
+                f"ComboWindow seen while LT held={seen_combo}; last tags {last}"), None
         except (ab.BridgeError, RuntimeError) as exc:
             try:
                 self.bridge.axis({LT: 0.0})

@@ -682,7 +682,7 @@ class TestUs083AgainstTheFake(Us083Case):
         # Walking) must keep a dead SpaceBar from passing on the LeftAlt dodge's launch Falling
         _, server = self.serve(space_jump=False)
         with mock.patch.object(us083.Us083Run, "_dodge_displacement",
-                               lambda self, check, key, p0: ""):
+                               lambda self, check, key, p0: ("", True)):
             code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(self.statuses(rep, "FAIL"), ["jump_space_bar"])
@@ -694,7 +694,7 @@ class TestUs083AgainstTheFake(Us083Case):
         # B dodge's launch Falling
         _, server = self.serve(jump=False)
         with mock.patch.object(us083.Us083Run, "_dodge_displacement",
-                               lambda self, check, key, p0: ""):
+                               lambda self, check, key, p0: ("", True)):
             code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(self.statuses(rep, "FAIL"), ["jump_gamepad_a"])

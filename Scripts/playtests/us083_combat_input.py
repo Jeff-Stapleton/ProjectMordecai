@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """US-083 Combat Input Playtest -- Tier 4: block, parry, attacks, dodge, jump and sprint on the
-GAMEPAD and on the KEYBOARD AND MOUSE, played with REAL input
+GAMEPAD and on the KEYBOARD AND MOUSE, played with REAL input.
 
 US-083 binds the player's combat input (MordecaiIMC_Runtime).  Block and parry need a button held
 across state reads: the playtest client cannot hold a mouse button that way (B2), but it can hold
@@ -271,8 +271,8 @@ class Us083Run(kit.PlaytestRun):
         # The sprint and its toggle-back, then each tier-judged dodge displacement (kind "dodge")
         # (report_extra / md_sections)
         self.measurements = []
-        self._pending_dodge_tier = "YellowFallback"
-        self._pending_dodge_expected = DODGE_TIER_DISTANCES["Mordecai.Stamina.Tier.Yellow"]
+        self._pending_dodge_tier = None
+        self._pending_dodge_expected = None
 
     def steps(self):
         # The walk and the sprint first, from the spawn on the open floor (module docstring)
@@ -559,10 +559,7 @@ class Us083Run(kit.PlaytestRun):
                 self._activation_dodge_distance(activation_tags)
             self.bridge.tap(key, hold_s=self.TAP_S)
             got, seen = self._poll(DODGE_TIMEOUT_S, _dodging)
-            measured = self._dodge_displacement(check, key, p0)
-            # Some offline fault tests replace this helper with the pre-US-125 string-returning
-            # shape so they can isolate later jump behavior.
-            moved, distance_ok = measured if isinstance(measured, tuple) else (measured, True)
+            moved, distance_ok = self._dodge_displacement(check, key, p0)
             if got is None:
                 return ("FAIL", f"tapped {key}: no Dodging tag within {DODGE_TIMEOUT_S:g}s "
                         f"(tags {seen[-1]}){moved}", None)
@@ -577,7 +574,8 @@ class Us083Run(kit.PlaytestRun):
         for tag, distance in DODGE_TIER_DISTANCES.items():
             if tag in tags:
                 return tag.rsplit(".", 1)[-1], distance
-        return "YellowFallback", DODGE_TIER_DISTANCES["Mordecai.Stamina.Tier.Yellow"]
+        raise RuntimeError(
+            f"no stamina-tier tag present at dodge activation: {tags}")
 
     def _dodge_displacement(self, check, key, p0):
         """Wait for the dodge to settle and return (detail, distance_matches_activation_tier)."""

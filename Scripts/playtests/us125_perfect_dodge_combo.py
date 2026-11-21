@@ -19,6 +19,7 @@ TITLE = "US-125 perfect dodge and combo weapon-swap safety"
 RUN_SUFFIX = "us125-perfect-dodge-combo"
 ATTACKER = "TestAttacker"
 FIGHT_SPOT = (2000.0, 0.0)
+SWAP_SPOT = (1200.0, -700.0)
 RADIUS = 3000
 TAG_ATTACK = "Mordecai.State.Attacking"
 TAG_COMBO = "Mordecai.State.ComboWindow"
@@ -83,6 +84,36 @@ def _attacker(state):
                 actor.get("label") or actor.get("name") or actor.get("class") or "").lower():
             return actor
     return None
+
+
+def _combat_values(state):
+    return {
+        str(actor.get("name") or actor.get("label")): (
+            actor.get("health"), actor.get("posture"))
+        for actor in _actors(state) if isinstance(actor, dict)
+    }
+
+
+def _texts(state):
+    return [str(text) for widget in ((state or {}).get("widgets") or [])
+            if isinstance(widget, dict) and widget.get("visible", True) is not False
+            for text in (widget.get("texts") or [])]
+
+
+def perfect_result_problems(health0, health1, stamina0, stamina1,
+                            seen_dodge, seen_perfect, reward_count=1):
+    problems = []
+    if not seen_dodge:
+        problems.append("Dodging was never observed")
+    if not seen_perfect:
+        problems.append("successful PerfectDodge feedback was never observed")
+    if abs(health1 - health0) > 0.5:
+        problems.append(f"health changed {health0}->{health1}")
+    if not 4.0 <= stamina0 - stamina1 <= 6.0:
+        problems.append(f"stamina delta {stamina0 - stamina1:g}, expected net cost 5")
+    if reward_count != 1:
+        problems.append(f"perfect-dodge refund count {reward_count}, expected exactly 1")
+    return problems
 
 
 class Us125PerfectDodgeComboRun(kit.PlaytestRun):
@@ -171,16 +202,9 @@ class Us125PerfectDodgeComboRun(kit.PlaytestRun):
                 time.sleep(0.01)
             health1 = float(_attrs(latest).get("health"))
             stamina1 = float(_attrs(latest).get("stamina"))
-            problems = []
-            if not seen_dodge:
-                problems.append("Dodging was never observed")
-            if not seen_perfect:
-                problems.append("successful PerfectDodge tag was never observed")
-            if abs(health1 - health0) > 0.5:
-                problems.append(f"health changed {health0}->{health1}")
             # A 15 cost and one 10 refund is net -5. Small regeneration can begin only later.
-            if not 4.0 <= stamina0 - stamina1 <= 6.0:
-                problems.append(f"stamina delta {stamina0 - stamina1:g}, expected net cost 5")
+            problems = perfect_result_problems(
+                health0, health1, stamina0, stamina1, seen_dodge, seen_perfect)
             detail = (f"health {health0}->{health1}; stamina {stamina0}->{stamina1}; "
                       f"Dodging seen={seen_dodge}; PerfectDodge success seen={seen_perfect}")
             return ("FAIL", detail + " -- " + "; ".join(problems), None) if problems \
@@ -204,6 +228,9 @@ class Us125PerfectDodgeComboRun(kit.PlaytestRun):
     def step_swap(self):
         try:
             self._idle()
+            moved = self.bridge.walk_to(*SWAP_SPOT, tol=40.0)
+            before = self._read()
+            combat_before = _combat_values(before)
             old_weapon = _weapon(self.bridge.state(["player"]))
             self.bridge.axis({RT: 1.0}, hold_s=TAP)
             self._wait_tag(TAG_COMBO)
@@ -212,12 +239,21 @@ class Us125PerfectDodgeComboRun(kit.PlaytestRun):
             changed = self._wait(lambda state: _weapon(state).get("index") != old_weapon.get("index"),
                                  2.0, "weapon change")
             new_weapon = _weapon(changed)
-            self._wait_tag(TAG_ATTACK, False, 4.0)
-            tags = _tags(self.bridge.state(["player"]))
+            started = time.monotonic()
+            final = self._wait_tag(TAG_ATTACK, False, 2.0)
+            clear_s = time.monotonic() - started
+            tags = _tags(final)
+            combat_after = _combat_values(self._read())
             problems = []
             if TAG_ATTACK in tags or TAG_COMBO in tags:
                 problems.append(f"attack state stuck: {tags}")
-            detail = f"weapon {old_weapon} -> {new_weapon}; final tags {tags}"
+            if combat_after != combat_before:
+                problems.append(
+                    f"out-of-reach attack changed health/posture: "
+                    f"{combat_before} -> {combat_after}")
+            detail = (f"moved out of reach to {moved.get('final')}; weapon "
+                      f"{old_weapon} -> {new_weapon}; attack cleared in {clear_s:.3f}s; "
+                      f"health/posture {combat_before} -> {combat_after}; final tags {tags}")
             return ("FAIL", detail + " -- " + "; ".join(problems), None) if problems \
                 else ("PASS", detail, None)
         except (ab.BridgeError, RuntimeError) as exc:
@@ -229,8 +265,13 @@ class Us125PerfectDodgeComboRun(kit.PlaytestRun):
             weapon = _weapon(self.bridge.state(["player"]))
             self.bridge.axis({RT: 1.0}, hold_s=TAP)
             self._wait_tag(TAG_ATTACK)
+            step_one = self._wait(
+                lambda state: "Hit 1" in _texts(state), 1.5,
+                "new weapon combo step 1 HUD", ("player", "widgets"))
             self._wait_tag(TAG_ATTACK, False, 4.0)
-            return "PASS", f"fresh attack completed with {weapon}", None
+            return "PASS", (
+                f"fresh attack completed with {weapon}; visible combo text "
+                f"{_texts(step_one)} confirms step 1"), None
         except (ab.BridgeError, RuntimeError) as exc:
             return "FAIL", str(exc), None
 

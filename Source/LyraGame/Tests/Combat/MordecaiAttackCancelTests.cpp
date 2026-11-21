@@ -5,8 +5,10 @@
 
 #include "AbilitySystem/LyraAbilitySystemComponent.h"
 #include "Components/BoxComponent.h"
+#include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayAbilitySpec.h"
+#include "InputAction.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiGA_Block.h"
 #include "Mordecai/Combat/MordecaiGA_Dodge.h"
@@ -14,10 +16,12 @@
 #include "Mordecai/Combat/MordecaiGA_Parry.h"
 #include "Mordecai/Combat/MordecaiHitDefense.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/MordecaiHeroComponent.h"
 #include "Mordecai/MordecaiPlayerController.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiWeaponProfileFactory.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace MordecaiAttackCancelTest
 {
@@ -56,6 +60,7 @@ namespace MordecaiAttackCancelTest
 			Floor->SetActorLocation(FVector(0.f, 0.f, -100.f));
 			Player->GetCharacterMovement()->Activate(true);
 			Player->GetCharacterMovement()->SetComponentTickEnabled(true);
+			Player->GetCharacterMovement()->bRunPhysicsWithNoController = true;
 			Player->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 
 			AttackProfile = MordecaiRecoveryTest::MakeStubProfile();
@@ -160,6 +165,71 @@ namespace MordecaiAttackCancelTest
 			}
 		}
 
+		bool WaitForPhase(EMordecaiAttackPhase Phase, int32 MaxFrames = 100) const
+		{
+			for (int32 Frame = 0; Frame < MaxFrames; ++Frame)
+			{
+				const UMordecaiGA_MeleeAttack* Melee = Instance<UMordecaiGA_MeleeAttack>();
+				if (Melee && Melee->GetCurrentPhase() == Phase)
+				{
+					return true;
+				}
+				TickFrames(1);
+			}
+			return false;
+		}
+
+		bool AdvanceToComboStep(int32 ZeroBasedStep) const
+		{
+			UMordecaiGA_MeleeAttack* Melee = Instance<UMordecaiGA_MeleeAttack>();
+			if (!Melee)
+			{
+				return false;
+			}
+			if (!Melee->IsActive())
+			{
+				Press(MordecaiGameplayTags::Input_LightAttack);
+			}
+			while (Melee->GetCurrentComboIndex() < ZeroBasedStep)
+			{
+				if (!WaitForPhase(EMordecaiAttackPhase::Recovery))
+				{
+					return false;
+				}
+				Melee->NotifyComboInput();
+				const int32 Previous = Melee->GetCurrentComboIndex();
+				for (int32 Frame = 0; Frame < 100
+					&& Melee->GetCurrentComboIndex() == Previous; ++Frame)
+				{
+					TickFrames(1);
+				}
+				if (Melee->GetCurrentComboIndex() == Previous)
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+		UMordecaiEquipmentComponent* EquipDaggerAndGreatsword()
+		{
+			Equipment = Player->FindComponentByClass<UMordecaiEquipmentComponent>();
+			if (!Equipment)
+			{
+				return nullptr;
+			}
+			Equipment->AddAvailableWeapon(
+				UMordecaiWeaponProfileFactory::CreateDagger(GetTransientPackage()));
+			Equipment->AddAvailableWeapon(
+				UMordecaiWeaponProfileFactory::CreateGreatsword(GetTransientPackage()));
+			Equipment->CycleNextWeapon();
+			if (UMordecaiGA_MeleeAttack* Melee = Instance<UMordecaiGA_MeleeAttack>())
+			{
+				Melee->SetEquipmentComponentOverride(Equipment);
+			}
+			return Equipment;
+		}
+
 		void TeardownRuntime()
 		{
 			if (GrantPC)
@@ -173,6 +243,36 @@ namespace MordecaiAttackCancelTest
 			Teardown();
 		}
 	};
+
+	static UInputAction* LoadInputAction(const TCHAR* Name)
+	{
+		return Cast<UInputAction>(FSoftObjectPath(FString::Printf(
+			TEXT("/MordecaiCore/Input/Actions/%s.%s"), Name, Name)).TryLoad());
+	}
+
+	static bool ExecuteBinding(
+		const UEnhancedInputComponent* EIC,
+		const UInputAction* Action,
+		ETriggerEvent Event,
+		const UObject* BoundTo)
+	{
+		if (!EIC || !Action)
+		{
+			return false;
+		}
+		for (const TUniquePtr<FEnhancedInputActionEventBinding>& Binding :
+			EIC->GetActionEventBindings())
+		{
+			if (Binding && Binding->GetAction() == Action
+				&& Binding->GetTriggerEvent() == Event
+				&& Binding->IsBoundToObject(BoundTo))
+			{
+				Binding->Execute(FInputActionInstance(Action));
+				return true;
+			}
+		}
+		return false;
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_AttackCancel_RecoveryDodgeCancelsBeforeActivation,
@@ -189,6 +289,9 @@ bool FMordecai_AttackCancel_RecoveryDodgeCancelsBeforeActivation::RunTest(const 
 		return true;
 	}
 	Env.EnterRecovery();
+	Env.Press(MordecaiGameplayTags::Input_LightAttack);
+	TestTrue("follow-up was queued before cancel", Env.GetASC()->HasMatchingGameplayTag(
+		MordecaiGameplayTags::State_ComboWindow));
 	TestTrue("attack reached Recovery", Env.Instance<UMordecaiGA_MeleeAttack>()
 		&& Env.Instance<UMordecaiGA_MeleeAttack>()->GetCurrentPhase() == EMordecaiAttackPhase::Recovery);
 	Env.Press(MordecaiGameplayTags::Input_Dodge);
@@ -199,6 +302,9 @@ bool FMordecai_AttackCancel_RecoveryDodgeCancelsBeforeActivation::RunTest(const 
 		MordecaiGameplayTags::State_ComboWindow));
 	TestTrue("dodge activates", Env.GetASC()->HasMatchingGameplayTag(
 		MordecaiGameplayTags::State_Dodging));
+	Env.TickSeconds(1.f);
+	TestFalse("queued follow-up never hits or starts after cancel",
+		Env.Active<UMordecaiGA_MeleeAttack>());
 	return true;
 }
 
@@ -317,16 +423,25 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_AttackCancel_ParryDoesNotCancelAttack
 bool FMordecai_AttackCancel_ParryDoesNotCancelAttack::RunTest(const FString& Parameters)
 {
 	using namespace MordecaiAttackCancelTest;
-	FRuntimeEnv Env;
-	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
-	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	for (const EMordecaiAttackPhase Phase :
+		{ EMordecaiAttackPhase::Windup, EMordecaiAttackPhase::Recovery })
 	{
-		return true;
+		FRuntimeEnv Env;
+		if (!TestTrue("runtime world", Env.SetupRuntime()))
+		{
+			Env.TeardownRuntime();
+			continue;
+		}
+		Env.Press(MordecaiGameplayTags::Input_LightAttack);
+		if (Phase == EMordecaiAttackPhase::Recovery)
+		{
+			TestTrue("attack reaches Recovery", Env.WaitForPhase(Phase));
+		}
+		Env.Press(MordecaiGameplayTags::Input_Parry);
+		TestTrue("melee remains active", Env.Active<UMordecaiGA_MeleeAttack>());
+		TestFalse("parry cannot overlap or cancel an attack", Env.Active<UMordecaiGA_Parry>());
+		Env.TeardownRuntime();
 	}
-	Env.Press(MordecaiGameplayTags::Input_LightAttack);
-	Env.Press(MordecaiGameplayTags::Input_Parry);
-	TestTrue("committed melee remains active", Env.Active<UMordecaiGA_MeleeAttack>());
-	TestFalse("parry cannot overlap or cancel an attack", Env.Active<UMordecaiGA_Parry>());
 	return true;
 }
 
@@ -360,6 +475,7 @@ bool FMordecai_Dodge_RuntimeTravelsTierScaledDistance::RunTest(const FString& Pa
 		Env.SetStamina(Case.Stamina);
 		const FRotator InitialFacing(0.f, 37.f, 0.f);
 		Env.Player->SetActorRotation(InitialFacing);
+		const FVector Start = Env.Player->GetActorLocation();
 		Env.Press(MordecaiGameplayTags::Input_Dodge);
 		const UMordecaiGA_Dodge* Dodge = Env.Instance<UMordecaiGA_Dodge>();
 		if (!TestNotNull(*FString::Printf(TEXT("%s active Dodge instance"), Case.Tier), Dodge))
@@ -369,16 +485,15 @@ bool FMordecai_Dodge_RuntimeTravelsTierScaledDistance::RunTest(const FString& Pa
 		}
 		TestTrue(*FString::Printf(TEXT("%s runtime constant-force source is active"), Case.Tier),
 			Env.Player->GetCharacterMovement()->CurrentRootMotion.HasActiveRootMotionSources());
+		Env.TickSeconds(0.45f);
 		const float RuntimeDistance =
-			Dodge->ComputeImpulseVelocity(Dodge->GetDodgeDirection()).Size2D()
-			* Dodge->GetDodgeDurationSeconds();
-		TestTrue(*FString::Printf(TEXT("%s runtime source travels %.0f +/-10%% cm (configured %.1f)"),
-			Case.Tier, Case.ExpectedDistance, RuntimeDistance),
+			FVector::Dist2D(Start, Env.Player->GetActorLocation());
+		TestTrue(*FString::Printf(TEXT("%s measured runtime travel %.1f cm is %.0f +/-10%% cm"),
+			Case.Tier, RuntimeDistance, Case.ExpectedDistance),
 			FMath::IsNearlyEqual(
 				RuntimeDistance,
 				Case.ExpectedDistance,
 				Case.ExpectedDistance * 0.1f));
-		Env.TickSeconds(0.45f);
 		TestEqual(*FString::Printf(TEXT("%s dodge finishes at zero horizontal speed"), Case.Tier),
 			static_cast<float>(Env.Player->GetCharacterMovement()->Velocity.Size2D()), 0.f, 1.f);
 		TestEqual(*FString::Printf(TEXT("%s dodge preserves twin-stick facing"), Case.Tier),
@@ -511,5 +626,267 @@ bool FMordecai_Combo_WeaponSwapPinsStepAndResetsChain::RunTest(const FString& Pa
 	TestEqual("new weapon starts at combo step 1", Melee->GetCurrentComboIndex(), 0);
 	TestTrue("new weapon's profile replaces the old profile only on the new attack",
 		Melee->GetActiveProfile() != PinnedDaggerStep);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_AttackCancel_DefenseActivationArbitratesBeforeCancel,
+	"Mordecai.AttackCancel.DefenseActivationArbitratesBeforeCancel",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_AttackCancel_DefenseActivationArbitratesBeforeCancel::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiAttackCancelTest;
+
+	// A Dodge that fails its own cooldown check must not consume a valid Recovery attack.
+	{
+		FRuntimeEnv Env;
+		if (TestTrue("dodge runtime world", Env.SetupRuntime()))
+		{
+			UMordecaiHeroComponent* Hero =
+				Env.Player->FindComponentByClass<UMordecaiHeroComponent>();
+			UEnhancedInputComponent* EIC =
+				NewObject<UEnhancedInputComponent>(Env.Player);
+			Hero->SetAbilitySystemOverride(Env.GetASC());
+			Hero->BuildAndBindRuntimeInput(EIC);
+			UInputAction* Dodge = LoadInputAction(TEXT("IA_Mordecai_Dodge"));
+			Env.EnterRecovery();
+			Env.GetASC()->AddLooseGameplayTag(
+				MordecaiGameplayTags::State_DodgeCooldown);
+			TestTrue("Dodge binding executes",
+				ExecuteBinding(EIC, Dodge, ETriggerEvent::Triggered, Hero));
+			Env.GetASC()->ProcessAbilityInput(0.f, false);
+			TestTrue("cooldown-rejected Dodge leaves Recovery attack running",
+				Env.Active<UMordecaiGA_MeleeAttack>());
+			TestFalse("Dodge remains rejected", Env.Active<UMordecaiGA_Dodge>());
+			Env.GetASC()->RemoveLooseGameplayTag(
+				MordecaiGameplayTags::State_DodgeCooldown);
+		}
+		Env.TeardownRuntime();
+	}
+
+	// A held Block rejected during a committed phase stays suppressed until release,
+	// then a fresh press in Recovery is allowed to cancel.
+	{
+		FRuntimeEnv Env;
+		if (TestTrue("block runtime world", Env.SetupRuntime()))
+		{
+			UMordecaiHeroComponent* Hero =
+				Env.Player->FindComponentByClass<UMordecaiHeroComponent>();
+			UEnhancedInputComponent* EIC =
+				NewObject<UEnhancedInputComponent>(Env.Player);
+			Hero->SetAbilitySystemOverride(Env.GetASC());
+			Hero->BuildAndBindRuntimeInput(EIC);
+			UInputAction* Block = LoadInputAction(TEXT("IA_Mordecai_Block"));
+			Env.Press(MordecaiGameplayTags::Input_LightAttack);
+			TestTrue("first held Block trigger executes",
+				ExecuteBinding(EIC, Block, ETriggerEvent::Triggered, Hero));
+			TestTrue("repeat held Block trigger executes",
+				ExecuteBinding(EIC, Block, ETriggerEvent::Triggered, Hero));
+			Env.GetASC()->ProcessAbilityInput(0.f, false);
+			TestFalse("committed held Block is rejected", Env.Active<UMordecaiGA_Block>());
+			TestTrue("attack survives held Block", Env.Active<UMordecaiGA_MeleeAttack>());
+			TestTrue("attack reaches Recovery while LT remains held",
+				Env.WaitForPhase(EMordecaiAttackPhase::Recovery));
+			TestTrue("suppressed held LT still executes its binding",
+				ExecuteBinding(EIC, Block, ETriggerEvent::Triggered, Hero));
+			Env.GetASC()->ProcessAbilityInput(0.f, false);
+			TestFalse("suppressed held LT does not retry in Recovery",
+				Env.Active<UMordecaiGA_Block>());
+			TestTrue("release binding executes",
+				ExecuteBinding(EIC, Block, ETriggerEvent::Completed, Hero));
+			Env.GetASC()->ProcessAbilityInput(0.f, false);
+			TestTrue("fresh Block binding executes",
+				ExecuteBinding(EIC, Block, ETriggerEvent::Triggered, Hero));
+			Env.GetASC()->ProcessAbilityInput(0.f, false);
+			TestTrue("fresh Block activates", Env.Active<UMordecaiGA_Block>());
+			TestFalse("fresh Block cancels Recovery",
+				Env.Active<UMordecaiGA_MeleeAttack>());
+		}
+		Env.TeardownRuntime();
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_AttackCancel_MeleeCannotStartDuringDefense,
+	"Mordecai.AttackCancel.MeleeCannotStartDuringDefense",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_AttackCancel_MeleeCannotStartDuringDefense::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiAttackCancelTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	{
+		return true;
+	}
+	UMordecaiGA_MeleeAttack* Melee = Env.Instance<UMordecaiGA_MeleeAttack>();
+	TestTrue("Melee blocks while Blocking",
+		Melee && Melee->HasActivationBlockedTag(MordecaiGameplayTags::State_Blocking));
+	TestTrue("Melee blocks while Dodging",
+		Melee && Melee->HasActivationBlockedTag(MordecaiGameplayTags::State_Dodging));
+	for (const FGameplayTag State : {
+		MordecaiGameplayTags::State_Blocking.GetTag(),
+		MordecaiGameplayTags::State_Dodging.GetTag() })
+	{
+		Env.GetASC()->AddLooseGameplayTag(State);
+		Env.Press(MordecaiGameplayTags::Input_LightAttack);
+		TestFalse(*FString::Printf(TEXT("melee cannot start during %s"), *State.ToString()),
+			Env.Active<UMordecaiGA_MeleeAttack>());
+		Env.Release(MordecaiGameplayTags::Input_LightAttack);
+		Env.GetASC()->RemoveLooseGameplayTag(State);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Combo_CancelledFinisherResetsToStepOne,
+	"Mordecai.Combo.CancelledFinisherResetsToStepOne",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Combo_CancelledFinisherResetsToStepOne::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiAttackCancelTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	{
+		return true;
+	}
+	UMordecaiEquipmentComponent* Equipment =
+		Env.Player->FindComponentByClass<UMordecaiEquipmentComponent>();
+	Equipment->AddAvailableWeapon(
+		UMordecaiWeaponProfileFactory::CreateLongsword(GetTransientPackage()));
+	Equipment->CycleNextWeapon();
+	UMordecaiGA_MeleeAttack* Melee = Env.Instance<UMordecaiGA_MeleeAttack>();
+	Melee->SetEquipmentComponentOverride(Equipment);
+	TestTrue("Longsword reaches L3", Env.AdvanceToComboStep(2));
+	TestTrue("L3 reaches Recovery", Env.WaitForPhase(EMordecaiAttackPhase::Recovery));
+	Env.Press(MordecaiGameplayTags::Input_Dodge);
+	TestFalse("Dodge cancels L3 Recovery", Env.Active<UMordecaiGA_MeleeAttack>());
+	Env.TickSeconds(1.f);
+	Env.Release(MordecaiGameplayTags::Input_LightAttack);
+	Env.Press(MordecaiGameplayTags::Input_LightAttack);
+	TestTrue("next RT starts an attack", Env.Active<UMordecaiGA_MeleeAttack>());
+	TestEqual("next RT starts L1, not stale L3", Melee->GetCurrentComboIndex(), 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Combo_DaggerCancelSwapStartsGreatswordStepOne,
+	"Mordecai.Combo.DaggerCancelSwapStartsGreatswordStepOne",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Combo_DaggerCancelSwapStartsGreatswordStepOne::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiAttackCancelTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime())
+		|| !TestNotNull("Dagger/Greatsword equipment", Env.EquipDaggerAndGreatsword()))
+	{
+		return true;
+	}
+	UMordecaiGA_MeleeAttack* Melee = Env.Instance<UMordecaiGA_MeleeAttack>();
+	TestTrue("Dagger reaches L4", Env.AdvanceToComboStep(3));
+	TestTrue("Dagger L4 reaches Recovery",
+		Env.WaitForPhase(EMordecaiAttackPhase::Recovery));
+	Env.Press(MordecaiGameplayTags::Input_Dodge);
+	TestFalse("Dodge cancels Dagger L4 Recovery",
+		Env.Active<UMordecaiGA_MeleeAttack>());
+	Env.Equipment->CycleNextWeapon();
+	Env.TickSeconds(1.f);
+	Env.Release(MordecaiGameplayTags::Input_LightAttack);
+	Env.Press(MordecaiGameplayTags::Input_LightAttack);
+	TestTrue("Greatsword RT works after Dagger cancel",
+		Env.Active<UMordecaiGA_MeleeAttack>());
+	TestEqual("Greatsword starts at L1", Melee->GetCurrentComboIndex(), 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Combo_HighDaggerSwapToShorterChainEveryPhase,
+	"Mordecai.Combo.HighDaggerSwapToShorterChainEveryPhase",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Combo_HighDaggerSwapToShorterChainEveryPhase::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiAttackCancelTest;
+	for (const EMordecaiAttackPhase Phase : {
+		EMordecaiAttackPhase::Windup,
+		EMordecaiAttackPhase::Active,
+		EMordecaiAttackPhase::Recovery })
+	{
+		FRuntimeEnv Env;
+		if (!TestTrue("runtime world", Env.SetupRuntime())
+			|| !TestNotNull("Dagger/Greatsword equipment",
+				Env.EquipDaggerAndGreatsword()))
+		{
+			Env.TeardownRuntime();
+			continue;
+		}
+		UMordecaiGA_MeleeAttack* Melee =
+			Env.Instance<UMordecaiGA_MeleeAttack>();
+		TestTrue("Dagger reaches step 4", Env.AdvanceToComboStep(3));
+		TestTrue(*FString::Printf(TEXT("Dagger L4 reaches phase %d"),
+			static_cast<int32>(Phase)), Env.WaitForPhase(Phase));
+		Env.Equipment->CycleNextWeapon();
+		Env.TickSeconds(2.f);
+		TestFalse("swapped chain ends within a bound",
+			Env.Active<UMordecaiGA_MeleeAttack>());
+		Env.Release(MordecaiGameplayTags::Input_LightAttack);
+		Env.Press(MordecaiGameplayTags::Input_LightAttack);
+		TestTrue("shorter weapon remains usable",
+			Env.Active<UMordecaiGA_MeleeAttack>());
+		TestEqual("shorter weapon starts step 1",
+			Melee->GetCurrentComboIndex(), 0);
+		Env.TeardownRuntime();
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_AttackCancel_PostureBreakClearsDefenseTransitions,
+	"Mordecai.AttackCancel.PostureBreakClearsDefenseTransitions",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_AttackCancel_PostureBreakClearsDefenseTransitions::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiAttackCancelTest;
+	for (const bool bBreakDuringDodge : { true, false })
+	{
+		FRuntimeEnv Env;
+		if (!TestTrue("runtime world", Env.SetupRuntime()))
+		{
+			Env.TeardownRuntime();
+			continue;
+		}
+		if (bBreakDuringDodge)
+		{
+			Env.Press(MordecaiGameplayTags::Input_Dodge);
+			TestTrue("root-motion Dodge is active",
+				Env.Active<UMordecaiGA_Dodge>());
+		}
+		else
+		{
+			Env.EnterRecovery();
+			Env.Press(MordecaiGameplayTags::Input_Dodge);
+			TestFalse("Recovery attack was cancelled",
+				Env.Active<UMordecaiGA_MeleeAttack>());
+		}
+		Env.GetASC()->SetNumericAttributeBase(
+			UMordecaiAttributeSet::GetPostureAttribute(), 0.f);
+		Env.TickFrames(1);
+		TestTrue("posture break state starts", Env.GetASC()->HasMatchingGameplayTag(
+			MordecaiGameplayTags::State_PostureBroken));
+		TestFalse("posture break cancels Dodge", Env.Active<UMordecaiGA_Dodge>());
+		TestFalse("posture break leaves no melee",
+			Env.Active<UMordecaiGA_MeleeAttack>());
+		TestFalse("posture break removes Dodging", Env.GetASC()->HasMatchingGameplayTag(
+			MordecaiGameplayTags::State_Dodging));
+		Env.TeardownRuntime();
+	}
 	return true;
 }

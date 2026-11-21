@@ -68,6 +68,24 @@ class TestUs125PlaytestsAgainstFakeBridge(unittest.TestCase):
         state = {"player": {"valid": True, "speed": 0}}
         self.assertEqual(attack_cancel._speed(state), 0.0)
 
+    def test_attack_cancel_rejects_attack_dodge_overlap(self):
+        problems = attack_cancel.dodge_cancel_problems(
+            True,
+            [attack_cancel.TAG_ATTACK, attack_cancel.TAG_DODGE],
+            400.0,
+        )
+        self.assertTrue(any("attack remained" in problem for problem in problems))
+
+    def test_attack_cancel_rejects_110_cm_dodge(self):
+        problems = attack_cancel.dodge_cancel_problems(
+            True, [attack_cancel.TAG_DODGE], 110.0)
+        self.assertTrue(any("110" in problem for problem in problems))
+
+    def test_perfect_dodge_rejects_double_refund(self):
+        problems = perfect_combo.perfect_result_problems(
+            100.0, 100.0, 100.0, 95.0, True, True, reward_count=2)
+        self.assertTrue(any("exactly 1" in problem for problem in problems))
+
     def test_perfect_combo_skips_when_test_attacker_is_absent(self):
         options = dict(fb.MAP_PRESETS[fb.COMBAT_TEST_MAP])
         options["enemies"] = []
