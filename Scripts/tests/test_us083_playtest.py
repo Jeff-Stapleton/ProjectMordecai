@@ -2,11 +2,11 @@
 
 PadWorld (below) adds the combat the shared FakeWorld lacks.  Gamepad: LT held blocks, a fresh RT
 press past 0.5 while blocking parries (0.5 s Parrying, then 0.6 s ParryWhiff, the guard down), a
-RT release is a light attack (held < 0.4 s) or a heavy one, B dodges and A jumps.  Keyboard and
+    RT release is a light attack (held < 0.4 s) or a heavy one, B dodges and A jumps.  Keyboard and
 mouse: a Left click released before 0.4 s is a light attack, one held longer a heavy attack (on
-the release), LeftAlt dodges, SpaceBar jumps (Falling) and LeftShift toggles a sprint (walk 600
+    the release), LeftAlt dodges, SpaceBar jumps (Falling) and LeftShift toggles a sprint (walk 600
 cm/s, sprint 900 cm/s).  An attack input while an attack runs is refused (State.Attacking blocks
-the melee ability).  A dodge moves the player 140 cm backward (-X), reports Falling for part of
+    the melee ability).  A Green-tier dodge moves the player 500 cm backward (-X), reports Falling for part of
 its active phase (its launch) and leaves a DodgeCooldown tag for 0.3 s.  The world is
 MovementTestMap (fb.MAP_PRESETS[fb.MOVEMENT_TEST_MAP]: open floor, boundary walls at +-2000, the
 jump step at +Y, no pickups, no enemies), the map the script launches.  Switches break each
@@ -84,7 +84,7 @@ class PadWorld(fb.FakeWorld):
 
     PARRY_S, WHIFF_S, ATTACK_S, HEAVY_HOLD_S, DODGE_S, JUMP_S = 0.5, 0.6, 0.6, 0.4, 0.4, 0.6
     DODGE_COOLDOWN_S = 0.3
-    DODGE_CM = 140.0               # backward (-X); the game's B dodge + A jump reached x=-144
+    DODGE_CM = 500.0               # Green-tier distance, backward (-X)
     # Falling for this part of the dodge's active phase (LaunchCharacter).  It starts after the
     # first read, so a read can see Dodging and Walking before the launch's Falling: a jump judged
     # then would take that Falling for a jump.  The dodge step's displacement measurement waits the
@@ -233,6 +233,7 @@ class PadWorld(fb.FakeWorld):
             tags.append(us083.TAG_ATTACKING)
             if self.attack_heavy:
                 tags.append(us083.TAG_HEAVY)
+        tags.append("Mordecai.Stamina.Tier.Green")
         if now < self.dodge_until:
             tags.append(us083.TAG_DODGING)
         elif now < self.dodge_until + self.dodge_cooldown_s:
@@ -360,10 +361,10 @@ class TestUs083Plan(unittest.TestCase):
         self.assertEqual(us083.RUN_UP[1], fb.MOVEMENT_TEST_MAP_LANE_Y)
         # A long sprint from the run-up point (900 cm/s for 1.1 s plus its stop) stays on lane
         # L1.  After the shortest passing sprint, the S hold (600 cm/s for 1.1 s plus its stop)
-        # and two full 400 cm backward dodges (N27 fixed) stay on open floor along y=-800
+        # and two full Green-tier 500 cm backward dodges stay on open floor along y=-800
         far = us083.RUN_UP[0] + 900.0 * 1.1 + 300.0
         near = (us083.RUN_UP[0] + us083.SPRINT_MIN - (600.0 * 1.1 + 100.0)
-                - 2 * us083.DODGE_DISTANCE_CM)
+                - 2 * us083.DODGE_TIER_DISTANCES["Mordecai.Stamina.Tier.Green"])
         self.assertLessEqual(far, 1600.0, "past the end of lane L1")
         x = near
         while x <= far:
@@ -460,7 +461,7 @@ class TestUs083AgainstTheFake(Us083Case):
                            "the sprint starts at the run-up point, not the lane start")
         self.assertLess(movement["sprint_left_shift_toggle_back"]["dx"], -400)
         self.assertEqual(movement["sprint_left_shift_toggle_back"]["peak_speed"], 600.0)
-        # Each dodge's displacement is measured (N27), not judged: the fake dodges 140 cm -X
+        # Each Green-tier dodge's full settled displacement is judged.
         self.assertEqual([m["check"] for m in rep["movement"]],
                          ["sprint_left_shift", "sprint_left_shift_toggle_back"] + DODGE_CHECKS)
         for name in DODGE_CHECKS:
@@ -469,10 +470,15 @@ class TestUs083AgainstTheFake(Us083Case):
             self.assertAlmostEqual(m["distance"], PadWorld.DODGE_CM, delta=1.0, msg=name)
             self.assertAlmostEqual(m["dx"], -PadWorld.DODGE_CM, delta=1.0, msg=name)
             self.assertAlmostEqual(m["dy"], 0.0, delta=1.0, msg=name)
-            self.assertEqual(m["expected_cm"], us083.DODGE_DISTANCE_CM)
+            self.assertEqual(m["activation_tier"], "Green")
+            self.assertEqual(
+                m["expected_cm"],
+                us083.DODGE_TIER_DISTANCES["Mordecai.Stamina.Tier.Green"])
+            self.assertTrue(m["distance_pass"])
             self.assertIsNotNone(m["settle_s"], name)
-            self.assertIn("displacement 140 cm", checks[name]["detail"])
-            self.assertIn("N27: DodgeDistanceCm 400; measured, not judged", checks[name]["detail"])
+            self.assertIn("displacement 500 cm", checks[name]["detail"])
+            self.assertIn("activation tier Green, expected 500 +/-40 cm; PASS",
+                          checks[name]["detail"])
         acs = {a["id"]: a for a in rep["acs"]}
         for ac in ("AC-083.3", "AC-083.4", "AC-083.5", "AC-083.6", "AC-083.7", "AC-083.8",
                    "AC-083.10"):
@@ -481,9 +487,10 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertFalse(any(a["accepted"] for a in rep["acs"]), "an attached run accepts nothing")
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
         self.assertIn("## Sprint measurements", md)
-        self.assertIn("## Dodge measurements (N27, not judged)", md)
-        self.assertIn("| dodge_left_alt | tap LeftAlt (dodge, no move key) |", md)
-        self.assertLess(md.index("## Sprint measurements"), md.index("## Dodge measurements"))
+        self.assertIn("## Tier-scaled dodge measurements", md)
+        self.assertIn("| dodge_left_alt | tap LeftAlt (dodge, no move key) | Green |", md)
+        self.assertLess(md.index("## Sprint measurements"),
+                        md.index("## Tier-scaled dodge measurements"))
 
     def test_no_block_fails_and_skips_what_needs_it(self):
         _, server = self.serve(block=False)
@@ -736,7 +743,8 @@ class TestUs083AgainstTheFake(Us083Case):
         _, server = self.serve(obstacles=fb.MOVEMENT_TEST_MAP_OBSTACLES + (LANE_BLOCKER,))
         code, rep = self.play(server)
         self.assertEqual(code, 1)
-        self.assertEqual(self.statuses(rep, "FAIL"), ["walk_lane_wp1"])
+        self.assertEqual(self.statuses(rep, "FAIL"),
+                         ["walk_lane_wp1", "dodge_gamepad_b", "dodge_left_alt"])
         checks = self.by_name(rep)
         self.assertIn("walk_lane_wp1", rep["new_failures"])
         for name in ("walk_lane_wp2", "walk_lane_start", "screenshot_lane_start",
@@ -745,12 +753,12 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertIn("previous waypoint was not reached", checks["walk_lane_wp2"]["detail"])
         self.assertIn("not at the lane start", checks["walk_lane_run_up"]["detail"])
         self.assertIn("not at the run-up point", checks["sprint_left_shift"]["detail"])
-        for name in ("light_attack_lmb_tap", "heavy_attack_lmb_hold", "dodge_left_alt",
-                     "jump_space_bar"):
+        for name in ("light_attack_lmb_tap", "heavy_attack_lmb_hold", "jump_space_bar"):
             self.assertEqual(checks[name]["status"], "PASS", name)
+        self.assertIn("expected 500 +/-40 cm; FAIL", checks["dodge_left_alt"]["detail"])
         acs = {a["id"]: a for a in rep["acs"]}
         self.assertEqual(acs["AC-083.8"]["status"], "NOT RUN")
-        self.assertEqual(acs["AC-083.3"]["status"], "NOT RUN")
+        self.assertEqual(acs["AC-083.3"]["status"], "FAIL")
         self.assertEqual(acs["AC-083.7"]["status"], "PASS")
         # No sprint was measured; the dodges still were
         self.assertEqual([m["check"] for m in rep["movement"]], DODGE_CHECKS)

@@ -50,10 +50,9 @@ Steps (every step is a check; --plan prints them as the story's Steps table):
 Every attack and dodge starts from idle (no attack, block or parry tag left); a dead player is
 never idle, so a step that finds the player dead FAILs saying so instead of pressing into a death.
 The combat steps read tags only, so they work wherever the sprint left the player.  Each dodge's
-displacement (from before the tap to where the player settles) is recorded in the report's
-movement measurements, not judged: it measures N27 (DodgeDistanceCm 400, ~110 cm travelled;
-Specs/agent_playtest_plan_v1.md).  A failed check SKIPs the checks that depend on it; independent
-checks still run.
+settled displacement is judged against the stamina tier present when the action activates:
+Green/Yellow/Red/Exhausted = 500/400/300/200 cm, with a +/-40 cm tolerance.  A failed check SKIPs
+the checks that depend on it; independent checks still run.
 
 Usage:
   py Scripts/playtests/us083_combat_input.py                    fresh package: launch, play, quit
@@ -100,7 +99,13 @@ TAG_HEAVY = "Mordecai.Attack.Heavy"
 TAG_DODGE_SUBSTR = "dodg"          # Mordecai.State.Dodging, then DodgeCooldown
 TAG_DODGING = "Mordecai.State.Dodging"   # the dodge's active phase (its launch)
 TAG_DEAD = "Mordecai.State.Dead"
-DODGE_DISTANCE_CM = 400.0          # UMordecaiGA_Dodge DodgeDistanceCm (N27: ~110 cm travelled)
+DODGE_TIER_DISTANCES = {
+    "Mordecai.Stamina.Tier.Green": 500.0,
+    "Mordecai.Stamina.Tier.Yellow": 400.0,
+    "Mordecai.Stamina.Tier.Red": 300.0,
+    "Mordecai.Stamina.Tier.Exhausted": 200.0,
+}
+DODGE_DISTANCE_TOLERANCE_CM = 40.0
 
 # --- keyboard and mouse (AC-083.4..AC-083.8) ------------------------------------------------
 CLICK_POINT = (640, 360)           # the viewport centre: the floor, no widget (as us078)
@@ -152,9 +157,6 @@ KNOWN_ISSUES = (
     "Block and parry on the mouse (RMB hold, RMB+LMB, AC-083.11) are not played: the playtest "
     "client holds a mouse button only inside one blocking click (B2). This script plays the "
     "same actions on the gamepad triggers.",
-    "The dodge travels about 110 cm, not its DodgeDistanceCm 400 (N27, "
-    "Specs/agent_playtest_plan_v1.md Known issues backlog). No check judges the distance: each "
-    "dodge's displacement is recorded in the report's dodge measurements.",
 )
 
 PLAN = (
@@ -191,7 +193,8 @@ PLAN = (
     Step("heavy_attack_rt_hold", f"idle -> axis {RT}=1 hold_s {RT_HEAVY_S:g} -> '{TAG_HEAVY}' "
          f"in player.tags within {HEAVY_TIMEOUT_S:g}s of the release", proves=("AC-083.3",)),
     Step("dodge_gamepad_b", f"tap {DODGE_KEY} (B) -> a Dodging tag in player.tags within "
-         f"{DODGE_TIMEOUT_S:g}s (the displacement is recorded, not judged: N27)",
+         f"{DODGE_TIMEOUT_S:g}s and settled displacement matches the activation stamina tier "
+         f"(+/-{DODGE_DISTANCE_TOLERANCE_CM:g} cm)",
          proves=("AC-083.3",)),
     Step("jump_gamepad_a", f"wait until the dodge is over (no '{TAG_DODGING}') and "
          f"player.movement_mode==\"Walking\", tap {JUMP_KEY} (A) -> wait_until "
@@ -207,7 +210,8 @@ PLAN = (
          "the release", proves=("AC-083.5", "AC-083.3")),
     Step("dodge_left_alt", f"idle (and no Dodging / DodgeCooldown tag left) -> tap {KB_DODGE_KEY} "
          f"-> a Dodging tag in player.tags within {DODGE_TIMEOUT_S:g}s (the displacement is "
-         "recorded, not judged: N27)", proves=("AC-083.6", "AC-083.3")),
+         f"judged against the activation stamina tier +/-{DODGE_DISTANCE_TOLERANCE_CM:g} cm)",
+         proves=("AC-083.6", "AC-083.3")),
     Step("jump_space_bar", f"wait until the dodge is over (no '{TAG_DODGING}') and "
          f"player.movement_mode==\"Walking\", tap {KB_JUMP_KEY} -> wait_until "
          f"player.movement_mode==\"Falling\" within {JUMP_TIMEOUT_S:g}s",
@@ -264,9 +268,11 @@ class Us083Run(kit.PlaytestRun):
 
     def __init__(self, args):
         super().__init__(args)
-        # The sprint and its toggle-back, then each dodge's displacement (kind "dodge"; N27)
+        # The sprint and its toggle-back, then each tier-judged dodge displacement (kind "dodge")
         # (report_extra / md_sections)
         self.measurements = []
+        self._pending_dodge_tier = "YellowFallback"
+        self._pending_dodge_expected = DODGE_TIER_DISTANCES["Mordecai.Stamina.Tier.Yellow"]
 
     def steps(self):
         # The walk and the sprint first, from the spawn on the open floor (module docstring)
@@ -542,30 +548,45 @@ class Us083Run(kit.PlaytestRun):
                             what, timeout_s, heavy)
 
     def _dodge(self, check, key, idle):
-        """From idle, tap `key`: PASS on a Dodging tag.  The displacement from before the tap to
-        where the player settles is recorded (N27), never judged."""
+        """From idle, tap `key`: PASS on a Dodging tag and tier-scaled settled displacement."""
         def fn():
             not_idle = self._wait_idle(idle)
             if not_idle:
                 return "FAIL", not_idle, None
-            p0, _ = self._player(self.bridge)
+            p0, raw = self._player(self.bridge)
+            activation_tags = [str(t) for t in raw.get("tags") or []]
+            self._pending_dodge_tier, self._pending_dodge_expected = \
+                self._activation_dodge_distance(activation_tags)
             self.bridge.tap(key, hold_s=self.TAP_S)
             got, seen = self._poll(DODGE_TIMEOUT_S, _dodging)
-            moved = self._dodge_displacement(check, key, p0)
+            measured = self._dodge_displacement(check, key, p0)
+            # Some offline fault tests replace this helper with the pre-US-125 string-returning
+            # shape so they can isolate later jump behavior.
+            moved, distance_ok = measured if isinstance(measured, tuple) else (measured, True)
             if got is None:
                 return ("FAIL", f"tapped {key}: no Dodging tag within {DODGE_TIMEOUT_S:g}s "
                         f"(tags {seen[-1]}){moved}", None)
+            if not distance_ok:
+                return "FAIL", f"tapped {key}: tags {got}{moved}", None
             return "PASS", f"tapped {key}: tags {got}{moved}", None
 
         return self.attempt(check, fn)
 
+    @staticmethod
+    def _activation_dodge_distance(tags):
+        for tag, distance in DODGE_TIER_DISTANCES.items():
+            if tag in tags:
+                return tag.rsplit(".", 1)[-1], distance
+        return "YellowFallback", DODGE_TIER_DISTANCES["Mordecai.Stamina.Tier.Yellow"]
+
     def _dodge_displacement(self, check, key, p0):
-        """Wait for the dodge's active phase to end and the player to stop, and record how far
-        it went from p0 (a measurement for N27, not a check).  Returns the text for the check's
-        detail."""
-        note = f"N27: DodgeDistanceCm {DODGE_DISTANCE_CM:g}; measured, not judged"
+        """Wait for the dodge to settle and return (detail, distance_matches_activation_tier)."""
+        tier = self._pending_dodge_tier
+        expected = self._pending_dodge_expected
+        note = (f"activation tier {tier}, expected {expected:g} "
+                f"+/-{DODGE_DISTANCE_TOLERANCE_CM:g} cm")
         if p0 is None:
-            return f"; displacement not measured (no position before the tap; {note})"
+            return f"; displacement not measured (no position before the tap; {note})", False
         try:
             # The first Dodging read can come before the launch moves the player (speed 0), so
             # wait for the tag to go before waiting for the stop
@@ -575,17 +596,21 @@ class Us083Run(kit.PlaytestRun):
         except ab.BridgeError as e:
             self.warnings.append(f"{check}: could not measure the dodge displacement: {e}")
             self._lost(f"{check} displacement", e)
-            return f"; displacement not measured ({e.code}; {note})"
+            return f"; displacement not measured ({e.code}; {note})", False
         if p1 is None:
-            return f"; displacement not measured (no position after the dodge; {note})"
+            return f"; displacement not measured (no position after the dodge; {note})", False
         dist = ((p1[0] - p0[0]) ** 2 + (p1[1] - p0[1]) ** 2) ** 0.5
+        distance_ok = abs(dist - expected) <= DODGE_DISTANCE_TOLERANCE_CM
         self._record(check, f"tap {key} (dodge, no move key)", p0, p1,
                      {"kind": "dodge", "distance": round(dist, 1),
-                      "expected_cm": DODGE_DISTANCE_CM, "settle_s": settle_s})
-        return (f"; displacement {dist:.0f} cm ({p0[0]:.0f}, {p0[1]:.0f}) -> ({p1[0]:.0f}, "
-                f"{p1[1]:.0f})" + ("" if settle_s is not None else
-                                   f", still moving {SETTLE_TIMEOUT_S:g}s after the dodge")
-                + f" ({note})")
+                      "activation_tier": tier, "expected_cm": expected,
+                      "tolerance_cm": DODGE_DISTANCE_TOLERANCE_CM,
+                      "distance_pass": distance_ok, "settle_s": settle_s})
+        detail = (f"; displacement {dist:.0f} cm ({p0[0]:.0f}, {p0[1]:.0f}) -> "
+                  f"({p1[0]:.0f}, {p1[1]:.0f})" + ("" if settle_s is not None else
+                  f", still moving {SETTLE_TIMEOUT_S:g}s after the dodge") + f" ({note}; "
+                  f"{'PASS' if distance_ok else 'FAIL'})")
+        return detail, distance_ok
 
     def _on_the_ground(self):
         """Before a jump: wait until the player is Walking and the dodge's active phase, whose
@@ -727,16 +752,19 @@ class Us083Run(kit.PlaytestRun):
                          f"{pt(m['end'])} | {m['dx']} | {m.get('peak_speed', '-')} |")
         if not sprint:
             lines.append("| (none) | - | - | - | - | - |")
-        lines += ["", "## Dodge measurements (N27, not judged)", "",
-                  f"DodgeDistanceCm is {DODGE_DISTANCE_CM:g}; each row is the displacement from "
-                  "before the tap to where the player settled.", "",
-                  "| Check | Input | Start | End | dx | dy | Distance |",
-                  "|---|---|---|---|---|---|---|"]
+        lines += ["", "## Tier-scaled dodge measurements", "",
+                  "Each settled displacement is judged against the activation tier "
+                  f"(Green/Yellow/Red/Exhausted = 500/400/300/200 cm, "
+                  f"+/-{DODGE_DISTANCE_TOLERANCE_CM:g} cm).", "",
+                  "| Check | Input | Tier | Start | End | dx | dy | Distance | Expected | Pass |",
+                  "|---|---|---|---|---|---|---|---|---|---|"]
         for m in dodges:
-            lines.append(f"| {m['check']} | {md(m['input'])} | {pt(m['start'])} | "
-                         f"{pt(m['end'])} | {m['dx']} | {m['dy']} | {m['distance']} |")
+            lines.append(f"| {m['check']} | {md(m['input'])} | "
+                         f"{m.get('activation_tier', '-')} | {pt(m['start'])} | "
+                         f"{pt(m['end'])} | {m['dx']} | {m['dy']} | {m['distance']} | "
+                         f"{m.get('expected_cm', '-')} | {m.get('distance_pass', '-')} |")
         if not dodges:
-            lines.append("| (none) | - | - | - | - | - | - |")
+            lines.append("| (none) | - | - | - | - | - | - | - | - | - |")
         return lines
 
 
