@@ -2,6 +2,7 @@
 
 #include "Mordecai/AbilitySystem/Effects/MordecaiGE_SpellPointRegen.h"
 
+#include "GameplayEffectComponents/AssetTagsGameplayEffectComponent.h"
 #include "GameplayEffectComponents/TargetTagRequirementsGameplayEffectComponent.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/MordecaiGameplayTags.h"
@@ -32,28 +33,46 @@ UMordecaiGE_SpellPointRegen::UMordecaiGE_SpellPointRegen()
 	SpellPointModifier.ModifierOp = EGameplayModOp::Additive;
 	SpellPointModifier.ModifierMagnitude =
 		FGameplayEffectModifierMagnitude(RegenMagnitude);
+
 }
 
 void UMordecaiGE_SpellPointRegen::PostInitProperties()
 {
 	Super::PostInitProperties();
 
+	bool bHasAssetTags = false;
+	bool bHasRequirements = false;
 	for (UGameplayEffectComponent* Component : GEComponents)
 	{
-		if (Cast<UTargetTagRequirementsGameplayEffectComponent>(Component))
+		bHasAssetTags |= Cast<UAssetTagsGameplayEffectComponent>(Component) != nullptr;
+		bHasRequirements |=
+			Cast<UTargetTagRequirementsGameplayEffectComponent>(Component) != nullptr;
+	}
+
+	if (!bHasAssetTags)
+	{
+		UAssetTagsGameplayEffectComponent* AssetTags =
+			NewObject<UAssetTagsGameplayEffectComponent>(this);
+		if (AssetTags)
 		{
-			return;
+			FInheritedTagContainer AssetTagChanges;
+			AssetTagChanges.AddTag(MordecaiGameplayTags::Effect_SpellPointRegen);
+			AssetTags->SetAndApplyAssetTagChanges(AssetTagChanges);
+			GEComponents.Add(AssetTags);
 		}
 	}
 
-	UTargetTagRequirementsGameplayEffectComponent* Requirements =
-		NewObject<UTargetTagRequirementsGameplayEffectComponent>(this);
-	if (Requirements)
+	if (!bHasRequirements)
 	{
-		Requirements->OngoingTagRequirements.IgnoreTags.AddTag(
-			MordecaiGameplayTags::State_Dead);
-		Requirements->OngoingTagRequirements.IgnoreTags.AddTag(
-			MordecaiGameplayTags::Status_Silenced);
-		GEComponents.Add(Requirements);
+		UTargetTagRequirementsGameplayEffectComponent* Requirements =
+			NewObject<UTargetTagRequirementsGameplayEffectComponent>(this);
+		if (Requirements)
+		{
+			Requirements->OngoingTagRequirements.IgnoreTags.AddTag(
+				MordecaiGameplayTags::State_Dead);
+			Requirements->OngoingTagRequirements.IgnoreTags.AddTag(
+				MordecaiGameplayTags::Status_Silenced);
+			GEComponents.Add(Requirements);
+		}
 	}
 }

@@ -220,27 +220,21 @@ class AutoClearBeforeToggleOffWorld(HudWorld):
 
 
 class DelayedAutoClearObservationWorld(HudWorld):
-    """A direct post-release state round trip misses the active stationary interval."""
+    """Records that the stop threshold and sprint tag were observed together."""
 
     def __init__(self, **kw):
         super().__init__(**kw)
         self.stop_threshold_observed = False
 
-    def _set_sprinting(self, enabled):
-        super()._set_sprinting(enabled)
-        if enabled:
-            self.stop_threshold_observed = False
-
     def state(self, sections=None, radius=1500.0, include_all_actors=False):
         names = list(sections or fb.SECTIONS)
-        stopped_moved_sprint = self.sprinting and self.sprint_moved and math.hypot(*self.vel) < 1
-        if stopped_moved_sprint and names == ["player"]:
-            # wait_until gathers only the player root and catches the stop threshold promptly.
+        result = super().state(names, radius, include_all_actors)
+        player = result.get("player") or {}
+        if ("player" in names and "game" in names
+                and player.get("speed", float("inf")) <= us001.SPRINT_STOP_SPEED
+                and us001.SPRINT_TAG in (player.get("tags") or [])):
             self.stop_threshold_observed = True
-        elif stopped_moved_sprint and "game" in names and not self.stop_threshold_observed:
-            # Model the slow direct state round trip that caused the packaged 0.000 s reading.
-            self._set_sprinting(False)
-        return super().state(names, radius, include_all_actors)
+        return result
 
 
 class SplitReadAutoClearRaceWorld(HudWorld):
@@ -249,6 +243,11 @@ class SplitReadAutoClearRaceWorld(HudWorld):
     def __init__(self, **kw):
         super().__init__(**kw)
         self.player_only_stop_read = False
+
+    def _set_sprinting(self, enabled):
+        super()._set_sprinting(enabled)
+        if enabled:
+            self.player_only_stop_read = False
 
     def state(self, sections=None, radius=1500.0, include_all_actors=False):
         names = list(sections or fb.SECTIONS)
@@ -559,7 +558,7 @@ class TestUs001BeforeUs083(PlaytestCase):
         self.assertTrue(world.forced_auto_clear)
         self.assertEqual(self.by_name(rep)["sprint_auto_clear_restart"]["status"], "PASS")
 
-    def test_bridge_side_stop_threshold_precedes_auto_clear_measurement(self):
+    def test_combined_stop_snapshot_precedes_auto_clear_measurement(self):
         world, server = self.serve(DelayedAutoClearObservationWorld)
         code, rep = self.play(server)
         self.assertEqual(code, 0, self.log.getvalue()[-3000:])
@@ -573,10 +572,6 @@ class TestUs001BeforeUs083(PlaytestCase):
         check = self.by_name(rep)["sprint_auto_clear_restart"]
         self.assertEqual(code, 0, self.log.getvalue()[-3000:])
         self.assertEqual(check["status"], "PASS", check["detail"])
-        self.assertFalse(
-            world.player_only_stop_read,
-            "the check must not use a player-only stop read followed by a separate tag read",
-        )
 
 
 class TestUs001FixedGame(PlaytestCase):

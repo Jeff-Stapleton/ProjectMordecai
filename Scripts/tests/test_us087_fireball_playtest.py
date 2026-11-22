@@ -62,6 +62,7 @@ class FireballWorld(fb.FakeWorld):
         self.dead_player_enabled = dead_player
         self.regen_after_cast = float(regen_after_cast)
         self.refund_after_cast = float(refund_after_cast)
+        self.refund_pending = False
         self.projectiles = []
         self.replaced = False
         self.cast_position = None
@@ -78,14 +79,7 @@ class FireballWorld(fb.FakeWorld):
             return
         self.spell_points = min(
             self.max_spell_points, self.spell_points + self.regen_after_cast)
-        if self.refund_after_cast:
-            self.after(
-                0.12,
-                lambda world: setattr(
-                    world,
-                    "spell_points",
-                    min(world.max_spell_points,
-                        world.spell_points + self.refund_after_cast)))
+        self.refund_pending = self.refund_after_cast > 0.0
         self.cast_position = list(self.pos)
         if self.projectile_enabled:
             self.after(0.03, lambda world: world.projectiles.append(
@@ -94,6 +88,15 @@ class FireballWorld(fb.FakeWorld):
             self.after(0.09, lambda world: world._damage_dummy())
         if self.dead_player_enabled:
             self.after(0.07, lambda world: world.kill_player())
+
+    def _s_player(self):
+        result = super()._s_player()
+        if self.casts and self.refund_pending:
+            self.spell_points = min(
+                self.max_spell_points,
+                self.spell_points + self.refund_after_cast)
+            self.refund_pending = False
+        return result
 
     def _damage_dummy(self):
         self._dummy()["health"] = 175.0
@@ -205,7 +208,7 @@ class TestUs087IndependentOutcomes(PlaytestCase):
         check = self.checks(report)["fireball_cast"]
         self.assertEqual(code, 1)
         self.assertEqual(check["status"], "FAIL", check["detail"])
-        self.assertIn("periodic regen ceiling", check["detail"])
+        self.assertIn("periodic regen allowed, ceiling", check["detail"])
 
     def test_invisible_projectile_fails_visibility_but_damage_still_passes(self):
         _, _, code, report = self.play(projectile=True, visible=False, damage=True)
@@ -331,7 +334,8 @@ class PickupLaneWorld(FireballWorld):
         if "regen" in self.faults:
             self.spell_points = min(self.max_spell_points, self.spell_points + 0.25)
         if "refund" in self.faults:
-            self.after(0.2, lambda world: setattr(world, "spell_points", world.max_spell_points))
+            self.refund_after_cast = self.max_spell_points
+            self.refund_pending = True
         spawn = lambda w: w.projectiles.append({  # noqa: E731
             "name": "Fireball_1",
             "location": [w.pos[0] + 70,
@@ -412,7 +416,7 @@ class TestUs087PickupLane(PlaytestCase):
         check = self.checks(report)["fireball_cast"]
         self.assertEqual(code, 1)
         self.assertEqual(check["status"], "FAIL", check["detail"])
-        self.assertIn("periodic regen ceiling", check["detail"])
+        self.assertIn("periodic regen allowed, ceiling", check["detail"])
 
     def test_faults_fail_the_named_binary_check(self):
         cases = (("destroy", "pickup_trigger_pass_through"),

@@ -45,6 +45,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Posture")
 	UMordecaiPostureRuntimeComponent* GetPostureRuntimeComponent() const { return PostureRuntimeComponent; }
 
+	/** Number of active native SP regen effects, identified by their stable GE asset tag. */
+	UFUNCTION(BlueprintPure, Category = "Mordecai|Spell Points")
+	int32 GetSpellPointRegenEffectCount() const;
+
 private:
 	UPROPERTY()
 	TObjectPtr<UMordecaiAttributeSet> MordecaiAttributeSet;

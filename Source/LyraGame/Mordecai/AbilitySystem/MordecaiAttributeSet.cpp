@@ -118,8 +118,17 @@ void UMordecaiAttributeSet::RecalculateDerivedStats()
 	MaxPosture.SetBaseValue(BaseMaxPostureValue * (1.0f + 0.04f * EffDis));
 	MaxPosture.SetCurrentValue(BaseMaxPostureValue * (1.0f + 0.04f * EffDis));
 
-	MaxSpellPoints.SetBaseValue(BaseMaxSpellPointsValue * (1.0f + 0.04f * EffInt));
-	MaxSpellPoints.SetCurrentValue(BaseMaxSpellPointsValue * (1.0f + 0.04f * EffInt));
+	const float NewMaxSpellPoints =
+		BaseMaxSpellPointsValue * (1.0f + 0.04f * EffInt);
+	if (ASC)
+	{
+		ASC->SetNumericAttributeBase(GetMaxSpellPointsAttribute(), NewMaxSpellPoints);
+	}
+	else
+	{
+		MaxSpellPoints.SetBaseValue(NewMaxSpellPoints);
+		MaxSpellPoints.SetCurrentValue(NewMaxSpellPoints);
+	}
 
 	MagicDamageMultiplier.SetBaseValue(1.0f + 0.03f * EffWis);
 	MagicDamageMultiplier.SetCurrentValue(1.0f + 0.03f * EffWis);
@@ -146,8 +155,18 @@ void UMordecaiAttributeSet::RecalculateDerivedStats()
 	PostureRecoveryMultiplier.SetBaseValue(1.0f + 0.02f * EffDis);
 	PostureRecoveryMultiplier.SetCurrentValue(1.0f + 0.02f * EffDis);
 
-	SpellPointsRegenMultiplier.SetBaseValue(1.0f + 0.02f * EffInt);
-	SpellPointsRegenMultiplier.SetCurrentValue(1.0f + 0.02f * EffInt);
+	const float NewSpellPointsRegenMultiplier = 1.0f + 0.02f * EffInt;
+	if (ASC)
+	{
+		ASC->SetNumericAttributeBase(
+			GetSpellPointsRegenMultiplierAttribute(),
+			NewSpellPointsRegenMultiplier);
+	}
+	else
+	{
+		SpellPointsRegenMultiplier.SetBaseValue(NewSpellPointsRegenMultiplier);
+		SpellPointsRegenMultiplier.SetCurrentValue(NewSpellPointsRegenMultiplier);
+	}
 
 	ResistancePenetrationMultiplier.SetBaseValue(1.0f + 0.0125f * EffWis);
 	ResistancePenetrationMultiplier.SetCurrentValue(1.0f + 0.0125f * EffWis);
@@ -291,6 +310,10 @@ void UMordecaiAttributeSet::ClampAttribute(const FGameplayAttribute& Attribute, 
 	else if (Attribute == GetMaxSpellPointsAttribute())
 	{
 		NewValue = FMath::Max(NewValue, 1.0f);
+	}
+	else if (Attribute == GetSpellPointsRegenMultiplierAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
 	}
 	else if (Attribute == GetPostureAttribute())
 	{

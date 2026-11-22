@@ -761,18 +761,19 @@ class Us001Run(kit.PlaytestRun):
             release_thread = threading.Thread(target=release_movement, daemon=True)
             release_thread.start()
 
-            try:
-                threshold = b.wait_until(f"player.speed<={SPRINT_STOP_SPEED:g}",
-                                         timeout_s=SPRINT_AUTO_CLEAR_TIMEOUT_S,
-                                         poll_s=SPEED_POLL_S)
-            except ab.BridgeError as e:
-                if e.code != "timeout":
-                    raise
+            threshold_deadline = time.monotonic() + SPRINT_AUTO_CLEAR_TIMEOUT_S
+            tags, speed, threshold_at = [], None, None
+            while time.monotonic() < threshold_deadline:
+                # Read speed, sprint tag and world time in one bridge snapshot. The 0.25 s
+                # auto-clear can legitimately occur between two separate reads.
+                tags, speed, threshold_at = sample()
+                if speed is not None and speed <= SPRINT_STOP_SPEED:
+                    break
+                b.wait(SPEED_POLL_S)
+            else:
                 return ("FAIL", f"player.speed did not reach <= {SPRINT_STOP_SPEED:g} cm/s "
                         f"within {SPRINT_AUTO_CLEAR_TIMEOUT_S:g}s after releasing W",
-                        {"values": (e.response or {}).get("values")})
-
-            tags, speed, threshold_at = sample()
+                        {"speed": speed, "tags": tags, "world_time_s": threshold_at})
         finally:
             if "release_thread" not in locals():
                 release_movement()
@@ -786,10 +787,10 @@ class Us001Run(kit.PlaytestRun):
         if SPRINT_TAG not in tags:
             return ("FAIL", f"{SPRINT_TAG} cleared before the bridge could observe it after "
                     f"player.speed reached <= {SPRINT_STOP_SPEED:g} cm/s",
-                    {"threshold": threshold, "samples": samples})
+                    {"samples": samples})
         if threshold_at is None:
             return "FAIL", "game.world_time_s is unavailable at the stop threshold", {
-                "threshold": threshold, "samples": samples}
+                "speed": speed, "tags": tags, "samples": samples}
 
         cleared_at = None
         deadline = time.monotonic() + SPRINT_AUTO_CLEAR_TIMEOUT_S

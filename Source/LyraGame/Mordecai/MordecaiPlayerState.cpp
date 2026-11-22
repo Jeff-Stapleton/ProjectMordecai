@@ -8,6 +8,7 @@
 #include "Mordecai/Combat/MordecaiStaminaRuntimeComponent.h"
 #include "Mordecai/Skills/MordecaiSkillComponent.h"
 #include "Mordecai/Feats/MordecaiFeatComponent.h"
+#include "Mordecai/MordecaiGameplayTags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPlayerState)
 
@@ -48,4 +49,18 @@ void AMordecaiPlayerState::PostInitializeComponents()
 	{
 		SkillComponent->RegisterStartingSkillDataAssets();
 	}
+}
+
+int32 AMordecaiPlayerState::GetSpellPointRegenEffectCount() const
+{
+	const UAbilitySystemComponent* AbilitySystem = GetAbilitySystemComponent();
+	if (!AbilitySystem)
+	{
+		return 0;
+	}
+
+	const FGameplayEffectQuery Query =
+		FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(
+			FGameplayTagContainer(MordecaiGameplayTags::Effect_SpellPointRegen));
+	return AbilitySystem->GetActiveEffects(Query).Num();
 }

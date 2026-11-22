@@ -101,7 +101,7 @@ namespace MordecaiAgentBridge::State
 
 	// --- Pieces (headless-testable) ---
 
-	/** {health,max_health,stamina,max_stamina,posture,max_posture,spell_points,max_spell_points}; null set -> invalid. */
+	/** {health,max_health,stamina,max_stamina,posture,max_posture,spell_points,max_spell_points,spell_points_regen_multiplier}; null set -> invalid. */
 	TSharedRef<FJsonObject> MakeAttributes(const UMordecaiAttributeSet* Attributes);
 
 	/** The inventory section: {valid,count,items,ledger_count,ledger}. Null inventory -> invalid. */

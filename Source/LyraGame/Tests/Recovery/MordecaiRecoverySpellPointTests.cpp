@@ -246,6 +246,8 @@ bool FMordecai_Recovery_SpellPoints_AppliedOnceAndSurvivesRespawn::RunTest(
 		SpellPointRegenEffects(ASC);
 	TestEqual("exactly one periodic SP regen effect is applied per PlayerState",
 		Before.Num(), 1);
+	TestEqual("the stable regen GE asset tag resolves exactly one live effect",
+		Env.PlayerState->GetSpellPointRegenEffectCount(), 1);
 
 	Env.Player->HandlePlayerRespawn();
 	const TArray<FActiveGameplayEffectHandle> After =
