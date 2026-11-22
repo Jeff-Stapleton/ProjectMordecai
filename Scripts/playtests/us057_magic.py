@@ -557,9 +557,10 @@ class Us057Run(kit.PlaytestRun):
                 sp = _sp(st)
                 if not obs["sp_values"] or obs["sp_values"][-1] != sp:
                     obs["sp_values"].append(sp)
-                if obs["sp_at"] is None and sp is not None and want_sp is not None \
-                        and sp == want_sp:
+                if obs["sp_at"] is None and _spend_observed(
+                        sp0, sp, FIREBALL["cost"], SP_TIMEOUT_S):
                     obs["sp_at"] = round(t, 2)
+                    obs["sp_observed"] = sp
                 projs = _projectiles(st)
                 if projs and obs["projectile_at"] is None:
                     obs["projectile_at"] = round(t, 2)
@@ -596,12 +597,14 @@ class Us057Run(kit.PlaytestRun):
                 time.sleep(POLL_S)
             sps = " -> ".join(_fmt(v) for v in obs["sp_values"])
             if obs["sp_at"] is not None and obs["sp_at"] <= SP_TIMEOUT_S:
-                self.sp_log.append(("Fireball", sp0, want_sp))
+                self.sp_log.append(("Fireball", sp0, obs["sp_observed"]))
                 return ("PASS", f"aimed world +X ({aim}); tapped Q; spell_points {_fmt(sp0)} -> "
-                        f"{_fmt(want_sp)} after {obs['sp_at']}s (values seen: {sps}; "
+                        f"{_fmt(obs['sp_observed'], 2)} after {obs['sp_at']}s (cost "
+                        f"{FIREBALL['cost']}; periodic regen allowed; values seen: {sps}; "
                         f"{obs['polls']} polls)", obs)
-            return ("FAIL", f"tapped Q; spell_points did not drop {_fmt(sp0)} -> {_fmt(want_sp)} "
-                    f"within {SP_TIMEOUT_S:g}s (values seen: {sps})", obs)
+            return ("FAIL", f"tapped Q; spell_points did not show the {FIREBALL['cost']}-SP "
+                    f"spend from {_fmt(sp0)} within {SP_TIMEOUT_S:g}s (periodic regen allowed; "
+                    f"values seen: {sps})", obs)
 
         cast_ok, _ = self.attempt("fireball_cast", cast)
         tapped = obs.get("tapped")

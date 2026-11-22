@@ -67,7 +67,7 @@ class MagicWorld(fb.FakeWorld):
                  projectile_speed=1000.0, fireball_damage=25.0, cast_delay_s=0.3,
                  blink_distance=500.0, stone_skin_s=2.5, restoration_s=5.0, sp_bar=True,
                  indicators=True, refusal_ignores_cost=False, spell_regen=True,
-                 enemy_hp=200.0, **kwargs):
+                 regen_phase=0.0, enemy_hp=200.0, **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         super().__init__(**kwargs)
@@ -84,7 +84,7 @@ class MagicWorld(fb.FakeWorld):
         self.indicators = indicators
         self.refusal_ignores_cost = refusal_ignores_cost
         self.spell_regen = spell_regen
-        self.regen_accumulator = 0.0
+        self.regen_accumulator = float(regen_phase)
         self.enemy_hp = {e["label"]: float(enemy_hp) for e in self.enemies}
         self.enemy_max_hp = float(enemy_hp)
         self.projectiles = []      # {label, pos [x, y], travelled}
@@ -337,6 +337,15 @@ class TestUs057PassPath(PlaytestCase):
         self.assertNotIn("PASS (FIXED?)", self.md())
         self.assertIn(RESTORATION_TAG, world.status)
         self.assertNotIn(STONE_SKIN_TAG, world.status)
+
+    def test_fireball_cost_allows_a_regen_tick_before_the_first_state_read(self):
+        _, server = self.serve(cooldowns=True, cooldown_widgets=4, regen_phase=0.99)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["fireball_cast"]
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertEqual(rep["fireball"]["sp_observed"], 7.25)
+        self.assertIn("periodic regen allowed", check["detail"])
 
     def test_fireball_is_cast_on_the_shot_line_never_from_spawn(self):
         world, server = self.serve()
