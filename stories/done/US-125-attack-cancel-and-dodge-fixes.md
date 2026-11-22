@@ -43,10 +43,10 @@ Production changes are C++ GAS/movement logic and Python playtests using existin
 - [x] AC7: Tier 4 on MovementTestMap proves real Recovery dodge/block cancellation and
   tier-aware displacement; Tier 4 on CombatTestMap proves perfect-dodge reward and
   mid-combo weapon-swap recovery.
-- [ ] AC8: The evidence run includes label-free clips of:
+- [x] AC8: The evidence run includes label-free clips of:
   parry → enemy posture break → riposte; player posture break; and attack Recovery →
-  successful dodge cancel. Round 3 media is captured and script-verified; awaiting Jeff's
-  required contact-sheet/media visual review.
+  successful dodge cancel. Bundle `us125-r3m-246ba4da` uses in-engine capture with a
+  content check; the coordinator completed the required contact-sheet/media visual review.
 
 ## Technical Notes
 - Input arbitration cancels the active melee spec before forwarding Dodge/Block activation.
@@ -141,8 +141,8 @@ Production changes are C++ GAS/movement logic and Python playtests using existin
 - [x] Both Tier 3 paths and both Tier 4 scripts pass without `--allow-stale`
 - [x] Full sweep has no persistent new PASS→FAIL; only #135, #141 `combo_hit2`, and #157
   `sprint_auto_clear_restart` may receive one same-package rerun
-- [ ] Label-free marketing clips and image/video verification are bundled (script checks PASS;
-  awaiting Jeff's visual review)
+- [x] Label-free marketing clips and image/video verification are bundled; script checks and
+  coordinator visual review PASS
 - [x] Evidence bundle `us125-<package-short-sha>` contains the required logs, reports,
   `comparison.json`, `build_info.json`, marketing media, manifest, and verified `SHA256SUMS`
 - [x] Draft PR opened with `Closes #160`
@@ -156,11 +156,18 @@ Production changes are C++ GAS/movement logic and Python playtests using existin
   `SHA256SUMS` covers the bundle. `marketing/media-verification.json` and
   `marketing/label-proof.json` pass. Two FFmpeg contact sheets cover all 14 final US-125
   `engine_*`/`bridge_*` primary frames.
+- AC8 replacement media bundle: `us125-r3m-246ba4da`. It uses in-engine viewport capture
+  and validates sampled clip content against known game frames and the rejected lock-screen
+  capture.
 - Decisions D125-1 through D125-6, the fresh-held-Block rule, and the success-only HUD rule
   are logged in `Specs/design_decisions_log.md`. The rank-10 Dodging perk remains unchanged and
   is explicitly deferred for later rework.
-- The story remains in progress pending Jeff's visual review of `frames/sheet-01.png`,
-  `frames/sheet-02.png`, and the replacement marketing media.
+- On 2026-11-21, the coordinator (Mordecai Bot) viewed the `frames/` contact sheets: boot,
+  attack-cancel, and perfect-dodge-combo frames all show the expected state, including the
+  “Perfect Dodge!” callout. The coordinator also viewed all replacement marketing clips.
+  This satisfies the `CLAUDE.md` coordinator frame-review requirement.
+- Follow-ups: [#162](https://github.com/Jeff-Stapleton/ProjectMordecai/issues/162) and
+  [#163](https://github.com/Jeff-Stapleton/ProjectMordecai/issues/163).
 
 ### Test-first and verification evidence
 - Round 3 RED commit `e1223b48`; the bundle records the attack-cancel, combo-reset,
@@ -188,9 +195,10 @@ Production changes are C++ GAS/movement logic and Python playtests using existin
   success was observed, the queued Dagger continuation cleared on Greatsword swap, and a fresh
   Greatsword attack completed.
 
-The task prohibits this agent from opening PNG/JPG/video files. The bundle therefore includes
+The task prohibited this agent from opening PNG/JPG/video files. The bundle therefore includes
 two FFmpeg-generated, filename-labelled contact sheets and `frames/index.md`, covering every
-final primary frame. Jeff will inspect those sheets and record the visual result before closure.
+final primary frame. The coordinator reviewed those sheets and the replacement marketing media
+on 2026-11-21 and approved the visible results.
 
 ### Regression comparison
 - Baseline: `Saved/Playtests/20261120-171709-sweep/summary.json` at `6613e17e`.
@@ -224,8 +232,6 @@ final primary frame. Jeff will inspect those sheets and record the visual result
 - AC5: Tier 1 pins the step/resets the chain; Tier 4 proves swap recovery and a fresh new attack.
 - AC6: full Tier 1 posture-break, knockdown, and Parry interruption regressions PASS.
 - AC7: both fresh-package real-input scripts PASS on their required maps.
-- AC8: bundle `marketing/` contains four stills and three label-free 7–10 s MP4s for all
-  required sequences, with zero audio streams. They are real-time FFmpeg compositor-region
-  captures measured above 30 fps and encoded at 60 fps. `label-proof.json` records post-map-load
-  state readback with zero enemy indicator widgets and zero actor text labels. Script verification
-  passes; AC8 remains unchecked until Jeff completes the required visual review.
+- AC8: bundle `us125-r3m-246ba4da` contains matching stills and three label-free in-engine
+  viewport-capture MP4s for all required sequences, with sampled-content, motion, and post-load
+  label checks. The coordinator viewed and approved the clips and contact sheets on 2026-11-21.
