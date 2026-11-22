@@ -24,19 +24,19 @@ respawn restoration are C++. No content asset is required.
 - Done stories: US-057 AC-057.1-057.4 (costs), AC-057.12 (full magic loop: Fireball → ... → Restoration → Blink → Stone Skin in one session)
 
 ## Acceptance Criteria
-- [ ] AC1: SP regenerates 0.25/s × `SpellPointsRegenMultiplier` on authority,
+- [x] AC1: SP regenerates 0.25/s × `SpellPointsRegenMultiplier` on authority,
   rounded to the 1 s period, and clamps at MaxSP.
-- [ ] AC2: Regen stops while Dead or Silenced and resumes afterwards. Cursed
+- [x] AC2: Regen stops while Dead or Silenced and resumes afterwards. Cursed
   halves it.
-- [ ] AC3: Respawn restores SP to MaxSP immediately, proven in US-054's respawn flow.
-- [ ] AC4: The effect is applied exactly once per PlayerState, survives a
+- [x] AC3: Respawn restores SP to MaxSP immediately, proven in US-054's respawn flow.
+- [x] AC4: The effect is applied exactly once per PlayerState, survives a
   respawn, and SP values replicate to clients.
-- [ ] AC5: US-057 performs four successful casts with the required 0.25/s
+- [x] AC5: US-057 performs four successful casts with the required 0.25/s
   timing and retains a real refusal case when SP is short.
-- [ ] AC6: Existing exact-spend tests remain deterministic: sub-period ticks
+- [x] AC6: Existing exact-spend tests remain deterministic: sub-period ticks
   produce no regeneration.
-- [ ] AC7: Tier 4 packaged coverage reports SP over time.
-- [ ] AC8: Marketing capture uses in-engine frames to show SP draining across
+- [x] AC7: Tier 4 packaged coverage reports SP over time.
+- [x] AC8: Marketing capture uses in-engine frames to show SP draining across
   casts and then visibly refilling.
 
 ## Technical Notes
@@ -89,25 +89,86 @@ respawn restoration are C++. No content asset is required.
 - **Playable alone:** YES (after the decision)
 
 ## Definition of Done
-- [ ] All ACs checked off
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
+- [x] All ACs checked off
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [x] Content: `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
 - [ ] On that same fresh package `py Scripts/playtest_story.py US-057` and
   `US-054`: the new checks PASS; full-sweep `pass_to_fail` is empty; lint exits
   0 — never `--allow-stale`
-- [ ] Known issue N6 marked resolved in `Specs/agent_playtest_plan_v1.md`
-- [ ] Every engine/bridge frame is verified by scripted content checks and
+- [x] Known issue N6 marked resolved in `Specs/agent_playtest_plan_v1.md`
+- [x] Every engine/bridge frame is verified by scripted content checks and
   represented in labelled contact sheets under `frames/`
-- [ ] AC8 has 1-2 in-engine 5-20 second clips, 3-4 stills, `manifest.md`, and a
+- [x] AC8 has 1-2 in-engine 5-20 second clips, 3-4 stills, `manifest.md`, and a
   scripted lock-screen/static-footage check
-- [ ] The checksummed `us090-<package short sha>` evidence bundle is copied to
+- [x] The checksummed `us090-<package short sha>` evidence bundle is copied to
   the Agent Store
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-090]` closing commit
-- [ ] Draft PR opened; story remains in `stories/in-progress/` until Jeff says
+- [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-090]` closing commit
+- [x] Draft PR opened; story remains in `stories/in-progress/` until Jeff says
   to move it
 
 ## Completion Notes
-<Filled in by the coding agent.>
+- Implementation: native infinite 1-second periodic GE at
+  `0.25 × SpellPointsRegenMultiplier`, one authority application per
+  PlayerState, Dead/Silenced ongoing inhibition, and GAS base-value refill in
+  `HandlePlayerRespawn`. Fresh MaxSP remains 10. Capsule dimensions were not
+  changed.
+- RED: `Saved/TestLogs/us090-red.log` — six tests ran; the four new behavior
+  checks failed before implementation while replication and sub-period
+  exact-spend controls passed.
+- Tier 1: `Saved/TestLogs/tests-20261122-065010.log` — 965/965 PASS.
+- PIE: 23/23 PASS, including MaxSP 10, one live infinite 1-second regen effect,
+  no application tick, and observed regeneration.
+- Python tooling: 749/749 PASS.
+- Final package: commit
+  `35f5b8a5692837b52dfd60d560e89fdb5e0ab044`;
+  `dirty=false`, `source_changed_during_build=false`;
+  `Saved/Playtests/package-20261122-075805.log`.
+- Dedicated Tier 3/Tier 4:
+  `Saved/Playtests/20261122-082312-story-us090` PASS.
+  - Tier 3 `Saved/Playtests/20261122-082312-boot`: CombatTestMap,
+    B_MordecaiArenaExperience, all checks PASS.
+  - US-054 `Saved/Playtests/20261122-082332-us054combat`: 35 PASS,
+    1 expected Burning WARN, 0 FAIL. `restoration_heals` observed the exact
+    3-SP spend despite later regen; `sp_restored_on_respawn` observed 10/10
+    on the first respawn read.
+  - US-057 `Saved/Playtests/20261122-082427-us057`: 33 PASS, 0 FAIL.
+    Fireball, Blink, Stone Skin and Restoration all cast; the extra Fireball
+    was genuinely refused at low SP; three +0.25 increments had measured
+    one-second gaps.
+- Scripted frame verification (custom instruction prohibited opening media):
+  `frames/verification.json` reports every source and contact sheet
+  non-uniform; `frames/index.md` and filename-labelled ffmpeg sheets cover all
+  frames.
+  - Boot `engine_loading.png`: Mordecai loading screen;
+    `engine_01.png`–`engine_03.png`: CombatTestMap grid, pawn, combat HUD and
+    test targets.
+  - US-054 `bridge_01.png`: spawn/HUD/targets; `bridge_02.png`: pawn beside
+    TestDummy; `bridge_03.png`: Hit 2; `bridge_04.png`: dead dummy and Kills 1;
+    `bridge_05.png`: damaged player beside attacker; `bridge_06.png`: You Died
+    overlay with HUD hidden; `bridge_07.png`: respawned pawn, reset arena and
+    full SP bar.
+  - US-057 `bridge_01.png`: Fireball hit and 7/10 SP; `bridge_02.png`: Blink
+    displacement and 5/10 SP; `bridge_03.png`: Stone Skin and drained SP;
+    `bridge_04.png`: regeneration made Restoration affordable;
+    `bridge_05.png`: successful Restoration, low-SP Fireball refusal and
+    cooldown HUD.
+- Full sweep: `Saved/Playtests/20261122-080814-sweep`; all 21 scripts ran,
+  with no exclusions. #135 `deep_bank_blocks` passed its single same-package
+  rerun (`Saved/Playtests/20261122-082106-us120`). #157
+  `sprint_auto_clear_restart` failed both the sweep and its single permitted
+  rerun (`Saved/Playtests/20261122-082021-us001`); therefore
+  `comparison.json` has one `pass_to_fail`. #163 `knockdown` and the known
+  Shift+Tab issue remained pre-existing. This unrelated documented flake is
+  the reason the combined full-sweep DoD item above remains unchecked and the
+  story stays in progress.
+- Marketing: Agent Store bundle `us090-35f5b8a5/marketing/` contains 180
+  in-engine viewport frames, a 1920×1080 30-fps 6-second clip, four stills,
+  SP state timeline (0.75–10.0), actor/debug-label proof, a positive content
+  PASS, and static/lock-screen negative-control FAILs.
+- Evidence bundle:
+  `us090-35f5b8a5` in the Agent Store, with `build_info.json`,
+  `comparison.json`, logs, reports, frames, marketing and `SHA256SUMS`.
+- Draft PR: https://github.com/Jeff-Stapleton/ProjectMordecai/pull/165.
