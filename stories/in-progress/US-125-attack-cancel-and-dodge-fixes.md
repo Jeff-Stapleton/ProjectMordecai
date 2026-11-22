@@ -43,9 +43,10 @@ Production changes are C++ GAS/movement logic and Python playtests using existin
 - [x] AC7: Tier 4 on MovementTestMap proves real Recovery dodge/block cancellation and
   tier-aware displacement; Tier 4 on CombatTestMap proves perfect-dodge reward and
   mid-combo weapon-swap recovery.
-- [x] AC8: The evidence run includes label-free clips of:
+- [ ] AC8: The evidence run includes label-free clips of:
   parry → enemy posture break → riposte; player posture break; and attack Recovery →
-  successful dodge cancel.
+  successful dodge cancel. Round 3 media is captured and script-verified; awaiting Jeff's
+  required contact-sheet/media visual review.
 
 ## Technical Notes
 - Input arbitration cancels the active melee spec before forwarding Dodge/Block activation.
@@ -140,84 +141,77 @@ Production changes are C++ GAS/movement logic and Python playtests using existin
 - [x] Both Tier 3 paths and both Tier 4 scripts pass without `--allow-stale`
 - [x] Full sweep has no persistent new PASS→FAIL; only #135, #141 `combo_hit2`, and #157
   `sprint_auto_clear_restart` may receive one same-package rerun
-- [x] Label-free marketing clips and image/video verification are bundled
+- [ ] Label-free marketing clips and image/video verification are bundled (script checks PASS;
+  awaiting Jeff's visual review)
 - [x] Evidence bundle `us125-<package-short-sha>` contains the required logs, reports,
   `comparison.json`, `build_info.json`, marketing media, manifest, and verified `SHA256SUMS`
 - [x] Draft PR opened with `Closes #160`
 
 ## Completion Notes
 ### Delivery
-- Implementation/package commit: `e811b23211b43d75dc25145a41f3b95cbacb72ce`.
+- Round 3 implementation/package commit: `246ba4da2df9ac691e07fcff8803e82f25cb267f`.
 - Draft PR: https://github.com/Jeff-Stapleton/ProjectMordecai/pull/161 (`Closes #160`).
-- Evidence bundle:
-  `C:\Users\jeffd\AppData\Local\Cursor\AgentStores\cursor_agent_stores\bc-4c6a923f-c3e5-524f-bae3-41e44ecdfa8e\files\us125-e811b232`.
-  `bundle-verification.json` is PASS and all 153 entries in `SHA256SUMS` re-verified.
+- Round 3 evidence bundle:
+  `C:\Users\jeffd\Documents\Gamedev\ProjectMordecai\Saved\Playtests\us125-r3-246ba4da`.
+  `SHA256SUMS` covers the bundle. `marketing/media-verification.json` and
+  `marketing/label-proof.json` pass. Two FFmpeg contact sheets cover all 14 final US-125
+  `engine_*`/`bridge_*` primary frames.
 - Decisions D125-1 through D125-6, the fresh-held-Block rule, and the success-only HUD rule
   are logged in `Specs/design_decisions_log.md`. The rank-10 Dodging perk remains unchanged and
   is explicitly deferred for later rework.
+- The story remains in progress pending Jeff's visual review of `frames/sheet-01.png`,
+  `frames/sheet-02.png`, and the replacement marketing media.
 
 ### Test-first and verification evidence
-- RED commit `5ad3c7c5`: pushed before implementation. Bundle `logs/red/` records failures for
-  missing Recovery cancellation/committed-defense rejection, 0 cm tier travel, missing
-  perfect-evade refund/event, and unsafe combo weapon swap.
-- Build: PASS (`logs/build-editor.log`).
-- Tier 1: `Saved/TestLogs/us125-full-tier1-e811b232.log` — 953 passed, 0 failed.
-- Python tooling: bundle `logs/python-737-tests.log` — 737 passed, 0 failed.
-- Tier 2: bundle `logs/tier2-pie-23-tests.log` — 23 passed, 0 failed;
-  `verify_pie_attack_cancel.py` passed all 11 checks, including capsule 40, half-height 90,
-  step height 45, and granted combat abilities.
+- Round 3 RED commit `e1223b48`; the bundle records the attack-cancel, combo-reset,
+  measured-distance, and partial-final-tick RED logs.
+- Build: PASS.
+- Tier 1: `Saved/TestLogs/tests-20261121-165805.log` — 959 passed, 0 failed.
+- Python tooling: 741 passed, 0 failed.
+- Tier 2: 23 passed, 0 failed; `verify_pie_attack_cancel.py` confirms capsule 40,
+  half-height 90, step height 45, and the runtime ability/tag integration.
 - Content guard: PASS; no uncommitted content and no asset-writing script/content changes.
-- Package `PackagedBuilds/Playtest/build_info.json`: commit `e811b23211`, `dirty=false`,
+- Package `PackagedBuilds/Playtest/build_info.json`: commit `246ba4da2d`, `dirty=false`,
   `source_changed_during_build=false`.
 
 ### Tier 3 and Tier 4
-- Story summary: `Saved/Playtests/20261121-133819-story-us125` — PASS.
-- Tier 3 MovementTestMap: `Saved/Playtests/20261121-133819-boot` — all mandatory checks PASS;
+- Story summary: `Saved/Playtests/20261121-173429-story-us125` — PASS.
+- Tier 3 MovementTestMap: `Saved/Playtests/20261121-173429-boot` — all mandatory checks PASS;
   Mordecai loading screen, correct experience, 3/3 engine frames, no crash/missing content.
-- Tier 3 CombatTestMap: `Saved/Playtests/20261121-133842-boot` — all mandatory checks PASS;
+- Tier 3 CombatTestMap: `Saved/Playtests/20261121-173452-boot` — all mandatory checks PASS;
   Mordecai loading screen, correct experience, 3/3 engine frames, no crash/missing content.
-- Tier 4 attack cancel: `Saved/Playtests/20261121-133902-us125-attack-cancel` —
-  15 PASS, 0 WARN, 0 FAIL, 0 SKIP. Recovery Dodge settled at 399.9999 cm; committed Dodge and
+- Tier 4 attack cancel: `Saved/Playtests/20261121-173512-us125-attack-cancel` —
+  PASS. Recovery Dodge settled at 400.1 cm; committed Dodge and
   held Block were rejected; fresh Block canceled Recovery without overlap.
-- Tier 4 perfect dodge/combo: `Saved/Playtests/20261121-133923-us125-perfect-dodge-combo` —
-  15 PASS, 0 WARN, 0 FAIL, 0 SKIP. Health stayed 85→85, stamina was net 100→95, PerfectDodge
+- Tier 4 perfect dodge/combo: `Saved/Playtests/20261121-173534-us125-perfect-dodge-combo` —
+  PASS. Health stayed unchanged, stamina had one ten-point perfect refund, PerfectDodge
   success was observed, the queued Dagger continuation cleared on Greatsword swap, and a fresh
   Greatsword attack completed.
 
-The task prohibited opening PNG/JPG/video through the file-read tool. Bundle
-`playtest-image-verification.json` therefore verifies all 20 packaged-run images by Pillow:
-all 14 primary engine/bridge frames and all six desktop captures are nonblank, with dimensions,
-RGB variance, and SHA-256 recorded.
-
-Primary-frame descriptions, cross-checked against each run report/state audit:
-- Movement `engine_loading.png`: nonblank frame captured while
-  `MordecaiLoadingScreenWidget` was active; not the Lyra loading screen.
-- Movement `engine_01.png`, `engine_02.png`, `engine_03.png`: nonblank packaged
-  MovementTestMap frames after `B_MordecaiArenaExperience` loaded.
-- Combat `engine_loading.png`: nonblank frame captured while
-  `MordecaiLoadingScreenWidget` was active; not the Lyra loading screen.
-- Combat `engine_01.png`, `engine_02.png`, `engine_03.png`: nonblank packaged CombatTestMap
-  frames after `B_MordecaiArenaExperience` loaded.
-- Attack-cancel `bridge_01.png`: nonblank MovementTestMap lane/HUD setup frame.
-- Attack-cancel `bridge_02.png`: nonblank frame after the measured full-length Recovery Dodge.
-- Attack-cancel `bridge_03.png`: nonblank frame while fresh-pressed Block was authoritative.
-- Perfect/combo `bridge_01.png`: nonblank frame after the health-preserving perfect evasion.
-- Perfect/combo `bridge_02.png`: nonblank frame after the mid-combo weapon HUD/state swap.
-- Perfect/combo `bridge_03.png`: nonblank frame during the fresh replacement-weapon attack.
-
-The six desktop `shot_NN.png` files are secondary and the Tier 3 reports warn that another window
-partly covered them; acceptance uses the direct engine frames, which all passed scripted checks.
+The task prohibits this agent from opening PNG/JPG/video files. The bundle therefore includes
+two FFmpeg-generated, filename-labelled contact sheets and `frames/index.md`, covering every
+final primary frame. Jeff will inspect those sheets and record the visual result before closure.
 
 ### Regression comparison
 - Baseline: `Saved/Playtests/20261120-171709-sweep/summary.json` at `6613e17e`.
-- Feature: `Saved/Playtests/20261121-134020-sweep/summary.json` at `e811b232`.
-- One permitted #135 rerun: `Saved/Playtests/20261121-135146-sweep/summary.json`.
-- Bundle `comparison.json`: `pass_to_fail=[]`, `persistent_pass_to_fail=[]`.
-  US-078 `cycle_prev_shift_tab` remained a baseline-known failure. US-123 already failed
-  `knockdown` at baseline and stopped earlier at `setup` in the feature sweep. #135's terrain
-  fixture failed `cliff_jump_blocked`; its one rerun was consumed, but that check was not reached
-  because the same fixture instead failed `cliff_walk_blocked`/`deep_bank_blocks`. #141
-  `combo_hit2` and #157 `sprint_auto_clear_restart` did not trigger.
+- Feature: `Saved/Playtests/20261121-174305-sweep/summary.json` at `246ba4da`.
+- Bundle `comparison.json`: `script_pass_to_fail=[]`, `check_pass_to_fail=[]`.
+  US-078 `cycle_prev_shift_tab` remained baseline-known. US-123 reached and passed setup but
+  retained its baseline-existing, nondeterministic `knockdown` fixture/timing failure.
+
+### US-123 diagnosis
+- Requested run 1: `Saved/Playtests/20261121-173610-us123` — setup and primary posture/riposte
+  route PASS; knockdown FAIL because the second route did not observe PostureBroken.
+- Requested run 2: `Saved/Playtests/20261121-173714-us123` — setup/primary route PASS;
+  knockdown FAIL. L1 landed at 750 ms and L2 at 1641 ms, after the 1500 ms broken window.
+- Requested run 3: `Saved/Playtests/20261121-173811-us123` — setup/primary route PASS;
+  knockdown FAIL because post-parry stamina was 66.607, crossing the real 66/33 boundary
+  into Green.
+- The baseline run `Saved/Playtests/20261120-172654-us123` also failed `knockdown`.
+  Round 3 fixed the feature-only setup regression caused by the longer dodge by using the
+  sprint-based Yellow route. Remaining failures are nondeterministic fixture/timing races in
+  `Scripts/playtests/us123_posture.py:529-610`, not a demonstrated product regression. Attached
+  diagnostics later passed the same route, including `Saved/Playtests/20261121-181322-us123`.
 
 ### AC evidence
 - AC1: Tier 1 Recovery cancel tests plus Tier 4 `recovery_dodge_cancel` and
@@ -230,9 +224,8 @@ partly covered them; acceptance uses the direct engine frames, which all passed 
 - AC5: Tier 1 pins the step/resets the chain; Tier 4 proves swap recovery and a fresh new attack.
 - AC6: full Tier 1 posture-break, knockdown, and Parry interruption regressions PASS.
 - AC7: both fresh-package real-input scripts PASS on their required maps.
-- AC8: bundle `marketing/` contains six stills and three label-free 5–20 s MP4s for all required
-  sequences, with zero audio streams. `label-proof.json` records disabled actor labels/text
-  rendering and zero visible label widgets/text labels. GDI window capture returned dark Unreal
-  D3D frames, so the final clips were FFmpeg-encoded from direct viewport frames; the parry clip
-  is a three-stage montage from one continuous real-input sequence. This capture deviation is
-  disclosed in both manifests.
+- AC8: bundle `marketing/` contains four stills and three label-free 7–10 s MP4s for all
+  required sequences, with zero audio streams. They are real-time FFmpeg compositor-region
+  captures measured above 30 fps and encoded at 60 fps. `label-proof.json` records post-map-load
+  state readback with zero enemy indicator widgets and zero actor text labels. Script verification
+  passes; AC8 remains unchecked until Jeff completes the required visual review.
