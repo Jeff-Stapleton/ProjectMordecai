@@ -37,6 +37,17 @@ class MarketingMediaVerificationCase(unittest.TestCase):
         self.assertLess(media.histogram_similarity(game, wallpaper), 0.55)
         self.assertFalse(media.hud_region_non_uniform(wallpaper))
 
+    def test_identical_frames_are_static(self):
+        frame = self.game_like_frame()
+        self.assertEqual(media.frame_motion_score(frame, frame.copy()), 0.0)
+
+    def test_changed_game_frames_have_motion(self):
+        before = self.game_like_frame()
+        after = before.copy()
+        draw = ImageDraw.Draw(after)
+        draw.ellipse((68, 20, 92, 50), fill=(220, 152, 70))
+        self.assertGreater(media.frame_motion_score(before, after), 0.002)
+
 
 if __name__ == "__main__":
     unittest.main()

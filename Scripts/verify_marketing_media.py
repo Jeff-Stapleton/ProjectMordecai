@@ -8,7 +8,7 @@ import subprocess
 import sys
 import tempfile
 
-from PIL import Image, ImageStat
+from PIL import Image, ImageChops, ImageStat
 
 
 def _normalized_histogram(image, bins=16):
@@ -41,6 +41,14 @@ def hud_region_non_uniform(image, minimum_stddev=8.0):
     return max(ImageStat.Stat(hud).stddev) >= minimum_stddev
 
 
+def frame_motion_score(left, right):
+    """Return normalized RGB RMS change in [0, 1] after a small common resize."""
+    a = left.convert("RGB").resize((128, 72))
+    b = right.convert("RGB").resize((128, 72))
+    rms = ImageStat.Stat(ImageChops.difference(a, b)).rms
+    return sum(rms) / (len(rms) * 255.0)
+
+
 def _run_json(command):
     return json.loads(subprocess.check_output(command, text=True, stderr=subprocess.STDOUT))
 
@@ -70,22 +78,25 @@ def _sample_frame(video, second, output):
     ])
 
 
-def verify_video(video, references, minimum_similarity=0.55):
+def verify_video(video, references, minimum_similarity=0.55, minimum_motion=0.002):
     metadata = probe_video(video)
     duration = metadata["duration_seconds"]
-    sample_times = [duration * fraction for fraction in (0.25, 0.5, 0.75)]
+    sample_times = [duration * fraction for fraction in (0.1, 0.2, 0.3, 0.4, 0.5,
+                                                          0.6, 0.7, 0.8, 0.9)]
     reference_images = []
     for path in references:
         with Image.open(path) as source:
             reference_images.append(source.convert("RGB"))
 
     samples = []
+    sampled_images = []
     with tempfile.TemporaryDirectory(prefix="mordecai-media-") as temp:
         for index, second in enumerate(sample_times, 1):
             frame_path = os.path.join(temp, f"frame-{index}.png")
             _sample_frame(video, second, frame_path)
             with Image.open(frame_path) as source:
                 frame = source.convert("RGB")
+                sampled_images.append(frame.copy())
                 similarities = [
                     histogram_similarity(frame, reference) for reference in reference_images
                 ]
@@ -98,21 +109,36 @@ def verify_video(video, references, minimum_similarity=0.55):
                     "passed": best >= minimum_similarity and hud_ok,
                 })
 
+    motion_scores = [
+        round(frame_motion_score(sampled_images[index - 1], sampled_images[index]), 6)
+        for index in range(1, len(sampled_images))
+    ]
+    moving_pairs = sum(score >= minimum_motion for score in motion_scores)
+    motion_passed = moving_pairs >= 2
     metadata_ok = (
         5.0 <= duration <= 20.0
         and metadata["width"] == 1920
         and metadata["height"] == 1080
         and metadata["pixel_format"] == "yuv420p"
+        and metadata["frame_rate"] == "30/1"
         and metadata["size_bytes"] < 50 * 1024 * 1024
     )
     return {
         "video": os.path.abspath(video),
         "references": [os.path.abspath(path) for path in references],
         "minimum_similarity": minimum_similarity,
+        "minimum_motion": minimum_motion,
         "metadata": metadata,
         "metadata_passed": metadata_ok,
         "samples": samples,
-        "passed": metadata_ok and bool(samples) and all(item["passed"] for item in samples),
+        "motion": {
+            "consecutive_sample_scores": motion_scores,
+            "moving_pairs": moving_pairs,
+            "required_moving_pairs": 2,
+            "passed": motion_passed,
+        },
+        "passed": (metadata_ok and bool(samples) and all(item["passed"] for item in samples)
+                   and motion_passed),
     }
 
 
@@ -121,6 +147,7 @@ def main(argv=None):
     parser.add_argument("--video", action="append", required=True)
     parser.add_argument("--reference", action="append", required=True)
     parser.add_argument("--minimum-similarity", type=float, default=0.55)
+    parser.add_argument("--minimum-motion", type=float, default=0.002)
     parser.add_argument("--output")
     args = parser.parse_args(argv)
 
@@ -129,10 +156,12 @@ def main(argv=None):
         parser.error("missing file(s): " + ", ".join(missing))
 
     videos = [
-        verify_video(path, args.reference, args.minimum_similarity) for path in args.video
+        verify_video(path, args.reference, args.minimum_similarity, args.minimum_motion)
+        for path in args.video
     ]
     result = {
-        "method": "ffprobe metadata + sampled-frame RGB histogram/HUD comparison",
+        "method": ("ffprobe metadata + sampled-frame RGB histogram/HUD comparison + "
+                   "consecutive-frame motion"),
         "videos": videos,
         "passed": all(video["passed"] for video in videos),
     }
