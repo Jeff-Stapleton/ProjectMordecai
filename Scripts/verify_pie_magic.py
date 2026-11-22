@@ -135,6 +135,41 @@ def _run():
                 asc_has_dead_tag = bool(asc.has_matching_gameplay_tag(dead_tag))
         except Exception:
             pass
+
+    # US-090: the fresh pool remains 10 and regeneration is one native,
+    # infinite, one-second periodic GE with no application tick. Tier 1 proves
+    # runtime ticking, inhibition and exactly-once authority application; this
+    # PIE check proves that the native class and live PlayerState wiring are
+    # present in editor integration.
+    if ps:
+        try:
+            attributes = ps.get_mordecai_attribute_set()
+            max_sp = float(
+                attributes.get_editor_property("max_spell_points").get_editor_property(
+                    "current_value"))
+            check("US-090 fresh MaxSpellPoints is 10",
+                  abs(max_sp - 10.0) < 0.001, f"Got {max_sp:g}")
+        except Exception as exc:
+            check("US-090 MaxSpellPoints readable", False, str(exc))
+    regen_class = getattr(unreal, "MordecaiGE_SpellPointRegen", None)
+    check("US-090 native spell-point regen GE exists", regen_class is not None)
+    if regen_class:
+        try:
+            regen_cdo = unreal.get_default_object(regen_class)
+            period_text = regen_cdo.get_editor_property("period").export_text()
+            duration_text = str(regen_cdo.get_editor_property("duration_policy"))
+            executes_on_apply = bool(
+                regen_cdo.get_editor_property("execute_periodic_effect_on_application"))
+            check("US-090 regen GE has a 1 second period",
+                  "1.000000" in period_text or "1.0" in period_text,
+                  f"Got {period_text}")
+            check("US-090 regen GE is infinite",
+                  "INFINITE" in duration_text.upper(), f"Got {duration_text}")
+            check("US-090 regen GE does not tick on application",
+                  not executes_on_apply, f"Got {executes_on_apply}")
+        except Exception as exc:
+            check("US-090 regen GE contract readable", False, str(exc))
+
     check(
         "Player death state readable",
         player_health is not None or asc_has_dead_tag is not None,

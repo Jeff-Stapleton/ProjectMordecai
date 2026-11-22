@@ -73,7 +73,8 @@ PLAN_ORDER = ["combat_targets_present", "walk_to_dummy", "melee_lmb", "combo_hit
               "kill_enemy_melee", "kill_counter_increments",
               "walk_to_attacker", "attacker_damages_player", "restoration_heals", "burning_on_hit",
               "player_dies", "death_screen", "weapon_hud_hidden_under_death", "dead_no_move",
-              "respawn", "death_screen_removed", "weapon_hud_restored_after_respawn",
+              "respawn", "sp_restored_on_respawn", "death_screen_removed",
+              "weapon_hud_restored_after_respawn",
               "arena_reset", "respawn_moves", "kill_counter_text_matches"]
 # The checks that moved from us054_arena.py keep their proves (Specs: the us054 split); US-086
 # (issue #7) adds its death screen ACs to death_screen.
@@ -86,6 +87,7 @@ MOVED_PROVES = {
     "death_screen": ("US-062:AC-062.1", "US-062:AC-062.2", "US-086:AC-086.1", "US-086:AC-086.4"),
     "dead_no_move": ("US-053:AC-053.2",),
     "respawn": ("US-053:AC-053.4", "US-053:AC-053.5"),
+    "sp_restored_on_respawn": ("US-090:AC3", "US-090:AC7"),
     "arena_reset": ("US-053:AC-053.8", "US-053:AC-053.9"),
     "respawn_moves": ("US-053:AC-053.6",),
     "kill_counter_text_matches": ("US-063:AC-063.1", "US-086:AC-086.5"),
@@ -135,6 +137,7 @@ class CombatWorld(fb.FakeWorld):
                  burn_indicator=True, attacks=True, attack_tag=True, death_screen=True,
                  hud_under_death=False, death_screen_stays=False, dead_moves=False,
                  arena_reset=True, reset_ai=True, ai_reported=True, moves_after_respawn=True,
+                 sp_refill_on_respawn=True,
                  kills_text=None, enemies_die=True, counter_counts=True,
                  kills_reset_on_death=True, death_screen_live_count=False, dodge_back_cm=98.0,
                  **kwargs):
@@ -159,6 +162,7 @@ class CombatWorld(fb.FakeWorld):
         self.arena_reset, self.reset_ai = arena_reset, reset_ai
         self.ai_reported, self.kills_text = ai_reported, kills_text
         self.moves_after_respawn = moves_after_respawn
+        self.sp_refill_on_respawn = sp_refill_on_respawn
         self.enemies_die, self.counter_counts = enemies_die, counter_counts
         self.kills_reset_on_death, self.dodge_back_cm = kills_reset_on_death, float(dodge_back_cm)
         self.death_screen_live_count = death_screen_live_count
@@ -287,6 +291,8 @@ class CombatWorld(fb.FakeWorld):
         # ExecuteRespawn: the teleport, the player's restore and ResetArena in one call
         with self.lock:
             super().respawn()
+            if self.sp_refill_on_respawn:
+                self.spell_points = self.max_spell_points
             self.respawns.append(round(self.real_time(), 3))
             self.timed_tags = {}
             if self.arena_reset:
@@ -495,7 +501,7 @@ class TestUs054CombatPlan(unittest.TestCase):
         # N1 (issue #6) and N2 (issue #7) are fixed: no check is expected to fail
         self.assertEqual({s.check for s in us054c.PLAN if s.known_issue}, set())
         self.assertEqual(set(us054c.Us054CombatRun.COVERS),
-                         {"US-053", "US-057", "US-062", "US-063", "US-086"})
+                         {"US-053", "US-057", "US-062", "US-063", "US-086", "US-090"})
 
     def test_declarations(self):
         run = us054c.Us054CombatRun
@@ -541,8 +547,8 @@ class TestUs054CombatPlan(unittest.TestCase):
         self.assertIn("| 4 | `combo_hit_two` |", text)
         self.assertIn("| 6 | `kill_enemy_melee` |", text)
         self.assertIn("| 7 | `kill_counter_increments` |", text)
-        self.assertIn("| 17 | `death_screen_removed` |", text)
-        self.assertIn("| 21 | `kill_counter_text_matches` |", text)
+        self.assertIn("| 18 | `death_screen_removed` |", text)
+        self.assertIn("| 22 | `kill_counter_text_matches` |", text)
         self.assertNotIn("Known issue N2", text)
 
 
@@ -718,7 +724,10 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertIn("'Kills: 0', player.kills=0 (the 1 kill(s) counted before the death were "
                       "reset by it)", checks["kill_counter_text_matches"]["detail"])
         # The world went through the loop: a kill, one cast, one death, a reset arena.
-        self.assertEqual(world.spell_points, 7.0)
+        self.assertEqual(world.spell_points, 10.0)
+        self.assertEqual(rep["sp_after_restoration"], 7.0)
+        self.assertIn("spell_points 10.0 / max_spell_points 10.0",
+                      checks["sp_restored_on_respawn"]["detail"])
         self.assertEqual(world.deaths, 1)
         self.assertEqual(world.kills_at_death, 1)
         self.assertEqual(world.kills, 0)
@@ -750,6 +759,16 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         md = self.md()
         self.assertIn("## Combat targets", md)
         self.assertEqual(set(rep["targets_start"]), {"TestDummy", "TestAttacker"})
+
+    def test_missing_spell_point_respawn_refill_is_a_new_failure(self):
+        _, server = self.serve(**dict(FAST, burn_chance=1.0, sp_refill_on_respawn=False))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["sp_restored_on_respawn"])
+        detail = self.by_name(rep)["sp_restored_on_respawn"]["detail"]
+        self.assertIn("SP after Restoration 7.0", detail)
+        self.assertIn("spell_points 7.0 / max_spell_points 10.0", detail)
+        self.assertIn("sp_restored_on_respawn", rep["new_failures"])
 
     def test_the_game_as_expected_passes(self):
         # BasicSlash never burns: burning_on_hit watches until the death and ends at once with

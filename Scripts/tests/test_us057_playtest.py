@@ -60,13 +60,14 @@ class MagicWorld(fb.FakeWorld):
     spawns one), projectile_speed, fireball_damage, cast_delay_s (Fireball's cast time before
     the projectile), blink_distance, stone_skin_s (None = never expires), restoration_s,
     sp_bar (the SpellPointsBar widget is on screen), indicators (status indicator widgets),
-    restoration_ignores_cost (One applies Restoration without SP: a broken refusal).
+    refusal_ignores_cost (the final low-SP Fireball incorrectly casts).
     """
 
     def __init__(self, *, cooldowns=False, cooldown_widgets=2, projectiles=True,
                  projectile_speed=1000.0, fireball_damage=25.0, cast_delay_s=0.3,
                  blink_distance=500.0, stone_skin_s=2.5, restoration_s=5.0, sp_bar=True,
-                 indicators=True, restoration_ignores_cost=False, enemy_hp=200.0, **kwargs):
+                 indicators=True, refusal_ignores_cost=False, spell_regen=True,
+                 enemy_hp=200.0, **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         super().__init__(**kwargs)
@@ -81,7 +82,9 @@ class MagicWorld(fb.FakeWorld):
         self.restoration_s = restoration_s
         self.sp_bar = sp_bar
         self.indicators = indicators
-        self.restoration_ignores_cost = restoration_ignores_cost
+        self.refusal_ignores_cost = refusal_ignores_cost
+        self.spell_regen = spell_regen
+        self.regen_accumulator = 0.0
         self.enemy_hp = {e["label"]: float(enemy_hp) for e in self.enemies}
         self.enemy_max_hp = float(enemy_hp)
         self.projectiles = []      # {label, pos [x, y], travelled}
@@ -99,7 +102,8 @@ class MagicWorld(fb.FakeWorld):
         now = self.real_time()
         if self.cooldown_until.get(spell_id, 0.0) > now:
             return
-        free = spell_id == "Restoration" and self.restoration_ignores_cost
+        free = (spell_id == "Fireball" and self.refusal_ignores_cost
+                and any(entry[1] == "Fireball" for entry in self.cast_log))
         if self.spell_points < cost and not free:
             return
         if not free:
@@ -133,6 +137,12 @@ class MagicWorld(fb.FakeWorld):
     def tick(self, dt):
         super().tick(dt)
         with self.lock:
+            if self.spell_regen and not self.is_dead and self.spell_points < self.max_spell_points:
+                self.regen_accumulator += dt
+                while self.regen_accumulator >= 1.0:
+                    self.regen_accumulator -= 1.0
+                    self.spell_points = min(
+                        self.max_spell_points, self.spell_points + us057.REGEN_INCREMENT)
             now = self.real_time()
             for tag, until in list(self.status.items()):
                 if until is not None and now >= until:
@@ -310,11 +320,13 @@ class TestUs057PassPath(PlaytestCase):
         checks = self.by_name(rep)
         for name in PLAN_CHECKS:
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
-        # The SP plan 10 -> 7 -> 5 -> 1, Restoration refused; the game state agrees.
-        self.assertEqual(world.casts, ["Q", "E", "R"])
-        self.assertEqual(world.spell_points, 1.0)
-        self.assertEqual([(s["spell"], s["before"], s["after"]) for s in rep["spell_points"]],
-                         [("Fireball", 10.0, 7.0), ("Blink", 7.0, 5.0), ("Stone Skin", 5.0, 1.0)])
+        # All four spells cast after real periodic regen; the final low-SP Q is refused.
+        self.assertEqual(world.casts, ["Q", "E", "R", "One"])
+        self.assertEqual([s["spell"] for s in rep["spell_points"]],
+                         ["Fireball", "Blink", "Stone Skin", "Restoration"])
+        self.assertEqual(rep["regen"]["increments"],
+                         [us057.REGEN_INCREMENT] * us057.REGEN_SAMPLE_TICKS)
+        self.assertLess(world.spell_points, fb.SPELL_COSTS["Fireball"])
         self.assertEqual(world.enemy_hp["TestDummy"], 175.0)
         self.assertEqual(world.enemy_hp["TestAttacker"], 200.0)
         self.assertIn("25 damage", checks["fireball_hits_enemy"]["detail"])
@@ -323,7 +335,7 @@ class TestUs057PassPath(PlaytestCase):
         self.assertIn(fb.COMBAT_TEST_MAP, checks["map"]["detail"])
         self.assertEqual(rep["fixed_candidates"], [])
         self.assertNotIn("PASS (FIXED?)", self.md())
-        self.assertNotIn(RESTORATION_TAG, world.status)
+        self.assertIn(RESTORATION_TAG, world.status)
         self.assertNotIn(STONE_SKIN_TAG, world.status)
 
     def test_fireball_is_cast_on_the_shot_line_never_from_spawn(self):
@@ -445,18 +457,19 @@ class TestUs057Failures(PlaytestCase):
         world, server = self.serve(blink_distance=0.0)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
-        self.assertEqual(self.fail_set(rep), ["blink"])
+        self.assertEqual(self.fail_set(rep), ["all_spells_castable", "blink"])
         self.assertIn("x moved +0 (needs > 400)", self.by_name(rep)["blink"]["detail"])
-        # SP was still spent, so the rest of the SP plan runs on.
+        # SP was still spent, so regeneration and Restoration run on, but the
+        # validated successful-cast log correctly excludes the broken Blink.
         self.assertEqual(self.by_name(rep)["stone_skin"]["status"], "PASS")
 
-    def test_restoration_cast_without_sp_fails_the_refusal(self):
-        _, server = self.serve(restoration_ignores_cost=True)
+    def test_a_fireball_that_ignores_low_sp_fails_the_refusal(self):
+        _, server = self.serve(refusal_ignores_cost=True)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
-        self.assertEqual(self.fail_set(rep), ["restoration_refused_low_sp"])
-        self.assertIn("Mordecai.Status.Restoration was applied",
-                      self.by_name(rep)["restoration_refused_low_sp"]["detail"])
+        self.assertEqual(self.fail_set(rep), ["fireball_refused_low_sp"])
+        self.assertIn("new Fireball projectile appeared",
+                      self.by_name(rep)["fireball_refused_low_sp"]["detail"])
 
     def test_a_missing_indicator_fails(self):
         _, server = self.serve(indicators=False)
@@ -489,17 +502,18 @@ class TestUs057Failures(PlaytestCase):
         self.assertEqual(checks["fireball_cast"]["status"], "PASS")
 
     def test_a_broken_sp_plan_skips_what_depends_on_it(self):
-        # Stone Skin costs nothing here: SP stays 5, so Restoration is affordable and its refusal
-        # cannot be tested (SKIP), and the Stone Skin check fails on SP.
+        # Stone Skin costs nothing here, so its exact-spend check fails and every dependent
+        # regeneration/restoration step is skipped.
         _, server = self.serve()
         with mock.patch.dict(fb.SPELL_COSTS, {"StoneSkin": 0.0}):
             code, rep = self.play(server)
         self.assertEqual(code, 1)
         checks = self.by_name(rep)
         self.assertEqual(checks["stone_skin"]["status"], "FAIL")
-        self.assertIn("(expected 1)", checks["stone_skin"]["detail"])
-        self.assertEqual(checks["restoration_refused_low_sp"]["status"], "SKIP")
-        self.assertIn("enough for Restoration", checks["restoration_refused_low_sp"]["detail"])
+        self.assertIn("(expected", checks["stone_skin"]["detail"])
+        self.assertEqual(checks["sp_regen_timing"]["status"], "SKIP")
+        self.assertEqual(checks["restoration_cast"]["status"], "SKIP")
+        self.assertEqual(checks["fireball_refused_low_sp"]["status"], "SKIP")
         self.assertEqual(checks["stone_skin_indicator"]["status"], "SKIP")
         self.assertEqual(checks["stone_skin_expires"]["status"], "SKIP")
 
@@ -509,29 +523,31 @@ class TestUs057Report(PlaytestCase):
         _, server = self.serve()
         _, rep = self.play(server)
         self.assertEqual(rep["story"], "US-057")
-        self.assertEqual(rep["covers"], ["US-055"])
+        self.assertEqual(rep["covers"], ["US-055", "US-090"])
         self.assertEqual(rep["features"], ["spells", "spell_hud", "projectiles_aim",
                                            "status_effects"])
         self.assertEqual([p["check"] for p in rep["plan"]], PLAN_CHECKS)
         self.assertEqual(rep["undeclared_checks"], [])
         self.assertEqual([s["label"] for s in rep["screenshots"]],
-                         ["fireball_hit", "after_blink", "stone_skin", "spell_hud"])
+                         ["fireball_hit", "after_blink", "stone_skin", "regen_ready",
+                          "spell_hud"])
         for s in rep["screenshots"]:
             self.assertTrue(ab.file_complete(s["path"]), s["path"])
             self.assertTrue(s["expect"])
         self.assertIn("orange damage number", rep["screenshots"][0]["expect"])
         self.assertEqual(len(rep["notes"]), len(us057.NOTES))
-        self.assertTrue(any("N6" in n for n in rep["notes"]))
+        self.assertTrue(any("US-090 resolves N6" in n for n in rep["notes"]))
         self.assertTrue(any("Gamepad spell bindings" in n for n in rep["notes"]))
         self.assertEqual(rep["known_issues"], list(us057.KNOWN_ISSUES))
         self.assertIsNotNone(rep["fireball"]["projectile_at"])
         self.assertAlmostEqual(rep["blink"]["dx"], 500.0, delta=0.1)
         ac_ids = {(a["story"], a["id"]) for a in rep["acs"]}
-        for ac in (("US-057", "AC-057.1"), ("US-057", "AC-057.12"), ("US-055", "AC-055.9")):
+        for ac in (("US-057", "AC-057.1"), ("US-057", "AC-057.12"),
+                   ("US-055", "AC-055.9"), ("US-090", "AC5"), ("US-090", "AC7")):
             self.assertIn(ac, ac_ids)
         md = self.md()
         for text in ("## Spell points", "## Fireball observations", "## Notes",
-                     "10 -> 7 -> 5 -> 1", "## Acceptance criteria"):
+                     "observe 0.25 SP periodic ticks", "## Acceptance criteria"):
             self.assertIn(text, md)
         # Real input only: input, state reads, waits and screenshots.
         sent = [e["msg"]["cmd"] for e in read_jsonl(os.path.join(self.run_dir, "bridge.jsonl"))
@@ -559,11 +575,13 @@ class TestUs057Report(PlaytestCase):
         self.assertEqual(kit.plan_problems(us057.Run), [])
 
     def test_ac_ids_exist_in_the_story_files(self):
-        stories = os.path.join(os.path.dirname(SCRIPTS), "stories", "done")
+        stories_root = os.path.join(os.path.dirname(SCRIPTS), "stories")
         text = {}
-        for story, name in (("US-057", "US-057-playable-magic-arena.md"),
-                            ("US-055", "US-055-spell-hud-status-indicators.md")):
-            with open(os.path.join(stories, name), encoding="utf-8") as f:
+        for story, folder, name in (
+                ("US-057", "done", "US-057-playable-magic-arena.md"),
+                ("US-055", "done", "US-055-spell-hud-status-indicators.md"),
+                ("US-090", "in-progress", "US-090-recovery-spell-point-budget.md")):
+            with open(os.path.join(stories_root, folder, name), encoding="utf-8") as f:
                 text[story] = f.read()
         for step in us057.PLAN:
             for ac in step.proves:

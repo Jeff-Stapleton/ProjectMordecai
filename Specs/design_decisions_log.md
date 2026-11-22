@@ -485,3 +485,30 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
   timing window opened.
 
 - Source: Jeff's decisions and PM rulings supplied with issue #160 on 2026-11-21.
+
+---
+
+## 2026-11-22 — Spell point regeneration and respawn refill (US-090, issue #164)
+
+- Base spell-point regeneration is **0.25 SP per second**, multiplied by the
+  existing `SpellPointsRegenMultiplier` (`1 + 0.02 × effective INT`). At a
+  multiplier of 1.0, regenerating from 0 to the fresh maximum of 10 takes 40
+  seconds.
+- Regeneration runs continuously while alive, in and out of combat, with no
+  post-cast delay.
+- Regeneration pauses while Dead or Silenced. The single ongoing effect is
+  inhibited by those tags; Silenced's existing -1 multiplier is not the only
+  guard.
+- Cursed retains its existing additive -0.5 multiplier, so regeneration runs at
+  half speed while Cursed.
+- Runtime implementation is one non-stacking infinite native GameplayEffect
+  with a 1-second period and
+  `bExecutePeriodicEffectOnApplication=false`. It is applied exactly once on
+  authority in `AMordecaiPlayerState::PostInitializeComponents` and persists
+  across pawn respawns.
+- Respawn immediately sets SpellPoints to MaxSpellPoints with
+  `SetNumericAttributeBase` in `AMordecaiCharacter::HandlePlayerRespawn`, beside
+  the Health, Stamina and Posture refills.
+- Spell-point behavior remains wholly inside GAS. The fresh
+  `MaxSpellPoints` default remains **10**.
+- Source: Jeff and PM decisions supplied in GitHub issue #164 (2026-11-22).

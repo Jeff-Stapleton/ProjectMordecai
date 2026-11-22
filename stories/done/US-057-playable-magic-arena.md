@@ -84,9 +84,13 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 9 | `fireball_cooldown_state` | same poll -> player.spells[0].cooldown_remaining_s>0 within 1s of the tap | AC-057.1 |
 | 10 | `cooldown_hud` | same poll -> a SpellCooldown widget renders a numeric remaining time | US-055:AC-055.8, US-055:AC-055.9 |
 | 11 | `walk_blink_lane` | walk_to(0, -600) -> within 60 cm (the start of the Blink lane, clear +X) | - |
-| 12 | `blink` | tap E -> player.location.x rises > 400 and spell_points 7 -> 5 within 2s, \|dy\| < 50 | AC-057.2, AC-057.5 |
-| 13 | `stone_skin` | tap R -> Mordecai.Status.StoneSkin in player.tags and spell_points 5 -> 1 within 2s | AC-057.3 |
+| 12 | `blink` | mouse to viewport-up/world +X, tap E -> player.location.x rises > 400 and spell_points spends 2 within 2s (periodic regen may race the read), \|dy\| < 50 | AC-057.2, AC-057.5 |
+| 13 | `stone_skin` | tap R -> Mordecai.Status.StoneSkin in player.tags and spell_points spends 4 within 2s (periodic regen may race the read) | AC-057.3 |
 | 14 | `stone_skin_cooldown_hud` | state widgets -> the R SpellCooldown renders a decimal remaining cooldown after the real R input | AC-057.9 |
 | 15 | `stone_skin_indicator` | state widgets -> a widget renders "Stone Skin" and a numeric remaining duration within 2s | US-055:AC-055.4, US-055:AC-055.5, US-055:AC-055.6 |
-| 16 | `restoration_refused_low_sp` | tap One at 1 SP -> for 1.5s spell_points stays 1, no Mordecai.Status.Restoration, player.spells[3].can_afford==false | - |
-| 17 | `stone_skin_expires` | state player, widgets -> within 12s Mordecai.Status.StoneSkin leaves player.tags and no widget renders "Stone Skin" | US-055:AC-055.6 |
+| 16 | `sp_regen_timing` | state player over time -> 3 consecutive +0.25 SP periodic ticks, with each measured tick gap between 0.55s and 1.5s | US-090:AC1, US-090:AC7 |
+| 17 | `restoration_budget_regenerated` | wait_until player.attributes.spell_points>=3 -> Restoration is affordable from real periodic regeneration | US-090:AC5, US-090:AC7 |
+| 18 | `restoration_cast` | tap One -> Mordecai.Status.Restoration in player.tags and the 3 SP spend is observed within 2s (periodic regen may race the read) | AC-057.4, AC-057.5, AC-057.12, US-090:AC5 |
+| 19 | `all_spells_castable` | the successful real-input cast log contains Fireball, Blink, Stone Skin and Restoration in order | AC-057.12, US-090:AC5 |
+| 20 | `fireball_refused_low_sp` | tap Q while spell_points<3 -> for 1.5s no Fireball projectile, cooldown or SP spend; periodic regen may continue | US-090:AC5, US-090:AC7 |
+| 21 | `stone_skin_expires` | state player, widgets -> within 12s Mordecai.Status.StoneSkin leaves player.tags and no widget renders "Stone Skin" | US-055:AC-055.6 |

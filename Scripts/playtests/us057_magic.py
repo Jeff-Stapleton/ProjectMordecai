@@ -4,14 +4,16 @@
 Casts the four loadout spells (Q Fireball, E Blink, R Stone Skin, One Restoration) in the
 PACKAGED CombatTestMap through the in-game agent bridge and checks what a player sees: the SP bar
 text, the spell loadout, the Fireball projectile and its damage on the TestDummy, the Blink
-teleport, the Stone Skin buff and its HUD indicator, the refusal of a spell the player cannot
-afford, and the spell cooldowns (state and HUD).  Every action is a key tap (or walk_to, built
+teleport, the Stone Skin buff and its HUD indicator, 0.25 SP/s periodic regeneration, a
+successful Restoration after enough SP has regenerated, the refusal of a Fireball the player
+cannot afford, and the spell cooldowns (state and HUD).  Every action is a key tap (or walk_to, built
 from W/A/S/D taps) injected into Slate; nothing calls game functions.  The run framework is
 Scripts/playtest_kit.py (Specs/story_playtests_v1.md section 2); this file is the PLAN and the
 steps.  --plan prints the Steps table.
 
-SP plan (max SP 10, no regeneration): 10 -> Fireball 7 -> Blink 5 -> Stone Skin 1 -> Restoration
-(cost 3) refused.  The loadout costs 12 per round, more than the pool (design question N6).
+SP plan (max SP 10): Fireball, Blink and Stone Skin drain the pool; the run then observes three
+consecutive 0.25-point periodic ticks, waits until SP reaches Restoration's cost, casts
+Restoration successfully, and immediately attempts an unaffordable Fireball as the real refusal.
 
 Route (CombatTestMap, issue #46 T1; each attack lane explicitly aims world +X):
   - spawn (0, 0) -> (ex - 300, ey) of the TestDummy (its live location; it never moves and spawns
@@ -75,6 +77,11 @@ STONE_SKIN_TIMEOUT_S = 2.0
 INDICATOR_TIMEOUT_S = 2.0
 REFUSAL_WATCH_S = 1.5
 EXPIRE_TIMEOUT_S = 12.0
+REGEN_SAMPLE_TICKS = 3
+REGEN_INCREMENT = 0.25
+REGEN_TIMEOUT_S = 12.0
+REGEN_GAP_MIN_S = 0.55
+REGEN_GAP_MAX_S = 1.50
 
 # The loadout (DA_Spell_*, AC-057.1-4 and AC-057.6): slot, key, display name, SP cost.
 SPELLS = (
@@ -85,7 +92,6 @@ SPELLS = (
 )
 FIREBALL, BLINK, STONE_SKIN, RESTORATION = SPELLS
 SP_START = 10
-SP_PLAN = (10, 7, 5, 1)  # after Fireball, Blink, Stone Skin; Restoration is refused at 1
 
 TARGET_ENEMY = "TestDummy"        # BP_MordecaiEnemy_TestDummy: never moves, never aggroes
 TARGET_SPAWN = (600.0, 600.0)     # its placement: the fallback when no label matches
@@ -112,26 +118,24 @@ SCREENSHOTS = {
     "after_blink": "the player on the Blink lane (y = -600, left of the PlayerStart) about 500 cm "
                    "further +X than before the Blink, on open grid floor; SP bar '5 / 10'",
     "stone_skin": "the Stone Skin buff indicator in the status bar (bottom-left): 'Stone Skin' and "
-                  "a decimal countdown, green tint; SP bar '1 / 10'",
-    "spell_hud": "the SP bar reading '1 / 10' after the refused Restoration, and the spell "
+                  "a decimal countdown, green tint; the SP bar is drained below Restoration cost",
+    "regen_ready": "the SP bar visibly refilled enough to afford Restoration after periodic "
+                   "quarter-point regeneration",
+    "spell_hud": "the low SP bar after successful Restoration and the refused Fireball, and the spell "
                  "cooldown widgets labelled Q / E / R / 1 (top-left, under the SP bar), with "
-                 "the R slot showing Stone Skin's remaining cooldown",
+                 "the Restoration cooldown active",
 }
-KNOWN_ISSUES = (
-    "N6 (design question): max SP is 10 and SP does not regenerate, but one cast of each "
-    "loadout spell costs 12 (3 + 2 + 4 + 3); this run spends 10 -> 7 -> 5 -> 1 and expects "
-    "Restoration to be refused.",
-)
+KNOWN_ISSUES = ()
 NOTES = (
-    "SP 10 vs a loadout cost of 12 with no SP regeneration: a fresh character cannot cast all "
-    "four spells once (design question N6). The run spends 10 -> 7 -> 5 -> 1 and checks that "
-    "Restoration (3 SP) is refused at 1 SP.",
+    "US-090 resolves N6 with 0.25 SP/s times SpellPointsRegenMultiplier and a one-second "
+    "period. The run observes the quarter-point ticks, casts all four loadout spells, then "
+    "keeps a real low-SP refusal.",
     "Gamepad spell bindings (LB / RB / LB+RB / DPadUp, AC-057.5) are NOT exercised: only the "
     "keyboard keys Q / E / R / One are played.",
     "AC-057.7 / AC-057.8 / AC-057.11 (the fire Frontliner and the Burning indicator) and "
-    "Restoration's heal (AC-057.4) are not covered by this script: nothing attacks the player "
-    "here (the route stays out of the TestAttacker's aggro range), and the SP plan leaves no SP "
-    "for Restoration. Scripts/playtests/us054_combat.py plays Restoration's heal and watches "
+    "Restoration's heal amount are not covered by this script: nothing attacks the player "
+    "here (the route stays out of the TestAttacker's aggro range). "
+    "Scripts/playtests/us054_combat.py plays Restoration's heal and watches "
     "for Burning while the TestAttacker hits the player (it swings BasicSlash, so Burning is "
     "not expected there).",
 )
@@ -185,18 +189,33 @@ PLAN = (
     Step("walk_blink_lane", f"walk_to({LANE_POINT[0]:g}, {LANE_POINT[1]:g}) -> within "
          f"{WALK_TOL:g} cm (the start of the Blink lane, clear +X)"),
     Step("blink", f"mouse to viewport-up/world +X, tap E -> player.location.x rises > "
-         f"{BLINK_MIN_DX:g} and spell_points 7 -> 5 within {BLINK_TIMEOUT_S:g}s, "
-         f"|dy| < {BLINK_MAX_DY:g}",
+         f"{BLINK_MIN_DX:g} and spell_points spends {BLINK['cost']} within "
+         f"{BLINK_TIMEOUT_S:g}s (periodic regen may race the read), |dy| < {BLINK_MAX_DY:g}",
          proves=("AC-057.2", "AC-057.5")),
-    Step("stone_skin", f"tap R -> {STONE_SKIN_TAG} in player.tags and spell_points 5 -> 1 within "
-         f"{STONE_SKIN_TIMEOUT_S:g}s", proves=("AC-057.3",)),
+    Step("stone_skin", f"tap R -> {STONE_SKIN_TAG} in player.tags and spell_points spends "
+         f"{STONE_SKIN['cost']} within {STONE_SKIN_TIMEOUT_S:g}s (periodic regen may race the "
+         "read)", proves=("AC-057.3",)),
     Step("stone_skin_cooldown_hud", f"state widgets -> the R {COOLDOWN_WIDGET} renders a decimal "
          "remaining cooldown after the real R input", proves=("AC-057.9",)),
     Step("stone_skin_indicator", f"state widgets -> a widget renders {lit(STONE_SKIN_TEXT)} and a "
          f"numeric remaining duration within {INDICATOR_TIMEOUT_S:g}s",
          proves=("US-055:AC-055.4", "US-055:AC-055.5", "US-055:AC-055.6")),
-    Step("restoration_refused_low_sp", f"tap One at 1 SP -> for {REFUSAL_WATCH_S:g}s "
-         f"spell_points stays 1, no {RESTORATION_TAG}, player.spells[3].can_afford==false"),
+    Step("sp_regen_timing", f"state player over time -> {REGEN_SAMPLE_TICKS} consecutive "
+         f"+{REGEN_INCREMENT:g} SP periodic ticks, with each measured tick gap between "
+         f"{REGEN_GAP_MIN_S:g}s and {REGEN_GAP_MAX_S:g}s",
+         proves=("US-090:AC1", "US-090:AC7")),
+    Step("restoration_budget_regenerated", "wait_until player.attributes.spell_points>=3 -> "
+         "Restoration is affordable from real periodic regeneration",
+         proves=("US-090:AC5", "US-090:AC7")),
+    Step("restoration_cast", f"tap One -> {RESTORATION_TAG} in player.tags and the "
+         f"{RESTORATION['cost']} SP spend is observed within {STONE_SKIN_TIMEOUT_S:g}s "
+         "(periodic regen may race the read)",
+         proves=("AC-057.4", "AC-057.5", "AC-057.12", "US-090:AC5")),
+    Step("all_spells_castable", "the successful real-input cast log contains Fireball, Blink, "
+         "Stone Skin and Restoration in order", proves=("AC-057.12", "US-090:AC5")),
+    Step("fireball_refused_low_sp", f"tap Q while spell_points<3 -> for "
+         f"{REFUSAL_WATCH_S:g}s no Fireball projectile, cooldown or SP spend; periodic regen "
+         "may continue", proves=("US-090:AC5", "US-090:AC7")),
     Step("stone_skin_expires", f"state player, widgets -> within {EXPIRE_TIMEOUT_S:g}s "
          f"{STONE_SKIN_TAG} leaves player.tags and no widget renders {lit(STONE_SKIN_TEXT)}",
          proves=("US-055:AC-055.6",)),
@@ -356,12 +375,21 @@ def _fmt(v, nd=0):
     return "?" if v is None else f"{v:.{nd}f}"
 
 
+def _spend_observed(before, after, cost, window_s):
+    """Accept the exact GAS spend plus periodic ticks that can race the first state read."""
+    if before is None or after is None:
+        return False
+    exact_after = before - cost
+    max_ticks = math.ceil(window_s) + 1
+    return exact_after - 0.02 <= after <= exact_after + REGEN_INCREMENT * max_ticks + 0.02
+
+
 # ---------------------------------------------------------------------------
 # The run
 # ---------------------------------------------------------------------------
 class Us057Run(kit.PlaytestRun):
     STORY = STORY
-    COVERS = ("US-055",)
+    COVERS = ("US-055", "US-090")
     FEATURES = ("spells", "spell_hud", "projectiles_aim", "status_effects")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX
@@ -381,13 +409,15 @@ class Us057Run(kit.PlaytestRun):
         self.stone_skin_t0 = None
         self.stone_skin_ok = False
         self.loadout = None
+        self.regen = None
 
     def steps(self):
         self.step_hud()
         self.step_fireball()
         self.step_blink()
         self.step_stone_skin()
-        self.step_restoration()
+        self.step_regen_and_restoration()
+        self.step_refusal()
         self.step_stone_skin_expires()
 
     # --- 1-3: HUD, loadout, cooldown widgets ----------------------------------------------
@@ -671,7 +701,7 @@ class Us057Run(kit.PlaytestRun):
                 xy, sp = _xy(st), _sp(st)
                 seen.update(xy=xy, sp=sp)
                 return (xy is not None and xy[0] - x0 > BLINK_MIN_DX and sp is not None
-                        and want_sp is not None and sp == want_sp)
+                        and _spend_observed(sp0, sp, BLINK["cost"], BLINK_TIMEOUT_S))
 
             try:
                 b.wait_for(moved, timeout_s=BLINK_TIMEOUT_S, sections=["player"], poll_s=0.05)
@@ -681,14 +711,16 @@ class Us057Run(kit.PlaytestRun):
                 xy = seen.get("xy") or (x0, y0)
                 return ("FAIL", f"tapped E at ({x0:.0f}, {y0:.0f}): within {BLINK_TIMEOUT_S:g}s x "
                         f"moved {xy[0] - x0:+.0f} (needs > {BLINK_MIN_DX:g}) and spell_points "
-                        f"{_fmt(sp0)} -> {_fmt(seen.get('sp'))} (expected {_fmt(want_sp)})", None)
+                        f"{_fmt(sp0, 2)} -> {_fmt(seen.get('sp'), 2)} (exact spend would be "
+                        f"{_fmt(want_sp, 2)}; periodic regen may race the read)", None)
             x1, y1 = seen["xy"]
             dx, dy = x1 - x0, y1 - y0
             self.blink_result = {"from": [x0, y0], "to": [x1, y1], "dx": dx, "dy": dy}
-            self.sp_log.append(("Blink", sp0, want_sp))
+            self.sp_log.append(("Blink", sp0, seen["sp"]))
             text = (f"aimed world +X ({aim}); tapped E: ({x0:.0f}, {y0:.0f}) -> "
                     f"({x1:.0f}, {y1:.0f}), dx {dx:+.0f}, dy {dy:+.0f}; spell_points "
-                    f"{_fmt(sp0)} -> {_fmt(want_sp)}")
+                    f"{_fmt(sp0, 2)} -> {_fmt(seen['sp'], 2)} (cost {BLINK['cost']}; periodic "
+                    "regen allowed)")
             if abs(dy) >= BLINK_MAX_DY:
                 return "FAIL", f"{text}: |dy| >= {BLINK_MAX_DY:g} (Blink should go +X)", None
             return "PASS", text, self.blink_result
@@ -718,7 +750,9 @@ class Us057Run(kit.PlaytestRun):
 
             def on(st1):
                 seen.update(tags=_tags(st1), sp=_sp(st1))
-                return STONE_SKIN_TAG in seen["tags"] and seen["sp"] == want_sp
+                return (STONE_SKIN_TAG in seen["tags"]
+                        and _spend_observed(
+                            sp0, seen["sp"], STONE_SKIN["cost"], STONE_SKIN_TIMEOUT_S))
 
             try:
                 st1 = b.wait_for(on, timeout_s=STONE_SKIN_TIMEOUT_S, sections=["player"],
@@ -728,10 +762,12 @@ class Us057Run(kit.PlaytestRun):
                     raise
                 return ("FAIL", f"tapped R: within {STONE_SKIN_TIMEOUT_S:g}s player.tags="
                         f"{seen.get('tags')} (expected {STONE_SKIN_TAG}), spell_points "
-                        f"{_fmt(sp0)} -> {_fmt(seen.get('sp'))} (expected {_fmt(want_sp)})", None)
-            self.sp_log.append(("Stone Skin", sp0, want_sp))
-            return ("PASS", f"tapped R: {STONE_SKIN_TAG} on the player, spell_points {_fmt(sp0)} "
-                    f"-> {_fmt(want_sp)} after {time.monotonic() - self.stone_skin_t0:.2f}s "
+                        f"{_fmt(sp0, 2)} -> {_fmt(seen.get('sp'), 2)} (exact spend would be "
+                        f"{_fmt(want_sp, 2)}; periodic regen may race the read)", None)
+            self.sp_log.append(("Stone Skin", sp0, seen["sp"]))
+            return ("PASS", f"tapped R: {STONE_SKIN_TAG} on the player, spell_points "
+                    f"{_fmt(sp0, 2)} -> {_fmt(seen['sp'], 2)} (cost {STONE_SKIN['cost']}; "
+                    f"periodic regen allowed) after {time.monotonic() - self.stone_skin_t0:.2f}s "
                     f"(tags {_tags(st1)})", None)
 
         skin_ok, _ = self.attempt("stone_skin", stone_skin, needs=affordable,
@@ -778,52 +814,153 @@ class Us057Run(kit.PlaytestRun):
                      needs_why="not run: stone_skin failed (no Stone Skin tag)")
         self.shot("stone_skin", needs=skin_ok, needs_why="not taken: Stone Skin was not cast")
 
-    # --- 15: Restoration refused ------------------------------------------------------------
-    def step_restoration(self):
+    # --- 15-18: observe regeneration, cast Restoration, prove all four casts ----------------
+    def step_regen_and_restoration(self):
+        def measure_regen(b):
+            start = time.monotonic()
+            initial = _sp(b.state(["player"]))
+            seen = [{"time_s": 0.0, "sp": initial}]
+            last = initial
+            while len(seen) - 1 < REGEN_SAMPLE_TICKS and time.monotonic() - start < REGEN_TIMEOUT_S:
+                st = b.state(["player"])
+                value = _sp(st)
+                if value is not None and last is not None and abs(value - last) > 0.001:
+                    seen.append({"time_s": round(time.monotonic() - start, 3), "sp": value})
+                    last = value
+                time.sleep(0.05)
+
+            increments = [round(seen[i]["sp"] - seen[i - 1]["sp"], 3)
+                          for i in range(1, len(seen))]
+            gaps = [round(seen[i]["time_s"] - seen[i - 1]["time_s"], 3)
+                    for i in range(2, len(seen))]
+            self.regen = {"initial": initial, "samples": seen, "increments": increments,
+                          "measured_gaps_s": gaps}
+            problems = []
+            if len(increments) != REGEN_SAMPLE_TICKS:
+                problems.append(f"saw {len(increments)} ticks, expected {REGEN_SAMPLE_TICKS}")
+            if any(abs(value - REGEN_INCREMENT) > 0.02 for value in increments):
+                problems.append(f"increments {increments}, expected +{REGEN_INCREMENT:g}")
+            if any(gap < REGEN_GAP_MIN_S or gap > REGEN_GAP_MAX_S for gap in gaps):
+                problems.append(
+                    f"measured tick gaps {gaps}, expected {REGEN_GAP_MIN_S:g}-"
+                    f"{REGEN_GAP_MAX_S:g}s")
+            detail = (f"SP {_fmt(initial, 2)}; samples {seen}; increments {increments}; "
+                      f"measured gaps after the first phase-dependent tick {gaps}")
+            return ("FAIL" if problems else "PASS",
+                    f"{'; '.join(problems)} ({detail})" if problems else detail, self.regen)
+
+        regen_ok, _ = self.measure(
+            "sp_regen_timing", measure_regen, needs=self.stone_skin_ok,
+            needs_why="not run: Stone Skin was not cast, so the low-SP regen window was not reached")
+
+        ready, _ = self.expect(
+            "restoration_budget_regenerated",
+            f"player.attributes.spell_points>={RESTORATION['cost']}",
+            timeout_s=REGEN_TIMEOUT_S,
+            needs=regen_ok,
+            needs_why="not run: sp_regen_timing failed")
+        self.shot("regen_ready", needs=ready,
+                  needs_why="not taken: Restoration never became affordable")
+
+        def cast_restoration():
+            b = self.bridge
+            st0 = b.state(["player"])
+            sp0 = _sp(st0)
+            want = None if sp0 is None else sp0 - RESTORATION["cost"]
+            b.tap(RESTORATION["key"], hold_s=TAP_S)
+            seen = {"sp": sp0, "tags": []}
+
+            def cast(st):
+                seen["sp"], seen["tags"] = _sp(st), _tags(st)
+                return (want is not None
+                        and _spend_observed(
+                            sp0, seen["sp"], RESTORATION["cost"], STONE_SKIN_TIMEOUT_S)
+                        and RESTORATION_TAG in seen["tags"])
+
+            try:
+                b.wait_for(cast, timeout_s=STONE_SKIN_TIMEOUT_S, sections=["player"],
+                           poll_s=0.05)
+            except ab.BridgeError as e:
+                if e.code != "wait_for_timeout":
+                    raise
+                return ("FAIL", f"tapped One at {_fmt(sp0, 2)} SP; within "
+                        f"{STONE_SKIN_TIMEOUT_S:g}s SP became {_fmt(seen['sp'], 2)} "
+                        f"(exact spend would be {_fmt(want, 2)}; periodic regen may race the "
+                        f"read) and tags were {seen['tags']}", None)
+            self.sp_log.append(("Restoration", sp0, seen["sp"]))
+            return ("PASS", f"tapped One: {RESTORATION_TAG} on the player, spell_points "
+                    f"{_fmt(sp0, 2)} -> {_fmt(seen['sp'], 2)} (cost {RESTORATION['cost']}; "
+                    "periodic regen allowed)", None)
+
+        cast_ok, _ = self.attempt(
+            "restoration_cast", cast_restoration, needs=ready,
+            needs_why="not run: Restoration never became affordable")
+
+        def all_four(_b):
+            names = [entry[0] for entry in self.sp_log]
+            expected = ["Fireball", "Blink", "Stone Skin", "Restoration"]
+            return ("PASS" if names == expected else "FAIL",
+                    f"successful real-input casts: {names}; expected {expected}", names)
+
+        self.measure("all_spells_castable", all_four, needs=cast_ok,
+                     needs_why="not run: Restoration did not cast successfully")
+
+    # --- 19: a real unaffordable cast is refused while regen continues ----------------------
+    def step_refusal(self):
         st = self.read(["player"])
         sp0 = _sp(st)
-        low = sp0 is not None and sp0 < RESTORATION["cost"]
+        low = sp0 is not None and sp0 < FIREBALL["cost"]
 
         def refused():
             b = self.bridge
-            b.tap(RESTORATION["key"], hold_s=TAP_S)
+            st0 = b.state(["player", "actors"], radius=ACTOR_RADIUS)
+            before_projectiles = {p.get("label") for p in _projectiles(st0)}
+            before_cooldown = _num((_spell(st0, FIREBALL["slot"]) or {})
+                                   .get("cooldown_remaining_s")) or 0.0
+            b.tap(FIREBALL["key"], hold_s=TAP_S)
             t0 = time.monotonic()
-            sp_values, restoration_seen, active_seen = [], False, False
-            st1 = {}
+            values, projectile_seen, cooldown_seen, active_seen = [], False, False, False
+            final = st0
             while True:
-                st1 = b.state(["player"])
-                sp = _sp(st1)
-                if not sp_values or sp_values[-1] != sp:
-                    sp_values.append(sp)
-                restoration_seen |= RESTORATION_TAG in _tags(st1)
-                active_seen |= bool((_spell(st1, RESTORATION["slot"]) or {}).get("active"))
+                final = b.state(["player", "actors"], radius=ACTOR_RADIUS)
+                value = _sp(final)
+                if not values or values[-1] != value:
+                    values.append(value)
+                projectile_seen |= any(
+                    p.get("label") not in before_projectiles for p in _projectiles(final))
+                spell = _spell(final, FIREBALL["slot"]) or {}
+                cooldown_seen |= (_num(spell.get("cooldown_remaining_s")) or 0.0) \
+                    > before_cooldown + 0.01
+                active_seen |= bool(spell.get("active"))
                 if time.monotonic() - t0 >= REFUSAL_WATCH_S:
                     break
-                time.sleep(0.1)
-            spell = _spell(st1, RESTORATION["slot"]) or {}
-            afford = spell.get("can_afford")
+                time.sleep(0.05)
+            spell = _spell(final, FIREBALL["slot"]) or {}
+            spent = any(value is not None and sp0 is not None and value < sp0 - 0.02
+                        for value in values)
             problems = []
-            if any(v != sp0 for v in sp_values):
-                problems.append(f"spell_points changed: {' -> '.join(_fmt(v) for v in sp_values)}")
-            if restoration_seen:
-                problems.append(f"{RESTORATION_TAG} was applied")
-            if afford is not False:
-                problems.append(f"player.spells[3].can_afford={afford!r} (expected false)")
-            text = (f"tapped One at {_fmt(sp0)} SP (Restoration costs {RESTORATION['cost']}); for "
-                    f"{REFUSAL_WATCH_S:g}s spell_points {' -> '.join(_fmt(v) for v in sp_values)}, "
-                    f"{RESTORATION_TAG} {'seen' if restoration_seen else 'never seen'}, "
-                    f"spells[3].active {'seen' if active_seen else 'never true'}, "
-                    f"can_afford={afford!r}")
-            if problems:
-                return "FAIL", f"{'; '.join(problems)} ({text})", None
-            return "PASS", text, None
+            if spent:
+                problems.append(f"SP was spent: {values}")
+            if projectile_seen:
+                problems.append("a new Fireball projectile appeared")
+            if cooldown_seen:
+                problems.append("Fireball cooldown started")
+            if active_seen:
+                problems.append("spells[0].active became true")
+            if spell.get("can_afford") is not False:
+                problems.append(f"spells[0].can_afford={spell.get('can_afford')!r}")
+            text = (f"tapped Q at {_fmt(sp0, 2)} SP; values {values} (regen allowed), "
+                    f"new projectile={projectile_seen}, cooldown={cooldown_seen}, "
+                    f"active={active_seen}, can_afford={spell.get('can_afford')!r}")
+            return ("FAIL" if problems else "PASS",
+                    f"{'; '.join(problems)} ({text})" if problems else text, None)
 
-        self.attempt("restoration_refused_low_sp", refused, needs=low,
-                     needs_why=f"not run: spell_points is {_fmt(sp0)}, enough for Restoration "
-                     f"({RESTORATION['cost']}): the SP plan broke earlier")
+        self.attempt("fireball_refused_low_sp", refused, needs=low,
+                     needs_why=f"not run: spell_points is {_fmt(sp0, 2)}, enough for Fireball "
+                     f"({FIREBALL['cost']})")
         self.shot("spell_hud")
 
-    # --- 16: Stone Skin expires -------------------------------------------------------------
+    # --- 20: Stone Skin expires -------------------------------------------------------------
     def step_stone_skin_expires(self):
         def gone(st):
             return STONE_SKIN_TAG not in _tags(st) and not _stone_skin_widgets(st)
@@ -845,16 +982,21 @@ class Us057Run(kit.PlaytestRun):
     def report_extra(self):
         return {"spell_points": [{"spell": s, "before": a, "after": b} for s, a, b in self.sp_log],
                 "fireball": self.fireball, "blink": self.blink_result,
-                "loadout": self.loadout, "notes": list(NOTES)}
+                "regen": self.regen, "loadout": self.loadout, "notes": list(NOTES)}
 
     def md_sections(self):
         lines = ["", "## Spell points", "",
-                 f"Plan: {' -> '.join(str(v) for v in SP_PLAN)} (Restoration refused at 1).", ""]
+                 "Plan: drain with Q / E / R, observe 0.25 SP periodic ticks, cast One, then "
+                 "prove an unaffordable Q is refused.", ""]
         if self.sp_log:
             for s, a, b in self.sp_log:
-                lines.append(f"- {s}: {_fmt(a)} -> {_fmt(b)}")
+                lines.append(f"- {s}: {_fmt(a, 2)} -> {_fmt(b, 2)}")
         else:
             lines.append("- no cast changed spell points")
+        if self.regen:
+            lines.append(f"- Regen samples: {self.regen.get('samples')}; increments "
+                         f"{self.regen.get('increments')}; measured gaps "
+                         f"{self.regen.get('measured_gaps_s')} s")
         obs = self.fireball or {}
         if obs.get("tapped"):
             lines += ["", "## Fireball observations (fast poll after Q)", "",

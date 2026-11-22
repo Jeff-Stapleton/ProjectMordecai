@@ -154,6 +154,7 @@ SCREENSHOTS = {
             "'Kills: 1' (the life's kills) in the middle; behind it the player dead next to the "
             "orange TestAttacker; the combat HUD and its weapon plate are not visible",
     "respawned": "the player back at the PlayerStart with a full health bar on the grid floor, "
+                 "the spell-point bar refilled to max, "
                  "no death screen and no dimming, 'Kills: 0' top-right and 'Longsword' in the "
                  "bottom-right loadout plate; the TestDummy cylinder and its full red indicator "
                  "back at (600, 600); the TestAttacker back at (2100, 0), likely out of view",
@@ -220,6 +221,9 @@ PLAN = (
     Step("respawn", f"wait -> within {RESPAWN_TIMEOUT_S:g}s player.is_dead==false, health == "
          f"max_health, within {RESPAWN_RADIUS:g} cm of ({SPAWN[0]:g}, {SPAWN[1]:g}), no "
          f"'{TAG_DEAD}' tag", proves=("US-053:AC-053.4", "US-053:AC-053.5")),
+    Step("sp_restored_on_respawn", "the first state read that shows the respawned player -> "
+         "spell_points == max_spell_points after Restoration spent SP before death",
+         proves=("US-090:AC3", "US-090:AC7")),
     Step("death_screen_removed", f"state widgets -> within {DEATH_SCREEN_TIMEOUT_S:g}s of the "
          f"respawn no widget text '{YOU_DIED}' (needs the death screen seen)",
          proves=("US-086:AC-086.1",)),
@@ -446,7 +450,7 @@ class Us054CombatRun(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
-    COVERS = ("US-053", "US-057", "US-062", "US-063", "US-086")
+    COVERS = ("US-053", "US-057", "US-062", "US-063", "US-086", "US-090")
     FEATURES = ("enemies", "enemy_ai", "melee_attack", "dodge", "death_respawn", "kill_counter",
                 "status_effects")
     TITLE = TITLE
@@ -471,6 +475,7 @@ class Us054CombatRun(kit.PlaytestRun):
         self.dummy_hit = None        # (health before the click, lowest after it)
         self.kill = None             # kill_enemy_melee: clicks, the dummy's healths, timing
         self.kills_seen = None       # player.kills when kill_counter_increments passed
+        self.sp_after_restoration = None
 
     # --- the run ------------------------------------------------------------------------------
     def steps(self):
@@ -887,6 +892,7 @@ class Us054CombatRun(kit.PlaytestRun):
                 return seen["rose"] and seen["tag"] and sp_ok
 
             done, _ = self._poll(["player", "actors"], watch, RESTORATION_TIMEOUT_S)
+            self.sp_after_restoration = seen["sp"]
             drop = (sp0 - seen["sp"]) if sp0 is not None and seen["sp"] is not None else None
             hs = seen["healths"]
             what = (f"tapped {RESTORATION_KEY} at health {h0}/{hmax}, SP {sp0}; SP now "
@@ -1044,6 +1050,24 @@ class Us054CombatRun(kit.PlaytestRun):
                               timeout_s=RESPAWN_TIMEOUT_S, radius=ENEMY_RADIUS, needs=died,
                               needs_why=why)
         self.respawn_state = st
+
+        def spell_points_refilled(_b):
+            p = player(self.respawn_state) or {}
+            current = attr(p, "spell_points")
+            maximum = attr(p, "max_spell_points")
+            spent_before_death = (
+                self.sp_after_restoration is not None and maximum is not None
+                and self.sp_after_restoration < maximum - 0.01
+            )
+            detail = (f"SP after Restoration {self.sp_after_restoration}; first respawn read "
+                      f"spell_points {current} / max_spell_points {maximum}")
+            if not spent_before_death:
+                return "FAIL", f"{detail}: no pre-death SP spend was observed", None
+            return ("PASS" if current is not None and maximum is not None
+                    and abs(current - maximum) < 0.01 else "FAIL", detail, None)
+
+        self.measure("sp_restored_on_respawn", spell_points_refilled, needs=ok,
+                     needs_why="not run: the player did not respawn")
         self.shot("respawned", needs=ok, needs_why="not taken: the player did not respawn")
         why = "not run: the player did not respawn"
 
@@ -1147,7 +1171,8 @@ class Us054CombatRun(kit.PlaytestRun):
                 "pre_death": self.pre_death, "death": self.death,
                 "enemies_at_death": self.enemies_at_death,
                 "dummy_hit": list(self.dummy_hit) if self.dummy_hit else None,
-                "kill": self.kill, "kills_seen": self.kills_seen}
+                "kill": self.kill, "kills_seen": self.kills_seen,
+                "sp_after_restoration": self.sp_after_restoration}
 
     def md_sections(self):
         death = self.death

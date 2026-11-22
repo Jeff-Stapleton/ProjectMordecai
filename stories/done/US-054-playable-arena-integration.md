@@ -112,8 +112,9 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 14 | `weapon_hud_hidden_under_death` | state widgets -> no visible MordecaiEquippedWeaponWidget while the death screen is visible | - |
 | 15 | `dead_no_move` | while dead: hold W 0.5s -> moved < 5 cm | US-053:AC-053.2 |
 | 16 | `respawn` | wait -> within 6s player.is_dead==false, health == max_health, within 150 cm of (0, 0), no 'Mordecai.State.Dead' tag | US-053:AC-053.4, US-053:AC-053.5 |
-| 17 | `death_screen_removed` | state widgets -> within 1.5s of the respawn no widget text 'You Died' (needs the death screen seen) | US-086:AC-086.1 |
-| 18 | `weapon_hud_restored_after_respawn` | state widgets -> within 1.5s of the respawn visible MordecaiEquippedWeaponWidget shows 'Longsword' | - |
-| 19 | `arena_reset` | the first read that shows the respawned player (state actors) -> the TestDummy and the TestAttacker alive, health == max, within 100 cm of their spawns, ai_state 'Idle' in that read; PASS only when that read shows the reset (the TestDummy below max before the death and full at the respawn, or the TestAttacker out of Idle before the death and Idle at the respawn), else WARN | US-053:AC-053.8, US-053:AC-053.9 |
-| 20 | `respawn_moves` | hold W 0.4s -> player x grows by >= 80 cm | US-053:AC-053.6 |
-| 21 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills; 0 when a kill and the death were both seen (the death resets the count) | US-063:AC-063.1, US-086:AC-086.5 |
+| 17 | `sp_restored_on_respawn` | the first state read that shows the respawned player -> spell_points == max_spell_points after Restoration spent SP before death | US-090:AC3, US-090:AC7 |
+| 18 | `death_screen_removed` | state widgets -> within 1.5s of the respawn no widget text 'You Died' (needs the death screen seen) | US-086:AC-086.1 |
+| 19 | `weapon_hud_restored_after_respawn` | state widgets -> within 1.5s of the respawn visible MordecaiEquippedWeaponWidget shows 'Longsword' | - |
+| 20 | `arena_reset` | the first read that shows the respawned player (state actors) -> the TestDummy and the TestAttacker alive, health == max, within 100 cm of their spawns, ai_state 'Idle' in that read; PASS only when that read shows the reset (the TestDummy below max before the death and full at the respawn, or the TestAttacker out of Idle before the death and Idle at the respawn), else WARN | US-053:AC-053.8, US-053:AC-053.9 |
+| 21 | `respawn_moves` | hold W 0.4s (retry once after a short correct-direction move) -> player x grows by >= 80 cm | US-053:AC-053.6 |
+| 22 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills; 0 when a kill and the death were both seen (the death resets the count) | US-063:AC-063.1, US-086:AC-086.5 |
