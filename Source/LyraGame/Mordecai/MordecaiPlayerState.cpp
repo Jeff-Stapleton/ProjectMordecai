@@ -2,6 +2,7 @@
 
 #include "MordecaiPlayerState.h"
 #include "Mordecai/AbilitySystem/MordecaiAbilitySystemComponent.h"
+#include "Mordecai/AbilitySystem/Effects/MordecaiGE_SpellPointRegen.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiPostureRuntimeComponent.h"
 #include "Mordecai/Combat/MordecaiStaminaRuntimeComponent.h"
@@ -27,6 +28,21 @@ AMordecaiPlayerState::AMordecaiPlayerState(const FObjectInitializer& ObjectIniti
 void AMordecaiPlayerState::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
+
+	if (HasAuthority() && !SpellPointRegenEffectHandle.IsValid())
+	{
+		if (UMordecaiAbilitySystemComponent* AbilitySystem =
+				Cast<UMordecaiAbilitySystemComponent>(GetAbilitySystemComponent()))
+		{
+			FGameplayEffectContextHandle EffectContext =
+				AbilitySystem->MakeEffectContext();
+			EffectContext.AddSourceObject(this);
+			SpellPointRegenEffectHandle = AbilitySystem->ApplyGameplayEffectToSelf(
+				GetDefault<UMordecaiGE_SpellPointRegen>(),
+				/*Level=*/1.0f,
+				EffectContext);
+		}
+	}
 
 	if (SkillComponent)
 	{

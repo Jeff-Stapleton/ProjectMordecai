@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GameplayEffectTypes.h"
 #include "Player/LyraPlayerState.h"
 
 #include "MordecaiPlayerState.generated.h"
@@ -59,4 +60,6 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Mordecai|Posture")
 	TObjectPtr<UMordecaiPostureRuntimeComponent> PostureRuntimeComponent;
+
+	FActiveGameplayEffectHandle SpellPointRegenEffectHandle;
 };

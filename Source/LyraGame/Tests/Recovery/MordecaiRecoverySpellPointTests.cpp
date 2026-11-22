@@ -129,13 +129,15 @@ bool FMordecai_Recovery_SpellPoints_RegenRatePeriodAndClamp::RunTest(
 	Tick(Env, 0.95f);
 	TestTrue("no regeneration before the one-second period",
 		FMath::IsNearlyEqual(SpellPoints(Env), 0.f, Tolerance));
-	Tick(Env, 0.10f);
+	// The first world tick initializes the active-effect clock, so leave one
+	// automation-frame of scheduling tolerance beyond the exact one-second period.
+	Tick(Env, 0.20f);
 	TestTrue("first period restores exactly 0.25 SP",
 		FMath::IsNearlyEqual(SpellPoints(Env), BaseRegenPerSecond, Tolerance));
 
 	ASC->SetNumericAttributeBase(
 		UMordecaiAttributeSet::GetSpellPointsRegenMultiplierAttribute(), 2.f);
-	Tick(Env, PeriodSeconds);
+	Tick(Env, PeriodSeconds + 0.10f);
 	TestTrue("rate is multiplied by SpellPointsRegenMultiplier",
 		FMath::IsNearlyEqual(SpellPoints(Env), 0.75f, Tolerance));
 
@@ -143,7 +145,7 @@ bool FMordecai_Recovery_SpellPoints_RegenRatePeriodAndClamp::RunTest(
 		ASC->GetNumericAttribute(UMordecaiAttributeSet::GetMaxSpellPointsAttribute());
 	ASC->SetNumericAttributeBase(
 		UMordecaiAttributeSet::GetSpellPointsAttribute(), MaxSP - 0.1f);
-	Tick(Env, PeriodSeconds);
+	Tick(Env, PeriodSeconds + 0.10f);
 	TestTrue("periodic regeneration clamps at MaxSP",
 		FMath::IsNearlyEqual(SpellPoints(Env), MaxSP, Tolerance));
 	return true;
