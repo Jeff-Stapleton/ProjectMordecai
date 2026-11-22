@@ -266,7 +266,7 @@ class Us123Run(kit.PlaytestRun):
         self.attacker_name = actor.get("name")
         return result, state
 
-    def _pin_yellow(self, target=60.0, center=FIGHT_SPOT):
+    def _pin_yellow(self, target=66.0, center=FIGHT_SPOT):
         # Sprint short closed-loop W/S legs. Keeping this one-dimensional avoids
         # camera-relative lateral correction near the attacker while every
         # mutation still comes from real key input.
@@ -332,7 +332,7 @@ class Us123Run(kit.PlaytestRun):
             raise RuntimeError("; ".join(problems))
         return stamina, name, tags
 
-    def _pin_yellow_at_fight(self, target=60.0):
+    def _pin_yellow_at_fight(self, target=66.0):
         last = None
         for _ in range(3):
             last = self._pin_yellow(target)
@@ -458,16 +458,6 @@ class Us123Run(kit.PlaytestRun):
             f"(expected {BASE_L1_YELLOW:g} +/- {TOL:g})"), {"damage": taken}
 
     def _break_by_parry(self):
-        # The Yellow control hit costs 8 stamina. Restore enough Yellow
-        # headroom before the two 12-stamina parries so the riposte attack
-        # snapshots Yellow rather than crossing into Red. Waiting here keeps
-        # the setup on the real regen/input path and does not move the player.
-        headroom = self._wait_state(
-            lambda value: (
-                _stamina(_player(value)) is not None
-                and 64.0 <= _stamina(_player(value)) <= 66.0
-                and TAG_YELLOW in _tags(_player(value))
-            ), 10.0, "Yellow headroom before parries")
         first = self._parry_once()
         first_actor = self._attacker(first)
         first_posture = _posture(first_actor)
@@ -488,8 +478,7 @@ class Us123Run(kit.PlaytestRun):
         if actor.get("ai_state") != "Staggered":
             problems.append(f"ai_state is {actor.get('ai_state')}, expected Staggered")
         detail = (
-            f"Yellow headroom {_stamina(_player(headroom))}; two real LT+RT parries: "
-            f"posture {first_posture} -> {posture}; "
+            f"two real LT+RT parries: posture {first_posture} -> {posture}; "
             f"ai_state {actor.get('ai_state')}; tags {tags}")
         return ("FAIL" if problems else "PASS"), (
             detail + (f" -- {'; '.join(problems)}" if problems else "")), {

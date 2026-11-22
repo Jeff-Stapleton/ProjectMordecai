@@ -105,6 +105,11 @@ class PostureWorld(DefenseWorld):
             self.last_spend = now
             self.enemy_posture = max(0.0, self.enemy_posture - 50.0)
             if self.enemy_posture <= 0.0 and self.broken_runtime:
+                # The compact fake omits the packaged fixture's longer cadence,
+                # during which stamina regenerates back into Yellow. Preserve
+                # the packaged route's observed post-parry tier at break time.
+                self.stamina = 50.0
+                self.last_spend = now
                 self.broken_until = now + 1.5
                 self.stagger_damage = 0.0
                 self._set_ai(self.attacker(), "Staggered", now)
@@ -113,7 +118,8 @@ class PostureWorld(DefenseWorld):
         now = self.real_time()
         combo = us123.TAG_COMBO in self.timed_tags
         self.combo_index = 2 if combo else 1
-        stamina_multiplier = 1.25 if self.stamina > 75.0 else (1.0 if self.stamina > 25.0 else 0.75)
+        stamina_multiplier = 1.25 if self.stamina > 66.0 else (
+            1.0 if self.stamina > 33.0 else 0.75)
         base = 16.0 if self.combo_index == 1 else self.l2_base_damage
         cost = 8.0 if self.combo_index == 1 else 10.0
         damage = base * stamina_multiplier
@@ -150,9 +156,9 @@ class PostureWorld(DefenseWorld):
         value = super()._s_player()
         if value.get("valid"):
             tags = [tag for tag in value["tags"] if "Stamina.Tier." not in tag]
-            if self.stamina > 75.0:
+            if self.stamina > 66.0:
                 tags.append(us123.TAG_GREEN)
-            elif self.stamina > 25.0:
+            elif self.stamina > 33.0:
                 tags.append(us123.TAG_YELLOW)
             else:
                 tags.append("Mordecai.Stamina.Tier.Red")
