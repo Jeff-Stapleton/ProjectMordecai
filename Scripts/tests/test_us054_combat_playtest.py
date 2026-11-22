@@ -815,6 +815,19 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertIn("death snapshot spell_points", check["detail"])
         self.assertIn("sp_restored_on_respawn", rep["new_failures"])
 
+    def test_slow_death_re_spends_after_regen_reaches_max(self):
+        world, server = self.serve(
+            burn_chance=0.0,
+            sp_refill_on_respawn=False,
+            spell_regen_per_s=0.25,
+        )
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.statuses(rep, "FAIL"), ["sp_restored_on_respawn"])
+        death = rep["death"]
+        self.assertLess(death["spell_points"], death["max_spell_points"])
+        self.assertIn("Q", world.casts, "the real-input path must spend again near death")
+
     def test_the_game_as_expected_passes(self):
         # BasicSlash never burns: burning_on_hit watches until the death and ends at once with
         # a WARN; player_dies passes on the death burning_on_hit saw.
