@@ -71,18 +71,19 @@ Native widgets and test/playtest scripts only; no editor assets.
 | 7 | `kill_counter_increments` | state widgets, player -> within 2s every 'Kills: N' text reads 'Kills: 1' and player.kills==1 | - |
 | 8 | `walk_to_attacker` | walk_to(440, 0), walk_to(2000, 0) -> within 60 cm, then within 25 cm (the fight spot, 100 cm -X of the TestAttacker) | - |
 | 9 | `attacker_damages_player` | stand at the fight spot -> player.attributes.health < player.attributes.max_health within 20s | - |
-| 10 | `restoration_heals` | tap One -> within 6s health rises, spell_points drops by 3 and 'Mordecai.Status.Restoration' is in player.tags | - |
+| 10 | `restoration_heals` | tap One -> within 6s health rises, the minimum observed spell_points proves the 3-SP spend while periodic regen is allowed, and 'Mordecai.Status.Restoration' is in player.tags | - |
 | 11 | `burning_on_hit` | keep standing -> within 25s 'Mordecai.Status.Burning' in player.tags and a widget text 'Burning' (WARN if Burning never procs: the TestAttacker swings BasicSlash; ends at once, WARN, when the player dies) | - |
 | 12 | `player_dies` | keep standing -> player.is_dead==true within 60s (or already seen dead by an earlier step), 'Mordecai.State.Dead' in player.tags | - |
 | 13 | `death_screen` | state widgets -> within 1.5s one widget with 'You Died', a countdown digit and 'Kills: N', N = the kills kill_counter_increments read (any N when it did not run) | - |
 | 14 | `weapon_hud_hidden_under_death` | state widgets -> no visible MordecaiEquippedWeaponWidget while the death screen is visible | AC-091.C |
 | 15 | `dead_no_move` | while dead: hold W 0.5s -> moved < 5 cm | - |
 | 16 | `respawn` | wait -> within 6s player.is_dead==false, health == max_health, within 150 cm of (0, 0), no 'Mordecai.State.Dead' tag | - |
-| 17 | `death_screen_removed` | state widgets -> within 1.5s of the respawn no widget text 'You Died' (needs the death screen seen) | - |
-| 18 | `weapon_hud_restored_after_respawn` | state widgets -> within 1.5s of the respawn visible MordecaiEquippedWeaponWidget shows 'Longsword' | AC-091.C |
-| 19 | `arena_reset` | the first read that shows the respawned player (state actors) -> the TestDummy and the TestAttacker alive, health == max, within 100 cm of their spawns, ai_state 'Idle' in that read; PASS only when that read shows the reset (the TestDummy below max before the death and full at the respawn, or the TestAttacker out of Idle before the death and Idle at the respawn), else WARN | - |
-| 20 | `respawn_moves` | hold W 0.4s -> player x grows by >= 80 cm | - |
-| 21 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills; 0 when a kill and the death were both seen (the death resets the count) | - |
+| 17 | `sp_restored_on_respawn` | the first state read that shows the respawned player -> spell_points == max_spell_points after Restoration spent SP before death | - |
+| 18 | `death_screen_removed` | state widgets -> within 1.5s of the respawn no widget text 'You Died' (needs the death screen seen) | - |
+| 19 | `weapon_hud_restored_after_respawn` | state widgets -> within 1.5s of the respawn visible MordecaiEquippedWeaponWidget shows 'Longsword' | AC-091.C |
+| 20 | `arena_reset` | the first read that shows the respawned player (state actors) -> the TestDummy and the TestAttacker alive, health == max, within 100 cm of their spawns, ai_state 'Idle' in that read; PASS only when that read shows the reset (the TestDummy below max before the death and full at the respawn, or the TestAttacker out of Idle before the death and Idle at the respawn), else WARN | - |
+| 21 | `respawn_moves` | hold W 0.4s -> player x grows by >= 80 cm | - |
+| 22 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills; 0 when a kill and the death were both seen (the death resets the count) | - |
 
 <!-- Scripts/playtests/us091_weapon_hud.py -->
 

@@ -138,6 +138,7 @@ class CombatWorld(fb.FakeWorld):
                  hud_under_death=False, death_screen_stays=False, dead_moves=False,
                  arena_reset=True, reset_ai=True, ai_reported=True, moves_after_respawn=True,
                  sp_refill_on_respawn=True,
+                 sp_regen_after_cast=0.0,
                  kills_text=None, enemies_die=True, counter_counts=True,
                  kills_reset_on_death=True, death_screen_live_count=False, dodge_back_cm=98.0,
                  **kwargs):
@@ -163,6 +164,7 @@ class CombatWorld(fb.FakeWorld):
         self.ai_reported, self.kills_text = ai_reported, kills_text
         self.moves_after_respawn = moves_after_respawn
         self.sp_refill_on_respawn = sp_refill_on_respawn
+        self.sp_regen_after_cast = float(sp_regen_after_cast)
         self.enemies_die, self.counter_counts = enemies_die, counter_counts
         self.kills_reset_on_death, self.dodge_back_cm = kills_reset_on_death, float(dodge_back_cm)
         self.death_screen_live_count = death_screen_live_count
@@ -306,6 +308,11 @@ class CombatWorld(fb.FakeWorld):
                 if self.restoration and self.spell_points >= 3:
                     self.spell_points -= 3
                     self.timed_tags[TAG_RESTORATION] = now + self.restoration_s
+                    if self.sp_regen_after_cast:
+                        self.after(0.05, lambda world: setattr(
+                            world, "spell_points",
+                            min(world.max_spell_points,
+                                world.spell_points + self.sp_regen_after_cast)))
                 return
             if key == "LeftAlt":
                 if self.attacks:
@@ -750,6 +757,16 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
                   for c in server.received if c.get("cmd") == "click"]
         self.assertEqual(set(clicks), {(640, 360, "Left")})
         self.assertGreaterEqual(len(clicks), 17)
+
+    def test_restoration_cost_uses_minimum_sp_when_regen_runs_during_heal(self):
+        _, server = self.serve(**dict(FAST, burn_chance=1.0, sp_regen_after_cast=0.25))
+        code, rep = self.play(server)
+        check = self.by_name(rep)["restoration_heals"]
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertEqual(rep["sp_after_restoration"], 7.25)
+        self.assertIn("minimum observed 7.25", check["detail"])
+        self.assertIn("periodic regen allowed", check["detail"])
         self.assertTrue(all("hold_s" not in c for c in server.received if c.get("cmd") == "click"),
                         "light attacks: the bridge's default hold, no click held for a heavy one")
         # Far actors are read with radius 3000, never with wait_until's fixed 1500.

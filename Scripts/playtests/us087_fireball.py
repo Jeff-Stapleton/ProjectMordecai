@@ -59,8 +59,9 @@ PLAN = (
          "require full health, no death, and stationary over a baseline watch; then walk_to about "
          f"{SHOT_DISTANCE:g} cm -X, mouse-aim world +X, and validate a +X shot line inside "
          "1500 range"),
-    Step("fireball_cast", f"tap Q through Slate -> spell_points decreases by {SP_COST:g}; clock "
-         "starts before the tap and reports wall/game timing", proves=("AC-087.4", "AC-087.5")),
+    Step("fireball_cast", f"tap Q through Slate -> minimum observed spell_points proves the "
+         f"{SP_COST:g}-SP spend (allow one racing 0.25-SP regen tick); clock starts before the "
+         "tap and reports wall/game timing", proves=("AC-087.4", "AC-087.5")),
     Step("projectile_visible", f"continuous state polling -> actors[] kind=='projectile' with "
          f"has_visible_mesh==true within {PROJECTILE_WINDOW_S:g}s; independently screenshot it",
          proves=("AC-087.4",)),
@@ -277,6 +278,7 @@ class Us087FireballRun(kit.PlaytestRun):
             "projectile_seen": False,
             "invisible_projectile_seen": False,
             "health_values": [],
+            "sp_values": [],
             "integrity_failures": [],
             "polls": 0,
         }
@@ -294,6 +296,8 @@ class Us087FireballRun(kit.PlaytestRun):
             sp = _num(((player or {}).get("attributes") or {}).get("spell_points"))
             if sp is not None:
                 sp_after = sp
+                if not result["sp_values"] or result["sp_values"][-1] != sp:
+                    result["sp_values"].append(sp)
             if player is None or player.get("is_dead") is True:
                 result["integrity_failures"].append("player died or disappeared")
 
@@ -359,13 +363,17 @@ class Us087FireballRun(kit.PlaytestRun):
             time.sleep(POLL_S)
 
         result["sp_after"] = sp_after
+        result["sp_min"] = min(result["sp_values"]) if result["sp_values"] else None
         result["wall_elapsed_s"] = time.monotonic() - wall0
         result["integrity_failures"] = list(dict.fromkeys(result["integrity_failures"]))
         self.observation = result
 
         def cast_result():
-            ok = sp0 is not None and sp_after is not None and abs((sp0 - sp_after) - SP_COST) <= 0.01
-            detail = (f"real Slate Q tap; spell_points {sp0} -> {sp_after}; "
+            spend = (sp0 - result["sp_min"]
+                     if sp0 is not None and result["sp_min"] is not None else None)
+            ok = spend is not None and SP_COST - 0.26 <= spend <= SP_COST + 0.01
+            detail = (f"real Slate Q tap; spell_points {sp0} -> minimum {result['sp_min']} -> "
+                      f"final {sp_after} (periodic regen allowed); "
                       f"input held wall={input_response.get('held_s')}s, "
                       f"simulated={input_response.get('simulated_s')}s; observation "
                       f"wall={result['wall_elapsed_s']:.3f}s, world={result['world_elapsed_s']}s")

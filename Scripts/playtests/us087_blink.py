@@ -70,7 +70,8 @@ PLAN = (
          f"{SP_COST:g}, and neither "
          "Stone Skin nor Invulnerable; capture a supplemental pre-cast frame"),
     Step("blink_past_enemy", f"press E through Slate and release it in finally; continuously sample "
-         f"the retained player/target -> SP {SP_BEFORE:g}->{SP_BEFORE - SP_COST:g} and player +X "
+         f"the retained player/target -> minimum observed SP proves the {SP_COST:g}-SP spend "
+         "(allow one racing 0.25-SP regen tick) and player +X "
          f"movement > {MIN_X_MOVEMENT:g} cm within {MOVE_WINDOW_S:g}s with low Y/Z drift",
          proves=("AC-087.8",)),
     Step("blink_integrity", "through the full timed audit the exact player stays live, the exact "
@@ -426,6 +427,8 @@ class Us087BlinkRun(kit.PlaytestRun):
         final_position = _xyz(final_player)
         result["final_location"] = list(final_position) if final_position else None
         result["sp_after"] = _spell_points(final_player)
+        numeric_sp_values = [value for value in result["sp_values"] if value is not None]
+        result["sp_min"] = min(numeric_sp_values) if numeric_sp_values else None
         result["final_tags"] = sorted(_tags(final_player))
         result["integrity_failures"] = list(dict.fromkeys(result["integrity_failures"]))
         self.observation = result
@@ -438,11 +441,14 @@ class Us087BlinkRun(kit.PlaytestRun):
             dy = final[1] - self.cast_origin[1] if final else None
             dz = final[2] - self.cast_origin[2] if final else None
             sp_after = result["sp_after"]
+            sp_min = result["sp_min"]
             failures = []
-            if sp0 is None or abs(sp0 - SP_BEFORE) > 0.01 or sp_after is None \
-                    or abs(sp_after - (SP_BEFORE - SP_COST)) > 0.01:
-                failures.append(f"spell_points {sp0} -> {sp_after}, expected "
-                                f"{SP_BEFORE:g}->{SP_BEFORE - SP_COST:g}")
+            spend = sp0 - sp_min if sp0 is not None and sp_min is not None else None
+            if (sp0 is None or abs(sp0 - SP_BEFORE) > 0.01 or spend is None
+                    or not SP_COST - 0.26 <= spend <= SP_COST + 0.01):
+                failures.append(f"spell_points {sp0} -> minimum {sp_min} -> final {sp_after}; "
+                                f"expected a {SP_COST:g}-SP spend with at most one racing "
+                                "0.25-SP regen tick")
             movement_at = result["movement_at_wall_s"]
             if movement_at is None or movement_at > MOVE_WINDOW_S:
                 failures.append(f"no sampled +X movement > {MIN_X_MOVEMENT:g} cm with low Y/Z "
@@ -453,7 +459,8 @@ class Us087BlinkRun(kit.PlaytestRun):
                 failures.append(f"final off-axis movement dy={dy}, dz={dz}")
             if result["integrity_failures"]:
                 failures.append("integrity invalidated: " + "; ".join(result["integrity_failures"]))
-            detail = (f"real Slate E press/release; SP {sp0}->{sp_after}; delta "
+            detail = (f"real Slate E press/release; SP {sp0}->minimum {sp_min}->final "
+                      f"{sp_after} (periodic regen allowed); delta "
                       f"({dx},{dy},{dz}); first qualifying movement "
                       f"{result['movement_at_wall_s']} s; {result['polls']} polls")
             if failures:

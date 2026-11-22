@@ -869,8 +869,8 @@ class Us054CombatRun(kit.PlaytestRun):
                         f"{RESTORATION_KEY} could be tapped", None)
             h0, hmax, sp0 = attr(p0, "health"), attr(p0, "max_health"), attr(p0, "spell_points")
             b.tap(RESTORATION_KEY, hold_s=self.TAP_S)
-            seen = {"rose": False, "tag": False, "prev": h0, "sp": sp0, "died": False,
-                    "healths": [h0], "alive_reads": 0}
+            seen = {"rose": False, "tag": False, "prev": h0, "sp": sp0, "min_sp": sp0,
+                    "died": False, "healths": [h0], "alive_reads": 0}
 
             def watch(st):
                 self._note(st, "restoration_heals")
@@ -886,21 +886,32 @@ class Us054CombatRun(kit.PlaytestRun):
                     seen["prev"] = h
                     seen["healths"].append(h)
                 seen["sp"] = attr(p, "spell_points")
+                if seen["sp"] is not None:
+                    seen["min_sp"] = (seen["sp"] if seen["min_sp"] is None
+                                      else min(seen["min_sp"], seen["sp"]))
                 seen["tag"] = seen["tag"] or TAG_RESTORATION in tags(p)
-                sp_ok = (sp0 is not None and seen["sp"] is not None
-                         and abs((sp0 - seen["sp"]) - RESTORATION_SP) < 0.01)
+                # Judge the minimum observed SP, not the value after the 5-second heal.  US-090
+                # regenerates during that observation window.  A periodic tick can race the
+                # first state read, so allow one 0.25-SP tick while still requiring the 3-SP
+                # GAS spend (a smaller/absent spend cannot pass).
+                spend = (sp0 - seen["min_sp"]
+                         if sp0 is not None and seen["min_sp"] is not None else None)
+                sp_ok = spend is not None and RESTORATION_SP - 0.26 <= spend <= RESTORATION_SP + 0.01
                 return seen["rose"] and seen["tag"] and sp_ok
 
             done, _ = self._poll(["player", "actors"], watch, RESTORATION_TIMEOUT_S)
-            self.sp_after_restoration = seen["sp"]
-            drop = (sp0 - seen["sp"]) if sp0 is not None and seen["sp"] is not None else None
+            self.sp_after_restoration = seen["min_sp"]
+            drop = (sp0 - seen["min_sp"]
+                    if sp0 is not None and seen["min_sp"] is not None else None)
             hs = seen["healths"]
             what = (f"tapped {RESTORATION_KEY} at health {h0}/{hmax}, SP {sp0}; SP now "
-                    f"{seen['sp']} (drop {drop}), health samples {hs[:6]}...{hs[-3:]}, health "
+                    f"{seen['sp']}, minimum observed {seen['min_sp']} (spend {drop}; periodic "
+                    f"regen allowed), health samples {hs[:6]}...{hs[-3:]}, health "
                     f"rose between reads: {seen['rose']}, '{TAG_RESTORATION}' seen: {seen['tag']}")
             if done and not seen["died"]:
                 return "PASS", what, None
-            cast = seen["tag"] and drop is not None and abs(drop - RESTORATION_SP) < 0.01
+            cast = (seen["tag"] and drop is not None
+                    and RESTORATION_SP - 0.26 <= drop <= RESTORATION_SP + 0.01)
             if seen["died"] and seen["alive_reads"] == 0:
                 return ("WARN", "inconclusive: the player was dead at the first read after the "
                         f"tap (killed during it); {what}", None)
