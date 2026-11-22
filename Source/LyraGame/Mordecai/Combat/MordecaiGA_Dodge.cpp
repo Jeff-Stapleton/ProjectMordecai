@@ -10,6 +10,7 @@
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/RootMotionSource.h"
 #include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMordecaiDodge, Log, All);
@@ -393,6 +394,25 @@ void UMordecaiGA_Dodge::ApplyDodgeMovement()
 			true);
 	if (DodgeRootMotionTask)
 	{
+		// Constant-force sources default DisablePartialEndTick to preserve their
+		// final velocity, which lets a low-FPS final frame overshoot Duration.
+		// Dodge explicitly finishes at zero velocity, so allow CharacterMovement
+		// to clamp the last simulation tick to the remaining source duration.
+		if (const ACharacter* Character =
+			Cast<ACharacter>(GetAvatarActorFromActorInfo()))
+		{
+			if (UCharacterMovementComponent* Movement =
+				Character->GetCharacterMovement())
+			{
+				if (const TSharedPtr<FRootMotionSource> Source =
+					Movement->CurrentRootMotion.GetRootMotionSource(
+						TEXT("MordecaiDodge")))
+				{
+					Source->Settings.UnSetFlag(
+						ERootMotionSourceSettingsFlags::DisablePartialEndTick);
+				}
+			}
+		}
 		DodgeRootMotionTask->OnFinish.AddDynamic(
 			this, &UMordecaiGA_Dodge::OnDodgeComplete);
 		DodgeRootMotionTask->ReadyForActivation();

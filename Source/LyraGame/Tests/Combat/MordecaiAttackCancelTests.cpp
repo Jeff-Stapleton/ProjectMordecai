@@ -494,6 +494,10 @@ bool FMordecai_Dodge_RuntimeTravelsTierScaledDistance::RunTest(const FString& Pa
 			RootMotion
 				&& RootMotion->Settings.HasFlag(
 					ERootMotionSourceSettingsFlags::IgnoreZAccumulate));
+		TestFalse(*FString::Printf(TEXT("%s dodge clamps its partial final movement tick"), Case.Tier),
+			RootMotion
+				&& RootMotion->Settings.HasFlag(
+					ERootMotionSourceSettingsFlags::DisablePartialEndTick));
 		Env.TickSeconds(0.45f);
 		if (UAbilityTask_ApplyRootMotionConstantForce* Task =
 			Dodge->GetRootMotionTask())
