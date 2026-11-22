@@ -67,7 +67,8 @@ class MagicWorld(fb.FakeWorld):
                  projectile_speed=1000.0, fireball_damage=25.0, cast_delay_s=0.3,
                  blink_distance=500.0, stone_skin_s=2.5, restoration_s=5.0, sp_bar=True,
                  indicators=True, refusal_ignores_cost=False, spell_regen=True,
-                 regen_phase=0.0, enemy_hp=200.0, **kwargs):
+                 regen_phase=0.0, regen_multiplier=1.0, spend_shortfall=0.0,
+                 enemy_hp=200.0, **kwargs):
         for name, value in fb.MAP_PRESETS[fb.COMBAT_TEST_MAP].items():
             kwargs.setdefault(name, value)
         super().__init__(**kwargs)
@@ -84,6 +85,8 @@ class MagicWorld(fb.FakeWorld):
         self.indicators = indicators
         self.refusal_ignores_cost = refusal_ignores_cost
         self.spell_regen = spell_regen
+        self.regen_multiplier = float(regen_multiplier)
+        self.spend_shortfall = float(spend_shortfall)
         self.regen_accumulator = float(regen_phase)
         self.enemy_hp = {e["label"]: float(enemy_hp) for e in self.enemies}
         self.enemy_max_hp = float(enemy_hp)
@@ -108,6 +111,7 @@ class MagicWorld(fb.FakeWorld):
             return
         if not free:
             self.spell_points -= cost
+            self.spell_points += self.spend_shortfall
         self.casts.append(key)
         self.cast_log.append((key, spell_id, list(self.pos)))
         if self.cooldowns:
@@ -142,7 +146,8 @@ class MagicWorld(fb.FakeWorld):
                 while self.regen_accumulator >= 1.0:
                     self.regen_accumulator -= 1.0
                     self.spell_points = min(
-                        self.max_spell_points, self.spell_points + us057.REGEN_INCREMENT)
+                        self.max_spell_points,
+                        self.spell_points + us057.REGEN_INCREMENT * self.regen_multiplier)
             now = self.real_time()
             for tag, until in list(self.status.items()):
                 if until is not None and now >= until:
@@ -171,6 +176,7 @@ class MagicWorld(fb.FakeWorld):
     def _s_player(self):
         d = super()._s_player()
         if d.get("valid"):
+            d["attributes"]["spell_points_regen_multiplier"] = self.regen_multiplier
             d["tags"] = list(d["tags"]) + sorted(self.status)
             for s in d["spells"]:
                 s["cooldown_remaining_s"] = round(self._cooldown_left(s["spell_id"]), 2)
@@ -326,6 +332,9 @@ class TestUs057PassPath(PlaytestCase):
                          ["Fireball", "Blink", "Stone Skin", "Restoration"])
         self.assertEqual(rep["regen"]["increments"],
                          [us057.REGEN_INCREMENT] * us057.REGEN_SAMPLE_TICKS)
+        self.assertGreaterEqual(len(rep["regen"]["measured_gaps_s"]), 3)
+        self.assertGreaterEqual(rep["regen"]["mean_gap_s"], us057.REGEN_GAP_MIN_S)
+        self.assertLessEqual(rep["regen"]["mean_gap_s"], us057.REGEN_GAP_MAX_S)
         self.assertLess(world.spell_points, fb.SPELL_COSTS["Fireball"])
         self.assertEqual(world.enemy_hp["TestDummy"], 175.0)
         self.assertEqual(world.enemy_hp["TestAttacker"], 200.0)
@@ -346,6 +355,31 @@ class TestUs057PassPath(PlaytestCase):
         self.assertEqual(check["status"], "PASS", check["detail"])
         self.assertEqual(rep["fireball"]["sp_observed"], 7.25)
         self.assertIn("periodic regen allowed", check["detail"])
+
+    def test_regen_increment_uses_the_live_multiplier(self):
+        _, server = self.serve(
+            cooldowns=True,
+            cooldown_widgets=4,
+            regen_multiplier=1.2,
+        )
+        code, rep = self.play(server)
+        check = self.by_name(rep)["sp_regen_timing"]
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertEqual(rep["regen"]["spell_points_regen_multiplier"], 1.2)
+        self.assertEqual(rep["regen"]["increments"], [0.3] * us057.REGEN_SAMPLE_TICKS)
+
+    def test_a_spend_half_a_point_short_fails_exact_spend_proof(self):
+        _, server = self.serve(
+            cooldowns=True,
+            cooldown_widgets=4,
+            spend_shortfall=0.5,
+        )
+        code, rep = self.play(server)
+        check = self.by_name(rep)["fireball_cast"]
+        self.assertEqual(code, 1)
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("fireball_cast", rep["new_failures"])
 
     def test_fireball_is_cast_on_the_shot_line_never_from_spawn(self):
         world, server = self.serve()

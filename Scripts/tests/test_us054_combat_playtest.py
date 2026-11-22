@@ -139,6 +139,7 @@ class CombatWorld(fb.FakeWorld):
                  arena_reset=True, reset_ai=True, ai_reported=True, moves_after_respawn=True,
                  sp_refill_on_respawn=True,
                  sp_regen_after_cast=0.0,
+                 spell_regen_per_s=0.0,
                  kills_text=None, enemies_die=True, counter_counts=True,
                  kills_reset_on_death=True, death_screen_live_count=False, dodge_back_cm=98.0,
                  **kwargs):
@@ -165,6 +166,8 @@ class CombatWorld(fb.FakeWorld):
         self.moves_after_respawn = moves_after_respawn
         self.sp_refill_on_respawn = sp_refill_on_respawn
         self.sp_regen_after_cast = float(sp_regen_after_cast)
+        self.spell_regen_per_s = float(spell_regen_per_s)
+        self.spell_regen_accumulator = 0.0
         self.enemies_die, self.counter_counts = enemies_die, counter_counts
         self.kills_reset_on_death, self.dodge_back_cm = kills_reset_on_death, float(dodge_back_cm)
         self.death_screen_live_count = death_screen_live_count
@@ -211,6 +214,14 @@ class CombatWorld(fb.FakeWorld):
             self.timed_tags = {t: until for t, until in self.timed_tags.items() if until > now}
             if not self.ready or self.menu_open:
                 return
+            if (self.spell_regen_per_s > 0.0 and not self.is_dead
+                    and self.spell_points < self.max_spell_points):
+                self.spell_regen_accumulator += dt
+                while self.spell_regen_accumulator >= 1.0:
+                    self.spell_regen_accumulator -= 1.0
+                    self.spell_points = min(
+                        self.max_spell_points,
+                        self.spell_points + self.spell_regen_per_s)
             if not self.is_dead and TAG_RESTORATION in self.timed_tags:
                 self.health = min(self.max_health, self.health + self.heal_per_s * dt)
             for e in self.enemies:
@@ -735,6 +746,8 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertEqual(rep["sp_after_restoration"], 7.0)
         self.assertIn("spell_points 10.0 / max_spell_points 10.0",
                       checks["sp_restored_on_respawn"]["detail"])
+        self.assertIn("death snapshot spell_points 7.0 / max_spell_points 10.0",
+                      checks["sp_restored_on_respawn"]["detail"])
         self.assertEqual(world.deaths, 1)
         self.assertEqual(world.kills_at_death, 1)
         self.assertEqual(world.kills, 0)
@@ -783,8 +796,23 @@ class TestUs054CombatAgainstTheFake(Us054CombatCase):
         self.assertEqual(code, 1)
         self.assertEqual(self.statuses(rep, "FAIL"), ["sp_restored_on_respawn"])
         detail = self.by_name(rep)["sp_restored_on_respawn"]["detail"]
+        self.assertIn("death snapshot spell_points 7.0 / max_spell_points 10.0", detail)
         self.assertIn("SP after Restoration 7.0", detail)
         self.assertIn("spell_points 7.0 / max_spell_points 10.0", detail)
+        self.assertIn("sp_restored_on_respawn", rep["new_failures"])
+
+    def test_regen_cannot_make_missing_respawn_refill_pass(self):
+        _, server = self.serve(**dict(
+            FAST,
+            burn_chance=1.0,
+            sp_refill_on_respawn=False,
+            spell_regen_per_s=0.25,
+        ))
+        code, rep = self.play(server)
+        self.assertEqual(code, 1)
+        check = self.by_name(rep)["sp_restored_on_respawn"]
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("death snapshot spell_points", check["detail"])
         self.assertIn("sp_restored_on_respawn", rep["new_failures"])
 
     def test_the_game_as_expected_passes(self):

@@ -9,6 +9,7 @@
 # NOTE: All PIE references held inside _run() to avoid GC reference leaks.
 
 import os
+import re
 import sys
 
 import unreal
@@ -136,11 +137,9 @@ def _run():
         except Exception:
             pass
 
-    # US-090: the fresh pool remains 10 and regeneration is one native,
-    # infinite, one-second periodic GE with no application tick. Tier 1 proves
-    # runtime ticking, inhibition and exactly-once authority application; this
-    # PIE check proves that the native class and live PlayerState wiring are
-    # present in editor integration.
+    # US-090: verify the live PlayerState owns exactly one tagged native regen
+    # effect. The [LOGIC] Fireball watcher below spends SP through GAS and then
+    # samples the live periodic increase.
     if ps:
         try:
             attributes = ps.get_mordecai_attribute_set()
@@ -149,19 +148,26 @@ def _run():
                     "current_value"))
             check("US-090 fresh MaxSpellPoints is 10",
                   abs(max_sp - 10.0) < 0.001, f"Got {max_sp:g}")
+            regen_count = int(ps.get_spell_point_regen_effect_count())
+            check("US-090 live ASC has exactly one tagged spell-point regen effect",
+                  regen_count == 1, f"Got {regen_count}")
         except Exception as exc:
-            check("US-090 MaxSpellPoints readable", False, str(exc))
+            check("US-090 live spell-point state readable", False, str(exc))
     regen_class = getattr(unreal, "MordecaiGE_SpellPointRegen", None)
     check("US-090 native spell-point regen GE exists", regen_class is not None)
     if regen_class:
         try:
             regen_cdo = unreal.get_default_object(regen_class)
             period_text = regen_cdo.get_editor_property("period").export_text()
+            period_match = re.search(
+                r"(?:^|[,(])\s*Value=([-+]?(?:\d+(?:\.\d*)?|\.\d+))",
+                period_text)
+            period_value = float(period_match.group(1)) if period_match else None
             duration_text = str(regen_cdo.get_editor_property("duration_policy"))
             executes_on_apply = bool(
                 regen_cdo.get_editor_property("execute_periodic_effect_on_application"))
             check("US-090 regen GE has a 1 second period",
-                  "1.000000" in period_text or "1.0" in period_text,
+                  period_value is not None and abs(period_value - 1.0) < 1e-4,
                   f"Got {period_text}")
             check("US-090 regen GE is infinite",
                   "INFINITE" in duration_text.upper(), f"Got {duration_text}")
@@ -317,32 +323,58 @@ def _run():
     logic_pass = "PIE_Magic_FireballMoved_PASS"
     logic_fail = "PIE_Magic_FireballMoved_FAIL"
     logic_pending = "PIE_Magic_FireballMoved_PENDING"
+    regen_pass = "PIE_Magic_LiveRegen_PASS"
+    regen_fail = "PIE_Magic_LiveRegen_FAIL"
+    regen_pending = "PIE_Magic_LiveRegen_PENDING"
     pawn_tags = list(pawn.get_editor_property("tags")) if pawn else []
     pawn_tag_names = {str(tag) for tag in pawn_tags}
     next_phase = False
 
-    if logic_pass in pawn_tag_names or logic_fail in pawn_tag_names:
+    if ((logic_pass in pawn_tag_names or logic_fail in pawn_tag_names)
+            and (regen_pass in pawn_tag_names or regen_fail in pawn_tag_names)):
         passed = logic_pass in pawn_tag_names
         check("[LOGIC] Fireball cast spawns and moves a projectile", passed,
               "post-tick cast watcher did not observe projectile displacement")
+        check("[LOGIC] live tagged GE regenerates SP after a GAS spend",
+              regen_pass in pawn_tag_names,
+              "post-tick watcher did not observe the expected live periodic SP increase")
         pawn.set_editor_property(
             "tags", [tag for tag in pawn_tags
                      if str(tag) not in (logic_pass, logic_fail, logic_pending)])
-    elif logic_pending in pawn_tag_names:
-        print("  WAIT: [LOGIC] Fireball cast watcher is still running")
+        pawn.set_editor_property(
+            "tags", [tag for tag in list(pawn.get_editor_property("tags"))
+                     if str(tag) not in (regen_pass, regen_fail, regen_pending)])
+    elif logic_pending in pawn_tag_names or regen_pending in pawn_tag_names:
+        print("  WAIT: [LOGIC] Fireball/live-regen watcher is still running")
         next_phase = True
     elif pawn and asc and spell_abilities and len(spell_abilities) > 0:
         state = {"elapsed": 0.0, "activated": False, "projectile_name": None,
                  "start": None, "handle": None, "original_rotation": pawn.get_actor_rotation(),
-                 "original_location": pawn.get_actor_location()}
+                 "original_location": pawn.get_actor_location(), "sp_before": None,
+                 "sp_min": None, "projectile_moved": False, "regen_ok": False}
 
-        def finish_logic(tag):
+        def current_spell_state():
+            attributes = ps.get_mordecai_attribute_set()
+            current = float(
+                attributes.get_editor_property("spell_points").get_editor_property(
+                    "current_value"))
+            multiplier = float(
+                attributes.get_editor_property(
+                    "spell_points_regen_multiplier").get_editor_property("current_value"))
+            return current, multiplier
+
+        def finish_logic(projectile_ok, live_regen_ok):
             pawn.set_actor_location(state["original_location"], False, True)
             pawn.set_actor_rotation(state["original_rotation"], False)
             tags = list(pawn.get_editor_property("tags"))
             tags = [value for value in tags
-                    if str(value) not in (logic_pass, logic_fail, logic_pending)]
-            tags.append(unreal.Name(tag))
+                    if str(value) not in (
+                        logic_pass, logic_fail, logic_pending,
+                        regen_pass, regen_fail, regen_pending)]
+            tags.extend([
+                unreal.Name(logic_pass if projectile_ok else logic_fail),
+                unreal.Name(regen_pass if live_regen_ok else regen_fail),
+            ])
             pawn.set_editor_property("tags", tags)
             if state["handle"] is not None:
                 unreal.unregister_slate_post_tick_callback(state["handle"])
@@ -352,6 +384,7 @@ def _run():
                 state["elapsed"] += float(delta_seconds)
                 if not state["activated"]:
                     state["activated"] = True
+                    state["sp_before"], _ = current_spell_state()
                     # DevTestMap starts with Frontliners close to +X. Aim into the open -X side so
                     # the diagnostic projectile survives long enough to sample on two ticks. Lift
                     # the pawn clear of arena actors for this direct-call diagnostic; Tier 4 owns
@@ -363,8 +396,16 @@ def _run():
                         unreal.Rotator(pitch=0.0, yaw=180.0, roll=0.0), False)
                     activated = asc.try_activate_ability_by_class(spell_abilities[0], True)
                     if not activated:
-                        finish_logic(logic_fail)
+                        finish_logic(False, False)
                         return
+
+                current_sp, multiplier = current_spell_state()
+                state["sp_min"] = (current_sp if state["sp_min"] is None
+                                   else min(state["sp_min"], current_sp))
+                if (state["sp_before"] is not None and state["sp_min"] is not None
+                        and state["sp_before"] - state["sp_min"] >= 2.74
+                        and current_sp >= state["sp_min"] + 0.25 * multiplier - 0.03):
+                    state["regen_ok"] = True
 
                 projectiles = [
                     actor for actor in unreal.GameplayStatics.get_all_actors_of_class(
@@ -381,15 +422,18 @@ def _run():
                 elif projectile is not None and state["start"] is not None:
                     displacement = (projectile.get_actor_location() - state["start"]).length()
                     if displacement > 1.0:
-                        finish_logic(logic_pass)
-                        return
-                if state["elapsed"] > 1.5:
-                    finish_logic(logic_fail)
+                        state["projectile_moved"] = True
+                if state["projectile_moved"] and state["regen_ok"]:
+                    finish_logic(True, True)
+                    return
+                if state["elapsed"] > 2.5:
+                    finish_logic(state["projectile_moved"], state["regen_ok"])
             except Exception as exc:
                 unreal.log_error(f"PIE magic Fireball watcher exception: {exc!r}")
-                finish_logic(logic_fail)
+                finish_logic(False, False)
 
         pawn_tags.append(unreal.Name(logic_pending))
+        pawn_tags.append(unreal.Name(regen_pending))
         pawn.set_editor_property("tags", pawn_tags)
         state["handle"] = unreal.register_slate_post_tick_callback(watch_fireball)
         print("  [LOGIC] Fireball cast watcher scheduled")

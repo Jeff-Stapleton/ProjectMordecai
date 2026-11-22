@@ -231,6 +231,7 @@ class Us087PickupLaneRun(kit.PlaytestRun):
                 far_clear = current[0] > far_x
             if not far_clear:
                 time.sleep(POLL_S)
+        observed_s = time.monotonic() - start
         if far_clear:
             self.shot("pickup_lane_crossed")
         final = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
@@ -242,12 +243,16 @@ class Us087PickupLaneRun(kit.PlaytestRun):
                 f"retained pickup final state changed: {self._pickup_signature(final_pickup)!r}")
         sp_min = min(sp_values) if sp_values else None
         spend = sp0 - sp_min if sp0 is not None and sp_min is not None else None
+        refund_ceiling = (None if sp_min is None else
+                          sp_min + 0.25 * (math.ceil(observed_s) + 1) + 0.02)
         self.attempt("fireball_cast", lambda: (
             "PASS" if (sp0 == 10.0 and spend is not None
-                       and self.spell_cost - 0.26 <= spend <= self.spell_cost + 0.01)
+                       and self.spell_cost - 0.26 <= spend <= self.spell_cost + 0.01
+                       and sp_after is not None and refund_ceiling is not None
+                       and sp_after <= refund_ceiling)
             else "FAIL",
             f"real Slate Q; verified cost {self.spell_cost:g}; SP {sp0} -> minimum {sp_min} -> "
-            f"final {sp_after} (periodic regen allowed)", None))
+            f"final {sp_after} (periodic regen allowed, ceiling {refund_ceiling})", None))
         self.attempt("pickup_trigger_pass_through", lambda: (
             "PASS" if projectile_name and far_clear and intersects and not failures else "FAIL",
             f"same projectile {projectile_name!r}; {len(samples)} contiguous samples; "

@@ -243,6 +243,23 @@ class DelayedAutoClearObservationWorld(HudWorld):
         return super().state(names, radius, include_all_actors)
 
 
+class SplitReadAutoClearRaceWorld(HudWorld):
+    """The sprint clears between a player-only stop read and a later player+game snapshot."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.player_only_stop_read = False
+
+    def state(self, sections=None, radius=1500.0, include_all_actors=False):
+        names = list(sections or fb.SECTIONS)
+        stopped_moved_sprint = self.sprinting and self.sprint_moved and math.hypot(*self.vel) < 1
+        if stopped_moved_sprint and names == ["player"]:
+            self.player_only_stop_read = True
+        elif stopped_moved_sprint and "game" in names and self.player_only_stop_read:
+            self._set_sprinting(False)
+        return super().state(names, radius, include_all_actors)
+
+
 class FixedWorld(HudWorld):
     """Explicit fixed-game alias retained for the focused all-green test."""
 
@@ -549,6 +566,17 @@ class TestUs001BeforeUs083(PlaytestCase):
         check = self.by_name(rep)["sprint_auto_clear_restart"]
         self.assertEqual(check["status"], "PASS", check["detail"])
         self.assertTrue(world.stop_threshold_observed)
+
+    def test_stop_speed_and_sprint_tag_are_read_from_one_snapshot(self):
+        world, server = self.serve(SplitReadAutoClearRaceWorld)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["sprint_auto_clear_restart"]
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertFalse(
+            world.player_only_stop_read,
+            "the check must not use a player-only stop read followed by a separate tag read",
+        )
 
 
 class TestUs001FixedGame(PlaytestCase):

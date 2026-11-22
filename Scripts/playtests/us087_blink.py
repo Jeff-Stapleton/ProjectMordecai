@@ -444,11 +444,18 @@ class Us087BlinkRun(kit.PlaytestRun):
             sp_min = result["sp_min"]
             failures = []
             spend = sp0 - sp_min if sp0 is not None and sp_min is not None else None
+            refund_ceiling = (None if sp_min is None else
+                              sp_min + 0.25 * (math.ceil(result["wall_elapsed_s"]) + 1) + 0.02)
             if (sp0 is None or abs(sp0 - SP_BEFORE) > 0.01 or spend is None
                     or not SP_COST - 0.26 <= spend <= SP_COST + 0.01):
                 failures.append(f"spell_points {sp0} -> minimum {sp_min} -> final {sp_after}; "
                                 f"expected a {SP_COST:g}-SP spend with at most one racing "
                                 "0.25-SP regen tick")
+            if (sp_after is None or refund_ceiling is None
+                    or sp_after > refund_ceiling):
+                failures.append(
+                    f"final spell_points {sp_after} exceeds periodic-regen ceiling "
+                    f"{refund_ceiling}")
             movement_at = result["movement_at_wall_s"]
             if movement_at is None or movement_at > MOVE_WINDOW_S:
                 failures.append(f"no sampled +X movement > {MIN_X_MOVEMENT:g} cm with low Y/Z "
@@ -460,7 +467,7 @@ class Us087BlinkRun(kit.PlaytestRun):
             if result["integrity_failures"]:
                 failures.append("integrity invalidated: " + "; ".join(result["integrity_failures"]))
             detail = (f"real Slate E press/release; SP {sp0}->minimum {sp_min}->final "
-                      f"{sp_after} (periodic regen allowed); delta "
+                      f"{sp_after} (periodic regen allowed, ceiling {refund_ceiling}); delta "
                       f"({dx},{dy},{dz}); first qualifying movement "
                       f"{result['movement_at_wall_s']} s; {result['polls']} polls")
             if failures:

@@ -371,9 +371,14 @@ class Us087FireballRun(kit.PlaytestRun):
         def cast_result():
             spend = (sp0 - result["sp_min"]
                      if sp0 is not None and result["sp_min"] is not None else None)
-            ok = spend is not None and SP_COST - 0.26 <= spend <= SP_COST + 0.01
+            refund_ceiling = (None if result["sp_min"] is None else
+                              result["sp_min"] + 0.25
+                              * (math.ceil(result["wall_elapsed_s"]) + 1) + 0.02)
+            ok = (spend is not None and SP_COST - 0.26 <= spend <= SP_COST + 0.01
+                  and sp_after is not None and refund_ceiling is not None
+                  and sp_after <= refund_ceiling)
             detail = (f"real Slate Q tap; spell_points {sp0} -> minimum {result['sp_min']} -> "
-                      f"final {sp_after} (periodic regen allowed); "
+                      f"final {sp_after} (periodic regen allowed, ceiling {refund_ceiling}); "
                       f"input held wall={input_response.get('held_s')}s, "
                       f"simulated={input_response.get('simulated_s')}s; observation "
                       f"wall={result['wall_elapsed_s']:.3f}s, world={result['world_elapsed_s']}s")

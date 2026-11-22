@@ -77,11 +77,11 @@ STONE_SKIN_TIMEOUT_S = 2.0
 INDICATOR_TIMEOUT_S = 2.0
 REFUSAL_WATCH_S = 1.5
 EXPIRE_TIMEOUT_S = 12.0
-REGEN_SAMPLE_TICKS = 3
+REGEN_SAMPLE_TICKS = 4
 REGEN_INCREMENT = 0.25
 REGEN_TIMEOUT_S = 12.0
-REGEN_GAP_MIN_S = 0.55
-REGEN_GAP_MAX_S = 1.50
+REGEN_GAP_MIN_S = 0.85
+REGEN_GAP_MAX_S = 1.15
 
 # The loadout (DA_Spell_*, AC-057.1-4 and AC-057.6): slot, key, display name, SP cost.
 SPELLS = (
@@ -201,8 +201,8 @@ PLAN = (
          f"numeric remaining duration within {INDICATOR_TIMEOUT_S:g}s",
          proves=("US-055:AC-055.4", "US-055:AC-055.5", "US-055:AC-055.6")),
     Step("sp_regen_timing", f"state player over time -> {REGEN_SAMPLE_TICKS} consecutive "
-         f"+{REGEN_INCREMENT:g} SP periodic ticks, with each measured tick gap between "
-         f"{REGEN_GAP_MIN_S:g}s and {REGEN_GAP_MAX_S:g}s",
+         "periodic ticks at 0.25 times the live spell_points_regen_multiplier; the mean of at "
+         f"least 3 measured tick gaps is {REGEN_GAP_MIN_S:g}-{REGEN_GAP_MAX_S:g}s",
          proves=("US-090:AC1", "US-090:AC7")),
     Step("restoration_budget_regenerated", "wait_until player.attributes.spell_points>=3 -> "
          "Restoration is affordable from real periodic regeneration",
@@ -375,13 +375,12 @@ def _fmt(v, nd=0):
     return "?" if v is None else f"{v:.{nd}f}"
 
 
-def _spend_observed(before, after, cost, window_s):
-    """Accept the exact GAS spend plus periodic ticks that can race the first state read."""
-    if before is None or after is None:
+def _spend_observed(before, minimum, cost):
+    """Require the GAS spend from the minimum sample, allowing exactly one racing regen tick."""
+    if before is None or minimum is None:
         return False
-    exact_after = before - cost
-    max_ticks = math.ceil(window_s) + 1
-    return exact_after - 0.02 <= after <= exact_after + REGEN_INCREMENT * max_ticks + 0.02
+    spend = before - minimum
+    return cost - 0.26 <= spend <= cost + 0.01
 
 
 # ---------------------------------------------------------------------------
@@ -557,10 +556,12 @@ class Us057Run(kit.PlaytestRun):
                 sp = _sp(st)
                 if not obs["sp_values"] or obs["sp_values"][-1] != sp:
                     obs["sp_values"].append(sp)
+                minimum = min((value for value in obs["sp_values"] if value is not None),
+                              default=None)
                 if obs["sp_at"] is None and _spend_observed(
-                        sp0, sp, FIREBALL["cost"], SP_TIMEOUT_S):
+                        sp0, minimum, FIREBALL["cost"]):
                     obs["sp_at"] = round(t, 2)
-                    obs["sp_observed"] = sp
+                    obs["sp_observed"] = minimum
                 projs = _projectiles(st)
                 if projs and obs["projectile_at"] is None:
                     obs["projectile_at"] = round(t, 2)
@@ -698,13 +699,15 @@ class Us057Run(kit.PlaytestRun):
             x0, y0 = xy0
             want_sp = None if sp0 is None else sp0 - BLINK["cost"]
             b.tap(BLINK["key"], hold_s=TAP_S)
-            seen = {}
+            seen = {"min_sp": sp0}
 
             def moved(st):
                 xy, sp = _xy(st), _sp(st)
                 seen.update(xy=xy, sp=sp)
+                if sp is not None:
+                    seen["min_sp"] = min(seen["min_sp"], sp)
                 return (xy is not None and xy[0] - x0 > BLINK_MIN_DX and sp is not None
-                        and _spend_observed(sp0, sp, BLINK["cost"], BLINK_TIMEOUT_S))
+                        and _spend_observed(sp0, seen["min_sp"], BLINK["cost"]))
 
             try:
                 b.wait_for(moved, timeout_s=BLINK_TIMEOUT_S, sections=["player"], poll_s=0.05)
@@ -749,13 +752,15 @@ class Us057Run(kit.PlaytestRun):
             want_sp = sp0 - STONE_SKIN["cost"]
             b.tap(STONE_SKIN["key"], hold_s=TAP_S)
             self.stone_skin_t0 = time.monotonic()
-            seen = {}
+            seen = {"min_sp": sp0}
 
             def on(st1):
                 seen.update(tags=_tags(st1), sp=_sp(st1))
+                if seen["sp"] is not None:
+                    seen["min_sp"] = min(seen["min_sp"], seen["sp"])
                 return (STONE_SKIN_TAG in seen["tags"]
                         and _spend_observed(
-                            sp0, seen["sp"], STONE_SKIN["cost"], STONE_SKIN_TIMEOUT_S))
+                            sp0, seen["min_sp"], STONE_SKIN["cost"]))
 
             try:
                 st1 = b.wait_for(on, timeout_s=STONE_SKIN_TIMEOUT_S, sections=["player"],
@@ -821,7 +826,11 @@ class Us057Run(kit.PlaytestRun):
     def step_regen_and_restoration(self):
         def measure_regen(b):
             start = time.monotonic()
-            initial = _sp(b.state(["player"]))
+            initial_state = b.state(["player"])
+            initial = _sp(initial_state)
+            multiplier = _num(_attrs(initial_state).get("spell_points_regen_multiplier"))
+            expected_increment = (REGEN_INCREMENT * multiplier
+                                  if multiplier is not None else None)
             seen = [{"time_s": 0.0, "sp": initial}]
             last = initial
             while len(seen) - 1 < REGEN_SAMPLE_TICKS and time.monotonic() - start < REGEN_TIMEOUT_S:
@@ -836,19 +845,27 @@ class Us057Run(kit.PlaytestRun):
                           for i in range(1, len(seen))]
             gaps = [round(seen[i]["time_s"] - seen[i - 1]["time_s"], 3)
                     for i in range(2, len(seen))]
+            mean_gap = sum(gaps) / len(gaps) if gaps else None
             self.regen = {"initial": initial, "samples": seen, "increments": increments,
-                          "measured_gaps_s": gaps}
+                          "measured_gaps_s": gaps, "mean_gap_s": mean_gap,
+                          "spell_points_regen_multiplier": multiplier,
+                          "expected_increment": expected_increment}
             problems = []
             if len(increments) != REGEN_SAMPLE_TICKS:
                 problems.append(f"saw {len(increments)} ticks, expected {REGEN_SAMPLE_TICKS}")
-            if any(abs(value - REGEN_INCREMENT) > 0.02 for value in increments):
-                problems.append(f"increments {increments}, expected +{REGEN_INCREMENT:g}")
-            if any(gap < REGEN_GAP_MIN_S or gap > REGEN_GAP_MAX_S for gap in gaps):
+            if expected_increment is None:
+                problems.append("live spell_points_regen_multiplier is unavailable")
+            elif any(abs(value - expected_increment) > 0.02 for value in increments):
+                problems.append(f"increments {increments}, expected +{expected_increment:g}")
+            if len(gaps) < 3:
+                problems.append(f"saw {len(gaps)} tick gaps, expected at least 3")
+            elif mean_gap < REGEN_GAP_MIN_S or mean_gap > REGEN_GAP_MAX_S:
                 problems.append(
-                    f"measured tick gaps {gaps}, expected {REGEN_GAP_MIN_S:g}-"
-                    f"{REGEN_GAP_MAX_S:g}s")
+                    f"mean tick gap {mean_gap:.3f}s from {gaps}, expected "
+                    f"{REGEN_GAP_MIN_S:g}-{REGEN_GAP_MAX_S:g}s")
             detail = (f"SP {_fmt(initial, 2)}; samples {seen}; increments {increments}; "
-                      f"measured gaps after the first phase-dependent tick {gaps}")
+                      f"live multiplier {multiplier}, expected increment {expected_increment}; "
+                      f"measured gaps after the first phase-dependent tick {gaps}, mean {mean_gap}")
             return ("FAIL" if problems else "PASS",
                     f"{'; '.join(problems)} ({detail})" if problems else detail, self.regen)
 
@@ -871,13 +888,15 @@ class Us057Run(kit.PlaytestRun):
             sp0 = _sp(st0)
             want = None if sp0 is None else sp0 - RESTORATION["cost"]
             b.tap(RESTORATION["key"], hold_s=TAP_S)
-            seen = {"sp": sp0, "tags": []}
+            seen = {"sp": sp0, "min_sp": sp0, "tags": []}
 
             def cast(st):
                 seen["sp"], seen["tags"] = _sp(st), _tags(st)
+                if seen["sp"] is not None:
+                    seen["min_sp"] = min(seen["min_sp"], seen["sp"])
                 return (want is not None
                         and _spend_observed(
-                            sp0, seen["sp"], RESTORATION["cost"], STONE_SKIN_TIMEOUT_S)
+                            sp0, seen["min_sp"], RESTORATION["cost"])
                         and RESTORATION_TAG in seen["tags"])
 
             try:

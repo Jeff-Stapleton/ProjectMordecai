@@ -2,6 +2,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
+#include "Mordecai/AbilitySystem/MordecaiAttributeScaling.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
@@ -86,16 +87,27 @@ namespace MordecaiRecoverySpellPointTest
 		return Property && Property->HasAnyPropertyFlags(CPF_Net);
 	}
 
-	void ApplyInstantSpellPointDelta(UAbilitySystemComponent* ASC, float Delta)
+	void ApplyInstantAttributeDelta(
+		UAbilitySystemComponent* ASC,
+		const FGameplayAttribute& Attribute,
+		float Delta)
 	{
 		UGameplayEffect* Effect = NewObject<UGameplayEffect>(GetTransientPackage());
 		Effect->DurationPolicy = EGameplayEffectDurationType::Instant;
 		FGameplayModifierInfo& Modifier = Effect->Modifiers.AddDefaulted_GetRef();
-		Modifier.Attribute = UMordecaiAttributeSet::GetSpellPointsAttribute();
+		Modifier.Attribute = Attribute;
 		Modifier.ModifierOp = EGameplayModOp::Additive;
 		Modifier.ModifierMagnitude =
 			FGameplayEffectModifierMagnitude(FScalableFloat(Delta));
 		ASC->ApplyGameplayEffectToSelf(Effect, 1.f, ASC->MakeEffectContext());
+	}
+
+	void ApplyInstantSpellPointDelta(UAbilitySystemComponent* ASC, float Delta)
+	{
+		ApplyInstantAttributeDelta(
+			ASC,
+			UMordecaiAttributeSet::GetSpellPointsAttribute(),
+			Delta);
 	}
 }
 
@@ -289,6 +301,112 @@ bool FMordecai_Recovery_SpellPoints_ReplicatedAttributes::RunTest(
 		IsReplicatedAttribute(TEXT("MaxSpellPoints")));
 	TestTrue("SpellPointsRegenMultiplier replicates to clients",
 		IsReplicatedAttribute(TEXT("SpellPointsRegenMultiplier")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMordecai_Recovery_SpellPoints_NonAuthorityHasNoRegenEffect,
+	"Mordecai.Recovery.SpellPoints.NonAuthorityHasNoRegenEffect",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_SpellPoints_NonAuthorityHasNoRegenEffect::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiRecoverySpellPointTest;
+	FRecoveryTestEnv Env;
+	ON_SCOPE_EXIT { Env.Teardown(); };
+	if (!TestTrue("test world", Env.Setup(FVector::ZeroVector)))
+	{
+		return true;
+	}
+
+	AMordecaiPlayerState* ClientCopy =
+		Env.World->SpawnActorDeferred<AMordecaiPlayerState>(
+			AMordecaiPlayerState::StaticClass(),
+			FTransform::Identity);
+	if (!TestNotNull("deferred non-authority PlayerState", ClientCopy))
+	{
+		return true;
+	}
+	ClientCopy->SetRole(ROLE_SimulatedProxy);
+	ClientCopy->FinishSpawning(FTransform::Identity);
+
+	TestEqual(
+		"non-authority PlayerState applies zero spell-point regen effects",
+		SpellPointRegenEffects(ClientCopy->GetAbilitySystemComponent()).Num(),
+		0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMordecai_Recovery_SpellPoints_LiveIntelligenceUpdatesPeriodicMagnitude,
+	"Mordecai.Recovery.SpellPoints.LiveIntelligenceUpdatesPeriodicMagnitude",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_SpellPoints_LiveIntelligenceUpdatesPeriodicMagnitude::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiRecoverySpellPointTest;
+	FRecoveryTestEnv Env;
+	ON_SCOPE_EXIT { Env.Teardown(); };
+	if (!TestTrue("authority player world", Env.Setup(FVector::ZeroVector)))
+	{
+		return true;
+	}
+
+	UAbilitySystemComponent* ASC = Env.GetPlayerASC();
+	ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetSpellPointsAttribute(), 0.f);
+	ApplyInstantAttributeDelta(
+		ASC,
+		UMordecaiAttributeSet::GetIntelligenceAttribute(),
+		2.f);
+
+	const float EffectiveInt =
+		FMordecaiAttributeScaling::CalculateEffectiveMod(
+			ASC->GetNumericAttribute(UMordecaiAttributeSet::GetIntelligenceAttribute()));
+	const float ExpectedMultiplier = 1.f + 0.02f * EffectiveInt;
+	TestTrue(
+		"INT GameplayEffect refreshes the live regen multiplier through the ASC",
+		FMath::IsNearlyEqual(
+			ASC->GetNumericAttribute(
+				UMordecaiAttributeSet::GetSpellPointsRegenMultiplierAttribute()),
+			ExpectedMultiplier,
+			Tolerance));
+	Tick(Env, PeriodSeconds + 0.10f);
+	TestTrue(
+		"next periodic tick uses 0.25 times the effective-INT multiplier",
+		FMath::IsNearlyEqual(
+			SpellPoints(Env),
+			BaseRegenPerSecond * ExpectedMultiplier,
+			Tolerance));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMordecai_Recovery_SpellPoints_RegenMultiplierClampsNonNegative,
+	"Mordecai.Recovery.SpellPoints.RegenMultiplierClampsNonNegative",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_SpellPoints_RegenMultiplierClampsNonNegative::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiRecoverySpellPointTest;
+	FRecoveryTestEnv Env;
+	ON_SCOPE_EXIT { Env.Teardown(); };
+	if (!TestTrue("authority player world", Env.Setup(FVector::ZeroVector)))
+	{
+		return true;
+	}
+
+	UAbilitySystemComponent* ASC = Env.GetPlayerASC();
+	ASC->SetNumericAttributeBase(
+		UMordecaiAttributeSet::GetSpellPointsRegenMultiplierAttribute(),
+		-1.f);
+	TestEqual(
+		"SpellPointsRegenMultiplier clamps at zero",
+		ASC->GetNumericAttribute(
+			UMordecaiAttributeSet::GetSpellPointsRegenMultiplierAttribute()),
+		0.f);
 	return true;
 }
 
