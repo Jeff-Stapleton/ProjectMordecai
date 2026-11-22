@@ -42,6 +42,8 @@ UMordecaiGA_MeleeAttack::UMordecaiGA_MeleeAttack(const FObjectInitializer& Objec
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Parrying);
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_ParryWhiff);
 	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Dead);
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Blocking);
+	ActivationBlockedTags.AddTag(MordecaiGameplayTags::State_Dodging);
 }
 
 // ---------------------------------------------------------------------------
@@ -87,6 +89,11 @@ void UMordecaiGA_MeleeAttack::TakeAttackProfilesFromSpec(const FGameplayAbilityS
 
 const UMordecaiAttackProfileDataAsset* UMordecaiGA_MeleeAttack::GetActiveProfile() const
 {
+	if (PinnedAttackProfile)
+	{
+		return PinnedAttackProfile;
+	}
+
 	// US-024: Prefer weapon profiles from EquipmentComponent
 	TArray<const UMordecaiAttackProfileDataAsset*> Resolved = GetResolvedAttackProfiles();
 	if (Resolved.IsValidIndex(CurrentComboIndex))
@@ -237,14 +244,56 @@ bool UMordecaiGA_MeleeAttack::CanCancelIntoDodge() const
 {
 	const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
 	if (!Profile) return false;
-	return Profile->CancelableIntoDodge && CurrentPhase == EMordecaiAttackPhase::Recovery;
+	return Profile->InputSlot == EMordecaiInputSlot::Light
+		&& Profile->CancelableIntoDodge
+		&& CurrentPhase == EMordecaiAttackPhase::Recovery;
 }
 
 bool UMordecaiGA_MeleeAttack::CanCancelIntoBlock() const
 {
 	const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
 	if (!Profile) return false;
-	return Profile->CancelableIntoBlock && CurrentPhase == EMordecaiAttackPhase::Recovery;
+	return Profile->InputSlot == EMordecaiInputSlot::Light
+		&& Profile->CancelableIntoBlock
+		&& CurrentPhase == EMordecaiAttackPhase::Recovery;
+}
+
+UMordecaiGA_MeleeAttack* UMordecaiGA_MeleeAttack::FindActiveMelee(
+	UAbilitySystemComponent* ASC)
+{
+	if (!ASC)
+	{
+		return nullptr;
+	}
+	for (FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		if (Spec.IsActive() && Spec.Ability
+			&& Spec.Ability->IsA<UMordecaiGA_MeleeAttack>())
+		{
+			return Cast<UMordecaiGA_MeleeAttack>(Spec.GetPrimaryInstance());
+		}
+	}
+	return nullptr;
+}
+
+bool UMordecaiGA_MeleeAttack::TryCancelIntoDodge()
+{
+	if (!IsActive() || !CanCancelIntoDodge())
+	{
+		return false;
+	}
+	CancelAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true);
+	return !IsActive();
+}
+
+bool UMordecaiGA_MeleeAttack::TryCancelIntoBlock()
+{
+	if (!IsActive() || !CanCancelIntoBlock())
+	{
+		return false;
+	}
+	CancelAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true);
+	return !IsActive();
 }
 
 // ---------------------------------------------------------------------------
@@ -253,6 +302,10 @@ bool UMordecaiGA_MeleeAttack::CanCancelIntoBlock() const
 
 bool UMordecaiGA_MeleeAttack::AdvanceCombo()
 {
+	if (bWeaponChangedDuringAttack)
+	{
+		return false;
+	}
 	// US-024: Use resolved profiles (weapon or fallback)
 	TArray<const UMordecaiAttackProfileDataAsset*> Resolved = GetResolvedAttackProfiles();
 	if (CurrentComboIndex + 1 < Resolved.Num())
@@ -272,6 +325,7 @@ void UMordecaiGA_MeleeAttack::ResetCombo()
 void UMordecaiGA_MeleeAttack::NotifyComboInput()
 {
 	if (CurrentPhase == EMordecaiAttackPhase::Recovery
+		&& !bWeaponChangedDuringAttack
 		&& !IsComboContinuationBlocked())
 	{
 		bComboInputReceived = true;
@@ -363,12 +417,13 @@ void UMordecaiGA_MeleeAttack::ActivateAbility(
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
-	if (!Profile)
+	bWeaponChangedDuringAttack = false;
+	if (!SnapshotCurrentStep())
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+	BindWeaponChange();
 
 	// Snapshot before paying this attack's cost and retain it through the hit.
 	ActivationStaminaTierMultiplier =
@@ -419,9 +474,19 @@ void UMordecaiGA_MeleeAttack::EndAbility(
 	}
 
 	TransitionToPhase(EMordecaiAttackPhase::None);
-	bComboInputReceived = false;
+	// Any EndAbility path is the end of the chain. The only continuation path
+	// returns from OnRecoveryComplete without ending this per-actor instance.
+	// Reset here so cancel, posture break, weapon swap and null-profile exits
+	// cannot carry an out-of-range step into the next activation.
+	ResetCombo();
 	SetComboWindowOpen(false);
 	ActivationStaminaTierMultiplier = 1.f;
+	UnbindWeaponChange();
+	PinnedAttackProfile = nullptr;
+	PinnedWeaponBaseDamage = 0.f;
+	PinnedWeaponAttackSpeedMultiplier = 1.f;
+	PinnedWeaponPostureDamageBonus = 0.f;
+	bWeaponChangedDuringAttack = false;
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -441,6 +506,11 @@ void UMordecaiGA_MeleeAttack::InputPressed(
 
 void UMordecaiGA_MeleeAttack::OnWindupComplete()
 {
+	if (!GetActiveProfile())
+	{
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
+	}
 	// AC-004.3: Transition Windup -> Active
 	TransitionToPhase(EMordecaiAttackPhase::Active);
 
@@ -469,7 +539,11 @@ void UMordecaiGA_MeleeAttack::OnActiveComplete()
 	TransitionToPhase(EMordecaiAttackPhase::Recovery);
 
 	const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
-	if (!Profile) return;
+	if (!Profile)
+	{
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
+	}
 	SetComboWindowOpen(Profile->InputSlot == EMordecaiInputSlot::Light);
 
 	if (UWorld* World = GetWorld())
@@ -511,8 +585,8 @@ void UMordecaiGA_MeleeAttack::OnRecoveryComplete()
 	if (bComboInputReceived && AdvanceCombo())
 	{
 		bComboInputReceived = false;
-		const UMordecaiAttackProfileDataAsset* Profile = GetActiveProfile();
-		if (Profile)
+		PinnedAttackProfile = nullptr;
+		if (SnapshotCurrentStep())
 		{
 			// Each combo step is a new committed attack. Snapshot its visible
 			// tier before that step pays its stamina cost.
@@ -531,6 +605,8 @@ void UMordecaiGA_MeleeAttack::OnRecoveryComplete()
 			}
 			return;
 		}
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
 	}
 
 	// No combo continuation — end ability
@@ -931,6 +1007,74 @@ void UMordecaiGA_MeleeAttack::SetEquipmentComponentOverride(UMordecaiEquipmentCo
 	EquipmentComponentOverride = InComp;
 }
 
+bool UMordecaiGA_MeleeAttack::SnapshotCurrentStep()
+{
+	const TArray<const UMordecaiAttackProfileDataAsset*> Resolved =
+		GetResolvedAttackProfiles();
+	const UMordecaiAttackProfileDataAsset* Profile =
+		Resolved.IsValidIndex(CurrentComboIndex)
+		? Resolved[CurrentComboIndex]
+		: nullptr;
+	if (!Profile)
+	{
+		PinnedAttackProfile = nullptr;
+		return false;
+	}
+
+	PinnedAttackProfile =
+		const_cast<UMordecaiAttackProfileDataAsset*>(Profile);
+	if (const UMordecaiEquipmentComponent* Equipment = FindEquipmentComponent())
+	{
+		PinnedWeaponBaseDamage = Equipment->GetWeaponBaseDamage();
+		PinnedWeaponAttackSpeedMultiplier =
+			Equipment->GetWeaponAttackSpeedMultiplier();
+		PinnedWeaponPostureDamageBonus =
+			Equipment->GetWeaponPostureDamageBonus();
+	}
+	else
+	{
+		PinnedWeaponBaseDamage = 0.f;
+		PinnedWeaponAttackSpeedMultiplier = 1.f;
+		PinnedWeaponPostureDamageBonus = 0.f;
+	}
+	return true;
+}
+
+void UMordecaiGA_MeleeAttack::BindWeaponChange()
+{
+	UnbindWeaponChange();
+	BoundEquipmentComponent = FindEquipmentComponent();
+	if (BoundEquipmentComponent)
+	{
+		BoundEquipmentComponent->OnWeaponChanged.AddDynamic(
+			this, &UMordecaiGA_MeleeAttack::HandleWeaponChanged);
+	}
+}
+
+void UMordecaiGA_MeleeAttack::UnbindWeaponChange()
+{
+	if (BoundEquipmentComponent)
+	{
+		BoundEquipmentComponent->OnWeaponChanged.RemoveDynamic(
+			this, &UMordecaiGA_MeleeAttack::HandleWeaponChanged);
+		BoundEquipmentComponent = nullptr;
+	}
+}
+
+void UMordecaiGA_MeleeAttack::HandleWeaponChanged(
+	EMordecaiEquipSlot ChangedSlot,
+	const UMordecaiWeaponDataAsset* NewWeapon)
+{
+	(void)NewWeapon;
+	if (IsActive()
+		&& (ChangedSlot == EMordecaiEquipSlot::MainHand
+			|| ChangedSlot == EMordecaiEquipSlot::TwoHand))
+	{
+		bComboInputReceived = false;
+		bWeaponChangedDuringAttack = true;
+	}
+}
+
 UMordecaiEquipmentComponent* UMordecaiGA_MeleeAttack::FindEquipmentComponent() const
 {
 	if (EquipmentComponentOverride)
@@ -990,18 +1134,30 @@ TArray<const UMordecaiAttackProfileDataAsset*> UMordecaiGA_MeleeAttack::GetResol
 
 float UMordecaiGA_MeleeAttack::GetWeaponBaseDamage() const
 {
+	if (PinnedAttackProfile)
+	{
+		return PinnedWeaponBaseDamage;
+	}
 	UMordecaiEquipmentComponent* EquipComp = FindEquipmentComponent();
 	return EquipComp ? EquipComp->GetWeaponBaseDamage() : 0.f;
 }
 
 float UMordecaiGA_MeleeAttack::GetWeaponAttackSpeedMultiplier() const
 {
+	if (PinnedAttackProfile)
+	{
+		return PinnedWeaponAttackSpeedMultiplier;
+	}
 	UMordecaiEquipmentComponent* EquipComp = FindEquipmentComponent();
 	return EquipComp ? EquipComp->GetWeaponAttackSpeedMultiplier() : 1.f;
 }
 
 float UMordecaiGA_MeleeAttack::GetWeaponPostureDamageBonus() const
 {
+	if (PinnedAttackProfile)
+	{
+		return PinnedWeaponPostureDamageBonus;
+	}
 	UMordecaiEquipmentComponent* EquipComp = FindEquipmentComponent();
 	return EquipComp ? EquipComp->GetWeaponPostureDamageBonus() : 0.f;
 }

@@ -7,6 +7,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyIndicatorComponent)
@@ -25,6 +27,18 @@ UMordecaiEnemyIndicatorComponent::UMordecaiEnemyIndicatorComponent(const FObject
 void UMordecaiEnemyIndicatorComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Marketing captures use the real packaged game and gameplay path, but omit
+	// the temporary actor-name indicators. This is evaluated after map load on
+	// every enemy component, so capture tooling can prove the runtime state
+	// rather than trusting a render show flag that does not affect UMG.
+	bSuppressedForMarketingCapture =
+		FParse::Param(FCommandLine::Get(), TEXT("MordecaiMarketingCapture"));
+	if (bSuppressedForMarketingCapture)
+	{
+		bIndicatorRequested = false;
+		return;
+	}
 
 	// Jeff's 2026-11-05 decision: living enemies show their health indicator from spawn.
 	// Register immediately when the local manager is ready; UpdateVisibility retries otherwise.
@@ -108,7 +122,7 @@ bool UMordecaiEnemyIndicatorComponent::IsWithinVisibilityRange(float Distance) c
 
 void UMordecaiEnemyIndicatorComponent::RegisterIndicator()
 {
-	if (!bIndicatorRequested || bIndicatorRegistered)
+	if (bSuppressedForMarketingCapture || !bIndicatorRequested || bIndicatorRegistered)
 	{
 		return;
 	}

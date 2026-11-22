@@ -431,3 +431,57 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
   a follow-up issue rather than US-124 round-2 scope.
 - Source: coordinator decision supplied for issue #153 round-2 review
   (2026-11-20).
+
+---
+
+## 2026-11-21 — Attack cancellation and dodge runtime (US-125, issue #160)
+
+### D125-1 — Baseline attack-cancel policy
+
+- Every player may cancel a light attack's Recovery into Dodge or Block when the active attack
+  profile enables `CancelableIntoDodge` or `CancelableIntoBlock`.
+- Windup and Active remain committed. Heavy attacks remain committed. Parry never cancels an
+  attack.
+- The Dodging rank 10 perk is intentionally unchanged in US-125 and must be reworked later,
+  because its current recovery-cancel text is redundant with this baseline rule.
+
+### D125-2 — Perfect-dodge window
+
+- The perfect-dodge window is **150 ms** from dodge activation and remains tunable.
+
+### D125-3 — Successful perfect-dodge reward
+
+- A hit actually evaded inside the perfect window refunds **10 stamina exactly once per dodge**
+  and sends `Mordecai.Event.PerfectAction`.
+- There is no slow-motion reward.
+
+### D125-4 — Dodge distance
+
+- Yellow/Normal base dodge distance is **400 cm**.
+- The activation-time stamina tier scales total travel to **500 / 400 / 300 / 200 cm** for
+  Green / Yellow / Red / Exhausted.
+
+### D125-5 — Dodge movement method
+
+- Dodge uses a CharacterMovement root-motion constant-force source/task, respects collision,
+  and finishes with zero velocity.
+- Shared braking and friction are not changed. Player capsule radius **40**, half-height **90**,
+  and maximum step height **45** remain unchanged.
+- Dodge cleanup must not restore or override `MOVE_None` applied by posture break or knockdown.
+
+### D125-6 — Weapon change during a combo
+
+- The active attack step pins its profile and weapon-derived values.
+- `OnWeaponChanged` clears any queued continuation and the pinned current step finishes without
+  being replaced. The new weapon's next attack starts at combo step 1.
+- A missing/null profile must end safely and never leave `Mordecai.State.Attacking` stuck.
+- Spear's light chain is **three hits**.
+
+### Held Block and perfect-dodge HUD rules
+
+- A held Block input rejected during a committed attack must not activate automatically when
+  Recovery begins. The player must release and freshly press Block.
+- The HUD shows **“Perfect Dodge!” only after a real perfect evasion**, never merely because the
+  timing window opened.
+
+- Source: Jeff's decisions and PM rulings supplied with issue #160 on 2026-11-21.

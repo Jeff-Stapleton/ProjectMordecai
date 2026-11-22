@@ -3,6 +3,7 @@
 #include "Mordecai/Combat/MordecaiGA_Parry.h"
 #include "Mordecai/Combat/MordecaiGA_Block.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
+#include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
@@ -135,6 +136,22 @@ bool UMordecaiGA_Parry::HasActivationBlockedTag(const FGameplayTag& Tag) const
 // ---------------------------------------------------------------------------
 // Ability Activation (AC-006.11)
 // ---------------------------------------------------------------------------
+
+bool UMordecaiGA_Parry::CanActivateAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags,
+	FGameplayTagContainer* OptionalRelevantTags) const
+{
+	if (!Super::CanActivateAbility(
+		Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
+	{
+		return false;
+	}
+	return !UMordecaiGA_MeleeAttack::FindActiveMelee(
+		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr);
+}
 
 void UMordecaiGA_Parry::ActivateAbility(
 	const FGameplayAbilitySpecHandle Handle,

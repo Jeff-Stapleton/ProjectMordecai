@@ -13,6 +13,9 @@
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/Items/MordecaiResourceLedger.h"
+#include "Mordecai/UI/MordecaiCombatFeedbackWidget.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Blueprint/UserWidget.h"
 #include "Camera/LyraCameraComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -381,6 +384,33 @@ void AMordecaiCharacter::CyclePrevWeapon()
 	if (EquipmentComponent)
 	{
 		EquipmentComponent->CyclePrevWeapon();
+	}
+}
+
+void AMordecaiCharacter::ClientShowPerfectDodgeFeedback_Implementation()
+{
+	++PerfectDodgeFeedbackCount;
+
+	TArray<UUserWidget*> Widgets;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(
+		this,
+		Widgets,
+		UMordecaiCombatFeedbackWidget::StaticClass(),
+		false);
+	for (UUserWidget* Widget : Widgets)
+	{
+		UMordecaiCombatFeedbackWidget* Feedback =
+			Cast<UMordecaiCombatFeedbackWidget>(Widget);
+		APlayerController* OwningPlayer =
+			Feedback ? Feedback->GetOwningPlayer() : nullptr;
+		if (Feedback && (!OwningPlayer || OwningPlayer->GetPawn() == this))
+		{
+			Feedback->ShowFeedback(
+				UMordecaiCombatFeedbackWidget::GetFeedbackTextForTag(
+					MordecaiGameplayTags::State_PerfectDodge),
+				UMordecaiCombatFeedbackWidget::GetFeedbackColorForTag(
+					MordecaiGameplayTags::State_PerfectDodge));
+		}
 	}
 }
 

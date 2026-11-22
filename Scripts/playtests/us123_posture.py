@@ -56,8 +56,8 @@ PENDING = {}
 
 PLAN = (
     Step("setup",
-         "walk just outside the TestAttacker's reach, pin the equipped Longsword and spend real "
-         "dodges so the authoritative stamina tier is Yellow, then enter range"),
+         "walk to the TestAttacker, pin the equipped Longsword and spend stamina with short "
+         "real sprint legs at the fight spot until the authoritative 66/33 tier is Yellow"),
     Step("unbroken_control",
          "tap RT once at Yellow stamina against the unbroken TestAttacker -> exactly 16 health taken"),
     Step("break_by_parry",
@@ -266,7 +266,7 @@ class Us123Run(kit.PlaytestRun):
         self.attacker_name = actor.get("name")
         return result, state
 
-    def _pin_yellow(self, target=75.0, center=FIGHT_SPOT):
+    def _pin_yellow(self, target=66.0, center=FIGHT_SPOT):
         # Sprint short closed-loop W/S legs. Keeping this one-dimensional avoids
         # camera-relative lateral correction near the attacker while every
         # mutation still comes from real key input.
@@ -324,7 +324,7 @@ class Us123Run(kit.PlaytestRun):
         problems = []
         if name.lower() != "longsword":
             problems.append(f"weapon is {name!r}, expected Longsword")
-        if stamina is None or not 25.0 < stamina <= 75.0:
+        if stamina is None or not 33.0 < stamina <= 66.0:
             problems.append(f"authoritative stamina {stamina} is outside Yellow: {tags}")
         if TAG_YELLOW not in tags:
             problems.append(f"runtime tier is not Yellow at stamina {stamina}: {tags}")
@@ -332,13 +332,13 @@ class Us123Run(kit.PlaytestRun):
             raise RuntimeError("; ".join(problems))
         return stamina, name, tags
 
-    def _pin_yellow_at_fight(self, target=75.0):
+    def _pin_yellow_at_fight(self, target=66.0):
         last = None
         for _ in range(3):
             last = self._pin_yellow(target)
             # Opposing drain pulses keep the player at the fight spot. Any
             # extra wait or aim pulse here would let stamina regenerate across
-            # the 75-point Green/Yellow boundary before attack activation.
+            # the 66-point Green/Yellow boundary before attack activation.
             state = self._read()
             player = _player(state)
             if TAG_YELLOW in _tags(player):
@@ -437,14 +437,12 @@ class Us123Run(kit.PlaytestRun):
         return taken, state
 
     def _setup(self):
-        self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
-        self._aim()
-        self._drain_with_dodges("control-route headroom", 25.0)
         result, state = self._walk_fight()
+        pinned_stamina, weapon, tags = self._pin_yellow_at_fight()
+        state = self._read()
         actor = self._attacker(state)
         if _posture(actor) is None or _max_posture(actor) is None:
             return "FAIL", "bridge actor posture/max_posture are unavailable", None
-        pinned_stamina, weapon, tags = self._weapon_and_tier()
         return "PASS", (
             f"fight spot {result.get('final')}; bridge posture {_posture(actor)}/"
             f"{_max_posture(actor)}; pinned {weapon} and "
@@ -537,11 +535,11 @@ class Us123Run(kit.PlaytestRun):
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
         self._aim()
-        # Leave enough headroom that regeneration between the two 1.5-second
-        # parry staggers cannot cross back into Green before L1 commits.
-        self._drain_with_dodges("knockdown-route headroom", 25.0)
         self._walk_fight()
-        stamina, weapon, _ = self._weapon_and_tier()
+        # Short sprint legs drain stamina without the 400 cm backward travel of
+        # each US-125 Yellow dodge, so arriving at the fight does not regenerate
+        # the route back into Green.
+        stamina, weapon, _ = self._pin_yellow_at_fight()
         return stamina, weapon
 
     def _knockdown(self):
@@ -580,10 +578,12 @@ class Us123Run(kit.PlaytestRun):
         l2, state = self._tap_light_and_damage(
             combo=True, health_before=l2_health_before, timing_prefix="l2")
         self.knockdown_timing["l2_damage"] = l2
-        self.knockdown_timing.pop("_started_at", None)
         self.knockdown_route = [l1, l2]
         actor = self._attacker(state)
         tags = _tags(actor)
+        self.knockdown_timing["broken_or_down_at_l2_damage"] = (
+            TAG_BROKEN in tags or TAG_DOWN in tags)
+        self.knockdown_timing.pop("_started_at", None)
         route_problems = []
         timing_problems = []
         if abs(l1 - STAGGERED_L1_YELLOW) > TOL:
@@ -594,8 +594,8 @@ class Us123Run(kit.PlaytestRun):
             timing_problems.append(f"total {l1 + l2:g}, expected at least 40")
         if not self.knockdown_timing["combo_present_at_l2_press"]:
             route_problems.append("L2 was not sent during the observed combo window")
-        if not self.knockdown_timing["broken_present_at_l2_press"]:
-            timing_problems.append("PostureBroken expired before L2 was sent")
+        if not self.knockdown_timing["broken_or_down_at_l2_damage"]:
+            timing_problems.append("PostureBroken expired before L2 landed")
         if TAG_DOWN not in tags:
             timing_problems.append(f"missing '{TAG_DOWN}' in {tags}")
         if TAG_BROKEN in tags:

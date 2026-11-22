@@ -40,7 +40,7 @@ from tests import fake_bridge as fb  # noqa: E402
 PLAYTESTS = os.path.join(SCRIPTS, "playtests")
 TOKEN = "us054c-token"
 INPUT_AND_READ_CMDS = {
-    "ping", "state", "key", "mouse", "click", "screenshot", "wait_until", "wait", "quit"
+    "ping", "state", "key", "axis", "mouse", "click", "screenshot", "wait_until", "wait", "quit"
 }
 
 
@@ -349,6 +349,13 @@ class CombatWorld(fb.FakeWorld):
         d = super()._s_player()
         if d.get("valid"):
             d["tags"] = list(d["tags"]) + sorted(self.timed_tags)
+            # CombatWorld's melee model always faces +X, matching the arc calculation above.
+            # Expose the same bridge state so the playtest can verify its real right-stick re-aim.
+            d["facing_arrow"] = {
+                "forward": [1.0, 0.0, 0.0],
+                "pawn_forward": [1.0, 0.0, 0.0],
+                "forward_alignment": 1.0,
+            }
         return d
 
     def _s_widgets(self):
@@ -516,6 +523,11 @@ class TestUs054CombatPlan(unittest.TestCase):
                         + us054c.SPOT_TOL, 150.0)
         self.assertLess(math.dist(us054c.DUMMY_MELEE_SPOT, us054c.DUMMY_SPAWN) + us054c.SPOT_TOL,
                         CombatWorld().melee_reach)
+        self.assertLess(
+            math.dist(us054c.DUMMY_REENGAGE_SPOT, us054c.DUMMY_SPAWN)
+            + us054c.DUMMY_REENGAGE_TOL,
+            175.0,
+        )
 
     def test_plan_prints(self):
         out = io.StringIO()

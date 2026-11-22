@@ -119,6 +119,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mordecai|Equipment")
 	TArray<TSoftObjectPtr<UMordecaiWeaponDataAsset>> StartingWeapons;
 
+	/** Server-to-owner feedback path for a server-confirmed perfect evade. */
+	UFUNCTION(Client, Reliable)
+	void ClientShowPerfectDodgeFeedback();
+
+	/** Number of perfect-dodge feedback RPCs received by this pawn (test/bridge diagnostics). */
+	int32 GetPerfectDodgeFeedbackCount() const { return PerfectDodgeFeedbackCount; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void PossessedBy(AController* NewController) override;
@@ -199,4 +206,5 @@ private:
 	float LastSentAimFacingYaw = 0.f;
 	bool bHasSentAimFacingYaw = false;
 	float AppliedSprintSpeedFactor = 1.f;
+	int32 PerfectDodgeFeedbackCount = 0;
 };

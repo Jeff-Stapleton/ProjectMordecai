@@ -8,6 +8,8 @@
 
 #include "MordecaiGA_Dodge.generated.h"
 
+class UAbilityTask_ApplyRootMotionConstantForce;
+
 /**
  * UMordecaiGA_Dodge
  *
@@ -100,13 +102,29 @@ public:
 	/** Check if ActivationBlockedTags contains the given tag. */
 	bool HasActivationBlockedTag(const FGameplayTag& Tag) const;
 
+	/** Called by hit defense after a real hit is evaded. Grants the perfect reward at most once. */
+	bool NotifySuccessfulEvade();
+
+	/** Active duration-owning root-motion task (test/diagnostic visibility). */
+	UAbilityTask_ApplyRootMotionConstantForce* GetRootMotionTask() const
+	{
+		return DodgeRootMotionTask;
+	}
+
 protected:
 	//~ UGameplayAbility interface
+	virtual bool CanActivateAbility(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayTagContainer* SourceTags = nullptr,
+		const FGameplayTagContainer* TargetTags = nullptr,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	//~ End UGameplayAbility interface
 
 	// --- Phase Callbacks ---
+	UFUNCTION()
 	void OnDodgeComplete();
 	void OnPerfectDodgeWindowEnd();
 	void OnCooldownComplete();
@@ -121,18 +139,21 @@ protected:
 	// --- Tag Management ---
 	void ApplyDodgingTag();
 	void RemoveDodgingTag();
-	void ApplyPerfectDodgeTag();
-	void RemovePerfectDodgeTag();
 	void ApplyDodgeCooldownTag();
 	void RemoveDodgeCooldownTag();
 
 	// --- State ---
 	EMordecaiDodgePhase CurrentDodgePhase = EMordecaiDodgePhase::None;
 	FVector DodgeDirection = FVector::ZeroVector;
+	FVector DodgeStartLocation = FVector::ZeroVector;
+	FRotator DodgeStartRotation = FRotator::ZeroRotator;
 	bool bPerfectDodgeActive = false;
+	bool bPerfectDodgeRewardGranted = false;
 	float ActivationStaminaTierMultiplier = 1.f;
 
-	FTimerHandle DodgeTimerHandle;
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_ApplyRootMotionConstantForce> DodgeRootMotionTask;
+
 	FTimerHandle PerfectDodgeTimerHandle;
 	FTimerHandle CooldownTimerHandle;
 };
