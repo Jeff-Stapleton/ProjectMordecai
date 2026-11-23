@@ -172,6 +172,9 @@ class Us124PlaytestCase(unittest.TestCase):
         self.assertEqual(kit.plan_problems(us124.Us124Run), [])
         self.assertIs(us124.Run, us124.Us124Run)
         self.assertEqual(us124.Us124Run.launch_map(), us124.PLAYER_POSTURE_TEST_MAP)
+        self.assertGreaterEqual(
+            us124.RECOVERY_MOVE_HOLD_S, 0.6,
+            "the recovery sample must include acceleration from a full stop")
         self.assertEqual(
             [step.check for step in us124.PLAN],
             ["setup", "unbroken_control", "break_and_lock", "broken_bonus",
