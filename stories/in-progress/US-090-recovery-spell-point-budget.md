@@ -172,3 +172,80 @@ respawn restoration are C++. No content asset is required.
   `us090-35f5b8a5` in the Agent Store, with `build_info.json`,
   `comparison.json`, logs, reports, frames, marketing and `SHA256SUMS`.
 - Draft PR: https://github.com/Jeff-Stapleton/ProjectMordecai/pull/165.
+
+### Round 2 review follow-up (2026-11-23)
+- RED evidence:
+  `Saved/TestLogs/us090-r2-red-us054.log`,
+  `us090-r2-red-us057.log`, `us090-r2-red-us087.log`,
+  `us090-r2-red-us001.log`, `us090-r2-red-marketing.log`, and
+  `us090-r2-red-slow-death-sp.log`. The new fake regressions fail when
+  respawn refill is disabled despite live regen, when an SP spend is 0.5
+  short, and when sprint speed/tag reads straddle the auto-clear race.
+- Runtime follow-up: the native GE has an asset tag; non-authority
+  PlayerStates apply zero regen effects; `MaxSpellPoints` and
+  `SpellPointsRegenMultiplier` derived-stat changes now use
+  `SetNumericAttributeBase`; the multiplier clamps at zero; live post-init
+  Intelligence changes affect the next periodic tick. Replication remains
+  covered by the pre-existing attribute replication path.
+- Final gates on package source commit
+  `00a26e363edde38f09208062cf416f08069cb0b6`:
+  - Python tooling: 761/761 PASS.
+  - Tier 1: 968/968 PASS,
+    `Saved/TestLogs/us090-r2-tier1-final-marketing.log`.
+  - PIE: 23/23 PASS,
+    `Saved/TestLogs/us090-r2-pie-final-marketing.log`. The live magic check
+    found exactly one tagged active regen GE, parsed its 1.0-second period as
+    a float, spent SP via a `[LOGIC]` call, and observed the live value rise
+    at approximately 0.25 SP/s.
+  - US-091 Steps table was regenerated and
+    `py Scripts/playtest_story.py US-091 --lint` passed.
+  - Content guard passed.
+- Package:
+  `Saved/Playtests/package-20261123-004133.log`; `dirty=false`,
+  `source_changed_during_build=false`.
+- Dedicated US-090 run:
+  `Saved/Playtests/20261123-004530-story-us090` PASS.
+  - Tier 3 `Saved/Playtests/20261123-004530-boot` PASS.
+  - US-054 `Saved/Playtests/20261123-004549-us054combat` PASS. The death
+    snapshot recorded 8.25/10 SP while Dead, then the first respawn read
+    recorded 10/10, so periodic regen alone cannot satisfy the refill check.
+    Its Restoration regression also bounded the final SP to the observed
+    minimum plus only the elapsed periodic ticks.
+  - US-057 `Saved/Playtests/20261123-004653-us057` PASS. Four real-input
+    casts succeeded, the extra Fireball was refused at 1.00 SP, four 0.25
+    increments matched the live 1.0 multiplier, and three measured tick gaps
+    had a 0.88-second mean (accepted range 0.85–1.15 seconds).
+- AC evidence:
+  - AC1 and AC7: US-057 `sp_regen_timing` PASS.
+  - AC2 and AC6: Tier 1 Dead/Silenced/Cursed, clamp and sub-period exact-spend
+    tests PASS.
+  - AC3: strict US-054 death-snapshot/first-respawn-read check PASS.
+  - AC4: Tier 1 authority/non-authority and respawn-survival tests plus the
+    PIE exactly-one-active-effect check PASS.
+  - AC5: US-057 four-cast sequence and real low-SP refusal PASS.
+  - AC8: `Saved/Playtests/us090-r2-marketing-00a26e36` contains one 6-second
+    1280×720 30-fps in-engine clip and four stills. The SHA256 source-frame
+    manifest covers 180 frames; decoded samples matched source frames at
+    44.262–44.949 dB PSNR; HUD checks passed; motion passed 8/8 pairs (6/8
+    required); actor/debug labels and yellow ability-log text were absent.
+- Scripted frame verification:
+  `Saved/Playtests/us090-r2-evidence/frames/verification.json` PASS. Three
+  filename-labelled ffmpeg contact sheets in `frames/` represent all four
+  Tier 3 engine frames and all twelve dedicated Tier 4 bridge frames; every
+  source and sheet is non-uniform.
+- Full no-exclusion sweep:
+  `Saved/Playtests/20261123-004740-sweep`; all 21 scripts and all six launch
+  paths ran on the same package. It did not pass: US-001 ended with a Win32
+  completion `OSError` after the repaired `sprint_auto_clear_restart` check
+  itself passed; US-078 retained the known Shift+Tab failure; and new failures
+  appeared in US-079, US-083, US-087 Fireball, US-097, US-101, US-120 and
+  US-124. US-091/#141 passed, so no rerun was needed. The one permitted
+  US-120/#135 same-package rerun
+  (`Saved/Playtests/20261123-010000-us120`) still failed
+  `deep_bank_blocks`. `comparison.json` therefore records 22
+  `pass_to_fail` transitions and `passed=false`; no script was excluded and
+  no unapproved rerun was used. The full-sweep DoD item remains unchecked and
+  the story remains in progress.
+- Round-two evidence workspace:
+  `Saved/Playtests/us090-r2-evidence`; final Agent Store bundle
+  `us090-r2-00a26e36`.
