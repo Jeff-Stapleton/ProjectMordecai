@@ -249,3 +249,46 @@ respawn restoration are C++. No content asset is required.
 - Round-two evidence workspace:
   `Saved/Playtests/us090-r2-evidence`; final Agent Store bundle
   `us090-r2-00a26e36`.
+
+### Round 3 triage follow-up (2026-11-23)
+- Final source/package commit:
+  `3cc72b77cc6a6a70941253e56110a3ea88f61366`.
+- Gates:
+  - Build PASS.
+  - Python tooling PASS.
+  - Tier 1: 968/968 PASS,
+    `Saved/TestLogs/tests-20261123-093912.log`.
+  - Full PIE PASS.
+  - US-091 and US-125 Steps-table lints PASS.
+  - Content guard PASS.
+- Clean package:
+  `Saved/Playtests/package-20261123-094626.log`; `dirty=false`,
+  `source_changed_during_build=false`.
+- Dedicated US-090:
+  `Saved/Playtests/20261123-095542-story-us090` PASS.
+  Tier 3, US-054 combat and US-057 magic all passed on the same package.
+- No-exclusion sweep:
+  `Saved/Playtests/20261123-095747-sweep`; all 21 Tier 4 scripts and all six
+  Tier 3 launch paths ran. Same-package reruns passed US-087 pickup lane,
+  US-122 sprint and US-125 perfect dodge. US-101 `dodge_evades` remained the
+  same pre-existing failure reproduced on clean `origin/main`
+  (`Saved/Playtests/20261123-014846-us101`), and known #135
+  `deep_bank_blocks` failed its one permitted rerun
+  (`Saved/Playtests/20261123-101013-us120`). Known US-078 N9 and US-123 #163
+  were not hidden or excluded. `comparison.json` reports no branch-caused
+  pass-to-fail transition, but acceptance remains false because #135 did not
+  pass its permitted rerun and the US-101 environmental issue is unresolved.
+- Frames:
+  the Agent Store bundle's `frames/verification.json` passed; all four
+  `engine_*` and twelve `bridge_*` frames are non-uniform and appear in
+  filename-labelled contact sheets indexed by `frames/index.md`.
+- Marketing:
+  `Saved/Playtests/us090-r3-marketing-3cc72b77` contains one 6-second,
+  1280x720, 30-fps in-engine clip and four stills. Source-manifest SHA256
+  checks, decoded-source PSNR (44.261–44.874 dB), HUD checks and motion
+  (8/8 moving pairs; 6/8 required) passed.
+- Round-three triage for every original transition and every
+  test-stabilization change is in
+  `reports/round3-triage.md` in Agent Store bundle
+  `us090-r3-3cc72b77`.
+- The story intentionally remains in `stories/in-progress/`.
