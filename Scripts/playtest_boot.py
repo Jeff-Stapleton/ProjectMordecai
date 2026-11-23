@@ -1335,6 +1335,21 @@ def add_check(checks, name, status, detail, kind="gameplay"):
     checks.append({"name": name, "status": status, "detail": detail, "kind": kind})
 
 
+def reconcile_desktop_capture_with_engine_evidence(checks):
+    """A locked worker may reject ImageGrab; clean game-owned frames remain Tier 3 evidence."""
+    by_name = {check.get("name"): check for check in checks}
+    desktop = by_name.get("screenshots")
+    engine = by_name.get("engine_screenshots")
+    if (desktop and engine
+            and desktop.get("status") == "FAIL"
+            and str(desktop.get("detail", "")).startswith("screenshot failed:")
+            and engine.get("status") == "PASS"):
+        desktop["status"] = "WARN"
+        desktop["detail"] += (
+            "; desktop capture is unavailable on this worker, but game-owned engine screenshots "
+            "passed")
+
+
 def sort_checks(checks):
     rank = {n: i for i, n in enumerate(CHECK_ORDER)}
     checks.sort(key=lambda c: rank.get(c["name"], len(CHECK_ORDER)))
@@ -1856,6 +1871,7 @@ def main():
         add_check(checks, "log_errors", "INFO",
                   f"{logsum['errors']} error(s), {logsum['warnings']} warning(s) (informational)")
 
+    reconcile_desktop_capture_with_engine_evidence(checks)
     sort_checks(checks)
     code = exit_code_for(checks)
     result = {EXIT_PASS: "PASS", EXIT_FAIL: "FAIL", EXIT_INFRA: "ERROR"}[code]
