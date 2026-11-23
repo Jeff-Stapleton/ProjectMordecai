@@ -8,6 +8,7 @@ same stick is back to walking speed. Nothing calls gameplay functions.
 
 import os
 import sys
+import time
 
 PLAYTEST_DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS_DIR = os.path.dirname(PLAYTEST_DIR)
@@ -28,6 +29,8 @@ SPRINT_HOLD_S = 1.0
 SPRINT_MIN = 700.0
 WALK_BACK_RANGE = (400.0, 700.0)
 SETTLE_TIMEOUT_S = 2.0
+SPRINT_TAG_TIMEOUT_S = 2.0
+SPRINT_TAG = "Mordecai.State.Sprinting"
 RUNTIME_IMC = "MordecaiIMC_Runtime"
 
 SCREENSHOTS = {
@@ -100,6 +103,18 @@ class Us097Run(kit.PlaytestRun):
             "settle_error": settle_error,
         }, None
 
+    def _wait_sprint_tag(self, present):
+        deadline = time.monotonic() + SPRINT_TAG_TIMEOUT_S
+        last = []
+        while time.monotonic() < deadline:
+            _, player = self._player(self.bridge)
+            last = [str(tag) for tag in (player.get("tags") or [])]
+            if (SPRINT_TAG in last) == present:
+                return None
+            self.bridge.wait(0.02)
+        state = "appear" if present else "clear"
+        return f"'{SPRINT_TAG}' did not {state} within {SPRINT_TAG_TIMEOUT_S:g}s (tags {last})"
+
     def steps(self):
         self.observe(
             "spawn_ready", ["player"],
@@ -131,8 +146,14 @@ class Us097Run(kit.PlaytestRun):
 
     def _sprint_l3(self):
         self.bridge.tap(L3, hold_s=self.TAP_S)
+        error = self._wait_sprint_tag(True)
+        if error:
+            return "FAIL", error, None
         forward, error = self._axis_measure(1.0, SPRINT_HOLD_S)
         self.bridge.tap(L3, hold_s=self.TAP_S)
+        if error:
+            return "FAIL", error, None
+        error = self._wait_sprint_tag(False)
         if error:
             return "FAIL", error, None
         backward, error = self._axis_measure(-1.0, SPRINT_HOLD_S)

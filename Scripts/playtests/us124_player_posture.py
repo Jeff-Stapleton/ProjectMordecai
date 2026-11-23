@@ -346,7 +346,7 @@ class Us124Run(kit.PlaytestRun):
             lambda value: (
                 _health(_player(value)) is not None
                 and _health(_player(value)) <= self.down_health - DOWN_DAMAGE + TOL
-            ), 1.0, "2x knocked-down bonus hit")
+            ), 2.0, "2x knocked-down bonus hit")
         player = _player(state)
         damage = self.down_health - _health(player)
         problems = []

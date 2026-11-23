@@ -78,12 +78,13 @@ class DefenseWorld(CombatWorld):
     PARRY_COST, DODGE_COST = 20.0, 15.0
 
     def __init__(self, *, defenses=True, airborne_tag=True, perfect_window_s=0.25,
-                 dodge_ignores_input=False, jump_s=0.7, **kw):
+                 dodge_ignores_input=False, jump_s=0.7, regen_after_hit=False, **kw):
         super().__init__(**kw)
         self.defenses, self.airborne_tag = defenses, airborne_tag
         self.perfect_window_s = float(perfect_window_s)
         self.dodge_ignores_input = dodge_ignores_input
         self.jump_s = float(jump_s)
+        self.regen_after_hit = bool(regen_after_hit)
         self.stamina = self.posture = 100.0
         self.prev_rt = 0.0
         self.aim_yaw = 0.0
@@ -210,9 +211,17 @@ class DefenseWorld(CombatWorld):
         self.posture = max(0.0, self.posture - dp)
         self.hits.append((round(now, 2), self.health))
         self.defense_log.append((round(now, 3), kind, dh, round(ds, 3), round(dp, 3)))
+        if self.regen_after_hit and (ds > 0.0 or dp > 0.0):
+            # Model the real runtime: the hit applies its costs atomically, then periodic regen
+            # raises the endpoint before the swing's Recover phase ends.
+            self.after(0.05, lambda world: world._regen_after_hit())
         if self.health <= 0:
             self.deaths += 1
             self.kill_player()
+
+    def _regen_after_hit(self):
+        self.stamina = min(100.0, self.stamina + 6.0)
+        self.posture = min(100.0, self.posture + 4.0)
 
     # --- state ------------------------------------------------------------------------------------
     def _s_player(self):
@@ -634,6 +643,16 @@ class TestUs101AgainstTheFake(Us101Case):
         self.assertEqual(acs[("US-101", "AC-101.10")]["status"], "PASS")
         for n in range(11, 16):
             self.assertEqual(acs[("US-101", f"AC-101.{n}")]["status"], "FAIL", n)
+
+    def test_hit_costs_use_the_hit_snapshot_when_regen_raises_the_swing_endpoint(self):
+        world, server = self.serve(regen_after_hit=True)
+        code, rep = self.play(server)
+        self.assertEqual(code, 0, self.tail())
+        checks = self.by_name(rep)
+        for name in ("undefended_hit", "block_mitigates", "rear_unblocked"):
+            self.assertEqual(checks[name]["status"], "PASS", checks[name]["detail"])
+        self.assertTrue(any(rec.get("hit") for rec in rep["swings"]))
+        self.assertGreater(world.posture, 95.5)
 
     def test_a_timing_miss_and_a_dodge_out_of_reach_are_not_passes(self):
         # A perfect-block window too narrow for the press, and a dodge that ignores W (backward,
