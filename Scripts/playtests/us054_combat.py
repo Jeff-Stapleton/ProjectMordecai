@@ -107,6 +107,8 @@ STARTING_WEAPON = "Longsword"
 BURNING_TEXT = "Burning"
 RESTORATION_KEY = "One"
 RESTORATION_SP = 3.0
+DEATH_BUDGET_KEY = "Q"
+DEATH_BUDGET_HEALTH = 30.0
 ATTACK_POINT = (640, 360)              # the viewport centre: the game view, no widget
 
 # --- timeouts (module-level so the offline tests can shorten them) ------------------------------
@@ -203,9 +205,11 @@ PLAN = (
     Step("restoration_heals", f"tap {RESTORATION_KEY} -> within {RESTORATION_TIMEOUT_S:g}s "
          f"health rises, spell_points drops by {RESTORATION_SP:g} and '{TAG_RESTORATION}' is in "
          "player.tags", proves=("US-057:AC-057.4", "US-057:AC-057.5", "US-057:AC-057.12")),
-    Step("burning_on_hit", f"keep standing -> within {BURNING_TIMEOUT_S:g}s '{TAG_BURNING}' in "
-         f"player.tags and a widget text '{BURNING_TEXT}' (WARN if Burning never procs: the "
-         f"{ATTACKER} swings BasicSlash; ends at once, WARN, when the player dies)",
+    Step("burning_on_hit", f"keep standing; at health <= {DEATH_BUDGET_HEALTH:g}, tap "
+         f"{DEATH_BUDGET_KEY} once if SP has regenerated to max so the death snapshot can prove "
+         f"the respawn refill; within {BURNING_TIMEOUT_S:g}s '{TAG_BURNING}' in player.tags and "
+         f"a widget text '{BURNING_TEXT}' (WARN if Burning never procs: the {ATTACKER} swings "
+         "BasicSlash; ends at once, WARN, when the player dies)",
          proves=("US-057:AC-057.11", "US-057:AC-057.8")),
     Step("player_dies", f"keep standing -> player.is_dead==true within {DEATH_TIMEOUT_S:g}s (or "
          f"already seen dead by an earlier step), '{TAG_DEAD}' in player.tags, and the death "
@@ -477,6 +481,7 @@ class Us054CombatRun(kit.PlaytestRun):
         self.kill = None             # kill_enemy_melee: clicks, the dummy's healths, timing
         self.kills_seen = None       # player.kills when kill_counter_increments passed
         self.sp_after_restoration = None
+        self.death_budget = None     # low-health SP state and optional real-input Q spend
 
     # --- the run ------------------------------------------------------------------------------
     def steps(self):
@@ -942,6 +947,26 @@ class Us054CombatRun(kit.PlaytestRun):
                 if p is None or is_dead(p):
                     seen["died"] = True   # stop at once: the death and respawn are next
                     return True
+                health = attr(p, "health")
+                current_sp = attr(p, "spell_points")
+                max_sp = attr(p, "max_spell_points")
+                if self.death_budget is not None and current_sp is not None:
+                    previous = self.death_budget.get("minimum_spell_points")
+                    self.death_budget["minimum_spell_points"] = (
+                        current_sp if previous is None else min(previous, current_sp))
+                if (self.death_budget is None and health is not None
+                        and health <= DEATH_BUDGET_HEALTH):
+                    full = (current_sp is not None and max_sp is not None
+                            and current_sp >= max_sp - 0.01)
+                    self.death_budget = {
+                        "health": health,
+                        "spell_points_before": current_sp,
+                        "max_spell_points": max_sp,
+                        "key": DEATH_BUDGET_KEY if full else None,
+                        "minimum_spell_points": current_sp,
+                    }
+                    if full:
+                        b.tap(DEATH_BUDGET_KEY, hold_s=self.TAP_S)
                 tag = TAG_BURNING in tags(p)
                 text = any(BURNING_TEXT.lower() in t.lower() for t in all_texts(st))
                 seen["tag"] = seen["tag"] or tag
@@ -1196,7 +1221,8 @@ class Us054CombatRun(kit.PlaytestRun):
                 "enemies_at_death": self.enemies_at_death,
                 "dummy_hit": list(self.dummy_hit) if self.dummy_hit else None,
                 "kill": self.kill, "kills_seen": self.kills_seen,
-                "sp_after_restoration": self.sp_after_restoration}
+                "sp_after_restoration": self.sp_after_restoration,
+                "death_budget": self.death_budget}
 
     def md_sections(self):
         death = self.death
