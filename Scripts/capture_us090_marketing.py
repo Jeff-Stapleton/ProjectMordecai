@@ -136,8 +136,6 @@ def capture(output_dir, frame_count=DEFAULT_FRAME_COUNT):
                 "-MordecaiMarketingCapture",
                 "-BENCHMARK",
                 f"-FPS={FPS}",
-                "-ResX=1920",
-                "-ResY=1080",
             ),
         )
         bridge.wait(1.0)

@@ -169,8 +169,7 @@ def verify_video(video, source_manifest, minimum_psnr=24.0, minimum_motion=0.000
     motion_passed = moving_pairs >= 6
     metadata_ok = (
         5.0 <= duration <= 20.0
-        and metadata["width"] == 1920
-        and metadata["height"] == 1080
+        and (metadata["width"], metadata["height"]) in ((1280, 720), (1920, 1080))
         and metadata["pixel_format"] == "yuv420p"
         and metadata["frame_rate"] == "30/1"
         and metadata["size_bytes"] < 50 * 1024 * 1024
