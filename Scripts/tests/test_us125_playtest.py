@@ -68,6 +68,25 @@ class TestUs125PlaytestsAgainstFakeBridge(unittest.TestCase):
         state = {"player": {"valid": True, "speed": 0}}
         self.assertEqual(attack_cancel._speed(state), 0.0)
 
+    def test_attack_cancel_setup_keeps_attacking_until_yellow(self):
+        """Stamina regen can erase part of six attacks on a slower bridge."""
+        run = object.__new__(attack_cancel.Us125AttackCancelRun)
+        run.bridge = mock.Mock()
+        run.bridge.walk_to.return_value = {"final": [-300.0, -800.0]}
+        run._idle = mock.Mock()
+        run._tap_attack = mock.Mock()
+        run._wait_tag = mock.Mock()
+        stamina = iter((95.0, 90.0, 85.0, 80.0, 75.0, 70.0, 65.0))
+        run._state = mock.Mock(
+            side_effect=lambda: {
+                "player": {"valid": True, "attributes": {"stamina": next(stamina)}}})
+
+        status, detail, data = run.step_setup()
+
+        self.assertEqual(status, "PASS", detail)
+        self.assertEqual(data["stamina"], 65.0)
+        self.assertEqual(run._tap_attack.call_count, 7)
+
     def test_attack_cancel_rejects_attack_dodge_overlap(self):
         problems = attack_cancel.dodge_cancel_problems(
             True,

@@ -112,11 +112,12 @@ Production changes are C++ GAS/movement logic and Python playtests using existin
 
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| 1 | `setup_yellow` | walk to lane L1 and spend five real light attacks to reach about 60 stamina | - |
+| 1 | `setup_yellow` | walk to lane L1 and spend real light attacks until reaching Yellow stamina | - |
 | 2 | `recovery_dodge_cancel` | tap RT, wait for ComboWindow, tap LeftAlt -> Attacking/ComboWindow clear before Dodging; settled displacement is 400 +/-40 cm at Yellow | AC1, AC3, AC7 |
-| 3 | `committed_dodge_rejected` | tap RT and immediately tap LeftAlt during AttackCommitted -> attack remains and no dodge | AC2 |
-| 4 | `held_block_needs_fresh_press` | hold LT during AttackCommitted and through Recovery -> Block never activates; release LT | AC2 |
-| 5 | `recovery_block_cancel` | on a new light attack wait for ComboWindow, freshly hold LT -> attack ends before Block; release LT | AC1, AC7 |
+| 3 | `ordinary_dodge_has_no_perfect_feedback` | on enemy-free MovementTestMap, observe the completed dodge -> no PerfectDodge tag and no 'Perfect Dodge!' HUD text | AC4, AC7 |
+| 4 | `committed_dodge_rejected` | tap RT and immediately tap LeftAlt during AttackCommitted -> attack remains and no dodge | AC2 |
+| 5 | `held_block_needs_fresh_press` | hold LT during AttackCommitted and through Recovery -> Block never activates; release LT | AC2 |
+| 6 | `recovery_block_cancel` | on a new light attack wait for ComboWindow, freshly hold LT -> attack ends before Block; release LT | AC1, AC7 |
 
 <!-- Scripts/playtests/us125_perfect_dodge_combo.py -->
 
