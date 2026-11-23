@@ -95,7 +95,7 @@ SP_START = 10
 
 TARGET_ENEMY = "TestDummy"        # BP_MordecaiEnemy_TestDummy: never moves, never aggroes
 TARGET_SPAWN = (600.0, 600.0)     # its placement: the fallback when no label matches
-SHOT_OFFSET_X = 300.0             # stand 300 cm -X of the dummy: the Fireball flies +X
+SHOT_OFFSET_X = 500.0             # stand 500 cm -X so the bridge can observe the Fireball in flight
 REWALK_DY = 40.0
 SHOT_TOL = 25.0                   # the shot position: tighter than WALK_TOL (|dy| <= 40)
 LANE_POINT = (0.0, -600.0)        # the Blink lane: y = -600, clear +X to x 1100
@@ -111,7 +111,7 @@ COOLDOWN_WIDGETS_EXPECTED = 4
 COOLDOWN_SLOT_LABELS = ("Q", "E", "R", "1")
 
 SCREENSHOTS = {
-    "fireball_hit": "CombatTestMap's grid floor, the player about 300 cm -X of the TestDummy (a "
+    "fireball_hit": "CombatTestMap's grid floor, the player about 500 cm -X of the TestDummy (a "
                     "blue-grey cylinder under its red health bar) and an orange damage number "
                     "near that bar; the SP bar reads '7 / 10'. The ONLY damage-number evidence "
                     "of the run",

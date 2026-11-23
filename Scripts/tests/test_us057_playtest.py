@@ -240,7 +240,8 @@ class MagicWorld(fb.FakeWorld):
 
 class SteppingEnemyWorld(MagicWorld):
     """The TestDummy moves 120 cm +Y the first time the player stands near the shot spot
-    (300, 600).  (The real dummy never moves; this exercises the re-walk.)"""
+    (target X minus SHOT_OFFSET_X, target Y).  (The real dummy never moves; this exercises the
+    re-walk.)"""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -249,7 +250,8 @@ class SteppingEnemyWorld(MagicWorld):
     def tick(self, dt):
         super().tick(dt)
         with self.lock:
-            sx, sy = fb.COMBAT_DUMMY_SHOT_SPOT
+            sx, sy = (us057.TARGET_SPAWN[0] - us057.SHOT_OFFSET_X,
+                      us057.TARGET_SPAWN[1])
             if not self.enemy_moved and math.hypot(self.pos[0] - sx, self.pos[1] - sy) < 80.0:
                 for e in self.enemies:
                     if e["label"] == "TestDummy":
@@ -386,9 +388,11 @@ class TestUs057PassPath(PlaytestCase):
         self.play(server)
         key, spell_id, (x, y) = world.cast_log[0]
         self.assertEqual((key, spell_id), ("Q", "Fireball"))
-        # The shot spot: 300 cm -X of the TestDummy (600, 600).
-        sx, sy = fb.COMBAT_DUMMY_SHOT_SPOT
-        self.assertEqual((sx, sy), (300.0, 600.0))
+        # The shot spot stays far enough -X of the TestDummy for the bridge to observe
+        # the projectile before impact.
+        sx, sy = (us057.TARGET_SPAWN[0] - us057.SHOT_OFFSET_X,
+                  us057.TARGET_SPAWN[1])
+        self.assertEqual((sx, sy), (100.0, 600.0))
         self.assertLess(abs(y - sy), us057.SHOT_TOL + 1)
         self.assertLess(abs(x - sx), us057.SHOT_TOL + 1)
         # Blink from the start of the Blink lane (0, -600), along +X.

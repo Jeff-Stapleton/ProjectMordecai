@@ -76,7 +76,7 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 1 | `hud_visible` | state widgets -> a SpellPointsBar widget renders "10 / 10" (the SP bar, current / max) | AC-057.9, AC-057.10, US-055:AC-055.1, US-055:AC-055.3 |
 | 2 | `spell_loadout` | state player -> player.spells slots 0-3: keys Q/E/R/One, Fireball/Blink/Stone Skin/Restoration, granted, sp_cost 3/2/4/3 | AC-057.1, AC-057.2, AC-057.3, AC-057.4, AC-057.6 |
 | 3 | `cooldown_widgets` | state widgets -> 4 SpellCooldown widgets on the HUD labelled Q / E / R / 1 in slot order (one per spell) | AC-057.9 |
-| 4 | `walk_shot_line` | walk_to(ex-300, ey) of the TestDummy (live location, actors radius 3000; label match, else the enemy nearest (600, 600)) within 25 cm; walk again if \|player.y - ey\| > 40 | - |
+| 4 | `walk_shot_line` | walk_to(ex-500, ey) of the TestDummy (live location, actors radius 3000; label match, else the enemy nearest (600, 600)) within 25 cm; walk again if \|player.y - ey\| > 40 | - |
 | 5 | `fireball_cast` | tap Q -> player.attributes.spell_points 10 -> 7 within 2s (fast poll of player, actors, widgets) | AC-057.1, AC-057.5, AC-057.10, US-055:AC-055.2 |
 | 6 | `fireball_projectile` | same poll -> an actors[] entry with kind=="projectile" within 1.5s of the tap | AC-057.1 |
 | 7 | `fireball_hits_enemy` | same poll -> the nearest enemy's health drops below its pre-cast value (200) within 2.5s; detail reports the damage | AC-057.1, AC-057.12 |
