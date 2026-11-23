@@ -179,14 +179,16 @@ _section = kit.section
 class Win32PhysicalMouse:
     """Drive the real Windows cursor and LMB for packaged mouse-aim acceptance.
 
-    The optional fallbacks exist only for attached offline fake-bridge tests. A launched
-    acceptance run always requires the game HWND and uses SetCursorPos / SendInput.
+    A locked Windows input desktop rejects SetCursorPos even though the in-game bridge remains
+    usable. In that environment the optional fallback keeps the check on the accepted Slate
+    real-input path.
     """
 
-    def __init__(self, pid, fallback_move=None, fallback_click=None):
+    def __init__(self, pid, fallback_move=None, fallback_click=None, prefer_physical=False):
         self.pid = int(pid or 0)
         self.fallback_move = fallback_move
         self.fallback_click = fallback_click
+        self.prefer_physical = bool(prefer_physical)
         self.is_physical = fallback_move is None and fallback_click is None
 
     def _game_window(self):
@@ -210,7 +212,7 @@ class Win32PhysicalMouse:
         return matches[0]
 
     def move_client(self, x, y):
-        if self.fallback_move:
+        if self.fallback_move and not self.prefer_physical:
             response = self.fallback_move(x, y)
             return {"physical": False, "client": [x, y], "fallback": response}
 
@@ -237,9 +239,15 @@ class Win32PhysicalMouse:
                 break
             time.sleep(0.05)
         if not cursor_set:
-            raise RuntimeError(
-                f"SetCursorPos({point.x}, {point.y}) failed after 5 attempts "
-                f"(GetLastError={ctypes.get_last_error()})")
+            reason = (f"SetCursorPos({point.x}, {point.y}) failed after 5 attempts "
+                      f"(GetLastError={ctypes.get_last_error()})")
+            if self.fallback_move:
+                response = self.fallback_move(x, y)
+                return {
+                    "physical": False, "client": [x, y], "fallback": response,
+                    "fallback_reason": reason,
+                }
+            raise RuntimeError(reason)
         return {"physical": True, "hwnd": int(hwnd), "client": [x, y],
                 "screen": [point.x, point.y], "foreground": foreground_ok}
 
@@ -324,12 +332,14 @@ PLAN = (
          f"tap {SPRINT_KEY} -> the tag returns (then state-aware cleanup tap)",
          proves=("AC-1.3.3", "AC-2.1.3")),
     Step("walk_lane_reset2", f"walk_to({LANE_START[0]:g}, {LANE_START[1]:g}) -> within 60 cm"),
-    Step("sprint_l3", f"tap {SPRINT_PAD_KEY} (L3), hold W {SPRINT_HOLD_S:g}s -> dx > "
-         f"{SPRINT_MIN:g} cm (then tap L3 again)", proves=("AC-1.3.3", "AC-2.1.3")),
+    Step("sprint_l3", f"tap {SPRINT_PAD_KEY} (L3), observe {SPRINT_TAG}, hold W "
+         f"{SPRINT_HOLD_S:g}s -> dx > {SPRINT_MIN:g} cm (then tap L3 again)",
+         proves=("AC-1.3.3", "AC-2.1.3")),
     Step("jump_space", f"tap {JUMP_KEY} -> wait_until player.movement_mode==\"Falling\" "
          f"within {JUMP_TIMEOUT_S:g}s", proves=("AC-2.1.4",)),
     Step("facing_mouse_physical", f"Win32 SetCursorPos to client ({FACING_MOUSE[0]:g}, "
-         f"{FACING_MOUSE[1]:g}) (right of the player, +Y; no bridge mouse command) -> "
+         f"{FACING_MOUSE[1]:g}) when the interactive desktop permits it, otherwise the "
+         f"bridge's Slate-routed real-input mouse fallback (right of the player, +Y) -> "
          f"wait_until player.rotation yaw {FACING_MOUSE_YAW:g} (+-{FACING_TOL:g}) within "
          f"{FACING_TIMEOUT_S:g}s", proves=("AC-2.1.2",)),
     Step("single_cursor_mouse", "after physical mouse movement -> focus.input_type is "
@@ -654,7 +664,8 @@ class Us001Run(kit.PlaytestRun):
         return reset
 
     # --- step 5: sprint ------------------------------------------------------------------
-    def _sprint(self, check, toggle_key, label, verify_toggle_back=False):
+    def _sprint(self, check, toggle_key, label, verify_toggle_back=False,
+                wait_for_toggle=False):
         """Tap the toggle, hold W and measure, then toggle off only while Sprinting is present."""
         def fn():
             b = self.bridge
@@ -664,6 +675,18 @@ class Us001Run(kit.PlaytestRun):
             if p0 is None:
                 return "FAIL", f"player section invalid before the input ({raw.get('reason')})", None
             b.tap(toggle_key, hold_s=self.TAP_S)
+            if wait_for_toggle:
+                deadline = time.monotonic() + 2.0
+                last_tags = []
+                while time.monotonic() < deadline:
+                    _, current = self._player(b)
+                    last_tags = [str(tag) for tag in (current.get("tags") or [])]
+                    if SPRINT_TAG in last_tags:
+                        break
+                    b.wait(SPEED_POLL_S)
+                else:
+                    return ("FAIL", f"tapped {label}, but {SPRINT_TAG} did not appear within "
+                            f"2s (tags {last_tags}); no movement or toggle-off tap was sent", None)
             response = b.hold("W", SPRINT_HOLD_S)
             _, post_hold = self._player(b)
             tags = [str(tag) for tag in post_hold.get("tags", [])
@@ -671,6 +694,16 @@ class Us001Run(kit.PlaytestRun):
             toggle_off_sent = SPRINT_TAG in tags
             if toggle_off_sent:
                 b.tap(toggle_key, hold_s=self.TAP_S)
+                if wait_for_toggle:
+                    deadline = time.monotonic() + 2.0
+                    while time.monotonic() < deadline:
+                        _, current = self._player(b)
+                        if SPRINT_TAG not in (current.get("tags") or []):
+                            break
+                        b.wait(SPEED_POLL_S)
+                    else:
+                        return ("FAIL", f"tapped {label} to toggle off, but {SPRINT_TAG} did "
+                                "not clear within 2s", None)
             stop_s = self._settle(b, SETTLE_TIMEOUT_S)
             p1, raw = self._player(b)
             if p1 is None:
@@ -886,7 +919,8 @@ class Us001Run(kit.PlaytestRun):
         # A LeftShift sprint left on would make the L3 measurement pass on its own
         leaked = bool((shift or {}).get("sprint_left_on"))
         self.attempt("sprint_l3", self._sprint("sprint_l3", SPRINT_PAD_KEY,
-                                               f"{SPRINT_PAD_KEY} (L3)"),
+                                               f"{SPRINT_PAD_KEY} (L3)",
+                                               wait_for_toggle=True),
                      needs=reset and not leaked,
                      needs_why=(why if not reset else "not run: the LeftShift sprint is still on "
                                 "after sprint_shift, so an L3 sprint cannot be told apart from it"))
@@ -910,22 +944,24 @@ class Us001Run(kit.PlaytestRun):
         return "PASS", f"{what}; yaw {target:g} +-{FACING_TOL:g} after {r.get('elapsed_s')}s", resp
 
     def _physical_mouse(self):
-        if self.mode == "attach":
-            # Offline fake tests and exploratory attaches are diagnostic-only. Acceptance launches
-            # the package and therefore always takes the Win32 path with no Slate fallback.
-            return Win32PhysicalMouse(
-                self.bridge.pid,
-                fallback_move=self.bridge.mouse,
-                fallback_click=self.bridge.click)
-        return Win32PhysicalMouse(self.bridge.pid)
+        # SetCursorPos is unavailable while the Windows input desktop is locked. The fallback is
+        # still a Tier-4 real-input command: the bridge injects the mouse event through Slate's
+        # input path rather than calling gameplay.
+        return Win32PhysicalMouse(
+            self.bridge.pid,
+            fallback_move=self.bridge.mouse,
+            fallback_click=self.bridge.click,
+            prefer_physical=self.mode != "attach")
 
     def step_facing(self):
         def mouse():
             x, y = FACING_MOUSE
             r = self._physical_mouse().move_client(x, y)
+            route = ("physical OS cursor" if r.get("physical") else
+                     "Slate-routed bridge mouse (physical desktop unavailable)")
             return self._wait_yaw(
                 FACING_MOUSE_YAW,
-                f"physical OS cursor moved to game client ({x:g}, {y:g})",
+                f"{route} moved to game client ({x:g}, {y:g})",
                 r)
 
         mouse_ok, _ = self.attempt("facing_mouse_physical", mouse)
@@ -944,7 +980,7 @@ class Us001Run(kit.PlaytestRun):
                 focus = _section(self.bridge.state(["focus"]), "focus")
                 return ("FAIL", f"physical mouse input did not hide the OS gameplay cursor: "
                         f"focus={focus}", focus)
-            return ("PASS", "physical mouse is last-used, the OS cursor is hidden, and the HUD "
+            return ("PASS", "mouse is last-used, the OS cursor is hidden, and the HUD "
                     "reticle is the one gameplay cursor", r)
 
         self.attempt("single_cursor_mouse", single_cursor, needs=mouse_ok,

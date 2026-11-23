@@ -235,6 +235,22 @@ class Us123PlaytestCase(unittest.TestCase):
         self.assertGreaterEqual(
             us123.PARRY_DELAY_S + 0.5, 0.90,
             "the parry window must cover the loaded-sweep edge-to-hit delay")
+        self.assertLess(
+            us123.PARRY_RETRY_DELAY_S, us123.PARRY_DELAY_S,
+            "the one retry must cover an attack edge observed late by the bridge")
+        self.assertEqual(
+            us123.PINNED_YELLOW_TARGET, 40.0,
+            "the fixture needs tier headroom for parry-route stamina drift")
+        self.assertEqual(
+            us123.KNOCKDOWN_YELLOW_TARGET, 40.0,
+            "the longer second route needs additional regen headroom")
+        with open(us123.__file__, encoding="utf-8") as source_file:
+            source = source_file.read()
+        run_checks = source[source.index("    def steps(self):"):
+                            source.index("    @staticmethod")]
+        self.assertLess(
+            run_checks.index('"staggered_hit"'), run_checks.index('self.shot("staggered")'),
+            "the slow screenshot must not consume the 1.5-second riposte window")
         self.assertEqual(
             [step.check for step in us123.PLAN],
             ["setup", "unbroken_control", "break_by_parry", "staggered_hit",

@@ -278,6 +278,20 @@ class CoalescedAutoClearWorld(HudWorld):
         return super().state(names, radius, include_all_actors)
 
 
+class DelayedL3ToggleWorld(HudWorld):
+    """The game applies each L3 toggle after the bridge key response under sweep load."""
+
+    def _on_key_pressed(self, key):
+        if key != "Gamepad_LeftThumbstick":
+            return super()._on_key_pressed(key)
+        fb.FakeWorld._on_key_pressed(self, key)
+        if not self.ready or self.menu_open or self.is_dead:
+            return
+        self.sprint_taps += 1
+        desired = not self.sprinting
+        self.after(0.70, lambda world: world._set_sprinting(desired))
+
+
 class FixedWorld(HudWorld):
     """Explicit fixed-game alias retained for the focused all-green test."""
 
@@ -601,6 +615,14 @@ class TestUs001BeforeUs083(PlaytestCase):
         self.assertIn("coalesced into one bridge snapshot", check["detail"])
         self.assertTrue(world.coalesced_once)
 
+    def test_l3_measurement_waits_for_a_delayed_toggle(self):
+        world, server = self.serve(DelayedL3ToggleWorld)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["sprint_l3"]
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertFalse(world.sprinting)
+
 
 class TestUs001FixedGame(PlaytestCase):
     def test_a_fixed_game_passes_everything_and_flags_fixed_candidates(self):
@@ -781,6 +803,33 @@ class TestUs001Plan(unittest.TestCase):
             result = mouse.move_client(640, 360)
         self.assertTrue(result["physical"])
         self.assertEqual(fake_windll.user32.SetCursorPos.calls, 3)
+
+    def test_physical_cursor_uses_slate_fallback_when_locked_desktop_rejects_every_move(self):
+        class Call:
+            def __init__(self, value):
+                self.value = value
+                self.calls = 0
+
+            def __call__(self, *args):
+                self.calls += 1
+                return self.value
+
+        class User32:
+            ClientToScreen = Call(1)
+            ShowWindow = Call(1)
+            SetWindowPos = Call(1)
+            SetCursorPos = Call(0)
+            GetForegroundWindow = Call(1)
+
+        fallback = mock.Mock(return_value={"ok": True, "cmd": "mouse"})
+        fake_windll = type("Windll", (), {"user32": User32()})()
+        mouse = us001.Win32PhysicalMouse(123, fallback_move=fallback, prefer_physical=True)
+        with mock.patch.object(mouse, "_game_window", return_value=1), \
+                mock.patch.object(us001.ctypes, "windll", fake_windll):
+            result = mouse.move_client(640, 360)
+        self.assertFalse(result["physical"])
+        self.assertIn("failed after 5 attempts", result["fallback_reason"])
+        fallback.assert_called_once_with(640, 360)
 
     def story_ac_ids(self, story_file=STORY_FILE):
         if not os.path.isfile(story_file):

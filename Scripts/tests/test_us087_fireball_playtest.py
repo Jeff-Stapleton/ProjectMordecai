@@ -11,6 +11,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -325,6 +326,7 @@ class PickupLaneWorld(FireballWorld):
         if "blocked" in self.faults:
             self.mapping = {k: (-v[0], -v[1]) for k, v in fb.DEFAULT_MAPPING.items()}
         self.projectiles = []
+        self.delayed_first_post_cast_state = False
 
     def _on_key_pressed(self, key):
         casts = len(self.casts)
@@ -368,12 +370,19 @@ class PickupLaneWorld(FireballWorld):
                 elif "swap" in self.faults and p["location"][0] > -500.0:
                     p["name"] = "Fireball_Replacement"
 
+    def state(self, sections=None, radius=1500.0, include_all_actors=False):
+        if ("slow_first_state" in self.faults and self.casts
+                and not self.delayed_first_post_cast_state):
+            self.delayed_first_post_cast_state = True
+            time.sleep(0.18)
+        return super().state(sections, radius, include_all_actors)
+
 
 class TestUs087PickupLane(PlaytestCase):
     def setUp(self):
         super().setUp()
         self.pickup = load_pickup_playtest()
-        for name, value in (("POLL_S", 0.005), ("CROSSING_WINDOW_S", 0.45)):
+        for name, value in (("POLL_S", 0.005), ("CROSSING_WINDOW_S", 0.8)):
             patch = mock.patch.object(self.pickup, name, value)
             patch.start(); self.addCleanup(patch.stop)
 
@@ -410,6 +419,14 @@ class TestUs087PickupLane(PlaytestCase):
         self.assertEqual(check["status"], "PASS", check["detail"])
         self.assertIn("minimum 7.25", check["detail"])
         self.assertIn("periodic regen allowed", check["detail"])
+
+    def test_loaded_first_actor_snapshot_still_retains_projectile_before_pickup(self):
+        with mock.patch.object(self.pickup, "CROSSING_WINDOW_S", 0.8):
+            _, code, report = self.play_pickup("slow_first_state")
+        check = self.checks(report)["pickup_trigger_pass_through"]
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertIn("same projectile 'Fireball_1'", check["detail"])
 
     def test_excessive_pickup_lane_refund_fails(self):
         _, code, report = self.play_pickup("refund")

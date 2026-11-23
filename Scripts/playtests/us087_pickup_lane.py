@@ -14,7 +14,9 @@ STORY = "US-087"
 RUN_SUFFIX = "us087-pickup-lane"
 PICKUP_LABEL = "TestPickup_MysteriousAmulet"
 ACTOR_RADIUS = 2200
-APPROACH_DISTANCE = 500.0
+# Leave enough runway for the first bridge actor snapshot to retain the projectile before it
+# reaches the pickup even when a loaded packaged build takes several tenths of a second to reply.
+APPROACH_DISTANCE = 900.0
 WALK_TOL = 35.0
 PICKUP_RADIUS, PROJECTILE_RADIUS, TEST_MARGIN = 120.0, 30.0, 25.0
 ENVELOPE_RADIUS = PICKUP_RADIUS + PROJECTILE_RADIUS
