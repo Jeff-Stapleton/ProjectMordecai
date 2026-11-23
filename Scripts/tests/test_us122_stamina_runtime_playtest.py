@@ -215,6 +215,9 @@ class TestUs122Playtest(Us122FakeCase):
     def test_plan_contract(self):
         self.assertEqual(kit.plan_problems(us122.Us122Run), [])
         self.assertEqual(us122.Us122Run.MAP, kit.MOVEMENT_TEST_MAP)
+        self.assertGreaterEqual(
+            us122.LOW_TIER_SPEED_HOLD_S, 1.0,
+            "the speed sample must outlast acceleration after the drain loop changes direction")
         self.assertEqual(
             [step.check for step in us122.PLAN],
             [

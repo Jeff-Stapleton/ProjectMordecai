@@ -113,6 +113,8 @@ LMB_HEAVY_S = 0.8                  # > HeavyAttackHoldSeconds (0.4)
 KB_DODGE_KEY = "LeftAlt"
 KB_JUMP_KEY = "SpaceBar"
 SPRINT_KEY = "LeftShift"
+SPRINT_TAG = "Mordecai.State.Sprinting"
+SPRINT_TAG_TIMEOUT_S = 2.0
 # Lane L1 (y=-800, x -1000..+1600 is plain floor).  The walk starts at the spawn (0, 0): west
 # along y=0, then south to us001's lane waypoint and the lane start, then along the lane (+X) to
 # the sprint start.  These are the waypoints the DevTestMap runs used (the check names are kept);
@@ -387,6 +389,18 @@ class Us083Run(kit.PlaytestRun):
         if p1 is None:
             return None, f"player section invalid after {key} ({raw.get('reason')})"
         return (p0, p1, peak), None
+
+    def _wait_sprint(self, present):
+        deadline = time.monotonic() + SPRINT_TAG_TIMEOUT_S
+        last = []
+        while time.monotonic() < deadline:
+            _, player = self._player(self.bridge)
+            last = [str(tag) for tag in (player.get("tags") or [])]
+            if (SPRINT_TAG in last) == present:
+                return None
+            self.bridge.wait(SPEED_POLL_S)
+        verb = "appear" if present else "clear"
+        return f"'{SPRINT_TAG}' did not {verb} within {SPRINT_TAG_TIMEOUT_S:g}s (tags {last})"
 
     # --- 6-9: block and parry ------------------------------------------------------------
     def step_block_and_parry(self):
@@ -678,10 +692,16 @@ class Us083Run(kit.PlaytestRun):
         with verify_toggle_back=True."""
         def fn():
             b = self.bridge
-            got, err = self._hold_and_measure(
-                "W", SPRINT_HOLD_S, before=lambda: b.tap(SPRINT_KEY, hold_s=self.TAP_S),
-                after=lambda: b.tap(SPRINT_KEY, hold_s=self.TAP_S))  # toggle back
+            b.tap(SPRINT_KEY, hold_s=self.TAP_S)
+            err = self._wait_sprint(True)
+            if err:
+                return "FAIL", err, None
+            got, err = self._hold_and_measure("W", SPRINT_HOLD_S)
             if got is None:
+                return "FAIL", err, None
+            b.tap(SPRINT_KEY, hold_s=self.TAP_S)
+            err = self._wait_sprint(False)
+            if err:
                 return "FAIL", err, None
             p0, p1, held_s, _ = got
             dx = p1[0] - p0[0]

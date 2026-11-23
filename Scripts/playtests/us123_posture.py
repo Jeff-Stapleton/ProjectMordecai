@@ -38,9 +38,9 @@ TAG_DODGING = "Mordecai.State.Dodging"
 TAG_DODGE_COOLDOWN = "Mordecai.State.DodgeCooldown"
 TAG_ATTACKING = "Mordecai.State.Attacking"
 TAG_COMBO = "Mordecai.State.ComboWindow"
-# wait_until observes the Attack edge in-game per frame; center the 0.5-second
-# parry window on the fixed-cadence hit at roughly edge + 0.52 seconds.
-PARRY_DELAY_S = 0.35
+# Center the 0.5-second parry window across both the nominal edge+0.52 s hit and the
+# edge+0.9 s observation seen under a loaded full sweep.
+PARRY_DELAY_S = 0.45
 STATE_POLL_S = 0.03
 BASE_L1_YELLOW = 16.0
 STAGGERED_L1_YELLOW = 24.0

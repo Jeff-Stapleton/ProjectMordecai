@@ -14,6 +14,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -255,6 +256,24 @@ class SplitReadAutoClearRaceWorld(HudWorld):
         if stopped_moved_sprint and names == ["player"]:
             self.player_only_stop_read = True
         elif stopped_moved_sprint and "game" in names and self.player_only_stop_read:
+            self._set_sprinting(False)
+        return super().state(names, radius, include_all_actors)
+
+
+class CoalescedAutoClearWorld(HudWorld):
+    """A loaded bridge returns its first stopped snapshot only after the tag has cleared."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.coalesced_once = False
+
+    def state(self, sections=None, radius=1500.0, include_all_actors=False):
+        names = list(sections or fb.SECTIONS)
+        if (not self.coalesced_once and self.sprint_taps == 3 and self.sprint_moved
+                and "W" not in self._held_union()
+                and "player" in names and "game" in names):
+            self.coalesced_once = True
+            time.sleep(0.30)
             self._set_sprinting(False)
         return super().state(names, radius, include_all_actors)
 
@@ -573,6 +592,15 @@ class TestUs001BeforeUs083(PlaytestCase):
         self.assertEqual(code, 0, self.log.getvalue()[-3000:])
         self.assertEqual(check["status"], "PASS", check["detail"])
 
+    def test_stop_threshold_and_clear_can_coalesce_under_bridge_load(self):
+        world, server = self.serve(CoalescedAutoClearWorld)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["sprint_auto_clear_restart"]
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertIn("coalesced into one bridge snapshot", check["detail"])
+        self.assertTrue(world.coalesced_once)
+
 
 class TestUs001FixedGame(PlaytestCase):
     def test_a_fixed_game_passes_everything_and_flags_fixed_candidates(self):
@@ -729,6 +757,31 @@ class TestUs001Failures(PlaytestCase):
 # Offline: the PLAN, the AC ids, the route
 # ---------------------------------------------------------------------------
 class TestUs001Plan(unittest.TestCase):
+    def test_physical_cursor_retries_a_transient_winerror_zero_failure(self):
+        class Call:
+            def __init__(self, values):
+                self.values = list(values)
+                self.calls = 0
+
+            def __call__(self, *args):
+                self.calls += 1
+                return self.values.pop(0) if len(self.values) > 1 else self.values[0]
+
+        class User32:
+            ClientToScreen = Call([1])
+            ShowWindow = Call([1])
+            SetWindowPos = Call([1])
+            SetCursorPos = Call([0, 0, 1])
+            GetForegroundWindow = Call([1])
+
+        fake_windll = type("Windll", (), {"user32": User32()})()
+        mouse = us001.Win32PhysicalMouse(123)
+        with mock.patch.object(mouse, "_game_window", return_value=1), \
+                mock.patch.object(us001.ctypes, "windll", fake_windll):
+            result = mouse.move_client(640, 360)
+        self.assertTrue(result["physical"])
+        self.assertEqual(fake_windll.user32.SetCursorPos.calls, 3)
+
     def story_ac_ids(self, story_file=STORY_FILE):
         if not os.path.isfile(story_file):
             self.skipTest(f"{story_file} moved")

@@ -231,6 +231,10 @@ class Us123PlaytestCase(unittest.TestCase):
         self.assertEqual(kit.plan_problems(us123.Us123Run), [])
         self.assertIs(us123.Run, us123.Us123Run)
         self.assertEqual(us123.Us123Run.launch_map(), kit.COMBAT_TEST_MAP)
+        self.assertLessEqual(us123.PARRY_DELAY_S, 0.52)
+        self.assertGreaterEqual(
+            us123.PARRY_DELAY_S + 0.5, 0.90,
+            "the parry window must cover the loaded-sweep edge-to-hit delay")
         self.assertEqual(
             [step.check for step in us123.PLAN],
             ["setup", "unbroken_control", "break_by_parry", "staggered_hit",

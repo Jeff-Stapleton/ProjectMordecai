@@ -820,19 +820,18 @@ class Us101Run(kit.PlaytestRun):
         rec["timeline"].append((label, round(time.monotonic() - t_edge, 3)))
 
     def _watch_hit(self, t_edge, rec):
-        """wait_until the player's health drops (poll_s 0): the hit time, for the later delays."""
+        """Sample full vitals until health drops, preserving the pre-regen hit low-water mark."""
         h0 = rec["before"]["health"]
-        left = max(0.05, HIT_TIMEOUT_S - (time.monotonic() - t_edge))
-        try:
-            self.bridge.wait_until(f"player.attributes.health<{h0 - 1.0:.3f}", timeout_s=left,
-                                   poll_s=EDGE_POLL_S)
-        except ab.BridgeError as e:
-            if e.code != "timeout":
-                raise
-            return
-        rec["hit_s"] = round(time.monotonic() - t_edge, 3)
-        self.hit_offsets.append(rec["hit_s"])
-        rec["hit"] = vitals(player(self._read()))
+        deadline = t_edge + HIT_TIMEOUT_S
+        while time.monotonic() < deadline:
+            snapshot = vitals(player(self._read()))
+            health = snapshot.get("health")
+            if health is not None and health < h0 - 1.0:
+                rec["hit_s"] = round(time.monotonic() - t_edge, 3)
+                self.hit_offsets.append(rec["hit_s"])
+                rec["hit"] = snapshot
+                return
+            time.sleep(SAMPLE_POLL_S)
 
     def _at(self, t_edge, rec, delay):
         """Sleep until `delay` (shifted by the measured hit time) after the edge."""
