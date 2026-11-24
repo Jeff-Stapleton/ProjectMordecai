@@ -2,7 +2,7 @@
 
 **Epic:** Epic R: Playability Recovery
 **Priority:** P2
-**Depends on:** TODO(DECISION) N9 (Jeff) for AC-096.1/096.2; US-083 (sprint on Left Shift is bound there)
+**Depends on:** US-083 (sprint on Left Shift is bound there); N9 decided by Jeff on 2026-11-24
 **Paired story:** none
 
 ## Overview
@@ -10,7 +10,7 @@ AC-078.7 promises Shift+Tab for "previous weapon", but the game maps only BackSl
 
 ## Execution Mode
 **HEADLESS**
-Programmatic IMC mapping (chord trigger) and the equipment component's ASC lookup, all C++.
+Programmatic IMC mapping (physical-Shift trigger/blocker) and the equipment component's ASC lookup, all C++.
 Issue #36 used a one-time EDITOR authoring step (Scripts/us078_01_create_weapon_assets.py) to re-save the five DA_Weapon_* type tags at Jeff's request; the rest stays HEADLESS.
 
 ## References
@@ -32,17 +32,17 @@ Issue #36 used a one-time EDITOR authoring step (Scripts/us078_01_create_weapon_
   `Specs/design_decisions_log.md`.
 
 ## Acceptance Criteria
-- [ ] AC-096.1: Shift+Tab cycles to the previous weapon, Tab alone still cycles next, and the chord does NOT toggle sprint; Q remains ability slot 1 and BackSlash remains an extra previous binding — verified by `Mordecai.Recovery.Weapons.PreviousWeaponInput`
-- [ ] AC-096.2: In the packaged build, on the Mace the player presses Shift+Tab and the Spear is equipped, and sprint is not toggled — verified by check `cycle_prev_shift_tab` of `Scripts/playtests/us078_weapons.py` (Tier 4)
+- [x] AC-096.1: Shift+Tab cycles to the previous weapon, Tab alone still cycles next, and the chord does NOT toggle sprint; Q remains ability slot 1 and BackSlash remains an extra previous binding — verified by `Mordecai.Recovery.Weapons.PreviousWeaponInput`
+- [x] AC-096.2: In the packaged build, on the Mace the player presses Shift+Tab and the Spear is equipped, and sprint is not toggled — verified by check `cycle_prev_shift_tab` of `Scripts/playtests/us078_weapons.py` (Tier 4)
 - [x] AC-096.3: Equipping a weapon applies its `GrantedTags` and `StatModifiers` to the ASC found via the owning PlayerState (Lyra pattern), and unequipping removes them — verified by `Mordecai.Recovery.Weapons.EffectsAppliedToPlayerStateASC`. **Closed at Jeff's call (2026-11-09):** "Only AC-096.3 in this PR; leave previous-weapon N9 open."
 - [ ] AC-096.4: AC-078.15 (two-hand clears both slots) stays PENDING TIER 4 (bridge cannot drive: B2 — no equip slot on `player.weapon`); Tier 1 only, not claimed
 
-Issue #36 is scoped to AC-096.3 only. N9 / AC-096.1-.2 remain open. Multiplayer equipment
-replication remains out of scope and is tracked by issue #95.
+Issue #36 was scoped to AC-096.3 only. Issue #14 closes N9 / AC-096.1-.2. Multiplayer
+equipment replication remains out of scope and is tracked by issue #95.
 
 ## Technical Notes
-- TODO(DECISION) N9 (Jeff): Shift+Tab (AC-078.7) vs BackSlash (current code; the code comment calls it "a pragmatic alternative"). Note the conflict with Sprint (Left Shift toggle): Option A needs the sprint toggle to fire on Shift release-without-chord, or on a different trigger, so that Shift+Tab does not also toggle sprint. Also: control_bindings lists Tab as "Weapon Set Swap (Set 1 ↔ Set 2)", not "next weapon" — the 5-weapon cycle itself is a US-078 test-arena convenience; flag if Jeff wants that revisited.
-- Option A implementation: Enhanced Input `UInputTriggerChordAction` on Tab with a "Shift held" chord action; give the plain-Tab mapping a blocker (`UInputTriggerChordBlocker`) so it does not fire with Shift held.
+- N9 is decided: Shift+Tab is previous, plain Tab is next, and BackSlash remains an extra previous binding.
+- Runtime implementation: a dedicated Tab action uses `UMordecaiInputTriggerShiftPressed`, while plain Tab uses `UMordecaiInputTriggerShiftBlocker`. Reading physical Left Shift avoids the packaged runtime's unreliable action-order dependency. The immediate Shift sprint binding remains unchanged; the previous-weapon handler restores the pre-Shift sprint state.
 - ASC lookup: use `UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerPawn)` (Lyra's character implements the interface and forwards to the PlayerState) or the PlayerState directly; re-apply on possession/respawn.
 - Script bookkeeping: remove the N9 `known_issue` from `cycle_prev_shift_tab` and assert the sprint tag is unchanged.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
@@ -94,17 +94,17 @@ replication remains out of scope and is tracked by issue #95.
 - **Playable alone:** YES
 
 ## Definition of Done
-- [ ] All ACs checked off (AC-096.4 stays unchecked: PENDING TIER 4, not claimed)
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0) (AC-096.3 slice passed at this PR: 803/803 in `Saved/TestLogs/issue36-r1-tier1-full.log`; re-run for AC-096.1/.2)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC (AC-096.3 slice passed at this PR: 17/17 in `Saved/TestLogs/issue36-r1-pie-full.log`; re-run for AC-096.1/.2)
-- [ ] Content: `DA_Weapon_Longsword`, `DA_Weapon_Dagger`, `DA_Weapon_Greatsword`, `DA_Weapon_Spear`, and `DA_Weapon_Mace` type-tag repairs are committed; `py Scripts/check_content_committed.py` exits 0 (AC-096.3 slice passed at this PR: PASS in `Saved/TestLogs/issue36-r2-content-check.log`; re-run for AC-096.1/.2)
-- [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py US-078`: `cycle_prev_shift_tab` goes from FAIL to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
-- [ ] Known issues N9 and "Weapon effects never reach the ASC" marked FIXED/decided in `Specs/agent_playtest_plan_v1.md`
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen
-- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-096]` closing commit
-- [ ] Pushed; story moved to `stories/done/` only after all of the above pass
+- [x] All decided/drivable ACs checked off (AC-096.4 stays unchecked: PENDING TIER 4, not claimed)
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [x] Content: weapon type-tag repairs remain committed; `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST, then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — no `--allow-stale`
+- [x] On that same fresh package `py Scripts/playtest_story.py US-078`: `cycle_prev_shift_tab` goes from FAIL to PASS; no baseline PASS regresses; `--lint` exits 0
+- [x] Known issues N9 and "Weapon effects never reach the ASC" marked FIXED/decided in `Specs/agent_playtest_plan_v1.md`
+- [x] Per Jeff's task instruction, PNG/JPG/video files were never opened with the file-read tool. The playtest and marketing scripts verified every cited frame as non-black/non-uniform and checked the promised widget/state.
+- [x] Evidence cited in Completion Notes and the closing commit body
+- [x] Pushed; story moved to `stories/done/` after verification and evidence bundle passed
 
 ## Completion Notes
 ### Issue #36 / AC-096.3 slice (2026-11-09)
@@ -118,3 +118,16 @@ Closed at Jeff's call for the scoped slice: "Only AC-096.3 in this PR; leave pre
 - Tier 3 before R1: `Saved/Playtests/20261109-195020-boot` on clean `a226a30`, exit 0. `engine_loading.png` shows the Project Mordecai loading screen; `engine_01.png`–`engine_03.png` show CombatTestMap's grid, player, combat/weapon HUD, and TestDummy. The desktop `shot_01.png`–`shot_03.png` show the same game window.
 - Sweep before R1: baseline `Saved/Playtests/20261109-144434-sweep` (`4b3dd65`) vs `Saved/Playtests/20261109-194942-sweep` (`a226a30`): 0 PASS→FAIL and 0 missing shared checks. The sweep remained exit 1 for unrelated filed/known failures plus pre-existing arena-spacing, Stone Skin indicator, and gamepad-jump findings; US-078 had 22 PASS and only N9 FAIL.
 - Following the #17 evidence approach, the stories-only closing commit intentionally precedes the exact-final-HEAD package. The clean package, final US-078 run, final CombatTestMap boot, two-baseline sweep comparison, and all final frame descriptions are recorded in PR #96 rather than retroactively changing this commit.
+
+### Previous weapon / issue #14 slice (2026-11-24)
+
+- RED commit: `6e4b3d6449614aec35592cb7af6796cde4904579`. On main it failed only because the Shift+Tab mapping was absent; the tests also guard immediate plain-Shift sprint toggling and sprint restoration from both off and on.
+- Implementation/package commit: `86076f3d9b2af11b2a730183b0bda3ed2965ec15`. `PackagedBuilds/Playtest/build_info.json` records `dirty=false`, `source_changed_during_build=false`, and that exact commit.
+- Tier 1: compile PASS; `Saved/TestLogs/us096-r4-green-full.log` — 969/969 PASS, including `Mordecai.Recovery.Weapons.PreviousWeaponInput`.
+- Tier 2: `py Scripts/run_pie_verify.py` — 23/23 smoke scripts PASS, including the US-078 weapon verification.
+- Tier 3: `Saved/Playtests/20261124-122154-boot` — all checks PASS on CombatTestMap, correct `B_MordecaiArenaExperience`, 0 errors, Mordecai loading widget, and three game-owned frames. Scripted image metrics report `engine_loading.png` and `engine_01.png`–`engine_03.png` as 1280x720, non-black and non-uniform; desktop frames were also unobscured and non-uniform.
+- Tier 4: `Saved/Playtests/20261124-122215-us078` — PASS. `cycle_prev_shift_tab` physically pressed Left Shift, then Tab, then released Shift; Mace changed to Spear immediately, the visible weapon widget reported `Spear`, and `Mordecai.State.Sprinting` remained false. Scripted frame checks report `bridge_01.png` as the Longsword HUD start, `bridge_02.png` as Mace after four Tabs, and `bridge_03.png` as Spear after Shift+Tab; all are 1280x720, non-black and non-uniform.
+- Full same-package sweep: main baseline `Saved/Playtests/20261124-084025-sweep` at `a5af557665e7452934f3200341f9e2a59f6b05b8` had only `cycle_prev_shift_tab` failing. Final `Saved/Playtests/20261124-122250-sweep` passed all 21 Tier 4 scripts and all 6 Tier 3 boots, with 533 recorded checks, 0 failures, no missing baseline PASS, and no #135/#141/#163 rerun needed. `Saved/Playtests/us096-comparison-86076f3d.json` records `pass_to_fail: []` and the Shift+Tab check as fixed.
+- Marketing: `marketing/us096/` contains five 1920x1080 game-owned stills and one 6.233-second, 30 fps 1920x1080 MP4 showing Longsword → Dagger → Greatsword → Dagger → Longsword. `content-check.json` passes source-frame SHA-256 matching, HUD structure, and 8/8 motion pairs; `label-proof.json` passes with no actor labels, debug text, or enemy indicators.
+- Python tooling: the focused US-078 and US-096 marketing suites pass (21/21 and 5/5), and US-078 lint passes. The full tooling run reported 791/792 PASS with one unrelated pre-existing error: `test_us057_playtest.TestUs057Report.test_ac_ids_exist_in_the_story_files` hard-codes the former `stories/in-progress/US-090-recovery-spell-point-budget.md` path even though main moved that story to `stories/done/`. No test or gate was weakened.
+- AC-096.4 remains unchecked and unclaimed because the bridge still exposes no equip-slot state.
