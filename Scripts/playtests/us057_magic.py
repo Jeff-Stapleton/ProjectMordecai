@@ -82,6 +82,8 @@ REGEN_INCREMENT = 0.25
 REGEN_TIMEOUT_S = 12.0
 REGEN_GAP_MIN_S = 0.85
 REGEN_GAP_MAX_S = 1.15
+REGEN_EACH_GAP_MIN_S = 0.55
+REGEN_EACH_GAP_MAX_S = 1.50
 
 # The loadout (DA_Spell_*, AC-057.1-4 and AC-057.6): slot, key, display name, SP cost.
 SPELLS = (
@@ -201,8 +203,9 @@ PLAN = (
          f"numeric remaining duration within {INDICATOR_TIMEOUT_S:g}s",
          proves=("US-055:AC-055.4", "US-055:AC-055.5", "US-055:AC-055.6")),
     Step("sp_regen_timing", f"state player over time -> {REGEN_SAMPLE_TICKS} consecutive "
-         "periodic ticks at 0.25 times the live spell_points_regen_multiplier; the mean of at "
-         f"least 3 measured tick gaps is {REGEN_GAP_MIN_S:g}-{REGEN_GAP_MAX_S:g}s",
+         "periodic ticks at 0.25 times the live spell_points_regen_multiplier; every measured "
+         f"gap is {REGEN_EACH_GAP_MIN_S:g}-{REGEN_EACH_GAP_MAX_S:g}s and the mean of at "
+         f"least 3 gaps is {REGEN_GAP_MIN_S:g}-{REGEN_GAP_MAX_S:g}s",
          proves=("US-090:AC1", "US-090:AC7")),
     Step("restoration_budget_regenerated", "wait_until player.attributes.spell_points>=3 -> "
          "Restoration is affordable from real periodic regeneration",
@@ -373,6 +376,27 @@ def _find_target(st):
 
 def _fmt(v, nd=0):
     return "?" if v is None else f"{v:.{nd}f}"
+
+
+def regen_gap_problems(gaps):
+    """Return timing failures without allowing a good mean to hide an outlier."""
+    if len(gaps) < 3:
+        return [f"saw {len(gaps)} tick gaps, expected at least 3"]
+    problems = []
+    outside = [
+        gap for gap in gaps
+        if gap < REGEN_EACH_GAP_MIN_S or gap > REGEN_EACH_GAP_MAX_S
+    ]
+    if outside:
+        problems.append(
+            f"tick gaps {outside} outside per-gap "
+            f"{REGEN_EACH_GAP_MIN_S:g}-{REGEN_EACH_GAP_MAX_S:g}s")
+    mean_gap = sum(gaps) / len(gaps)
+    if mean_gap < REGEN_GAP_MIN_S or mean_gap > REGEN_GAP_MAX_S:
+        problems.append(
+            f"mean tick gap {mean_gap:.3f}s from {gaps}, expected "
+            f"{REGEN_GAP_MIN_S:g}-{REGEN_GAP_MAX_S:g}s")
+    return problems
 
 
 def _spend_observed(before, minimum, cost):
@@ -857,12 +881,7 @@ class Us057Run(kit.PlaytestRun):
                 problems.append("live spell_points_regen_multiplier is unavailable")
             elif any(abs(value - expected_increment) > 0.02 for value in increments):
                 problems.append(f"increments {increments}, expected +{expected_increment:g}")
-            if len(gaps) < 3:
-                problems.append(f"saw {len(gaps)} tick gaps, expected at least 3")
-            elif mean_gap < REGEN_GAP_MIN_S or mean_gap > REGEN_GAP_MAX_S:
-                problems.append(
-                    f"mean tick gap {mean_gap:.3f}s from {gaps}, expected "
-                    f"{REGEN_GAP_MIN_S:g}-{REGEN_GAP_MAX_S:g}s")
+            problems.extend(regen_gap_problems(gaps))
             detail = (f"SP {_fmt(initial, 2)}; samples {seen}; increments {increments}; "
                       f"live multiplier {multiplier}, expected increment {expected_increment}; "
                       f"measured gaps after the first phase-dependent tick {gaps}, mean {mean_gap}")

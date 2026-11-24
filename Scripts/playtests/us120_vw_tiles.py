@@ -38,8 +38,6 @@ Z_TOL = 55.0
 BLOCK_HOLD_S = 1.5
 DEEP_PUSHES = 3
 PROBE_START_TOL = 5.0
-PROBE_FALLBACK_RADIUS = 250.0
-PROBE_FINE_PULSES = 40
 PROBE_SETTLE_S = 0.5
 PROBE_CONTACT_EPS_CM = 2.0
 PROBE_CONTACT_STABLE_S = 0.25
@@ -437,49 +435,6 @@ class Us120Run(kit.PlaytestRun):
             )
         return details
 
-    def _probe_walk_to(self, x, y, timeout_s=25.0):
-        """Reach a tight probe start; recover from walk_to's near-bank side-step deadlock."""
-        try:
-            return self.bridge.walk_to(
-                x, y, tol=PROBE_START_TOL, timeout_s=timeout_s)
-        except ab.BridgeError as error:
-            if error.kind != "gameplay":
-                raise
-            start = _player(self.bridge)
-            if math.dist(start[:2], (x, y)) > PROBE_FALLBACK_RADIUS:
-                raise
-
-        pulses = 0
-        previous = math.inf
-        stagnant = 0
-        while pulses < PROBE_FINE_PULSES:
-            location = _player(self.bridge)
-            dx, dy = x - location[0], y - location[1]
-            distance = math.hypot(dx, dy)
-            if distance <= PROBE_START_TOL:
-                return {
-                    "final": location[:2], "dist": distance, "pulses": pulses,
-                    "side_steps": 0, "probe_fallback": True,
-                }
-            delta, key = ((dx, "W" if dx > 0 else "S")
-                          if abs(dx) >= abs(dy)
-                          else (dy, "D" if dy > 0 else "A"))
-            hold_s = min(0.12, max(0.01, (abs(delta) - PROBE_START_TOL / 2.0) / 600.0))
-            self.bridge.hold(key, hold_s)
-            pulses += 1
-            if distance >= previous - 0.5:
-                stagnant += 1
-                if stagnant >= 5:
-                    break
-            else:
-                stagnant = 0
-            previous = distance
-        location = _player(self.bridge)
-        raise ab.BridgeError(
-            f"fine real-key approach stuck at ({location[0]:.0f}, {location[1]:.0f}), "
-            f"target ({x:.0f}, {y:.0f}), dist {math.dist(location[:2], (x, y)):.0f}",
-            kind="gameplay", code="probe_approach_stuck")
-
     def step_gallery(self):
         def visit():
             details = []
@@ -537,7 +492,7 @@ class Us120Run(kit.PlaytestRun):
             # Stage west first so walk_to cannot overshoot into the cliff face and report stuck
             # while trying to reverse away from collision.
             bridge.walk_to(*CLIFF_VIA, tol=self.WALK_TOL, timeout_s=20.0)
-            return self._probe_walk_to(*CLIFF_START, timeout_s=20.0)
+            return bridge.walk_to(*CLIFF_START, tol=PROBE_START_TOL, timeout_s=20.0)
 
         def walk_blocked():
             approach_cliff(self.bridge)
@@ -699,9 +654,11 @@ class Us120Run(kit.PlaytestRun):
                 probe_log["probes"].append(path_record)
                 try:
                     self._walk_sequence(spec["route"][:-1], timeout_s=25.0)
-                    self._probe_walk_to(*spec["start"], timeout_s=25.0)
+                    self.bridge.walk_to(
+                        *spec["start"], tol=PROBE_START_TOL, timeout_s=25.0
+                    )
                     self.bridge.wait(PROBE_SETTLE_S)
-                except (ab.BridgeError, RuntimeError) as exc:
+                except ab.BridgeError as exc:
                     results.append({
                         "representative": spec["label"],
                         "classification": "FIXTURE ERROR",
@@ -783,15 +740,18 @@ class Us120Run(kit.PlaytestRun):
                         break
                     if push_index + 1 < DEEP_PUSHES:
                         try:
-                            response = self._probe_walk_to(
-                                *spec["start"], timeout_s=25.0)
+                            response = self.bridge.walk_to(
+                                *spec["start"],
+                                tol=PROBE_START_TOL,
+                                timeout_s=25.0,
+                            )
                             path_record["reapproaches"].append({
                                 "after_push": push_index + 1,
                                 "target": list(spec["start"]),
                                 "final": response.get("final"),
                             })
                             self.bridge.wait(PROBE_SETTLE_S)
-                        except (ab.BridgeError, RuntimeError) as exc:
+                        except ab.BridgeError as exc:
                             reapproach_error = str(exc)
                             path_record["reapproach_error"] = reapproach_error
                             break

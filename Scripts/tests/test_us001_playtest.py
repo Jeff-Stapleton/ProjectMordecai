@@ -269,13 +269,32 @@ class CoalescedAutoClearWorld(HudWorld):
 
     def state(self, sections=None, radius=1500.0, include_all_actors=False):
         names = list(sections or fb.SECTIONS)
+        coalesced_now = False
         if (not self.coalesced_once and self.sprint_taps == 3 and self.sprint_moved
                 and "W" not in self._held_union()
                 and "player" in names and "game" in names):
             self.coalesced_once = True
-            time.sleep(0.30)
+            coalesced_now = True
             self._set_sprinting(False)
-        return super().state(names, radius, include_all_actors)
+        result = super().state(names, radius, include_all_actors)
+        if coalesced_now:
+            # FakeBridge serializes state and ticking on one lock, so blocking this response cannot
+            # advance its game clock. Model a loaded response that contains the valid 0.25 s clear.
+            result["game"]["world_time_s"] += self.SPRINT_STATIONARY_AUTO_CLEAR_S
+        return result
+
+
+class InstantCoalescedAutoClearWorld(CoalescedAutoClearWorld):
+    """A broken game clears sprint at the stop threshold instead of after 0.25 s."""
+
+    def state(self, sections=None, radius=1500.0, include_all_actors=False):
+        names = list(sections or fb.SECTIONS)
+        if (not self.coalesced_once and self.sprint_taps == 3 and self.sprint_moved
+                and "W" not in self._held_union()
+                and "player" in names and "game" in names):
+            self.coalesced_once = True
+            self._set_sprinting(False)
+        return HudWorld.state(self, names, radius, include_all_actors)
 
 
 class DelayedL3ToggleWorld(HudWorld):
@@ -393,8 +412,22 @@ class PlaytestCase(unittest.TestCase):
         return world, server
 
     def play(self, server, *extra):
-        code = us001.main(["--attach-port", str(server.port), "--token", TOKEN,
-                           "--run-dir", self.run_dir, *extra])
+        class FakePhysicalMouse:
+            def __init__(self, bridge):
+                self.bridge = bridge
+
+            def move_client(self, x, y):
+                response = self.bridge.mouse(x, y)
+                response["physical"] = True
+                return response
+
+        # The fake bridge has no HWND. Keep offline route tests deterministic while the separate
+        # plan test pins launched acceptance to Win32PhysicalMouse with no bridge fallback.
+        with mock.patch.object(
+                us001.Us001Run, "_physical_mouse",
+                lambda run: FakePhysicalMouse(run.bridge)):
+            code = us001.main(["--attach-port", str(server.port), "--token", TOKEN,
+                               "--run-dir", self.run_dir, *extra])
         return code, self.report()
 
     def report(self):
@@ -615,6 +648,15 @@ class TestUs001BeforeUs083(PlaytestCase):
         self.assertIn("coalesced into one bridge snapshot", check["detail"])
         self.assertTrue(world.coalesced_once)
 
+    def test_coalesced_instant_auto_clear_still_fails_the_lower_timing_bound(self):
+        world, server = self.serve(InstantCoalescedAutoClearWorld)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["sprint_auto_clear_restart"]
+        self.assertEqual(code, 1)
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("accepted", check["detail"])
+        self.assertTrue(world.coalesced_once)
+
     def test_l3_measurement_waits_for_a_delayed_toggle(self):
         world, server = self.serve(DelayedL3ToggleWorld)
         code, rep = self.play(server)
@@ -804,7 +846,7 @@ class TestUs001Plan(unittest.TestCase):
         self.assertTrue(result["physical"])
         self.assertEqual(fake_windll.user32.SetCursorPos.calls, 3)
 
-    def test_physical_cursor_uses_slate_fallback_when_locked_desktop_rejects_every_move(self):
+    def test_physical_cursor_fails_when_locked_desktop_rejects_every_move(self):
         class Call:
             def __init__(self, value):
                 self.value = value
@@ -821,15 +863,12 @@ class TestUs001Plan(unittest.TestCase):
             SetCursorPos = Call(0)
             GetForegroundWindow = Call(1)
 
-        fallback = mock.Mock(return_value={"ok": True, "cmd": "mouse"})
         fake_windll = type("Windll", (), {"user32": User32()})()
-        mouse = us001.Win32PhysicalMouse(123, fallback_move=fallback, prefer_physical=True)
+        mouse = us001.Win32PhysicalMouse(123)
         with mock.patch.object(mouse, "_game_window", return_value=1), \
                 mock.patch.object(us001.ctypes, "windll", fake_windll):
-            result = mouse.move_client(640, 360)
-        self.assertFalse(result["physical"])
-        self.assertIn("failed after 5 attempts", result["fallback_reason"])
-        fallback.assert_called_once_with(640, 360)
+            with self.assertRaisesRegex(RuntimeError, r"SetCursorPos.*failed after 5 attempts"):
+                mouse.move_client(640, 360)
 
     def story_ac_ids(self, story_file=STORY_FILE):
         if not os.path.isfile(story_file):
@@ -890,6 +929,11 @@ class TestUs001Plan(unittest.TestCase):
         self.assertIn("SetCursorPos", source)
         self.assertIn("SendInput", source)
         self.assertNotIn("self.bridge.mouse(", facing_body)
+        physical_factory = source[
+            source.index("def _physical_mouse"):source.index("def step_facing")
+        ]
+        self.assertNotIn("fallback_move", physical_factory)
+        self.assertNotIn("fallback_click", physical_factory)
 
     def test_the_route_and_the_lane_stay_clear_on_the_movement_map(self):
         boxes = ([b for _, b in fb.MOVEMENT_TEST_MAP_WALLS]

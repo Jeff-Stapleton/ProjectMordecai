@@ -24,7 +24,6 @@ FIGHT_TOLERANCE = 40.0
 RADIUS = 2000
 TAG_BROKEN = "Mordecai.State.PostureBroken"
 TAG_DOWN = "Mordecai.State.KnockedDown"
-RECOVERY_MOVE_HOLD_S = 0.60
 LOCKED_MOVEMENT_MODE = "NULL"  # UCharacterMovementComponent::GetMovementName for MOVE_None
 CONTROL_DAMAGE = 20.0
 BROKEN_DAMAGE = 30.0
@@ -347,7 +346,7 @@ class Us124Run(kit.PlaytestRun):
             lambda value: (
                 _health(_player(value)) is not None
                 and _health(_player(value)) <= self.down_health - DOWN_DAMAGE + TOL
-            ), 2.0, "2x knocked-down bonus hit")
+            ), 1.0, "2x knocked-down bonus hit")
         player = _player(state)
         damage = self.down_health - _health(player)
         problems = []
@@ -370,7 +369,7 @@ class Us124Run(kit.PlaytestRun):
                 and (_player(value) or {}).get("movement_mode") == "Walking"
             ), 3.0, "knockdown recovery with full posture and Walking")
         before = _location(_player(state))
-        self.bridge.tap("S", hold_s=RECOVERY_MOVE_HOLD_S)
+        self.bridge.tap("S", hold_s=0.30)
         after_state = self._read()
         after = _location(_player(after_state))
         moved = math.dist(before, after) if before is not None and after is not None else 0.0

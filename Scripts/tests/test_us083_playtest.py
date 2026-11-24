@@ -259,7 +259,7 @@ class DelayedSprintToggleWorld(PadWorld):
             world.sprinting = True if world.sticky_sprint else not world.sprinting
             world.speed = world.base_speed * (world.SPRINT_MULT if world.sprinting else 1.0)
 
-        self.after(0.70, toggle)
+        self.after(0.20, toggle)
 
 
 class DiesAfterTheBlockWorld(PadWorld):
@@ -319,6 +319,10 @@ class Us083Case(unittest.TestCase):
 
 
 class TestUs083Plan(unittest.TestCase):
+    def test_sprint_tag_wait_is_bounded_by_measured_main_latency_margin(self):
+        self.assertGreaterEqual(us083.SPRINT_TAG_TIMEOUT_S, 0.20)
+        self.assertLessEqual(us083.SPRINT_TAG_TIMEOUT_S, 0.25)
+
     def test_plan_is_valid_and_proves_story_acs(self):
         self.assertEqual(kit.plan_problems(us083.Us083Run), [])
         self.assertIs(us083.Run, us083.Us083Run)

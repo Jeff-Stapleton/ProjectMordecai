@@ -852,7 +852,7 @@ class Us001Run(kit.PlaytestRun):
                     f"{SPRINT_AUTO_CLEAR_TIMEOUT_S:g}s after releasing W", {"samples": samples})
         clear_s = cleared_at - threshold_at
         lo, hi = SPRINT_AUTO_CLEAR_RANGE
-        timing_ok = 0.0 <= clear_s <= hi if coalesced else lo <= clear_s <= hi
+        timing_ok = lo <= clear_s <= hi
         if not timing_ok:
             return ("FAIL", f"{SPRINT_TAG} cleared {clear_s:.3f}s after speed reached <= "
                     f"{SPRINT_STOP_SPEED:g} cm/s (expected about "
@@ -944,14 +944,9 @@ class Us001Run(kit.PlaytestRun):
         return "PASS", f"{what}; yaw {target:g} +-{FACING_TOL:g} after {r.get('elapsed_s')}s", resp
 
     def _physical_mouse(self):
-        # SetCursorPos is unavailable while the Windows input desktop is locked. The fallback is
-        # still a Tier-4 real-input command: the bridge injects the mouse event through Slate's
-        # input path rather than calling gameplay.
-        return Win32PhysicalMouse(
-            self.bridge.pid,
-            fallback_move=self.bridge.mouse,
-            fallback_click=self.bridge.click,
-            prefer_physical=self.mode != "attach")
+        # Acceptance requires the physical Win32 input route. A locked or disconnected input
+        # desktop makes SetCursorPos fail and therefore fails facing_mouse_physical.
+        return Win32PhysicalMouse(self.bridge.pid)
 
     def step_facing(self):
         def mouse():

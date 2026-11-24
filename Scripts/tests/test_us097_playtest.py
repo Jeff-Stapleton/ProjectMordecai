@@ -65,7 +65,7 @@ class DelayedGamepadWorld(GamepadWorld):
             world.sprinting = not world.sprinting
             world.speed = world.base_speed * (1.5 if world.sprinting else 1.0)
 
-        self.after(0.70, toggle)
+        self.after(0.20, toggle)
 
 
 class PlaytestCase(unittest.TestCase):
@@ -94,6 +94,10 @@ class PlaytestCase(unittest.TestCase):
 
 
 class TestUs097Playtest(PlaytestCase):
+    def test_sprint_tag_wait_is_bounded_by_measured_main_latency_margin(self):
+        self.assertGreaterEqual(us097.SPRINT_TAG_TIMEOUT_S, 0.20)
+        self.assertLessEqual(us097.SPRINT_TAG_TIMEOUT_S, 0.25)
+
     def test_fixed_gamepad_mapping_passes_move_and_sprint(self):
         world, server = self.serve()
         code, report = self.play(server)

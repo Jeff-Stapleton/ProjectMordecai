@@ -29,9 +29,6 @@ TAG_COOLDOWN = "Mordecai.State.DodgeCooldown"
 TAG_PERFECT = "Mordecai.State.PerfectDodge"
 PERFECT_TEXT = "Perfect Dodge!"
 TAP = 0.1
-YELLOW_MIN = 45.0
-YELLOW_MAX = 65.0
-MAX_SETUP_ATTACKS = 20
 
 SCREENSHOTS = {
     "lane": "the player on MovementTestMap's unobstructed L1 lane with the combat HUD",
@@ -40,7 +37,7 @@ SCREENSHOTS = {
 }
 
 PLAN = (
-    Step("setup_yellow", "walk to lane L1 and spend real light attacks until reaching Yellow stamina"),
+    Step("setup_yellow", "walk to lane L1 and spend six real light attacks to reach Yellow stamina"),
     Step("recovery_dodge_cancel",
          "tap RT, wait for ComboWindow, tap LeftAlt -> Attacking/ComboWindow clear before Dodging; "
          "settled displacement is 400 +/-40 cm at Yellow",
@@ -161,22 +158,16 @@ class Us125AttackCancelRun(kit.PlaytestRun):
     def step_setup(self):
         try:
             result = self.bridge.walk_to(-300.0, -800.0, tol=60.0)
-            stamina = None
-            attacks = 0
-            for _ in range(MAX_SETUP_ATTACKS):
+            for index in range(6):
                 self._idle()
                 self._tap_attack()
                 self._wait_tag(TAG_ATTACK)
                 self._wait_tag(TAG_ATTACK, False, 3.0)
-                attacks += 1
-                stamina = _stamina(self._state())
-                if stamina is not None and stamina <= YELLOW_MAX:
-                    break
-            ok = stamina is not None and YELLOW_MIN <= stamina <= YELLOW_MAX
-            detail = (f"reached {result.get('final')}; stamina after {attacks} real attacks "
-                      f"{stamina}")
-            return ("PASS" if ok else "FAIL"), detail, {
-                "stamina": stamina, "attacks": attacks}
+            state = self._state()
+            stamina = _stamina(state)
+            ok = stamina is not None and 45.0 <= stamina <= 65.0
+            detail = f"reached {result.get('final')}; stamina after six real attacks {stamina}"
+            return ("PASS" if ok else "FAIL"), detail, {"stamina": stamina}
         except (ab.BridgeError, RuntimeError) as exc:
             return "FAIL", str(exc), None
 

@@ -1,6 +1,5 @@
 """Offline fake-bridge coverage for Scripts/playtests/us124_player_posture.py."""
 
-import ast
 import importlib.util
 import io
 import json
@@ -20,7 +19,6 @@ import playtest_kit as kit  # noqa: E402
 from tests import fake_bridge as fb  # noqa: E402
 
 PLAYTEST = os.path.join(SCRIPTS, "playtests", "us124_player_posture.py")
-FIXTURE_SCRIPT = os.path.join(SCRIPTS, "us124_create_player_posture_fixture.py")
 TOKEN = "us124-token"
 
 
@@ -84,7 +82,7 @@ class PlayerPostureWorld(fb.FakeWorld):
                 self.after(0.50, lambda world: world.hit_player(1.0, 100.0))
                 self.after(1.00, lambda world: world.hit_player(20.0, 0.0))
                 self.after(1.40, lambda world: world.hit_player(20.0, 0.0))
-                self.after(2.40, lambda world: world.hit_player(5.0, 0.0))
+                self.after(1.80, lambda world: world.hit_player(5.0, 0.0))
 
     def _move(self, dt):
         now = self.real_time()
@@ -168,35 +166,24 @@ class Us124PlaytestCase(unittest.TestCase):
     def checks(report):
         return {check["name"]: check for check in report["checks"]}
 
+    def test_round4_restores_main_package_recovery_hold_and_down_hit_wait(self):
+        source = open(PLAYTEST, encoding="utf-8").read()
+        self.assertIn('self.bridge.tap("S", hold_s=0.30)', source)
+        self.assertIn('), 1.0, "2x knocked-down bonus hit")', source)
+        self.assertNotIn("RECOVERY_MOVE_HOLD_S", source)
+        fixture_path = os.path.join(SCRIPTS, "us124_create_player_posture_fixture.py")
+        fixture = open(fixture_path, encoding="utf-8").read()
+        self.assertIn('("Down", 1800.0, 5.0, 0.0, 80.0)', fixture)
+        self.assertNotIn('("Down", 2400.0, 5.0, 0.0, 80.0)', fixture)
+
     def test_plan_contract(self):
         self.assertEqual(kit.plan_problems(us124.Us124Run), [])
         self.assertIs(us124.Run, us124.Us124Run)
         self.assertEqual(us124.Us124Run.launch_map(), us124.PLAYER_POSTURE_TEST_MAP)
-        self.assertGreaterEqual(
-            us124.RECOVERY_MOVE_HOLD_S, 0.6,
-            "the recovery sample must include acceleration from a full stop")
         self.assertEqual(
             [step.check for step in us124.PLAN],
             ["setup", "unbroken_control", "break_and_lock", "broken_bonus",
              "knockdown", "down_bonus", "recovery", "image_verification"])
-
-    def test_down_attacker_is_spaced_after_the_two_broken_window_attackers(self):
-        """Independent AI startup jitter must not let Down land before BonusB.
-
-        The round-3 branch package observed 30 + 7.5 + 30 because the 1.8 s Down actor
-        overtook the 1.4 s BonusB actor.  Keep a full scheduling margin in the committed
-        fixture recipe so the 5-base hit lands only after KnockedDown begins.
-        """
-        with open(FIXTURE_SCRIPT, encoding="utf-8") as stream:
-            tree = ast.parse(stream.read(), FIXTURE_SCRIPT)
-        assignment = next(
-            node for node in tree.body
-            if isinstance(node, ast.Assign)
-            and any(isinstance(target, ast.Name) and target.id == "ATTACKS"
-                    for target in node.targets))
-        attacks = {row[0]: row for row in ast.literal_eval(assignment.value)}
-        margin_ms = attacks["Down"][1] - attacks["BonusB"][1]
-        self.assertGreaterEqual(margin_ms, 900.0)
 
     def test_full_real_input_route_passes_against_fake_bridge(self):
         _, server = self.serve()

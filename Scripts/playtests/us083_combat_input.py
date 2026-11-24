@@ -114,7 +114,7 @@ KB_DODGE_KEY = "LeftAlt"
 KB_JUMP_KEY = "SpaceBar"
 SPRINT_KEY = "LeftShift"
 SPRINT_TAG = "Mordecai.State.Sprinting"
-SPRINT_TAG_TIMEOUT_S = 2.0
+SPRINT_TAG_TIMEOUT_S = 0.25
 # Lane L1 (y=-800, x -1000..+1600 is plain floor).  The walk starts at the spawn (0, 0): west
 # along y=0, then south to us001's lane waypoint and the lane start, then along the lane (+X) to
 # the sprint start.  These are the waypoints the DevTestMap runs used (the check names are kept);

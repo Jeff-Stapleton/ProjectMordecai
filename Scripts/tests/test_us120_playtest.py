@@ -20,7 +20,6 @@ SCRIPTS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if SCRIPTS not in sys.path:
     sys.path.insert(0, SCRIPTS)
 
-import agent_bridge as ab  # noqa: E402
 import playtest_kit as kit  # noqa: E402
 from tests import fake_bridge as fb  # noqa: E402
 
@@ -318,37 +317,10 @@ class Us120FakeCase(unittest.TestCase):
 
 
 class TestUs120Plan(unittest.TestCase):
-    def test_tight_probe_start_recovers_from_a_near_bank_walk_to_deadlock(self):
-        class Bridge:
-            def __init__(self):
-                self.pos = [180.0, 90.0, us120.TIER0_Z]
-                self.keys = []
-
-            def walk_to(self, *args, **kwargs):
-                raise ab.BridgeError("stuck near bank", kind="gameplay", code="walk_stuck")
-
-            def state(self, sections):
-                return {"player": {"valid": True, "location": list(self.pos)}}
-
-            def hold(self, key, hold_s):
-                self.keys.append(key)
-                amount = 600.0 * hold_s
-                if key == "W":
-                    self.pos[0] += amount
-                elif key == "S":
-                    self.pos[0] -= amount
-                elif key == "D":
-                    self.pos[1] += amount
-                elif key == "A":
-                    self.pos[1] -= amount
-                return {"held_s": hold_s}
-
-        run = object.__new__(us120.Us120Run)
-        run.bridge = Bridge()
-        result = run._probe_walk_to(0.0, 0.0)
-        self.assertTrue(result["probe_fallback"])
-        self.assertLessEqual(result["dist"], us120.PROBE_START_TOL)
-        self.assertTrue(run.bridge.keys)
+    def test_deep_bank_probe_uses_the_baseline_walk_contract_without_key_pulse_fallback(self):
+        self.assertFalse(hasattr(us120.Us120Run, "_probe_walk_to"))
+        source = open(PLAYTEST, encoding="utf-8").read()
+        self.assertNotIn("except (ab.BridgeError, RuntimeError)", source)
 
     def test_plan_is_valid_and_maps_checks_to_the_story_acs(self):
         self.assertEqual(kit.plan_problems(us120.Us120Run), [])

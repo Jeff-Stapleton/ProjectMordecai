@@ -349,6 +349,12 @@ class TestUs057PassPath(PlaytestCase):
         self.assertIn(RESTORATION_TAG, world.status)
         self.assertNotIn(STONE_SKIN_TAG, world.status)
 
+    def test_mean_gap_cannot_hide_one_too_short_regen_gap(self):
+        gaps = [0.50, 1.25, 1.25]
+        self.assertAlmostEqual(sum(gaps) / len(gaps), 1.0)
+        problems = us057.regen_gap_problems(gaps)
+        self.assertTrue(any("outside" in problem for problem in problems), problems)
+
     def test_fireball_cost_allows_a_regen_tick_before_the_first_state_read(self):
         _, server = self.serve(cooldowns=True, cooldown_widgets=4, regen_phase=0.99)
         code, rep = self.play(server)

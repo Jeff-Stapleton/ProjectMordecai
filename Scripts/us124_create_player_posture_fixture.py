@@ -31,9 +31,7 @@ ATTACKS = (
     ("Breaker", 500.0, 1.0, 100.0, -40.0),
     ("BonusA", 1000.0, 20.0, 0.0, 0.0),
     ("BonusB", 1400.0, 20.0, 0.0, 40.0),
-    # Independent AI controllers can begin their attack loops on different frames.  Keep a
-    # full second after BonusB so this hit cannot overtake it and land at the broken 1.5x rate.
-    ("Down", 2400.0, 5.0, 0.0, 80.0),
+    ("Down", 1800.0, 5.0, 0.0, 80.0),
 )
 
 

@@ -19,7 +19,7 @@ STORY = "US-123"
 TITLE = "US-123 enemy posture break, critical window and knockdown"
 ATTACKER = "TestAttacker"
 FIGHT_SPOT = (2000.0, 0.0)
-PIN_SPOT = (1400.0, 0.0)
+PIN_SPOT = (1850.0, 0.0)
 RADIUS = 3000
 SPOT_TOL = 25.0
 LT = "Gamepad_LeftTriggerAxis"
@@ -38,20 +38,17 @@ TAG_DODGING = "Mordecai.State.Dodging"
 TAG_DODGE_COOLDOWN = "Mordecai.State.DodgeCooldown"
 TAG_ATTACKING = "Mordecai.State.Attacking"
 TAG_COMBO = "Mordecai.State.ComboWindow"
-# Center the 0.5-second parry window across both the nominal edge+0.52 s hit and the
-# edge+0.9 s observation seen under a loaded full sweep.
-PARRY_DELAY_S = 0.45
-PARRY_RETRY_DELAY_S = 0.20
+# wait_until observes the Attack edge in-game per frame; center the 0.5-second
+# parry window on the fixed-cadence hit at roughly edge + 0.52 seconds.
+PARRY_DELAY_S = 0.35
 STATE_POLL_S = 0.03
-PINNED_YELLOW_TARGET = 40.0
-KNOCKDOWN_YELLOW_TARGET = 40.0
 BASE_L1_YELLOW = 16.0
 STAGGERED_L1_YELLOW = 24.0
 STAGGERED_L2_YELLOW = 27.0
 TOL = 0.6
 
 SCREENSHOTS = {
-    "staggered": "the posture-broken TestAttacker visibly staggered immediately after the riposte",
+    "staggered": "the posture-broken TestAttacker visibly staggered before the riposte",
     "critical_damage": "the staggered TestAttacker with the critical 24 damage number",
     "knocked_down": "the TestAttacker in Staggered AI state with Mordecai.State.KnockedDown",
 }
@@ -59,8 +56,8 @@ PENDING = {}
 
 PLAN = (
     Step("setup",
-         "outside the TestAttacker's range, pin the equipped Longsword and spend stamina with "
-         "short real sprint legs, then walk to the fight with the authoritative 66/33 tier Yellow"),
+         "walk to the TestAttacker, pin the equipped Longsword and spend stamina with short "
+         "real sprint legs at the fight spot until the authoritative 66/33 tier is Yellow"),
     Step("unbroken_control",
          "tap RT once at Yellow stamina against the unbroken TestAttacker -> exactly 16 health taken"),
     Step("break_by_parry",
@@ -79,9 +76,7 @@ PLAN = (
          "authoritative tier remains Yellow, then RT L1->L2 inside the break: 24+at least 16 "
          "actual health reaches the 40 threshold and KnockedDown replaces PostureBroken "
          "for about 2 seconds; capture it",
-         proves=("AC-123.4", "AC-123.11"),
-         known_issue="#163: the second knockdown route has pre-existing parry, break-window, "
-                     "and stamina-tier races on main"),
+         proves=("AC-123.4", "AC-123.11")),
     Step("image_verification",
          "Pillow verifies all three evidence frames are 16:9, at least 1280x720 and non-blank; "
          "write image-verification.json",
@@ -186,14 +181,13 @@ class Us123Run(kit.PlaytestRun):
         broken, _ = self.attempt(
             "break_by_parry", self._guarded(self._break_by_parry), needs=control,
             needs_why="not run: the unbroken control hit did not pass")
+        if broken:
+            self.shot("staggered")
+            self.image_paths.append(self.screens[-1]["path"])
         staggered, _ = self.attempt(
             "staggered_hit", self._guarded(self._staggered_hit), needs=broken,
             needs_why="not run: two real parries did not break posture")
         if staggered:
-            # Capturing before the input can consume the fixture's entire 1.5-second riposte
-            # window on a loaded machine. Capture the still immediately after the proven hit.
-            self.shot("staggered")
-            self.image_paths.append(self.screens[-1]["path"])
             self.shot("critical_damage")
             self.image_paths.append(self.screens[-1]["path"])
         recovered, _ = self.attempt(
@@ -272,11 +266,11 @@ class Us123Run(kit.PlaytestRun):
         self.attacker_name = actor.get("name")
         return result, state
 
-    def _pin_yellow(self, target=PINNED_YELLOW_TARGET, center=FIGHT_SPOT):
+    def _pin_yellow(self, target=66.0, center=FIGHT_SPOT):
         # Sprint short closed-loop W/S legs. Keeping this one-dimensional avoids
         # camera-relative lateral correction near the attacker while every
         # mutation still comes from real key input.
-        deadline = time.monotonic() + 45.0
+        deadline = time.monotonic() + 20.0
         pinned = None
         at_fight_spot = False
         try:
@@ -299,21 +293,6 @@ class Us123Run(kit.PlaytestRun):
                 tags = _tags(player)
                 if stamina is not None and stamina <= target + 0.5 and TAG_YELLOW in tags:
                     pinned = (stamina, tags)
-                    break
-                if stamina is not None and stamina <= 33.0:
-                    # A loaded bridge can hold the final short pulse long enough to cross all of
-                    # Yellow. Stop the real sprint and let authoritative regeneration return to
-                    # the middle of Yellow instead of continuing to drain in Red forever.
-                    if TAG_SPRINTING in tags:
-                        self.bridge.tap(SPRINT, hold_s=0.01)
-                    recovered = self._wait_state(
-                        lambda value: (
-                            _stamina(_player(value)) is not None
-                            and _stamina(_player(value)) >= target - 0.5
-                            and TAG_YELLOW in _tags(_player(value))
-                        ),
-                        6.0, "yellow-tier recovery after sprint overshoot")
-                    pinned = (_stamina(_player(recovered)), _tags(_player(recovered)))
                     break
                 if TAG_SPRINTING not in tags:
                     self.bridge.tap(SPRINT, hold_s=0.1)
@@ -353,35 +332,18 @@ class Us123Run(kit.PlaytestRun):
             raise RuntimeError("; ".join(problems))
         return stamina, name, tags
 
-    def _pin_yellow_at_fight(self, target=PINNED_YELLOW_TARGET):
+    def _pin_yellow_at_fight(self, target=66.0):
         last = None
         for _ in range(3):
-            # Drain at a safe point outside the fixed attacker's range, then take the short
-            # real-input walk to the fight. This prevents the long setup loop from killing the
-            # player while retaining enough tier headroom for the parry route.
-            self.bridge.walk_to(*PIN_SPOT, tol=SPOT_TOL)
-            last = self._pin_yellow(target, center=PIN_SPOT)
-            self._walk_fight()
+            last = self._pin_yellow(target)
+            # Opposing drain pulses keep the player at the fight spot. Any
+            # extra wait or aim pulse here would let stamina regenerate across
+            # the 66-point Green/Yellow boundary before attack activation.
             state = self._read()
             player = _player(state)
             if TAG_YELLOW in _tags(player):
                 stamina, weapon, _ = self._weapon_and_tier()
                 return stamina, weapon, last[1]
-            if TAG_GREEN in _tags(player):
-                # The approach can resume regeneration before the first combat input. One or two
-                # real light attacks create deterministic headroom without direct attribute writes.
-                # Wait out its combo window so it cannot contaminate the parry route.
-                for _ in range(2):
-                    self._tap_light_and_damage()
-                    state = self._wait_state(
-                        lambda value: (
-                            TAG_ATTACKING not in _tags(_player(value))
-                            and TAG_COMBO not in _tags(_player(value))
-                        ),
-                        1.5, "tier-correction attack recovery")
-                    if TAG_YELLOW in _tags(_player(state)):
-                        stamina, weapon, _ = self._weapon_and_tier()
-                        return stamina, weapon, last[1]
         raise RuntimeError(
             f"could not keep Yellow stamina while correcting to the fight spot; last {last}")
 
@@ -427,8 +389,7 @@ class Us123Run(kit.PlaytestRun):
                     lambda state: TAG_BLOCKING in _tags(_player(state)),
                     1.0, "blocking guard before parry")
                 self._wait_attacker_ai(True, 6.0, "attacker Attack edge")
-                self.bridge.wait(
-                    PARRY_DELAY_S if attempt == 0 else PARRY_RETRY_DELAY_S)
+                self.bridge.wait(PARRY_DELAY_S)
                 self.bridge.axis({RT: 1.0}, hold_s=0.1)
                 return self._wait_state(
                     lambda value: (
@@ -476,9 +437,9 @@ class Us123Run(kit.PlaytestRun):
         return taken, state
 
     def _setup(self):
+        result, state = self._walk_fight()
         pinned_stamina, weapon, tags = self._pin_yellow_at_fight()
         state = self._read()
-        result = {"final": (_player(state) or {}).get("location")}
         actor = self._attacker(state)
         if _posture(actor) is None or _max_posture(actor) is None:
             return "FAIL", "bridge actor posture/max_posture are unavailable", None
@@ -574,8 +535,11 @@ class Us123Run(kit.PlaytestRun):
                 and TAG_GREEN in _tags(_player(state))
             ), 10.0, "full stamina away from attacker")
         self._aim()
-        stamina, weapon, _ = self._pin_yellow_at_fight(
-            target=KNOCKDOWN_YELLOW_TARGET)
+        self._walk_fight()
+        # Short sprint legs drain stamina without the 400 cm backward travel of
+        # each US-125 Yellow dodge, so arriving at the fight does not regenerate
+        # the route back into Green.
+        stamina, weapon, _ = self._pin_yellow_at_fight()
         return stamina, weapon
 
     def _knockdown(self):

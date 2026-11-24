@@ -395,6 +395,9 @@ class TestUs087PickupLane(PlaytestCase):
         with open(os.path.join(self.run_dir, "report.json"), encoding="utf-8") as handle:
             return server, code, json.load(handle)
 
+    def test_pickup_approach_keeps_the_main_package_500_cm_runway(self):
+        self.assertEqual(self.pickup.APPROACH_DISTANCE, 500.0)
+
     def test_passes_with_only_safe_real_input_commands(self):
         server, code, report = self.play_pickup()
         checks = self.checks(report)

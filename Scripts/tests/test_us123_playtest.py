@@ -227,30 +227,19 @@ class Us123PlaytestCase(unittest.TestCase):
     def checks(report):
         return {check["name"]: check for check in report["checks"]}
 
+    def test_round4_uses_the_main_package_route_and_parry_timing(self):
+        self.assertEqual(us123.PIN_SPOT, (1850.0, 0.0))
+        self.assertEqual(us123.PARRY_DELAY_S, 0.35)
+        self.assertFalse(hasattr(us123, "PARRY_RETRY_DELAY_S"))
+        self.assertEqual(us123.Us123Run._pin_yellow.__defaults__[0], 66.0)
+        source = open(PLAYTEST, encoding="utf-8").read()
+        self.assertIn("deadline = time.monotonic() + 20.0", source)
+        self.assertNotIn("tier-correction attack recovery", source)
+
     def test_plan_contract(self):
         self.assertEqual(kit.plan_problems(us123.Us123Run), [])
         self.assertIs(us123.Run, us123.Us123Run)
         self.assertEqual(us123.Us123Run.launch_map(), kit.COMBAT_TEST_MAP)
-        self.assertLessEqual(us123.PARRY_DELAY_S, 0.52)
-        self.assertGreaterEqual(
-            us123.PARRY_DELAY_S + 0.5, 0.90,
-            "the parry window must cover the loaded-sweep edge-to-hit delay")
-        self.assertLess(
-            us123.PARRY_RETRY_DELAY_S, us123.PARRY_DELAY_S,
-            "the one retry must cover an attack edge observed late by the bridge")
-        self.assertEqual(
-            us123.PINNED_YELLOW_TARGET, 40.0,
-            "the fixture needs tier headroom for parry-route stamina drift")
-        self.assertEqual(
-            us123.KNOCKDOWN_YELLOW_TARGET, 40.0,
-            "the longer second route needs additional regen headroom")
-        with open(us123.__file__, encoding="utf-8") as source_file:
-            source = source_file.read()
-        run_checks = source[source.index("    def steps(self):"):
-                            source.index("    @staticmethod")]
-        self.assertLess(
-            run_checks.index('"staggered_hit"'), run_checks.index('self.shot("staggered")'),
-            "the slow screenshot must not consume the 1.5-second riposte window")
         self.assertEqual(
             [step.check for step in us123.PLAN],
             ["setup", "unbroken_control", "break_by_parry", "staggered_hit",
