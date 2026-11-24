@@ -379,7 +379,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	{
 		EIC->BindAction(WeaponCyclePrevAction, ETriggerEvent::Started, this, &UMordecaiHeroComponent::HandleWeaponCyclePrevInput);
 	}
-	EIC->BindAction(WeaponCyclePrevShiftTabAction, ETriggerEvent::Started, this,
+	EIC->BindAction(WeaponCyclePrevShiftTabAction, ETriggerEvent::Triggered, this,
 		&UMordecaiHeroComponent::HandleWeaponCyclePrevShiftTabInput);
 
 	// Bind pickup + menu input actions (US-079)

@@ -177,7 +177,7 @@ bool FMordecai_Recovery_Weapons_PreviousWeaponInput::RunTest(
 	TestTrue(TEXT("Left Shift still toggles sprint without release delay"),
 		Character->bIsSprinting);
 	TestTrue(TEXT("Shift+Tab binding executes"),
-		ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Started, Hero));
+		ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Triggered, Hero));
 	TestEqual(TEXT("Shift+Tab selects the previous weapon"),
 		Equipment->GetCurrentWeaponIndex(), 0);
 	TestFalse(TEXT("Shift+Tab restores sprint-off state"),
@@ -189,7 +189,7 @@ bool FMordecai_Recovery_Weapons_PreviousWeaponInput::RunTest(
 	ExecuteBinding(EIC, SprintAction, ETriggerEvent::Started, Hero);
 	TestFalse(TEXT("Shift press temporarily toggles sprint off"),
 		Character->bIsSprinting);
-	ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Started, Hero);
+	ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Triggered, Hero);
 	TestEqual(TEXT("Second Shift+Tab also selects the previous weapon"),
 		Equipment->GetCurrentWeaponIndex(), 0);
 	TestTrue(TEXT("Shift+Tab restores sprint-on state"),
