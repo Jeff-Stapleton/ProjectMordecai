@@ -397,3 +397,64 @@ bool FMordecai_Recovery_Weapons_TabRequiresFreshPressThroughShiftTransitions::Ru
 	InputWorld->DestroyWorld(false);
 	return true;
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMordecai_Recovery_Weapons_ShiftChordIgnoresStaleSprintToggleState,
+	"Mordecai.Recovery.Weapons.ShiftChordIgnoresStaleSprintToggleState",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Weapons_ShiftChordIgnoresStaleSprintToggleState::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiRecoveryWeaponInputTest;
+
+	AMordecaiCharacter* Character = NewObject<AMordecaiCharacter>();
+	UMordecaiHeroComponent* Hero =
+		Character->FindComponentByClass<UMordecaiHeroComponent>();
+	UMordecaiEquipmentComponent* Equipment = Character->GetEquipmentComponent();
+	UEnhancedInputComponent* EIC = NewObject<UEnhancedInputComponent>(Character);
+	const UInputMappingContext* Context = Hero->BuildAndBindRuntimeInput(EIC);
+	const UInputAction* SprintAction = LoadAction(TEXT("IA_Mordecai_Sprint"));
+	if (!Hero || !Equipment || !Context || !SprintAction)
+	{
+		AddError(TEXT("Stale-sprint fixture did not initialize"));
+		return false;
+	}
+	Equipment->AddAvailableWeapon(
+		UMordecaiWeaponProfileFactory::CreateLongsword(Character));
+	Equipment->AddAvailableWeapon(
+		UMordecaiWeaponProfileFactory::CreateDagger(Character));
+	Equipment->CycleNextWeapon();
+	Equipment->CycleNextWeapon();
+
+	const int32 ShiftTabIndex = FindShiftTab(Context);
+	if (ShiftTabIndex == INDEX_NONE)
+	{
+		AddError(TEXT("Shift+Tab mapping is missing"));
+		return false;
+	}
+	const UInputAction* ShiftTabAction = Context->GetMappings()[ShiftTabIndex].Action;
+
+	// L3 uses the shared sprint asset. Two L3 toggles leave sprint off, and
+	// must not seed state later consumed by a keyboard chord.
+	ExecuteBinding(EIC, SprintAction, ETriggerEvent::Started, Hero);
+	ExecuteBinding(EIC, SprintAction, ETriggerEvent::Started, Hero);
+	TestFalse(TEXT("Two gamepad sprint toggles leave sprint off"),
+		Character->bIsSprinting);
+	ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Triggered, Hero);
+	TestFalse(TEXT("Shift+Tab ignores state saved by gamepad L3"),
+		Character->bIsSprinting);
+
+	// A runtime-context rebuild represents respawn/repossession/unpause. Any
+	// keyboard press token from before it is invalid.
+	Character->SetSprinting(true);
+	ExecuteBinding(EIC, SprintAction, ETriggerEvent::Started, Hero);
+	TestFalse(TEXT("Pre-rebuild sprint state is off"), Character->bIsSprinting);
+	TestTrue(TEXT("Runtime context rebuild succeeds"),
+		Hero->BuildAndBindRuntimeInput(EIC) == Context);
+	ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Triggered, Hero);
+	TestFalse(TEXT("Shift+Tab after rebuild ignores pre-rebuild sprint state"),
+		Character->bIsSprinting);
+
+	return true;
+}

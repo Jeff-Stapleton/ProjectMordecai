@@ -151,6 +151,13 @@ PLAN = (
          f"hold Tab, tap LeftShift, then release Tab -> fresh Tab cycles next once and the chord "
          f"cycles previous once; releasing LeftShift does not re-fire plain Tab",
          proves=("US-096:AC-096.1", "US-096:AC-096.2")),
+    Step("cycle_prev_right_shift_tab",
+         f"tap RightShift+Tab -> one previous cycle with {SPRINT_TAG} presence unchanged",
+         proves=("US-096:AC-096.1", "US-096:AC-096.2")),
+    Step("cycle_prev_shift_tab_while_sprinting",
+         f"tap LeftShift to start sprinting, then LeftShift+Tab -> one previous cycle and "
+         f"{SPRINT_TAG} remains present",
+         proves=("US-096:AC-096.2",)),
     Step("weapon_hud_updates", f"tap {NEXT_KEY} -> the new weapon is equipped and visible "
          "MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text)",
          proves=("AC-078.12", "AC-078.14", "US-077:AC-077.8")),
@@ -511,6 +518,52 @@ class Us078Run(kit.PlaytestRun):
 
         return self.attempt(check, fn)
 
+    def shift_tab_while_sprinting(self):
+        """The chord restores an already-on sprint toggle."""
+        check = "cycle_prev_shift_tab_while_sprinting"
+
+        def fn():
+            b = self.bridge
+            before = _weapon(b.state(["player"]))
+            start = _index(before)
+            if start is None:
+                return "FAIL", f"player.weapon.index is unreadable ({_weapon_text(before)})", None
+            b.tap("LeftShift", hold_s=self.TAP_S)
+            try:
+                b.wait_for(lambda s: SPRINT_TAG in _tags(s),
+                           timeout_s=CYCLE_TIMEOUT_S, sections=["player"])
+            except ab.BridgeError as e:
+                if e.code != "wait_for_timeout":
+                    raise
+                return ("FAIL", f"plain LeftShift did not enable {SPRINT_TAG} before the chord",
+                        b.state(["player"]))
+            expected = (start - 1) % WEAPON_COUNT
+            b.press("LeftShift")
+            try:
+                b.wait(0.05)
+                b.tap("Tab", hold_s=self.TAP_S)
+            finally:
+                b.release("LeftShift")
+            try:
+                b.wait_until(f"player.weapon.index=={expected}", timeout_s=CYCLE_TIMEOUT_S)
+            except ab.BridgeError as e:
+                if e.code != "timeout":
+                    raise
+                after = _weapon(b.state(["player"]))
+                return ("FAIL", f"sprinting Shift+Tab expected {start}->{expected}, got "
+                        f"{_weapon_text(after)}", after)
+            after_state = b.state(["player"])
+            after = _weapon(after_state)
+            sprint_after = SPRINT_TAG in _tags(after_state)
+            if not sprint_after:
+                return ("FAIL", f"Shift+Tab moved {start}->{expected}, but cleared "
+                        f"{SPRINT_TAG}", after)
+            return ("PASS", f"plain LeftShift enabled {SPRINT_TAG}; Shift+Tab moved "
+                    f"{start}->{expected} '{after.get('display_name')}' and sprint remained on",
+                    after)
+
+        return self.attempt(check, fn)
+
     def step_cycling(self):
         mace_ok = False
         for k in range(1, WEAPON_COUNT):
@@ -531,6 +584,9 @@ class Us078Run(kit.PlaytestRun):
                    preserve_sprint=True, simultaneous=True)
         self.release_shift_first()
         self.shift_tap_while_tab_held()
+        self.cycle("cycle_prev_right_shift_tab", ("RightShift", "Tab"), -1,
+                   preserve_sprint=True)
+        self.shift_tab_while_sprinting()
         self.cycle("weapon_hud_updates", NEXT_KEY, +1, hud=True, needs=self.hud_ok,
                    needs_why="not run: weapon_hud_text failed (no weapon name on screen to "
                              "follow)")
