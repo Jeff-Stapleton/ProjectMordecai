@@ -154,8 +154,16 @@ bool FMordecai_Recovery_Weapons_PreviousWeaponInput::RunTest(
 
 	const TArray<FEnhancedActionKeyMapping>& Mappings = Context->GetMappings();
 	const UInputAction* ShiftTabAction = Mappings[ShiftTabIndex].Action;
-	TestTrue(TEXT("Chord action maps Left Shift"),
-		FindMapping(Context, ShiftChordAction, EKeys::LeftShift) != INDEX_NONE);
+	const int32 ShiftChordIndex =
+		FindMapping(Context, ShiftChordAction, EKeys::LeftShift);
+	const int32 SprintShiftIndex =
+		FindMapping(Context, SprintAction, EKeys::LeftShift);
+	TestTrue(TEXT("Chord action maps Left Shift"), ShiftChordIndex != INDEX_NONE);
+	TestTrue(TEXT("Sprint action still maps Left Shift"), SprintShiftIndex != INDEX_NONE);
+	TestFalse(TEXT("Chord source does not consume sprint input"),
+		ShiftChordAction->bConsumeInput);
+	TestTrue(TEXT("Chord source maps before the consuming sprint action"),
+		ShiftChordIndex < SprintShiftIndex);
 	TestNotNull(TEXT("Shift+Tab requires a fresh Tab press"),
 		FindTrigger<UInputTriggerPressed>(Mappings[ShiftTabIndex]));
 	TestTrue(TEXT("Chord mapping precedes plain Tab for automatic chord blocking"),

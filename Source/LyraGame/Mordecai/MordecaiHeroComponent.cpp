@@ -115,6 +115,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	{
 		ShiftChordAction = NewObject<UInputAction>(this, TEXT("IA_Mordecai_LeftShiftChord_Runtime"));
 		ShiftChordAction->ValueType = EInputActionValueType::Boolean;
+		ShiftChordAction->bConsumeInput = false;
 	}
 	if (!WeaponCyclePrevShiftTabAction)
 	{
@@ -208,12 +209,14 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 		}
 
 		// --- Sprint (Shift / L3) ---
+		// The non-consuming chord source must precede Sprint's consuming LeftShift mapping,
+		// otherwise Enhanced Input never evaluates it.
+		MordecaiIMC->MapKey(ShiftChordAction, EKeys::LeftShift);
 		if (SprintAction)
 		{
 			MordecaiIMC->MapKey(SprintAction, FKey(TEXT("LeftShift")));
 			MordecaiIMC->MapKey(SprintAction, EKeys::Gamepad_LeftThumbstick);
 		}
-		MordecaiIMC->MapKey(ShiftChordAction, EKeys::LeftShift);
 
 		if (Spell1Action)
 		{
