@@ -226,7 +226,7 @@ def capture(output_dir, max_clip_seconds=DEFAULT_MAX_CLIP_SECONDS):
             run_dir=session_dir,
             extra_args=(
                 "-MordecaiMarketingCapture",
-                f"-ExecCmds={ab.pb.quote_value('r.SetRes 1920x1080w')}",
+                f"-ExecCmds={ab.pb.quote_value('r.SetRes 1920x1080f')}",
             ),
         )
         bridge.wait(1.0)
