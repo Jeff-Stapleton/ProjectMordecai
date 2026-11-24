@@ -5,6 +5,7 @@
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiPlayerController.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Input/MordecaiInputTriggers.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/UI/MordecaiInventoryWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuSubsystem.h"
@@ -111,12 +112,6 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	// --- US-078: Weapon Cycling Input Actions (Tab / Shift+Tab / Gamepad Y) ---
 	UInputAction* WeaponCycleNextAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_WeaponSwap.IA_Mordecai_WeaponSwap"));
 	UInputAction* WeaponCyclePrevAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_WeaponCyclePrev.IA_Mordecai_WeaponCyclePrev"));
-	if (!ShiftChordAction)
-	{
-		ShiftChordAction = NewObject<UInputAction>(this, TEXT("IA_Mordecai_LeftShiftChord_Runtime"));
-		ShiftChordAction->ValueType = EInputActionValueType::Boolean;
-		ShiftChordAction->bConsumeInput = false;
-	}
 	if (!WeaponCyclePrevShiftTabAction)
 	{
 		WeaponCyclePrevShiftTabAction =
@@ -209,9 +204,6 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 		}
 
 		// --- Sprint (Shift / L3) ---
-		// The non-consuming chord source must precede Sprint's consuming LeftShift mapping,
-		// otherwise Enhanced Input never evaluates it.
-		MordecaiIMC->MapKey(ShiftChordAction, EKeys::LeftShift);
 		if (SprintAction)
 		{
 			MordecaiIMC->MapKey(SprintAction, FKey(TEXT("LeftShift")));
@@ -239,20 +231,18 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 		}
 
 		// --- US-078 / US-096: Weapon cycling ---
-		// Map the chord before plain Tab so Enhanced Input injects a chord blocker into
-		// the later Tab mapping. The dedicated Shift action keeps gamepad L3 out of this chord.
+		// Custom physical-key triggers avoid the runtime chord action's dependency on
+		// Enhanced Input action processing order. Shift+Tab is evaluated before plain Tab.
 		FEnhancedActionKeyMapping& ShiftTabMapping =
 			MordecaiIMC->MapKey(WeaponCyclePrevShiftTabAction, EKeys::Tab);
-		UInputTriggerChordAction* ShiftChord =
-			NewObject<UInputTriggerChordAction>(MordecaiIMC);
-		ShiftChord->ChordAction = ShiftChordAction;
-		ShiftTabMapping.Triggers.Add(ShiftChord);
-		ShiftTabMapping.Triggers.Add(NewObject<UInputTriggerPressed>(MordecaiIMC));
+		ShiftTabMapping.Triggers.Add(NewObject<UMordecaiInputTriggerShiftPressed>(MordecaiIMC));
 
 		// AC-078.6: Next weapon — plain Tab (MKB) / Gamepad Y tap
 		if (WeaponCycleNextAction)
 		{
-			MordecaiIMC->MapKey(WeaponCycleNextAction, FKey(TEXT("Tab")));
+			FEnhancedActionKeyMapping& TabMapping =
+				MordecaiIMC->MapKey(WeaponCycleNextAction, EKeys::Tab);
+			TabMapping.Triggers.Add(NewObject<UMordecaiInputTriggerShiftBlocker>(MordecaiIMC));
 			MordecaiIMC->MapKey(WeaponCycleNextAction, FKey(TEXT("Gamepad_FaceButton_Top")));
 		}
 		// BackSlash remains an extra previous-weapon binding.

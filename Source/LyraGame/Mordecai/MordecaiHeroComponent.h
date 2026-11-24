@@ -132,9 +132,6 @@ private:
 	TObjectPtr<UInputAction> ParryAction;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> ShiftChordAction;
-
-	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> WeaponCyclePrevShiftTabAction;
 
 	UPROPERTY(Transient)

@@ -8,6 +8,7 @@
 #include "InputTriggers.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiHeroComponent.h"
+#include "Mordecai/Input/MordecaiInputTriggers.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiWeaponProfileFactory.h"
 #include "UObject/SoftObjectPath.h"
@@ -49,21 +50,14 @@ namespace MordecaiRecoveryWeaponInputTest
 		return INDEX_NONE;
 	}
 
-	static int32 FindChordedTab(
-		const UInputMappingContext* Context,
-		const UInputAction*& OutChordAction)
+	static int32 FindShiftTab(const UInputMappingContext* Context)
 	{
 		const TArray<FEnhancedActionKeyMapping>& Mappings = Context->GetMappings();
 		for (int32 Index = 0; Index < Mappings.Num(); ++Index)
 		{
-			if (Mappings[Index].Key != EKeys::Tab)
+			if (Mappings[Index].Key == EKeys::Tab
+				&& FindTrigger<UMordecaiInputTriggerShiftPressed>(Mappings[Index]))
 			{
-				continue;
-			}
-			if (const UInputTriggerChordAction* Chord =
-				FindTrigger<UInputTriggerChordAction>(Mappings[Index]))
-			{
-				OutChordAction = Chord->ChordAction;
 				return Index;
 			}
 		}
@@ -136,37 +130,32 @@ bool FMordecai_Recovery_Weapons_PreviousWeaponInput::RunTest(
 		Equipment->GetCurrentWeaponIndex(), 0);
 
 	const int32 PlainTabIndex = FindMapping(Context, NextAction, EKeys::Tab);
-	TestTrue(TEXT("Tab alone maps next weapon"), PlainTabIndex != INDEX_NONE);
+	if (!TestTrue(TEXT("Tab alone maps next weapon"), PlainTabIndex != INDEX_NONE))
+	{
+		return true;
+	}
+	const TArray<FEnhancedActionKeyMapping>& Mappings = Context->GetMappings();
+	TestNotNull(TEXT("Plain Tab is blocked while Left Shift is held"),
+		FindTrigger<UMordecaiInputTriggerShiftBlocker>(Mappings[PlainTabIndex]));
 	TestTrue(TEXT("Tab binding executes"),
 		ExecuteBinding(EIC, NextAction, ETriggerEvent::Started, Hero));
 	TestEqual(TEXT("Tab alone selects the next weapon"),
 		Equipment->GetCurrentWeaponIndex(), 1);
 
-	const UInputAction* ShiftChordAction = nullptr;
-	const int32 ShiftTabIndex = FindChordedTab(Context, ShiftChordAction);
-	if (!TestTrue(TEXT("Shift+Tab has a chorded mapping"),
-		ShiftTabIndex != INDEX_NONE)
-		|| !TestNotNull(TEXT("Shift+Tab names a chord action"),
-			ShiftChordAction))
+	const int32 ShiftTabIndex = FindShiftTab(Context);
+	if (!TestTrue(TEXT("Shift+Tab has a Shift-gated Tab mapping"),
+		ShiftTabIndex != INDEX_NONE))
 	{
 		return true;
 	}
 
-	const TArray<FEnhancedActionKeyMapping>& Mappings = Context->GetMappings();
 	const UInputAction* ShiftTabAction = Mappings[ShiftTabIndex].Action;
-	const int32 ShiftChordIndex =
-		FindMapping(Context, ShiftChordAction, EKeys::LeftShift);
 	const int32 SprintShiftIndex =
 		FindMapping(Context, SprintAction, EKeys::LeftShift);
-	TestTrue(TEXT("Chord action maps Left Shift"), ShiftChordIndex != INDEX_NONE);
 	TestTrue(TEXT("Sprint action still maps Left Shift"), SprintShiftIndex != INDEX_NONE);
-	TestFalse(TEXT("Chord source does not consume sprint input"),
-		ShiftChordAction->bConsumeInput);
-	TestTrue(TEXT("Chord source maps before the consuming sprint action"),
-		ShiftChordIndex < SprintShiftIndex);
-	TestNotNull(TEXT("Shift+Tab requires a fresh Tab press"),
-		FindTrigger<UInputTriggerPressed>(Mappings[ShiftTabIndex]));
-	TestTrue(TEXT("Chord mapping precedes plain Tab for automatic chord blocking"),
+	TestNotNull(TEXT("Shift+Tab requires Left Shift and a fresh Tab press"),
+		FindTrigger<UMordecaiInputTriggerShiftPressed>(Mappings[ShiftTabIndex]));
+	TestTrue(TEXT("Shift+Tab mapping precedes plain Tab"),
 		ShiftTabIndex < PlainTabIndex);
 	TestTrue(TEXT("BackSlash remains an extra previous-weapon binding"),
 		FindMapping(Context, BackslashAction, EKeys::Backslash) != INDEX_NONE);
