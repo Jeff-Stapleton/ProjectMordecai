@@ -14,6 +14,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -220,27 +221,94 @@ class AutoClearBeforeToggleOffWorld(HudWorld):
 
 
 class DelayedAutoClearObservationWorld(HudWorld):
-    """A direct post-release state round trip misses the active stationary interval."""
+    """Records that the stop threshold and sprint tag were observed together."""
 
     def __init__(self, **kw):
         super().__init__(**kw)
         self.stop_threshold_observed = False
 
+    def state(self, sections=None, radius=1500.0, include_all_actors=False):
+        names = list(sections or fb.SECTIONS)
+        result = super().state(names, radius, include_all_actors)
+        player = result.get("player") or {}
+        if ("player" in names and "game" in names
+                and player.get("speed", float("inf")) <= us001.SPRINT_STOP_SPEED
+                and us001.SPRINT_TAG in (player.get("tags") or [])):
+            self.stop_threshold_observed = True
+        return result
+
+
+class SplitReadAutoClearRaceWorld(HudWorld):
+    """The sprint clears between a player-only stop read and a later player+game snapshot."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.player_only_stop_read = False
+
     def _set_sprinting(self, enabled):
         super()._set_sprinting(enabled)
         if enabled:
-            self.stop_threshold_observed = False
+            self.player_only_stop_read = False
 
     def state(self, sections=None, radius=1500.0, include_all_actors=False):
         names = list(sections or fb.SECTIONS)
         stopped_moved_sprint = self.sprinting and self.sprint_moved and math.hypot(*self.vel) < 1
         if stopped_moved_sprint and names == ["player"]:
-            # wait_until gathers only the player root and catches the stop threshold promptly.
-            self.stop_threshold_observed = True
-        elif stopped_moved_sprint and "game" in names and not self.stop_threshold_observed:
-            # Model the slow direct state round trip that caused the packaged 0.000 s reading.
+            self.player_only_stop_read = True
+        elif stopped_moved_sprint and "game" in names and self.player_only_stop_read:
             self._set_sprinting(False)
         return super().state(names, radius, include_all_actors)
+
+
+class CoalescedAutoClearWorld(HudWorld):
+    """A loaded bridge returns its first stopped snapshot only after the tag has cleared."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.coalesced_once = False
+
+    def state(self, sections=None, radius=1500.0, include_all_actors=False):
+        names = list(sections or fb.SECTIONS)
+        coalesced_now = False
+        if (not self.coalesced_once and self.sprint_taps == 3 and self.sprint_moved
+                and "W" not in self._held_union()
+                and "player" in names and "game" in names):
+            self.coalesced_once = True
+            coalesced_now = True
+            self._set_sprinting(False)
+        result = super().state(names, radius, include_all_actors)
+        if coalesced_now:
+            # FakeBridge serializes state and ticking on one lock, so blocking this response cannot
+            # advance its game clock. Model a loaded response that contains the valid 0.25 s clear.
+            result["game"]["world_time_s"] += self.SPRINT_STATIONARY_AUTO_CLEAR_S
+        return result
+
+
+class InstantCoalescedAutoClearWorld(CoalescedAutoClearWorld):
+    """A broken game clears sprint at the stop threshold instead of after 0.25 s."""
+
+    def state(self, sections=None, radius=1500.0, include_all_actors=False):
+        names = list(sections or fb.SECTIONS)
+        if (not self.coalesced_once and self.sprint_taps == 3 and self.sprint_moved
+                and "W" not in self._held_union()
+                and "player" in names and "game" in names):
+            self.coalesced_once = True
+            self._set_sprinting(False)
+        return HudWorld.state(self, names, radius, include_all_actors)
+
+
+class DelayedL3ToggleWorld(HudWorld):
+    """The game applies each L3 toggle after the bridge key response under sweep load."""
+
+    def _on_key_pressed(self, key):
+        if key != "Gamepad_LeftThumbstick":
+            return super()._on_key_pressed(key)
+        fb.FakeWorld._on_key_pressed(self, key)
+        if not self.ready or self.menu_open or self.is_dead:
+            return
+        self.sprint_taps += 1
+        desired = not self.sprinting
+        self.after(0.70, lambda world: world._set_sprinting(desired))
 
 
 class FixedWorld(HudWorld):
@@ -344,8 +412,22 @@ class PlaytestCase(unittest.TestCase):
         return world, server
 
     def play(self, server, *extra):
-        code = us001.main(["--attach-port", str(server.port), "--token", TOKEN,
-                           "--run-dir", self.run_dir, *extra])
+        class FakePhysicalMouse:
+            def __init__(self, bridge):
+                self.bridge = bridge
+
+            def move_client(self, x, y):
+                response = self.bridge.mouse(x, y)
+                response["physical"] = True
+                return response
+
+        # The fake bridge has no HWND. Keep offline route tests deterministic while the separate
+        # plan test pins launched acceptance to Win32PhysicalMouse with no bridge fallback.
+        with mock.patch.object(
+                us001.Us001Run, "_physical_mouse",
+                lambda run: FakePhysicalMouse(run.bridge)):
+            code = us001.main(["--attach-port", str(server.port), "--token", TOKEN,
+                               "--run-dir", self.run_dir, *extra])
         return code, self.report()
 
     def report(self):
@@ -542,13 +624,46 @@ class TestUs001BeforeUs083(PlaytestCase):
         self.assertTrue(world.forced_auto_clear)
         self.assertEqual(self.by_name(rep)["sprint_auto_clear_restart"]["status"], "PASS")
 
-    def test_bridge_side_stop_threshold_precedes_auto_clear_measurement(self):
+    def test_combined_stop_snapshot_precedes_auto_clear_measurement(self):
         world, server = self.serve(DelayedAutoClearObservationWorld)
         code, rep = self.play(server)
         self.assertEqual(code, 0, self.log.getvalue()[-3000:])
         check = self.by_name(rep)["sprint_auto_clear_restart"]
         self.assertEqual(check["status"], "PASS", check["detail"])
         self.assertTrue(world.stop_threshold_observed)
+
+    def test_stop_speed_and_sprint_tag_are_read_from_one_snapshot(self):
+        world, server = self.serve(SplitReadAutoClearRaceWorld)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["sprint_auto_clear_restart"]
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+
+    def test_stop_threshold_and_clear_can_coalesce_under_bridge_load(self):
+        world, server = self.serve(CoalescedAutoClearWorld)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["sprint_auto_clear_restart"]
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertIn("coalesced into one bridge snapshot", check["detail"])
+        self.assertTrue(world.coalesced_once)
+
+    def test_coalesced_instant_auto_clear_still_fails_the_lower_timing_bound(self):
+        world, server = self.serve(InstantCoalescedAutoClearWorld)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["sprint_auto_clear_restart"]
+        self.assertEqual(code, 1)
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("accepted", check["detail"])
+        self.assertTrue(world.coalesced_once)
+
+    def test_l3_measurement_waits_for_a_delayed_toggle(self):
+        world, server = self.serve(DelayedL3ToggleWorld)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["sprint_l3"]
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertFalse(world.sprinting)
 
 
 class TestUs001FixedGame(PlaytestCase):
@@ -706,6 +821,55 @@ class TestUs001Failures(PlaytestCase):
 # Offline: the PLAN, the AC ids, the route
 # ---------------------------------------------------------------------------
 class TestUs001Plan(unittest.TestCase):
+    def test_physical_cursor_retries_a_transient_winerror_zero_failure(self):
+        class Call:
+            def __init__(self, values):
+                self.values = list(values)
+                self.calls = 0
+
+            def __call__(self, *args):
+                self.calls += 1
+                return self.values.pop(0) if len(self.values) > 1 else self.values[0]
+
+        class User32:
+            ClientToScreen = Call([1])
+            ShowWindow = Call([1])
+            SetWindowPos = Call([1])
+            SetCursorPos = Call([0, 0, 1])
+            GetForegroundWindow = Call([1])
+
+        fake_windll = type("Windll", (), {"user32": User32()})()
+        mouse = us001.Win32PhysicalMouse(123)
+        with mock.patch.object(mouse, "_game_window", return_value=1), \
+                mock.patch.object(us001.ctypes, "windll", fake_windll):
+            result = mouse.move_client(640, 360)
+        self.assertTrue(result["physical"])
+        self.assertEqual(fake_windll.user32.SetCursorPos.calls, 3)
+
+    def test_physical_cursor_fails_when_locked_desktop_rejects_every_move(self):
+        class Call:
+            def __init__(self, value):
+                self.value = value
+                self.calls = 0
+
+            def __call__(self, *args):
+                self.calls += 1
+                return self.value
+
+        class User32:
+            ClientToScreen = Call(1)
+            ShowWindow = Call(1)
+            SetWindowPos = Call(1)
+            SetCursorPos = Call(0)
+            GetForegroundWindow = Call(1)
+
+        fake_windll = type("Windll", (), {"user32": User32()})()
+        mouse = us001.Win32PhysicalMouse(123)
+        with mock.patch.object(mouse, "_game_window", return_value=1), \
+                mock.patch.object(us001.ctypes, "windll", fake_windll):
+            with self.assertRaisesRegex(RuntimeError, r"SetCursorPos.*failed after 5 attempts"):
+                mouse.move_client(640, 360)
+
     def story_ac_ids(self, story_file=STORY_FILE):
         if not os.path.isfile(story_file):
             self.skipTest(f"{story_file} moved")
@@ -765,6 +929,11 @@ class TestUs001Plan(unittest.TestCase):
         self.assertIn("SetCursorPos", source)
         self.assertIn("SendInput", source)
         self.assertNotIn("self.bridge.mouse(", facing_body)
+        physical_factory = source[
+            source.index("def _physical_mouse"):source.index("def step_facing")
+        ]
+        self.assertNotIn("fallback_move", physical_factory)
+        self.assertNotIn("fallback_click", physical_factory)
 
     def test_the_route_and_the_lane_stay_clear_on_the_movement_map(self):
         boxes = ([b for _, b in fb.MOVEMENT_TEST_MAP_WALLS]

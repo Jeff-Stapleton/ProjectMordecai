@@ -46,6 +46,27 @@ class GamepadWorld(fb.FakeWorld):
             self.sprinting = not self.sprinting
             self.speed = self.base_speed * (1.5 if self.sprinting else 1.0)
 
+    def _s_player(self):
+        value = super()._s_player()
+        if self.sprinting:
+            value["tags"].append("Mordecai.State.Sprinting")
+        return value
+
+
+class DelayedGamepadWorld(GamepadWorld):
+    """L3 reaches gameplay after the bridge's key response, as it can in the packaged game."""
+
+    def _on_key_pressed(self, key):
+        if key != "Gamepad_LeftThumbstick":
+            return super()._on_key_pressed(key)
+        fb.FakeWorld._on_key_pressed(self, key)
+
+        def toggle(world):
+            world.sprinting = not world.sprinting
+            world.speed = world.base_speed * (1.5 if world.sprinting else 1.0)
+
+        self.after(0.20, toggle)
+
 
 class PlaytestCase(unittest.TestCase):
     def setUp(self):
@@ -73,6 +94,10 @@ class PlaytestCase(unittest.TestCase):
 
 
 class TestUs097Playtest(PlaytestCase):
+    def test_sprint_tag_wait_is_bounded_by_measured_main_latency_margin(self):
+        self.assertGreaterEqual(us097.SPRINT_TAG_TIMEOUT_S, 0.20)
+        self.assertLessEqual(us097.SPRINT_TAG_TIMEOUT_S, 0.25)
+
     def test_fixed_gamepad_mapping_passes_move_and_sprint(self):
         world, server = self.serve()
         code, report = self.play(server)
@@ -91,6 +116,13 @@ class TestUs097Playtest(PlaytestCase):
         checks = {c["name"]: c for c in report["checks"]}
         self.assertEqual(checks["gamepad_move"]["status"], "FAIL")
         self.assertIn("gamepad_move", report["new_failures"])
+
+    def test_l3_waits_for_the_sprint_tag_before_measuring_each_phase(self):
+        _, server = self.serve(DelayedGamepadWorld)
+        code, report = self.play(server)
+        checks = {c["name"]: c for c in report["checks"]}
+        self.assertEqual(code, 0, checks["sprint_l3"]["detail"])
+        self.assertEqual(checks["sprint_l3"]["status"], "PASS")
 
     def test_plan_and_route(self):
         self.assertEqual(kit.plan_problems(us097.Us097Run), [])

@@ -331,6 +331,16 @@ def spent(before, after):
     return out
 
 
+def low_water(after, hit=None):
+    """Lowest observed vital per attribute, before periodic regen can raise the swing endpoint."""
+    out = dict(after or {})
+    for key in ("health", "stamina", "posture"):
+        values = [(source or {}).get(key) for source in (after, hit)]
+        values = [value for value in values if isinstance(value, (int, float))]
+        out[key] = min(values) if values else None
+    return out
+
+
 def near(value, target, tol=TOL):
     return value is not None and abs(value - target) <= tol
 
@@ -364,10 +374,15 @@ def spent_text(rec):
         v = s.get(k)
         return f"{k} -{v:g}" if v is not None else f"{k} ?"
 
-    b, a = rec.get("before") or {}, rec.get("after") or {}
-    return (f"{one('health')} ({b.get('health')} -> {a.get('health')}), {one('stamina')} "
-            f"({b.get('stamina')} -> {a.get('stamina')}), {one('posture')} ({b.get('posture')} -> "
-            f"{a.get('posture')})")
+    b, low, a = rec.get("before") or {}, rec.get("low") or rec.get("after") or {}, \
+        rec.get("after") or {}
+    text = (f"{one('health')} ({b.get('health')} -> {low.get('health')}), {one('stamina')} "
+            f"({b.get('stamina')} -> {low.get('stamina')}), {one('posture')} "
+            f"({b.get('posture')} -> {low.get('posture')})")
+    if any(low.get(key) != a.get(key) for key in ("health", "stamina", "posture")):
+        text += (f"; swing endpoint after regen: health {a.get('health')}, stamina "
+                 f"{a.get('stamina')}, posture {a.get('posture')}")
+    return text
 
 
 def reach_at_hit(samples, hit_s, window=REACH_WINDOW_S, reach=REACH_CM):
@@ -797,25 +812,26 @@ class Us101Run(kit.PlaytestRun):
         rec["after_mode"] = (p1 or {}).get("movement_mode")
         rec["attacker_after_tags"] = state_tags(a1)
         rec["dead_after"] = bool(p1 is None or p1.get("is_dead") is True or TAG_DEAD in tags(p1))
-        rec["spent"] = spent(rec["before"], rec["after"])
+        rec["low"] = low_water(rec["after"], rec.get("hit"))
+        rec["spent"] = spent(rec["before"], rec["low"])
         return rec
 
     def _mark(self, rec, label, t_edge):
         rec["timeline"].append((label, round(time.monotonic() - t_edge, 3)))
 
     def _watch_hit(self, t_edge, rec):
-        """wait_until the player's health drops (poll_s 0): the hit time, for the later delays."""
+        """Sample full vitals until health drops, preserving the pre-regen hit low-water mark."""
         h0 = rec["before"]["health"]
-        left = max(0.05, HIT_TIMEOUT_S - (time.monotonic() - t_edge))
-        try:
-            self.bridge.wait_until(f"player.attributes.health<{h0 - 1.0:.3f}", timeout_s=left,
-                                   poll_s=EDGE_POLL_S)
-        except ab.BridgeError as e:
-            if e.code != "timeout":
-                raise
-            return
-        rec["hit_s"] = round(time.monotonic() - t_edge, 3)
-        self.hit_offsets.append(rec["hit_s"])
+        deadline = t_edge + HIT_TIMEOUT_S
+        while time.monotonic() < deadline:
+            snapshot = vitals(player(self._read()))
+            health = snapshot.get("health")
+            if health is not None and health < h0 - 1.0:
+                rec["hit_s"] = round(time.monotonic() - t_edge, 3)
+                self.hit_offsets.append(rec["hit_s"])
+                rec["hit"] = snapshot
+                return
+            time.sleep(SAMPLE_POLL_S)
 
     def _at(self, t_edge, rec, delay):
         """Sleep until `delay` (shifted by the measured hit time) after the edge."""

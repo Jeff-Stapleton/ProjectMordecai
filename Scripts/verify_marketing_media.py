@@ -2,13 +2,15 @@
 """Verify that packaged marketing clips contain the game shown by bridge screenshots."""
 
 import argparse
+import hashlib
 import json
+import math
 import os
 import subprocess
 import sys
 import tempfile
 
-from PIL import Image, ImageStat
+from PIL import Image, ImageChops, ImageStat
 
 
 def _normalized_histogram(image, bins=16):
@@ -41,6 +43,60 @@ def hud_region_non_uniform(image, minimum_stddev=8.0):
     return max(ImageStat.Stat(hud).stddev) >= minimum_stddev
 
 
+def frame_motion_score(left, right):
+    """Return normalized RGB RMS change in [0, 1] after a small common resize."""
+    a = left.convert("RGB").resize((128, 72))
+    b = right.convert("RGB").resize((128, 72))
+    rms = ImageStat.Stat(ImageChops.difference(a, b)).rms
+    return sum(rms) / (len(rms) * 255.0)
+
+
+def frame_psnr(left, right):
+    """Return RGB PSNR in dB after a common resize; infinity means pixel-identical."""
+    a = left.convert("RGB").resize((320, 180))
+    b = right.convert("RGB").resize((320, 180))
+    stat = ImageStat.Stat(ImageChops.difference(a, b))
+    mse = sum(value * value for value in stat.rms) / len(stat.rms)
+    if mse <= 0.0:
+        return math.inf
+    return 20.0 * math.log10(255.0 / math.sqrt(mse))
+
+
+def _sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def load_source_manifest(path):
+    with open(path, encoding="utf-8") as stream:
+        payload = json.load(stream)
+    if payload.get("version") != 1 or not isinstance(payload.get("frames"), list):
+        raise ValueError("source manifest must be version 1 with a frames array")
+    root = os.path.dirname(os.path.abspath(path))
+    frames = []
+    errors = []
+    for entry in payload["frames"]:
+        relative = entry.get("file") if isinstance(entry, dict) else None
+        expected = entry.get("sha256") if isinstance(entry, dict) else None
+        source = os.path.abspath(os.path.join(root, relative or ""))
+        if not relative or not os.path.isfile(source):
+            errors.append(f"missing source frame: {relative!r}")
+            continue
+        actual = _sha256(source)
+        if not expected or actual.lower() != str(expected).lower():
+            errors.append(f"SHA256 mismatch: {relative!r}")
+            continue
+        frames.append(source)
+    if errors:
+        raise ValueError("; ".join(errors))
+    if not frames:
+        raise ValueError("source manifest has no verified frames")
+    return payload, frames
+
+
 def _run_json(command):
     return json.loads(subprocess.check_output(command, text=True, stderr=subprocess.STDOUT))
 
@@ -70,69 +126,94 @@ def _sample_frame(video, second, output):
     ])
 
 
-def verify_video(video, references, minimum_similarity=0.55):
+def verify_video(video, source_manifest, minimum_psnr=24.0, minimum_motion=0.00035):
     metadata = probe_video(video)
     duration = metadata["duration_seconds"]
-    sample_times = [duration * fraction for fraction in (0.25, 0.5, 0.75)]
-    reference_images = []
-    for path in references:
+    sample_times = [duration * fraction for fraction in (0.1, 0.2, 0.3, 0.4, 0.5,
+                                                          0.6, 0.7, 0.8, 0.9)]
+    _, source_paths = load_source_manifest(source_manifest)
+    source_images = []
+    for path in source_paths:
         with Image.open(path) as source:
-            reference_images.append(source.convert("RGB"))
+            source_images.append(source.convert("RGB").resize((320, 180)))
 
     samples = []
+    sampled_images = []
     with tempfile.TemporaryDirectory(prefix="mordecai-media-") as temp:
         for index, second in enumerate(sample_times, 1):
             frame_path = os.path.join(temp, f"frame-{index}.png")
             _sample_frame(video, second, frame_path)
             with Image.open(frame_path) as source:
                 frame = source.convert("RGB")
-                similarities = [
-                    histogram_similarity(frame, reference) for reference in reference_images
-                ]
-                best = max(similarities, default=0.0)
+                sampled_images.append(frame.copy())
+                matches = [frame_psnr(frame, source) for source in source_images]
+                best = max(matches, default=0.0)
+                best_index = matches.index(best) if matches else None
                 hud_ok = hud_region_non_uniform(frame)
                 samples.append({
                     "second": round(second, 3),
-                    "best_histogram_similarity": round(best, 4),
+                    "best_source_frame": (
+                        os.path.basename(source_paths[best_index])
+                        if best_index is not None else None),
+                    "best_source_psnr_db": (
+                        "inf" if math.isinf(best) else round(best, 3)),
                     "hud_region_non_uniform": hud_ok,
-                    "passed": best >= minimum_similarity and hud_ok,
+                    "passed": best >= minimum_psnr and hud_ok,
                 })
 
+    motion_scores = [
+        round(frame_motion_score(sampled_images[index - 1], sampled_images[index]), 6)
+        for index in range(1, len(sampled_images))
+    ]
+    moving_pairs = sum(score >= minimum_motion for score in motion_scores)
+    motion_passed = moving_pairs >= 6
     metadata_ok = (
         5.0 <= duration <= 20.0
-        and metadata["width"] == 1920
-        and metadata["height"] == 1080
+        and (metadata["width"], metadata["height"]) in ((1280, 720), (1920, 1080))
         and metadata["pixel_format"] == "yuv420p"
+        and metadata["frame_rate"] == "30/1"
         and metadata["size_bytes"] < 50 * 1024 * 1024
     )
     return {
         "video": os.path.abspath(video),
-        "references": [os.path.abspath(path) for path in references],
-        "minimum_similarity": minimum_similarity,
+        "source_manifest": os.path.abspath(source_manifest),
+        "source_frame_count": len(source_paths),
+        "minimum_source_psnr_db": minimum_psnr,
+        "minimum_motion": minimum_motion,
         "metadata": metadata,
         "metadata_passed": metadata_ok,
         "samples": samples,
-        "passed": metadata_ok and bool(samples) and all(item["passed"] for item in samples),
+        "motion": {
+            "consecutive_sample_scores": motion_scores,
+            "moving_pairs": moving_pairs,
+            "required_moving_pairs": 6,
+            "passed": motion_passed,
+        },
+        "passed": (metadata_ok and bool(samples) and all(item["passed"] for item in samples)
+                   and motion_passed),
     }
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--video", action="append", required=True)
-    parser.add_argument("--reference", action="append", required=True)
-    parser.add_argument("--minimum-similarity", type=float, default=0.55)
+    parser.add_argument("--source-manifest", required=True)
+    parser.add_argument("--minimum-psnr", type=float, default=24.0)
+    parser.add_argument("--minimum-motion", type=float, default=0.00035)
     parser.add_argument("--output")
     args = parser.parse_args(argv)
 
-    missing = [path for path in args.video + args.reference if not os.path.isfile(path)]
+    missing = [path for path in args.video + [args.source_manifest] if not os.path.isfile(path)]
     if missing:
         parser.error("missing file(s): " + ", ".join(missing))
 
     videos = [
-        verify_video(path, args.reference, args.minimum_similarity) for path in args.video
+        verify_video(path, args.source_manifest, args.minimum_psnr, args.minimum_motion)
+        for path in args.video
     ]
     result = {
-        "method": "ffprobe metadata + sampled-frame RGB histogram/HUD comparison",
+        "method": ("required SHA256 source-frame manifest + decoded-frame PSNR source matching "
+                   "+ HUD structure + consecutive-frame motion"),
         "videos": videos,
         "passed": all(video["passed"] for video in videos),
     }

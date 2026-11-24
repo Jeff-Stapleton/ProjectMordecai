@@ -660,6 +660,7 @@ void AMordecaiCharacter::HandlePlayerRespawn()
 			ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetHealthAttribute(), AttrSet->GetMaxHealth());
 			ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetStaminaAttribute(), AttrSet->GetMaxStamina());
 			ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetPostureAttribute(), AttrSet->GetMaxPosture());
+			ASC->SetNumericAttributeBase(UMordecaiAttributeSet::GetSpellPointsAttribute(), AttrSet->GetMaxSpellPoints());
 		}
 	}
 

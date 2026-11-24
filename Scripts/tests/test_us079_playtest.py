@@ -413,6 +413,31 @@ class TestUs079AgainstTheFake(PlaytestCase):
         self.assertIn("(limit 0.01s", check["detail"])
         self.assertEqual(self.statuses(rep, "FAIL"), ["pickup_loop_time"])
 
+    def test_each_walk_allows_enemy_interruptions_without_weakening_the_loop_limit(self):
+        """DevTestMap enemies can stagger a walk past Bridge.walk_to's 5 s default.
+
+        Round 3's branch run timed out the first route at 5.0 s while clean main happened to
+        finish in 4.7 s.  Require an explicit per-leg budget while the existing 30 s whole-route
+        check remains the acceptance limit.
+        """
+        original = ab.Bridge.walk_to
+        seen_timeouts = []
+
+        def require_interruption_budget(bridge, *args, **kwargs):
+            timeout_s = kwargs.get("timeout_s")
+            seen_timeouts.append(timeout_s)
+            if timeout_s is None or timeout_s < 10.0:
+                raise ab.BridgeError("walk_timeout", "enemy interruptions consumed the 5s default")
+            return original(bridge, *args, **kwargs)
+
+        with mock.patch.object(ab.Bridge, "walk_to", require_interruption_budget):
+            _, server = self.serve()
+            code, rep = self.play(server)
+        self.assertEqual(code, 0, self.log.getvalue()[-3000:])
+        self.assertTrue(seen_timeouts)
+        self.assertTrue(all(value >= 10.0 for value in seen_timeouts))
+        self.assertEqual(self.by_name(rep)["pickup_loop_time"]["status"], "PASS")
+
     def test_known_issues_and_the_after_escape_expectation_match_the_fixed_game(self):
         _, server = self.serve()
         code, rep = self.play(server)

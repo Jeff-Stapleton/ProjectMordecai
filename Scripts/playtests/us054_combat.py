@@ -107,6 +107,8 @@ STARTING_WEAPON = "Longsword"
 BURNING_TEXT = "Burning"
 RESTORATION_KEY = "One"
 RESTORATION_SP = 3.0
+DEATH_BUDGET_KEY = "Q"
+DEATH_BUDGET_HEALTH = 30.0
 ATTACK_POINT = (640, 360)              # the viewport centre: the game view, no widget
 
 # --- timeouts (module-level so the offline tests can shorten them) ------------------------------
@@ -154,6 +156,7 @@ SCREENSHOTS = {
             "'Kills: 1' (the life's kills) in the middle; behind it the player dead next to the "
             "orange TestAttacker; the combat HUD and its weapon plate are not visible",
     "respawned": "the player back at the PlayerStart with a full health bar on the grid floor, "
+                 "the spell-point bar refilled to max, "
                  "no death screen and no dimming, 'Kills: 0' top-right and 'Longsword' in the "
                  "bottom-right loadout plate; the TestDummy cylinder and its full red indicator "
                  "back at (600, 600); the TestAttacker back at (2100, 0), likely out of view",
@@ -202,12 +205,15 @@ PLAN = (
     Step("restoration_heals", f"tap {RESTORATION_KEY} -> within {RESTORATION_TIMEOUT_S:g}s "
          f"health rises, spell_points drops by {RESTORATION_SP:g} and '{TAG_RESTORATION}' is in "
          "player.tags", proves=("US-057:AC-057.4", "US-057:AC-057.5", "US-057:AC-057.12")),
-    Step("burning_on_hit", f"keep standing -> within {BURNING_TIMEOUT_S:g}s '{TAG_BURNING}' in "
-         f"player.tags and a widget text '{BURNING_TEXT}' (WARN if Burning never procs: the "
-         f"{ATTACKER} swings BasicSlash; ends at once, WARN, when the player dies)",
+    Step("burning_on_hit", f"keep standing; at health <= {DEATH_BUDGET_HEALTH:g}, tap "
+         f"{DEATH_BUDGET_KEY} once if SP has regenerated to max so the death snapshot can prove "
+         f"the respawn refill; within {BURNING_TIMEOUT_S:g}s '{TAG_BURNING}' in player.tags and "
+         f"a widget text '{BURNING_TEXT}' (WARN if Burning never procs: the {ATTACKER} swings "
+         "BasicSlash; ends at once, WARN, when the player dies)",
          proves=("US-057:AC-057.11", "US-057:AC-057.8")),
     Step("player_dies", f"keep standing -> player.is_dead==true within {DEATH_TIMEOUT_S:g}s (or "
-         f"already seen dead by an earlier step), '{TAG_DEAD}' in player.tags",
+         f"already seen dead by an earlier step), '{TAG_DEAD}' in player.tags, and the death "
+         "snapshot records spell_points below max_spell_points (Dead inhibits regeneration)",
          proves=("US-053:AC-053.1",)),
     Step("death_screen", f"state widgets -> within {DEATH_SCREEN_TIMEOUT_S:g}s one widget with "
          f"'{YOU_DIED}', a countdown digit and 'Kills: N', N = the kills "
@@ -220,6 +226,9 @@ PLAN = (
     Step("respawn", f"wait -> within {RESPAWN_TIMEOUT_S:g}s player.is_dead==false, health == "
          f"max_health, within {RESPAWN_RADIUS:g} cm of ({SPAWN[0]:g}, {SPAWN[1]:g}), no "
          f"'{TAG_DEAD}' tag", proves=("US-053:AC-053.4", "US-053:AC-053.5")),
+    Step("sp_restored_on_respawn", "the first state read that shows the respawned player -> "
+         "spell_points == max_spell_points after the death snapshot proved SP was still below max",
+         proves=("US-090:AC3", "US-090:AC7")),
     Step("death_screen_removed", f"state widgets -> within {DEATH_SCREEN_TIMEOUT_S:g}s of the "
          f"respawn no widget text '{YOU_DIED}' (needs the death screen seen)",
          proves=("US-086:AC-086.1",)),
@@ -446,7 +455,7 @@ class Us054CombatRun(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
-    COVERS = ("US-053", "US-057", "US-062", "US-063", "US-086")
+    COVERS = ("US-053", "US-057", "US-062", "US-063", "US-086", "US-090")
     FEATURES = ("enemies", "enemy_ai", "melee_attack", "dodge", "death_respawn", "kill_counter",
                 "status_effects")
     TITLE = TITLE
@@ -471,6 +480,8 @@ class Us054CombatRun(kit.PlaytestRun):
         self.dummy_hit = None        # (health before the click, lowest after it)
         self.kill = None             # kill_enemy_melee: clicks, the dummy's healths, timing
         self.kills_seen = None       # player.kills when kill_counter_increments passed
+        self.sp_after_restoration = None
+        self.death_budget = None     # low-health SP state and optional real-input Q spend
 
     # --- the run ------------------------------------------------------------------------------
     def steps(self):
@@ -518,6 +529,8 @@ class Us054CombatRun(kit.PlaytestRun):
         if is_dead(p):
             self.died_at = time.monotonic()
             self.death = {"step": step, "tags": tags(p), "health": attr(p, "health"),
+                          "spell_points": attr(p, "spell_points"),
+                          "max_spell_points": attr(p, "max_spell_points"),
                           "location": xy(p.get("location"))}
             self.enemies_at_death = describe_targets(st) if enemies(st) else None
             self.log(f"the player is dead (first seen in {step})")
@@ -863,9 +876,10 @@ class Us054CombatRun(kit.PlaytestRun):
                 return ("WARN", "inconclusive: the player was dead (or had no pawn) before "
                         f"{RESTORATION_KEY} could be tapped", None)
             h0, hmax, sp0 = attr(p0, "health"), attr(p0, "max_health"), attr(p0, "spell_points")
+            observed_at = time.monotonic()
             b.tap(RESTORATION_KEY, hold_s=self.TAP_S)
-            seen = {"rose": False, "tag": False, "prev": h0, "sp": sp0, "died": False,
-                    "healths": [h0], "alive_reads": 0}
+            seen = {"rose": False, "tag": False, "prev": h0, "sp": sp0, "min_sp": sp0,
+                    "died": False, "healths": [h0], "alive_reads": 0}
 
             def watch(st):
                 self._note(st, "restoration_heals")
@@ -881,20 +895,38 @@ class Us054CombatRun(kit.PlaytestRun):
                     seen["prev"] = h
                     seen["healths"].append(h)
                 seen["sp"] = attr(p, "spell_points")
+                if seen["sp"] is not None:
+                    seen["min_sp"] = (seen["sp"] if seen["min_sp"] is None
+                                      else min(seen["min_sp"], seen["sp"]))
                 seen["tag"] = seen["tag"] or TAG_RESTORATION in tags(p)
-                sp_ok = (sp0 is not None and seen["sp"] is not None
-                         and abs((sp0 - seen["sp"]) - RESTORATION_SP) < 0.01)
+                # Judge the minimum observed SP, not the value after the 5-second heal.  US-090
+                # regenerates during that observation window.  A periodic tick can race the
+                # first state read, so allow one 0.25-SP tick while still requiring the 3-SP
+                # GAS spend (a smaller/absent spend cannot pass).
+                spend = (sp0 - seen["min_sp"]
+                         if sp0 is not None and seen["min_sp"] is not None else None)
+                sp_ok = spend is not None and RESTORATION_SP - 0.26 <= spend <= RESTORATION_SP + 0.01
                 return seen["rose"] and seen["tag"] and sp_ok
 
             done, _ = self._poll(["player", "actors"], watch, RESTORATION_TIMEOUT_S)
-            drop = (sp0 - seen["sp"]) if sp0 is not None and seen["sp"] is not None else None
+            observed_s = time.monotonic() - observed_at
+            self.sp_after_restoration = seen["min_sp"]
+            drop = (sp0 - seen["min_sp"]
+                    if sp0 is not None and seen["min_sp"] is not None else None)
             hs = seen["healths"]
+            refund_ceiling = (None if seen["min_sp"] is None else
+                              seen["min_sp"] + 0.25 * (math.ceil(observed_s) + 1) + 0.02)
+            refund_ok = (seen["sp"] is not None and refund_ceiling is not None
+                         and seen["sp"] <= refund_ceiling)
             what = (f"tapped {RESTORATION_KEY} at health {h0}/{hmax}, SP {sp0}; SP now "
-                    f"{seen['sp']} (drop {drop}), health samples {hs[:6]}...{hs[-3:]}, health "
+                    f"{seen['sp']}, minimum observed {seen['min_sp']} (spend {drop}; periodic "
+                    f"regen allowed for {observed_s:.2f}s, final ceiling {refund_ceiling}), "
+                    f"health samples {hs[:6]}...{hs[-3:]}, health "
                     f"rose between reads: {seen['rose']}, '{TAG_RESTORATION}' seen: {seen['tag']}")
-            if done and not seen["died"]:
+            if done and not seen["died"] and refund_ok:
                 return "PASS", what, None
-            cast = seen["tag"] and drop is not None and abs(drop - RESTORATION_SP) < 0.01
+            cast = (seen["tag"] and drop is not None and refund_ok
+                    and RESTORATION_SP - 0.26 <= drop <= RESTORATION_SP + 0.01)
             if seen["died"] and seen["alive_reads"] == 0:
                 return ("WARN", "inconclusive: the player was dead at the first read after the "
                         f"tap (killed during it); {what}", None)
@@ -915,6 +947,26 @@ class Us054CombatRun(kit.PlaytestRun):
                 if p is None or is_dead(p):
                     seen["died"] = True   # stop at once: the death and respawn are next
                     return True
+                health = attr(p, "health")
+                current_sp = attr(p, "spell_points")
+                max_sp = attr(p, "max_spell_points")
+                if self.death_budget is not None and current_sp is not None:
+                    previous = self.death_budget.get("minimum_spell_points")
+                    self.death_budget["minimum_spell_points"] = (
+                        current_sp if previous is None else min(previous, current_sp))
+                if (self.death_budget is None and health is not None
+                        and health <= DEATH_BUDGET_HEALTH):
+                    full = (current_sp is not None and max_sp is not None
+                            and current_sp >= max_sp - 0.01)
+                    self.death_budget = {
+                        "health": health,
+                        "spell_points_before": current_sp,
+                        "max_spell_points": max_sp,
+                        "key": DEATH_BUDGET_KEY if full else None,
+                        "minimum_spell_points": current_sp,
+                    }
+                    if full:
+                        b.tap(DEATH_BUDGET_KEY, hold_s=self.TAP_S)
                 tag = TAG_BURNING in tags(p)
                 text = any(BURNING_TEXT.lower() in t.lower() for t in all_texts(st))
                 seen["tag"] = seen["tag"] or tag
@@ -1044,6 +1096,27 @@ class Us054CombatRun(kit.PlaytestRun):
                               timeout_s=RESPAWN_TIMEOUT_S, radius=ENEMY_RADIUS, needs=died,
                               needs_why=why)
         self.respawn_state = st
+
+        def spell_points_refilled(_b):
+            p = player(self.respawn_state) or {}
+            current = attr(p, "spell_points")
+            maximum = attr(p, "max_spell_points")
+            death_sp = (self.death or {}).get("spell_points")
+            death_max = (self.death or {}).get("max_spell_points")
+            spent_at_death = (
+                death_sp is not None and death_max is not None
+                and death_sp < death_max - 0.01
+            )
+            detail = (f"death snapshot spell_points {death_sp} / max_spell_points {death_max}; "
+                      f"SP after Restoration {self.sp_after_restoration}; first respawn read "
+                      f"spell_points {current} / max_spell_points {maximum}")
+            if not spent_at_death:
+                return "FAIL", f"{detail}: death snapshot did not prove SP below max", None
+            return ("PASS" if current is not None and maximum is not None
+                    and abs(current - maximum) < 0.01 else "FAIL", detail, None)
+
+        self.measure("sp_restored_on_respawn", spell_points_refilled, needs=ok,
+                     needs_why="not run: the player did not respawn")
         self.shot("respawned", needs=ok, needs_why="not taken: the player did not respawn")
         why = "not run: the player did not respawn"
 
@@ -1147,7 +1220,9 @@ class Us054CombatRun(kit.PlaytestRun):
                 "pre_death": self.pre_death, "death": self.death,
                 "enemies_at_death": self.enemies_at_death,
                 "dummy_hit": list(self.dummy_hit) if self.dummy_hit else None,
-                "kill": self.kill, "kills_seen": self.kills_seen}
+                "kill": self.kill, "kills_seen": self.kills_seen,
+                "sp_after_restoration": self.sp_after_restoration,
+                "death_budget": self.death_budget}
 
     def md_sections(self):
         death = self.death

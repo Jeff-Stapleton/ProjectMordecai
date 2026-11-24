@@ -11,6 +11,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -49,7 +50,8 @@ def load_pickup_playtest():
 
 class FireballWorld(fb.FakeWorld):
     def __init__(self, *, projectile=True, visible=True, damage=True, reset=False,
-                 replacement=False, movement=False, dead_player=False, full_target=True):
+                 replacement=False, movement=False, dead_player=False, full_target=True,
+                 regen_after_cast=0.0, refund_after_cast=0.0):
         kwargs = dict(fb.MAP_PRESETS[fb.COMBAT_TEST_MAP])
         super().__init__(**kwargs)
         self.projectile_enabled = projectile
@@ -59,6 +61,9 @@ class FireballWorld(fb.FakeWorld):
         self.replacement_enabled = replacement
         self.movement_enabled = movement
         self.dead_player_enabled = dead_player
+        self.regen_after_cast = float(regen_after_cast)
+        self.refund_after_cast = float(refund_after_cast)
+        self.refund_pending = False
         self.projectiles = []
         self.replaced = False
         self.cast_position = None
@@ -73,6 +78,9 @@ class FireballWorld(fb.FakeWorld):
         super()._on_key_pressed(key)
         if key != "Q" or len(self.casts) == casts_before:
             return
+        self.spell_points = min(
+            self.max_spell_points, self.spell_points + self.regen_after_cast)
+        self.refund_pending = self.refund_after_cast > 0.0
         self.cast_position = list(self.pos)
         if self.projectile_enabled:
             self.after(0.03, lambda world: world.projectiles.append(
@@ -81,6 +89,15 @@ class FireballWorld(fb.FakeWorld):
             self.after(0.09, lambda world: world._damage_dummy())
         if self.dead_player_enabled:
             self.after(0.07, lambda world: world.kill_player())
+
+    def _s_player(self):
+        result = super()._s_player()
+        if self.casts and self.refund_pending:
+            self.spell_points = min(
+                self.max_spell_points,
+                self.spell_points + self.refund_after_cast)
+            self.refund_pending = False
+        return result
 
     def _damage_dummy(self):
         self._dummy()["health"] = 175.0
@@ -178,6 +195,21 @@ class TestUs087IndependentOutcomes(PlaytestCase):
                 self.assertEqual(checks["fireball_cast"]["status"], "PASS")
                 self.assertEqual(checks["target_integrity"]["status"], "PASS")
                 self.assertEqual(code, 0 if projectile and damage else 1)
+
+    def test_fireball_cost_allows_one_regen_tick_before_first_state_read(self):
+        _, _, code, report = self.play(regen_after_cast=0.25)
+        check = self.checks(report)["fireball_cast"]
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertEqual(report["fireball"]["sp_min"], 7.25)
+        self.assertIn("periodic regen allowed", check["detail"])
+
+    def test_excessive_post_spend_refund_fails(self):
+        _, _, code, report = self.play(refund_after_cast=3.0)
+        check = self.checks(report)["fireball_cast"]
+        self.assertEqual(code, 1)
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("periodic regen allowed, ceiling", check["detail"])
 
     def test_invisible_projectile_fails_visibility_but_damage_still_passes(self):
         _, _, code, report = self.play(projectile=True, visible=False, damage=True)
@@ -294,12 +326,18 @@ class PickupLaneWorld(FireballWorld):
         if "blocked" in self.faults:
             self.mapping = {k: (-v[0], -v[1]) for k, v in fb.DEFAULT_MAPPING.items()}
         self.projectiles = []
+        self.delayed_first_post_cast_state = False
 
     def _on_key_pressed(self, key):
         casts = len(self.casts)
         fb.FakeWorld._on_key_pressed(self, key)
         if key != "Q" or len(self.casts) == casts:
             return
+        if "regen" in self.faults:
+            self.spell_points = min(self.max_spell_points, self.spell_points + 0.25)
+        if "refund" in self.faults:
+            self.refund_after_cast = self.max_spell_points
+            self.refund_pending = True
         spawn = lambda w: w.projectiles.append({  # noqa: E731
             "name": "Fireball_1",
             "location": [w.pos[0] + 70,
@@ -332,12 +370,19 @@ class PickupLaneWorld(FireballWorld):
                 elif "swap" in self.faults and p["location"][0] > -500.0:
                     p["name"] = "Fireball_Replacement"
 
+    def state(self, sections=None, radius=1500.0, include_all_actors=False):
+        if ("slow_first_state" in self.faults and self.casts
+                and not self.delayed_first_post_cast_state):
+            self.delayed_first_post_cast_state = True
+            time.sleep(0.18)
+        return super().state(sections, radius, include_all_actors)
+
 
 class TestUs087PickupLane(PlaytestCase):
     def setUp(self):
         super().setUp()
         self.pickup = load_pickup_playtest()
-        for name, value in (("POLL_S", 0.005), ("CROSSING_WINDOW_S", 0.45)):
+        for name, value in (("POLL_S", 0.005), ("CROSSING_WINDOW_S", 0.8)):
             patch = mock.patch.object(self.pickup, name, value)
             patch.start(); self.addCleanup(patch.stop)
 
@@ -349,6 +394,9 @@ class TestUs087PickupLane(PlaytestCase):
                                  "--run-dir", self.run_dir])
         with open(os.path.join(self.run_dir, "report.json"), encoding="utf-8") as handle:
             return server, code, json.load(handle)
+
+    def test_pickup_approach_keeps_the_main_package_500_cm_runway(self):
+        self.assertEqual(self.pickup.APPROACH_DISTANCE, 500.0)
 
     def test_passes_with_only_safe_real_input_commands(self):
         server, code, report = self.play_pickup()
@@ -366,6 +414,29 @@ class TestUs087PickupLane(PlaytestCase):
         self.assertNotIn("F", keys)
         self.assertFalse(any(r.get("unsafe") or r.get("route") == "viewport"
                              for r in server.received))
+
+    def test_fireball_cost_allows_one_regen_tick_before_first_state_read(self):
+        _, code, report = self.play_pickup("regen")
+        check = self.checks(report)["fireball_cast"]
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertIn("minimum 7.25", check["detail"])
+        self.assertIn("periodic regen allowed", check["detail"])
+
+    def test_loaded_first_actor_snapshot_still_retains_projectile_before_pickup(self):
+        with mock.patch.object(self.pickup, "CROSSING_WINDOW_S", 0.8):
+            _, code, report = self.play_pickup("slow_first_state")
+        check = self.checks(report)["pickup_trigger_pass_through"]
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertIn("same projectile 'Fireball_1'", check["detail"])
+
+    def test_excessive_pickup_lane_refund_fails(self):
+        _, code, report = self.play_pickup("refund")
+        check = self.checks(report)["fireball_cast"]
+        self.assertEqual(code, 1)
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("periodic regen allowed, ceiling", check["detail"])
 
     def test_faults_fail_the_named_binary_check(self):
         cases = (("destroy", "pickup_trigger_pass_through"),

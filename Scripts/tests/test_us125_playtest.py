@@ -55,6 +55,11 @@ class TestUs125PlaytestsAgainstFakeBridge(unittest.TestCase):
     def _checks(report):
         return {check["name"]: check for check in report["checks"]}
 
+    def test_attack_cancel_setup_keeps_the_six_attack_main_package_contract(self):
+        self.assertFalse(hasattr(attack_cancel, "MAX_SETUP_ATTACKS"))
+        source = open(attack_cancel.__file__, encoding="utf-8").read()
+        self.assertIn("for index in range(6):", source)
+
     def test_attack_cancel_fails_when_real_attack_tags_never_appear(self):
         world = fb.FakeWorld(**fb.MAP_PRESETS[fb.MOVEMENT_TEST_MAP])
         code, report = self._run(attack_cancel, world, "attack-cancel")

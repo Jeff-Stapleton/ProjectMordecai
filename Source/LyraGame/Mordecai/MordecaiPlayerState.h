@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GameplayEffectTypes.h"
 #include "Player/LyraPlayerState.h"
 
 #include "MordecaiPlayerState.generated.h"
@@ -44,6 +45,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mordecai|Posture")
 	UMordecaiPostureRuntimeComponent* GetPostureRuntimeComponent() const { return PostureRuntimeComponent; }
 
+	/** Number of active native SP regen effects, identified by their stable GE asset tag. */
+	UFUNCTION(BlueprintPure, Category = "Mordecai|Spell Points")
+	int32 GetSpellPointRegenEffectCount() const;
+
 private:
 	UPROPERTY()
 	TObjectPtr<UMordecaiAttributeSet> MordecaiAttributeSet;
@@ -59,4 +64,6 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Mordecai|Posture")
 	TObjectPtr<UMordecaiPostureRuntimeComponent> PostureRuntimeComponent;
+
+	FActiveGameplayEffectHandle SpellPointRegenEffectHandle;
 };

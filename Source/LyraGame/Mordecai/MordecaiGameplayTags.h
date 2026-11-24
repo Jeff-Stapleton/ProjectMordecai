@@ -111,6 +111,9 @@ namespace MordecaiGameplayTags
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Spell_StoneSkin);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Spell_Restoration);
 
+	// GameplayEffect asset tags (US-090)
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_SpellPointRegen);
+
 	// Ability tags (US-020)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Spell_Fireball);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Spell_ConeOfCold);

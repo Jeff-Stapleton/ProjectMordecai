@@ -340,7 +340,11 @@ bool FMordecai_Playtest_AgentBridge_State_Attributes::RunTest(const FString& Par
 	TestEqual("max_posture", Number(Json, TEXT("max_posture")), 100.0);
 	TestEqual("spell_points", Number(Json, TEXT("spell_points")), 7.0);
 	TestEqual("max_spell_points", Number(Json, TEXT("max_spell_points")), 10.0);
-	TestEqual("exactly the eight resource fields", Json->Values.Num(), 8);
+	TestEqual(
+		"spell_points_regen_multiplier",
+		Number(Json, TEXT("spell_points_regen_multiplier")),
+		1.0);
+	TestEqual("exactly the nine resource fields", Json->Values.Num(), 9);
 
 	const TSharedRef<FJsonObject> Missing = MordecaiAgentBridge::State::MakeAttributes(nullptr);
 	TestFalse("no attribute set -> invalid", Missing->GetBoolField(TEXT("valid")));

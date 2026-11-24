@@ -317,6 +317,11 @@ class Us120FakeCase(unittest.TestCase):
 
 
 class TestUs120Plan(unittest.TestCase):
+    def test_deep_bank_probe_uses_the_baseline_walk_contract_without_key_pulse_fallback(self):
+        self.assertFalse(hasattr(us120.Us120Run, "_probe_walk_to"))
+        source = open(PLAYTEST, encoding="utf-8").read()
+        self.assertNotIn("except (ab.BridgeError, RuntimeError)", source)
+
     def test_plan_is_valid_and_maps_checks_to_the_story_acs(self):
         self.assertEqual(kit.plan_problems(us120.Us120Run), [])
         self.assertIs(us120.Run, us120.Us120Run)

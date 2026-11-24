@@ -106,14 +106,15 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 8 | `walk_to_attacker` | walk_to(440, 0), walk_to(2000, 0) -> within 60 cm, then within 25 cm (the fight spot, 100 cm -X of the TestAttacker) | - |
 | 9 | `attacker_damages_player` | stand at the fight spot -> player.attributes.health < player.attributes.max_health within 20s | - |
 | 10 | `restoration_heals` | tap One -> within 6s health rises, spell_points drops by 3 and 'Mordecai.Status.Restoration' is in player.tags | US-057:AC-057.4, US-057:AC-057.5, US-057:AC-057.12 |
-| 11 | `burning_on_hit` | keep standing -> within 25s 'Mordecai.Status.Burning' in player.tags and a widget text 'Burning' (WARN if Burning never procs: the TestAttacker swings BasicSlash; ends at once, WARN, when the player dies) | US-057:AC-057.11, US-057:AC-057.8 |
+| 11 | `burning_on_hit` | keep standing; at health <= 30, tap Q once if SP has regenerated to max so the death snapshot can prove the respawn refill; within 25s 'Mordecai.Status.Burning' in player.tags and a widget text 'Burning' (WARN if Burning never procs: the TestAttacker swings BasicSlash; ends at once, WARN, when the player dies) | US-057:AC-057.11, US-057:AC-057.8 |
 | 12 | `player_dies` | keep standing -> player.is_dead==true within 60s (or already seen dead by an earlier step), 'Mordecai.State.Dead' in player.tags | US-053:AC-053.1 |
 | 13 | `death_screen` | state widgets -> within 1.5s one widget with 'You Died', a countdown digit and 'Kills: N', N = the kills kill_counter_increments read (any N when it did not run) | US-062:AC-062.1, US-062:AC-062.2, US-086:AC-086.1, US-086:AC-086.4 |
 | 14 | `weapon_hud_hidden_under_death` | state widgets -> no visible MordecaiEquippedWeaponWidget while the death screen is visible | - |
 | 15 | `dead_no_move` | while dead: hold W 0.5s -> moved < 5 cm | US-053:AC-053.2 |
 | 16 | `respawn` | wait -> within 6s player.is_dead==false, health == max_health, within 150 cm of (0, 0), no 'Mordecai.State.Dead' tag | US-053:AC-053.4, US-053:AC-053.5 |
-| 17 | `death_screen_removed` | state widgets -> within 1.5s of the respawn no widget text 'You Died' (needs the death screen seen) | US-086:AC-086.1 |
-| 18 | `weapon_hud_restored_after_respawn` | state widgets -> within 1.5s of the respawn visible MordecaiEquippedWeaponWidget shows 'Longsword' | - |
-| 19 | `arena_reset` | the first read that shows the respawned player (state actors) -> the TestDummy and the TestAttacker alive, health == max, within 100 cm of their spawns, ai_state 'Idle' in that read; PASS only when that read shows the reset (the TestDummy below max before the death and full at the respawn, or the TestAttacker out of Idle before the death and Idle at the respawn), else WARN | US-053:AC-053.8, US-053:AC-053.9 |
-| 20 | `respawn_moves` | hold W 0.4s -> player x grows by >= 80 cm | US-053:AC-053.6 |
-| 21 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills; 0 when a kill and the death were both seen (the death resets the count) | US-063:AC-063.1, US-086:AC-086.5 |
+| 17 | `sp_restored_on_respawn` | the first state read that shows the respawned player -> spell_points == max_spell_points after Restoration spent SP before death | US-090:AC3, US-090:AC7 |
+| 18 | `death_screen_removed` | state widgets -> within 1.5s of the respawn no widget text 'You Died' (needs the death screen seen) | US-086:AC-086.1 |
+| 19 | `weapon_hud_restored_after_respawn` | state widgets -> within 1.5s of the respawn visible MordecaiEquippedWeaponWidget shows 'Longsword' | - |
+| 20 | `arena_reset` | the first read that shows the respawned player (state actors) -> the TestDummy and the TestAttacker alive, health == max, within 100 cm of their spawns, ai_state 'Idle' in that read; PASS only when that read shows the reset (the TestDummy below max before the death and full at the respawn, or the TestAttacker out of Idle before the death and Idle at the respawn), else WARN | US-053:AC-053.8, US-053:AC-053.9 |
+| 21 | `respawn_moves` | hold W 0.4s (retry once after a short correct-direction move) -> player x grows by >= 80 cm | US-053:AC-053.6 |
+| 22 | `kill_counter_text_matches` | state widgets, player -> the 'Kills: N' text equals player.kills; 0 when a kill and the death were both seen (the death resets the count) | US-063:AC-063.1, US-086:AC-086.5 |

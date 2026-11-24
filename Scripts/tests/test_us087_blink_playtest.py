@@ -80,6 +80,10 @@ class BlinkWorld(fb.FakeWorld):
             self.spell_points = 9.0
         elif "no_sp" in self.faults:
             self.spell_points = 10.0
+        elif "regen" in self.faults:
+            self.spell_points = min(self.max_spell_points, self.spell_points + 0.25)
+        if "refund" in self.faults:
+            self.after(0.08, lambda world: setattr(world, "spell_points", world.max_spell_points))
         if "never_invulnerable" not in self.faults:
             self.status_tags.add(us087.INVULN_TAG)
             if "stuck_invulnerable" not in self.faults:
@@ -200,6 +204,21 @@ class TestUs087BlinkOutcomes(PlaytestCase):
                 check = self.checks(report)["blink_past_enemy"]
                 self.assertEqual(check["status"], "FAIL")
                 self.assertIn("spell_points", check["detail"])
+
+    def test_periodic_regen_racing_the_first_read_preserves_exact_spend_proof(self):
+        _, _, code, report = self.play(("regen",))
+        check = self.checks(report)["blink_past_enemy"]
+        self.assertEqual(code, 0, self.log.getvalue()[-4000:])
+        self.assertEqual(check["status"], "PASS", check["detail"])
+        self.assertEqual(report["blink"]["sp_min"], 8.25)
+        self.assertIn("periodic regen allowed", check["detail"])
+
+    def test_excessive_post_spend_refund_fails(self):
+        _, _, code, report = self.play(("refund",))
+        check = self.checks(report)["blink_past_enemy"]
+        self.assertEqual(code, 1)
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("periodic-regen ceiling", check["detail"])
 
     def test_never_granted_and_stuck_invulnerability_fail_independently(self):
         for fault, text in (("never_invulnerable", "never observed"),

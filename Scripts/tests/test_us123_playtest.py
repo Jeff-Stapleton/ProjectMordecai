@@ -227,6 +227,15 @@ class Us123PlaytestCase(unittest.TestCase):
     def checks(report):
         return {check["name"]: check for check in report["checks"]}
 
+    def test_round4_uses_the_main_package_route_and_parry_timing(self):
+        self.assertEqual(us123.PIN_SPOT, (1850.0, 0.0))
+        self.assertEqual(us123.PARRY_DELAY_S, 0.35)
+        self.assertFalse(hasattr(us123, "PARRY_RETRY_DELAY_S"))
+        self.assertEqual(us123.Us123Run._pin_yellow.__defaults__[0], 66.0)
+        source = open(PLAYTEST, encoding="utf-8").read()
+        self.assertIn("deadline = time.monotonic() + 20.0", source)
+        self.assertNotIn("tier-correction attack recovery", source)
+
     def test_plan_contract(self):
         self.assertEqual(kit.plan_problems(us123.Us123Run), [])
         self.assertIs(us123.Run, us123.Us123Run)

@@ -560,6 +560,17 @@ class TestWriteReports(TempDirCase):
         self.assertIn("## Loading screen", md)
         self.assertIn("- (no engine_loading.png)", md)
 
+    def test_clean_engine_frames_do_not_hide_desktop_capture_failure(self):
+        checks = [
+            {"name": "screenshots", "status": "FAIL",
+             "detail": "screenshot failed: screen grab failed", "kind": "infra"},
+            {"name": "engine_screenshots", "status": "PASS",
+             "detail": "3/3 captured by the game", "kind": "infra"},
+        ]
+        self.assertFalse(hasattr(pb, "reconcile_desktop_capture_with_engine_evidence"))
+        self.assertEqual(checks[0]["status"], "FAIL")
+        self.assertEqual(checks[0]["detail"], "screenshot failed: screen grab failed")
+
     def test_report_md_lists_the_loading_screen(self):
         report = self.report([], [])
         shot = {"path": os.path.join(self.tmp, "engine_loading.png"), "uniform": False}

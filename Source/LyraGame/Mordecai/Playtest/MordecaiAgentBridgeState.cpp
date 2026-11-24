@@ -855,6 +855,9 @@ namespace MordecaiAgentBridge::State
 		Json->SetField(TEXT("max_posture"), MakeNumber(Attributes->GetMaxPosture()));
 		Json->SetField(TEXT("spell_points"), MakeNumber(Attributes->GetSpellPoints()));
 		Json->SetField(TEXT("max_spell_points"), MakeNumber(Attributes->GetMaxSpellPoints()));
+		Json->SetField(
+			TEXT("spell_points_regen_multiplier"),
+			MakeNumber(Attributes->GetSpellPointsRegenMultiplier()));
 		return Json;
 	}
 

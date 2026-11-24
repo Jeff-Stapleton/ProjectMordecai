@@ -166,6 +166,16 @@ class Us124PlaytestCase(unittest.TestCase):
     def checks(report):
         return {check["name"]: check for check in report["checks"]}
 
+    def test_round4_restores_main_package_recovery_hold_and_down_hit_wait(self):
+        source = open(PLAYTEST, encoding="utf-8").read()
+        self.assertIn('self.bridge.tap("S", hold_s=0.30)', source)
+        self.assertIn('), 1.0, "2x knocked-down bonus hit")', source)
+        self.assertNotIn("RECOVERY_MOVE_HOLD_S", source)
+        fixture_path = os.path.join(SCRIPTS, "us124_create_player_posture_fixture.py")
+        fixture = open(fixture_path, encoding="utf-8").read()
+        self.assertIn('("Down", 1800.0, 5.0, 0.0, 80.0)', fixture)
+        self.assertNotIn('("Down", 2400.0, 5.0, 0.0, 80.0)', fixture)
+
     def test_plan_contract(self):
         self.assertEqual(kit.plan_problems(us124.Us124Run), [])
         self.assertIs(us124.Run, us124.Us124Run)

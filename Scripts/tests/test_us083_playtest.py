@@ -238,11 +238,28 @@ class PadWorld(fb.FakeWorld):
             tags.append(us083.TAG_DODGING)
         elif now < self.dodge_until + self.dodge_cooldown_s:
             tags.append("Mordecai.State.DodgeCooldown")
+        if self.sprinting:
+            tags.append(us083.SPRINT_TAG)
         out["tags"] = tags
         fall0, fall1 = self.DODGE_FALLING_S
         if now < self.jump_until or fall0 <= now - self.dodge_at < fall1:
             out["movement_mode"] = "Falling"
         return out
+
+
+class DelayedSprintToggleWorld(PadWorld):
+    """LeftShift reaches gameplay after the bridge key response under sweep load."""
+
+    def _on_key_pressed(self, key):
+        if key != us083.SPRINT_KEY:
+            return super()._on_key_pressed(key)
+        fb.FakeWorld._on_key_pressed(self, key)
+
+        def toggle(world):
+            world.sprinting = True if world.sticky_sprint else not world.sprinting
+            world.speed = world.base_speed * (world.SPRINT_MULT if world.sprinting else 1.0)
+
+        self.after(0.20, toggle)
 
 
 class DiesAfterTheBlockWorld(PadWorld):
@@ -302,6 +319,10 @@ class Us083Case(unittest.TestCase):
 
 
 class TestUs083Plan(unittest.TestCase):
+    def test_sprint_tag_wait_is_bounded_by_measured_main_latency_margin(self):
+        self.assertGreaterEqual(us083.SPRINT_TAG_TIMEOUT_S, 0.20)
+        self.assertLessEqual(us083.SPRINT_TAG_TIMEOUT_S, 0.25)
+
     def test_plan_is_valid_and_proves_story_acs(self):
         self.assertEqual(kit.plan_problems(us083.Us083Run), [])
         self.assertIs(us083.Run, us083.Us083Run)
@@ -491,6 +512,14 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertIn("| dodge_left_alt | tap LeftAlt (dodge, no move key) | Green |", md)
         self.assertLess(md.index("## Sprint measurements"),
                         md.index("## Tier-scaled dodge measurements"))
+
+    def test_sprint_measurement_waits_for_each_delayed_toggle(self):
+        world, server = self.serve(DelayedSprintToggleWorld)
+        code, rep = self.play(server)
+        check = self.by_name(rep)["sprint_left_shift"]
+        self.assertEqual(code, 0, check["detail"])
+        self.assertEqual(check["status"], "PASS")
+        self.assertFalse(world.sprinting)
 
     def test_no_block_fails_and_skips_what_needs_it(self):
         _, server = self.serve(block=False)
@@ -718,12 +747,8 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertEqual(code, 1)
         self.assertEqual(self.statuses(rep, "FAIL"), ["sprint_left_shift"])
         check = self.by_name(rep)["sprint_left_shift"]
-        self.assertIn("need > 700", check["detail"])
-        self.assertIn("peak speed 600 cm/s", check["detail"])
-        self.assertNotIn(" -- ", check["detail"])
+        self.assertIn("did not appear within", check["detail"])
         self.assertFalse(world.sprinting)
-        movement = {m["check"]: m for m in rep["movement"]}
-        self.assertLess(movement["sprint_left_shift"]["dx"], 700)
         self.assertEqual({a["id"]: a for a in rep["acs"]}["AC-083.8"]["status"], "FAIL")
 
     def test_a_sprint_the_second_tap_does_not_end_fails(self):
@@ -732,12 +757,8 @@ class TestUs083AgainstTheFake(Us083Case):
         self.assertEqual(code, 1)
         self.assertEqual(self.statuses(rep, "FAIL"), ["sprint_left_shift"])
         check = self.by_name(rep)["sprint_left_shift"]
-        self.assertIn("the second tap did not end the sprint", check["detail"])
-        self.assertIn("peak speed 900 cm/s", check["detail"])
+        self.assertIn("did not clear within", check["detail"])
         self.assertTrue(world.sprinting)
-        movement = {m["check"]: m for m in rep["movement"]}
-        self.assertGreater(movement["sprint_left_shift"]["dx"], 700)
-        self.assertTrue(movement["sprint_left_shift"]["sprint_left_on"])
 
     def test_a_blocked_lane_walk_fails_and_skips_the_sprint(self):
         _, server = self.serve(obstacles=fb.MOVEMENT_TEST_MAP_OBSTACLES + (LANE_BLOCKER,))

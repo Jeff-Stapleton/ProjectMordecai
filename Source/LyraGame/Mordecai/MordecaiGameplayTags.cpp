@@ -109,6 +109,9 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Spell_StoneSkin,   "Mordecai.Cooldown.Spell.StoneSkin",   "Stone Skin is on cooldown");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Spell_Restoration, "Mordecai.Cooldown.Spell.Restoration", "Restoration is on cooldown");
 
+	// GameplayEffect asset tags (US-090)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_SpellPointRegen, "Mordecai.Effect.SpellPointRegen", "Identifies the native periodic spell-point regeneration effect");
+
 	// Ability tags (US-020)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_Fireball,     "Mordecai.Ability.Spell.Fireball",     "Fireball spell ability");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Spell_ConeOfCold,   "Mordecai.Ability.Spell.ConeOfCold",   "Cone of Cold spell ability");

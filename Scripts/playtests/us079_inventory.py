@@ -89,6 +89,7 @@ EXPERIENCE = kit.DEFAULT_EXPERIENCE
 HUD_HINT = "[I] Inventory"
 PROMPT_PREFIX = "[F] Pick up "
 WALK_TOL = 60.0
+WALK_TIMEOUT_S = 10.0  # individual leg; the complete six-pickup route still has a 30 s limit
 TAP_S = 0.1
 
 HUD_TIMEOUT_S = 5.0
@@ -464,10 +465,10 @@ class Us079Run(kit.PlaytestRun):
                      "is blocked)")
         for i, (wx, wy) in enumerate(stop.get("waypoints") or ()):
             self.walk(f"walk_{name}_waypoint{i + 1}", wx, wy, needs=not self.menu_stuck,
-                      needs_why=stuck_why)
+                      needs_why=stuck_why, timeout_s=WALK_TIMEOUT_S)
         tx, ty = stop["target"]
         walked, result = self.walk(f"walk_{name}", tx, ty, needs=not self.menu_stuck,
-                                   needs_why=stuck_why)
+                                   needs_why=stuck_why, timeout_s=WALK_TIMEOUT_S)
         rec["walk"] = result
         why = f"not run: walk_{name} failed"
 

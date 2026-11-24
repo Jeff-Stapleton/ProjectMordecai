@@ -28,7 +28,8 @@ PLAN = (
          f"control yaw 0, Fireball cost 3 at 10 SP; real-WASD walk_to "
          f"pickup.x-{APPROACH_DISTANCE:g}, same y, within {WALK_TOL:g} cm; mouse-aim actor yaw "
          "0/world +X; require an enemy-free +X lane"),
-    Step("fireball_cast", "tap Q through Slate -> verified Fireball cost 3, SP 10 -> 7"),
+    Step("fireball_cast", "tap Q through Slate -> minimum observed SP verifies the 3-SP "
+         "Fireball spend, allowing one racing 0.25-SP regen tick"),
     Step("pickup_trigger_pass_through", f"retain one exact visible projectile without a gap from "
          f"x < pickup.x-{ENVELOPE_RADIUS:g} through "
          f"x > pickup.x+{ENVELOPE_RADIUS + TEST_MARGIN:g}; a sampled 3D segment intersects the "
@@ -181,12 +182,15 @@ class Us087PickupLaneRun(kit.PlaytestRun):
         samples, failures = [], []
         pickup_failures, far_clear, intersects = [], False, False
         sp_after = sp0
+        sp_values = []
         while time.monotonic() - start <= CROSSING_WINDOW_S and not far_clear:
             state = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
             player = _player(state)
             attrs = (player or {}).get("attributes") or {}
             if _num(attrs.get("spell_points")) is not None:
                 sp_after = _num(attrs.get("spell_points"))
+                if not sp_values or sp_values[-1] != sp_after:
+                    sp_values.append(sp_after)
             retained_pickup = self._exact(state, self.pickup_name)
             if retained_pickup is None:
                 pickup_failures.append(f"retained pickup {self.pickup_name!r} disappeared")
@@ -227,6 +231,7 @@ class Us087PickupLaneRun(kit.PlaytestRun):
                 far_clear = current[0] > far_x
             if not far_clear:
                 time.sleep(POLL_S)
+        observed_s = time.monotonic() - start
         if far_clear:
             self.shot("pickup_lane_crossed")
         final = self.bridge.state(["player", "actors"], radius=ACTOR_RADIUS)
@@ -236,9 +241,18 @@ class Us087PickupLaneRun(kit.PlaytestRun):
         elif self._pickup_signature(final_pickup) != self.pickup_signature:
             pickup_failures.append(
                 f"retained pickup final state changed: {self._pickup_signature(final_pickup)!r}")
+        sp_min = min(sp_values) if sp_values else None
+        spend = sp0 - sp_min if sp0 is not None and sp_min is not None else None
+        refund_ceiling = (None if sp_min is None else
+                          sp_min + 0.25 * (math.ceil(observed_s) + 1) + 0.02)
         self.attempt("fireball_cast", lambda: (
-            "PASS" if sp0 == 10.0 and sp_after == sp0 - self.spell_cost else "FAIL",
-            f"real Slate Q; verified cost {self.spell_cost:g}; SP {sp0} -> {sp_after}", None))
+            "PASS" if (sp0 == 10.0 and spend is not None
+                       and self.spell_cost - 0.26 <= spend <= self.spell_cost + 0.01
+                       and sp_after is not None and refund_ceiling is not None
+                       and sp_after <= refund_ceiling)
+            else "FAIL",
+            f"real Slate Q; verified cost {self.spell_cost:g}; SP {sp0} -> minimum {sp_min} -> "
+            f"final {sp_after} (periodic regen allowed, ceiling {refund_ceiling})", None))
         self.attempt("pickup_trigger_pass_through", lambda: (
             "PASS" if projectile_name and far_clear and intersects and not failures else "FAIL",
             f"same projectile {projectile_name!r}; {len(samples)} contiguous samples; "

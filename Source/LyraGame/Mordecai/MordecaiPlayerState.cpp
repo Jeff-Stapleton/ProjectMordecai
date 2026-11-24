@@ -2,11 +2,13 @@
 
 #include "MordecaiPlayerState.h"
 #include "Mordecai/AbilitySystem/MordecaiAbilitySystemComponent.h"
+#include "Mordecai/AbilitySystem/Effects/MordecaiGE_SpellPointRegen.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiPostureRuntimeComponent.h"
 #include "Mordecai/Combat/MordecaiStaminaRuntimeComponent.h"
 #include "Mordecai/Skills/MordecaiSkillComponent.h"
 #include "Mordecai/Feats/MordecaiFeatComponent.h"
+#include "Mordecai/MordecaiGameplayTags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPlayerState)
 
@@ -28,8 +30,37 @@ void AMordecaiPlayerState::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
+	if (HasAuthority() && !SpellPointRegenEffectHandle.IsValid())
+	{
+		if (UMordecaiAbilitySystemComponent* AbilitySystem =
+				Cast<UMordecaiAbilitySystemComponent>(GetAbilitySystemComponent()))
+		{
+			FGameplayEffectContextHandle EffectContext =
+				AbilitySystem->MakeEffectContext();
+			EffectContext.AddSourceObject(this);
+			SpellPointRegenEffectHandle = AbilitySystem->ApplyGameplayEffectToSelf(
+				GetDefault<UMordecaiGE_SpellPointRegen>(),
+				/*Level=*/1.0f,
+				EffectContext);
+		}
+	}
+
 	if (SkillComponent)
 	{
 		SkillComponent->RegisterStartingSkillDataAssets();
 	}
+}
+
+int32 AMordecaiPlayerState::GetSpellPointRegenEffectCount() const
+{
+	const UAbilitySystemComponent* AbilitySystem = GetAbilitySystemComponent();
+	if (!AbilitySystem)
+	{
+		return 0;
+	}
+
+	const FGameplayEffectQuery Query =
+		FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(
+			FGameplayTagContainer(MordecaiGameplayTags::Effect_SpellPointRegen));
+	return AbilitySystem->GetActiveEffects(Query).Num();
 }
