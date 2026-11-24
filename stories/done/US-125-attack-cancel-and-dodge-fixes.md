@@ -112,7 +112,7 @@ Production changes are C++ GAS/movement logic and Python playtests using existin
 
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| 1 | `setup_yellow` | walk to lane L1 and spend real light attacks until reaching Yellow stamina | - |
+| 1 | `setup_yellow` | walk to lane L1 and spend six real light attacks to reach Yellow stamina | - |
 | 2 | `recovery_dodge_cancel` | tap RT, wait for ComboWindow, tap LeftAlt -> Attacking/ComboWindow clear before Dodging; settled displacement is 400 +/-40 cm at Yellow | AC1, AC3, AC7 |
 | 3 | `ordinary_dodge_has_no_perfect_feedback` | on enemy-free MovementTestMap, observe the completed dodge -> no PerfectDodge tag and no 'Perfect Dodge!' HUD text | AC4, AC7 |
 | 4 | `committed_dodge_rejected` | tap RT and immediately tap LeftAlt during AttackCommitted -> attack remains and no dodge | AC2 |

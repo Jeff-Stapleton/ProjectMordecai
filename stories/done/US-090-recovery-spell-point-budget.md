@@ -2,6 +2,8 @@
 
 **Epic:** Epic R: Playability Recovery
 **Priority:** P2
+**Status:** Done — approved by Jeff after the Round 4 audit (2026-11-24)
+**Evidence:** Agent Store bundle `us090-r4-b755cd18`
 **Depends on:** US-089
 **Paired story:** none
 
@@ -106,8 +108,8 @@ respawn restoration are C++. No content asset is required.
 - [x] The checksummed `us090-<package short sha>` evidence bundle is copied to
   the Agent Store
 - [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-090]` closing commit
-- [x] Draft PR opened; story remains in `stories/in-progress/` until Jeff says
-  to move it
+- [x] Draft PR opened; Jeff approved moving the story to `stories/done/`
+  after the Round 4 audit
 
 ## Completion Notes
 - Implementation: native infinite 1-second periodic GE at
@@ -291,7 +293,8 @@ respawn restoration are C++. No content asset is required.
   test-stabilization change is in
   `reports/round3-triage.md` in Agent Store bundle
   `us090-r3-3cc72b77`.
-- The story intentionally remains in `stories/in-progress/`.
+- At the end of Round 3, the story intentionally remained in
+  `stories/in-progress/` pending the next audit.
 
 ### Round 4 strict-evidence follow-up (2026-11-24)
 - Environment: after Jeff unlocked the workstation, `LogonUI.exe` was absent,
@@ -351,5 +354,5 @@ respawn restoration are C++. No content asset is required.
   tail. Source SHA256 and decoded-frame PSNR checks pass
   (44.690-44.903 dB); motion passes 8/8 sampled pairs (6/8 required);
   actor/debug labels and yellow ability-log text are absent.
-- Final evidence bundle: `us090-r4-b755cd18` in the Agent Store. The story
-  intentionally remains in `stories/in-progress/`.
+- Final evidence bundle: `us090-r4-b755cd18` in the Agent Store. Jeff approved
+  the Round 4 audit and the story moved to `stories/done/` on 2026-11-24.
