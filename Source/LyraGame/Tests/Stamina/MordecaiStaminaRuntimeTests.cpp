@@ -8,9 +8,12 @@
 #include "AbilitySystem/LyraAbilitySystemComponent.h"
 #include "Character/LyraPawnData.h"
 #include "Character/LyraPawnExtensionComponent.h"
+#include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayAbilitySpec.h"
 #include "GameplayEffect.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiGA_Block.h"
 #include "Mordecai/Combat/MordecaiGA_Dodge.h"
@@ -19,7 +22,9 @@
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
+#include "Mordecai/MordecaiHeroComponent.h"
 #include "Mordecai/MordecaiPlayerController.h"
+#include "Mordecai/Input/MordecaiInputTriggers.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Fear.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Focused.h"
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
@@ -28,6 +33,26 @@
 namespace MordecaiStaminaRuntimeTest
 {
 	static constexpr float FrameSeconds = 0.05f;
+
+	static bool ExecuteBinding(
+		const UEnhancedInputComponent* EIC,
+		const UInputAction* Action,
+		const ETriggerEvent Event,
+		const UObject* BoundTo)
+	{
+		for (const TUniquePtr<FEnhancedInputActionEventBinding>& Binding :
+			EIC->GetActionEventBindings())
+		{
+			if (Binding && Binding->GetAction() == Action
+				&& Binding->GetTriggerEvent() == Event
+				&& Binding->IsBoundToObject(BoundTo))
+			{
+				Binding->Execute(FInputActionInstance(Action));
+				return true;
+			}
+		}
+		return false;
+	}
 
 	struct FRuntimeEnv : MordecaiRecoveryTest::FRecoveryTestEnv
 	{
@@ -843,6 +868,86 @@ bool FMordecai_StaminaRuntime_AllInterruptTagsClearSprint::RunTest(
 		TestFalse(*FString::Printf(TEXT("%s clears sprint"), Case.Name), Env.Player->bIsSprinting);
 		TestFalse(*FString::Printf(TEXT("%s removes sprint tag"), Case.Name),
 			Env.GetASC()->HasMatchingGameplayTag(MordecaiGameplayTags::State_Sprinting));
+		Env.TeardownRuntime();
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMordecai_StaminaRuntime_ShiftTabPreservesSprintDuringInterrupts,
+	"Mordecai.Stamina.Runtime.ShiftTabPreservesSprintDuringInterrupts",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_StaminaRuntime_ShiftTabPreservesSprintDuringInterrupts::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiStaminaRuntimeTest;
+	const struct
+	{
+		FGameplayTag Tag;
+		const TCHAR* Name;
+	} Cases[] = {
+		{ MordecaiGameplayTags::State_AttackCommitted, TEXT("attack committed") },
+		{ MordecaiGameplayTags::State_Dodging, TEXT("dodge") },
+		{ MordecaiGameplayTags::State_Blocking, TEXT("block") },
+	};
+
+	for (const auto& Case : Cases)
+	{
+		FRuntimeEnv Env;
+		if (!TestTrue(
+			*FString::Printf(TEXT("%s runtime world"), Case.Name),
+			Env.SetupRuntime()))
+		{
+			Env.TeardownRuntime();
+			continue;
+		}
+
+		UMordecaiHeroComponent* Hero =
+			Env.Player->FindComponentByClass<UMordecaiHeroComponent>();
+		UEnhancedInputComponent* EIC =
+			NewObject<UEnhancedInputComponent>(Env.Player);
+		const UInputMappingContext* Context =
+			Hero ? Hero->BuildAndBindRuntimeInput(EIC) : nullptr;
+		const UInputAction* KeyboardSprint = nullptr;
+		const UInputAction* ShiftTab = nullptr;
+		for (const FEnhancedActionKeyMapping& Mapping :
+			Context ? Context->GetMappings()
+					: TArray<FEnhancedActionKeyMapping>())
+		{
+			for (const TObjectPtr<UInputTrigger>& Trigger : Mapping.Triggers)
+			{
+				if (Mapping.Key == EKeys::LeftShift
+					&& ExactCast<UMordecaiInputTriggerFreshKeyPress>(Trigger.Get()))
+				{
+					KeyboardSprint = Mapping.Action;
+				}
+				if (Mapping.Key == EKeys::Tab
+					&& ExactCast<UMordecaiInputTriggerShiftPressed>(Trigger.Get()))
+				{
+					ShiftTab = Mapping.Action;
+				}
+			}
+		}
+		if (!TestNotNull(TEXT("keyboard sprint action"), KeyboardSprint)
+			|| !TestNotNull(TEXT("Shift+Tab action"), ShiftTab))
+		{
+			Env.TeardownRuntime();
+			continue;
+		}
+
+		Env.GetASC()->AddLooseGameplayTag(Case.Tag);
+		TestFalse(*FString::Printf(TEXT("%s begins unsprinted"), Case.Name),
+			Env.Player->bIsSprinting);
+		TestTrue(*FString::Printf(TEXT("%s Shift binding executes"), Case.Name),
+			ExecuteBinding(EIC, KeyboardSprint, ETriggerEvent::Triggered, Hero));
+		TestFalse(*FString::Printf(TEXT("%s refuses the sprint toggle"), Case.Name),
+			Env.Player->bIsSprinting);
+		TestTrue(*FString::Printf(TEXT("%s chord binding executes"), Case.Name),
+			ExecuteBinding(EIC, ShiftTab, ETriggerEvent::Triggered, Hero));
+		TestFalse(*FString::Printf(
+			TEXT("%s Shift+Tab preserves the pre-chord sprint intent"),
+			Case.Name), Env.Player->bIsSprinting);
 		Env.TeardownRuntime();
 	}
 	return true;

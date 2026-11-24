@@ -633,7 +633,7 @@ class TestUs057Report(PlaytestCase):
         for story, folder, name in (
                 ("US-057", "done", "US-057-playable-magic-arena.md"),
                 ("US-055", "done", "US-055-spell-hud-status-indicators.md"),
-                ("US-090", "in-progress", "US-090-recovery-spell-point-budget.md")):
+                ("US-090", "done", "US-090-recovery-spell-point-budget.md")):
             with open(os.path.join(stories_root, folder, name), encoding="utf-8") as f:
                 text[story] = f.read()
         for step in us057.PLAN:

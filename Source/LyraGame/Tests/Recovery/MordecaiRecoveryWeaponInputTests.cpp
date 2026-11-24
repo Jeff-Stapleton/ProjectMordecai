@@ -115,10 +115,12 @@ bool FMordecai_Recovery_Weapons_PreviousWeaponInput::RunTest(
 	const UInputAction* BackslashAction =
 		LoadAction(TEXT("IA_Mordecai_WeaponCyclePrev"));
 	const UInputAction* SprintAction = LoadAction(TEXT("IA_Mordecai_Sprint"));
+	const UInputAction* Spell1Action = LoadAction(TEXT("IA_Mordecai_Spell1"));
 	if (!TestNotNull(TEXT("Runtime input context"), Context)
 		|| !TestNotNull(TEXT("Next weapon action"), NextAction)
 		|| !TestNotNull(TEXT("Previous weapon action"), BackslashAction)
-		|| !TestNotNull(TEXT("Sprint action"), SprintAction))
+		|| !TestNotNull(TEXT("Sprint action"), SprintAction)
+		|| !TestNotNull(TEXT("Spell-slot-1 action"), Spell1Action))
 	{
 		return true;
 	}
@@ -154,20 +156,31 @@ bool FMordecai_Recovery_Weapons_PreviousWeaponInput::RunTest(
 	}
 
 	const UInputAction* ShiftTabAction = Mappings[ShiftTabIndex].Action;
-	const int32 SprintShiftIndex =
-		FindMapping(Context, SprintAction, EKeys::LeftShift);
-	TestTrue(TEXT("Sprint action still maps Left Shift"), SprintShiftIndex != INDEX_NONE);
-	TestNotNull(TEXT("Shift+Tab requires Left Shift and a fresh Tab press"),
+	int32 SprintShiftIndex = INDEX_NONE;
+	for (int32 Index = 0; Index < Mappings.Num(); ++Index)
+	{
+		if (Mappings[Index].Key == EKeys::LeftShift
+			&& FindTrigger<UMordecaiInputTriggerFreshKeyPress>(Mappings[Index]))
+		{
+			SprintShiftIndex = Index;
+			break;
+		}
+	}
+	TestTrue(TEXT("Left Shift owns a fresh physical-press sprint mapping"),
+		SprintShiftIndex != INDEX_NONE);
+	const UInputAction* SprintKeyboardAction =
+		SprintShiftIndex != INDEX_NONE ? Mappings[SprintShiftIndex].Action.Get() : nullptr;
+	TestNotNull(TEXT("Shift+Tab owns the dual-Shift fresh-Tab trigger"),
 		FindTrigger<UMordecaiInputTriggerShiftPressed>(Mappings[ShiftTabIndex]));
-	TestTrue(TEXT("Shift+Tab mapping precedes plain Tab"),
-		ShiftTabIndex < PlainTabIndex);
 	TestTrue(TEXT("BackSlash remains an extra previous-weapon binding"),
 		FindMapping(Context, BackslashAction, EKeys::Backslash) != INDEX_NONE);
+	TestTrue(TEXT("Q remains ability slot 1"),
+		FindMapping(Context, Spell1Action, EKeys::Q) != INDEX_NONE);
 
 	TestFalse(TEXT("Sprint begins off"), Character->bIsSprinting);
 	TestTrue(TEXT("Left Shift sprint binding executes immediately"),
-		ExecuteBinding(EIC, SprintAction, ETriggerEvent::Started, Hero));
-	TestTrue(TEXT("Left Shift still toggles sprint without release delay"),
+		ExecuteBinding(EIC, SprintKeyboardAction, ETriggerEvent::Triggered, Hero));
+	TestTrue(TEXT("Left Shift handler toggles sprint in its trigger frame"),
 		Character->bIsSprinting);
 	TestTrue(TEXT("Shift+Tab binding executes"),
 		ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Triggered, Hero));
@@ -179,7 +192,7 @@ bool FMordecai_Recovery_Weapons_PreviousWeaponInput::RunTest(
 	Character->SetSprinting(true);
 	ExecuteBinding(EIC, NextAction, ETriggerEvent::Started, Hero);
 	TestTrue(TEXT("Precondition: sprint begins on"), Character->bIsSprinting);
-	ExecuteBinding(EIC, SprintAction, ETriggerEvent::Started, Hero);
+	ExecuteBinding(EIC, SprintKeyboardAction, ETriggerEvent::Triggered, Hero);
 	TestFalse(TEXT("Shift press temporarily toggles sprint off"),
 		Character->bIsSprinting);
 	ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Triggered, Hero);
@@ -208,8 +221,7 @@ bool FMordecai_Recovery_Weapons_ShiftTabSameFrameOrdering::RunTest(
 		UMordecaiEquipmentComponent* Equipment = Character->GetEquipmentComponent();
 		UEnhancedInputComponent* EIC = NewObject<UEnhancedInputComponent>(Character);
 		const UInputMappingContext* Context = Hero->BuildAndBindRuntimeInput(EIC);
-		const UInputAction* SprintAction = LoadAction(TEXT("IA_Mordecai_Sprint"));
-		if (!Hero || !Equipment || !Context || !SprintAction)
+		if (!Hero || !Equipment || !Context)
 		{
 			AddError(TEXT("Same-frame fixture did not initialize"));
 			return;
@@ -232,11 +244,26 @@ bool FMordecai_Recovery_Weapons_ShiftTabSameFrameOrdering::RunTest(
 			return;
 		}
 		const UInputAction* ShiftTabAction = Context->GetMappings()[ShiftTabIndex].Action;
+		const UInputAction* SprintKeyboardAction = nullptr;
+		for (const FEnhancedActionKeyMapping& Mapping : Context->GetMappings())
+		{
+			if (Mapping.Key == EKeys::LeftShift
+				&& FindTrigger<UMordecaiInputTriggerFreshKeyPress>(Mapping))
+			{
+				SprintKeyboardAction = Mapping.Action;
+				break;
+			}
+		}
+		if (!SprintKeyboardAction)
+		{
+			AddError(TEXT("Fresh Left Shift sprint mapping is missing"));
+			return;
+		}
 		const bool bFirstExecuted = bChordBindingFirst
 			? ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Triggered, Hero)
-			: ExecuteBinding(EIC, SprintAction, ETriggerEvent::Started, Hero);
+			: ExecuteBinding(EIC, SprintKeyboardAction, ETriggerEvent::Triggered, Hero);
 		const bool bSecondExecuted = bChordBindingFirst
-			? ExecuteBinding(EIC, SprintAction, ETriggerEvent::Started, Hero)
+			? ExecuteBinding(EIC, SprintKeyboardAction, ETriggerEvent::Triggered, Hero)
 			: ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Triggered, Hero);
 
 		const FString Order = bChordBindingFirst
@@ -434,6 +461,21 @@ bool FMordecai_Recovery_Weapons_ShiftChordIgnoresStaleSprintToggleState::RunTest
 		return false;
 	}
 	const UInputAction* ShiftTabAction = Context->GetMappings()[ShiftTabIndex].Action;
+	const UInputAction* SprintKeyboardAction = nullptr;
+	for (const FEnhancedActionKeyMapping& Mapping : Context->GetMappings())
+	{
+		if (Mapping.Key == EKeys::LeftShift
+			&& FindTrigger<UMordecaiInputTriggerFreshKeyPress>(Mapping))
+		{
+			SprintKeyboardAction = Mapping.Action;
+			break;
+		}
+	}
+	if (!SprintKeyboardAction)
+	{
+		AddError(TEXT("Fresh Left Shift sprint mapping is missing"));
+		return false;
+	}
 
 	// L3 uses the shared sprint asset. Two L3 toggles leave sprint off, and
 	// must not seed state later consumed by a keyboard chord.
@@ -447,8 +489,9 @@ bool FMordecai_Recovery_Weapons_ShiftChordIgnoresStaleSprintToggleState::RunTest
 
 	// A runtime-context rebuild represents respawn/repossession/unpause. Any
 	// keyboard press token from before it is invalid.
+	Hero->BuildAndBindRuntimeInput(EIC);
 	Character->SetSprinting(true);
-	ExecuteBinding(EIC, SprintAction, ETriggerEvent::Started, Hero);
+	ExecuteBinding(EIC, SprintKeyboardAction, ETriggerEvent::Triggered, Hero);
 	TestFalse(TEXT("Pre-rebuild sprint state is off"), Character->bIsSprinting);
 	TestTrue(TEXT("Runtime context rebuild succeeds"),
 		Hero->BuildAndBindRuntimeInput(EIC) == Context);

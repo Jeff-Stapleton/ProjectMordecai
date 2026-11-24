@@ -23,6 +23,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerState.h"
 #include "GameplayEffectExtension.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyCharacter)
 
@@ -61,7 +63,8 @@ AMordecaiEnemyCharacter::AMordecaiEnemyCharacter(const FObjectInitializer& Objec
 	FacingArrowComponent->ArrowColor = FColor::Green;
 	FacingArrowComponent->ArrowSize = 1.5f;
 	FacingArrowComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 50.0f));
-	FacingArrowComponent->SetHiddenInGame(false);
+	FacingArrowComponent->SetHiddenInGame(
+		FParse::Param(FCommandLine::Get(), TEXT("MordecaiMarketingCapture")));
 	FacingArrowComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	FacingArrowComponent->SetGenerateOverlapEvents(false);
 	FacingArrowComponent->SetCanEverAffectNavigation(false);

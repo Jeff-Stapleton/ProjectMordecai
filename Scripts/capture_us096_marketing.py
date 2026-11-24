@@ -2,9 +2,11 @@
 """Capture US-096 weapon cycling from game-owned bridge viewport frames."""
 
 import argparse
+import glob
 import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 
@@ -16,7 +18,8 @@ if SCRIPT_DIR not in sys.path:
 
 import agent_bridge as ab  # noqa: E402
 import playtest_kit as kit  # noqa: E402
-from capture_us090_marketing import _encode, _label_proof, _sha256  # noqa: E402
+from capture_us090_marketing import _label_proof, _sha256  # noqa: E402
+from verify_marketing_media import decode_motion_frames, frame_psnr  # noqa: E402
 
 FPS = 30
 OUTPUT_SIZE = (1920, 1080)
@@ -132,6 +135,34 @@ def _capture_frame(bridge, sequence_dir, records, started, event=None,
     return state
 
 
+def _encode_continuous_movie(source_avi, first_frame, clip, duration_seconds):
+    """Align the in-engine LevelCapture stream to the first bridge viewport frame."""
+    captured = decode_motion_frames(source_avi, sample_fps=10, size=(320, 180))
+    with Image.open(first_frame) as image:
+        reference = image.convert("RGB").resize((320, 180))
+    scores = [frame_psnr(frame, reference) for frame in captured]
+    best_index = max(range(len(scores)), key=scores.__getitem__) if scores else None
+    best_score = scores[best_index] if best_index is not None else 0.0
+    if best_index is None or best_score < 15.0:
+        raise RuntimeError(
+            f"continuous movie could not align to a game-owned frame (best PSNR {best_score:.3f})")
+    start_seconds = best_index / 10.0
+    subprocess.check_call([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-ss", f"{start_seconds:.3f}", "-i", source_avi,
+        "-t", f"{duration_seconds:.3f}", "-an",
+        "-vf", f"scale={OUTPUT_SIZE[0]}:{OUTPUT_SIZE[1]}",
+        "-r", str(FPS), "-c:v", "libx264", "-preset", "medium",
+        "-crf", "18", "-pix_fmt", "yuv420p", clip,
+    ])
+    return {
+        "source": os.path.abspath(source_avi),
+        "alignment_seconds": round(start_seconds, 3),
+        "alignment_psnr_db": round(best_score, 3),
+        "decoded_source_samples": len(captured),
+    }
+
+
 def capture(output_dir, duration_seconds=6.5):
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         raise RuntimeError("ffmpeg and ffprobe are required")
@@ -141,8 +172,10 @@ def capture(output_dir, duration_seconds=6.5):
     output_dir = os.path.abspath(output_dir)
     sequence_dir = os.path.join(output_dir, "source-frames")
     session_dir = os.path.join(output_dir, "session")
+    movie_dir = os.path.join(output_dir, "continuous-source")
     os.makedirs(sequence_dir, exist_ok=True)
     os.makedirs(session_dir, exist_ok=True)
+    os.makedirs(movie_dir, exist_ok=True)
 
     bridge = None
     records = []
@@ -157,6 +190,14 @@ def capture(output_dir, duration_seconds=6.5):
             extra_args=(
                 "-MordecaiMarketingCapture",
                 "-NOSCREENMESSAGES",
+                "-MovieSceneCaptureType=/Script/MovieSceneCapture.LevelCapture",
+                f"-MovieFolder={movie_dir}",
+                "-MovieName=us096-continuous",
+                "-MovieOverwriteExisting=true",
+                f"-MovieFrameRate={FPS}",
+                f"-ResX={OUTPUT_SIZE[0]}",
+                f"-ResY={OUTPUT_SIZE[1]}",
+                "-WINDOWED",
                 f"-ExecCmds={ab.pb.quote_value('r.SetRes 1920x1080f')}",
             ),
         )
@@ -241,13 +282,29 @@ def capture(output_dir, duration_seconds=6.5):
     for record in records:
         record["elapsed_s"] = round(record["elapsed_s"] - first_elapsed, 4)
     duration = records[-1]["elapsed_s"] + 1.0 / FPS
+    source_movies = glob.glob(os.path.join(movie_dir, "**", "*.avi"), recursive=True)
+    if len(source_movies) != 1:
+        raise RuntimeError(
+            f"expected one continuous in-engine AVI, found {len(source_movies)}: {source_movies}")
+    clip = os.path.join(output_dir, "weapon-cycling-back-and-forth.mp4")
+    continuous = _encode_continuous_movie(
+        source_movies[0],
+        os.path.join(output_dir, records[0]["file"].replace("/", os.sep)),
+        clip,
+        duration,
+    )
+    continuous["source_file"] = os.path.basename(source_movies[0])
+    continuous["source_sha256"] = _sha256(source_movies[0])
+    continuous["source_retained"] = False
+    continuous.pop("source", None)
     manifest = {
         "version": 1,
-        "capture": "game-owned agent bridge viewport screenshots",
+        "capture": "continuous in-engine LevelCapture movie plus game-owned bridge viewport stills",
         "fps": FPS,
         "frame_count": len(records),
         "duration_seconds": duration,
         "weapon_sequence": weapon_sequence(records),
+        "continuous_movie": continuous,
         "frames": records,
     }
     manifest_path = os.path.join(output_dir, "source-frame-manifest.json")
@@ -260,8 +317,6 @@ def capture(output_dir, duration_seconds=6.5):
                   stream, indent=2)
         stream.write("\n")
 
-    clip = os.path.join(output_dir, "weapon-cycling-back-and-forth.mp4")
-    _encode(records, output_dir, clip)
     stills = []
     for order, index in enumerate(still_indices(records), 1):
         source = os.path.join(output_dir, records[index - 1]["file"].replace("/", os.sep))
@@ -280,6 +335,7 @@ def capture(output_dir, duration_seconds=6.5):
         "resolution": list(OUTPUT_SIZE),
         "weapon_sequence": weapon_sequence(records),
         "contract": "Tab forward twice + Shift+Tab backward twice; sprint unchanged",
+        "continuous_movie": continuous,
     }
     with open(os.path.join(output_dir, "capture-result.json"), "w", encoding="utf-8") as stream:
         json.dump(result, stream, indent=2)
@@ -292,14 +348,17 @@ def capture(output_dir, duration_seconds=6.5):
             "- Content: Tab cycles Longsword → Dagger → Greatsword; Shift+Tab cycles "
             "Greatsword → Dagger → Longsword while the player moves through CombatTestMap.\n"
             f"- Stills: {', '.join(f'`{name}`' for name in stills)}.\n"
-            "- Source: game-owned Agent Bridge viewport frames only; no desktop capture.\n"
+            "- Source: continuous Unreal LevelCapture video plus game-owned Agent Bridge "
+            "viewport stills; no desktop capture.\n"
             "- Provenance: `source-frame-manifest.json` stores every frame SHA256, real elapsed "
             "timestamp, equipped weapon, and sprint state.\n"
             "- Presentation: launched with `-MordecaiMarketingCapture -NOSCREENMESSAGES`; "
             "`label-proof.json` must pass with no actor/debug labels or enemy indicators.\n"
-            "- Static/lock-screen defense: `Scripts/verify_marketing_media.py` decodes the MP4, "
-            "matches samples to SHA256-pinned viewport frames, requires HUD structure, and "
-            "requires motion across at least six sample pairs. See `content-check.json`.\n")
+            "- Static/lock-screen/slideshow defense: `Scripts/verify_marketing_media.py` decodes "
+            "the MP4, matches samples to SHA256-pinned viewport frames, requires HUD structure, "
+            "and requires continuous motion in at least 60% of adjacent 10 fps samples. "
+            "See `content-check.json`.\n")
+    shutil.rmtree(movie_dir, ignore_errors=True)
     return result
 
 

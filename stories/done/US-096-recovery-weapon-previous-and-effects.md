@@ -27,9 +27,11 @@ Issue #36 used a one-time EDITOR authoring step (Scripts/us078_01_create_weapon_
 - Left Shift remains the sprint toggle. A plain tap toggles immediately with no
   added delay; completing Shift+Tab restores the sprint state from before the
   Shift press, so the chord has no net effect on sprint.
+- Either Left Shift or Right Shift may form the chord. Right Shift is not a
+  sprint key and never changes sprint state.
 - BackSlash remains an additional previous-weapon binding.
-- Decided by Jeff for issue #14 on 2026-11-24; also recorded in
-  `Specs/design_decisions_log.md`.
+- Decided by Jeff for issue #14 and PR #167 review on 2026-11-24; also recorded
+  in `Specs/design_decisions_log.md`.
 
 ## Acceptance Criteria
 - [x] AC-096.1: Shift+Tab cycles to the previous weapon, Tab alone still cycles next, and the chord does NOT toggle sprint; Q remains ability slot 1 and BackSlash remains an extra previous binding — verified by `Mordecai.Recovery.Weapons.PreviousWeaponInput`
@@ -42,7 +44,14 @@ equipment replication remains out of scope and is tracked by issue #95.
 
 ## Technical Notes
 - N9 is decided: Shift+Tab is previous, plain Tab is next, and BackSlash remains an extra previous binding.
-- Runtime implementation: a dedicated Tab action uses `UMordecaiInputTriggerShiftPressed`, while plain Tab uses `UMordecaiInputTriggerShiftBlocker`. Reading physical Left Shift avoids the packaged runtime's unreliable action-order dependency. The immediate Shift sprint binding remains unchanged; the previous-weapon handler restores the pre-Shift sprint state.
+- Runtime implementation: a dedicated Tab action uses a dual-Shift
+  `UMordecaiInputTriggerShiftPressed`, while plain Tab uses a dual-Shift blocker
+  plus `UInputTriggerPressed`. The keyboard sprint action records only the
+  current physical Left Shift press; its same-frame token makes callback order
+  irrelevant and expires on release or context rebuild. The dedicated chord
+  action is retained because an Enhanced Input action callback cannot identify
+  whether BackSlash or Tab fired the existing previous action; sharing it would
+  risk applying sprint correction to BackSlash.
 - ASC lookup: use `UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerPawn)` (Lyra's character implements the interface and forwards to the PlayerState) or the PlayerState directly; re-apply on possession/respawn.
 - Script bookkeeping: remove the N9 `known_issue` from `cycle_prev_shift_tab` and assert the sprint tag is unchanged.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
@@ -50,6 +59,13 @@ equipment replication remains out of scope and is tracked by issue #95.
 ## Tests Required
 ### Tier 1 — Automation (headless)
 - `Mordecai.Recovery.Weapons.PreviousWeaponInput` — AC-096.1
+- `Mordecai.Recovery.Weapons.ShiftTabSameFrameOrdering` — both callback orders
+- `Mordecai.Recovery.Weapons.TabRequiresFreshPressThroughShiftTransitions` —
+  real key-state trigger checks for fresh Tab, dual-Shift blocker, and release order
+- `Mordecai.Recovery.Weapons.ShiftChordIgnoresStaleSprintToggleState` — L3 and
+  context-rebuild state cannot leak into a keyboard chord
+- `Mordecai.Stamina.Runtime.ShiftTabPreservesSprintDuringInterrupts` — attack,
+  dodge, and block refuse sprint without changing the chord's pre-press intent
 - `Mordecai.Recovery.Weapons.EffectsAppliedToPlayerStateASC` — AC-096.3
 - `Mordecai.Recovery.Weapons.PlayerStateFallbackRemainsSingleAcrossASCInitialization` — AC-096.3
 - `Mordecai.Recovery.Weapons.EffectsAppliedAfterLateASCInitialization` — AC-096.3
@@ -72,6 +88,9 @@ equipment replication remains out of scope and is tracked by issue #95.
 - **Visible on screen:** the weapon HUD (after US-091) reads "Spear"; the player is not sprinting
 - **Proof:** Tier 4 check `cycle_prev_shift_tab` of `Scripts/playtests/us078_weapons.py`
 - **Tier 4 script:** `Scripts/playtests/us078_weapons.py` — run: `py Scripts/playtest_story.py US-078`
+- **Visual review:** Per Jeff's standing rule, builders never open PNG/JPG/video
+  files. The coordinator performs the visual review; builders run scripted
+  non-black/non-uniform/static-content checks and preserve the captures.
 - **Steps:**
 
 | # | Check | Player step (bridge calls) → expected | Proves |
@@ -87,9 +106,14 @@ equipment replication remains out of scope and is tracked by issue #95.
 | 9 | `cycle_prev_backslash` | tap BackSlash on the first weapon -> wait_until player.weapon.index==4, display_name 'Mace' | AC-078.8, US-077:AC-077.4 |
 | 10 | `cycle_prev_shift_tab` | tap LeftShift+Tab on the Mace -> wait_until player.weapon.index==3, display_name 'Spear', visible weapon HUD reads 'Spear', and Mordecai.State.Sprinting presence is unchanged | AC-078.7, US-096:AC-096.2 |
 | 11 | `cycle_gamepad_y` | tap Gamepad_FaceButton_Top (Y) -> wait_until player.weapon.index==(index+1)%5 with the matching display_name | AC-078.6 |
-| 12 | `weapon_hud_updates` | tap Tab -> the new weapon is equipped and visible MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text) | AC-078.12, AC-078.14, US-077:AC-077.8 |
-| 13 | `light_attack_lmb` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) -> Mordecai.State.Attacking without Mordecai.Attack.Heavy in player.tags within 1 s | AC-078.14 |
-| 14 | `heavy_attack_hold` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) held 0.8 s -> Mordecai.Attack.Heavy in player.tags within 0.5 s | AC-078.13 |
+| 12 | `cycle_prev_shift_tab_same_frame` | tap LeftShift+Tab in one input frame -> wait_until player.weapon.index==(index-1)%5, with Mordecai.State.Sprinting presence unchanged | US-096:AC-096.2 |
+| 13 | `cycle_prev_release_shift_first` | hold LeftShift+Tab, release LeftShift while Tab stays held -> one previous cycle only; releasing the modifier does not re-fire plain Tab | US-096:AC-096.1, US-096:AC-096.2 |
+| 14 | `cycle_shift_tap_while_tab_held` | hold Tab, tap LeftShift, then release Tab -> fresh Tab cycles next once and the chord cycles previous once; releasing LeftShift does not re-fire plain Tab | US-096:AC-096.1, US-096:AC-096.2 |
+| 15 | `cycle_prev_right_shift_tab` | tap RightShift+Tab -> one previous cycle with Mordecai.State.Sprinting presence unchanged | US-096:AC-096.1, US-096:AC-096.2 |
+| 16 | `cycle_prev_shift_tab_while_sprinting` | tap LeftShift to start sprinting, then LeftShift+Tab -> one previous cycle and Mordecai.State.Sprinting remains present | US-096:AC-096.2 |
+| 17 | `weapon_hud_updates` | tap Tab -> the new weapon is equipped and visible MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text) | AC-078.12, AC-078.14, US-077:AC-077.8 |
+| 18 | `light_attack_lmb` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) -> Mordecai.State.Attacking without Mordecai.Attack.Heavy in player.tags within 1 s | AC-078.14 |
+| 19 | `heavy_attack_hold` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) held 0.8 s -> Mordecai.Attack.Heavy in player.tags within 0.5 s | AC-078.13 |
 
 - **Playable alone:** YES
 

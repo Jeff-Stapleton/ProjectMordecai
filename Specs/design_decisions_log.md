@@ -525,5 +525,14 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - When Left Shift becomes part of Shift+Tab, completing the chord restores the
   sprint state that existed before Shift was pressed, so Shift+Tab has no net
   effect on sprint.
+- Either Left Shift or Right Shift may form the previous-weapon chord with Tab.
+  Right Shift is not a sprint key and must never affect sprint state.
 - BackSlash remains an additional previous-weapon binding.
-- Source: Jeff's decisions supplied with issue #14 on 2026-11-24.
+- **Implementation context (not Jeff's words):** Shift+Tab retains a dedicated
+  runtime input action instead of sharing `IA_Mordecai_WeaponCyclePrev`.
+  Enhanced Input action callbacks do not identify which mapping key fired the
+  action; sharing it with BackSlash would therefore risk applying keyboard
+  sprint correction to a BackSlash press. Both actions call the same previous-
+  weapon gameplay method.
+- Source: Jeff's decisions supplied with issue #14 and PR #167 review on
+  2026-11-24.

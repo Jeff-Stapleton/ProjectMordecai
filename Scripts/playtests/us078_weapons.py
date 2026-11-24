@@ -45,8 +45,8 @@ Usage (the kit's common options):
   py Scripts/playtests/us078_weapons.py --attach-port N [--token T]   diagnostic only
 
 Output: Saved/Playtests/<YYYYmmdd-HHMMSS>-us078/ with report.md, report.json, game.log,
-bridge.jsonl and bridge_NN.png.  Open every screenshot with the Read tool and state what is on
-screen.
+bridge.jsonl and bridge_NN.png. The coordinator performs the visual review; builders validate
+capture integrity by script and never open image or video files.
 
 Exit codes:
   0 -- every check passed (WARN allowed)

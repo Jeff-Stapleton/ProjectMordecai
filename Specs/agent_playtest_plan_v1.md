@@ -324,13 +324,14 @@ The contract is `Specs/story_playtests_v1.md`.
   `Specs/design_decisions_log.md`.
 - **N7 (suspected) Enemies never hurt the player.** In run `20261020-205856-us079` the player spent about 60 s within aggro range at full health. Suspected causes: empty enemy attack profiles (`MordecaiGA_MeleeAttack.cpp:292-296`) or no navmesh movement. `us054_arena.py` checks `enemy_approaches` and `enemy_damages_player` decide.
 - **N8 The HUD has 2 spell cooldown widgets, not 4 (FIXED, issue #13, US-088).** The default layout now creates data-driven A-D slots labelled Q / E / R / 1, and binds all four to their loadout spell cooldown tags. `Mordecai.Recovery.Cooldown.HUDHasFourCooldownWidgets`, `WidgetsBoundToSlotTags`, PIE magic verification, and US-057's `cooldown_widgets` / `stone_skin_cooldown_hud` checks guard the fix.
-- **N9 Previous weapon is BackSlash only (FIXED, issue #14, US-096).** Shift+Tab now
-  maps a dedicated previous-weapon action before plain Tab, so Enhanced Input blocks the
-  next-weapon mapping while the chord is active. Left Shift still toggles sprint immediately;
-  completing Shift+Tab restores the pre-Shift sprint state. Plain Tab remains next, Q remains
-  ability slot 1, and BackSlash remains an additional previous binding. The
-  `cycle_prev_shift_tab` Tier 4 check now also requires the weapon HUD to show Spear and the
-  sprint tag to remain unchanged.
+- **N9 Previous weapon is BackSlash only (FIXED, issue #14, US-096).** Either
+  Shift+Tab maps to the dedicated previous-weapon chord action. Plain Tab owns a fresh-press
+  trigger plus a dual-Shift blocker, so releasing Shift while Tab remains held cannot re-fire
+  next weapon. Left Shift still toggles sprint in its press frame; only the current physical
+  Left Shift press can be restored or suppressed by the chord, while Right Shift never touches
+  sprint. Plain Tab remains next, Q remains ability slot 1, and BackSlash remains an additional
+  previous binding. US-078's Tier 4 checks cover staggered and simultaneous chords, both release
+  orders, Shift tapped while Tab is held, Right Shift, and a chord that starts while sprinting.
 - **N10 The player's combat abilities exist only on an unsaved CDO edit (FIXED, US-083, issue #15).** `Scripts/us054_10_configure_all.py:15-42` set `DefaultCombatAbilities` on the C++ CDO and never saved it (`MordecaiPlayerController.cpp:136-147`; both citations before US-083). Even in the editor session that ran it, the edit never reached a spawned controller: an instance of a native class copies only `Config` properties from its CDO (unreal-tribal-knowledge, issue #40). This is the root of "attacks are not bound".
   - Fixed: the `AMordecaiPlayerController` constructor sets `DefaultCombatAbilities` (native `StaticClass()` refs: `UMordecaiGA_MeleeAttack`, the new `UMordecaiGA_HeavyAttack`, Dodge, Block, Parry) and `CombatAbilityInputTags`; `GrantCombatAbilities` adds each spec's input tag. The heavy attack is the melee ability with `AttackSlot` Heavy: it swings the equipped weapon's `GetActiveHeavyAttackProfile()` (no unarmed heavy, `TODO(DECISION)`) and owns `Mordecai.Attack.Heavy`. The script no longer writes the controller CDO. Test `Mordecai.Recovery.Combat.AbilitiesGrantedFromNativeDefaults`.
   - Verified on `01abb8b` and `ef69eb0`: in the packaged game the player's light attack, heavy attack, dodge, block and parry activate on real input (the checks under "not bound" above). Tier 3 boot PASS on both packages (`Saved/Playtests/20261023-192402-boot`, `20261023-193225-boot`, `20261024-110226-boot`): B_MordecaiArenaExperience, `content_cooked` PASS, no crash, 0 errors in `game.log`.

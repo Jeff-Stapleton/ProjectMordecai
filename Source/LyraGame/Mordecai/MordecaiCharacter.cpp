@@ -23,6 +23,8 @@
 #include "Engine/StaticMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Net/UnrealNetwork.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -102,7 +104,8 @@ AMordecaiCharacter::AMordecaiCharacter(const FObjectInitializer& ObjectInitializ
 	FacingArrowComponent->ArrowColor = FColor::Green;
 	FacingArrowComponent->ArrowSize = 1.5f;
 	FacingArrowComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 50.0f));
-	FacingArrowComponent->SetHiddenInGame(false);
+	FacingArrowComponent->SetHiddenInGame(
+		FParse::Param(FCommandLine::Get(), TEXT("MordecaiMarketingCapture")));
 
 	// Placeholder visual mesh — cylinder body + sphere head (replace with skeletal mesh when art is ready)
 	PlaceholderBodyComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PlaceholderBody"));
