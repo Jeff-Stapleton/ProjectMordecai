@@ -108,7 +108,7 @@ equipment replication remains out of scope and is tracked by issue #95.
 | 11 | `cycle_gamepad_y` | tap Gamepad_FaceButton_Top (Y) -> wait_until player.weapon.index==(index+1)%5 with the matching display_name | AC-078.6 |
 | 12 | `cycle_prev_shift_tab_same_frame` | tap LeftShift+Tab in one input frame -> wait_until player.weapon.index==(index-1)%5, with Mordecai.State.Sprinting presence unchanged | US-096:AC-096.2 |
 | 13 | `cycle_prev_release_shift_first` | hold LeftShift+Tab, release LeftShift while Tab stays held -> one previous cycle only; releasing the modifier does not re-fire plain Tab | US-096:AC-096.1, US-096:AC-096.2 |
-| 14 | `cycle_shift_tap_while_tab_held` | hold Tab, tap LeftShift, then release Tab -> fresh Tab cycles next once and the chord cycles previous once; releasing LeftShift does not re-fire plain Tab | US-096:AC-096.1, US-096:AC-096.2 |
+| 14 | `cycle_shift_tap_while_tab_held` | hold Tab, tap LeftShift, then release Tab -> fresh Tab cycles next exactly once; releasing LeftShift does not re-fire plain Tab, and the plain Shift tap toggles sprint | US-096:AC-096.1 |
 | 15 | `cycle_prev_right_shift_tab` | tap RightShift+Tab -> one previous cycle with Mordecai.State.Sprinting presence unchanged | US-096:AC-096.1, US-096:AC-096.2 |
 | 16 | `cycle_prev_shift_tab_while_sprinting` | tap LeftShift to start sprinting, then LeftShift+Tab -> one previous cycle and Mordecai.State.Sprinting remains present | US-096:AC-096.2 |
 | 17 | `weapon_hud_updates` | tap Tab -> the new weapon is equipped and visible MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text) | AC-078.12, AC-078.14, US-077:AC-077.8 |

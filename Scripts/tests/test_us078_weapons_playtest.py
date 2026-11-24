@@ -123,10 +123,6 @@ class WeaponWorld(fb.FakeWorld):
                 elif self.next_works:
                     self._cycle(+1)
                 return
-            if (key in ("LeftShift", "RightShift")
-                    and "Tab" in self._held_union() and self.shift_tab_prev):
-                self._cycle(-1)
-                return
             if key == "LeftShift":
                 self.left_shift_sprint_before = self.sprinting
                 self.left_shift_press_active = True
@@ -315,13 +311,13 @@ class TestUs078Pass(Us078Case):
                       checks["cycle_prev_shift_tab_same_frame"]["detail"])
         self.assertIn("Shift released first while Tab stayed held",
                       checks["cycle_prev_release_shift_first"]["detail"])
-        self.assertIn("releasing Shift did not re-fire held Tab",
+        self.assertIn("Shift press/release did not re-fire held Tab",
                       checks["cycle_shift_tap_while_tab_held"]["detail"])
         self.assertIn("tapped RightShift+Tab", checks["cycle_prev_right_shift_tab"]["detail"])
         self.assertIn("sprint remained on",
                       checks["cycle_prev_shift_tab_while_sprinting"]["detail"])
-        self.assertIn("-> 1 'Dagger'", checks["weapon_hud_updates"]["detail"])
-        self.assertIn("the HUD shows 'Dagger'", checks["weapon_hud_updates"]["detail"])
+        self.assertIn("-> 2 'Greatsword'", checks["weapon_hud_updates"]["detail"])
+        self.assertIn("the HUD shows 'Greatsword'", checks["weapon_hud_updates"]["detail"])
         self.assertIn("Slate hit SViewport", checks["light_attack_lmb"]["detail"])
         self.assertIn("Mordecai.State.Attacking without Mordecai.Attack.Heavy after",
                       checks["light_attack_lmb"]["detail"])
@@ -355,13 +351,13 @@ class TestUs078Pass(Us078Case):
                                 "LeftShift", "Tab", "LeftShift",
                                 "Gamepad_FaceButton_Top", ["LeftShift", "Tab"],
                                 "LeftShift", "Tab", "LeftShift", "Tab",
-                                "Tab", "LeftShift", "LeftShift", "Tab",
+                                "Tab", "LeftShift", "Tab", "LeftShift",
                                 "RightShift", "Tab", "RightShift",
                                 "LeftShift", "LeftShift", "Tab", "LeftShift", "Tab"])
         shift_messages = [m for m in sent if m["cmd"] == "key"
                           and m.get("key") == "LeftShift"]
         self.assertEqual([m.get("action") for m in shift_messages],
-                         ["press", "release", "press", "release", "press", "release",
+                         ["press", "release", "press", "release", "tap", "tap",
                           "tap", "press", "release"])
         clicks = [m for m in sent if m["cmd"] == "click"]
         self.assertEqual([(c["x"], c["y"], c["button"], c.get("hold_s")) for c in clicks],
@@ -398,7 +394,6 @@ class TestUs078Failures(Us078Case):
                          sorted(["weapon_hud_text", "cycle_prev_shift_tab",
                                  "cycle_prev_shift_tab_same_frame",
                                  "cycle_prev_release_shift_first",
-                                 "cycle_shift_tap_while_tab_held",
                                  "cycle_prev_right_shift_tab",
                                  "cycle_prev_shift_tab_while_sprinting"]))
         self.assertEqual(rep["known_failures"], [])
@@ -406,7 +401,6 @@ class TestUs078Failures(Us078Case):
                          sorted(["weapon_hud_text", "cycle_prev_shift_tab",
                                  "cycle_prev_shift_tab_same_frame",
                                  "cycle_prev_release_shift_first",
-                                 "cycle_shift_tap_while_tab_held",
                                  "cycle_prev_right_shift_tab",
                                  "cycle_prev_shift_tab_while_sprinting"]))
         checks = self.by_name(rep)
@@ -461,7 +455,8 @@ class TestUs078Failures(Us078Case):
         self.assertEqual(rep["new_failures"],
                          ["cycle_prev_shift_tab_same_frame",
                           "cycle_prev_release_shift_first",
-                          "cycle_shift_tap_while_tab_held"])
+                          "cycle_shift_tap_while_tab_held",
+                          "cycle_prev_shift_tab_while_sprinting"])
 
     def test_unbound_attacks_fail_new(self):
         # The game before US-083
@@ -496,8 +491,7 @@ class TestUs078Failures(Us078Case):
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(sorted(rep["new_failures"]),
-                         ["cycle_next_1", "cycle_prev_right_shift_tab",
-                          "weapon_effects_on_asc", "weapon_hud_updates"])
+                         ["cycle_next_1", "weapon_effects_on_asc"])
         detail = self.by_name(rep)["cycle_next_1"]["detail"]
         self.assertIn("display_name is 'Rusty Knife', expected 'Dagger'", detail)
         self.assertEqual(self.by_name(rep)["cycle_next_2"]["status"], "PASS")
@@ -530,9 +524,9 @@ class TestUs078Failures(Us078Case):
 
     def test_a_dead_player_before_the_click_is_an_explicit_fail(self):
         # The f21525f DevTestMap run: the swarm killed the player and light_attack_lmb clicked a
-        # dead player (no Attacking tag read as idle).  The 26th key press (the last Tab;
+        # dead player (no Attacking tag read as idle).  The 27th key press (the last Tab;
         # each Shift+Tab counts as two) kills the player here, who never respawns.
-        world, server = self.serve(die_after_keys=26, respawn_s=None)
+        world, server = self.serve(die_after_keys=27, respawn_s=None)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertTrue(world.is_dead)

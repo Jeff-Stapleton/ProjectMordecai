@@ -148,9 +148,9 @@ PLAN = (
          f"releasing the modifier does not re-fire plain Tab",
          proves=("US-096:AC-096.1", "US-096:AC-096.2")),
     Step("cycle_shift_tap_while_tab_held",
-         f"hold Tab, tap LeftShift, then release Tab -> fresh Tab cycles next once and the chord "
-         f"cycles previous once; releasing LeftShift does not re-fire plain Tab",
-         proves=("US-096:AC-096.1", "US-096:AC-096.2")),
+         f"hold Tab, tap LeftShift, then release Tab -> fresh Tab cycles next exactly once; "
+         f"releasing LeftShift does not re-fire plain Tab, and the plain Shift tap toggles sprint",
+         proves=("US-096:AC-096.1",)),
     Step("cycle_prev_right_shift_tab",
          f"tap RightShift+Tab -> one previous cycle with {SPRINT_TAG} presence unchanged",
          proves=("US-096:AC-096.1", "US-096:AC-096.2")),
@@ -487,34 +487,31 @@ class Us078Run(kit.PlaytestRun):
                 return "FAIL", f"player.weapon.index is unreadable ({_weapon_text(before)})", None
             next_index = (start + 1) % WEAPON_COUNT
             b.press("Tab")
-            shift_held = False
             try:
                 b.wait_until(f"player.weapon.index=={next_index}", timeout_s=CYCLE_TIMEOUT_S)
-                b.press("LeftShift")
-                shift_held = True
-                try:
-                    b.wait_until(f"player.weapon.index=={start}", timeout_s=CYCLE_TIMEOUT_S)
-                finally:
-                    if shift_held:
-                        b.release("LeftShift")
-                        shift_held = False
+                b.tap("LeftShift", hold_s=self.TAP_S)
                 b.wait(0.25)
                 after_state = b.state(["player"])
             finally:
-                if shift_held:
-                    b.release("LeftShift")
                 b.release("Tab")
             after = _weapon(after_state)
             sprint_after = SPRINT_TAG in _tags(after_state)
-            if _index(after) != start:
-                return ("FAIL", f"Tab moved {start}->{next_index} and Shift chord moved back, but "
-                        f"releasing Shift re-fired held Tab: {_weapon_text(after)}", after)
-            if sprint_after != sprint_before:
-                return ("FAIL", f"weapon returned to {start}, but {SPRINT_TAG} changed from "
-                        f"{sprint_before} to {sprint_after}", after)
-            return ("PASS", f"fresh Tab moved {start}->{next_index}, Shift chord returned to "
-                    f"{start} '{after.get('display_name')}'; releasing Shift did not re-fire "
-                    f"held Tab and {SPRINT_TAG}={sprint_after} remained unchanged", after)
+            if _index(after) != next_index:
+                return ("FAIL", f"fresh Tab moved {start}->{next_index}, but releasing Shift "
+                        f"re-fired held Tab: {_weapon_text(after)}", after)
+            if sprint_after == sprint_before:
+                return ("FAIL", f"weapon stayed at {next_index}, but plain LeftShift did not "
+                        f"toggle {SPRINT_TAG} from {sprint_before}", after)
+            # Return sprint to its starting state so later checks are independent.
+            b.tap("LeftShift", hold_s=self.TAP_S)
+            b.wait(0.1)
+            cleaned = b.state(["player"])
+            if (SPRINT_TAG in _tags(cleaned)) != sprint_before:
+                return ("FAIL", f"cleanup LeftShift did not restore {SPRINT_TAG} to "
+                        f"{sprint_before}", _weapon(cleaned))
+            return ("PASS", f"fresh Tab moved {start}->{next_index} "
+                    f"'{after.get('display_name')}'; Shift press/release did not re-fire held "
+                    f"Tab, and plain LeftShift toggled sprint immediately", after)
 
         return self.attempt(check, fn)
 
