@@ -41,8 +41,7 @@ class TestUs090MarketingCaptureContract(unittest.TestCase):
         self.assertEqual(capture.OUTPUT_SIZE, (1920, 1080))
         with open(CAPTURE, encoding="utf-8") as stream:
             source = stream.read()
-        self.assertIn("-ResX=1920", source)
-        self.assertIn("-ResY=1080", source)
+        self.assertIn("r.SetRes 1920x1080w", source)
         self.assertNotIn("-BENCHMARK", source)
         self.assertNotIn('"full_hold"', source)
 
