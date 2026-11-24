@@ -95,7 +95,7 @@ respawn restoration are C++. No content asset is required.
 - [x] Content: `py Scripts/check_content_committed.py` exits 0
 - [x] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py US-057` and
+- [x] On that same fresh package `py Scripts/playtest_story.py US-057` and
   `US-054`: the new checks PASS; full-sweep `pass_to_fail` is empty; lint exits
   0 — never `--allow-stale`
 - [x] Known issue N6 marked resolved in `Specs/agent_playtest_plan_v1.md`
@@ -292,3 +292,64 @@ respawn restoration are C++. No content asset is required.
   `reports/round3-triage.md` in Agent Store bundle
   `us090-r3-3cc72b77`.
 - The story intentionally remains in `stories/in-progress/`.
+
+### Round 4 strict-evidence follow-up (2026-11-24)
+- Environment: after Jeff unlocked the workstation, `LogonUI.exe` was absent,
+  `OpenInputDesktop` and `SwitchDesktop` succeeded, and a playtest averaged
+  59.998 FPS / 16.667 ms. Evidence:
+  `us090-r4-b755cd18/reports/environment.md`.
+- Main baseline: a clean `origin/main` package at
+  `5b6623bfea2894db7a80d7f2c3422bfed6656cdd` passed US-101
+  `dodge_evades`, US-120 `deep_bank_blocks`, US-083, US-097 and US-124.
+  Complete runs and logs are bundled under `logs/main-baseline/`.
+- Assertion restoration: the physical mouse check now fails when the physical
+  desktop is unavailable; #157 retains its single-snapshot probe and strict
+  0.15-0.60 second clear bound; US-057 requires both 0.55-1.50 second
+  individual gaps and a 0.85-1.15 second mean; desktop screenshot failures
+  remain failures. The Round-three route/timing accommodations in US-087,
+  US-120, US-122, US-123, US-124 and US-125 were reverted to main. The full
+  rationale and measurements are in `reports/round4-test-changes.md`; no
+  assertion was weakened.
+- Sprint-tag latency: main measured 0.1336 seconds mean / 0.1345 maximum;
+  five warm branch trials measured 0.1346 mean / 0.141 maximum. Both
+  US-083 and US-097 retain a strict 0.25-second wait.
+- Final clean package:
+  `b755cd18fc7e8893039e12d40d76747dad11d77c`;
+  `dirty=false`, `source_changed_during_build=false`;
+  `Saved/Playtests/package-20261124-032953.log`.
+- Final gates:
+  - Python tooling: 786/786 PASS
+    (`Saved/Playtests/us090-r4-python-b755cd18-final.log`), including static,
+    black and lock-screen-like marketing negative controls.
+  - Tier 1: 968/968 PASS
+    (`Saved/TestLogs/tests-20261124-034227.log`).
+  - PIE: 23/23 PASS
+    (`Saved/Playtests/us090-r4-pie-b755cd18.log`).
+  - US-091 regenerated Steps table lint: PASS.
+  - Content guard: PASS.
+- Dedicated US-090:
+  `Saved/Playtests/20261124-034539-story-us090` PASS.
+  - Tier 3 `20261124-034539-boot`: PASS, including all three physical
+    desktop screenshots.
+  - US-054 `20261124-034624-us054combat`: PASS. Its death snapshot recorded
+    8.25/10 SP and the first respawn read recorded 10/10.
+  - US-057 `20261124-034717-us057`: PASS. Four real-input casts and the
+    low-SP refusal passed; four +0.25 increments had three 1.0-second gaps.
+- Full no-exclusion sweep:
+  `Saved/Playtests/20261124-034752-sweep`. All six Tier 3 boots and 20/21
+  Tier 4 scripts passed without reruns or exclusions. US-101
+  `dodge_evades`, US-120 `deep_bank_blocks`, US-083, US-097 and US-124 all
+  passed. The only failure was the pre-existing known US-078
+  `cycle_prev_shift_tab`; `comparison.json` reports `pass_to_fail=[]`, no
+  missing scripts and no new failures.
+- Frames: `frames/index.md` contains three filename-labelled ffmpeg contact
+  sheets for all 16 dedicated engine/bridge frames.
+  `frames/verification.json` reports every source and sheet non-uniform.
+- Marketing: `marketing/` contains a game-owned real-time 1920x1080,
+  30-fps, 14.833-second clip and four stills. It shows a Q spend, multiple
+  one-second +0.25 SP ticks, death and exact-MaxSP respawn with no static
+  tail. Source SHA256 and decoded-frame PSNR checks pass
+  (44.690-44.903 dB); motion passes 8/8 sampled pairs (6/8 required);
+  actor/debug labels and yellow ability-log text are absent.
+- Final evidence bundle: `us090-r4-b755cd18` in the Agent Store. The story
+  intentionally remains in `stories/in-progress/`.
