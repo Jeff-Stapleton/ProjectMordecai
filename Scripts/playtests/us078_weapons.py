@@ -139,6 +139,10 @@ PLAN = (
          proves=("AC-078.7", "US-096:AC-096.2")),
     Step("cycle_gamepad_y", f"tap {GAMEPAD_NEXT_KEY} (Y) -> wait_until player.weapon.index=="
          f"(index+1)%{WEAPON_COUNT} with the matching display_name", proves=("AC-078.6",)),
+    Step("cycle_prev_shift_tab_same_frame",
+         f"tap {'+'.join(PREV_STORY_KEYS)} in one input frame -> wait_until "
+         f"player.weapon.index==(index-1)%{WEAPON_COUNT}, with {SPRINT_TAG} presence unchanged",
+         proves=("US-096:AC-096.2",)),
     Step("weapon_hud_updates", f"tap {NEXT_KEY} -> the new weapon is equipped and visible "
          "MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text)",
          proves=("AC-078.12", "AC-078.14", "US-077:AC-077.8")),
@@ -337,7 +341,7 @@ class Us078Run(kit.PlaytestRun):
 
     # --- 4-12: cycling ---------------------------------------------------------------------
     def cycle(self, check, keys, delta, require_from=None, hud=False,
-              preserve_sprint=False, needs=True, needs_why=None):
+              preserve_sprint=False, simultaneous=False, needs=True, needs_why=None):
         """Tap `keys`, expect player.weapon.index to move by `delta` (mod WEAPON_COUNT) with the
         matching display name; hud=True also expects a widget text to show the new name."""
         rec = {"check": check, "keys": kit.keys_text(keys), "from": None, "to": None,
@@ -358,11 +362,7 @@ class Us078Run(kit.PlaytestRun):
                         f"('{WEAPONS[require_from]}'), it is at {cur}", None)
             expected = (cur + delta) % WEAPON_COUNT
             want = WEAPONS[expected]
-            if isinstance(keys, tuple):
-                # A physical chord has the modifier down before the main key. Enhanced Input
-                # evaluates its chording action on a frame boundary, so pressing both keys in
-                # the same synthetic frame leaves a Pressed+Chord mapping pending instead of
-                # representing a player's Shift+Tab.
+            if isinstance(keys, tuple) and not simultaneous:
                 modifier, main_key = keys
                 b.press(modifier)
                 try:
@@ -370,6 +370,8 @@ class Us078Run(kit.PlaytestRun):
                     b.tap(main_key, hold_s=self.TAP_S)
                 finally:
                     b.release(modifier)
+            elif isinstance(keys, tuple):
+                b.tap(list(keys), hold_s=self.TAP_S)
             else:
                 b.tap(keys, hold_s=self.TAP_S)
             what = f"tapped {kit.keys_text(keys)} on {cur} '{before.get('display_name')}'"
@@ -432,6 +434,8 @@ class Us078Run(kit.PlaytestRun):
         self.shot("shift_tab_spear", needs=shift_tab_ok,
                   needs_why="not taken: Shift+Tab did not equip the Spear without toggling sprint")
         self.cycle("cycle_gamepad_y", GAMEPAD_NEXT_KEY, +1)
+        self.cycle("cycle_prev_shift_tab_same_frame", PREV_STORY_KEYS, -1,
+                   preserve_sprint=True, simultaneous=True)
         self.cycle("weapon_hud_updates", NEXT_KEY, +1, hud=True, needs=self.hud_ok,
                    needs_why="not run: weapon_hud_text failed (no weapon name on screen to "
                              "follow)")

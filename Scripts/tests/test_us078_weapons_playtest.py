@@ -282,8 +282,12 @@ class TestUs078Pass(Us078Case):
                       checks["cycle_prev_shift_tab"]["detail"])
         self.assertIn("tapped Gamepad_FaceButton_Top on 3 'Spear' -> 4 'Mace'",
                       checks["cycle_gamepad_y"]["detail"])
-        self.assertIn("-> 0 'Longsword'", checks["weapon_hud_updates"]["detail"])
-        self.assertIn("the HUD shows 'Longsword'", checks["weapon_hud_updates"]["detail"])
+        self.assertIn("tapped LeftShift+Tab on 4 'Mace' -> 3 'Spear'",
+                      checks["cycle_prev_shift_tab_same_frame"]["detail"])
+        self.assertIn("Mordecai.State.Sprinting remained False",
+                      checks["cycle_prev_shift_tab_same_frame"]["detail"])
+        self.assertIn("-> 4 'Mace'", checks["weapon_hud_updates"]["detail"])
+        self.assertIn("the HUD shows 'Mace'", checks["weapon_hud_updates"]["detail"])
         self.assertIn("Slate hit SViewport", checks["light_attack_lmb"]["detail"])
         self.assertIn("Mordecai.State.Attacking without Mordecai.Attack.Heavy after",
                       checks["light_attack_lmb"]["detail"])
@@ -315,7 +319,7 @@ class TestUs078Pass(Us078Case):
         self.assertEqual(keys, ["Tab", "Tab", "Tab", "Tab", "Tab",
                                 "Tab", "Tab", "Tab", "Tab", "Tab", "BackSlash",
                                 "LeftShift", "Tab", "LeftShift",
-                                "Gamepad_FaceButton_Top", "Tab"])
+                                "Gamepad_FaceButton_Top", ["LeftShift", "Tab"], "Tab"])
         shift_messages = [m for m in sent if m["cmd"] == "key"
                           and m.get("key") == "LeftShift"]
         self.assertEqual([m.get("action") for m in shift_messages], ["press", "release"])
@@ -351,10 +355,12 @@ class TestUs078Failures(Us078Case):
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertEqual(sorted(self.statuses(rep, "FAIL")),
-                         sorted(["weapon_hud_text", "cycle_prev_shift_tab"]))
+                         sorted(["weapon_hud_text", "cycle_prev_shift_tab",
+                                 "cycle_prev_shift_tab_same_frame"]))
         self.assertEqual(rep["known_failures"], [])
         self.assertEqual(sorted(rep["new_failures"]),
-                         sorted(["weapon_hud_text", "cycle_prev_shift_tab"]))
+                         sorted(["weapon_hud_text", "cycle_prev_shift_tab",
+                                 "cycle_prev_shift_tab_same_frame"]))
         checks = self.by_name(rep)
         self.assertIn("no visible MordecaiEquippedWeaponWidget text equals the weapon name "
                       "'Longsword'",
@@ -386,12 +392,13 @@ class TestUs078Failures(Us078Case):
         _, server = self.serve(shift_tab_toggles_sprint=True)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
-        check = self.by_name(rep)["cycle_prev_shift_tab"]
-        self.assertEqual(check["status"], "FAIL")
-        self.assertIn("Mordecai.State.Sprinting changed from False to True",
-                      check["detail"])
+        checks = self.by_name(rep)
+        for name in ("cycle_prev_shift_tab", "cycle_prev_shift_tab_same_frame"):
+            self.assertEqual(checks[name]["status"], "FAIL")
+            self.assertIn("Mordecai.State.Sprinting changed", checks[name]["detail"])
         self.assertEqual(rep["known_failures"], [])
-        self.assertEqual(rep["new_failures"], ["cycle_prev_shift_tab"])
+        self.assertEqual(rep["new_failures"],
+                         ["cycle_prev_shift_tab", "cycle_prev_shift_tab_same_frame"])
 
     def test_unbound_attacks_fail_new(self):
         # The game before US-083
@@ -459,9 +466,9 @@ class TestUs078Failures(Us078Case):
 
     def test_a_dead_player_before_the_click_is_an_explicit_fail(self):
         # The f21525f DevTestMap run: the swarm killed the player and light_attack_lmb clicked a
-        # dead player (no Attacking tag read as idle).  The 15th key press (the last Tab;
-        # Shift+Tab counts as two) kills the player here, who never respawns.
-        world, server = self.serve(die_after_keys=15, respawn_s=None)
+        # dead player (no Attacking tag read as idle).  The 17th key press (the last Tab;
+        # each Shift+Tab counts as two) kills the player here, who never respawns.
+        world, server = self.serve(die_after_keys=17, respawn_s=None)
         code, rep = self.play(server)
         self.assertEqual(code, 1)
         self.assertTrue(world.is_dead)
@@ -497,7 +504,7 @@ class TestUs078Report(Us078Case):
         self.assertEqual(rep["features"], ["weapons", "weapon_hud", "melee_attack"])
         self.assertEqual(rep["title"], us078.TITLE)
         self.assertEqual([p["check"] for p in rep["plan"]], [s.check for s in us078.PLAN])
-        self.assertEqual(len(rep["plan"]), 14)
+        self.assertEqual(len(rep["plan"]), 15)
         self.assertEqual(rep["pending"], us078.PENDING)
         self.assertEqual(rep["known_issues"], list(us078.KNOWN_ISSUES))
         self.assertEqual(rep["script"].replace("\\", "/"), "Scripts/playtests/us078_weapons.py")
@@ -552,10 +559,10 @@ class TestUs078Plan(unittest.TestCase):
         attach.assert_not_called()
         gate.assert_not_called()
         lines = out.getvalue().strip().splitlines()
-        self.assertEqual(len(lines), 2 + 14)
+        self.assertEqual(len(lines), 2 + 15)
         self.assertTrue(lines[2].startswith("| 1 | `starting_weapon` |"))
         self.assertIn("US-077:AC-077.5", lines[2])
-        self.assertTrue(lines[-1].startswith("| 14 | `heavy_attack_hold` |"))
+        self.assertTrue(lines[-1].startswith("| 15 | `heavy_attack_hold` |"))
 
 
 if __name__ == "__main__":

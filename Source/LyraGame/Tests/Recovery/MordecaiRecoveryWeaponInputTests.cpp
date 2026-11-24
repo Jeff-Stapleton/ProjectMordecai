@@ -185,3 +185,71 @@ bool FMordecai_Recovery_Weapons_PreviousWeaponInput::RunTest(
 		Character->bIsSprinting);
 	return true;
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMordecai_Recovery_Weapons_ShiftTabSameFrameOrdering,
+	"Mordecai.Recovery.Weapons.ShiftTabSameFrameOrdering",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Weapons_ShiftTabSameFrameOrdering::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiRecoveryWeaponInputTest;
+
+	auto RunOrder = [this](const bool bChordBindingFirst, const bool bStartsSprinting)
+	{
+		AMordecaiCharacter* Character = NewObject<AMordecaiCharacter>();
+		UMordecaiHeroComponent* Hero =
+			Character->FindComponentByClass<UMordecaiHeroComponent>();
+		UMordecaiEquipmentComponent* Equipment = Character->GetEquipmentComponent();
+		UEnhancedInputComponent* EIC = NewObject<UEnhancedInputComponent>(Character);
+		const UInputMappingContext* Context = Hero->BuildAndBindRuntimeInput(EIC);
+		const UInputAction* SprintAction = LoadAction(TEXT("IA_Mordecai_Sprint"));
+		if (!Hero || !Equipment || !Context || !SprintAction)
+		{
+			AddError(TEXT("Same-frame fixture did not initialize"));
+			return;
+		}
+
+		Equipment->AddAvailableWeapon(
+			UMordecaiWeaponProfileFactory::CreateLongsword(Character));
+		Equipment->AddAvailableWeapon(
+			UMordecaiWeaponProfileFactory::CreateDagger(Character));
+		Equipment->AddAvailableWeapon(
+			UMordecaiWeaponProfileFactory::CreateSpear(Character));
+		Equipment->CycleNextWeapon();
+		Equipment->CycleNextWeapon();
+		Character->SetSprinting(bStartsSprinting);
+
+		const int32 ShiftTabIndex = FindShiftTab(Context);
+		if (ShiftTabIndex == INDEX_NONE)
+		{
+			AddError(TEXT("Shift+Tab mapping is missing"));
+			return;
+		}
+		const UInputAction* ShiftTabAction = Context->GetMappings()[ShiftTabIndex].Action;
+		const bool bFirstExecuted = bChordBindingFirst
+			? ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Triggered, Hero)
+			: ExecuteBinding(EIC, SprintAction, ETriggerEvent::Started, Hero);
+		const bool bSecondExecuted = bChordBindingFirst
+			? ExecuteBinding(EIC, SprintAction, ETriggerEvent::Started, Hero)
+			: ExecuteBinding(EIC, ShiftTabAction, ETriggerEvent::Triggered, Hero);
+
+		const FString Order = bChordBindingFirst
+			? TEXT("chord-before-sprint")
+			: TEXT("sprint-before-chord");
+		TestTrue(*FString::Printf(TEXT("%s: both same-frame bindings execute"), *Order),
+			bFirstExecuted && bSecondExecuted);
+		TestEqual(*FString::Printf(TEXT("%s: exactly one previous cycle"), *Order),
+			Equipment->GetCurrentWeaponIndex(), 0);
+		TestEqual(*FString::Printf(TEXT("%s: sprint state is unchanged"), *Order),
+			Character->bIsSprinting, bStartsSprinting);
+	};
+
+	for (const bool bStartsSprinting : {false, true})
+	{
+		RunOrder(false, bStartsSprinting);
+		RunOrder(true, bStartsSprinting);
+	}
+	return true;
+}
