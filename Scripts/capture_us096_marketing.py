@@ -190,7 +190,16 @@ def capture(output_dir, duration_seconds=6.5):
                 _, keys, expected_index = INPUT_SCHEDULE[next_input]
                 before = bridge.state(["player"])
                 sprint_before = SPRINT_TAG in _tags(before)
-                bridge.tap(list(keys), hold_s=0.1)
+                if len(keys) == 2:
+                    modifier, main_key = keys
+                    bridge.press(modifier)
+                    try:
+                        bridge.wait(0.05)
+                        bridge.tap(main_key, hold_s=0.1)
+                    finally:
+                        bridge.release(modifier)
+                else:
+                    bridge.tap(keys[0], hold_s=0.1)
                 bridge.wait_until(
                     f"player.weapon.index=={expected_index}", timeout_s=2.0)
                 after = bridge.state(["player"])

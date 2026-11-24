@@ -358,7 +358,20 @@ class Us078Run(kit.PlaytestRun):
                         f"('{WEAPONS[require_from]}'), it is at {cur}", None)
             expected = (cur + delta) % WEAPON_COUNT
             want = WEAPONS[expected]
-            b.tap(list(keys) if isinstance(keys, tuple) else keys, hold_s=self.TAP_S)
+            if isinstance(keys, tuple):
+                # A physical chord has the modifier down before the main key. Enhanced Input
+                # evaluates its chording action on a frame boundary, so pressing both keys in
+                # the same synthetic frame leaves a Pressed+Chord mapping pending instead of
+                # representing a player's Shift+Tab.
+                modifier, main_key = keys
+                b.press(modifier)
+                try:
+                    b.wait(0.05)
+                    b.tap(main_key, hold_s=self.TAP_S)
+                finally:
+                    b.release(modifier)
+            else:
+                b.tap(keys, hold_s=self.TAP_S)
             what = f"tapped {kit.keys_text(keys)} on {cur} '{before.get('display_name')}'"
             try:
                 r = b.wait_until(f"player.weapon.index=={expected}", timeout_s=CYCLE_TIMEOUT_S)

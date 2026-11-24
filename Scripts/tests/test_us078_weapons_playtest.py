@@ -314,7 +314,11 @@ class TestUs078Pass(Us078Case):
         keys = [m.get("keys") or m.get("key") for m in sent if m["cmd"] == "key"]
         self.assertEqual(keys, ["Tab", "Tab", "Tab", "Tab", "Tab",
                                 "Tab", "Tab", "Tab", "Tab", "Tab", "BackSlash",
-                                ["LeftShift", "Tab"], "Gamepad_FaceButton_Top", "Tab"])
+                                "LeftShift", "Tab", "LeftShift",
+                                "Gamepad_FaceButton_Top", "Tab"])
+        shift_messages = [m for m in sent if m["cmd"] == "key"
+                          and m.get("key") == "LeftShift"]
+        self.assertEqual([m.get("action") for m in shift_messages], ["press", "release"])
         clicks = [m for m in sent if m["cmd"] == "click"]
         self.assertEqual([(c["x"], c["y"], c["button"], c.get("hold_s")) for c in clicks],
                          [(640, 360, "Left", None), (640, 360, "Left", 0.8)])
