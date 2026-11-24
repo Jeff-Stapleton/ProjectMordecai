@@ -3,6 +3,10 @@
 #include "Misc/AutomationTest.h"
 
 #include "EnhancedInputComponent.h"
+#include "EnhancedPlayerInput.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "InputTriggers.h"
@@ -251,5 +255,145 @@ bool FMordecai_Recovery_Weapons_ShiftTabSameFrameOrdering::RunTest(
 		RunOrder(false, bStartsSprinting);
 		RunOrder(true, bStartsSprinting);
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMordecai_Recovery_Weapons_TabRequiresFreshPressThroughShiftTransitions,
+	"Mordecai.Recovery.Weapons.TabRequiresFreshPressThroughShiftTransitions",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_Weapons_TabRequiresFreshPressThroughShiftTransitions::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiRecoveryWeaponInputTest;
+
+	AMordecaiCharacter* Character = NewObject<AMordecaiCharacter>();
+	UMordecaiHeroComponent* Hero =
+		Character->FindComponentByClass<UMordecaiHeroComponent>();
+	UEnhancedInputComponent* EIC = NewObject<UEnhancedInputComponent>(Character);
+	const UInputMappingContext* Context = Hero->BuildAndBindRuntimeInput(EIC);
+	const UInputAction* NextAction = LoadAction(TEXT("IA_Mordecai_WeaponSwap"));
+	if (!Hero || !Context || !NextAction)
+	{
+		AddError(TEXT("Fresh-Tab fixture did not initialize"));
+		return false;
+	}
+
+	const int32 TabIndex = FindMapping(Context, NextAction, EKeys::Tab);
+	if (TabIndex == INDEX_NONE)
+	{
+		AddError(TEXT("Plain Tab next-weapon mapping is missing"));
+		return false;
+	}
+	const FEnhancedActionKeyMapping& TabMapping = Context->GetMappings()[TabIndex];
+	UInputTriggerPressed* FreshPress = nullptr;
+	UMordecaiInputTriggerShiftBlocker* ShiftBlocker = nullptr;
+	for (const TObjectPtr<UInputTrigger>& Trigger : TabMapping.Triggers)
+	{
+		FreshPress = FreshPress
+			? FreshPress
+			: ExactCast<UInputTriggerPressed>(Trigger.Get());
+		ShiftBlocker = ShiftBlocker
+			? ShiftBlocker
+			: ExactCast<UMordecaiInputTriggerShiftBlocker>(Trigger.Get());
+	}
+	TestNotNull(TEXT("Plain Tab has a fresh-press trigger"), FreshPress);
+	TestNotNull(TEXT("Plain Tab has a Shift blocker"), ShiftBlocker);
+	if (!ShiftBlocker)
+	{
+		return false;
+	}
+
+	// Keep exercising the key-state behavior in RED even before the mapping owns
+	// its Pressed trigger, so this test proves more than trigger class presence.
+	if (!FreshPress)
+	{
+		FreshPress = NewObject<UInputTriggerPressed>();
+	}
+
+	UWorld* InputWorld = UWorld::CreateWorld(EWorldType::Game, false);
+	if (!GEngine || !InputWorld)
+	{
+		AddError(TEXT("Could not create the key-injection world"));
+		return false;
+	}
+	FWorldContext& WorldContext =
+		GEngine->CreateNewWorldContext(EWorldType::Game);
+	WorldContext.SetCurrentWorld(InputWorld);
+	InputWorld->InitializeActorsForPlay(FURL());
+	APlayerController* PlayerController =
+		InputWorld->SpawnActor<APlayerController>();
+	if (!PlayerController)
+	{
+		GEngine->DestroyWorldContext(InputWorld);
+		InputWorld->DestroyWorld(false);
+		AddError(TEXT("Could not create the key-injection player controller"));
+		return false;
+	}
+	UEnhancedPlayerInput* PlayerInput =
+		NewObject<UEnhancedPlayerInput>(PlayerController);
+	TArray<UInputComponent*> EmptyStack;
+	auto InputFrame = [PlayerInput, &EmptyStack](
+		const FKey& Key, const EInputEvent Event)
+	{
+		const float Value = Event == IE_Released ? 0.0f : 1.0f;
+		PlayerInput->InputKey(
+			FInputKeyEventArgs::CreateSimulated(Key, Event, Value));
+		PlayerInput->ProcessInputStack(EmptyStack, 1.0f / 60.0f, false);
+	};
+	auto MappingTriggers = [PlayerInput, FreshPress, ShiftBlocker]()
+	{
+		const FInputActionValue TabValue(PlayerInput->IsPressed(EKeys::Tab));
+		const ETriggerState FreshState =
+			FreshPress->UpdateState(PlayerInput, TabValue, 1.0f / 60.0f);
+		const ETriggerState BlockerState =
+			ShiftBlocker->UpdateState(PlayerInput, TabValue, 1.0f / 60.0f);
+		// Enhanced Player Input normally performs this bookkeeping after it
+		// evaluates each mapping trigger.
+		FreshPress->LastValue = TabValue;
+		return FreshState == ETriggerState::Triggered
+			&& BlockerState != ETriggerState::Triggered;
+	};
+
+	// A fresh unmodified Tab press fires once. Pressing and releasing Shift
+	// while Tab remains held must neither re-fire Next nor treat release as a
+	// new Tab press.
+	InputFrame(EKeys::Tab, IE_Pressed);
+	TestTrue(TEXT("Fresh Tab key state reaches the next-weapon mapping"),
+		PlayerInput->WasJustPressed(EKeys::Tab) && MappingTriggers());
+	InputFrame(EKeys::LeftShift, IE_Pressed);
+	TestFalse(TEXT("Left Shift blocks held Tab"), MappingTriggers());
+	InputFrame(EKeys::LeftShift, IE_Released);
+	TestFalse(TEXT("Left Shift release does not re-fire held Tab"), MappingTriggers());
+	InputFrame(EKeys::Tab, IE_Released);
+	TestFalse(TEXT("Tab release does not fire next weapon"), MappingTriggers());
+
+	// Shift-first then Tab exercises the actual blocker. Releasing Shift while
+	// Tab remains down must leave the fresh-press trigger non-triggered.
+	InputFrame(EKeys::LeftShift, IE_Pressed);
+	TestFalse(TEXT("Left Shift alone does not fire Tab"), MappingTriggers());
+	InputFrame(EKeys::Tab, IE_Pressed);
+	TestFalse(TEXT("Left Shift blocks a fresh Tab press"), MappingTriggers());
+	InputFrame(EKeys::LeftShift, IE_Released);
+	TestFalse(TEXT("Releasing Left Shift first does not re-fire Tab"),
+		MappingTriggers());
+	InputFrame(EKeys::Tab, IE_Released);
+	MappingTriggers();
+
+	// Right Shift is also a previous-weapon chord modifier, but it is not the
+	// sprint key. It must block plain Tab exactly as Left Shift does.
+	InputFrame(EKeys::RightShift, IE_Pressed);
+	MappingTriggers();
+	InputFrame(EKeys::Tab, IE_Pressed);
+	TestFalse(TEXT("Right Shift blocks a fresh Tab press"), MappingTriggers());
+	InputFrame(EKeys::RightShift, IE_Released);
+	TestFalse(TEXT("Releasing Right Shift first does not re-fire Tab"),
+		MappingTriggers());
+	InputFrame(EKeys::Tab, IE_Released);
+	MappingTriggers();
+
+	GEngine->DestroyWorldContext(InputWorld);
+	InputWorld->DestroyWorld(false);
 	return true;
 }

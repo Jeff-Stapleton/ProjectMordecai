@@ -143,6 +143,14 @@ PLAN = (
          f"tap {'+'.join(PREV_STORY_KEYS)} in one input frame -> wait_until "
          f"player.weapon.index==(index-1)%{WEAPON_COUNT}, with {SPRINT_TAG} presence unchanged",
          proves=("US-096:AC-096.2",)),
+    Step("cycle_prev_release_shift_first",
+         f"hold LeftShift+Tab, release LeftShift while Tab stays held -> one previous cycle only; "
+         f"releasing the modifier does not re-fire plain Tab",
+         proves=("US-096:AC-096.1", "US-096:AC-096.2")),
+    Step("cycle_shift_tap_while_tab_held",
+         f"hold Tab, tap LeftShift, then release Tab -> fresh Tab cycles next once and the chord "
+         f"cycles previous once; releasing LeftShift does not re-fire plain Tab",
+         proves=("US-096:AC-096.1", "US-096:AC-096.2")),
     Step("weapon_hud_updates", f"tap {NEXT_KEY} -> the new weapon is equipped and visible "
          "MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text)",
          proves=("AC-078.12", "AC-078.14", "US-077:AC-077.8")),
@@ -418,6 +426,91 @@ class Us078Run(kit.PlaytestRun):
         self.cycles.append(rec)
         return self.attempt(check, fn, needs=needs, needs_why=needs_why)
 
+    def release_shift_first(self):
+        """Previous once, even when Shift comes up while Tab remains held."""
+        check = "cycle_prev_release_shift_first"
+
+        def fn():
+            b = self.bridge
+            before_state = b.state(["player"])
+            before = _weapon(before_state)
+            start = _index(before)
+            sprint_before = SPRINT_TAG in _tags(before_state)
+            if start is None:
+                return "FAIL", f"player.weapon.index is unreadable ({_weapon_text(before)})", None
+            expected = (start - 1) % WEAPON_COUNT
+            b.press("LeftShift")
+            shift_held = True
+            try:
+                b.press("Tab")
+                b.wait_until(f"player.weapon.index=={expected}", timeout_s=CYCLE_TIMEOUT_S)
+                b.release("LeftShift")
+                shift_held = False
+                b.wait(0.25)
+                after_state = b.state(["player"])
+            finally:
+                if shift_held:
+                    b.release("LeftShift")
+                b.release("Tab")
+            after = _weapon(after_state)
+            sprint_after = SPRINT_TAG in _tags(after_state)
+            if _index(after) != expected:
+                return ("FAIL", f"Shift+Tab moved {start}->{expected}, but releasing Shift while "
+                        f"Tab stayed held re-cycled to {_weapon_text(after)}", after)
+            if sprint_after != sprint_before:
+                return ("FAIL", f"weapon stayed at {expected}, but {SPRINT_TAG} changed from "
+                        f"{sprint_before} to {sprint_after}", after)
+            return ("PASS", f"Shift+Tab moved {start}->{expected} '{after.get('display_name')}'; "
+                    f"Shift released first while Tab stayed held and the weapon and "
+                    f"{SPRINT_TAG}={sprint_after} remained unchanged", after)
+
+        return self.attempt(check, fn)
+
+    def shift_tap_while_tab_held(self):
+        """A held Tab is not a second fresh Tab press when Shift is released."""
+        check = "cycle_shift_tap_while_tab_held"
+
+        def fn():
+            b = self.bridge
+            before_state = b.state(["player"])
+            before = _weapon(before_state)
+            start = _index(before)
+            sprint_before = SPRINT_TAG in _tags(before_state)
+            if start is None:
+                return "FAIL", f"player.weapon.index is unreadable ({_weapon_text(before)})", None
+            next_index = (start + 1) % WEAPON_COUNT
+            b.press("Tab")
+            shift_held = False
+            try:
+                b.wait_until(f"player.weapon.index=={next_index}", timeout_s=CYCLE_TIMEOUT_S)
+                b.press("LeftShift")
+                shift_held = True
+                try:
+                    b.wait_until(f"player.weapon.index=={start}", timeout_s=CYCLE_TIMEOUT_S)
+                finally:
+                    if shift_held:
+                        b.release("LeftShift")
+                        shift_held = False
+                b.wait(0.25)
+                after_state = b.state(["player"])
+            finally:
+                if shift_held:
+                    b.release("LeftShift")
+                b.release("Tab")
+            after = _weapon(after_state)
+            sprint_after = SPRINT_TAG in _tags(after_state)
+            if _index(after) != start:
+                return ("FAIL", f"Tab moved {start}->{next_index} and Shift chord moved back, but "
+                        f"releasing Shift re-fired held Tab: {_weapon_text(after)}", after)
+            if sprint_after != sprint_before:
+                return ("FAIL", f"weapon returned to {start}, but {SPRINT_TAG} changed from "
+                        f"{sprint_before} to {sprint_after}", after)
+            return ("PASS", f"fresh Tab moved {start}->{next_index}, Shift chord returned to "
+                    f"{start} '{after.get('display_name')}'; releasing Shift did not re-fire "
+                    f"held Tab and {SPRINT_TAG}={sprint_after} remained unchanged", after)
+
+        return self.attempt(check, fn)
+
     def step_cycling(self):
         mace_ok = False
         for k in range(1, WEAPON_COUNT):
@@ -436,11 +529,13 @@ class Us078Run(kit.PlaytestRun):
         self.cycle("cycle_gamepad_y", GAMEPAD_NEXT_KEY, +1)
         self.cycle("cycle_prev_shift_tab_same_frame", PREV_STORY_KEYS, -1,
                    preserve_sprint=True, simultaneous=True)
+        self.release_shift_first()
+        self.shift_tap_while_tab_held()
         self.cycle("weapon_hud_updates", NEXT_KEY, +1, hud=True, needs=self.hud_ok,
                    needs_why="not run: weapon_hud_text failed (no weapon name on screen to "
                              "follow)")
 
-    # --- 13-14: attacks ---------------------------------------------------------------------
+    # --- attacks ----------------------------------------------------------------------------
     def attack(self, check, hold_s, timeout_s, heavy):
         """Click (held hold_s) from idle; PASS when the attack's tag shows: the heavy attack's
         Mordecai.Attack.Heavy, or for a light attack Mordecai.State.Attacking without it."""
