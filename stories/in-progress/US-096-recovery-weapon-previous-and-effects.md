@@ -20,9 +20,20 @@ Issue #36 used a one-time EDITOR authoring step (Scripts/us078_01_create_weapon_
 - `Specs/control_bindings_v1.1.md` — Tab = Weapon Set Swap; Left Shift = Sprint toggle; no "previous weapon" row
 - Existing code: `Source/LyraGame/Mordecai/MordecaiHeroComponent.cpp:105-107,220-232,343-351`; `Source/LyraGame/Mordecai/Weapons/MordecaiEquipmentComponent.cpp:55-56`
 
+## Decisions
+- Shift+Tab cycles to the previous weapon.
+- Tab alone continues to cycle to the next weapon.
+- Q remains ability/spell slot 1.
+- Left Shift remains the sprint toggle. A plain tap toggles immediately with no
+  added delay; completing Shift+Tab restores the sprint state from before the
+  Shift press, so the chord has no net effect on sprint.
+- BackSlash remains an additional previous-weapon binding.
+- Decided by Jeff for issue #14 on 2026-11-24; also recorded in
+  `Specs/design_decisions_log.md`.
+
 ## Acceptance Criteria
-- [ ] AC-096.1 (per TODO(DECISION) N9): the previous-weapon input is what Jeff decides — Option A: Shift+Tab chord cycles to the previous weapon, Tab alone still cycles next, and the chord does NOT toggle sprint; Option B: BackSlash stays and AC-078.7 is amended (recorded in `Specs/design_decisions_log.md`) — verified by `Mordecai.Recovery.Weapons.PreviousWeaponInput`
-- [ ] AC-096.2 (Option A): In the packaged build, on the Mace the player presses Shift+Tab and the Spear is equipped, and sprint is not toggled — verified by check `cycle_prev_shift_tab` of `Scripts/playtests/us078_weapons.py` (Tier 4). (Option B: the check is removed from the us078 plan with a note citing the decision; `cycle_prev_backslash` remains the proof)
+- [ ] AC-096.1: Shift+Tab cycles to the previous weapon, Tab alone still cycles next, and the chord does NOT toggle sprint; Q remains ability slot 1 and BackSlash remains an extra previous binding — verified by `Mordecai.Recovery.Weapons.PreviousWeaponInput`
+- [ ] AC-096.2: In the packaged build, on the Mace the player presses Shift+Tab and the Spear is equipped, and sprint is not toggled — verified by check `cycle_prev_shift_tab` of `Scripts/playtests/us078_weapons.py` (Tier 4)
 - [x] AC-096.3: Equipping a weapon applies its `GrantedTags` and `StatModifiers` to the ASC found via the owning PlayerState (Lyra pattern), and unequipping removes them — verified by `Mordecai.Recovery.Weapons.EffectsAppliedToPlayerStateASC`. **Closed at Jeff's call (2026-11-09):** "Only AC-096.3 in this PR; leave previous-weapon N9 open."
 - [ ] AC-096.4: AC-078.15 (two-hand clears both slots) stays PENDING TIER 4 (bridge cannot drive: B2 — no equip slot on `player.weapon`); Tier 1 only, not claimed
 
@@ -33,7 +44,7 @@ replication remains out of scope and is tracked by issue #95.
 - TODO(DECISION) N9 (Jeff): Shift+Tab (AC-078.7) vs BackSlash (current code; the code comment calls it "a pragmatic alternative"). Note the conflict with Sprint (Left Shift toggle): Option A needs the sprint toggle to fire on Shift release-without-chord, or on a different trigger, so that Shift+Tab does not also toggle sprint. Also: control_bindings lists Tab as "Weapon Set Swap (Set 1 ↔ Set 2)", not "next weapon" — the 5-weapon cycle itself is a US-078 test-arena convenience; flag if Jeff wants that revisited.
 - Option A implementation: Enhanced Input `UInputTriggerChordAction` on Tab with a "Shift held" chord action; give the plain-Tab mapping a blocker (`UInputTriggerChordBlocker`) so it does not fire with Shift held.
 - ASC lookup: use `UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerPawn)` (Lyra's character implements the interface and forwards to the PlayerState) or the PlayerState directly; re-apply on possession/respawn.
-- Script bookkeeping (before packaging): Option A — remove the N9 `known_issue` from `cycle_prev_shift_tab`; Option B — remove the step, update AC ids in the plan and US-078's Steps table so `--lint` passes.
+- Script bookkeeping: remove the N9 `known_issue` from `cycle_prev_shift_tab` and assert the sprint tag is unchanged.
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
 
 ## Tests Required
@@ -50,16 +61,16 @@ replication remains out of scope and is tracked by issue #95.
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- `Scripts/playtests/us078_weapons.py` check `cycle_prev_shift_tab` (Option A)
+- `Scripts/playtests/us078_weapons.py` check `cycle_prev_shift_tab`
 - `Scripts/playtests/us078_weapons.py` check `weapon_effects_on_asc` — AC-096.3
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` (CombatTestMap → B_MordecaiArenaExperience; us078's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-078` on the same package
 - **Player steps:** read the Longsword tag, tap Tab through all five weapons and verify each
   current type tag is present while the previous type tag is absent; then tap Tab four times
-  (Mace), press Shift+Tab (Option A) or BackSlash (Option B)
+  (Mace) and press Shift+Tab
 - **Visible on screen:** the weapon HUD (after US-091) reads "Spear"; the player is not sprinting
-- **Proof:** Tier 4 check `cycle_prev_shift_tab` (Option A) / `cycle_prev_backslash` (Option B) of `Scripts/playtests/us078_weapons.py`
+- **Proof:** Tier 4 check `cycle_prev_shift_tab` of `Scripts/playtests/us078_weapons.py`
 - **Tier 4 script:** `Scripts/playtests/us078_weapons.py` — run: `py Scripts/playtest_story.py US-078`
 - **Steps:**
 
@@ -74,7 +85,7 @@ replication remains out of scope and is tracked by issue #95.
 | 7 | `cycle_next_4` | tap Tab -> wait_until player.weapon.index==4 (from 3), display_name 'Mace' | AC-078.6, AC-078.14, US-077:AC-077.3 |
 | 8 | `cycle_wrap` | tap Tab on the last weapon -> wait_until player.weapon.index==0, display_name 'Longsword' | AC-078.6, US-077:AC-077.3 |
 | 9 | `cycle_prev_backslash` | tap BackSlash on the first weapon -> wait_until player.weapon.index==4, display_name 'Mace' | AC-078.8, US-077:AC-077.4 |
-| 10 | `cycle_prev_shift_tab` | tap LeftShift+Tab on the Mace -> wait_until player.weapon.index==3, display_name 'Spear' _(known issue: N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next (Specs/agent_playtest_plan_v1.md, Known issues backlog))_ | AC-078.7 |
+| 10 | `cycle_prev_shift_tab` | tap LeftShift+Tab on the Mace -> wait_until player.weapon.index==3, display_name 'Spear', visible weapon HUD reads 'Spear', and Mordecai.State.Sprinting presence is unchanged | AC-078.7, US-096:AC-096.2 |
 | 11 | `cycle_gamepad_y` | tap Gamepad_FaceButton_Top (Y) -> wait_until player.weapon.index==(index+1)%5 with the matching display_name | AC-078.6 |
 | 12 | `weapon_hud_updates` | tap Tab -> the new weapon is equipped and visible MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text) | AC-078.12, AC-078.14, US-077:AC-077.8 |
 | 13 | `light_attack_lmb` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) -> Mordecai.State.Attacking without Mordecai.Attack.Heavy in player.tags within 1 s | AC-078.14 |
@@ -89,7 +100,7 @@ replication remains out of scope and is tracked by issue #95.
 - [ ] Content: `DA_Weapon_Longsword`, `DA_Weapon_Dagger`, `DA_Weapon_Greatsword`, `DA_Weapon_Spear`, and `DA_Weapon_Mace` type-tag repairs are committed; `py Scripts/check_content_committed.py` exits 0 (AC-096.3 slice passed at this PR: PASS in `Saved/TestLogs/issue36-r2-content-check.log`; re-run for AC-096.1/.2)
 - [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [ ] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/CombatTestMap` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py US-078`: `cycle_prev_shift_tab` goes from FAIL to PASS (Option A) or is removed per the recorded decision (Option B); no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
+- [ ] On that same fresh package `py Scripts/playtest_story.py US-078`: `cycle_prev_shift_tab` goes from FAIL to PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
 - [ ] Known issues N9 and "Weapon effects never reach the ASC" marked FIXED/decided in `Specs/agent_playtest_plan_v1.md`
 - [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen
 - [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-096]` closing commit

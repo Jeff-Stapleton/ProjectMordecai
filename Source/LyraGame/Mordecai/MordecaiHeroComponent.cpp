@@ -111,6 +111,17 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	// --- US-078: Weapon Cycling Input Actions (Tab / Shift+Tab / Gamepad Y) ---
 	UInputAction* WeaponCycleNextAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_WeaponSwap.IA_Mordecai_WeaponSwap"));
 	UInputAction* WeaponCyclePrevAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_WeaponCyclePrev.IA_Mordecai_WeaponCyclePrev"));
+	if (!ShiftChordAction)
+	{
+		ShiftChordAction = NewObject<UInputAction>(this, TEXT("IA_Mordecai_LeftShiftChord_Runtime"));
+		ShiftChordAction->ValueType = EInputActionValueType::Boolean;
+	}
+	if (!WeaponCyclePrevShiftTabAction)
+	{
+		WeaponCyclePrevShiftTabAction =
+			NewObject<UInputAction>(this, TEXT("IA_Mordecai_WeaponCyclePrevShiftTab_Runtime"));
+		WeaponCyclePrevShiftTabAction->ValueType = EInputActionValueType::Boolean;
+	}
 
 	// --- US-079: Interact (press-to-pickup) + Pause / Inventory menu actions ---
 	UInputAction* InteractAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_Interact.IA_Mordecai_Interact"));
@@ -202,6 +213,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 			MordecaiIMC->MapKey(SprintAction, FKey(TEXT("LeftShift")));
 			MordecaiIMC->MapKey(SprintAction, EKeys::Gamepad_LeftThumbstick);
 		}
+		MordecaiIMC->MapKey(ShiftChordAction, EKeys::LeftShift);
 
 		if (Spell1Action)
 		{
@@ -223,15 +235,24 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 			MordecaiIMC->MapKey(Spell4Action, FKey(TEXT("Gamepad_DPad_Up")));
 		}
 
-		// --- US-078: Weapon cycling ---
-		// AC-078.6: Next weapon — Tab (MKB) / Gamepad Y tap
+		// --- US-078 / US-096: Weapon cycling ---
+		// Map the chord before plain Tab so Enhanced Input injects a chord blocker into
+		// the later Tab mapping. The dedicated Shift action keeps gamepad L3 out of this chord.
+		FEnhancedActionKeyMapping& ShiftTabMapping =
+			MordecaiIMC->MapKey(WeaponCyclePrevShiftTabAction, EKeys::Tab);
+		UInputTriggerChordAction* ShiftChord =
+			NewObject<UInputTriggerChordAction>(MordecaiIMC);
+		ShiftChord->ChordAction = ShiftChordAction;
+		ShiftTabMapping.Triggers.Add(ShiftChord);
+		ShiftTabMapping.Triggers.Add(NewObject<UInputTriggerPressed>(MordecaiIMC));
+
+		// AC-078.6: Next weapon — plain Tab (MKB) / Gamepad Y tap
 		if (WeaponCycleNextAction)
 		{
 			MordecaiIMC->MapKey(WeaponCycleNextAction, FKey(TEXT("Tab")));
 			MordecaiIMC->MapKey(WeaponCycleNextAction, FKey(TEXT("Gamepad_FaceButton_Top")));
 		}
-		// AC-078.7: Previous weapon — BackSlash (pragmatic alternative to Shift+Tab chord,
-		// which requires a separate IA_Sprint chord-action setup in Enhanced Input).
+		// BackSlash remains an extra previous-weapon binding.
 		if (WeaponCyclePrevAction)
 		{
 			MordecaiIMC->MapKey(WeaponCyclePrevAction, FKey(TEXT("BackSlash")));
@@ -355,6 +376,8 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	{
 		EIC->BindAction(WeaponCyclePrevAction, ETriggerEvent::Started, this, &UMordecaiHeroComponent::HandleWeaponCyclePrevInput);
 	}
+	EIC->BindAction(WeaponCyclePrevShiftTabAction, ETriggerEvent::Started, this,
+		&UMordecaiHeroComponent::HandleWeaponCyclePrevShiftTabInput);
 
 	// Bind pickup + menu input actions (US-079)
 	if (InteractAction)
@@ -709,6 +732,7 @@ void UMordecaiHeroComponent::HandleSprintToggleInput(const FInputActionValue& In
 {
 	if (AMordecaiCharacter* MC = Cast<AMordecaiCharacter>(GetOwner()))
 	{
+		bSprintStateBeforeLastToggle = MC->bIsSprinting;
 		MC->SetSprinting(!MC->bIsSprinting);
 	}
 }
@@ -729,6 +753,18 @@ void UMordecaiHeroComponent::HandleWeaponCyclePrevInput(const FInputActionValue&
 {
 	if (AMordecaiCharacter* MC = Cast<AMordecaiCharacter>(GetOwner()))
 	{
+		MC->CyclePrevWeapon();
+	}
+}
+
+void UMordecaiHeroComponent::HandleWeaponCyclePrevShiftTabInput(
+	const FInputActionValue& InputActionValue)
+{
+	if (AMordecaiCharacter* MC = Cast<AMordecaiCharacter>(GetOwner()))
+	{
+		// Sprint still toggles immediately on Shift press. Once Tab completes the chord,
+		// restore the state from before that press so the chord has no net sprint toggle.
+		MC->SetSprinting(bSprintStateBeforeLastToggle);
 		MC->CyclePrevWeapon();
 	}
 }

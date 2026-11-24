@@ -23,7 +23,7 @@ Steps (every step is a check; --plan prints them as the story's Steps table):
      'cycled_mace'.
   8. Tap Tab: wraps to the Longsword.
   9. Tap BackSlash: wraps back to the Mace.
-  10. Tap Shift+Tab (the story's binding): previous weapon, the Spear.
+  10. Tap Shift+Tab (the story's binding): previous weapon, the Spear; sprint state is unchanged.
   11. Tap Gamepad_FaceButton_Top (Y): next weapon.
   12. Tap Tab: the weapon HUD text follows the new weapon.
   13. Left click on the game view: a light attack starts (Mordecai.State.Attacking in
@@ -35,8 +35,7 @@ before the click"), never mistaken for idle, and nothing is clicked.
 Each cycle step reads player.weapon.index first and expects the next/previous one (mod 5) with
 the matching display name, so one failure does not cascade into wrong expectations.  Weapon
 order (the AvailableWeapons list): Longsword, Dagger, Greatsword, Spear, Mace; names compare
-case-insensitively.  Known issue (Specs/agent_playtest_plan_v1.md, Known issues backlog): N9
-(Shift+Tab is not mapped; Tab still fires Next).
+case-insensitively.
 
 Usage (the kit's common options):
   py Scripts/playtests/us078_weapons.py                    fresh package: launch, play, quit
@@ -92,6 +91,7 @@ ATTACK_POINT = (640, 360)                # the viewport centre: the game view, n
 ATTACKING_TAG = "Mordecai.State.Attacking"
 DEAD_TAG = "Mordecai.State.Dead"
 HEAVY_TAG = "Mordecai.Attack.Heavy"         # owned by the heavy attack only (US-083)
+SPRINT_TAG = "Mordecai.State.Sprinting"
 HEAVY_HOLD_S = 0.8
 
 START_TIMEOUT_S = 5.0
@@ -101,9 +101,6 @@ LIGHT_TIMEOUT_S = 1.0
 HEAVY_TIMEOUT_S = 0.5
 ATTACK_CLEAR_S = 2.0
 
-N9 = ("N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next "
-      "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
-
 SCREENSHOTS = {
     "start": "CombatTestMap from the fixed overhead camera: the player at the PlayerStart on the "
              "grid floor, the combat HUD top-left (the blue-grey TestDummy cylinder, 600 cm +X "
@@ -111,8 +108,10 @@ SCREENSHOTS = {
              "'Longsword' in its bottom-right loadout plate",
     "cycled_mace": "the same view after four Tabs, the player still at the PlayerStart; the "
                    "bottom-right loadout plate should read 'Mace'",
+    "shift_tab_spear": "the same view after Shift+Tab on the Mace; the bottom-right loadout "
+                       "plate should read 'Spear' and the player should remain stationary",
 }
-KNOWN_ISSUES = (N9,)
+KNOWN_ISSUES = ()
 
 PLAN = (
     Step("starting_weapon", f"state player -> player.weapon.index==0 && "
@@ -135,8 +134,9 @@ PLAN = (
          f"player.weapon.index=={MACE_INDEX}, display_name 'Mace'",
          proves=("AC-078.8", "US-077:AC-077.4")),
     Step("cycle_prev_shift_tab", f"tap {'+'.join(PREV_STORY_KEYS)} on the Mace -> wait_until "
-         f"player.weapon.index=={MACE_INDEX - 1}, display_name 'Spear'", proves=("AC-078.7",),
-         known_issue=N9),
+         f"player.weapon.index=={MACE_INDEX - 1}, display_name 'Spear', visible weapon HUD "
+         f"reads 'Spear', and {SPRINT_TAG} presence is unchanged",
+         proves=("AC-078.7", "US-096:AC-096.2")),
     Step("cycle_gamepad_y", f"tap {GAMEPAD_NEXT_KEY} (Y) -> wait_until player.weapon.index=="
          f"(index+1)%{WEAPON_COUNT} with the matching display_name", proves=("AC-078.6",)),
     Step("weapon_hud_updates", f"tap {NEXT_KEY} -> the new weapon is equipped and visible "
@@ -336,8 +336,8 @@ class Us078Run(kit.PlaytestRun):
         return self.attempt("weapon_effects_on_asc", fn)
 
     # --- 4-12: cycling ---------------------------------------------------------------------
-    def cycle(self, check, keys, delta, require_from=None, hud=False, needs=True,
-              needs_why=None):
+    def cycle(self, check, keys, delta, require_from=None, hud=False,
+              preserve_sprint=False, needs=True, needs_why=None):
         """Tap `keys`, expect player.weapon.index to move by `delta` (mod WEAPON_COUNT) with the
         matching display name; hud=True also expects a widget text to show the new name."""
         rec = {"check": check, "keys": kit.keys_text(keys), "from": None, "to": None,
@@ -345,7 +345,9 @@ class Us078Run(kit.PlaytestRun):
 
         def fn():
             b = self.bridge
-            before = _weapon(b.state(["player"]))
+            before_state = b.state(["player"])
+            before = _weapon(before_state)
+            sprint_before = SPRINT_TAG in _tags(before_state)
             cur = _index(before)
             rec["from"] = cur
             if cur is None:
@@ -376,6 +378,12 @@ class Us078Run(kit.PlaytestRun):
                         after)
             detail = (f"{what} -> {expected} '{after.get('display_name')}' "
                       f"({after.get('type')}) after {r.get('elapsed_s')}s")
+            if preserve_sprint:
+                sprint_after = SPRINT_TAG in _tags(st)
+                if sprint_after != sprint_before:
+                    return ("FAIL", f"{detail}; {SPRINT_TAG} changed from "
+                            f"{sprint_before} to {sprint_after}", after)
+                detail += f"; {SPRINT_TAG} remained {sprint_after}"
             if hud:
                 try:
                     st = b.wait_for(lambda s: _hud_shows(s, want) is not None,
@@ -405,7 +413,11 @@ class Us078Run(kit.PlaytestRun):
                   needs_why="not taken: cycling to the Mace failed")
         self.cycle("cycle_wrap", NEXT_KEY, +1, require_from=WEAPON_COUNT - 1)
         self.cycle("cycle_prev_backslash", PREV_KEY, -1, require_from=0)
-        self.cycle("cycle_prev_shift_tab", PREV_STORY_KEYS, -1)
+        shift_tab_ok, _ = self.cycle(
+            "cycle_prev_shift_tab", PREV_STORY_KEYS, -1, hud=True,
+            preserve_sprint=True)
+        self.shot("shift_tab_spear", needs=shift_tab_ok,
+                  needs_why="not taken: Shift+Tab did not equip the Spear without toggling sprint")
         self.cycle("cycle_gamepad_y", GAMEPAD_NEXT_KEY, +1)
         self.cycle("weapon_hud_updates", NEXT_KEY, +1, hud=True, needs=self.hud_ok,
                    needs_why="not run: weapon_hud_text failed (no weapon name on screen to "

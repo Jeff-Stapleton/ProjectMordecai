@@ -104,6 +104,7 @@ private:
 	// Weapon cycling handlers (US-078)
 	void HandleWeaponCycleNextInput(const FInputActionValue& InputActionValue);
 	void HandleWeaponCyclePrevInput(const FInputActionValue& InputActionValue);
+	void HandleWeaponCyclePrevShiftTabInput(const FInputActionValue& InputActionValue);
 
 	// Pickup + menu handlers (US-079)
 	void HandleInteractInput(const FInputActionValue& InputActionValue);
@@ -131,8 +132,17 @@ private:
 	TObjectPtr<UInputAction> ParryAction;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> ShiftChordAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> WeaponCyclePrevShiftTabAction;
+
+	UPROPERTY(Transient)
 	TObjectPtr<ULyraAbilitySystemComponent> AbilitySystemOverride;
 
 	/** A rejected held Block cannot retry every Triggered frame; release arms the next press. */
 	bool bBlockSuppressedUntilRelease = false;
+
+	/** Sprint state before the most recent toggle, restored if that Left Shift becomes Shift+Tab. */
+	bool bSprintStateBeforeLastToggle = false;
 };
