@@ -7,6 +7,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/ArrowComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextBlock.h"
 #include "Components/TextRenderComponent.h"
@@ -692,12 +693,38 @@ bool FMordecai_Playtest_AgentBridge_State_CameraOccluders::RunTest(const FString
 	Wall->AddInstanceComponent(Mesh);
 	Mesh->RegisterComponent();
 	Mesh->ComponentTags.Add(TEXT("Mordecai.OcclusionFade"));
+	Mesh->SetCollisionObjectType(ECC_WorldStatic);
 	Mesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
 	Mesh->SetMaterial(0, UMaterial::GetDefaultMaterial(MD_Surface));
 	UMaterialInstanceDynamic* Material = Mesh->CreateDynamicMaterialInstance(0);
 	if (TestNotNull("Dynamic material created", Material))
 	{
 		Material->SetScalarParameterValue(TEXT("MordecaiOcclusionFade"), 0.25f);
+	}
+
+	UInstancedStaticMeshComponent* InstancedMesh =
+		NewObject<UInstancedStaticMeshComponent>(Wall, TEXT("TaggedInstancedMesh"));
+	Wall->AddInstanceComponent(InstancedMesh);
+	InstancedMesh->RegisterComponent();
+	InstancedMesh->ComponentTags.Add(TEXT("Mordecai.OcclusionFade"));
+	InstancedMesh->SetCollisionObjectType(ECC_WorldStatic);
+	InstancedMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
+	InstancedMesh->SetMaterial(0, UMaterial::GetDefaultMaterial(MD_Surface));
+	if (UMaterialInstanceDynamic* InstancedMaterial = InstancedMesh->CreateDynamicMaterialInstance(0))
+	{
+		InstancedMaterial->SetScalarParameterValue(TEXT("MordecaiOcclusionFade"), 0.5f);
+	}
+
+	UStaticMeshComponent* PawnMesh = NewObject<UStaticMeshComponent>(Wall, TEXT("TaggedPawnMesh"));
+	Wall->AddInstanceComponent(PawnMesh);
+	PawnMesh->RegisterComponent();
+	PawnMesh->ComponentTags.Add(TEXT("Mordecai.OcclusionFade"));
+	PawnMesh->SetCollisionObjectType(ECC_Pawn);
+	PawnMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
+	PawnMesh->SetMaterial(0, UMaterial::GetDefaultMaterial(MD_Surface));
+	if (UMaterialInstanceDynamic* PawnMaterial = PawnMesh->CreateDynamicMaterialInstance(0))
+	{
+		PawnMaterial->SetScalarParameterValue(TEXT("MordecaiOcclusionFade"), 0.75f);
 	}
 
 	FMordecaiAgentBridgeStateContext Context;
@@ -708,7 +735,7 @@ bool FMordecai_Playtest_AgentBridge_State_CameraOccluders::RunTest(const FString
 	TestTrue("Camera section valid", Camera->GetBoolField(TEXT("valid")));
 	const TArray<TSharedPtr<FJsonValue>>* Occluders = nullptr;
 	if (TestTrue("Camera section has occluders", Camera->TryGetArrayField(TEXT("occluders"), Occluders))
-		&& TestEqual("One tagged material-bearing mesh", Occluders->Num(), 1))
+		&& TestEqual("Only runtime-eligible tagged mesh is exposed", Occluders->Num(), 1))
 	{
 		const TSharedPtr<FJsonObject> Entry = (*Occluders)[0]->AsObject();
 		TestEqual("Owning actor name exposed", Entry->GetStringField(TEXT("name")), Wall->GetActorNameOrLabel());
