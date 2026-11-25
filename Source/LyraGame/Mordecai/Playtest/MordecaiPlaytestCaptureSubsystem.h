@@ -71,5 +71,6 @@ private:
 	int32 NextShot = 0;
 	int32 NextMarketingFrame = 0;
 	int32 MarketingTickCount = 0;
+	int32 MarketingWarmupTickCount = 0;
 	bool bLoadingShotTaken = false;
 };

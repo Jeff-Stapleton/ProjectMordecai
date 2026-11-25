@@ -164,6 +164,14 @@ bool UMordecaiPlaytestCaptureSubsystem::Tick(float DeltaTime)
 
 	if (Config.bMarketingFrameCapture)
 	{
+		// Let the startup r.SetRes command and viewport settle before frame 1. Requests made
+		// during that resize can be accepted by FScreenshotRequest but never reach disk.
+		// Warm-up ticks are intentionally unnumbered; every numbered tick must produce a file.
+		if (MarketingWarmupTickCount++ < 30)
+		{
+			return true;
+		}
+
 		const int32 MarketingFrameIndex = MarketingTickCount++;
 		if (!FScreenshotRequest::IsScreenshotRequested())
 		{
