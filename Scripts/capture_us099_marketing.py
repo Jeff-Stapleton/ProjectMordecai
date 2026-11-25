@@ -28,6 +28,7 @@ WALL_NAME = "Arena_Wall_W"
 MIN_UNIQUE_FPS = 25.0
 MIN_CLIP_SECONDS = 5.0
 MAX_CLIP_SECONDS = 20.0
+STILL_FADE_DURATION_SECONDS = 2.0
 
 
 def _occluder(state, name=WALL_NAME):
@@ -70,13 +71,71 @@ def _marketing_label_proof(state):
     return proof
 
 
-def _capture_still(bridge, output_dir, filename, expected):
+def _state_bracket_entry(state):
+    return {
+        "player": (state.get("player") or {}).get("location"),
+        "west_wall": _occluder(state),
+    }
+
+
+def _validate_transition_bracket(bracket):
+    problems = []
+    pre = bracket.get("pre") or {}
+    post = bracket.get("post") or {}
+    pre_wall = pre.get("west_wall") or {}
+    post_wall = post.get("west_wall") or {}
+    pre_fade = float(pre_wall.get("fade", -1.0))
+    post_fade = float(post_wall.get("fade", -1.0))
+    if not 0.05 < pre_fade < 0.95:
+        problems.append(f"pre-screenshot fade {pre_fade:.3f} is not transitional")
+    if not 0.05 < post_fade < 0.95:
+        problems.append(f"post-screenshot fade {post_fade:.3f} is not transitional")
+    if post_fade > pre_fade:
+        problems.append(
+            f"fade is not monotonic across screenshot: {pre_fade:.3f}->{post_fade:.3f}")
+    if (
+        str(pre_wall.get("name", "")).casefold()
+        != str(post_wall.get("name", "")).casefold()
+        or pre_wall.get("component") != post_wall.get("component")
+    ):
+        problems.append("the same west-wall component did not bracket the screenshot")
+    pre_player = pre.get("player")
+    post_player = post.get("player")
+    if not (
+        isinstance(pre_player, list) and len(pre_player) >= 2
+        and isinstance(post_player, list) and len(post_player) >= 2
+    ):
+        problems.append("player position missing from transition bracket")
+    else:
+        displacement = (
+            (float(post_player[0]) - float(pre_player[0])) ** 2
+            + (float(post_player[1]) - float(pre_player[1])) ** 2
+        ) ** 0.5
+        if displacement > 5.0:
+            problems.append(
+                f"player moved {displacement:.1f} cm across the screenshot request")
+    return problems
+
+
+def _capture_still(
+        bridge, output_dir, filename, expected, require_transition_bracket=False):
     path = os.path.join(output_dir, filename)
+    pre_state = bridge.state(
+        ["game", "player", "camera", "actors", "widgets"], radius=3000)
     bridge.screenshot(path)
     # Read state after the screenshot has completed. In particular, never attach the
     # pre-request transition state to a frame that may have landed after the fade.
-    state = bridge.state(
+    post_state = bridge.state(
         ["game", "player", "camera", "actors", "widgets"], radius=3000)
+    bracket = {
+        "pre": _state_bracket_entry(pre_state),
+        "post": _state_bracket_entry(post_state),
+    }
+    if require_transition_bracket:
+        problems = _validate_transition_bracket(bracket)
+        if problems:
+            raise RuntimeError(
+                "mid-fade screenshot bracket failed: " + "; ".join(problems))
     with Image.open(path) as image:
         size = image.size
     return {
@@ -85,8 +144,10 @@ def _capture_still(bridge, output_dir, filename, expected):
         "width": size[0],
         "height": size[1],
         "expected": expected,
-        "player": (state.get("player") or {}).get("location"),
-        "west_wall": _occluder(state),
+        "player": (post_state.get("player") or {}).get("location"),
+        "west_wall": _occluder(post_state),
+        "state_bracket": bracket,
+        "transition_bracket_required": require_transition_bracket,
     }
 
 
@@ -273,6 +334,9 @@ def _capture_extra_args(movie_dir=None):
             _marketing_frame_dir_argument(movie_dir),
             "-MarketingFrameLimit=1200",
         ))
+    else:
+        args.append(
+            f"-MordecaiMarketingFadeDuration={STILL_FADE_DURATION_SECONDS:.1f}")
     return tuple(args)
 
 
@@ -330,7 +394,8 @@ def _drive_wall_fade_route(bridge, output_dir=None, phase_prefix="capture"):
         if output_dir is not None:
             mid_still = _capture_still(
                 bridge, output_dir, "still_02_mid_fade.png",
-                "the west wall in its dithered transition while the player enters occlusion")
+                "the west wall in its dithered transition while the player enters occlusion",
+                require_transition_bracket=True)
             stills.append(mid_still)
             mid_fade = float((mid_still.get("west_wall") or {}).get("fade", -1.0))
             if not 0.05 < mid_fade < 0.95:
@@ -521,6 +586,8 @@ def capture(output_dir):
         "resolution": list(OUTPUT_SIZE),
         "fps": FPS,
         "camera_distance": 1000,
+        "production_fade_duration_seconds": 0.25,
+        "still_session_fade_duration_seconds": STILL_FADE_DURATION_SECONDS,
         "non_acceptance": True,
     }
     with open(os.path.join(output_dir, "capture-result.json"), "w", encoding="utf-8") as stream:
@@ -540,9 +607,13 @@ def capture(output_dir):
             f"(SHA256 `{_sha256(source_movie)}`) was assembled from the contiguous Unreal "
             "frames. `source-frame-manifest.json` is decoded from that source movie, not "
             "from the final clip.\n"
-            "- Stills: captured in a separate fixed-timestep presentation session so their "
+            "- Stills: captured in a separate capped real-time presentation session so their "
             "screenshot requests cannot interrupt or compact the continuous clip; each "
             "record reads fade state after the screenshot completes.\n"
+            f"- Still timing: the still-only session discloses a "
+            f"{STILL_FADE_DURATION_SECONDS:.1f}s marketing fade so the mid-fade screenshot "
+            "is ordered between pre/post transitional material states. The continuous clip "
+            "and all acceptance evidence retain the production 0.25s fade.\n"
             "- Camera: 1000 cm marketing camera (`-MordecaiMarketingCapture`), not the 1800 cm "
             "gameplay camera; the closer view keeps the wall transition legible.\n"
             "- Content: approach, dither transition, fully faded west wall with the player "

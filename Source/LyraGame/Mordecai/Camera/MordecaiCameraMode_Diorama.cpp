@@ -38,6 +38,18 @@ UMordecaiCameraMode_Diorama::UMordecaiCameraMode_Diorama()
 	ViewPitchMin = PitchAngle;
 	ViewPitchMax = PitchAngle;
 	BlendTime = 0.5f;
+
+	float MarketingFadeDuration = 0.0f;
+	if (FParse::Param(FCommandLine::Get(), TEXT("MordecaiMarketingCapture"))
+		&& FParse::Value(
+			FCommandLine::Get(),
+			TEXT("MordecaiMarketingFadeDuration="),
+			MarketingFadeDuration))
+	{
+		// Dedicated non-acceptance still-capture override. The continuous marketing clip and
+		// normal gameplay omit this flag and retain the production 0.25-second transition.
+		OcclusionFadeDuration = FMath::Clamp(MarketingFadeDuration, 0.05f, 5.0f);
+	}
 }
 
 float UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(
