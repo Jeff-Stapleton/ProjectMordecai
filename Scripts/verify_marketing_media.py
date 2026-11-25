@@ -43,6 +43,46 @@ def hud_region_non_uniform(image, minimum_stddev=8.0):
     return max(ImageStat.Stat(hud).stddev) >= minimum_stddev
 
 
+def debug_color_stats(image):
+    """Detect the pure green/yellow palette used by Mordecai debug geometry/text.
+
+    The world check excludes the bottom HUD band, where green resource fills are
+    legitimate. Yellow is checked over the full frame because the shipped HUD
+    does not use the near-primary yellow used by on-screen debug messages.
+    """
+    rgb = image.convert("RGB")
+    width, height = rgb.size
+    world = rgb.crop((0, 0, width, int(height * 0.72)))
+
+    def mask_count(source, predicates):
+        channels = source.split()
+        mask = channels[0].point(
+            lambda value: 255 if predicates[0](value) else 0)
+        for channel, predicate in zip(channels[1:], predicates[1:]):
+            mask = ImageChops.multiply(
+                mask, channel.point(lambda value: 255 if predicate(value) else 0))
+        return mask.histogram()[255]
+
+    green = mask_count(
+        world,
+        (lambda value: value <= 24,
+         lambda value: value >= 230,
+         lambda value: value <= 24),
+    )
+    yellow = mask_count(
+        rgb,
+        (lambda value: value >= 230,
+         lambda value: value >= 230,
+         lambda value: value <= 30),
+    )
+    return {
+        "world_debug_green_pixels": green,
+        "screen_debug_yellow_pixels": yellow,
+        "maximum_allowed_pixels": 100,
+        "passed": green <= 100 and yellow <= 100,
+    }
+
+
 def frame_motion_score(left, right):
     """Return normalized RGB RMS change in [0, 1] after a small common resize."""
     a = left.convert("RGB").resize((128, 72))
@@ -121,6 +161,50 @@ def probe_video(path):
     }
 
 
+def mpdecimate_stats(path, minimum_unique_ratio=0.9):
+    metadata = probe_video(path)
+    output = subprocess.check_output([
+        "ffmpeg", "-v", "error", "-i", path, "-vf", "mpdecimate",
+        "-an", "-f", "framehash", "-",
+    ], text=True, stderr=subprocess.STDOUT)
+    kept = sum(
+        1 for line in output.splitlines()
+        if line and not line.startswith("#") and line.lstrip().startswith("0,")
+    )
+    total = metadata["frame_count"]
+    ratio = kept / total if total else 0.0
+    return {
+        "method": "ffmpeg mpdecimate -> framehash kept-frame count",
+        "input_frames": total,
+        "kept_frames": kept,
+        "unique_frame_ratio": round(ratio, 6),
+        "minimum_unique_frame_ratio": minimum_unique_ratio,
+        "passed": total > 0 and ratio >= minimum_unique_ratio,
+    }
+
+
+def verify_still(path):
+    with Image.open(path) as source:
+        image = source.convert("RGB")
+        stat = ImageStat.Stat(image)
+        colors = debug_color_stats(image)
+        return {
+            "file": os.path.abspath(path),
+            "width": image.width,
+            "height": image.height,
+            "luminance_stddev_max_channel": round(max(stat.stddev), 4),
+            "non_uniform": max(stat.stddev) >= 8.0,
+            "hud_region_non_uniform": hud_region_non_uniform(image),
+            "debug_colors": colors,
+            "passed": (
+                image.size == (1920, 1080)
+                and max(stat.stddev) >= 8.0
+                and hud_region_non_uniform(image)
+                and colors["passed"]
+            ),
+        }
+
+
 def _sample_frame(video, second, output):
     subprocess.check_call([
         "ffmpeg", "-y", "-loglevel", "error", "-ss", f"{second:.3f}", "-i", video,
@@ -186,6 +270,7 @@ def verify_video(video, source_manifest, minimum_psnr=24.0, minimum_motion=0.000
                 best = max(matches, default=0.0)
                 best_index = matches.index(best) if matches else None
                 hud_ok = hud_region_non_uniform(frame)
+                debug_colors = debug_color_stats(frame)
                 samples.append({
                     "second": round(second, 3),
                     "best_source_frame": (
@@ -194,7 +279,9 @@ def verify_video(video, source_manifest, minimum_psnr=24.0, minimum_motion=0.000
                     "best_source_psnr_db": (
                         "inf" if math.isinf(best) else round(best, 3)),
                     "hud_region_non_uniform": hud_ok,
-                    "passed": best >= minimum_psnr and hud_ok,
+                    "debug_colors": debug_colors,
+                    "passed": best >= minimum_psnr and hud_ok
+                              and debug_colors["passed"],
                 })
 
     motion_scores = [
@@ -204,6 +291,7 @@ def verify_video(video, source_manifest, minimum_psnr=24.0, minimum_motion=0.000
     moving_pairs = sum(score >= minimum_motion for score in motion_scores)
     motion_passed = moving_pairs >= 6
     continuity = temporal_continuity(decode_motion_frames(video))
+    decimate = mpdecimate_stats(video)
     metadata_ok = (
         5.0 <= duration <= 20.0
         and (metadata["width"], metadata["height"]) in ((1280, 720), (1920, 1080))
@@ -228,8 +316,10 @@ def verify_video(video, source_manifest, minimum_psnr=24.0, minimum_motion=0.000
             "passed": motion_passed,
         },
         "temporal_continuity": continuity,
+        "mpdecimate": decimate,
         "passed": (metadata_ok and bool(samples) and all(item["passed"] for item in samples)
-                   and motion_passed and continuity["passed"]),
+                   and motion_passed and continuity["passed"]
+                   and decimate["passed"]),
     }
 
 

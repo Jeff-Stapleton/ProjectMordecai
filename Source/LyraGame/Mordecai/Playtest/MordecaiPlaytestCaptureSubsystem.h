@@ -67,6 +67,16 @@ private:
 	bool Tick(float DeltaTime);
 	void HandleLoadingScreenVisibilityChanged(bool bIsVisible);
 
+#if !UE_BUILD_SHIPPING
+	void ApplyMarketingPresentation();
+	void RestoreMarketingPresentation();
+
+	bool bMarketingPresentationApplied = false;
+	bool bPreviousScreenMessagesEnabled = true;
+	int32 PreviousDrawDebugHelpers = 1;
+	int32 PreviousMeleeHitShapes = 1;
+#endif
+
 	FMordecaiPlaytestCaptureConfig Config;
 	FTSTicker::FDelegateHandle TickHandle;
 	TWeakObjectPtr<ULoadingScreenManager> LoadingScreenManager;

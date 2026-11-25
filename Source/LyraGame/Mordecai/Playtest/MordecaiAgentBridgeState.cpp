@@ -10,6 +10,7 @@
 #include "CommonActivatableWidget.h"
 #include "CommonInputSubsystem.h"
 #include "CommonInputTypeEnum.h"
+#include "CoreGlobals.h"
 #include "Components/ArrowComponent.h"
 #include "Components/Button.h"
 #include "Components/MeshComponent.h"
@@ -42,6 +43,8 @@
 #include "LoadingScreenManager.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/App.h"
+#include "Misc/CommandLine.h"
+#include "HAL/IConsoleManager.h"
 #include "UObject/UObjectIterator.h"
 #include "UnrealClient.h"
 #include "Widgets/SViewport.h"
@@ -274,6 +277,24 @@ namespace MordecaiAgentBridge::State
 			Game->SetField(TEXT("world_time_s"), MakeNumber(Context.World->GetTimeSeconds()));
 			const double DeltaTime = FApp::GetDeltaTime();
 			Game->SetField(TEXT("fps"), DeltaTime > 0.0 ? MakeNumber(1.0 / DeltaTime, 1) : NullValue());
+#if !UE_BUILD_SHIPPING
+			const bool bMarketingCapture =
+				FParse::Param(FCommandLine::Get(), TEXT("MordecaiMarketingCapture"));
+			const IConsoleVariable* DrawHelpers =
+				IConsoleManager::Get().FindConsoleVariable(TEXT("r.EnableDrawDebugHelpers"));
+			const IConsoleVariable* MeleeShapes =
+				IConsoleManager::Get().FindConsoleVariable(
+					TEXT("Mordecai.Debug.DrawMeleeHitShapes"));
+			const bool bDrawHelpersEnabled = DrawHelpers && DrawHelpers->GetInt() != 0;
+			const bool bMeleeShapesEnabled = MeleeShapes && MeleeShapes->GetInt() != 0;
+			Game->SetBoolField(TEXT("marketing_capture"), bMarketingCapture);
+			Game->SetBoolField(TEXT("debug_draw_helpers_enabled"), bDrawHelpersEnabled);
+			Game->SetBoolField(TEXT("melee_hit_shapes_enabled"), bMeleeShapesEnabled);
+			Game->SetBoolField(TEXT("screen_messages_enabled"), GAreScreenMessagesEnabled);
+			Game->SetBoolField(TEXT("marketing_presentation_clean"),
+				bMarketingCapture && !bDrawHelpersEnabled && !bMeleeShapesEnabled
+					&& !GAreScreenMessagesEnabled);
+#endif
 			if (Context.ViewportClient && Context.ViewportClient->Viewport)
 			{
 				const FIntPoint Size = Context.ViewportClient->Viewport->GetSizeXY();

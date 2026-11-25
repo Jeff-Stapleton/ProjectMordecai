@@ -67,6 +67,8 @@ def _marketing_label_proof(state):
         proof["rendered_actor_name_violations"],
         proof["enemy_indicator_widgets"],
         proof["debug_text_violations"],
+        proof["presentation_violations"],
+        proof["facing_arrow_violations"],
     ))
     return proof
 

@@ -53,6 +53,18 @@ class MarketingMediaVerificationCase(unittest.TestCase):
         draw.ellipse((68, 20, 92, 50), fill=(220, 152, 70))
         self.assertGreater(media.frame_motion_score(before, after), 0.002)
 
+    def test_debug_green_and_yellow_pixels_are_rejected(self):
+        frame = self.game_like_frame().resize((1920, 1080))
+        clean = media.debug_color_stats(frame)
+        self.assertTrue(clean["passed"])
+        draw = ImageDraw.Draw(frame)
+        draw.rectangle((700, 300, 740, 340), fill=(0, 255, 0))
+        draw.rectangle((100, 100, 160, 120), fill=(255, 255, 0))
+        debug = media.debug_color_stats(frame)
+        self.assertFalse(debug["passed"])
+        self.assertGreater(debug["world_debug_green_pixels"], 100)
+        self.assertGreater(debug["screen_debug_yellow_pixels"], 100)
+
     def test_temporal_continuity_rejects_a_duplicated_frame_slideshow(self):
         source = self.game_like_frame()
         slideshow = []

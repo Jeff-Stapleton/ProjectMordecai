@@ -37,6 +37,27 @@ def good_records():
 
 
 class TestUs090MarketingCaptureContract(unittest.TestCase):
+    def test_marketing_verifier_rejects_active_debug_presentation(self):
+        state = {
+            "game": {
+                "marketing_capture": True,
+                "debug_draw_helpers_enabled": True,
+                "melee_hit_shapes_enabled": False,
+                "screen_messages_enabled": True,
+                "marketing_presentation_clean": False,
+            },
+            "player": {"valid": True, "facing_arrow": {"hidden_in_game": True}},
+            "actors": [],
+            "widgets": [],
+        }
+        proof = capture._label_proof(state)
+        self.assertFalse(proof["passed"])
+        self.assertEqual(
+            proof["presentation_violations"],
+            ["debug_draw_helpers_enabled", "screen_messages_enabled",
+             "marketing_presentation_clean"],
+        )
+
     def test_capture_is_1080p_real_time_and_has_no_benchmark_or_static_fill(self):
         self.assertEqual(capture.OUTPUT_SIZE, (1920, 1080))
         with open(CAPTURE, encoding="utf-8") as stream:
