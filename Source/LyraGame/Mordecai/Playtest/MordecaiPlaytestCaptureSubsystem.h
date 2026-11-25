@@ -18,6 +18,8 @@ struct FMordecaiPlaytestCaptureConfig
 	bool bEnabled = false;
 	bool bPlaytestCapture = false;
 	bool bMarketingFrameCapture = false;
+	bool bMarketingCaptureSession = false;
+	bool bSuppressDebugPresentation = false;
 	bool bConflictingCaptureModes = false;
 	int32 NumShots = 3;
 	int32 MarketingFrameLimit = 1200;
