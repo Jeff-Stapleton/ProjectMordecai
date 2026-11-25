@@ -276,7 +276,7 @@ def _drive_weapon_cycle(bridge, frame_dir):
     return events, proofs
 
 
-def _encode_outputs(output_dir, frame_dir, clip_name):
+def _encode_outputs(output_dir, frame_dir, clip_name, selected_frames=None):
     frames = _frame_paths(frame_dir)
     problems = fixed._validate_source_frame_sequence(frames)
     if len(frames) < MIN_FRAMES or len(frames) > MAX_FRAMES:
@@ -285,16 +285,26 @@ def _encode_outputs(output_dir, frame_dir, clip_name):
     if problems:
         raise RuntimeError("fixed-frame source contract failed: " + "; ".join(problems))
 
+    encoded_frames = selected_frames or frames
+    if len(encoded_frames) < MIN_FRAMES or len(encoded_frames) > MAX_FRAMES:
+        raise RuntimeError(
+            f"edited frame count {len(encoded_frames)} is outside "
+            f"{MIN_FRAMES}-{MAX_FRAMES}")
+    encode_dir = os.path.join(output_dir, "encode-frames")
+    os.makedirs(encode_dir)
+    for index, source in enumerate(encoded_frames, 1):
+        shutil.copy2(source, os.path.join(encode_dir, f"frame_{index:06d}.png"))
+
     source_movie = os.path.join(output_dir, "continuous-source.mp4")
     subprocess.check_call([
         "ffmpeg", "-y", "-loglevel", "error",
         "-framerate", str(FPS), "-start_number", "1",
-        "-i", os.path.join(frame_dir, "frame_%06d.png"),
+        "-i", os.path.join(encode_dir, "frame_%06d.png"),
         "-an", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12",
         "-pix_fmt", "yuv420p", source_movie,
     ])
     clip = os.path.join(output_dir, clip_name)
-    duration = len(frames) / FPS
+    duration = len(encoded_frames) / FPS
     subprocess.check_call([
         "ffmpeg", "-y", "-loglevel", "error", "-i", source_movie,
         "-t", f"{duration:.3f}", "-an",
@@ -303,7 +313,8 @@ def _encode_outputs(output_dir, frame_dir, clip_name):
         "-crf", "18", "-pix_fmt", "yuv420p", clip,
     ])
     source_manifest = fixed._make_source_manifest(source_movie, output_dir)
-    return frames, source_movie, clip, source_manifest
+    shutil.rmtree(encode_dir, ignore_errors=True)
+    return frames, encoded_frames, source_movie, clip, source_manifest
 
 
 def _copy_stills(output_dir, frames, events, selections):
@@ -354,8 +365,29 @@ def capture_feature(output_dir, feature):
         if bridge is not None:
             bridge.close()
 
-    frames, source_movie, clip, source_manifest = _encode_outputs(
-        output_dir, frame_dir, clip_name)
+    raw_frames = _frame_paths(frame_dir)
+    selected_frames = None
+    edit_caveat = "No editorial frame cut."
+    if feature == "us090":
+        by_event = {event["event"]: event for event in events}
+        death_frame = int(by_event["dead"]["source_frame"])
+        respawn_frame = int(by_event["respawn_refill"]["source_frame"])
+        # The death screen is intentionally static for three seconds. Keep the live
+        # combat up to the death transition, then cut to the rendered respawn frames
+        # so the postable clip retains >=90% unique rendered frames.
+        live_end = max(MIN_FRAMES, death_frame - 8)
+        respawn_start = max(live_end + 1, respawn_frame - 7)
+        selected_frames = (
+            raw_frames[:live_end]
+            + raw_frames[respawn_start - 1:respawn_frame + 2]
+        )
+        edit_caveat = (
+            f"One disclosed cut removes the static death-screen wait: raw frames "
+            f"1-{live_end}, then {respawn_start}-{min(respawn_frame + 2, len(raw_frames))}. "
+            "Every retained frame is an original rendered Unreal frame."
+        )
+    frames, encoded_frames, source_movie, clip, source_manifest = _encode_outputs(
+        output_dir, frame_dir, clip_name, selected_frames)
     if feature == "us090":
         stills = _copy_stills(output_dir, frames, events, (
             ("full", "full", "Full spell-point bar before casting."),
@@ -415,6 +447,9 @@ def capture_feature(output_dir, feature):
         "duration_seconds": metadata["duration_seconds"],
         "fps": metadata["frame_rate"],
         "frame_count": metadata["frame_count"],
+        "raw_frame_count": len(frames),
+        "retained_rendered_frame_count": len(encoded_frames),
+        "edit_caveat": edit_caveat,
         "mpdecimate_kept_frames": decimate["kept_frames"],
         "unique_frame_ratio": decimate["unique_frame_ratio"],
         "stills": [still["file"] for still in stills],
@@ -444,6 +479,7 @@ def capture_feature(output_dir, feature):
             "verified from runtime state plus scripted green/yellow pixel checks.\n"
             "- Loading screen: absent from numbered frames after the built-in warm-up.\n"
             "- AI: active; `-MordecaiMarketingFreezeAI` was not used.\n"
+            f"- Edit: {edit_caveat}\n"
             "- Caveat: this is postable marketing media, not acceptance evidence.\n\n"
             "## Stills\n\n"
         )
