@@ -103,8 +103,45 @@ class CaptureUs099MarketingTests(unittest.TestCase):
         movie_args = capture._capture_extra_args(r"C:\Frames")
         self.assertNotIn("-BENCHMARK", still_args)
         self.assertFalse(any(arg.startswith("-FPS=") for arg in still_args))
+        self.assertIn("-MordecaiMarketingFadeDuration=2.0", still_args)
         self.assertIn("-BENCHMARK", movie_args)
         self.assertIn("-FPS=30", movie_args)
+        self.assertNotIn("-MordecaiMarketingFadeDuration=2.0", movie_args)
+
+    def test_mid_still_requires_an_ordered_transitional_state_bracket(self):
+        bracket = {
+            "pre": {
+                "player": [-920.0, 935.0, 92.0],
+                "west_wall": {
+                    "name": capture.WALL_NAME,
+                    "component": "StaticMeshComponent0",
+                    "fade": 0.6,
+                },
+            },
+            "post": {
+                "player": [-920.2, 935.1, 92.0],
+                "west_wall": {
+                    "name": capture.WALL_NAME,
+                    "component": "StaticMeshComponent0",
+                    "fade": 0.4,
+                },
+            },
+        }
+        self.assertEqual(capture._validate_transition_bracket(bracket), [])
+
+    def test_mid_still_rejects_a_post_screenshot_completed_fade(self):
+        bracket = {
+            "pre": {
+                "player": [-920.0, 935.0, 92.0],
+                "west_wall": {"name": capture.WALL_NAME, "fade": 0.5},
+            },
+            "post": {
+                "player": [-920.0, 935.0, 92.0],
+                "west_wall": {"name": capture.WALL_NAME, "fade": 0.0},
+            },
+        }
+        problems = capture._validate_transition_bracket(bracket)
+        self.assertTrue(any("post-screenshot fade" in problem for problem in problems))
 
 
 if __name__ == "__main__":
