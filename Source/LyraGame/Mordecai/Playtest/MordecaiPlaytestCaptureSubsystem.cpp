@@ -143,7 +143,7 @@ void UMordecaiPlaytestCaptureSubsystem::HandleLoadingScreenVisibilityChanged(boo
 bool UMordecaiPlaytestCaptureSubsystem::Tick(float DeltaTime)
 {
 	if ((!Config.bMarketingFrameCapture && NextShot >= Config.NumShots)
-		|| (Config.bMarketingFrameCapture && NextMarketingFrame >= Config.MarketingFrameLimit))
+		|| (Config.bMarketingFrameCapture && MarketingTickCount >= Config.MarketingFrameLimit))
 	{
 		return false;
 	}
@@ -164,16 +164,23 @@ bool UMordecaiPlaytestCaptureSubsystem::Tick(float DeltaTime)
 
 	if (Config.bMarketingFrameCapture)
 	{
-		++MarketingTickCount;
-		// Leave a regular free screenshot slot for Agent Bridge phase stills.
-		if (MarketingTickCount % 30 != 0 && !FScreenshotRequest::IsScreenshotRequested())
+		const int32 MarketingFrameIndex = MarketingTickCount++;
+		if (!FScreenshotRequest::IsScreenshotRequested())
 		{
-			const FString Path = Config.GetMarketingFramePath(NextMarketingFrame);
+			// The filename follows the fixed-timestep tick, not the number of successful requests.
+			// A pending screenshot therefore leaves a detectable gap instead of silently compacting time.
+			const FString Path = Config.GetMarketingFramePath(MarketingFrameIndex);
 			FScreenshotRequest::RequestScreenshot(
 				Path, /*bInShowUI*/ true, /*bAddFilenameSuffix*/ false);
 			++NextMarketingFrame;
 		}
-		return NextMarketingFrame < Config.MarketingFrameLimit;
+		else
+		{
+			UE_LOG(LogMordecaiPlaytest, Error,
+				TEXT("PlaytestCapture: missed marketing frame %d because another screenshot was pending"),
+				MarketingFrameIndex + 1);
+		}
+		return MarketingTickCount < Config.MarketingFrameLimit;
 	}
 
 	// One request at a time: the viewport handles a single pending screenshot per frame

@@ -46,11 +46,22 @@ def _occluder(state, name=WALL_NAME):
 def _marketing_label_proof(state):
     """Account for TextRender being disabled at the viewport show-flag level."""
     proof = _label_proof(state)
+    visible_huds = [
+        widget for widget in (state.get("widgets") or [])
+        if isinstance(widget, dict)
+        and any(
+            marker in str(widget.get("class") or "")
+            for marker in ("MordecaiCombatHUDWidget", "WBP_CombatHUD")
+        )
+        and widget.get("visible", True) is not False
+    ]
     proof["text_label_components_suppressed_by_show_flag"] = proof.pop(
         "text_label_violations", [])
     proof["text_label_violations"] = []
+    proof["combat_hud_widgets"] = visible_huds
+    proof["combat_hud_visible"] = bool(visible_huds)
     proof["text_render_show_flag"] = False
-    proof["passed"] = not any((
+    proof["passed"] = bool(visible_huds) and not any((
         proof["actor_widget_violations"],
         proof["rendered_actor_name_violations"],
         proof["enemy_indicator_widgets"],
@@ -59,10 +70,12 @@ def _marketing_label_proof(state):
     return proof
 
 
-def _capture_still(bridge, output_dir, filename, expected, state_override=None):
+def _capture_still(bridge, output_dir, filename, expected):
     path = os.path.join(output_dir, filename)
     bridge.screenshot(path)
-    state = state_override or bridge.state(
+    # Read state after the screenshot has completed. In particular, never attach the
+    # pre-request transition state to a frame that may have landed after the fade.
+    state = bridge.state(
         ["game", "player", "camera", "actors", "widgets"], radius=3000)
     with Image.open(path) as image:
         size = image.size
@@ -102,6 +115,38 @@ def _validate_stills(stills):
     if not isinstance(player, list) or not player or float(player[0]) > -915.0:
         problems.append(f"fully-faded still player is not at x<=-915: {player}")
     return problems
+
+
+def _validate_source_frame_sequence(paths):
+    """Reject dropped ticks instead of compacting the surviving screenshots."""
+    problems = []
+    numbered = {}
+    for path in paths:
+        match = re.fullmatch(r"frame_(\d{6})\.png", os.path.basename(path))
+        if not match:
+            problems.append(f"unexpected source frame name: {os.path.basename(path)}")
+            continue
+        numbered[int(match.group(1))] = path
+    if not numbered:
+        return problems + ["no source frames"]
+    for index in range(1, max(numbered) + 1):
+        if index not in numbered:
+            problems.append(f"missing frame_{index:06d}.png")
+    return problems
+
+
+def _marketing_frame_dir_argument(path):
+    return f"-MarketingFrameDir={ab.pb.quote_value(path)}"
+
+
+def _require_empty_output_dir(output_dir):
+    if os.path.isdir(output_dir) and os.listdir(output_dir):
+        raise RuntimeError(
+            f"marketing output directory must be empty: {output_dir}")
+    if os.path.exists(output_dir) and not os.path.isdir(output_dir):
+        raise RuntimeError(
+            f"marketing output path is not a directory: {output_dir}")
+    os.makedirs(output_dir, exist_ok=True)
 
 
 def _best_alignment(frames, reference, start=0):
@@ -152,11 +197,11 @@ def _encode_clip(source_avi, first_still, last_still, clip):
     }
 
 
-def _make_source_manifest(clip, output_dir):
+def _make_source_manifest(source_movie, output_dir):
     frame_dir = os.path.join(output_dir, "source-frames")
     os.makedirs(frame_dir, exist_ok=True)
     subprocess.check_call([
-        "ffmpeg", "-y", "-loglevel", "error", "-i", clip,
+        "ffmpeg", "-y", "-loglevel", "error", "-i", source_movie,
         "-vf", f"fps={FPS},scale=960:540", "-q:v", "3",
         os.path.join(frame_dir, "frame_%04d.jpg"),
     ])
@@ -173,7 +218,12 @@ def _make_source_manifest(clip, output_dir):
         })
     manifest = {
         "version": 1,
-        "capture": "30 fps samples decoded from the fixed-timestep continuous Unreal capture",
+        "capture": (
+            "30 fps samples decoded from the retained continuous-source.mp4, "
+            "which was encoded from the validated contiguous fixed-timestep Unreal PNGs"
+        ),
+        "source_movie": os.path.basename(source_movie),
+        "source_movie_sha256": _sha256(source_movie),
         "frames": frames,
     }
     path = os.path.join(output_dir, "source-frame-manifest.json")
@@ -203,76 +253,91 @@ def _mpdecimate_check(clip, duration_seconds):
     }
 
 
-def capture(output_dir):
-    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
-        raise RuntimeError("ffmpeg and ffprobe are required")
-    output_dir = os.path.abspath(output_dir)
-    os.makedirs(output_dir, exist_ok=True)
-    session_dir = os.path.join(output_dir, "session")
-    movie_dir = os.path.join(output_dir, "continuous-source")
-    os.makedirs(session_dir, exist_ok=True)
-    os.makedirs(movie_dir, exist_ok=True)
+def _capture_extra_args(movie_dir=None):
+    capture_exec_commands = ab.pb.quote_value(
+        "Mordecai.Debug.DrawMeleeHitShapes 0,"
+        "ShowFlag.TextRender 0,t.MaxFPS 30,r.SetRes 1920x1080f")
+    args = [
+        "-MordecaiMarketingCapture",
+        "-BENCHMARK",
+        f"-FPS={FPS}",
+        "-NOSCREENMESSAGES",
+        f"-ResX={OUTPUT_SIZE[0]}",
+        f"-ResY={OUTPUT_SIZE[1]}",
+        "-WINDOWED",
+        f"-ExecCmds={capture_exec_commands}",
+    ]
+    if movie_dir is not None:
+        args.extend((
+            "-MarketingFrameCapture",
+            _marketing_frame_dir_argument(movie_dir),
+            "-MarketingFrameLimit=1200",
+        ))
+    return tuple(args)
 
-    bridge = None
-    movement_held = None
+
+def _launch_capture_session(run_dir, movie_dir=None):
+    return ab.Bridge.launch(
+        map=kit.DEFAULT_MAP,
+        expect_experience=kit.DEFAULT_EXPERIENCE,
+        run_suffix="us099marketing",
+        run_dir=run_dir,
+        extra_args=_capture_extra_args(movie_dir),
+    )
+
+
+def _drive_wall_fade_route(bridge, output_dir=None, phase_prefix="capture"):
+    """Drive one complete fade cycle; stills are optional to keep the movie uninterrupted."""
     stills = []
     proofs = []
+    route_states = []
+    movement_held = False
     try:
-        capture_exec_commands = ab.pb.quote_value(
-            "Mordecai.Debug.DrawMeleeHitShapes 0,"
-            "ShowFlag.TextRender 0,t.MaxFPS 30,r.SetRes 1920x1080f")
-        bridge = ab.Bridge.launch(
-            map=kit.DEFAULT_MAP,
-            expect_experience=kit.DEFAULT_EXPERIENCE,
-            run_suffix="us099marketing",
-            run_dir=session_dir,
-            extra_args=(
-                "-MordecaiMarketingCapture",
-                "-BENCHMARK",
-                f"-FPS={FPS}",
-                "-NOSCREENMESSAGES",
-                "-MarketingFrameCapture",
-                f"-MarketingFrameDir={movie_dir}",
-                "-MarketingFrameLimit=1200",
-                f"-ResX={OUTPUT_SIZE[0]}",
-                f"-ResY={OUTPUT_SIZE[1]}",
-                "-WINDOWED",
-                f"-ExecCmds={capture_exec_commands}",
-            ),
-        )
-        state = bridge.state(["game", "player", "camera", "actors", "widgets"], radius=3000)
+        state = bridge.state(
+            ["game", "player", "camera", "actors", "widgets"], radius=3000)
         proof = _marketing_label_proof(state)
-        proof["phase"] = "start"
+        proof["phase"] = f"{phase_prefix}_start"
         proofs.append(proof)
         if not proof["passed"]:
-            raise RuntimeError(f"actor/debug labels remain at capture start: {proof}")
-
-        stills.append(_capture_still(
-            bridge, output_dir, "still_01_approach.png",
-            "the player beginning the approach from the arena centre with HUD visible"))
+            raise RuntimeError(
+                f"HUD/label presentation contract failed at {phase_prefix} start: {proof}")
+        if output_dir is not None:
+            stills.append(_capture_still(
+                bridge, output_dir, "still_01_approach.png",
+                "the player beginning the approach from the arena centre with HUD visible"))
 
         bridge.tap("LeftShift")
         bridge.walk_to(-760.0, 0.0, tol=20.0, timeout_s=90.0)
         bridge.walk_to(-760.0, 935.0, tol=20.0, timeout_s=90.0)
-        movement_held = "S"
-        bridge.press(movement_held)
+        bridge.press("S")
+        movement_held = True
         mid_state = bridge.wait_for(
             lambda value: (
                 _occluder(value) is not None
-                and 0.20 <= float(_occluder(value).get("fade", 1.0)) <= 0.80
+                and 0.35 <= float(_occluder(value).get("fade", 1.0)) <= 0.65
             ),
             timeout_s=90.0,
             sections=["camera", "player"],
             poll_s=0.01,
         )
-        bridge.release(movement_held)
-        movement_held = None
-        stills.append(_capture_still(
-            bridge, output_dir, "still_02_mid_fade.png",
-            "the west wall in its dithered transition while the player enters occlusion",
-            state_override=mid_state))
+        bridge.release("S")
+        movement_held = False
+        route_states.append({
+            "phase": "mid_fade_observed",
+            "player": (mid_state.get("player") or {}).get("location"),
+            "west_wall": _occluder(mid_state),
+        })
+        if output_dir is not None:
+            mid_still = _capture_still(
+                bridge, output_dir, "still_02_mid_fade.png",
+                "the west wall in its dithered transition while the player enters occlusion")
+            stills.append(mid_still)
+            mid_fade = float((mid_still.get("west_wall") or {}).get("fade", -1.0))
+            if not 0.05 < mid_fade < 0.95:
+                raise RuntimeError(
+                    f"mid-fade screenshot completed after transition: fade={mid_fade:.3f}")
 
-        bridge.wait_for(
+        faded_state = bridge.wait_for(
             lambda value: (
                 _occluder(value) is not None
                 and float(_occluder(value).get("fade", 1.0)) <= 0.05
@@ -282,14 +347,20 @@ def capture(output_dir):
             sections=["camera", "player"],
             poll_s=0.01,
         )
-        stills.append(_capture_still(
-            bridge, output_dir, "still_03_fully_faded.png",
-            "the west wall fully faded with the whole player clear and HUD visible"))
+        route_states.append({
+            "phase": "fully_faded_observed",
+            "player": (faded_state.get("player") or {}).get("location"),
+            "west_wall": _occluder(faded_state),
+        })
+        if output_dir is not None:
+            stills.append(_capture_still(
+                bridge, output_dir, "still_03_fully_faded.png",
+                "the west wall fully faded with the whole player clear and HUD visible"))
 
         bridge.tap("LeftShift")
         bridge.walk_to(-935.0, 0.0, tol=20.0, timeout_s=90.0)
         bridge.walk_to(0.0, 0.0, tol=20.0, timeout_s=90.0)
-        bridge.wait_for(
+        restored_state = bridge.wait_for(
             lambda value: (
                 _occluder(value) is not None
                 and float(_occluder(value).get("fade", 0.0)) >= 0.999
@@ -298,36 +369,94 @@ def capture(output_dir):
             sections=["camera", "player"],
             poll_s=0.01,
         )
-        stills.append(_capture_still(
-            bridge, output_dir, "still_04_restored.png",
-            "the player back at centre with the fully restored west wall still in frame"))
+        route_states.append({
+            "phase": "restored_observed",
+            "player": (restored_state.get("player") or {}).get("location"),
+            "west_wall": _occluder(restored_state),
+        })
+        if output_dir is not None:
+            stills.append(_capture_still(
+                bridge, output_dir, "still_04_restored.png",
+                "the player back at centre with the fully restored west wall still in frame"))
 
-        final = bridge.state(["game", "player", "camera", "actors", "widgets"], radius=3000)
+        final = bridge.state(
+            ["game", "player", "camera", "actors", "widgets"], radius=3000)
         proof = _marketing_label_proof(final)
-        proof["phase"] = "end"
+        proof["phase"] = f"{phase_prefix}_end"
         proofs.append(proof)
         if not proof["passed"]:
-            raise RuntimeError(f"actor/debug labels remain at capture end: {proof}")
-        still_problems = _validate_stills(stills)
-        if still_problems:
-            raise RuntimeError("still capture contract failed: " + "; ".join(still_problems))
+            raise RuntimeError(
+                f"HUD/label presentation contract failed at {phase_prefix} end: {proof}")
+        return stills, proofs, route_states
+    finally:
+        if movement_held:
+            try:
+                bridge.release("S")
+            except Exception:
+                pass
+
+
+def capture(output_dir):
+    output_dir = os.path.abspath(output_dir)
+    _require_empty_output_dir(output_dir)
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        raise RuntimeError("ffmpeg and ffprobe are required")
+    continuous_session_dir = os.path.join(output_dir, "continuous-session")
+    still_session_dir = os.path.join(output_dir, "stills-session")
+    movie_dir = os.path.join(output_dir, "continuous-source")
+    os.makedirs(continuous_session_dir)
+    os.makedirs(still_session_dir)
+    os.makedirs(movie_dir, exist_ok=True)
+
+    bridge = None
+    proofs = []
+    route_states = []
+    try:
+        # This session never asks Agent Bridge for a screenshot. Every fixed-timestep tick
+        # belongs to the continuous movie, so no UI still can steal or compact a frame.
+        bridge = _launch_capture_session(
+            continuous_session_dir, movie_dir=movie_dir)
+        _, continuous_proofs, continuous_route = _drive_wall_fade_route(
+            bridge, phase_prefix="continuous")
+        proofs.extend(continuous_proofs)
+        route_states.extend(continuous_route)
         bridge.quit()
         bridge = None
     finally:
         if bridge is not None:
-            if movement_held:
-                try:
-                    bridge.release(movement_held)
-                except Exception:
-                    pass
             bridge.close()
 
     source_frames = sorted(glob.glob(os.path.join(movie_dir, "frame_*.png")))
+    source_problems = _validate_source_frame_sequence(source_frames)
     if len(source_frames) < FPS * MIN_CLIP_SECONDS:
-        raise RuntimeError(
+        source_problems.append(
             f"expected at least {FPS * MIN_CLIP_SECONDS:g} fixed-timestep Unreal frames, "
             f"found {len(source_frames)}")
-    source_movie = os.path.join(output_dir, "_continuous-source.mp4")
+    if source_problems:
+        raise RuntimeError(
+            "continuous source has dropped/invalid fixed-timestep frames: "
+            + "; ".join(source_problems))
+
+    # Stills use a second fixed-timestep session. This leaves the movie contiguous and lets
+    # the bridge's screenshot complete before its corresponding fade state is recorded.
+    bridge = None
+    try:
+        bridge = _launch_capture_session(still_session_dir)
+        stills, still_proofs, still_route = _drive_wall_fade_route(
+            bridge, output_dir=output_dir, phase_prefix="stills")
+        proofs.extend(still_proofs)
+        route_states.extend(still_route)
+        still_problems = _validate_stills(stills)
+        if still_problems:
+            raise RuntimeError(
+                "still capture contract failed: " + "; ".join(still_problems))
+        bridge.quit()
+        bridge = None
+    finally:
+        if bridge is not None:
+            bridge.close()
+
+    source_movie = os.path.join(output_dir, "continuous-source.mp4")
     subprocess.check_call([
         "ffmpeg", "-y", "-loglevel", "error",
         "-framerate", str(FPS), "-start_number", "1",
@@ -343,19 +472,37 @@ def capture(output_dir):
         clip,
     )
     continuous["source_frame_count"] = len(source_frames)
-    source_manifest = _make_source_manifest(clip, output_dir)
+    continuous["source_frame_sequence_contiguous"] = True
+    continuous["source_movie_retained"] = True
+    source_manifest = _make_source_manifest(source_movie, output_dir)
     content = verify_video(clip, source_manifest)
+    content["source_provenance"] = {
+        "source_movie": os.path.basename(source_movie),
+        "source_movie_sha256": _sha256(source_movie),
+        "source_movie_retained": True,
+        "manifest_decoded_from_source_movie": True,
+        "raw_frame_count": len(source_frames),
+        "raw_frame_sequence_contiguous": True,
+    }
     content["mpdecimate"] = _mpdecimate_check(
         clip, float(content["metadata"]["duration_seconds"]))
-    content["passed"] = bool(content["passed"] and content["mpdecimate"]["passed"])
+    content["passed"] = bool(
+        content["passed"]
+        and content["mpdecimate"]["passed"]
+        and content["source_provenance"]["source_movie_retained"]
+        and content["source_provenance"]["raw_frame_sequence_contiguous"]
+    )
     content["lock_screen_static_footage_rejected"] = bool(
         content["temporal_continuity"]["passed"] and content["mpdecimate"]["passed"])
     with open(os.path.join(output_dir, "content-check.json"), "w", encoding="utf-8") as stream:
         json.dump(content, stream, indent=2)
         stream.write("\n")
     with open(os.path.join(output_dir, "label-proof.json"), "w", encoding="utf-8") as stream:
-        json.dump({"proofs": proofs, "passed": all(proof["passed"] for proof in proofs)},
-                  stream, indent=2)
+        json.dump({
+            "proofs": proofs,
+            "route_states": route_states,
+            "passed": all(proof["passed"] for proof in proofs),
+        }, stream, indent=2)
         stream.write("\n")
     if not content["passed"]:
         raise RuntimeError(f"marketing media content/motion contract failed: {content}")
@@ -366,6 +513,10 @@ def capture(output_dir):
         "stills": [entry["file"] for entry in stills],
         "still_records": stills,
         "continuous_movie": continuous,
+        "continuous_route_states": route_states[:3],
+        "source_movie": os.path.basename(source_movie),
+        "source_movie_sha256": _sha256(source_movie),
+        "source_movie_retained": True,
         "mpdecimate": content["mpdecimate"],
         "resolution": list(OUTPUT_SIZE),
         "fps": FPS,
@@ -383,7 +534,15 @@ def capture(output_dir):
             "acceptance evidence.\n"
             f"- Clip: `{os.path.basename(clip)}` ({continuous['duration_seconds']:.3f}s, "
             f"{FPS} fps, {OUTPUT_SIZE[0]}x{OUTPUT_SIZE[1]}), captured as per-frame Unreal "
-            "viewport screenshots with UI under `-BENCHMARK -FPS=30` and encoded by ffmpeg.\n"
+            "viewport screenshots with UI under `-BENCHMARK -FPS=30`; the contiguous raw "
+            "frame numbers are validated before encoding.\n"
+            f"- Provenance: retained `{os.path.basename(source_movie)}` "
+            f"(SHA256 `{_sha256(source_movie)}`) was assembled from the contiguous Unreal "
+            "frames. `source-frame-manifest.json` is decoded from that source movie, not "
+            "from the final clip.\n"
+            "- Stills: captured in a separate fixed-timestep presentation session so their "
+            "screenshot requests cannot interrupt or compact the continuous clip; each "
+            "record reads fade state after the screenshot completes.\n"
             "- Camera: 1000 cm marketing camera (`-MordecaiMarketingCapture`), not the 1800 cm "
             "gameplay camera; the closer view keeps the wall transition legible.\n"
             "- Content: approach, dither transition, fully faded west wall with the player "
@@ -395,12 +554,11 @@ def capture(output_dir):
             f"- Motion: ffmpeg mpdecimate kept {content['mpdecimate']['kept_frames']} frames "
             f"({content['mpdecimate']['unique_frames_per_second']:.3f}/s; required >= "
             f"{MIN_UNIQUE_FPS:g}/s).\n"
-            "- Lock/static defense: SHA256-pinned decoded source samples, HUD-structure "
-            "checks, temporal continuity, and mpdecimate counts are in `content-check.json`.\n"
+            "- Lock/static defense: retained-source samples, explicit visible combat-HUD "
+            "proof, temporal continuity, and mpdecimate counts are in `content-check.json` "
+            "and `label-proof.json`.\n"
         )
     shutil.rmtree(movie_dir, ignore_errors=True)
-    if os.path.exists(source_movie):
-        os.remove(source_movie)
     return result
 
 

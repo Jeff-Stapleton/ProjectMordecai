@@ -51,6 +51,7 @@
 #include "GameModes/LyraExperienceDefinition.h"
 #include "GameModes/LyraExperienceManagerComponent.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Camera/MordecaiCameraMode_Diorama.h"
 #include "Mordecai/Combat/MordecaiProjectile.h"
 #include "Mordecai/Enemy/MordecaiEnemyAIController.h"
 #include "Mordecai/Enemy/MordecaiEnemyAITypes.h"
@@ -448,7 +449,6 @@ namespace MordecaiAgentBridge::State
 				float Fade = 1.0f;
 			};
 
-			const FName FadeTag(TEXT("Mordecai.OcclusionFade"));
 			const FHashedMaterialParameterInfo FadeParameter(TEXT("MordecaiOcclusionFade"));
 			TArray<FOccluderEntry, TInlineAllocator<8>> Entries;
 			for (TActorIterator<AActor> ActorIt(Context.World); ActorIt; ++ActorIt)
@@ -457,7 +457,7 @@ namespace MordecaiAgentBridge::State
 				ActorIt->GetComponents(Meshes);
 				for (const UMeshComponent* Mesh : Meshes)
 				{
-					if (!Mesh || !Mesh->ComponentHasTag(FadeTag))
+					if (!UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(Mesh))
 					{
 						continue;
 					}
