@@ -155,3 +155,62 @@ Closed at Jeff's call for the scoped slice: "Only AC-096.3 in this PR; leave pre
 - Marketing: `marketing/us096/` contains five 1920x1080 game-owned stills and one 6.233-second, 30 fps 1920x1080 MP4 showing Longsword → Dagger → Greatsword → Dagger → Longsword. `content-check.json` passes source-frame SHA-256 matching, HUD structure, and 8/8 motion pairs; `label-proof.json` passes with no actor labels, debug text, or enemy indicators.
 - Python tooling: the focused US-078 and US-096 marketing suites pass (21/21 and 5/5), and US-078 lint passes. The full tooling run reported 791/792 PASS with one unrelated pre-existing error: `test_us057_playtest.TestUs057Report.test_ac_ids_exist_in_the_story_files` hard-codes the former `stories/in-progress/US-090-recovery-spell-point-budget.md` path even though main moved that story to `stories/done/`. No test or gate was weakened.
 - AC-096.4 remains unchecked and unclaimed because the bridge still exposes no equip-slot state.
+
+### Round 2 review fixes (2026-11-24)
+
+- RED commits: B1 same-frame callback ordering
+  `a9e14efe9e339863b8f4e2bd999d1733953c8d57`; B2 held-Tab fresh-press
+  semantics `efe6e337052159b811e3298e317604e17cec0912`; and M3
+  press-scoped sprint intent, dual Shift, and interrupt coverage
+  `5bdd79a2618aaf581f9f6cc937bc24e4211384ee`.
+- Implementation commit `252ccecd4b41d2ed38259976d6aa2aaa9242ba7a`
+  makes same-frame Shift+Tab callback-order independent, requires a fresh Tab
+  press for plain next-weapon input, scopes the saved sprint state to the
+  current Left Shift press, separates L3, supports either Shift for previous
+  weapon, and preserves sprint intent across attack, dodge, and block
+  interrupts. The dedicated chord action remains separate from
+  `IA_Mordecai_WeaponCyclePrev` because one shared action callback cannot
+  identify whether BackSlash or Tab triggered it.
+- Tier 1: compile PASS and
+  `Saved/TestLogs/tests-20261124-153506.log` — 973/973 PASS. The tests inject
+  real key state through `UEnhancedPlayerInput`, cover both same-frame callback
+  orders, Shift-release-first, Shift-tap-while-Tab-held, both Shift keys,
+  press-scoped cleanup, gamepad L3 isolation, interrupt states, immediate plain
+  Shift toggling, and Q remaining ability slot 1.
+- Python tooling: 794/794 PASS, including the corrected
+  `test_us057_playtest` done-story path. US-096 playtest lint PASS.
+- Tier 2: clean-editor `py Scripts/run_pie_verify.py` — 23/23 smoke scripts
+  PASS.
+- Clean package commit:
+  `127dca8dc0cf019232591654f542c438bc63838a`.
+  `PackagedBuilds/Playtest/build_info.json` records `dirty=false`,
+  `source_changed_during_build=false`, and that exact commit.
+- Focused packaged evidence:
+  `Saved/Playtests/20261124-172110-boot` Tier 3 PASS and
+  `Saved/Playtests/20261124-172130-us078` Tier 4 PASS. The real-input checks
+  pass staggered and simultaneous LeftShift+Tab, Shift-release-first,
+  Shift-tap-while-Tab-held, RightShift+Tab, and Shift+Tab starting while
+  sprinting; fresh Tab cycles once and no Shift transition re-fires held Tab.
+- Full same-package sweep:
+  `Saved/Playtests/20261124-172202-sweep` — PASS, all 21 Tier 4 scripts and all
+  6 Tier 3 boots, 538 recorded checks (514 PASS, 2 WARN, 1 SKIP, 21 INFO),
+  0 FAIL. Against main baseline
+  `Saved/Playtests/20261124-084025-sweep`,
+  `comparison.json` records `pass_to_fail: []`, `check_pass_to_fail: []`, and
+  `pass_to_missing: []`. No #135/#141/#163 rerun was needed.
+- Marketing: `marketing/us096/` contains five game-owned 1280x720 stills and a
+  6.5-second, 30 fps, 195-frame MP4 showing Longsword → Dagger → Greatsword →
+  Dagger → Longsword. Packaged `LevelCapture` is compiled behind
+  `WITH_EDITOR`, so the recapture uses Unreal's packaged-game `-DUMPMOVIE`
+  viewport path with `-BENCHMARK -FPS=30`; it is a contiguous fixed-time-step
+  render, not a slideshow or desktop capture. `content-check.json` passes all
+  nine source-frame matches, HUD structure, 8/8 sampled motion pairs, and
+  64/64 adjacent 10 fps motion pairs. `label-proof.json` passes with no
+  actor/debug labels or enemy indicators.
+- Per Jeff's standing rule, the builder did not open any PNG, JPG, or video.
+  Scripted non-black, provenance, HUD, motion, and temporal-continuity checks
+  passed; the coordinator performs the visual review in place of the image
+  review steps in `CLAUDE.md` 4c, 4d, and 6.
+- Evidence bundle: Agent Store `us096-r2-127dca8d` (89 payload files).
+  Independent SHA-256 verification of every `SHA256SUMS` entry passed with
+  zero mismatches.
