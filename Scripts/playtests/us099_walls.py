@@ -19,8 +19,9 @@ set_log_stream = kit.set_log_stream
 STORY = "US-099"
 TITLE = "US-099 near-wall visibility playtest (Tier 4, real input)"
 RUN_SUFFIX = "us099"
-SW_CORNER = (-925.0, -925.0)
-SW_ROUTE = ((0.0, -900.0), SW_CORNER)
+SPRINT_KEY = "LeftShift"
+SW_CORNER = (-925.0, 925.0)
+SW_ROUTE = ((-925.0, 0.0), SW_CORNER)
 CORNER_TOL = 60.0
 
 SCREENSHOTS = {
@@ -30,8 +31,8 @@ SCREENSHOTS = {
 }
 
 PLAN = (
-    Step("walk_sw_corner", f"walk_to(0, -900), then walk_to({SW_CORNER[0]:g}, "
-         f"{SW_CORNER[1]:g}) with real WASD -> "
+    Step("walk_sw_corner", f"tap {SPRINT_KEY}, walk_to(-925, 0), then walk_to("
+         f"{SW_CORNER[0]:g}, {SW_CORNER[1]:g}) with real WASD -> "
          f"within {CORNER_TOL:g} cm and player.is_dead==false, then immediately screenshot "
          "sw_corner", proves=("AC-099.3",)),
 )
@@ -52,6 +53,14 @@ class Us099Run(kit.PlaytestRun):
     def steps(self):
         def walk_corner():
             route_results = []
+            try:
+                route_results.append(
+                    {"sprint": self.bridge.tap(SPRINT_KEY)}
+                )
+            except ab.BridgeError as error:
+                return ("FAIL", f"tap {SPRINT_KEY} before the corner route failed: {error}",
+                        {"route": route_results, "error": error.response})
+
             for target in SW_ROUTE:
                 try:
                     route_results.append(

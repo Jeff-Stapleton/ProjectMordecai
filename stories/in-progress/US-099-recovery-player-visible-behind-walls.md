@@ -37,7 +37,7 @@ editor Python script and asset/map changes in this story.
   top/centre/bottom drive `MordecaiOcclusionFade` on tagged `WorldStatic` wall primitives. The
   explicit wall tag and masked material keep floors and non-wall actors out; only current trace
   blockers enter the camera mode's small restoration map.
-- New DevTestMap script (committed before packaging), e.g. `Scripts/playtests/us099_walls.py`, a `PlaytestRun` with `STORY = "US-099"`, `MAP = kit.DEFAULT_MAP` and its own `RUN_SUFFIX`: `walk_sw_corner` = `walk_to` a spot hugging the near (-X) wall inside the ±975 arena, about (-930, -930) (F07 stood at x ≈ -935), then `shot("sw_corner")` with `SCREENSHOTS["sw_corner"] = "the player fully visible at the south-west corner (near wall faded/cut away/silhouette)"`; `proves` `AC-099.3`. Offline test against `Scripts/tests/fake_bridge.py` (`FakeWorld(**MAP_PRESETS[DEFAULT_MAP])`, which has the arena walls).
+- New DevTestMap script (committed before packaging), e.g. `Scripts/playtests/us099_walls.py`, a `PlaytestRun` with `STORY = "US-099"`, `MAP = kit.DEFAULT_MAP` and its own `RUN_SUFFIX`: `walk_sw_corner` = tap sprint and `walk_to` the original F07 evidence spot hugging the near (-X) wall inside the ±975 arena, about (-930, +930), then `shot("sw_corner")` with `SCREENSHOTS["sw_corner"] = "the player fully visible at the south-west corner (near wall faded/cut away/silhouette)"`; `proves` `AC-099.3`. Offline test against `Scripts/tests/fake_bridge.py` (`FakeWorld(**MAP_PRESETS[DEFAULT_MAP])`, which has the arena walls). The +Y world coordinate is the exploratory screenshot's south-west screen corner; using -Y instead runs into DevTestMap's `Cover_01` before reaching the wall.
   - Why not us001: since US-100 it plays MovementTestMap, whose walls are 100 cm high at ±2000; a corner there shows the whole character with or without the fix, a false PASS.
   - DevTestMap's Frontliners swarm the spawn and kill a standing player in about 10 s (N14, T1). Walk to the corner first and take the screenshot at once; a death or a shove before the shot is a FAIL to report, not to hide. Do not use `us054_arena.py`: its run stands at the spawn for the AI checks.
   - Alternative, decided when the story starts: add a 200 cm near-side wall segment to MovementTestMap (an EDITOR change to `Scripts/us100_02_create_test_maps.py`, re-run and committed with the map) and put the check in us001 there.
@@ -66,7 +66,7 @@ editor Python script and asset/map changes in this story.
 <!-- Scripts/playtests/us099_walls.py -->
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| 1 | `walk_sw_corner` | `walk_to(0, -900)`, then `walk_to(-925, -925)` with real WASD → within 60 cm and `player.is_dead==false`, then immediately screenshot `sw_corner` | AC-099.3 |
+| 1 | `walk_sw_corner` | tap `LeftShift`, `walk_to(-925, 0)`, then `walk_to(-925, 925)` with real WASD → within 60 cm and `player.is_dead==false`, then immediately screenshot `sw_corner` | AC-099.3 |
 - **Playable alone:** YES (after the decision; NO if an EDITOR pair is split off — then "playable after US-XXX")
 
 ## Definition of Done
