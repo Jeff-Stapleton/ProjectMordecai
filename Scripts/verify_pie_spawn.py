@@ -110,11 +110,17 @@ def _run():
     if "DevTestMap" in world.get_path_name():
         fade_tag = "Mordecai.OcclusionFade"
         fade_material = "M_OcclusionFadeWall"
+        fade_parameter = "MordecaiOcclusionFade"
+        fade_wall_labels = {
+            "Arena_Wall_N", "Arena_Wall_S", "Arena_Wall_E", "Arena_Wall_W",
+            "Wall_01", "Wall_02",
+        }
         static_actors = unreal.GameplayStatics.get_all_actors_of_class(
             world, unreal.StaticMeshActor)
         walls = [actor for actor in static_actors
-                 if actor.get_actor_label().startswith("Arena_Wall_")]
-        check("US-099 has four fade-enabled arena walls", len(walls) == 4,
+                 if actor.get_actor_label() in fade_wall_labels]
+        check("US-099 has six fade-enabled DevTestMap walls",
+              {actor.get_actor_label() for actor in walls} == fade_wall_labels,
               f"Found {[actor.get_actor_label() for actor in walls]}")
         for wall in walls:
             mesh = wall.static_mesh_component
@@ -125,6 +131,20 @@ def _run():
             check(f"US-099 {wall.get_actor_label()} uses masked fade material",
                   material is not None and fade_material in material.get_name(),
                   f"Material={material}")
+            parameter_names = (
+                [str(name) for name in
+                 unreal.MaterialEditingLibrary.get_scalar_parameter_names(material)]
+                if material is not None else []
+            )
+            check(f"[LOGIC] US-099 {wall.get_actor_label()} material exposes fade scalar",
+                  fade_parameter in parameter_names,
+                  f"Scalar parameters={parameter_names}")
+            if material is not None and fade_parameter in parameter_names:
+                fade_value = unreal.MaterialEditingLibrary.get_material_default_scalar_parameter_value(
+                    material, fade_parameter)
+                check(f"[LOGIC] US-099 {wall.get_actor_label()} fade scalar starts opaque",
+                      abs(float(fade_value) - 1.0) <= 0.001,
+                      f"{fade_parameter}={fade_value}")
         floors = [actor for actor in static_actors
                   if actor.get_actor_label() == "Arena_Floor"]
         floor_tags = [str(tag) for floor in floors

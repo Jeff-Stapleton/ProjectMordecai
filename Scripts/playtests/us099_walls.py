@@ -20,8 +20,8 @@ STORY = "US-099"
 TITLE = "US-099 near-wall visibility playtest (Tier 4, real input)"
 RUN_SUFFIX = "us099"
 SPRINT_KEY = "LeftShift"
-SW_CORNER = (-935.0, 935.0)
-SW_ROUTE = ((-935.0, 0.0), SW_CORNER)
+F07_CORNER = (-935.0, 935.0)
+F07_ROUTE = ((-935.0, 0.0), F07_CORNER)
 RETURN_ROUTE = ((-935.0, 0.0), (0.0, 0.0))
 CORNER_TOL = 20.0
 WALL_NAME = "Arena_Wall_W"
@@ -30,7 +30,7 @@ RESTORED_MIN = 0.999
 FADE_TIMEOUT_S = 0.5
 
 SCREENSHOTS = {
-    "sw_corner": "the living player fully visible at DevTestMap's south-west corner beside the "
+    "f07_corner": "the living player fully visible at DevTestMap's original F07 +Y corner beside the "
                  "200 cm near (-X) arena wall, with only the camera-blocking wall dither-faded "
                  "and the combat HUD still visible",
     "restored": "the living player back at the arena centre with the west wall fully restored "
@@ -38,12 +38,12 @@ SCREENSHOTS = {
 }
 
 PLAN = (
-    Step("walk_sw_corner", f"tap {SPRINT_KEY}, walk_to(-935, 0), then walk_to("
-         f"{SW_CORNER[0]:g}, {SW_CORNER[1]:g}) with real WASD -> "
+    Step("walk_f07_corner", f"tap {SPRINT_KEY}, walk_to(-935, 0), then walk_to("
+         f"{F07_CORNER[0]:g}, {F07_CORNER[1]:g}) with real WASD -> "
          f"within {CORNER_TOL:g} cm, x <= -915, and player.is_dead==false",
          proves=("AC-099.3",)),
     Step("wall_fades_at_corner", f"observe camera.occluders[{WALL_NAME}].fade <= "
-         f"{FADED_MAX:g} within {FADE_TIMEOUT_S:g}s, then screenshot sw_corner",
+         f"{FADED_MAX:g} within {FADE_TIMEOUT_S:g}s, then screenshot f07_corner",
          proves=("AC-099.2", "AC-099.3")),
     Step("walk_back_to_centre", "walk_to(-935, 0), then walk_to(0, 0) with real WASD",
          proves=("AC-099.3",)),
@@ -89,13 +89,13 @@ class Us099Run(kit.PlaytestRun):
                 return ("FAIL", f"tap {SPRINT_KEY} before the corner route failed: {error}",
                         {"route": route_results, "error": error.response})
 
-            for target in SW_ROUTE:
+            for target in F07_ROUTE:
                 try:
                     route_results.append(
                         self.bridge.walk_to(*target, tol=CORNER_TOL)
                     )
                 except ab.BridgeError as error:
-                    detail = f"walk_to {target} on the south-west route failed: {error}"
+                    detail = f"walk_to {target} on the original F07 route failed: {error}"
                     if error.code == "player_dead":
                         detail += "; the Frontliners killed the player before the required shot"
                     return "FAIL", detail, {"route": route_results, "error": error.response}
@@ -104,21 +104,21 @@ class Us099Run(kit.PlaytestRun):
             location = player.get("location") or []
             if len(location) < 2:
                 return "FAIL", f"player location missing after walk: {player}", route_results
-            distance = math.hypot(location[0] - SW_CORNER[0], location[1] - SW_CORNER[1])
+            distance = math.hypot(location[0] - F07_CORNER[0], location[1] - F07_CORNER[1])
             if player.get("is_dead") is not False:
-                return ("FAIL", "the player died before the south-west-corner screenshot "
+                return ("FAIL", "the player died before the original-F07-corner screenshot "
                         f"(location {location})", route_results)
             if distance > CORNER_TOL:
-                return ("FAIL", f"player stopped {distance:.1f} cm from {SW_CORNER}, need <= "
+                return ("FAIL", f"player stopped {distance:.1f} cm from {F07_CORNER}, need <= "
                         f"{CORNER_TOL:g}", route_results)
             if float(location[0]) > -915.0:
                 return ("FAIL", f"player x={float(location[0]):.1f}; must be <= -915 at the "
                         f"original F07 near-wall location", route_results)
             return ("PASS", f"real WASD reached ({location[0]:.1f}, {location[1]:.1f}), "
-                    f"{distance:.1f} cm from {SW_CORNER}; x<=-915 and player alive",
+                    f"{distance:.1f} cm from {F07_CORNER}; x<=-915 and player alive",
                     {"route": route_results})
 
-        reached, _ = self.attempt("walk_sw_corner", walk_corner)
+        reached, _ = self.attempt("walk_f07_corner", walk_corner)
 
         def wall_fades():
             try:
@@ -142,7 +142,7 @@ class Us099Run(kit.PlaytestRun):
         faded, _ = self.attempt(
             "wall_fades_at_corner", wall_fades, needs=reached,
             needs_why="not checked: the player did not reach x<=-915 alive")
-        self.shot("sw_corner", needs=faded,
+        self.shot("f07_corner", needs=faded,
                   needs_why="not taken: the west wall did not fully fade at the corner")
 
         def walk_centre():

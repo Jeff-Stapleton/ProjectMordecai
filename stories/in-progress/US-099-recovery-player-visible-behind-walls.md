@@ -19,7 +19,7 @@ editor Python script and asset/map changes in this story.
 
 ## References
 - `Specs/agent_playtest_plan_v1.md` — N21 ("Found by the first exploratory-agent run")
-- Exploratory run `Saved/Playtests/20261022-185207-explore/report.md` — `bridge_11.png`: the near wall hides the player at the south-west corner
+- Exploratory run `Saved/Playtests/20261022-185207-explore/report.md` — `bridge_11.png`: the near wall hides the player at the original F07 +Y corner (the old report called it south-west; at camera yaw 0 it is screen south-east)
 - `Specs/map_style_technical_design_v1.md` (height tiers, wall heights, cutaway rules if any), `Specs/game_design_v2.md` (diorama camera), CLAUDE.md "Never implement camera rotation"
 - Existing code: `Source/LyraGame/Mordecai/Camera/MordecaiCameraMode_Diorama.*` (fixed pitch -50, yaw 0)
 - Lane geometry used by the playtests: lane L1 runs along y = -800 from x = -700 (`Scripts/playtests/us001_movement.py` `walk_lane_start`)
@@ -29,7 +29,7 @@ editor Python script and asset/map changes in this story.
 ## Acceptance Criteria
 - [x] AC-099.1: TODO(DECISION) N21 answered by Jeff and recorded in `Specs/design_decisions_log.md`: (a) fade/hide occluding geometry between camera and player, (b) player silhouette through walls (custom depth / stencil), (c) lower near-side walls by level design (map rule in `map_style_technical_design_v1.md`), or a combination
 - [ ] AC-099.2: The chosen mechanism is implemented and covered by Tier 1 tests named after it, including a world trace that proves tagged walls behind nearer untagged/stacked geometry fade and then restore
-- [ ] AC-099.3: In the packaged build on DevTestMap, the player walks (WASD) to the original F07 point at `(-935,+935)`, against the 200 cm near (-X) wall, and the character is visible on screen. Tier 4 requires x <= -915, `Arena_Wall_W` fade <= 0.05 within 0.5 s, then a real-input return to `(0,0)` and fade >= 0.999 within 0.5 s. The coordinator reviews `sw_corner` and `restored` screenshots from the bundle under the standing no-Read rule.
+- [ ] AC-099.3: In the packaged build on DevTestMap, the player walks (WASD) to the original F07 point at `(-935,+935)`, against the 200 cm near (-X) wall, and the character is visible on screen. Tier 4 requires x <= -915, `Arena_Wall_W` fade <= 0.05 within 0.5 s, then a real-input return to `(0,0)` and fade >= 0.999 within 0.5 s. The coordinator reviews `f07_corner` and `restored` screenshots from the bundle under the standing no-Read rule.
 - [x] AC-099.4: The camera still never rotates: `camera_fixed`, `no_camera_rotation_input` of `Scripts/playtests/us001_movement.py` PASS
 
 ## Technical Notes
@@ -44,7 +44,7 @@ editor Python script and asset/map changes in this story.
 - `Scripts/playtests/us099_walls.py` is a `PlaytestRun` with `STORY = "US-099"`,
   `MAP = kit.DEFAULT_MAP` and its own `RUN_SUFFIX`. It taps sprint and walks to the
   original F07 evidence spot at `(-935,+935)`, requires x <= -915 and
-  `Arena_Wall_W` fade <= 0.05, captures `sw_corner`, returns to `(0,0)`, requires
+  `Arena_Wall_W` fade <= 0.05, captures `f07_corner`, returns to `(0,0)`, requires
   fade >= 0.999, and captures `restored`. The +Y route is used because F07 is the
   original bug location recorded by the story on `main`; the drafted -Y route was
   not that evidence location.
@@ -62,15 +62,15 @@ editor Python script and asset/map changes in this story.
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- `Scripts/playtests/us099_walls.py`: F07 position + fade assertion, `sw_corner`
+- `Scripts/playtests/us099_walls.py`: F07 position + fade assertion, `f07_corner`
   screenshot, real-input return to centre, restore assertion, and `restored` screenshot
 - `Scripts/playtests/us001_movement.py` (MovementTestMap): `camera_fixed`, `no_camera_rotation_input` (AC-099.4)
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-099` on the same package (it runs the new DevTestMap script), plus `py Scripts/playtest_story.py US-001` (MovementTestMap) for AC-099.4
 - **Player steps:** walk (WASD) to DevTestMap's original F07 point `(-935,+935)` against the 200 cm near (-X) wall, then walk back to `(0,0)`
-- **Visible on screen:** `sw_corner` shows the whole character (not just the top of the head) beside the faded west wall; `restored` shows that wall fully restored after the player returns to centre
-- **Proof:** Tier 4 checks `walk_sw_corner`, `wall_fades_at_corner`,
+- **Visible on screen:** `f07_corner` shows the whole character (not just the top of the head) beside the faded west wall; `restored` shows that wall fully restored after the player returns to centre
+- **Proof:** Tier 4 checks `walk_f07_corner`, `wall_fades_at_corner`,
   `walk_back_to_centre`, and `wall_restores_clear`, plus the two screenshots;
   `camera_fixed`, `no_camera_rotation_input` of `Scripts/playtests/us001_movement.py`
 - **Tier 4 script:** the new DevTestMap script (e.g. `Scripts/playtests/us099_walls.py`) — run: `py Scripts/playtest_story.py US-099`
@@ -79,8 +79,8 @@ editor Python script and asset/map changes in this story.
 <!-- Scripts/playtests/us099_walls.py -->
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| 1 | `walk_sw_corner` | tap `LeftShift`, `walk_to(-935, 0)`, then `walk_to(-935, 935)` with real WASD → within 20 cm, x <= -915, and alive | AC-099.3 |
-| 2 | `wall_fades_at_corner` | observe `camera.occluders[Arena_Wall_W].fade <= 0.05` within 0.5 s, then screenshot `sw_corner` | AC-099.2, AC-099.3 |
+| 1 | `walk_f07_corner` | tap `LeftShift`, `walk_to(-935, 0)`, then `walk_to(-935, 935)` with real WASD → within 20 cm, x <= -915, and alive | AC-099.3 |
+| 2 | `wall_fades_at_corner` | observe `camera.occluders[Arena_Wall_W].fade <= 0.05` within 0.5 s, then screenshot `f07_corner` | AC-099.2, AC-099.3 |
 | 3 | `walk_back_to_centre` | `walk_to(-935, 0)`, then `walk_to(0, 0)` with real WASD | AC-099.3 |
 | 4 | `wall_restores_clear` | observe `camera.occluders[Arena_Wall_W].fade >= 0.999` within 0.5 s, then screenshot `restored` | AC-099.2, AC-099.3 |
 - **Playable alone:** YES (after the decision; NO if an EDITOR pair is split off — then "playable after US-XXX")
@@ -119,8 +119,9 @@ editor Python script and asset/map changes in this story.
   game-window and three engine-screenshot checks passed with zero logged errors.
 - US-099 Tier 4 PASS:
   `Saved/Playtests/20261125-000409-us099`. Real Shift+WASD reached the original F07 evidence
-  point at `(-935.0, 934.4)` alive, 13.8 cm from the target; `walk_sw_corner`,
-  `screenshot_sw_corner`, no-crash and cooked-content checks passed. Evidence frame:
+  point at `(-935.0, 934.4)` alive, 13.8 cm from the target; the round-1
+  `walk_sw_corner` and `screenshot_sw_corner` checks, no-crash and cooked-content checks
+  passed. Evidence frame:
   `bridge_01.png`.
 - Round-1 coordinator screenshot review (standing no-Read rule):
   `bridge_01.png` from the US-099 Tier 4 run shows the player capsule fully visible at

@@ -8,7 +8,9 @@ MATERIAL_PATH = "/MordecaiCore/Environment/Materials/M_OcclusionFadeWall"
 FADE_PARAMETER = "MordecaiOcclusionFade"
 FADE_TAG = "Mordecai.OcclusionFade"
 WALL_PREFIX = "Arena_Wall_"
+INTERIOR_WALLS = {"Wall_01", "Wall_02"}
 DITHER_FUNCTION = "/Engine/Functions/Engine_MaterialFunctions02/Utility/DitherTemporalAA"
+OPACITY_MASK_CLIP_VALUE = 0.333
 
 EAL = unreal.EditorAssetLibrary
 MEL = unreal.MaterialEditingLibrary
@@ -43,6 +45,7 @@ def create_material():
         fail(f"could not create {MATERIAL_PATH}")
 
     material.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
+    material.set_editor_property("opacity_mask_clip_value", OPACITY_MASK_CLIP_VALUE)
     material.set_editor_property(
         "shading_model", unreal.MaterialShadingModel.MSM_DEFAULT_LIT
     )
@@ -68,10 +71,18 @@ def create_material():
     )
     dither.set_material_function(dither_asset)
     connect(fade, "", dither, "Alpha Threshold")
+
+    nonzero_gate = expression(material, unreal.MaterialExpressionStep, 80, 160)
+    nonzero_gate.set_editor_property("const_y", 0.0001)
+    connect(fade, "", nonzero_gate, "X")
+
+    masked_fade = expression(material, unreal.MaterialExpressionMultiply, 280, 100)
+    connect(dither, "Result", masked_fade, "A")
+    connect(nonzero_gate, "", masked_fade, "B")
     if not MEL.connect_material_property(
-        dither, "Result", unreal.MaterialProperty.MP_OPACITY_MASK
+        masked_fade, "", unreal.MaterialProperty.MP_OPACITY_MASK
     ):
-        fail("could not connect DitherTemporalAA result to Opacity Mask")
+        fail("could not connect zero-gated DitherTemporalAA result to Opacity Mask")
 
     MEL.recompile_material(material)
     if not EAL.save_loaded_asset(material, only_if_is_dirty=False):
@@ -88,9 +99,11 @@ def apply_to_walls(material):
         fail(f"could not load {MAP}")
 
     walls = [a for a in actors.get_all_level_actors()
-             if a.get_actor_label().startswith(WALL_PREFIX)]
-    if len(walls) != 4:
-        fail(f"expected 4 arena walls, found {[a.get_actor_label() for a in walls]}")
+             if (a.get_actor_label().startswith(WALL_PREFIX)
+                 or a.get_actor_label() in INTERIOR_WALLS)]
+    if len(walls) != 6:
+        fail(f"expected 4 arena and 2 interior walls, found "
+             f"{[a.get_actor_label() for a in walls]}")
 
     for wall in walls:
         meshes = wall.get_components_by_class(unreal.StaticMeshComponent)

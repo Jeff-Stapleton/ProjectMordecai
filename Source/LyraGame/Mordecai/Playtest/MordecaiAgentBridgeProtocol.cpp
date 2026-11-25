@@ -988,7 +988,7 @@ namespace MordecaiAgentBridge
 	const TArray<FString>& GetStateSectionNames()
 	{
 		static const TArray<FString> Names = {
-			TEXT("game"), TEXT("focus"), TEXT("player"), TEXT("input"), TEXT("pickups"),
+			TEXT("game"), TEXT("focus"), TEXT("player"), TEXT("camera"), TEXT("input"), TEXT("pickups"),
 			TEXT("inventory"), TEXT("pause_menu"), TEXT("widgets"), TEXT("actors"),
 		};
 		return Names;

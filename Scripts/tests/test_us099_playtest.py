@@ -64,11 +64,11 @@ class Us099PlaytestCase(unittest.TestCase):
         code, report = self.play(server)
         self.assertEqual(code, 0, self.log.getvalue()[-3000:])
         checks = {check["name"]: check for check in report["checks"]}
-        self.assertEqual(checks["walk_sw_corner"]["status"], "PASS")
+        self.assertEqual(checks["walk_f07_corner"]["status"], "PASS")
         self.assertEqual(checks["wall_fades_at_corner"]["status"], "PASS")
         self.assertEqual(checks["walk_back_to_centre"]["status"], "PASS")
         self.assertEqual(checks["wall_restores_clear"]["status"], "PASS")
-        self.assertEqual(checks["screenshot_sw_corner"]["status"], "WARN",
+        self.assertEqual(checks["screenshot_f07_corner"]["status"], "WARN",
                          "the fake bridge intentionally writes a uniform placeholder frame")
         self.assertEqual(checks["screenshot_restored"]["status"], "WARN",
                          "the fake bridge intentionally writes a uniform placeholder frame")
@@ -77,7 +77,7 @@ class Us099PlaytestCase(unittest.TestCase):
             us099.CORNER_TOL,
         )
         self.assertEqual([shot["label"] for shot in report["screenshots"]],
-                         ["sw_corner", "restored"])
+                         ["f07_corner", "restored"])
         self.assertEqual([ac["id"] for ac in report["acs"]], ["AC-099.3", "AC-099.2"])
         self.assertTrue(all(not ac["accepted"] for ac in report["acs"]),
                         "attach runs are diagnostic")
@@ -97,10 +97,10 @@ class Us099PlaytestCase(unittest.TestCase):
         code, report = self.play(server)
         self.assertEqual(code, 1)
         checks = {check["name"]: check for check in report["checks"]}
-        self.assertEqual(checks["walk_sw_corner"]["status"], "FAIL")
-        self.assertIn("killed the player", checks["walk_sw_corner"]["detail"])
+        self.assertEqual(checks["walk_f07_corner"]["status"], "FAIL")
+        self.assertIn("killed the player", checks["walk_f07_corner"]["detail"])
         self.assertEqual(checks["wall_fades_at_corner"]["status"], "SKIP")
-        self.assertEqual(checks["screenshot_sw_corner"]["status"], "SKIP")
+        self.assertEqual(checks["screenshot_f07_corner"]["status"], "SKIP")
         self.assertEqual(checks["walk_back_to_centre"]["status"], "SKIP")
         self.assertEqual(checks["wall_restores_clear"]["status"], "SKIP")
         self.assertEqual(checks["screenshot_restored"]["status"], "SKIP")
@@ -117,10 +117,10 @@ class Us099PlaytestCase(unittest.TestCase):
         code, report = self.play(server)
         self.assertEqual(code, 1)
         checks = {check["name"]: check for check in report["checks"]}
-        self.assertEqual(checks["walk_sw_corner"]["status"], "PASS")
+        self.assertEqual(checks["walk_f07_corner"]["status"], "PASS")
         self.assertEqual(checks["wall_fades_at_corner"]["status"], "FAIL")
         self.assertIn("did not reach fade", checks["wall_fades_at_corner"]["detail"])
-        self.assertEqual(checks["screenshot_sw_corner"]["status"], "SKIP")
+        self.assertEqual(checks["screenshot_f07_corner"]["status"], "SKIP")
 
     def test_plan_and_launch_path_are_pinned(self):
         self.assertEqual(kit.plan_problems(us099.Us099Run), [])
@@ -128,11 +128,11 @@ class Us099PlaytestCase(unittest.TestCase):
         self.assertEqual(us099.Us099Run.STORY, "US-099")
         self.assertEqual(us099.Us099Run.RUN_SUFFIX, "us099")
         self.assertEqual(us099.Us099Run.launch_map(), kit.DEFAULT_MAP)
-        self.assertEqual(us099.PLAN[0].check, "walk_sw_corner")
+        self.assertEqual(us099.PLAN[0].check, "walk_f07_corner")
         self.assertEqual(us099.PLAN[0].proves, ("AC-099.3",))
         self.assertEqual(
             [step.check for step in us099.PLAN],
-            ["walk_sw_corner", "wall_fades_at_corner", "walk_back_to_centre",
+            ["walk_f07_corner", "wall_fades_at_corner", "walk_back_to_centre",
              "wall_restores_clear"],
         )
 

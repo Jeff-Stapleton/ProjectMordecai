@@ -722,7 +722,8 @@ bool FMordecai_Playtest_AgentBridge_Args_WaitStateAndScreenshot::RunTest(const F
 		TestEqual("Two sections", Args.Sections, TArray<FString>({ TEXT("inventory"), TEXT("pickups") }));
 		TestEqual("Radius", Args.Radius, 800.0);
 		TestTrue("Include all", Args.bIncludeAllActors);
-		TestTrue("Empty list means all", MordecaiAgentBridge::ParseStateArgs(*ParseObject(TEXT("{\"sections\":[]}")), Args, Error) && Args.Sections.Num() == 9);
+		TestTrue("Empty list means all", MordecaiAgentBridge::ParseStateArgs(*ParseObject(TEXT("{\"sections\":[]}")), Args, Error)
+			&& Args.Sections.Num() == MordecaiAgentBridge::GetStateSectionNames().Num());
 		TestFalse("Unknown section", MordecaiAgentBridge::ParseStateArgs(*ParseObject(TEXT("{\"sections\":[\"bogus\"]}")), Args, Error));
 		TestFalse("Sections must be an array", MordecaiAgentBridge::ParseStateArgs(*ParseObject(TEXT("{\"sections\":\"inventory\"}")), Args, Error));
 		TestFalse("Radius must be positive", MordecaiAgentBridge::ParseStateArgs(*ParseObject(TEXT("{\"radius\":0}")), Args, Error));
@@ -737,7 +738,7 @@ bool FMordecai_Playtest_AgentBridge_Args_WaitStateAndScreenshot::RunTest(const F
 		TestFalse("Path must be a string", MordecaiAgentBridge::ParseScreenshotArgs(*ParseObject(TEXT("{\"path\":5}")), Args, Error));
 	}
 	// section names and routes
-	TestEqual("Section names", MordecaiAgentBridge::GetStateSectionNames(), TArray<FString>({ TEXT("game"), TEXT("focus"), TEXT("player"), TEXT("input"),
+	TestEqual("Section names", MordecaiAgentBridge::GetStateSectionNames(), TArray<FString>({ TEXT("game"), TEXT("focus"), TEXT("player"), TEXT("camera"), TEXT("input"),
 		TEXT("pickups"), TEXT("inventory"), TEXT("pause_menu"), TEXT("widgets"), TEXT("actors") }));
 	bool bValid = false;
 	TestTrue("slate route", MordecaiAgentBridge::ParseRouteName(TEXT("Slate"), bValid) == MordecaiAgentBridge::ERoute::Slate && bValid);

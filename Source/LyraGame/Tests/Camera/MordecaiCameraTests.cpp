@@ -46,7 +46,8 @@ namespace MordecaiCameraTestHelpers
 	};
 
 	static UStaticMeshComponent* SpawnTraceWall(
-		UWorld* World, const FVector& Location, bool bFadeTagged)
+		UWorld* World, const FVector& Location, bool bFadeTagged,
+		bool bHasFadeParameter = true)
 	{
 		AStaticMeshActor* WallActor = World->SpawnActor<AStaticMeshActor>(
 			AStaticMeshActor::StaticClass(), Location, FRotator::ZeroRotator);
@@ -68,9 +69,12 @@ namespace MordecaiCameraTestHelpers
 		Mesh->SetCollisionResponseToAllChannels(ECR_Ignore);
 		Mesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 		Mesh->SetMaterial(0, UMaterial::GetDefaultMaterial(MD_Surface));
-		if (UMaterialInstanceDynamic* Material = Mesh->CreateDynamicMaterialInstance(0))
+		if (bHasFadeParameter)
 		{
-			Material->SetScalarParameterValue(TEXT("MordecaiOcclusionFade"), 1.0f);
+			if (UMaterialInstanceDynamic* Material = Mesh->CreateDynamicMaterialInstance(0))
+			{
+				Material->SetScalarParameterValue(TEXT("MordecaiOcclusionFade"), 1.0f);
+			}
 		}
 		if (bFadeTagged)
 		{
@@ -190,6 +194,7 @@ bool FMordecaiRecoveryCamera_WorldTraceFadeRestore::RunTest(const FString& Param
 		return true;
 	}
 	Target->AddInstanceComponent(Camera);
+	Target->SetRootComponent(Camera);
 	Camera->RegisterComponent();
 
 	UMordecaiCameraMode_Diorama* Mode =
@@ -201,11 +206,14 @@ bool FMordecaiRecoveryCamera_WorldTraceFadeRestore::RunTest(const FString& Param
 
 	UStaticMeshComponent* NearUntagged = SpawnTraceWall(
 		TestWorld.World, FMath::Lerp(CameraLocation, TargetLocation, 0.25f), false);
+	UStaticMeshComponent* MistaggedWall = SpawnTraceWall(
+		TestWorld.World, FMath::Lerp(CameraLocation, TargetLocation, 0.375f), true, false);
 	UStaticMeshComponent* TaggedWall = SpawnTraceWall(
 		TestWorld.World, FMath::Lerp(CameraLocation, TargetLocation, 0.50f), true);
 	UStaticMeshComponent* StackedTaggedWall = SpawnTraceWall(
 		TestWorld.World, FMath::Lerp(CameraLocation, TargetLocation, 0.75f), true);
 	if (!TestNotNull("Near untagged blocker spawned", NearUntagged)
+		|| !TestNotNull("Mis-tagged wall spawned", MistaggedWall)
 		|| !TestNotNull("Tagged wall spawned", TaggedWall)
 		|| !TestNotNull("Stacked tagged wall spawned", StackedTaggedWall))
 	{
@@ -220,7 +228,10 @@ bool FMordecaiRecoveryCamera_WorldTraceFadeRestore::RunTest(const FString& Param
 	TestEqual("Positive control puts untagged geometry first", FirstHit.GetComponent(),
 		static_cast<UPrimitiveComponent*>(NearUntagged));
 
-	Mode->UpdateCameraMode(0.25f);
+	AddExpectedError(TEXT("has no material slot with scalar parameter MordecaiOcclusionFade"),
+		EAutomationExpectedErrorFlags::Contains, 1);
+	Mode->UpdateCameraMode(0.125f);
+	Mode->UpdateCameraMode(0.125f);
 	TestEqual("Untagged nearer geometry remains opaque", ReadFade(NearUntagged), 1.0f);
 	TestTrue("Tagged wall behind untagged geometry fades",
 		ReadFade(TaggedWall) < 1.0f);

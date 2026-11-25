@@ -3,11 +3,21 @@
 #pragma once
 
 #include "Camera/LyraCameraMode.h"
+#include "Engine/EngineTypes.h"
 
 #include "MordecaiCameraMode_Diorama.generated.h"
 
+class AActor;
+class UMaterialInstanceDynamic;
 class UPrimitiveComponent;
 class UMeshComponent;
+
+struct FMordecaiOccluderFadeState
+{
+	float Progress = 1.0f;
+	float LastAppliedOpacity = 1.0f;
+	TArray<TWeakObjectPtr<UMaterialInstanceDynamic>, TInlineAllocator<2>> Materials;
+};
 
 /**
  * UMordecaiCameraMode_Diorama
@@ -48,8 +58,16 @@ protected:
 private:
 	void UpdateOcclusionFades(float DeltaTime, AActor* TargetActor);
 	void RestoreOccluders();
+	void SetOcclusionTarget(AActor* TargetActor);
+	bool CacheOccluderMaterials(UMeshComponent* Mesh, FMordecaiOccluderFadeState& OutState);
+	static void ApplyOccluderOpacity(FMordecaiOccluderFadeState& State, float Opacity);
+
+	UFUNCTION()
+	void HandleOcclusionTargetEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason);
 
 	FVector SmoothedPivotLocation;
 	bool bFirstUpdate;
-	TMap<TWeakObjectPtr<UMeshComponent>, float> OccluderFadeProgress;
+	TWeakObjectPtr<AActor> OcclusionTarget;
+	TMap<TWeakObjectPtr<UMeshComponent>, FMordecaiOccluderFadeState> OccluderFadeStates;
+	TSet<TWeakObjectPtr<UMeshComponent>> WarnedInvalidOccluders;
 };
