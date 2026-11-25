@@ -98,6 +98,14 @@ class CaptureUs099MarketingTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "must be empty"):
                 capture.capture(root)
 
+    def test_only_the_continuous_session_runs_in_benchmark_mode(self):
+        still_args = capture._capture_extra_args()
+        movie_args = capture._capture_extra_args(r"C:\Frames")
+        self.assertNotIn("-BENCHMARK", still_args)
+        self.assertFalse(any(arg.startswith("-FPS=") for arg in still_args))
+        self.assertIn("-BENCHMARK", movie_args)
+        self.assertIn("-FPS=30", movie_args)
+
 
 if __name__ == "__main__":
     unittest.main()
