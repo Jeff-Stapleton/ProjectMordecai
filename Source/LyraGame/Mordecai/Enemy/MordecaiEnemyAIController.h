@@ -96,6 +96,9 @@ public:
 	/** One step of the state machine against Target (nullptr = none). Tick runs it on authority; public for testing. */
 	void UpdateStateMachine(float DeltaTime, AActor* Target);
 
+	/** Command-line policy seam used by the marketing-capture regression test. */
+	static bool ShouldFreezeAIForMarketing(const TCHAR* CommandLine);
+
 	// --- Spawn Location ---
 
 	FVector GetSpawnLocation() const { return SpawnLocation; }

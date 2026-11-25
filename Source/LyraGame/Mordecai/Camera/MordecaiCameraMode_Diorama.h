@@ -51,8 +51,10 @@ public:
 	static float AdvanceOcclusionFade(float CurrentFade, bool bBlockingPlayer, float DeltaTime, float FadeDuration);
 	static bool IsOcclusionFadeCandidate(const UPrimitiveComponent* Primitive);
 
-protected:
+	/** ULyraCameraMode lifecycle hook. Public so the world automation test can exercise cleanup directly. */
 	virtual void OnDeactivation() override;
+
+protected:
 	virtual void UpdateView(float DeltaTime) override;
 
 private:

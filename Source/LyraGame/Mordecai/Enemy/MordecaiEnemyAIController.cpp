@@ -227,6 +227,11 @@ void AMordecaiEnemyAIController::NotifyAttackCompleted()
 	}
 }
 
+bool AMordecaiEnemyAIController::ShouldFreezeAIForMarketing(const TCHAR* CommandLine)
+{
+	return CommandLine && FParse::Param(CommandLine, TEXT("MordecaiMarketingCapture"));
+}
+
 // ---------------------------------------------------------------------------
 // Tick — State Machine (AC-051.12: server authority only)
 // ---------------------------------------------------------------------------
@@ -237,7 +242,7 @@ void AMordecaiEnemyAIController::Tick(float DeltaTime)
 
 	// Marketing capture runs fixed-timestep rendering faster than wall-clock time.
 	// Keep its non-acceptance wall-fade footage free of accelerated AI deaths.
-	if (FParse::Param(FCommandLine::Get(), TEXT("MordecaiMarketingCapture")))
+	if (ShouldFreezeAIForMarketing(FCommandLine::Get()))
 	{
 		return;
 	}

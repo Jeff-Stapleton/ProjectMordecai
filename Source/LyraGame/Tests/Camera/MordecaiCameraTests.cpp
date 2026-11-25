@@ -229,19 +229,52 @@ bool FMordecaiRecoveryCamera_WorldTraceFadeRestore::RunTest(const FString& Param
 		static_cast<UPrimitiveComponent*>(NearUntagged));
 
 	AddExpectedError(TEXT("has no material slot with scalar parameter MordecaiOcclusionFade"),
-		EAutomationExpectedErrorFlags::Contains, 1);
+		EAutomationExpectedErrorFlags::Contains, 2);
 	Mode->UpdateCameraMode(0.125f);
 	Mode->UpdateCameraMode(0.125f);
 	TestEqual("Untagged nearer geometry remains opaque", ReadFade(NearUntagged), 1.0f);
-	TestTrue("Tagged wall behind untagged geometry fades",
-		ReadFade(TaggedWall) < 1.0f);
-	TestTrue("Second stacked tagged wall also fades",
-		ReadFade(StackedTaggedWall) < 1.0f);
+	TestEqual("Tagged wall behind untagged geometry reaches fully faded",
+		ReadFade(TaggedWall), 0.0f);
+	TestEqual("Second stacked tagged wall reaches fully faded",
+		ReadFade(StackedTaggedWall), 0.0f);
+	TestFalse("Mistagged wall receives no dynamic material",
+		MistaggedWall->GetMaterial(0)->IsA<UMaterialInstanceDynamic>());
 
 	Target->SetActorLocation(FVector(0.0f, 5000.0f, 0.0f));
 	Mode->UpdateCameraMode(0.25f);
 	TestEqual("Tagged wall restores when target moves clear", ReadFade(TaggedWall), 1.0f);
 	TestEqual("Stacked tagged wall restores when target moves clear", ReadFade(StackedTaggedWall), 1.0f);
+
+	Target->SetActorLocation(FVector::ZeroVector);
+	Mode->UpdateCameraMode(0.125f);
+	Mode->UpdateCameraMode(0.125f);
+	TestEqual("Wall is faded before target destruction", ReadFade(TaggedWall), 0.0f);
+	TestTrue("Target destruction succeeds", Target->Destroy());
+	TestEqual("Target EndPlay restores a faded wall", ReadFade(TaggedWall), 1.0f);
+
+	AActor* DeactivationTarget = TestWorld.World->SpawnActor<AActor>();
+	ULyraCameraComponent* DeactivationCamera = DeactivationTarget
+		? NewObject<ULyraCameraComponent>(DeactivationTarget, TEXT("US099DeactivationCamera"))
+		: nullptr;
+	if (!TestNotNull("Deactivation target spawned", DeactivationTarget)
+		|| !TestNotNull("Deactivation camera created", DeactivationCamera))
+	{
+		TestWorld.Teardown();
+		return true;
+	}
+	DeactivationTarget->AddInstanceComponent(DeactivationCamera);
+	DeactivationTarget->SetRootComponent(DeactivationCamera);
+	DeactivationCamera->RegisterComponent();
+
+	UMordecaiCameraMode_Diorama* DeactivationMode =
+		NewObject<UMordecaiCameraMode_Diorama>(DeactivationCamera, TEXT("US099DeactivationMode"));
+	DeactivationMode->FollowSpeed = 100000.0f;
+	DeactivationMode->UpdateCameraMode(0.0f);
+	DeactivationMode->UpdateCameraMode(0.125f);
+	DeactivationMode->UpdateCameraMode(0.125f);
+	TestEqual("Wall is faded before camera-mode deactivation", ReadFade(TaggedWall), 0.0f);
+	DeactivationMode->OnDeactivation();
+	TestEqual("Camera-mode deactivation restores a faded wall", ReadFade(TaggedWall), 1.0f);
 
 	TestWorld.Teardown();
 	return true;
