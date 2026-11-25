@@ -143,6 +143,13 @@ class CaptureUs099MarketingTests(unittest.TestCase):
         problems = capture._validate_transition_bracket(bracket)
         self.assertTrue(any("post-screenshot fade" in problem for problem in problems))
 
+    def test_contiguous_source_duration_drives_the_clip_without_cross_session_alignment(self):
+        self.assertEqual(capture._source_duration_seconds(480), 16.0)
+        with self.assertRaisesRegex(RuntimeError, "at least 5"):
+            capture._source_duration_seconds(149)
+        with self.assertRaisesRegex(RuntimeError, "at most 20"):
+            capture._source_duration_seconds(601)
+
 
 if __name__ == "__main__":
     unittest.main()
