@@ -66,7 +66,7 @@ editor Python script and asset/map changes in this story.
 <!-- Scripts/playtests/us099_walls.py -->
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| 1 | `walk_sw_corner` | `walk_to(-930, -930)` with real WASD → within 60 cm and `player.is_dead==false`, then immediately screenshot `sw_corner` | AC-099.3 |
+| 1 | `walk_sw_corner` | `walk_to(0, -900)`, then `walk_to(-925, -925)` with real WASD → within 60 cm and `player.is_dead==false`, then immediately screenshot `sw_corner` | AC-099.3 |
 - **Playable alone:** YES (after the decision; NO if an EDITOR pair is split off — then "playable after US-XXX")
 
 ## Definition of Done

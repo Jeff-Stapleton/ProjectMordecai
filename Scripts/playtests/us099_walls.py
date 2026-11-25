@@ -19,7 +19,8 @@ set_log_stream = kit.set_log_stream
 STORY = "US-099"
 TITLE = "US-099 near-wall visibility playtest (Tier 4, real input)"
 RUN_SUFFIX = "us099"
-SW_CORNER = (-930.0, -930.0)
+SW_CORNER = (-925.0, -925.0)
+SW_ROUTE = ((0.0, -900.0), SW_CORNER)
 CORNER_TOL = 60.0
 
 SCREENSHOTS = {
@@ -29,7 +30,8 @@ SCREENSHOTS = {
 }
 
 PLAN = (
-    Step("walk_sw_corner", f"walk_to({SW_CORNER[0]:g}, {SW_CORNER[1]:g}) with real WASD -> "
+    Step("walk_sw_corner", f"walk_to(0, -900), then walk_to({SW_CORNER[0]:g}, "
+         f"{SW_CORNER[1]:g}) with real WASD -> "
          f"within {CORNER_TOL:g} cm and player.is_dead==false, then immediately screenshot "
          "sw_corner", proves=("AC-099.3",)),
 )
@@ -49,28 +51,32 @@ class Us099Run(kit.PlaytestRun):
 
     def steps(self):
         def walk_corner():
-            try:
-                result = self.bridge.walk_to(*SW_CORNER, tol=CORNER_TOL)
-            except ab.BridgeError as error:
-                detail = f"walk_to south-west corner failed: {error}"
-                if error.code == "player_dead":
-                    detail += "; the Frontliners killed the player before the required shot"
-                return "FAIL", detail, error.response
+            route_results = []
+            for target in SW_ROUTE:
+                try:
+                    route_results.append(
+                        self.bridge.walk_to(*target, tol=CORNER_TOL)
+                    )
+                except ab.BridgeError as error:
+                    detail = f"walk_to {target} on the south-west route failed: {error}"
+                    if error.code == "player_dead":
+                        detail += "; the Frontliners killed the player before the required shot"
+                    return "FAIL", detail, {"route": route_results, "error": error.response}
 
             player = (self.bridge.state(["player"]).get("player") or {})
             location = player.get("location") or []
             if len(location) < 2:
-                return "FAIL", f"player location missing after walk: {player}", result
+                return "FAIL", f"player location missing after walk: {player}", route_results
             distance = math.hypot(location[0] - SW_CORNER[0], location[1] - SW_CORNER[1])
             if player.get("is_dead") is not False:
                 return ("FAIL", "the player died before the south-west-corner screenshot "
-                        f"(location {location})", result)
+                        f"(location {location})", route_results)
             if distance > CORNER_TOL:
                 return ("FAIL", f"player stopped {distance:.1f} cm from {SW_CORNER}, need <= "
-                        f"{CORNER_TOL:g}", result)
+                        f"{CORNER_TOL:g}", route_results)
             return ("PASS", f"real WASD reached ({location[0]:.1f}, {location[1]:.1f}), "
                     f"{distance:.1f} cm from {SW_CORNER}; player alive; capturing immediately",
-                    result)
+                    {"route": route_results})
 
         reached, _ = self.attempt("walk_sw_corner", walk_corner)
         self.shot("sw_corner", needs=reached,
