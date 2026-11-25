@@ -11,6 +11,8 @@
 #include "GameplayAbilitySpec.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyAIController)
 
@@ -34,6 +36,10 @@ AMordecaiEnemyAIController::AMordecaiEnemyAIController()
 void AMordecaiEnemyAIController::BeginPlay()
 {
 	Super::BeginPlay();
+
+#if !UE_BUILD_SHIPPING
+	bFreezeAIForMarketing = ShouldFreezeAIForMarketing(FCommandLine::Get());
+#endif
 
 	if (APawn* MyPawn = GetPawn())
 	{
@@ -225,6 +231,15 @@ void AMordecaiEnemyAIController::NotifyAttackCompleted()
 	}
 }
 
+bool AMordecaiEnemyAIController::ShouldFreezeAIForMarketing(const TCHAR* CommandLine)
+{
+#if UE_BUILD_SHIPPING
+	return false;
+#else
+	return CommandLine && FParse::Param(CommandLine, TEXT("MordecaiMarketingFreezeAI"));
+#endif
+}
+
 // ---------------------------------------------------------------------------
 // Tick — State Machine (AC-051.12: server authority only)
 // ---------------------------------------------------------------------------
@@ -232,6 +247,15 @@ void AMordecaiEnemyAIController::NotifyAttackCompleted()
 void AMordecaiEnemyAIController::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+#if !UE_BUILD_SHIPPING
+	// US-099's fixed-timestep marketing capture opts into inert enemies independently from
+	// the shared presentation flag. BeginPlay parses the command line once.
+	if (bFreezeAIForMarketing)
+	{
+		return;
+	}
+#endif
 
 	// AC-051.12: Only run state machine on server
 	if (!HasAuthority())

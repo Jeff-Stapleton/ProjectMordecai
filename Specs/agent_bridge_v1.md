@@ -140,7 +140,7 @@ Every successful response carries `"ok": true` and `"cmd"`. Every input command 
 ### `state`
 
 Arguments:
-- `sections` (optional): an array drawn from `game`, `focus`, `player`, `input`, `pickups`, `inventory`, `pause_menu`, `widgets` and `actors`. The default is all of them.
+- `sections` (optional): an array drawn from `game`, `focus`, `player`, `camera`, `input`, `pickups`, `inventory`, `pause_menu`, `widgets` and `actors`. The default is all of them.
 - `radius` (default 1500): the radius for `actors`.
 - `include_all_actors` (default false): include level geometry.
 
@@ -165,6 +165,7 @@ player:    {valid, name, class, location, rotation, control_rotation, velocity, 
             tags:[...], weapon:{id,display_name,type,index,count}|null,
             spells:[{slot,key,ability,spell_id,display_name,sp_cost,cooldown_tag,cooldown_remaining_s,active,can_afford}],
             kills}
+camera:    {valid, occluders:[{name,component,fade}]}
 input:     {valid, held:[{key,kind:"key"|"axis"|"mouse",value,holders}], pressed:[keys PlayerInput reports down],
             mapping_contexts:[names]}
 pickups:   {valid, focused:{label,item_id,display_name,location,distance}|null, in_range_count,
@@ -188,6 +189,11 @@ actors:    [{label, name, class, native_class, kind:"enemy"|"pickup"|"pawn"|"pro
 - **Labels.** `label` is `AActor::GetActorNameOrLabel()`, which gives editor labels such as `TestPickup_HealthPotion` in Development packages. Never call `GetActorLabel()`: it is editor-only.
 - **Player HP and attributes** come from `UMordecaiAttributeSet` on the PlayerState ASC. Never use `ULyraHealthComponent` for the player: it reads an unrelated set and always shows 100. For enemies, health comes from their own ASC's `UMordecaiAttributeSet`.
 - **`pickups.prompt.text`** is the text actually rendered in the HUD prompt widget's `PromptText` text block, and `visible` is its real visibility. They are not the widget's cached model.
+- **`camera.occluders`.** One entry per tagged mesh component whose material exposes
+  `MordecaiOcclusionFade`. `fade` is the lowest current scalar value across compatible
+  slots: 0 is fully clipped, 1 is fully opaque. `name` is the owning actor's
+  `GetActorNameOrLabel()` value and `component` disambiguates multiple meshes on one actor.
+  This is read-only acceptance state; it does not change camera or material behavior.
 - **`widgets`** lists only user widgets whose native class name starts with `Mordecai` and whose Slate widget chain is visible all the way up to an `SWindow`. Pooled and stale CommonUI instances fail that test and are skipped.
 - **`actors[].widgets` and `actors[].text_labels`.** `widgets` lists the actor's `UWidgetComponent`s (enemy health bars); `visible` is `IsWidgetVisible()`. `text_labels` lists its `UTextRenderComponent`s (a pickup's `NameLabel`), in component order, `[]` when it has none. A component is in only one of the two lists. The actor filter is unchanged: a text label alone does not make an actor interesting.
 - **`actors[].spawn_location`.** For an enemy possessed by `AMordecaiEnemyAIController`, this is the location captured when the controller possessed it. It remains fixed while `location` follows the live actor, so placement checks do not mistake normal approach movement for a spawn-layout change. It is `null` for actors without that controller.

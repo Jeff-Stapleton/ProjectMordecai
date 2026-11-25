@@ -12,6 +12,7 @@
 #include "CommonInputTypeEnum.h"
 #include "Components/ArrowComponent.h"
 #include "Components/Button.h"
+#include "Components/MeshComponent.h"
 #include "Components/PanelWidget.h"
 #include "Components/ScrollBox.h"
 #include "Components/SkinnedMeshComponent.h"
@@ -39,6 +40,7 @@
 #include "Input/CommonUIActionRouterBase.h"
 #include "InputMappingContext.h"
 #include "LoadingScreenManager.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/App.h"
 #include "UObject/UObjectIterator.h"
 #include "UnrealClient.h"
@@ -49,6 +51,7 @@
 #include "GameModes/LyraExperienceDefinition.h"
 #include "GameModes/LyraExperienceManagerComponent.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Camera/MordecaiCameraMode_Diorama.h"
 #include "Mordecai/Combat/MordecaiProjectile.h"
 #include "Mordecai/Enemy/MordecaiEnemyAIController.h"
 #include "Mordecai/Enemy/MordecaiEnemyAITypes.h"
@@ -432,6 +435,80 @@ namespace MordecaiAgentBridge::State
 			return Player;
 		}
 
+		static TSharedRef<FJsonObject> GatherCamera(const FMordecaiAgentBridgeStateContext& Context)
+		{
+			if (!Context.World)
+			{
+				return MakeInvalidSection(TEXT("no world yet"));
+			}
+
+			struct FOccluderEntry
+			{
+				FString Name;
+				FString Component;
+				float Fade = 1.0f;
+			};
+
+			const FHashedMaterialParameterInfo FadeParameter(TEXT("MordecaiOcclusionFade"));
+			TArray<FOccluderEntry, TInlineAllocator<8>> Entries;
+			for (TActorIterator<AActor> ActorIt(Context.World); ActorIt; ++ActorIt)
+			{
+				TInlineComponentArray<UMeshComponent*> Meshes;
+				ActorIt->GetComponents(Meshes);
+				for (const UMeshComponent* Mesh : Meshes)
+				{
+					if (!UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(Mesh))
+					{
+						continue;
+					}
+
+					float LowestFade = 1.0f;
+					bool bHasFadeMaterial = false;
+					for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetNumMaterials(); ++MaterialIndex)
+					{
+						float Fade = 1.0f;
+						if (const UMaterialInterface* Material = Mesh->GetMaterial(MaterialIndex);
+							Material && Material->GetScalarParameterValue(FadeParameter, Fade))
+						{
+							LowestFade = FMath::Min(LowestFade, Fade);
+							bHasFadeMaterial = true;
+						}
+					}
+					if (bHasFadeMaterial)
+					{
+						Entries.Add({
+							ActorIt->GetActorNameOrLabel(),
+							Mesh->GetName(),
+							LowestFade,
+						});
+					}
+				}
+			}
+			Entries.Sort([](const FOccluderEntry& Left, const FOccluderEntry& Right)
+			{
+				const int32 NameOrder = Left.Name.Compare(Right.Name);
+				return NameOrder == 0
+					? Left.Component.Compare(Right.Component) < 0
+					: NameOrder < 0;
+			});
+
+			TArray<TSharedPtr<FJsonValue>> Occluders;
+			Occluders.Reserve(Entries.Num());
+			for (const FOccluderEntry& Entry : Entries)
+			{
+				const TSharedRef<FJsonObject> Json = MakeShared<FJsonObject>();
+				Json->SetStringField(TEXT("name"), Entry.Name);
+				Json->SetStringField(TEXT("component"), Entry.Component);
+				Json->SetField(TEXT("fade"), MakeNumber(Entry.Fade));
+				Occluders.Add(ObjectValue(Json));
+			}
+
+			const TSharedRef<FJsonObject> Camera = MakeShared<FJsonObject>();
+			Camera->SetBoolField(TEXT("valid"), true);
+			Camera->SetArrayField(TEXT("occluders"), Occluders);
+			return Camera;
+		}
+
 		static TSharedRef<FJsonObject> GatherInput(const FMordecaiAgentBridgeStateContext& Context)
 		{
 			if (!Context.PlayerController)
@@ -803,6 +880,7 @@ namespace MordecaiAgentBridge::State
 		if (Section == TEXT("game")) { return MakeShared<FJsonValueObject>(GatherGame(Context)); }
 		if (Section == TEXT("focus")) { return MakeShared<FJsonValueObject>(GatherFocus(Context)); }
 		if (Section == TEXT("player")) { return MakeShared<FJsonValueObject>(GatherPlayer(Context)); }
+		if (Section == TEXT("camera")) { return MakeShared<FJsonValueObject>(GatherCamera(Context)); }
 		if (Section == TEXT("input")) { return MakeShared<FJsonValueObject>(GatherInput(Context)); }
 		if (Section == TEXT("pickups")) { return MakeShared<FJsonValueObject>(GatherPickups(Context)); }
 		if (Section == TEXT("inventory")) { return MakeShared<FJsonValueObject>(GatherInventoryForPawn(Context)); }

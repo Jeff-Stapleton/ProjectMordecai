@@ -1,7 +1,96 @@
 // Project Mordecai — Camera Tests (Story 1.2)
 
 #include "Misc/AutomationTest.h"
+#include "Camera/LyraCameraComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/Engine.h"
+#include "Engine/StaticMeshActor.h"
+#include "Engine/World.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Mordecai/Camera/MordecaiCameraMode_Diorama.h"
+
+namespace MordecaiCameraTestHelpers
+{
+	struct FCameraTestWorld
+	{
+		UWorld* World = nullptr;
+
+		bool Setup()
+		{
+			if (!GEngine)
+			{
+				return false;
+			}
+			World = UWorld::CreateWorld(EWorldType::Game, false);
+			if (!World)
+			{
+				return false;
+			}
+			FWorldContext& WorldContext = GEngine->CreateNewWorldContext(EWorldType::Game);
+			WorldContext.SetCurrentWorld(World);
+			World->InitializeActorsForPlay(FURL());
+			return true;
+		}
+
+		void Teardown()
+		{
+			if (World && GEngine)
+			{
+				GEngine->DestroyWorldContext(World);
+				World->DestroyWorld(false);
+			}
+			World = nullptr;
+		}
+	};
+
+	static UStaticMeshComponent* SpawnTraceWall(
+		UWorld* World, const FVector& Location, bool bFadeTagged,
+		bool bHasFadeParameter = true)
+	{
+		AStaticMeshActor* WallActor = World->SpawnActor<AStaticMeshActor>(
+			AStaticMeshActor::StaticClass(), Location, FRotator::ZeroRotator);
+		if (!WallActor)
+		{
+			return nullptr;
+		}
+
+		UStaticMeshComponent* Mesh = WallActor->GetStaticMeshComponent();
+		UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+		if (!Mesh || !Cube)
+		{
+			return nullptr;
+		}
+		Mesh->SetStaticMesh(Cube);
+		WallActor->SetActorScale3D(FVector(0.25f, 10.0f, 10.0f));
+		Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		Mesh->SetCollisionObjectType(ECC_WorldStatic);
+		Mesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+		Mesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		Mesh->SetMaterial(0, UMaterial::GetDefaultMaterial(MD_Surface));
+		if (bHasFadeParameter)
+		{
+			if (UMaterialInstanceDynamic* Material = Mesh->CreateDynamicMaterialInstance(0))
+			{
+				Material->SetScalarParameterValue(TEXT("MordecaiOcclusionFade"), 1.0f);
+			}
+		}
+		if (bFadeTagged)
+		{
+			Mesh->ComponentTags.Add(TEXT("Mordecai.OcclusionFade"));
+		}
+		Mesh->RecreatePhysicsState();
+		return Mesh;
+	}
+
+	static float ReadFade(UStaticMeshComponent* Mesh)
+	{
+		UMaterialInstanceDynamic* Material =
+			Mesh ? Cast<UMaterialInstanceDynamic>(Mesh->GetMaterial(0)) : nullptr;
+		return Material ? Material->K2_GetScalarParameterValue(TEXT("MordecaiOcclusionFade")) : -1.0f;
+	}
+}
 
 // Mordecai.Camera.FollowsCharacterPosition
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiCamera_FollowsCharacter,
@@ -58,5 +147,173 @@ bool FMordecaiCamera_DesignerProperties::RunTest(const FString& Parameters)
 	FProperty* SpeedProp = CameraClass->FindPropertyByName(FName("FollowSpeed"));
 	TestNotNull("FollowSpeed property exists", SpeedProp);
 
+	return true;
+}
+
+// Mordecai.Recovery.Camera.OccluderFadesWhenBlockingPlayer
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiRecoveryCamera_OccluderFades,
+	"Mordecai.Recovery.Camera.OccluderFadesWhenBlockingPlayer",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiRecoveryCamera_OccluderFades::RunTest(const FString& Parameters)
+{
+	UStaticMeshComponent* Wall = NewObject<UStaticMeshComponent>();
+	Wall->SetCollisionObjectType(ECC_WorldStatic);
+	Wall->ComponentTags.Add(TEXT("Mordecai.OcclusionFade"));
+
+	TestTrue("Tagged WorldStatic wall is eligible", UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(Wall));
+	const float HalfFade = UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(1.0f, true, 0.125f, 0.25f);
+	TestTrue("Blocking wall begins fading", HalfFade > 0.0f && HalfFade < 1.0f);
+	TestEqual("Blocking wall reaches fully faded in 0.25 seconds",
+		UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(HalfFade, true, 0.125f, 0.25f), 0.0f);
+	return true;
+}
+
+// Mordecai.Recovery.Camera.WorldTraceFadesAndRestoresTaggedWalls
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiRecoveryCamera_WorldTraceFadeRestore,
+	"Mordecai.Recovery.Camera.WorldTraceFadesAndRestoresTaggedWalls",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiRecoveryCamera_WorldTraceFadeRestore::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiCameraTestHelpers;
+	FCameraTestWorld TestWorld;
+	if (!TestTrue("Test world created", TestWorld.Setup()))
+	{
+		return true;
+	}
+
+	AActor* Target = TestWorld.World->SpawnActor<AActor>();
+	ULyraCameraComponent* Camera = Target
+		? NewObject<ULyraCameraComponent>(Target, TEXT("US099TestCamera"))
+		: nullptr;
+	if (!TestNotNull("Target actor spawned", Target)
+		|| !TestNotNull("Camera component created", Camera))
+	{
+		TestWorld.Teardown();
+		return true;
+	}
+	Target->AddInstanceComponent(Camera);
+	Target->SetRootComponent(Camera);
+	Camera->RegisterComponent();
+
+	UMordecaiCameraMode_Diorama* Mode =
+		NewObject<UMordecaiCameraMode_Diorama>(Camera, TEXT("US099TestMode"));
+	Mode->FollowSpeed = 100000.0f;
+	Mode->UpdateCameraMode(0.0f);
+	const FVector CameraLocation = Mode->GetCameraModeView().Location;
+	const FVector TargetLocation = Target->GetActorLocation();
+
+	UStaticMeshComponent* NearUntagged = SpawnTraceWall(
+		TestWorld.World, FMath::Lerp(CameraLocation, TargetLocation, 0.25f), false);
+	UStaticMeshComponent* MistaggedWall = SpawnTraceWall(
+		TestWorld.World, FMath::Lerp(CameraLocation, TargetLocation, 0.375f), true, false);
+	UStaticMeshComponent* TaggedWall = SpawnTraceWall(
+		TestWorld.World, FMath::Lerp(CameraLocation, TargetLocation, 0.50f), true);
+	UStaticMeshComponent* StackedTaggedWall = SpawnTraceWall(
+		TestWorld.World, FMath::Lerp(CameraLocation, TargetLocation, 0.75f), true);
+	if (!TestNotNull("Near untagged blocker spawned", NearUntagged)
+		|| !TestNotNull("Mis-tagged wall spawned", MistaggedWall)
+		|| !TestNotNull("Tagged wall spawned", TaggedWall)
+		|| !TestNotNull("Stacked tagged wall spawned", StackedTaggedWall))
+	{
+		TestWorld.Teardown();
+		return true;
+	}
+
+	FHitResult FirstHit;
+	const bool bHit = TestWorld.World->LineTraceSingleByChannel(
+		FirstHit, CameraLocation, TargetLocation, ECC_Visibility);
+	TestTrue("Positive control trace hits geometry", bHit);
+	TestEqual("Positive control puts untagged geometry first", FirstHit.GetComponent(),
+		static_cast<UPrimitiveComponent*>(NearUntagged));
+
+	AddExpectedError(TEXT("has no material slot with scalar parameter MordecaiOcclusionFade"),
+		EAutomationExpectedErrorFlags::Contains, 2);
+	Mode->UpdateCameraMode(0.125f);
+	Mode->UpdateCameraMode(0.125f);
+	TestEqual("Untagged nearer geometry remains opaque", ReadFade(NearUntagged), 1.0f);
+	TestEqual("Tagged wall behind untagged geometry reaches fully faded",
+		ReadFade(TaggedWall), 0.0f);
+	TestEqual("Second stacked tagged wall reaches fully faded",
+		ReadFade(StackedTaggedWall), 0.0f);
+	TestFalse("Mistagged wall receives no dynamic material",
+		MistaggedWall->GetMaterial(0)->IsA<UMaterialInstanceDynamic>());
+
+	Target->SetActorLocation(FVector(0.0f, 5000.0f, 0.0f));
+	Mode->UpdateCameraMode(0.25f);
+	TestEqual("Tagged wall restores when target moves clear", ReadFade(TaggedWall), 1.0f);
+	TestEqual("Stacked tagged wall restores when target moves clear", ReadFade(StackedTaggedWall), 1.0f);
+
+	Target->SetActorLocation(FVector::ZeroVector);
+	Mode->UpdateCameraMode(0.125f);
+	Mode->UpdateCameraMode(0.125f);
+	TestEqual("Wall is faded before target destruction", ReadFade(TaggedWall), 0.0f);
+	TestTrue("Target destruction succeeds", Target->Destroy());
+	TestEqual("Target EndPlay restores a faded wall", ReadFade(TaggedWall), 1.0f);
+
+	AActor* DeactivationTarget = TestWorld.World->SpawnActor<AActor>();
+	ULyraCameraComponent* DeactivationCamera = DeactivationTarget
+		? NewObject<ULyraCameraComponent>(DeactivationTarget, TEXT("US099DeactivationCamera"))
+		: nullptr;
+	if (!TestNotNull("Deactivation target spawned", DeactivationTarget)
+		|| !TestNotNull("Deactivation camera created", DeactivationCamera))
+	{
+		TestWorld.Teardown();
+		return true;
+	}
+	DeactivationTarget->AddInstanceComponent(DeactivationCamera);
+	DeactivationTarget->SetRootComponent(DeactivationCamera);
+	DeactivationCamera->RegisterComponent();
+
+	UMordecaiCameraMode_Diorama* DeactivationMode =
+		NewObject<UMordecaiCameraMode_Diorama>(DeactivationCamera, TEXT("US099DeactivationMode"));
+	DeactivationMode->FollowSpeed = 100000.0f;
+	DeactivationMode->UpdateCameraMode(0.0f);
+	DeactivationMode->UpdateCameraMode(0.125f);
+	DeactivationMode->UpdateCameraMode(0.125f);
+	TestEqual("Wall is faded before camera-mode deactivation", ReadFade(TaggedWall), 0.0f);
+	DeactivationMode->OnDeactivation();
+	TestEqual("Camera-mode deactivation restores a faded wall", ReadFade(TaggedWall), 1.0f);
+
+	TestWorld.Teardown();
+	return true;
+}
+
+// Mordecai.Recovery.Camera.RestoresWhenNotBlocking
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiRecoveryCamera_Restores,
+	"Mordecai.Recovery.Camera.RestoresWhenNotBlocking",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiRecoveryCamera_Restores::RunTest(const FString& Parameters)
+{
+	const float HalfRestored = UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(0.0f, false, 0.125f, 0.25f);
+	TestTrue("Clear wall begins restoring", HalfRestored > 0.0f && HalfRestored < 1.0f);
+	TestEqual("Clear wall is fully restored in 0.25 seconds",
+		UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(HalfRestored, false, 0.125f, 0.25f), 1.0f);
+	return true;
+}
+
+// Mordecai.Recovery.Camera.DoesNotFadeFloor
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiRecoveryCamera_DoesNotFadeFloor,
+	"Mordecai.Recovery.Camera.DoesNotFadeFloor",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiRecoveryCamera_DoesNotFadeFloor::RunTest(const FString& Parameters)
+{
+	UStaticMeshComponent* Floor = NewObject<UStaticMeshComponent>();
+	Floor->SetCollisionObjectType(ECC_WorldStatic);
+	TestFalse("Untagged floor is not eligible", UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(Floor));
+
+	UStaticMeshComponent* Enemy = NewObject<UStaticMeshComponent>();
+	Enemy->SetCollisionObjectType(ECC_Pawn);
+	Enemy->ComponentTags.Add(TEXT("Mordecai.OcclusionFade"));
+	TestFalse("Pawn geometry is never eligible", UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(Enemy));
+
+	UInstancedStaticMeshComponent* InstancedWall = NewObject<UInstancedStaticMeshComponent>();
+	InstancedWall->SetCollisionObjectType(ECC_WorldStatic);
+	InstancedWall->ComponentTags.Add(TEXT("Mordecai.OcclusionFade"));
+	TestFalse("Instanced meshes are rejected because per-instance fading is unsupported",
+		UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(InstancedWall));
 	return true;
 }

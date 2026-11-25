@@ -1,0 +1,258 @@
+{
+  "output_dir": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\Playtests\\20261125-130300-us099-marketing-r3",
+  "clip": "wall-fade-and-restore.mp4",
+  "stills": [
+    "still_01_approach.png",
+    "still_02_mid_fade.png",
+    "still_03_fully_faded.png",
+    "still_04_restored.png"
+  ],
+  "still_records": [
+    {
+      "file": "still_01_approach.png",
+      "sha256": "06edd76c232b949a47e4d89c3f45db64e5392ba291a97363c3779b28df0aa6eb",
+      "width": 1920,
+      "height": 1080,
+      "expected": "the player beginning the approach from the arena centre with HUD visible",
+      "player": [
+        0,
+        0,
+        92.15
+      ],
+      "west_wall": {
+        "name": "Arena_Wall_W",
+        "component": "StaticMeshComponent0",
+        "fade": 1
+      },
+      "state_bracket": {
+        "pre": {
+          "player": [
+            0,
+            0,
+            92.15
+          ],
+          "west_wall": {
+            "name": "Arena_Wall_W",
+            "component": "StaticMeshComponent0",
+            "fade": 1
+          }
+        },
+        "post": {
+          "player": [
+            0,
+            0,
+            92.15
+          ],
+          "west_wall": {
+            "name": "Arena_Wall_W",
+            "component": "StaticMeshComponent0",
+            "fade": 1
+          }
+        }
+      },
+      "transition_bracket_required": false
+    },
+    {
+      "file": "still_02_mid_fade.png",
+      "sha256": "aaa1bb619a6aeb279ffdc153b35a7bdba09573e032f12e6494bebb13302337df",
+      "width": 1920,
+      "height": 1080,
+      "expected": "the west wall visibly dithered with the player partly showing through it",
+      "player": [
+        -934.848,
+        934.999,
+        92.15
+      ],
+      "west_wall": {
+        "name": "Arena_Wall_W",
+        "component": "StaticMeshComponent0",
+        "fade": 0.112
+      },
+      "state_bracket": {
+        "pre": {
+          "player": [
+            -934.848,
+            934.999,
+            92.15
+          ],
+          "west_wall": {
+            "name": "Arena_Wall_W",
+            "component": "StaticMeshComponent0",
+            "fade": 0.32
+          }
+        },
+        "post": {
+          "player": [
+            -934.848,
+            934.999,
+            92.15
+          ],
+          "west_wall": {
+            "name": "Arena_Wall_W",
+            "component": "StaticMeshComponent0",
+            "fade": 0.112
+          }
+        }
+      },
+      "transition_bracket_required": true
+    },
+    {
+      "file": "still_03_fully_faded.png",
+      "sha256": "9456b8d95de102b6d0b1825e34b1e0354705b9350eecb3a49b5120ecb5b18506",
+      "width": 1920,
+      "height": 1080,
+      "expected": "the west wall fully faded with the whole player clear and HUD visible",
+      "player": [
+        -934.848,
+        934.999,
+        92.15
+      ],
+      "west_wall": {
+        "name": "Arena_Wall_W",
+        "component": "StaticMeshComponent0",
+        "fade": 0
+      },
+      "state_bracket": {
+        "pre": {
+          "player": [
+            -934.848,
+            934.999,
+            92.15
+          ],
+          "west_wall": {
+            "name": "Arena_Wall_W",
+            "component": "StaticMeshComponent0",
+            "fade": 0.037
+          }
+        },
+        "post": {
+          "player": [
+            -934.848,
+            934.999,
+            92.15
+          ],
+          "west_wall": {
+            "name": "Arena_Wall_W",
+            "component": "StaticMeshComponent0",
+            "fade": 0
+          }
+        }
+      },
+      "transition_bracket_required": false
+    },
+    {
+      "file": "still_04_restored.png",
+      "sha256": "bfa6fdde0a95065fab485f8d63c487dccb32dc9317c79cbf27c66aec52feefd6",
+      "width": 1920,
+      "height": 1080,
+      "expected": "the player beside the fully restored west wall, which remains in frame",
+      "player": [
+        -500.839,
+        922.712,
+        92.15
+      ],
+      "west_wall": {
+        "name": "Arena_Wall_W",
+        "component": "StaticMeshComponent0",
+        "fade": 1
+      },
+      "state_bracket": {
+        "pre": {
+          "player": [
+            -500.839,
+            922.712,
+            92.15
+          ],
+          "west_wall": {
+            "name": "Arena_Wall_W",
+            "component": "StaticMeshComponent0",
+            "fade": 1
+          }
+        },
+        "post": {
+          "player": [
+            -500.839,
+            922.712,
+            92.15
+          ],
+          "west_wall": {
+            "name": "Arena_Wall_W",
+            "component": "StaticMeshComponent0",
+            "fade": 1
+          }
+        }
+      },
+      "transition_bracket_required": false
+    }
+  ],
+  "continuous_movie": {
+    "source_sha256": "3dc8cdd96faf571c4f99666cfd1930ed2b6b9a31cb469bb18fdfa3845f4ef06c",
+    "source_file": "continuous-source.mp4",
+    "source_frame_count": 319,
+    "source_frame_sequence_contiguous": true,
+    "duration_seconds": 10.633,
+    "source_movie_retained": true
+  },
+  "continuous_route_states": [
+    {
+      "phase": "mid_fade_observed",
+      "player": [
+        -921.493,
+        926.915,
+        92.15
+      ],
+      "west_wall": {
+        "name": "Arena_Wall_W",
+        "component": "StaticMeshComponent0",
+        "fade": 0.436
+      }
+    },
+    {
+      "phase": "fully_faded_observed",
+      "player": [
+        -934.296,
+        926.915,
+        92.15
+      ],
+      "west_wall": {
+        "name": "Arena_Wall_W",
+        "component": "StaticMeshComponent0",
+        "fade": 0.009
+      }
+    },
+    {
+      "phase": "restored_observed",
+      "player": [
+        -515.549,
+        926.915,
+        92.15
+      ],
+      "west_wall": {
+        "name": "Arena_Wall_W",
+        "component": "StaticMeshComponent0",
+        "fade": 1
+      }
+    }
+  ],
+  "source_movie": "continuous-source.mp4",
+  "source_movie_sha256": "3dc8cdd96faf571c4f99666cfd1930ed2b6b9a31cb469bb18fdfa3845f4ef06c",
+  "source_movie_retained": true,
+  "mpdecimate": {
+    "method": "ffmpeg mpdecimate -> framehash kept-frame count",
+    "kept_frames": 319,
+    "duration_seconds": 10.633333,
+    "unique_frames_per_second": 30.0,
+    "required_unique_frames_per_second": 25.0,
+    "passed": true
+  },
+  "resolution": [
+    1920,
+    1080
+  ],
+  "fps": 30,
+  "camera_distance": 1000,
+  "production_fade_duration_seconds": 0.25,
+  "still_session_fade_duration_seconds": 2.0,
+  "enemies_frozen": true,
+  "non_acceptance": true
+}

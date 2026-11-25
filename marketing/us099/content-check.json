@@ -1,0 +1,124 @@
+{
+  "video": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\Playtests\\20261125-130300-us099-marketing-r3\\wall-fade-and-restore.mp4",
+  "source_manifest": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\Playtests\\20261125-130300-us099-marketing-r3\\source-frame-manifest.json",
+  "source_frame_count": 319,
+  "minimum_source_psnr_db": 24.0,
+  "minimum_motion": 0.00035,
+  "metadata": {
+    "width": 1920,
+    "height": 1080,
+    "pixel_format": "yuv420p",
+    "frame_rate": "30/1",
+    "frame_count": 319,
+    "duration_seconds": 10.633333,
+    "size_bytes": 4573570
+  },
+  "metadata_passed": true,
+  "samples": [
+    {
+      "second": 1.063,
+      "best_source_frame": "frame_0033.jpg",
+      "best_source_psnr_db": 45.687,
+      "hud_region_non_uniform": true,
+      "passed": true
+    },
+    {
+      "second": 2.127,
+      "best_source_frame": "frame_0065.jpg",
+      "best_source_psnr_db": 45.326,
+      "hud_region_non_uniform": true,
+      "passed": true
+    },
+    {
+      "second": 3.19,
+      "best_source_frame": "frame_0097.jpg",
+      "best_source_psnr_db": 45.548,
+      "hud_region_non_uniform": true,
+      "passed": true
+    },
+    {
+      "second": 4.253,
+      "best_source_frame": "frame_0129.jpg",
+      "best_source_psnr_db": 45.614,
+      "hud_region_non_uniform": true,
+      "passed": true
+    },
+    {
+      "second": 5.317,
+      "best_source_frame": "frame_0161.jpg",
+      "best_source_psnr_db": 45.743,
+      "hud_region_non_uniform": true,
+      "passed": true
+    },
+    {
+      "second": 6.38,
+      "best_source_frame": "frame_0193.jpg",
+      "best_source_psnr_db": 45.999,
+      "hud_region_non_uniform": true,
+      "passed": true
+    },
+    {
+      "second": 7.443,
+      "best_source_frame": "frame_0225.jpg",
+      "best_source_psnr_db": 45.648,
+      "hud_region_non_uniform": true,
+      "passed": true
+    },
+    {
+      "second": 8.507,
+      "best_source_frame": "frame_0257.jpg",
+      "best_source_psnr_db": 45.735,
+      "hud_region_non_uniform": true,
+      "passed": true
+    },
+    {
+      "second": 9.57,
+      "best_source_frame": "frame_0289.jpg",
+      "best_source_psnr_db": 46.162,
+      "hud_region_non_uniform": true,
+      "passed": true
+    }
+  ],
+  "motion": {
+    "consecutive_sample_scores": [
+      0.326579,
+      0.250534,
+      0.164754,
+      0.271873,
+      0.197747,
+      0.27521,
+      0.346714,
+      0.216274
+    ],
+    "moving_pairs": 8,
+    "required_moving_pairs": 6,
+    "passed": true
+  },
+  "temporal_continuity": {
+    "sample_count": 106,
+    "moving_pairs": 105,
+    "pair_count": 105,
+    "moving_pair_ratio": 1.0,
+    "minimum_motion": 0.00015,
+    "minimum_ratio": 0.6,
+    "passed": true
+  },
+  "passed": true,
+  "source_provenance": {
+    "source_movie": "continuous-source.mp4",
+    "source_movie_sha256": "3dc8cdd96faf571c4f99666cfd1930ed2b6b9a31cb469bb18fdfa3845f4ef06c",
+    "source_movie_retained": true,
+    "manifest_decoded_from_source_movie": true,
+    "raw_frame_count": 319,
+    "raw_frame_sequence_contiguous": true
+  },
+  "mpdecimate": {
+    "method": "ffmpeg mpdecimate -> framehash kept-frame count",
+    "kept_frames": 319,
+    "duration_seconds": 10.633333,
+    "unique_frames_per_second": 30.0,
+    "required_unique_frames_per_second": 25.0,
+    "passed": true
+  },
+  "lock_screen_static_footage_rejected": true
+}

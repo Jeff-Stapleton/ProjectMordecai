@@ -16,10 +16,15 @@ class ULoadingScreenManager;
 struct FMordecaiPlaytestCaptureConfig
 {
 	bool bEnabled = false;
+	bool bPlaytestCapture = false;
+	bool bMarketingFrameCapture = false;
+	bool bConflictingCaptureModes = false;
 	int32 NumShots = 3;
+	int32 MarketingFrameLimit = 1200;
 	float DelaySeconds = 6.f;
 	float IntervalSeconds = 2.f;
 	FString ShotDir;
+	FString MarketingFrameDir;
 
 	static FMordecaiPlaytestCaptureConfig FromCommandLine(const TCHAR* CommandLine);
 
@@ -28,6 +33,9 @@ struct FMordecaiPlaytestCaptureConfig
 
 	/** <ShotDir>/engine_loading.png: the frame taken when the loading screen first shows. */
 	FString GetLoadingShotPath() const;
+
+	/** <MarketingFrameDir>/frame_000001.png for Index 0, and so on. */
+	FString GetMarketingFramePath(int32 Index) const;
 
 	/** Seconds after the experience finishes loading that shot Index is taken. */
 	float GetShotTime(int32 Index) const { return DelaySeconds + Index * IntervalSeconds; }
@@ -62,5 +70,7 @@ private:
 	TWeakObjectPtr<ULoadingScreenManager> LoadingScreenManager;
 	double ExperienceLoadedTime = -1.0;
 	int32 NextShot = 0;
+	int32 MarketingTickCount = 0;
+	int32 MarketingWarmupTickCount = 0;
 	bool bLoadingShotTaken = false;
 };

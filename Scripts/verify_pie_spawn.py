@@ -106,6 +106,67 @@ def _run():
     check("Pawn not at world origin", not_at_origin,
           f"Location=({loc.x:.0f}, {loc.y:.0f}, {loc.z:.0f}) -- may not have spawned correctly")
 
+    # --- US-099 wall-fade content contract (DevTestMap only) ---
+    if "DevTestMap" in world.get_path_name():
+        fade_tag = "Mordecai.OcclusionFade"
+        fade_material = "M_OcclusionFadeWall"
+        fade_parameter = "MordecaiOcclusionFade"
+        fade_wall_labels = {
+            "Arena_Wall_N", "Arena_Wall_S", "Arena_Wall_E", "Arena_Wall_W",
+            "Wall_01", "Wall_02",
+        }
+        static_actors = unreal.GameplayStatics.get_all_actors_of_class(
+            world, unreal.StaticMeshActor)
+        walls = [actor for actor in static_actors
+                 if actor.get_actor_label() in fade_wall_labels]
+        check("US-099 has six fade-enabled DevTestMap walls",
+              {actor.get_actor_label() for actor in walls} == fade_wall_labels,
+              f"Found {[actor.get_actor_label() for actor in walls]}")
+        for wall in walls:
+            mesh = wall.static_mesh_component
+            tags = [str(tag) for tag in mesh.get_editor_property("component_tags")]
+            material = mesh.get_material(0)
+            check(f"US-099 {wall.get_actor_label()} tagged for occlusion fade",
+                  fade_tag in tags, f"Tags={tags}")
+            check(f"US-099 {wall.get_actor_label()} uses masked fade material",
+                  material is not None and fade_material in material.get_name(),
+                  f"Material={material}")
+            base_material = material.get_base_material() if material is not None else None
+            blend_mode = (
+                base_material.get_editor_property("blend_mode")
+                if base_material is not None else None
+            )
+            clip_value = (
+                float(base_material.get_editor_property("opacity_mask_clip_value"))
+                if base_material is not None else None
+            )
+            check(f"US-099 {wall.get_actor_label()} base material is BLEND_MASKED",
+                  blend_mode == unreal.BlendMode.BLEND_MASKED,
+                  f"Base={base_material}, blend={blend_mode}")
+            check(f"US-099 {wall.get_actor_label()} opacity-mask clip is 0.333",
+                  clip_value is not None and abs(clip_value - 0.333) <= 0.001,
+                  f"Base={base_material}, clip={clip_value}")
+            parameter_names = (
+                [str(name) for name in
+                 unreal.MaterialEditingLibrary.get_scalar_parameter_names(material)]
+                if material is not None else []
+            )
+            check(f"US-099 {wall.get_actor_label()} material exposes fade scalar",
+                  fade_parameter in parameter_names,
+                  f"Scalar parameters={parameter_names}")
+            if material is not None and fade_parameter in parameter_names:
+                fade_value = unreal.MaterialEditingLibrary.get_material_default_scalar_parameter_value(
+                    material, fade_parameter)
+                check(f"US-099 {wall.get_actor_label()} fade scalar starts opaque",
+                      abs(float(fade_value) - 1.0) <= 0.001,
+                      f"{fade_parameter}={fade_value}")
+        floors = [actor for actor in static_actors
+                  if actor.get_actor_label() == "Arena_Floor"]
+        floor_tags = [str(tag) for floor in floors
+                      for tag in floor.static_mesh_component.get_editor_property("component_tags")]
+        check("US-099 arena floor is never fade-enabled",
+              bool(floors) and fade_tag not in floor_tags, f"Floor tags={floor_tags}")
+
     print("")
     print(f"RESULT: {pass_count} passed, {fail_count} failed")
 

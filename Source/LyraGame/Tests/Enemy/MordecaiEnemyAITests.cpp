@@ -372,3 +372,25 @@ bool FMordecai_EnemyAI_OnlyRunsOnServer::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+// ---------------------------------------------------------------------------
+// 12. Mordecai.EnemyAI.MarketingCaptureDoesNotFreezeAI
+// The shared presentation flag is used by US-090 and must not disable its TestAttacker.
+// Only US-099's dedicated inert-enemy capture flag may freeze the controller.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_EnemyAI_MarketingCaptureDoesNotFreezeAI,
+	"Mordecai.EnemyAI.MarketingCaptureDoesNotFreezeAI",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_EnemyAI_MarketingCaptureDoesNotFreezeAI::RunTest(const FString& Parameters)
+{
+	TestFalse("Shared marketing presentation flag keeps AI active",
+		AMordecaiEnemyAIController::ShouldFreezeAIForMarketing(
+			TEXT("-MordecaiMarketingCapture")));
+	TestTrue("Dedicated US-099 marketing flag freezes AI",
+		AMordecaiEnemyAIController::ShouldFreezeAIForMarketing(
+			TEXT("-MordecaiMarketingCapture -MordecaiMarketingFreezeAI")));
+	TestFalse("Normal launches keep AI active",
+		AMordecaiEnemyAIController::ShouldFreezeAIForMarketing(TEXT("-windowed -log")));
+	return true;
+}
