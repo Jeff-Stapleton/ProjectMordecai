@@ -1,6 +1,7 @@
 // Project Mordecai
 
 #include "MordecaiCameraMode_Diorama.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/Character.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
@@ -13,6 +14,7 @@ UMordecaiCameraMode_Diorama::UMordecaiCameraMode_Diorama()
 		? 1000.0f
 		: 1800.0f)
 	, FollowSpeed(8.0f)
+	, OcclusionFadeDuration(0.25f)
 	, SmoothedPivotLocation(FVector::ZeroVector)
 	, bFirstUpdate(true)
 {
@@ -21,6 +23,17 @@ UMordecaiCameraMode_Diorama::UMordecaiCameraMode_Diorama()
 	ViewPitchMin = PitchAngle;
 	ViewPitchMax = PitchAngle;
 	BlendTime = 0.5f;
+}
+
+float UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(
+	float CurrentFade, bool bBlockingPlayer, float DeltaTime, float FadeDuration)
+{
+	return CurrentFade;
+}
+
+bool UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(const UPrimitiveComponent* Primitive)
+{
+	return false;
 }
 
 void UMordecaiCameraMode_Diorama::UpdateView(float DeltaTime)

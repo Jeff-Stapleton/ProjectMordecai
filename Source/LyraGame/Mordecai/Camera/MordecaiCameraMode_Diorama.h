@@ -6,6 +6,8 @@
 
 #include "MordecaiCameraMode_Diorama.generated.h"
 
+class UPrimitiveComponent;
+
 /**
  * UMordecaiCameraMode_Diorama
  *
@@ -30,6 +32,13 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Mordecai|Camera", Meta = (ClampMin = "0.1", ClampMax = "50.0"))
 	float FollowSpeed;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Mordecai|Camera|Occlusion", Meta = (ClampMin = "0.05", ClampMax = "1.0"))
+	float OcclusionFadeDuration;
+
+	/** Pure helpers shared by runtime occlusion and headless tests. */
+	static float AdvanceOcclusionFade(float CurrentFade, bool bBlockingPlayer, float DeltaTime, float FadeDuration);
+	static bool IsOcclusionFadeCandidate(const UPrimitiveComponent* Primitive);
 
 protected:
 	virtual void UpdateView(float DeltaTime) override;

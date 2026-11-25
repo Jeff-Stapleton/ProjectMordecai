@@ -1,6 +1,7 @@
 // Project Mordecai — Camera Tests (Story 1.2)
 
 #include "Misc/AutomationTest.h"
+#include "Components/BoxComponent.h"
 #include "Mordecai/Camera/MordecaiCameraMode_Diorama.h"
 
 // Mordecai.Camera.FollowsCharacterPosition
@@ -58,5 +59,56 @@ bool FMordecaiCamera_DesignerProperties::RunTest(const FString& Parameters)
 	FProperty* SpeedProp = CameraClass->FindPropertyByName(FName("FollowSpeed"));
 	TestNotNull("FollowSpeed property exists", SpeedProp);
 
+	return true;
+}
+
+// Mordecai.Recovery.Camera.OccluderFadesWhenBlockingPlayer
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiRecoveryCamera_OccluderFades,
+	"Mordecai.Recovery.Camera.OccluderFadesWhenBlockingPlayer",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiRecoveryCamera_OccluderFades::RunTest(const FString& Parameters)
+{
+	UBoxComponent* Wall = NewObject<UBoxComponent>();
+	Wall->SetCollisionObjectType(ECC_WorldStatic);
+	Wall->ComponentTags.Add(TEXT("Mordecai.OcclusionFade"));
+
+	TestTrue("Tagged WorldStatic wall is eligible", UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(Wall));
+	const float HalfFade = UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(1.0f, true, 0.125f, 0.25f);
+	TestTrue("Blocking wall begins fading", HalfFade > 0.0f && HalfFade < 1.0f);
+	TestEqual("Blocking wall reaches fully faded in 0.25 seconds",
+		UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(HalfFade, true, 0.125f, 0.25f), 0.0f);
+	return true;
+}
+
+// Mordecai.Recovery.Camera.RestoresWhenNotBlocking
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiRecoveryCamera_Restores,
+	"Mordecai.Recovery.Camera.RestoresWhenNotBlocking",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiRecoveryCamera_Restores::RunTest(const FString& Parameters)
+{
+	const float HalfRestored = UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(0.0f, false, 0.125f, 0.25f);
+	TestTrue("Clear wall begins restoring", HalfRestored > 0.0f && HalfRestored < 1.0f);
+	TestEqual("Clear wall is fully restored in 0.25 seconds",
+		UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(HalfRestored, false, 0.125f, 0.25f), 1.0f);
+	return true;
+}
+
+// Mordecai.Recovery.Camera.DoesNotFadeFloor
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiRecoveryCamera_DoesNotFadeFloor,
+	"Mordecai.Recovery.Camera.DoesNotFadeFloor",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecaiRecoveryCamera_DoesNotFadeFloor::RunTest(const FString& Parameters)
+{
+	UBoxComponent* Floor = NewObject<UBoxComponent>();
+	Floor->SetCollisionObjectType(ECC_WorldStatic);
+	TestFalse("Untagged floor is not eligible", UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(Floor));
+
+	UBoxComponent* Enemy = NewObject<UBoxComponent>();
+	Enemy->SetCollisionObjectType(ECC_Pawn);
+	Enemy->ComponentTags.Add(TEXT("Mordecai.OcclusionFade"));
+	TestFalse("Pawn geometry is never eligible", UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(Enemy));
 	return true;
 }
