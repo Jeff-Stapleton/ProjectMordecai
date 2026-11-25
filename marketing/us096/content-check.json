@@ -1,99 +1,109 @@
 {
-  "method": "required SHA256 source-frame manifest + decoded-frame PSNR source matching + HUD structure + consecutive-frame motion",
+  "method": "required SHA256 source-frame manifest + decoded-frame PSNR source matching + HUD structure + consecutive-frame motion + 10 fps temporal continuity",
   "videos": [
     {
       "video": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\us096\\weapon-cycling-back-and-forth.mp4",
       "source_manifest": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\us096\\source-frame-manifest.json",
-      "source_frame_count": 21,
+      "source_frame_count": 22,
       "minimum_source_psnr_db": 24.0,
       "minimum_motion": 0.00035,
       "metadata": {
-        "width": 1920,
-        "height": 1080,
+        "width": 1280,
+        "height": 720,
         "pixel_format": "yuv420p",
         "frame_rate": "30/1",
-        "duration_seconds": 6.233333,
-        "size_bytes": 7104284
+        "frame_count": 195,
+        "duration_seconds": 6.5,
+        "size_bytes": 3683364
       },
       "metadata_passed": true,
       "samples": [
         {
-          "second": 0.623,
+          "second": 0.65,
           "best_source_frame": "frame_0003.png",
-          "best_source_psnr_db": 45.316,
+          "best_source_psnr_db": 33.952,
           "hud_region_non_uniform": true,
           "passed": true
         },
         {
-          "second": 1.247,
-          "best_source_frame": "frame_0005.png",
-          "best_source_psnr_db": 45.377,
-          "hud_region_non_uniform": true,
-          "passed": true
-        },
-        {
-          "second": 1.87,
-          "best_source_frame": "frame_0007.png",
-          "best_source_psnr_db": 45.234,
-          "hud_region_non_uniform": true,
-          "passed": true
-        },
-        {
-          "second": 2.493,
+          "second": 1.3,
           "best_source_frame": "frame_0009.png",
-          "best_source_psnr_db": 45.405,
+          "best_source_psnr_db": 31.247,
           "hud_region_non_uniform": true,
           "passed": true
         },
         {
-          "second": 3.117,
-          "best_source_frame": "frame_0011.png",
-          "best_source_psnr_db": 45.228,
+          "second": 1.95,
+          "best_source_frame": "frame_0007.png",
+          "best_source_psnr_db": 39.353,
           "hud_region_non_uniform": true,
           "passed": true
         },
         {
-          "second": 3.74,
-          "best_source_frame": "frame_0012.png",
-          "best_source_psnr_db": 45.115,
+          "second": 2.6,
+          "best_source_frame": "frame_0009.png",
+          "best_source_psnr_db": 34.824,
           "hud_region_non_uniform": true,
           "passed": true
         },
         {
-          "second": 4.363,
-          "best_source_frame": "frame_0015.png",
-          "best_source_psnr_db": 45.138,
+          "second": 3.25,
+          "best_source_frame": "frame_0007.png",
+          "best_source_psnr_db": 27.438,
           "hud_region_non_uniform": true,
           "passed": true
         },
         {
-          "second": 4.987,
+          "second": 3.9,
+          "best_source_frame": "frame_0014.png",
+          "best_source_psnr_db": 33.68,
+          "hud_region_non_uniform": true,
+          "passed": true
+        },
+        {
+          "second": 4.55,
           "best_source_frame": "frame_0016.png",
-          "best_source_psnr_db": 45.365,
+          "best_source_psnr_db": 39.388,
           "hud_region_non_uniform": true,
           "passed": true
         },
         {
-          "second": 5.61,
+          "second": 5.2,
           "best_source_frame": "frame_0018.png",
-          "best_source_psnr_db": 45.296,
+          "best_source_psnr_db": 39.678,
+          "hud_region_non_uniform": true,
+          "passed": true
+        },
+        {
+          "second": 5.85,
+          "best_source_frame": "frame_0016.png",
+          "best_source_psnr_db": 29.881,
           "hud_region_non_uniform": true,
           "passed": true
         }
       ],
       "motion": {
         "consecutive_sample_scores": [
-          0.05139,
-          0.039234,
-          0.034414,
-          0.052969,
-          0.054407,
-          0.06154,
-          0.043207,
-          0.04127
+          0.044695,
+          0.029462,
+          0.022588,
+          0.046921,
+          0.068549,
+          0.044053,
+          0.02091,
+          0.036997
         ],
         "moving_pairs": 8,
         "required_moving_pairs": 6,
+        "passed": true
+      },
+      "temporal_continuity": {
+        "sample_count": 65,
+        "moving_pairs": 64,
+        "pair_count": 64,
+        "moving_pair_ratio": 1.0,
+        "minimum_motion": 0.00015,
+        "minimum_ratio": 0.6,
         "passed": true
       },
       "passed": true

@@ -1,0 +1,26 @@
+{
+  "clip": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\us096\\weapon-cycling-back-and-forth.mp4",
+  "stills": [
+    "still_01_longsword.png",
+    "still_02_dagger.png",
+    "still_03_greatsword.png",
+    "still_04_dagger.png",
+    "still_05_longsword.png"
+  ],
+  "duration_seconds": 6.5,
+  "fps": 30,
+  "resolution": [
+    1280,
+    720
+  ],
+  "weapon_sequence": [
+    "Longsword",
+    "Dagger",
+    "Greatsword",
+    "Dagger",
+    "Longsword"
+  ],
+  "dump_frame_count": 218,
+  "selected_dump_frames": 195,
+  "start_dump_offset": 19
+}
