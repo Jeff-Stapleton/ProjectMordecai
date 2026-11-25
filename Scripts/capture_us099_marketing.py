@@ -20,7 +20,7 @@ if SCRIPT_DIR not in sys.path:
 import agent_bridge as ab  # noqa: E402
 import playtest_kit as kit  # noqa: E402
 from capture_us090_marketing import _label_proof, _sha256  # noqa: E402
-from verify_marketing_media import decode_motion_frames, frame_psnr, verify_video  # noqa: E402
+from verify_marketing_media import verify_video  # noqa: E402
 
 FPS = 30
 OUTPUT_SIZE = (1920, 1080)
@@ -210,50 +210,34 @@ def _require_empty_output_dir(output_dir):
     os.makedirs(output_dir, exist_ok=True)
 
 
-def _best_alignment(frames, reference, start=0):
-    scores = [frame_psnr(frame, reference) for frame in frames[start:]]
-    if not scores:
-        return None, 0.0
-    relative = max(range(len(scores)), key=scores.__getitem__)
-    return start + relative, scores[relative]
-
-
-def _encode_clip(source_avi, first_still, last_still, clip):
-    samples = decode_motion_frames(source_avi, sample_fps=10, size=(320, 180))
-    with Image.open(first_still) as image:
-        first = image.convert("RGB").resize((320, 180))
-    with Image.open(last_still) as image:
-        last = image.convert("RGB").resize((320, 180))
-    first_index, first_psnr = _best_alignment(samples, first)
-    if first_index is None or first_psnr < 15.0:
-        raise RuntimeError(
-            f"could not align continuous source to approach still (PSNR {first_psnr:.3f})")
-    last_index, last_psnr = _best_alignment(samples, last, first_index + 1)
-    if last_index is None or last_psnr < 15.0:
-        raise RuntimeError(
-            f"could not align continuous source to restored still (PSNR {last_psnr:.3f})")
-
-    start_seconds = first_index / 10.0
-    duration_seconds = (last_index - first_index + 1) / 10.0
+def _source_duration_seconds(frame_count):
+    duration_seconds = frame_count / FPS
     if duration_seconds < MIN_CLIP_SECONDS:
         raise RuntimeError(
-            f"aligned wall-fade sequence is only {duration_seconds:.3f}s; need >= "
-            f"{MIN_CLIP_SECONDS:g}s of genuine continuous footage")
-    duration_seconds = min(duration_seconds, MAX_CLIP_SECONDS)
+            f"contiguous source is {duration_seconds:.3f}s; need at least "
+            f"{MIN_CLIP_SECONDS:g}s")
+    if duration_seconds > MAX_CLIP_SECONDS:
+        raise RuntimeError(
+            f"contiguous source is {duration_seconds:.3f}s; need at most "
+            f"{MAX_CLIP_SECONDS:g}s")
+    return duration_seconds
+
+
+def _encode_clip(source_movie, source_frame_count, clip):
+    duration_seconds = _source_duration_seconds(source_frame_count)
     subprocess.check_call([
         "ffmpeg", "-y", "-loglevel", "error",
-        "-ss", f"{start_seconds:.3f}", "-i", source_avi,
+        "-i", source_movie,
         "-t", f"{duration_seconds:.3f}", "-an",
         "-vf", f"scale={OUTPUT_SIZE[0]}:{OUTPUT_SIZE[1]}",
         "-r", str(FPS), "-c:v", "libx264", "-preset", "medium",
         "-crf", "18", "-pix_fmt", "yuv420p", clip,
     ])
     return {
-        "source_sha256": _sha256(source_avi),
-        "source_file": os.path.basename(source_avi),
-        "alignment_start_seconds": round(start_seconds, 3),
-        "approach_alignment_psnr_db": round(first_psnr, 3),
-        "restored_alignment_psnr_db": round(last_psnr, 3),
+        "source_sha256": _sha256(source_movie),
+        "source_file": os.path.basename(source_movie),
+        "source_frame_count": source_frame_count,
+        "source_frame_sequence_contiguous": True,
         "duration_seconds": round(duration_seconds, 3),
     }
 
@@ -532,12 +516,9 @@ def capture(output_dir):
     clip = os.path.join(output_dir, "wall-fade-and-restore.mp4")
     continuous = _encode_clip(
         source_movie,
-        os.path.join(output_dir, stills[0]["file"]),
-        os.path.join(output_dir, stills[-1]["file"]),
+        len(source_frames),
         clip,
     )
-    continuous["source_frame_count"] = len(source_frames)
-    continuous["source_frame_sequence_contiguous"] = True
     continuous["source_movie_retained"] = True
     source_manifest = _make_source_manifest(source_movie, output_dir)
     content = verify_video(clip, source_manifest)
