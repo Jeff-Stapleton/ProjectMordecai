@@ -1,0 +1,196 @@
+{
+  "proofs": [
+    {
+      "map": "/MordecaiCore/Game/Maps/DevTestMap",
+      "experience": "B_MordecaiArenaExperience",
+      "command_line_flag": "-MordecaiMarketingCapture",
+      "actor_count": 10,
+      "rendered_widget_texts": [
+        "Longsword",
+        "Slash",
+        "Tab",
+        "HP",
+        "55%",
+        "Kills: 0",
+        "[I] Inventory",
+        "Q",
+        "E",
+        "R",
+        "1",
+        "SP",
+        "10 / 10",
+        "ST",
+        "\u00d71.25"
+      ],
+      "actor_widget_violations": [],
+      "rendered_actor_name_violations": [],
+      "enemy_indicator_widgets": [],
+      "debug_text_violations": [],
+      "passed": true,
+      "text_render_showflag_disabled": true,
+      "suppressed_text_label_components": [
+        {
+          "actor": "TestPickup_MysteriousAmulet",
+          "label": {
+            "component": "NameLabel",
+            "text": "Unidentified Purple Amulet",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_HealthPotion",
+          "label": {
+            "component": "NameLabel",
+            "text": "Health Potion",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_TownStone",
+          "label": {
+            "component": "NameLabel",
+            "text": "Town Stone",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_IronOre",
+          "label": {
+            "component": "NameLabel",
+            "text": "Iron Ore",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_UpgradeKey",
+          "label": {
+            "component": "NameLabel",
+            "text": "Upgrade Key",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_RustySword",
+          "label": {
+            "component": "NameLabel",
+            "text": "Rusty Sword",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        }
+      ],
+      "text_label_violations": [],
+      "phase": "start"
+    },
+    {
+      "map": "/MordecaiCore/Game/Maps/DevTestMap",
+      "experience": "B_MordecaiArenaExperience",
+      "command_line_flag": "-MordecaiMarketingCapture",
+      "actor_count": 10,
+      "rendered_widget_texts": [
+        "Longsword",
+        "Slash",
+        "Tab",
+        "HP",
+        "95%",
+        "Kills: 0",
+        "[I] Inventory",
+        "Q",
+        "1.0",
+        "E",
+        "10.1",
+        "R",
+        "4.7",
+        "1",
+        "SP",
+        "2 / 10",
+        "ST",
+        "\u00d71.25",
+        "Stone Skin",
+        "5.2"
+      ],
+      "actor_widget_violations": [],
+      "rendered_actor_name_violations": [],
+      "enemy_indicator_widgets": [],
+      "debug_text_violations": [],
+      "passed": true,
+      "text_render_showflag_disabled": true,
+      "suppressed_text_label_components": [
+        {
+          "actor": "TestPickup_HealthPotion",
+          "label": {
+            "component": "NameLabel",
+            "text": "Health Potion",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_IronOre",
+          "label": {
+            "component": "NameLabel",
+            "text": "Iron Ore",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_TownStone",
+          "label": {
+            "component": "NameLabel",
+            "text": "Town Stone",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_UpgradeKey",
+          "label": {
+            "component": "NameLabel",
+            "text": "Upgrade Key",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_MysteriousAmulet",
+          "label": {
+            "component": "NameLabel",
+            "text": "Unidentified Purple Amulet",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_RustySword",
+          "label": {
+            "component": "NameLabel",
+            "text": "Rusty Sword",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        }
+      ],
+      "text_label_violations": [],
+      "phase": "end"
+    }
+  ],
+  "passed": true
+}

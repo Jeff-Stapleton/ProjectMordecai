@@ -1,0 +1,346 @@
+{
+  "version": 1,
+  "capture": "game-owned agent bridge viewport screenshots",
+  "fps": 30,
+  "frame_count": 21,
+  "duration_seconds": 5.3613333333333335,
+  "unique_source_frames": 21,
+  "frames": [
+    {
+      "index": 1,
+      "file": "source-frames/frame_0001.png",
+      "sha256": "c09a632e19c6e31a14c20a2cb93f256ab12ff7e548d5e5e3e108d73adfc5f2e7",
+      "elapsed_s": 0.0,
+      "phase": "approach",
+      "location": [
+        -106.815,
+        0,
+        92.15
+      ],
+      "health": 55,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 2,
+      "file": "source-frames/frame_0002.png",
+      "sha256": "4ea7afbac5c505ba7c2a169671b4602dbec3d5045ae54a14f5f561fae08e2f39",
+      "elapsed_s": 0.25,
+      "phase": "approach",
+      "location": [
+        -286.194,
+        0,
+        92.15
+      ],
+      "health": 55,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 3,
+      "file": "source-frames/frame_0003.png",
+      "sha256": "3cd7717742d371402c6b98b6f1715765d85dc6d9b1e86c514634e26df3a51c74",
+      "elapsed_s": 0.484,
+      "phase": "approach",
+      "location": [
+        -432.815,
+        0,
+        92.15
+      ],
+      "health": 55,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 4,
+      "file": "source-frames/frame_0004.png",
+      "sha256": "9cac23408547ba82e4a5a4b4d72fbae69d20c8546127418d6c45f2aafa35bd24",
+      "elapsed_s": 0.719,
+      "phase": "approach",
+      "location": [
+        -571.412,
+        0,
+        92.15
+      ],
+      "health": 55,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 5,
+      "file": "source-frames/frame_0005.png",
+      "sha256": "f3855060862d5326f70cba7bc2b75262016b8fe548d065367547a2eeb83ea92c",
+      "elapsed_s": 0.969,
+      "phase": "approach",
+      "location": [
+        -721.553,
+        0,
+        92.15
+      ],
+      "health": 55,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 6,
+      "file": "source-frames/frame_0006.png",
+      "sha256": "dd22a22b79063825e161f228c487ada59684489fa7ecc36d221c3873176e1dca",
+      "elapsed_s": 1.203,
+      "phase": "approach",
+      "location": [
+        -859.622,
+        0,
+        92.15
+      ],
+      "health": 63,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 7,
+      "file": "source-frames/frame_0007.png",
+      "sha256": "0251da2c6795680f82ddecf4c3f9e21cde48d545d3810d698951c526f2dc6854",
+      "elapsed_s": 1.453,
+      "phase": "approach",
+      "location": [
+        -934.998,
+        0,
+        92.15
+      ],
+      "health": 63,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 8,
+      "file": "source-frames/frame_0008.png",
+      "sha256": "bd03eac926e51b03ca2c874ab7a0521bef4cdac23fbe5953a90f2b58d4f8411b",
+      "elapsed_s": 1.734,
+      "phase": "faded",
+      "location": [
+        -934.998,
+        0,
+        92.15
+      ],
+      "health": 63,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 9,
+      "file": "source-frames/frame_0009.png",
+      "sha256": "d7498c212cca20ca9b43a247788c180ff3124b1e3c997f4a38c80c05b9d1fb12",
+      "elapsed_s": 2.016,
+      "phase": "faded",
+      "location": [
+        -934.998,
+        0,
+        92.15
+      ],
+      "health": 63,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 10,
+      "file": "source-frames/frame_0010.png",
+      "sha256": "79c03d11fe42db780bcdda45c2df4137a1dd834973ee591f1288e0c60f21d57b",
+      "elapsed_s": 2.312,
+      "phase": "faded",
+      "location": [
+        -934.998,
+        0,
+        92.15
+      ],
+      "health": 71,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 11,
+      "file": "source-frames/frame_0011.png",
+      "sha256": "bebc48398bc096e1e55c446656a640837d9ad9e531e6498011d2224fbb2062ce",
+      "elapsed_s": 2.828,
+      "phase": "depart",
+      "location": [
+        -892.921,
+        -24.558,
+        92.15
+      ],
+      "health": 71,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 12,
+      "file": "source-frames/frame_0012.png",
+      "sha256": "87c8296f787830f9e485c8d100741feca65bff55012260d8ddef0356235c5162",
+      "elapsed_s": 3.094,
+      "phase": "depart",
+      "location": [
+        -933.207,
+        0.063,
+        92.15
+      ],
+      "health": 79,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 13,
+      "file": "source-frames/frame_0013.png",
+      "sha256": "bcecdb54e2f0674fdbec288d07775051ce5c37999121c3d210611585bdcdeb8c",
+      "elapsed_s": 3.359,
+      "phase": "depart",
+      "location": [
+        -834.349,
+        0.063,
+        92.15
+      ],
+      "health": 79,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 14,
+      "file": "source-frames/frame_0014.png",
+      "sha256": "4c0cd46548f3d7da36d2a5ad413d311e989132c2e4702935c94bdf26cbfdd8c2",
+      "elapsed_s": 3.625,
+      "phase": "depart",
+      "location": [
+        -764.72,
+        47.537,
+        92.15
+      ],
+      "health": 79,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 15,
+      "file": "source-frames/frame_0015.png",
+      "sha256": "9ba3949c1539b2ce27f748f02f99b2de1eddce42d1ccd0d11af76db9f46501e7",
+      "elapsed_s": 3.859,
+      "phase": "depart",
+      "location": [
+        -639.975,
+        81.748,
+        92.15
+      ],
+      "health": 79,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 16,
+      "file": "source-frames/frame_0016.png",
+      "sha256": "cc8fe93ee72c731c46b4eede8a806229815b7863a40283d1730f6b54c18da59c",
+      "elapsed_s": 4.125,
+      "phase": "depart",
+      "location": [
+        -486.138,
+        86.794,
+        92.15
+      ],
+      "health": 87,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 17,
+      "file": "source-frames/frame_0017.png",
+      "sha256": "ecd70ef4433cce82c81a199f3966970d9badc53be0a452331b2174174c4d460d",
+      "elapsed_s": 4.344,
+      "phase": "depart",
+      "location": [
+        -346.905,
+        86.977,
+        92.15
+      ],
+      "health": 87,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 18,
+      "file": "source-frames/frame_0018.png",
+      "sha256": "596aa1f91fef6b959b89608febf63d6a9443f2c32bc05cd35d4e40694d298b4f",
+      "elapsed_s": 4.594,
+      "phase": "depart",
+      "location": [
+        -196.714,
+        86.986,
+        92.15
+      ],
+      "health": 87,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 19,
+      "file": "source-frames/frame_0019.png",
+      "sha256": "c67edd1f246273bec25cdac20a31454fc889dc199e82968263d026b4c77a0d33",
+      "elapsed_s": 4.828,
+      "phase": "depart",
+      "location": [
+        -56.968,
+        86.987,
+        92.15
+      ],
+      "health": 87,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 20,
+      "file": "source-frames/frame_0020.png",
+      "sha256": "635dd993a5962b94d41c0dfa78af6c9ed0691d6ff155fe98027834d8a522cac1",
+      "elapsed_s": 5.078,
+      "phase": "restored",
+      "location": [
+        93.006,
+        86.987,
+        92.15
+      ],
+      "health": 95,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "index": 21,
+      "file": "source-frames/frame_0021.png",
+      "sha256": "b81b8cd44893daee2863ebad7fb2b431da9ee0221dd8784b595d15464f698eb4",
+      "elapsed_s": 5.328,
+      "phase": "restored",
+      "location": [
+        242.608,
+        86.987,
+        92.15
+      ],
+      "health": 95,
+      "is_dead": false,
+      "width": 1920,
+      "height": 1080
+    }
+  ]
+}

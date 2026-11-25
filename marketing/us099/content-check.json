@@ -1,0 +1,120 @@
+{
+  "method": "required SHA256 source-frame manifest + decoded-frame PSNR source matching + HUD structure + consecutive-frame motion + 10 fps temporal continuity",
+  "videos": [
+    {
+      "video": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\us099\\wall-fade-and-restore.mp4",
+      "source_manifest": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\us099\\source-frame-manifest.json",
+      "source_frame_count": 21,
+      "minimum_source_psnr_db": 24.0,
+      "minimum_motion": 0.00035,
+      "metadata": {
+        "width": 1920,
+        "height": 1080,
+        "pixel_format": "yuv420p",
+        "frame_rate": "30/1",
+        "frame_count": 162,
+        "duration_seconds": 5.4,
+        "size_bytes": 2039001
+      },
+      "metadata_passed": true,
+      "samples": [
+        {
+          "second": 0.54,
+          "best_source_frame": "frame_0003.png",
+          "best_source_psnr_db": 45.784,
+          "hud_region_non_uniform": true,
+          "passed": true
+        },
+        {
+          "second": 1.08,
+          "best_source_frame": "frame_0005.png",
+          "best_source_psnr_db": 45.492,
+          "hud_region_non_uniform": true,
+          "passed": true
+        },
+        {
+          "second": 1.62,
+          "best_source_frame": "frame_0007.png",
+          "best_source_psnr_db": 45.495,
+          "hud_region_non_uniform": true,
+          "passed": true
+        },
+        {
+          "second": 2.16,
+          "best_source_frame": "frame_0009.png",
+          "best_source_psnr_db": 45.424,
+          "hud_region_non_uniform": true,
+          "passed": true
+        },
+        {
+          "second": 2.7,
+          "best_source_frame": "frame_0010.png",
+          "best_source_psnr_db": 45.382,
+          "hud_region_non_uniform": true,
+          "passed": true
+        },
+        {
+          "second": 3.24,
+          "best_source_frame": "frame_0012.png",
+          "best_source_psnr_db": 45.674,
+          "hud_region_non_uniform": true,
+          "passed": true
+        },
+        {
+          "second": 3.78,
+          "best_source_frame": "frame_0014.png",
+          "best_source_psnr_db": 45.375,
+          "hud_region_non_uniform": true,
+          "passed": true
+        },
+        {
+          "second": 4.32,
+          "best_source_frame": "frame_0016.png",
+          "best_source_psnr_db": 45.527,
+          "hud_region_non_uniform": true,
+          "passed": true
+        },
+        {
+          "second": 4.86,
+          "best_source_frame": "frame_0019.png",
+          "best_source_psnr_db": 44.92,
+          "hud_region_non_uniform": true,
+          "passed": true
+        }
+      ],
+      "motion": {
+        "consecutive_sample_scores": [
+          0.253706,
+          0.229225,
+          0.085115,
+          0.03082,
+          0.127312,
+          0.137629,
+          0.220667,
+          0.208233
+        ],
+        "moving_pairs": 8,
+        "required_moving_pairs": 6,
+        "passed": true
+      },
+      "temporal_continuity": {
+        "sample_count": 54,
+        "moving_pairs": 53,
+        "pair_count": 53,
+        "moving_pair_ratio": 1.0,
+        "minimum_motion": 0.00015,
+        "minimum_ratio": 0.6,
+        "passed": true
+      },
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "unique_frame_check": {
+    "source_frame_count": 21,
+    "unique_sha256_count": 21,
+    "required_minimum": 12,
+    "passed": true
+  },
+  "lock_screen_static_footage_rejected": true
+}
