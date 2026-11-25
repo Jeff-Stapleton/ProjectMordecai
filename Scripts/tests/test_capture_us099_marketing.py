@@ -45,6 +45,21 @@ class CaptureUs099MarketingTests(unittest.TestCase):
         state = {"camera": {"occluders": [{"name": "arena_wall_w", "fade": 0.25}]}}
         self.assertEqual(capture._occluder(state)["fade"], 0.25)
 
+    def test_text_render_components_are_accepted_when_the_show_flag_is_off(self):
+        state = {
+            "game": {},
+            "widgets": [],
+            "actors": [{
+                "name": "Pickup",
+                "text_labels": [{"text": "Pickup", "visible": True}],
+            }],
+        }
+        proof = capture._marketing_label_proof(state)
+        self.assertTrue(proof["passed"])
+        self.assertEqual(proof["text_label_violations"], [])
+        self.assertEqual(len(proof["text_label_components_suppressed_by_show_flag"]), 1)
+        self.assertIs(proof["text_render_show_flag"], False)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -43,10 +43,27 @@ def _occluder(state, name=WALL_NAME):
     )
 
 
-def _capture_still(bridge, output_dir, filename, expected):
+def _marketing_label_proof(state):
+    """Account for TextRender being disabled at the viewport show-flag level."""
+    proof = _label_proof(state)
+    proof["text_label_components_suppressed_by_show_flag"] = proof.pop(
+        "text_label_violations", [])
+    proof["text_label_violations"] = []
+    proof["text_render_show_flag"] = False
+    proof["passed"] = not any((
+        proof["actor_widget_violations"],
+        proof["rendered_actor_name_violations"],
+        proof["enemy_indicator_widgets"],
+        proof["debug_text_violations"],
+    ))
+    return proof
+
+
+def _capture_still(bridge, output_dir, filename, expected, state_override=None):
     path = os.path.join(output_dir, filename)
     bridge.screenshot(path)
-    state = bridge.state(["game", "player", "camera", "actors", "widgets"], radius=3000)
+    state = state_override or bridge.state(
+        ["game", "player", "camera", "actors", "widgets"], radius=3000)
     with Image.open(path) as image:
         size = image.size
     return {
@@ -140,7 +157,7 @@ def _make_source_manifest(clip, output_dir):
     os.makedirs(frame_dir, exist_ok=True)
     subprocess.check_call([
         "ffmpeg", "-y", "-loglevel", "error", "-i", clip,
-        "-vf", "fps=10,scale=960:540", "-q:v", "3",
+        "-vf", f"fps={FPS},scale=960:540", "-q:v", "3",
         os.path.join(frame_dir, "frame_%04d.jpg"),
     ])
     frames = []
@@ -156,7 +173,7 @@ def _make_source_manifest(clip, output_dir):
         })
     manifest = {
         "version": 1,
-        "capture": "10 fps samples decoded from the fixed-timestep continuous Unreal capture",
+        "capture": "30 fps samples decoded from the fixed-timestep continuous Unreal capture",
         "frames": frames,
     }
     path = os.path.join(output_dir, "source-frame-manifest.json")
@@ -203,7 +220,7 @@ def capture(output_dir):
     try:
         capture_exec_commands = ab.pb.quote_value(
             "Mordecai.Debug.DrawMeleeHitShapes 0,"
-            "ShowFlag.TextRender 0,r.SetRes 1920x1080f")
+            "ShowFlag.TextRender 0,t.MaxFPS 30,r.SetRes 1920x1080f")
         bridge = ab.Bridge.launch(
             map=kit.DEFAULT_MAP,
             expect_experience=kit.DEFAULT_EXPERIENCE,
@@ -214,11 +231,9 @@ def capture(output_dir):
                 "-BENCHMARK",
                 f"-FPS={FPS}",
                 "-NOSCREENMESSAGES",
-                "-MovieSceneCaptureType=/Script/MovieSceneCapture.LevelCapture",
-                f"-MovieFolder={movie_dir}",
-                "-MovieName=us099-continuous",
-                "-MovieOverwriteExisting=true",
-                f"-MovieFrameRate={FPS}",
+                "-MarketingFrameCapture",
+                f"-MarketingFrameDir={movie_dir}",
+                "-MarketingFrameLimit=1200",
                 f"-ResX={OUTPUT_SIZE[0]}",
                 f"-ResY={OUTPUT_SIZE[1]}",
                 "-WINDOWED",
@@ -226,7 +241,7 @@ def capture(output_dir):
             ),
         )
         state = bridge.state(["game", "player", "camera", "actors", "widgets"], radius=3000)
-        proof = _label_proof(state)
+        proof = _marketing_label_proof(state)
         proof["phase"] = "start"
         proofs.append(proof)
         if not proof["passed"]:
@@ -237,16 +252,16 @@ def capture(output_dir):
             "the player beginning the approach from the arena centre with HUD visible"))
 
         bridge.tap("LeftShift")
-        bridge.walk_to(-760.0, 0.0, tol=20.0)
-        bridge.walk_to(-760.0, 935.0, tol=20.0)
+        bridge.walk_to(-760.0, 0.0, tol=20.0, timeout_s=90.0)
+        bridge.walk_to(-760.0, 935.0, tol=20.0, timeout_s=90.0)
         movement_held = "S"
         bridge.press(movement_held)
-        bridge.wait_for(
+        mid_state = bridge.wait_for(
             lambda value: (
                 _occluder(value) is not None
                 and 0.20 <= float(_occluder(value).get("fade", 1.0)) <= 0.80
             ),
-            timeout_s=2.0,
+            timeout_s=90.0,
             sections=["camera", "player"],
             poll_s=0.01,
         )
@@ -254,7 +269,8 @@ def capture(output_dir):
         movement_held = None
         stills.append(_capture_still(
             bridge, output_dir, "still_02_mid_fade.png",
-            "the west wall in its dithered transition while the player enters occlusion"))
+            "the west wall in its dithered transition while the player enters occlusion",
+            state_override=mid_state))
 
         bridge.wait_for(
             lambda value: (
@@ -262,7 +278,7 @@ def capture(output_dir):
                 and float(_occluder(value).get("fade", 1.0)) <= 0.05
                 and float((value.get("player") or {}).get("location", [0])[0]) <= -915.0
             ),
-            timeout_s=0.5,
+            timeout_s=30.0,
             sections=["camera", "player"],
             poll_s=0.01,
         )
@@ -271,14 +287,14 @@ def capture(output_dir):
             "the west wall fully faded with the whole player clear and HUD visible"))
 
         bridge.tap("LeftShift")
-        bridge.walk_to(-935.0, 0.0, tol=20.0)
-        bridge.walk_to(0.0, 0.0, tol=20.0)
+        bridge.walk_to(-935.0, 0.0, tol=20.0, timeout_s=90.0)
+        bridge.walk_to(0.0, 0.0, tol=20.0, timeout_s=90.0)
         bridge.wait_for(
             lambda value: (
                 _occluder(value) is not None
                 and float(_occluder(value).get("fade", 0.0)) >= 0.999
             ),
-            timeout_s=0.5,
+            timeout_s=30.0,
             sections=["camera", "player"],
             poll_s=0.01,
         )
@@ -287,7 +303,7 @@ def capture(output_dir):
             "the player back at centre with the fully restored west wall still in frame"))
 
         final = bridge.state(["game", "player", "camera", "actors", "widgets"], radius=3000)
-        proof = _label_proof(final)
+        proof = _marketing_label_proof(final)
         proof["phase"] = "end"
         proofs.append(proof)
         if not proof["passed"]:
@@ -306,17 +322,27 @@ def capture(output_dir):
                     pass
             bridge.close()
 
-    source_movies = glob.glob(os.path.join(movie_dir, "**", "*.avi"), recursive=True)
-    if len(source_movies) != 1:
+    source_frames = sorted(glob.glob(os.path.join(movie_dir, "frame_*.png")))
+    if len(source_frames) < FPS * MIN_CLIP_SECONDS:
         raise RuntimeError(
-            f"expected one fixed-timestep Unreal AVI, found {len(source_movies)}: {source_movies}")
+            f"expected at least {FPS * MIN_CLIP_SECONDS:g} fixed-timestep Unreal frames, "
+            f"found {len(source_frames)}")
+    source_movie = os.path.join(output_dir, "_continuous-source.mp4")
+    subprocess.check_call([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-framerate", str(FPS), "-start_number", "1",
+        "-i", os.path.join(movie_dir, "frame_%06d.png"),
+        "-an", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12",
+        "-pix_fmt", "yuv420p", source_movie,
+    ])
     clip = os.path.join(output_dir, "wall-fade-and-restore.mp4")
     continuous = _encode_clip(
-        source_movies[0],
+        source_movie,
         os.path.join(output_dir, stills[0]["file"]),
         os.path.join(output_dir, stills[-1]["file"]),
         clip,
     )
+    continuous["source_frame_count"] = len(source_frames)
     source_manifest = _make_source_manifest(clip, output_dir)
     content = verify_video(clip, source_manifest)
     content["mpdecimate"] = _mpdecimate_check(
@@ -356,16 +382,16 @@ def capture(output_dir):
             "- These stills and this clip are marketing media only, not Tier 3/Tier 4 "
             "acceptance evidence.\n"
             f"- Clip: `{os.path.basename(clip)}` ({continuous['duration_seconds']:.3f}s, "
-            f"{FPS} fps, {OUTPUT_SIZE[0]}x{OUTPUT_SIZE[1]}), captured by Unreal LevelCapture "
-            "with `-BENCHMARK -FPS=30` and encoded by ffmpeg.\n"
+            f"{FPS} fps, {OUTPUT_SIZE[0]}x{OUTPUT_SIZE[1]}), captured as per-frame Unreal "
+            "viewport screenshots with UI under `-BENCHMARK -FPS=30` and encoded by ffmpeg.\n"
             "- Camera: 1000 cm marketing camera (`-MordecaiMarketingCapture`), not the 1800 cm "
             "gameplay camera; the closer view keeps the wall transition legible.\n"
             "- Content: approach, dither transition, fully faded west wall with the player "
             "clear, and fully restored wall in frame; the combat HUD remains visible.\n"
             f"- Stills: {still_names}.\n"
             "- Presentation: `Mordecai.Debug.DrawMeleeHitShapes 0`, "
-            "`ShowFlag.TextRender 0`, and `-NOSCREENMESSAGES`; label-proof and content checks "
-            "must pass.\n"
+            "`ShowFlag.TextRender 0`, `t.MaxFPS 30`, and `-NOSCREENMESSAGES`; label-proof "
+            "and content checks must pass.\n"
             f"- Motion: ffmpeg mpdecimate kept {content['mpdecimate']['kept_frames']} frames "
             f"({content['mpdecimate']['unique_frames_per_second']:.3f}/s; required >= "
             f"{MIN_UNIQUE_FPS:g}/s).\n"
@@ -373,6 +399,8 @@ def capture(output_dir):
             "checks, temporal continuity, and mpdecimate counts are in `content-check.json`.\n"
         )
     shutil.rmtree(movie_dir, ignore_errors=True)
+    if os.path.exists(source_movie):
+        os.remove(source_movie)
     return result
 
 

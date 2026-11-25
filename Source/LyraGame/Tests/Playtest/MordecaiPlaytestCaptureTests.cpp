@@ -89,3 +89,24 @@ bool FMordecai_Playtest_CaptureLoadingShotPath::RunTest(const FString& Parameter
 	TestFalse("Not one of the scheduled shots", Config.GetLoadingShotPath() == Config.GetShotPath(0));
 	return true;
 }
+
+// Mordecai.Playtest.Capture.MarketingFrameSettings
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_CaptureMarketingFrameSettings,
+	"Mordecai.Playtest.Capture.MarketingFrameSettings",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_CaptureMarketingFrameSettings::RunTest(const FString& Parameters)
+{
+	const FMordecaiPlaytestCaptureConfig Config = FMordecaiPlaytestCaptureConfig::FromCommandLine(
+		TEXT("-MarketingFrameCapture -MarketingFrameDir=\"C:/Wall Fade/Frames\" -MarketingFrameLimit=450"));
+	TestTrue("Marketing frame flag enables the subsystem", Config.bEnabled);
+	TestFalse("Marketing frame capture is distinct from boot capture", Config.bPlaytestCapture);
+	TestTrue("Marketing frame capture parsed", Config.bMarketingFrameCapture);
+	TestEqual("Marketing frame limit", Config.MarketingFrameLimit, 450);
+	TestEqual("Marketing frame directory", Config.MarketingFrameDir, FString(TEXT("C:/Wall Fade/Frames")));
+	TestEqual("First marketing frame path", Config.GetMarketingFramePath(0),
+		FString(TEXT("C:/Wall Fade/Frames/frame_000001.png")));
+	TestEqual("Frame 450 path", Config.GetMarketingFramePath(449),
+		FString(TEXT("C:/Wall Fade/Frames/frame_000450.png")));
+	return true;
+}

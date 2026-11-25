@@ -11,6 +11,8 @@
 #include "GameplayAbilitySpec.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiEnemyAIController)
 
@@ -232,6 +234,13 @@ void AMordecaiEnemyAIController::NotifyAttackCompleted()
 void AMordecaiEnemyAIController::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// Marketing capture runs fixed-timestep rendering faster than wall-clock time.
+	// Keep its non-acceptance wall-fade footage free of accelerated AI deaths.
+	if (FParse::Param(FCommandLine::Get(), TEXT("MordecaiMarketingCapture")))
+	{
+		return;
+	}
 
 	// AC-051.12: Only run state machine on server
 	if (!HasAuthority())
