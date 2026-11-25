@@ -145,6 +145,12 @@ class CaptureUs099MarketingTests(unittest.TestCase):
         problems = capture._validate_transition_bracket(bracket)
         self.assertTrue(any("post-screenshot fade" in problem for problem in problems))
 
+    def test_benchmark_observation_accepts_a_skipped_transition_but_stills_do_not(self):
+        self.assertTrue(capture._observed_required_fade(0.0, still_capture=False))
+        self.assertFalse(capture._observed_required_fade(0.0, still_capture=True))
+        self.assertTrue(capture._observed_required_fade(0.3, still_capture=False))
+        self.assertTrue(capture._observed_required_fade(0.3, still_capture=True))
+
     def test_contiguous_source_duration_drives_the_clip_without_cross_session_alignment(self):
         self.assertEqual(capture._source_duration_seconds(480), 16.0)
         with self.assertRaisesRegex(RuntimeError, "at least 5"):
