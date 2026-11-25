@@ -512,3 +512,27 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Spell-point behavior remains wholly inside GAS. The fresh
   `MaxSpellPoints` default remains **10**.
 - Source: Jeff and PM decisions supplied in GitHub issue #164 (2026-11-22).
+
+---
+
+## 2026-11-24 — Previous-weapon keyboard chord (US-096, issue #14)
+
+- **Shift+Tab** cycles to the previous weapon.
+- Plain **Tab** continues to cycle to the next weapon.
+- **Q** remains ability/spell slot 1 and is not used for weapon cycling.
+- Left Shift remains the immediate sprint toggle. A plain Left Shift tap must
+  toggle sprint with no added delay.
+- When Left Shift becomes part of Shift+Tab, completing the chord restores the
+  sprint state that existed before Shift was pressed, so Shift+Tab has no net
+  effect on sprint.
+- Either Left Shift or Right Shift may form the previous-weapon chord with Tab.
+  Right Shift is not a sprint key and must never affect sprint state.
+- BackSlash remains an additional previous-weapon binding.
+- **Implementation context (not Jeff's words):** Shift+Tab retains a dedicated
+  runtime input action instead of sharing `IA_Mordecai_WeaponCyclePrev`.
+  Enhanced Input action callbacks do not identify which mapping key fired the
+  action; sharing it with BackSlash would therefore risk applying keyboard
+  sprint correction to a BackSlash press. Both actions call the same previous-
+  weapon gameplay method.
+- Source: Jeff's decisions supplied with issue #14 and PR #167 review on
+  2026-11-24.

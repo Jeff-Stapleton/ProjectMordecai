@@ -53,6 +53,24 @@ class MarketingMediaVerificationCase(unittest.TestCase):
         draw.ellipse((68, 20, 92, 50), fill=(220, 152, 70))
         self.assertGreater(media.frame_motion_score(before, after), 0.002)
 
+    def test_temporal_continuity_rejects_a_duplicated_frame_slideshow(self):
+        source = self.game_like_frame()
+        slideshow = []
+        continuous = []
+        for index in range(60):
+            slide = source.copy()
+            ImageDraw.Draw(slide).ellipse(
+                (20 + (index // 4) % 50, 20, 30 + (index // 4) % 50, 30),
+                fill=(220, 152, 70))
+            slideshow.append(slide)
+            live = source.copy()
+            ImageDraw.Draw(live).ellipse(
+                (20 + index % 50, 20, 30 + index % 50, 30),
+                fill=(220, 152, 70))
+            continuous.append(live)
+        self.assertFalse(media.temporal_continuity(slideshow)["passed"])
+        self.assertTrue(media.temporal_continuity(continuous)["passed"])
+
 
 @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"),
                      "ffmpeg and ffprobe are required")

@@ -5,6 +5,7 @@
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiPlayerController.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Input/MordecaiInputTriggers.h"
 #include "Mordecai/Items/MordecaiPickupInteractionComponent.h"
 #include "Mordecai/UI/MordecaiInventoryWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuSubsystem.h"
@@ -30,6 +31,11 @@
 #include "GameFramework/PlayerState.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiHeroComponent)
+
+namespace
+{
+	const FKey SprintKeyboardKey = EKeys::LeftShift;
+}
 
 UMordecaiHeroComponent::UMordecaiHeroComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -82,6 +88,7 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	{
 		return nullptr;
 	}
+	ResetSprintKeyboardPressState();
 
 	// Load input actions from MordecaiCore
 	auto LoadAction = [](const TCHAR* Path) -> UInputAction*
@@ -95,6 +102,15 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	UInputAction* LookStickAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_Look_Stick.IA_Mordecai_Look_Stick"));
 	UInputAction* JumpAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_Jump.IA_Mordecai_Jump"));
 	UInputAction* SprintAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_Sprint.IA_Mordecai_Sprint"));
+	if (!SprintKeyboardPressAction)
+	{
+		SprintKeyboardPressAction =
+			NewObject<UInputAction>(this, TEXT("IA_Mordecai_SprintKeyboardPress_Runtime"));
+		SprintKeyboardPressAction->ValueType = EInputActionValueType::Boolean;
+		SprintKeyboardReleaseAction =
+			NewObject<UInputAction>(this, TEXT("IA_Mordecai_SprintKeyboardRelease_Runtime"));
+		SprintKeyboardReleaseAction->ValueType = EInputActionValueType::Boolean;
+	}
 
 	if (!MoveAction)
 	{
@@ -111,6 +127,12 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	// --- US-078: Weapon Cycling Input Actions (Tab / Shift+Tab / Gamepad Y) ---
 	UInputAction* WeaponCycleNextAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_WeaponSwap.IA_Mordecai_WeaponSwap"));
 	UInputAction* WeaponCyclePrevAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_WeaponCyclePrev.IA_Mordecai_WeaponCyclePrev"));
+	if (!WeaponCyclePrevShiftTabAction)
+	{
+		WeaponCyclePrevShiftTabAction =
+			NewObject<UInputAction>(this, TEXT("IA_Mordecai_WeaponCyclePrevShiftTab_Runtime"));
+		WeaponCyclePrevShiftTabAction->ValueType = EInputActionValueType::Boolean;
+	}
 
 	// --- US-079: Interact (press-to-pickup) + Pause / Inventory menu actions ---
 	UInputAction* InteractAction = LoadAction(TEXT("/MordecaiCore/Input/Actions/IA_Mordecai_Interact.IA_Mordecai_Interact"));
@@ -196,10 +218,24 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 			MordecaiIMC->MapKey(JumpAction, FKey(TEXT("Gamepad_FaceButton_Bottom")));
 		}
 
-		// --- Sprint (Shift / L3) ---
+		// --- Sprint (Left Shift / L3) ---
+		// Keyboard press/release use separate runtime actions: the raw fresh-key
+		// trigger does not synthesize a press when a held key survives a context
+		// rebuild, and the release action expires only that physical press token.
+		{
+			FEnhancedActionKeyMapping& PressMapping =
+				MordecaiIMC->MapKey(SprintKeyboardPressAction, SprintKeyboardKey);
+			UMordecaiInputTriggerFreshKeyPress* FreshPress =
+				NewObject<UMordecaiInputTriggerFreshKeyPress>(MordecaiIMC);
+			FreshPress->Key = SprintKeyboardKey;
+			PressMapping.Triggers.Add(FreshPress);
+
+			FEnhancedActionKeyMapping& ReleaseMapping =
+				MordecaiIMC->MapKey(SprintKeyboardReleaseAction, SprintKeyboardKey);
+			ReleaseMapping.Triggers.Add(NewObject<UInputTriggerReleased>(MordecaiIMC));
+		}
 		if (SprintAction)
 		{
-			MordecaiIMC->MapKey(SprintAction, FKey(TEXT("LeftShift")));
 			MordecaiIMC->MapKey(SprintAction, EKeys::Gamepad_LeftThumbstick);
 		}
 
@@ -223,15 +259,30 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 			MordecaiIMC->MapKey(Spell4Action, FKey(TEXT("Gamepad_DPad_Up")));
 		}
 
-		// --- US-078: Weapon cycling ---
-		// AC-078.6: Next weapon — Tab (MKB) / Gamepad Y tap
+		// --- US-078 / US-096: Weapon cycling ---
+		// Custom physical-key triggers avoid action dependency ordering. Either
+		// Shift gates Previous; the sprint mapping's key also gates plain Tab.
+		const TArray<FKey> ShiftKeys = { SprintKeyboardKey, EKeys::RightShift };
+		FEnhancedActionKeyMapping& ShiftTabMapping =
+			MordecaiIMC->MapKey(WeaponCyclePrevShiftTabAction, EKeys::Tab);
+		UMordecaiInputTriggerShiftPressed* ShiftPressed =
+			NewObject<UMordecaiInputTriggerShiftPressed>(MordecaiIMC);
+		ShiftPressed->ModifierKeys = ShiftKeys;
+		ShiftTabMapping.Triggers.Add(ShiftPressed);
+
+		// AC-078.6: Next weapon — plain Tab (MKB) / Gamepad Y tap
 		if (WeaponCycleNextAction)
 		{
-			MordecaiIMC->MapKey(WeaponCycleNextAction, FKey(TEXT("Tab")));
+			FEnhancedActionKeyMapping& TabMapping =
+				MordecaiIMC->MapKey(WeaponCycleNextAction, EKeys::Tab);
+			UMordecaiInputTriggerShiftBlocker* ShiftBlocker =
+				NewObject<UMordecaiInputTriggerShiftBlocker>(MordecaiIMC);
+			ShiftBlocker->ModifierKeys = ShiftKeys;
+			TabMapping.Triggers.Add(ShiftBlocker);
+			TabMapping.Triggers.Add(NewObject<UInputTriggerPressed>(MordecaiIMC));
 			MordecaiIMC->MapKey(WeaponCycleNextAction, FKey(TEXT("Gamepad_FaceButton_Top")));
 		}
-		// AC-078.7: Previous weapon — BackSlash (pragmatic alternative to Shift+Tab chord,
-		// which requires a separate IA_Sprint chord-action setup in Enhanced Input).
+		// BackSlash remains an extra previous-weapon binding.
 		if (WeaponCyclePrevAction)
 		{
 			MordecaiIMC->MapKey(WeaponCyclePrevAction, FKey(TEXT("BackSlash")));
@@ -355,6 +406,8 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	{
 		EIC->BindAction(WeaponCyclePrevAction, ETriggerEvent::Started, this, &UMordecaiHeroComponent::HandleWeaponCyclePrevInput);
 	}
+	EIC->BindAction(WeaponCyclePrevShiftTabAction, ETriggerEvent::Triggered, this,
+		&UMordecaiHeroComponent::HandleWeaponCyclePrevShiftTabInput);
 
 	// Bind pickup + menu input actions (US-079)
 	if (InteractAction)
@@ -401,9 +454,13 @@ UInputMappingContext* UMordecaiHeroComponent::BuildAndBindRuntimeInput(UEnhanced
 	}
 	if (SprintAction)
 	{
-		// Started fires once per press, so a tap flips the toggle once
+		// L3 remains independent of keyboard chord bookkeeping.
 		EIC->BindAction(SprintAction, ETriggerEvent::Started, this, &UMordecaiHeroComponent::HandleSprintToggleInput);
 	}
+	EIC->BindAction(SprintKeyboardPressAction, ETriggerEvent::Triggered, this,
+		&UMordecaiHeroComponent::HandleSprintKeyboardPressed);
+	EIC->BindAction(SprintKeyboardReleaseAction, ETriggerEvent::Triggered, this,
+		&UMordecaiHeroComponent::HandleSprintKeyboardReleased);
 
 	UE_LOG(LogTemp, Warning, TEXT("MORDECAI: Programmatic IMC created and input bound successfully (including %d spell actions)."),
 		(Spell1Action ? 1 : 0) + (Spell2Action ? 1 : 0) + (Spell3Action ? 1 : 0) + (Spell4Action ? 1 : 0));
@@ -713,6 +770,37 @@ void UMordecaiHeroComponent::HandleSprintToggleInput(const FInputActionValue& In
 	}
 }
 
+void UMordecaiHeroComponent::HandleSprintKeyboardPressed(
+	const FInputActionValue& InputActionValue)
+{
+	if (AMordecaiCharacter* MC = Cast<AMordecaiCharacter>(GetOwner()))
+	{
+		bSprintKeyboardPressActive = true;
+		bSprintStateBeforeKeyboardPress = MC->bIsSprinting;
+		bSprintKeyboardChordConsumed = LastShiftTabChordFrame == GFrameCounter;
+		if (!bSprintKeyboardChordConsumed)
+		{
+			// The physical press toggles immediately. A Tab chord in this press
+			// restores the state below; a refused toggle remains unchanged.
+			MC->SetSprinting(!bSprintStateBeforeKeyboardPress);
+		}
+	}
+}
+
+void UMordecaiHeroComponent::HandleSprintKeyboardReleased(
+	const FInputActionValue& InputActionValue)
+{
+	ResetSprintKeyboardPressState();
+}
+
+void UMordecaiHeroComponent::ResetSprintKeyboardPressState()
+{
+	bSprintKeyboardPressActive = false;
+	bSprintKeyboardChordConsumed = false;
+	bSprintStateBeforeKeyboardPress = false;
+	LastShiftTabChordFrame = MAX_uint64;
+}
+
 // ---------------------------------------------------------------------------
 // US-078: Weapon Cycling Input Handlers
 // ---------------------------------------------------------------------------
@@ -729,6 +817,30 @@ void UMordecaiHeroComponent::HandleWeaponCyclePrevInput(const FInputActionValue&
 {
 	if (AMordecaiCharacter* MC = Cast<AMordecaiCharacter>(GetOwner()))
 	{
+		MC->CyclePrevWeapon();
+	}
+}
+
+void UMordecaiHeroComponent::HandleWeaponCyclePrevShiftTabInput(
+	const FInputActionValue& InputActionValue)
+{
+	if (AMordecaiCharacter* MC = Cast<AMordecaiCharacter>(GetOwner()))
+	{
+		if (bSprintKeyboardPressActive)
+		{
+			if (!bSprintKeyboardChordConsumed)
+			{
+				MC->SetSprinting(bSprintStateBeforeKeyboardPress);
+				bSprintKeyboardChordConsumed = true;
+			}
+		}
+		else
+		{
+			// Enhanced Input may dispatch this chord before the keyboard sprint
+			// action in the same frame. Only that frame's later press consumes it;
+			// Right Shift has no sprint action, so it never changes sprint state.
+			LastShiftTabChordFrame = GFrameCounter;
+		}
 		MC->CyclePrevWeapon();
 	}
 }

@@ -103,8 +103,9 @@ def _run_json(command):
 
 def probe_video(path):
     payload = _run_json([
-        "ffprobe", "-v", "error", "-select_streams", "v:0",
-        "-show_entries", "stream=width,height,pix_fmt,r_frame_rate:format=duration,size",
+        "ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0",
+        "-show_entries",
+        "stream=width,height,pix_fmt,r_frame_rate,nb_read_frames:format=duration,size",
         "-of", "json", path,
     ])
     stream = payload["streams"][0]
@@ -114,6 +115,7 @@ def probe_video(path):
         "height": int(stream["height"]),
         "pixel_format": stream.get("pix_fmt"),
         "frame_rate": stream.get("r_frame_rate"),
+        "frame_count": int(stream.get("nb_read_frames") or 0),
         "duration_seconds": float(fmt["duration"]),
         "size_bytes": int(fmt["size"]),
     }
@@ -124,6 +126,40 @@ def _sample_frame(video, second, output):
         "ffmpeg", "-y", "-loglevel", "error", "-ss", f"{second:.3f}", "-i", video,
         "-frames:v", "1", output,
     ])
+
+
+def decode_motion_frames(video, sample_fps=10, size=(128, 72)):
+    """Decode evenly spaced RGB frames without using desktop capture."""
+    width, height = size
+    raw = subprocess.check_output([
+        "ffmpeg", "-loglevel", "error", "-i", video,
+        "-vf", f"fps={sample_fps},scale={width}:{height}",
+        "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
+    ])
+    stride = width * height * 3
+    return [
+        Image.frombytes("RGB", size, raw[offset:offset + stride])
+        for offset in range(0, len(raw) - stride + 1, stride)
+    ]
+
+
+def temporal_continuity(images, minimum_motion=0.00015, minimum_ratio=0.6):
+    """Reject duplicated-frame slideshows and static/lock-screen footage."""
+    scores = [
+        frame_motion_score(images[index - 1], images[index])
+        for index in range(1, len(images))
+    ]
+    moving = sum(score >= minimum_motion for score in scores)
+    ratio = moving / len(scores) if scores else 0.0
+    return {
+        "sample_count": len(images),
+        "moving_pairs": moving,
+        "pair_count": len(scores),
+        "moving_pair_ratio": round(ratio, 4),
+        "minimum_motion": minimum_motion,
+        "minimum_ratio": minimum_ratio,
+        "passed": len(images) >= 40 and ratio >= minimum_ratio,
+    }
 
 
 def verify_video(video, source_manifest, minimum_psnr=24.0, minimum_motion=0.00035):
@@ -167,11 +203,13 @@ def verify_video(video, source_manifest, minimum_psnr=24.0, minimum_motion=0.000
     ]
     moving_pairs = sum(score >= minimum_motion for score in motion_scores)
     motion_passed = moving_pairs >= 6
+    continuity = temporal_continuity(decode_motion_frames(video))
     metadata_ok = (
         5.0 <= duration <= 20.0
         and (metadata["width"], metadata["height"]) in ((1280, 720), (1920, 1080))
         and metadata["pixel_format"] == "yuv420p"
         and metadata["frame_rate"] == "30/1"
+        and metadata["frame_count"] >= math.floor(duration * 24.0)
         and metadata["size_bytes"] < 50 * 1024 * 1024
     )
     return {
@@ -189,8 +227,9 @@ def verify_video(video, source_manifest, minimum_psnr=24.0, minimum_motion=0.000
             "required_moving_pairs": 6,
             "passed": motion_passed,
         },
+        "temporal_continuity": continuity,
         "passed": (metadata_ok and bool(samples) and all(item["passed"] for item in samples)
-                   and motion_passed),
+                   and motion_passed and continuity["passed"]),
     }
 
 
@@ -213,7 +252,7 @@ def main(argv=None):
     ]
     result = {
         "method": ("required SHA256 source-frame manifest + decoded-frame PSNR source matching "
-                   "+ HUD structure + consecutive-frame motion"),
+                   "+ HUD structure + consecutive-frame motion + 10 fps temporal continuity"),
         "videos": videos,
         "passed": all(video["passed"] for video in videos),
     }

@@ -104,6 +104,7 @@ private:
 	// Weapon cycling handlers (US-078)
 	void HandleWeaponCycleNextInput(const FInputActionValue& InputActionValue);
 	void HandleWeaponCyclePrevInput(const FInputActionValue& InputActionValue);
+	void HandleWeaponCyclePrevShiftTabInput(const FInputActionValue& InputActionValue);
 
 	// Pickup + menu handlers (US-079)
 	void HandleInteractInput(const FInputActionValue& InputActionValue);
@@ -118,6 +119,9 @@ private:
 
 	// Sprint toggle (US-083)
 	void HandleSprintToggleInput(const FInputActionValue& InputActionValue);
+	void HandleSprintKeyboardPressed(const FInputActionValue& InputActionValue);
+	void HandleSprintKeyboardReleased(const FInputActionValue& InputActionValue);
+	void ResetSprintKeyboardPressState();
 
 	/** MordecaiIMC_Runtime, built once by BuildAndBindRuntimeInput. */
 	UPROPERTY(Transient)
@@ -131,8 +135,25 @@ private:
 	TObjectPtr<UInputAction> ParryAction;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> WeaponCyclePrevShiftTabAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> SprintKeyboardPressAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> SprintKeyboardReleaseAction;
+
+	UPROPERTY(Transient)
 	TObjectPtr<ULyraAbilitySystemComponent> AbilitySystemOverride;
 
 	/** A rejected held Block cannot retry every Triggered frame; release arms the next press. */
 	bool bBlockSuppressedUntilRelease = false;
+
+	/** State owned only by the current physical keyboard sprint-key press. */
+	bool bSprintKeyboardPressActive = false;
+	bool bSprintKeyboardChordConsumed = false;
+	bool bSprintStateBeforeKeyboardPress = false;
+
+	/** Lets a chord callback suppress a keyboard sprint callback later in the same engine frame. */
+	uint64 LastShiftTabChordFrame = MAX_uint64;
 };

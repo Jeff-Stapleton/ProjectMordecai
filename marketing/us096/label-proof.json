@@ -1,0 +1,65 @@
+{
+  "proofs": [
+    {
+      "map": "/MordecaiCore/Game/Maps/CombatTestMap",
+      "experience": "B_MordecaiArenaExperience",
+      "command_line_flag": "-MordecaiMarketingCapture",
+      "actor_count": 3,
+      "rendered_widget_texts": [
+        "Longsword",
+        "Slash",
+        "Tab",
+        "HP",
+        "100%",
+        "Kills: 0",
+        "[I] Inventory",
+        "Q",
+        "E",
+        "R",
+        "1",
+        "SP",
+        "10 / 10",
+        "ST",
+        "\u00d71.25"
+      ],
+      "actor_widget_violations": [],
+      "text_label_violations": [],
+      "rendered_actor_name_violations": [],
+      "enemy_indicator_widgets": [],
+      "debug_text_violations": [],
+      "passed": true,
+      "phase": "start"
+    },
+    {
+      "map": "/MordecaiCore/Game/Maps/CombatTestMap",
+      "experience": "B_MordecaiArenaExperience",
+      "command_line_flag": "-MordecaiMarketingCapture",
+      "actor_count": 3,
+      "rendered_widget_texts": [
+        "Longsword",
+        "Slash",
+        "Tab",
+        "HP",
+        "100%",
+        "Kills: 0",
+        "[I] Inventory",
+        "Q",
+        "E",
+        "R",
+        "1",
+        "SP",
+        "10 / 10",
+        "ST",
+        "\u00d71.25"
+      ],
+      "actor_widget_violations": [],
+      "text_label_violations": [],
+      "rendered_actor_name_violations": [],
+      "enemy_indicator_widgets": [],
+      "debug_text_violations": [],
+      "passed": true,
+      "phase": "end"
+    }
+  ],
+  "passed": true
+}

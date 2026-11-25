@@ -10,7 +10,8 @@
 #   - every key in the live MordecaiIMC_Runtime is a valid engine FKey
 #   - the hero component's MordecaiIMC_Runtime maps LMB / RT (light Tap, heavy HoldAndRelease,
 #     parry chorded on Block + Pressed), RMB / LT (block, Down), LeftAlt / Gamepad B (dodge,
-#     Pressed), SpaceBar / Gamepad A (jump) and LeftShift (sprint)
+#     Pressed), SpaceBar / Gamepad A (jump), fresh/released LeftShift runtime
+#     actions, and Gamepad L3 (sprint)
 # Whether Left Shift still crouches (Lyra's binding on the sprint action, removed in
 # UMordecaiHeroComponent::InitializePlayerInput) needs a real key press: Tier 4 (us001 sprint_shift).
 #
@@ -35,7 +36,11 @@ EXPECTED_MAPPINGS = (
     ("Gamepad_FaceButton_Right", "IA_Mordecai_Dodge", ("InputTriggerPressed",)),
     ("SpaceBar", "IA_Mordecai_Jump", ()),
     ("Gamepad_FaceButton_Bottom", "IA_Mordecai_Jump", ()),
-    ("LeftShift", "IA_Mordecai_Sprint", ()),
+    ("LeftShift", "IA_Mordecai_SprintKeyboardPress_Runtime",
+     ("MordecaiInputTriggerFreshKeyPress",)),
+    ("LeftShift", "IA_Mordecai_SprintKeyboardRelease_Runtime",
+     ("InputTriggerReleased",)),
+    ("Gamepad_LeftThumbstick", "IA_Mordecai_Sprint", ()),
 )
 
 

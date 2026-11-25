@@ -104,7 +104,7 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 7 | `cycle_next_4` | tap Tab -> wait_until player.weapon.index==4 (from 3), display_name 'Mace' | AC-078.6, AC-078.14, US-077:AC-077.3 |
 | 8 | `cycle_wrap` | tap Tab on the last weapon -> wait_until player.weapon.index==0, display_name 'Longsword' | AC-078.6, US-077:AC-077.3 |
 | 9 | `cycle_prev_backslash` | tap BackSlash on the first weapon -> wait_until player.weapon.index==4, display_name 'Mace' | AC-078.8, US-077:AC-077.4 |
-| 10 | `cycle_prev_shift_tab` | tap LeftShift+Tab on the Mace -> wait_until player.weapon.index==3, display_name 'Spear' _(known issue: N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next (Specs/agent_playtest_plan_v1.md, Known issues backlog))_ | AC-078.7 |
+| 10 | `cycle_prev_shift_tab` | tap LeftShift+Tab on the Mace -> wait_until player.weapon.index==3, display_name 'Spear', visible weapon HUD reads 'Spear', and Mordecai.State.Sprinting presence is unchanged | AC-078.7, US-096:AC-096.2 |
 | 11 | `cycle_gamepad_y` | tap Gamepad_FaceButton_Top (Y) -> wait_until player.weapon.index==(index+1)%5 with the matching display_name | AC-078.6 |
 | 12 | `weapon_hud_updates` | tap Tab -> the new weapon is equipped and visible MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text) | AC-078.12, AC-078.14, US-077:AC-077.8 |
 | 13 | `light_attack_lmb` | alive, no Mordecai.State.Attacking -> click Left at (640, 360) -> Mordecai.State.Attacking without Mordecai.Attack.Heavy in player.tags within 1 s | AC-078.14 |

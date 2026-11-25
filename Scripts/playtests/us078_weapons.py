@@ -23,7 +23,7 @@ Steps (every step is a check; --plan prints them as the story's Steps table):
      'cycled_mace'.
   8. Tap Tab: wraps to the Longsword.
   9. Tap BackSlash: wraps back to the Mace.
-  10. Tap Shift+Tab (the story's binding): previous weapon, the Spear.
+  10. Tap Shift+Tab (the story's binding): previous weapon, the Spear; sprint state is unchanged.
   11. Tap Gamepad_FaceButton_Top (Y): next weapon.
   12. Tap Tab: the weapon HUD text follows the new weapon.
   13. Left click on the game view: a light attack starts (Mordecai.State.Attacking in
@@ -35,8 +35,7 @@ before the click"), never mistaken for idle, and nothing is clicked.
 Each cycle step reads player.weapon.index first and expects the next/previous one (mod 5) with
 the matching display name, so one failure does not cascade into wrong expectations.  Weapon
 order (the AvailableWeapons list): Longsword, Dagger, Greatsword, Spear, Mace; names compare
-case-insensitively.  Known issue (Specs/agent_playtest_plan_v1.md, Known issues backlog): N9
-(Shift+Tab is not mapped; Tab still fires Next).
+case-insensitively.
 
 Usage (the kit's common options):
   py Scripts/playtests/us078_weapons.py                    fresh package: launch, play, quit
@@ -46,8 +45,8 @@ Usage (the kit's common options):
   py Scripts/playtests/us078_weapons.py --attach-port N [--token T]   diagnostic only
 
 Output: Saved/Playtests/<YYYYmmdd-HHMMSS>-us078/ with report.md, report.json, game.log,
-bridge.jsonl and bridge_NN.png.  Open every screenshot with the Read tool and state what is on
-screen.
+bridge.jsonl and bridge_NN.png. The coordinator performs the visual review; builders validate
+capture integrity by script and never open image or video files.
 
 Exit codes:
   0 -- every check passed (WARN allowed)
@@ -92,6 +91,7 @@ ATTACK_POINT = (640, 360)                # the viewport centre: the game view, n
 ATTACKING_TAG = "Mordecai.State.Attacking"
 DEAD_TAG = "Mordecai.State.Dead"
 HEAVY_TAG = "Mordecai.Attack.Heavy"         # owned by the heavy attack only (US-083)
+SPRINT_TAG = "Mordecai.State.Sprinting"
 HEAVY_HOLD_S = 0.8
 
 START_TIMEOUT_S = 5.0
@@ -101,9 +101,6 @@ LIGHT_TIMEOUT_S = 1.0
 HEAVY_TIMEOUT_S = 0.5
 ATTACK_CLEAR_S = 2.0
 
-N9 = ("N9 Previous weapon is BackSlash only: Shift+Tab is not mapped and Tab still fires Next "
-      "(Specs/agent_playtest_plan_v1.md, Known issues backlog)")
-
 SCREENSHOTS = {
     "start": "CombatTestMap from the fixed overhead camera: the player at the PlayerStart on the "
              "grid floor, the combat HUD top-left (the blue-grey TestDummy cylinder, 600 cm +X "
@@ -111,8 +108,10 @@ SCREENSHOTS = {
              "'Longsword' in its bottom-right loadout plate",
     "cycled_mace": "the same view after four Tabs, the player still at the PlayerStart; the "
                    "bottom-right loadout plate should read 'Mace'",
+    "shift_tab_spear": "the same view after Shift+Tab on the Mace; the bottom-right loadout "
+                       "plate should read 'Spear' and the player should remain stationary",
 }
-KNOWN_ISSUES = (N9,)
+KNOWN_ISSUES = ()
 
 PLAN = (
     Step("starting_weapon", f"state player -> player.weapon.index==0 && "
@@ -135,10 +134,30 @@ PLAN = (
          f"player.weapon.index=={MACE_INDEX}, display_name 'Mace'",
          proves=("AC-078.8", "US-077:AC-077.4")),
     Step("cycle_prev_shift_tab", f"tap {'+'.join(PREV_STORY_KEYS)} on the Mace -> wait_until "
-         f"player.weapon.index=={MACE_INDEX - 1}, display_name 'Spear'", proves=("AC-078.7",),
-         known_issue=N9),
+         f"player.weapon.index=={MACE_INDEX - 1}, display_name 'Spear', visible weapon HUD "
+         f"reads 'Spear', and {SPRINT_TAG} presence is unchanged",
+         proves=("AC-078.7", "US-096:AC-096.2")),
     Step("cycle_gamepad_y", f"tap {GAMEPAD_NEXT_KEY} (Y) -> wait_until player.weapon.index=="
          f"(index+1)%{WEAPON_COUNT} with the matching display_name", proves=("AC-078.6",)),
+    Step("cycle_prev_shift_tab_same_frame",
+         f"tap {'+'.join(PREV_STORY_KEYS)} in one input frame -> wait_until "
+         f"player.weapon.index==(index-1)%{WEAPON_COUNT}, with {SPRINT_TAG} presence unchanged",
+         proves=("US-096:AC-096.2",)),
+    Step("cycle_prev_release_shift_first",
+         f"hold LeftShift+Tab, release LeftShift while Tab stays held -> one previous cycle only; "
+         f"releasing the modifier does not re-fire plain Tab",
+         proves=("US-096:AC-096.1", "US-096:AC-096.2")),
+    Step("cycle_shift_tap_while_tab_held",
+         f"hold Tab, tap LeftShift, then release Tab -> fresh Tab cycles next exactly once; "
+         f"releasing LeftShift does not re-fire plain Tab, and the plain Shift tap toggles sprint",
+         proves=("US-096:AC-096.1",)),
+    Step("cycle_prev_right_shift_tab",
+         f"tap RightShift+Tab -> one previous cycle with {SPRINT_TAG} presence unchanged",
+         proves=("US-096:AC-096.1", "US-096:AC-096.2")),
+    Step("cycle_prev_shift_tab_while_sprinting",
+         f"tap LeftShift to start sprinting, then LeftShift+Tab -> one previous cycle and "
+         f"{SPRINT_TAG} remains present",
+         proves=("US-096:AC-096.2",)),
     Step("weapon_hud_updates", f"tap {NEXT_KEY} -> the new weapon is equipped and visible "
          "MordecaiEquippedWeaponWidget text equals its display_name within 3 s (needs weapon_hud_text)",
          proves=("AC-078.12", "AC-078.14", "US-077:AC-077.8")),
@@ -336,8 +355,8 @@ class Us078Run(kit.PlaytestRun):
         return self.attempt("weapon_effects_on_asc", fn)
 
     # --- 4-12: cycling ---------------------------------------------------------------------
-    def cycle(self, check, keys, delta, require_from=None, hud=False, needs=True,
-              needs_why=None):
+    def cycle(self, check, keys, delta, require_from=None, hud=False,
+              preserve_sprint=False, simultaneous=False, needs=True, needs_why=None):
         """Tap `keys`, expect player.weapon.index to move by `delta` (mod WEAPON_COUNT) with the
         matching display name; hud=True also expects a widget text to show the new name."""
         rec = {"check": check, "keys": kit.keys_text(keys), "from": None, "to": None,
@@ -345,7 +364,9 @@ class Us078Run(kit.PlaytestRun):
 
         def fn():
             b = self.bridge
-            before = _weapon(b.state(["player"]))
+            before_state = b.state(["player"])
+            before = _weapon(before_state)
+            sprint_before = SPRINT_TAG in _tags(before_state)
             cur = _index(before)
             rec["from"] = cur
             if cur is None:
@@ -356,7 +377,18 @@ class Us078Run(kit.PlaytestRun):
                         f"('{WEAPONS[require_from]}'), it is at {cur}", None)
             expected = (cur + delta) % WEAPON_COUNT
             want = WEAPONS[expected]
-            b.tap(list(keys) if isinstance(keys, tuple) else keys, hold_s=self.TAP_S)
+            if isinstance(keys, tuple) and not simultaneous:
+                modifier, main_key = keys
+                b.press(modifier)
+                try:
+                    b.wait(0.05)
+                    b.tap(main_key, hold_s=self.TAP_S)
+                finally:
+                    b.release(modifier)
+            elif isinstance(keys, tuple):
+                b.tap(list(keys), hold_s=self.TAP_S)
+            else:
+                b.tap(keys, hold_s=self.TAP_S)
             what = f"tapped {kit.keys_text(keys)} on {cur} '{before.get('display_name')}'"
             try:
                 r = b.wait_until(f"player.weapon.index=={expected}", timeout_s=CYCLE_TIMEOUT_S)
@@ -376,6 +408,12 @@ class Us078Run(kit.PlaytestRun):
                         after)
             detail = (f"{what} -> {expected} '{after.get('display_name')}' "
                       f"({after.get('type')}) after {r.get('elapsed_s')}s")
+            if preserve_sprint:
+                sprint_after = SPRINT_TAG in _tags(st)
+                if sprint_after != sprint_before:
+                    return ("FAIL", f"{detail}; {SPRINT_TAG} changed from "
+                            f"{sprint_before} to {sprint_after}", after)
+                detail += f"; {SPRINT_TAG} remained {sprint_after}"
             if hud:
                 try:
                     st = b.wait_for(lambda s: _hud_shows(s, want) is not None,
@@ -395,6 +433,134 @@ class Us078Run(kit.PlaytestRun):
         self.cycles.append(rec)
         return self.attempt(check, fn, needs=needs, needs_why=needs_why)
 
+    def release_shift_first(self):
+        """Previous once, even when Shift comes up while Tab remains held."""
+        check = "cycle_prev_release_shift_first"
+
+        def fn():
+            b = self.bridge
+            before_state = b.state(["player"])
+            before = _weapon(before_state)
+            start = _index(before)
+            sprint_before = SPRINT_TAG in _tags(before_state)
+            if start is None:
+                return "FAIL", f"player.weapon.index is unreadable ({_weapon_text(before)})", None
+            expected = (start - 1) % WEAPON_COUNT
+            b.press("LeftShift")
+            shift_held = True
+            try:
+                b.press("Tab")
+                b.wait_until(f"player.weapon.index=={expected}", timeout_s=CYCLE_TIMEOUT_S)
+                b.release("LeftShift")
+                shift_held = False
+                b.wait(0.25)
+                after_state = b.state(["player"])
+            finally:
+                if shift_held:
+                    b.release("LeftShift")
+                b.release("Tab")
+            after = _weapon(after_state)
+            sprint_after = SPRINT_TAG in _tags(after_state)
+            if _index(after) != expected:
+                return ("FAIL", f"Shift+Tab moved {start}->{expected}, but releasing Shift while "
+                        f"Tab stayed held re-cycled to {_weapon_text(after)}", after)
+            if sprint_after != sprint_before:
+                return ("FAIL", f"weapon stayed at {expected}, but {SPRINT_TAG} changed from "
+                        f"{sprint_before} to {sprint_after}", after)
+            return ("PASS", f"Shift+Tab moved {start}->{expected} '{after.get('display_name')}'; "
+                    f"Shift released first while Tab stayed held and the weapon and "
+                    f"{SPRINT_TAG}={sprint_after} remained unchanged", after)
+
+        return self.attempt(check, fn)
+
+    def shift_tap_while_tab_held(self):
+        """A held Tab is not a second fresh Tab press when Shift is released."""
+        check = "cycle_shift_tap_while_tab_held"
+
+        def fn():
+            b = self.bridge
+            before_state = b.state(["player"])
+            before = _weapon(before_state)
+            start = _index(before)
+            sprint_before = SPRINT_TAG in _tags(before_state)
+            if start is None:
+                return "FAIL", f"player.weapon.index is unreadable ({_weapon_text(before)})", None
+            next_index = (start + 1) % WEAPON_COUNT
+            b.press("Tab")
+            try:
+                b.wait_until(f"player.weapon.index=={next_index}", timeout_s=CYCLE_TIMEOUT_S)
+                b.tap("LeftShift", hold_s=self.TAP_S)
+                b.wait(0.25)
+                after_state = b.state(["player"])
+            finally:
+                b.release("Tab")
+            after = _weapon(after_state)
+            sprint_after = SPRINT_TAG in _tags(after_state)
+            if _index(after) != next_index:
+                return ("FAIL", f"fresh Tab moved {start}->{next_index}, but releasing Shift "
+                        f"re-fired held Tab: {_weapon_text(after)}", after)
+            if sprint_after == sprint_before:
+                return ("FAIL", f"weapon stayed at {next_index}, but plain LeftShift did not "
+                        f"toggle {SPRINT_TAG} from {sprint_before}", after)
+            # Return sprint to its starting state so later checks are independent.
+            b.tap("LeftShift", hold_s=self.TAP_S)
+            b.wait(0.1)
+            cleaned = b.state(["player"])
+            if (SPRINT_TAG in _tags(cleaned)) != sprint_before:
+                return ("FAIL", f"cleanup LeftShift did not restore {SPRINT_TAG} to "
+                        f"{sprint_before}", _weapon(cleaned))
+            return ("PASS", f"fresh Tab moved {start}->{next_index} "
+                    f"'{after.get('display_name')}'; Shift press/release did not re-fire held "
+                    f"Tab, and plain LeftShift toggled sprint immediately", after)
+
+        return self.attempt(check, fn)
+
+    def shift_tab_while_sprinting(self):
+        """The chord restores an already-on sprint toggle."""
+        check = "cycle_prev_shift_tab_while_sprinting"
+
+        def fn():
+            b = self.bridge
+            before = _weapon(b.state(["player"]))
+            start = _index(before)
+            if start is None:
+                return "FAIL", f"player.weapon.index is unreadable ({_weapon_text(before)})", None
+            b.tap("LeftShift", hold_s=self.TAP_S)
+            try:
+                b.wait_for(lambda s: SPRINT_TAG in _tags(s),
+                           timeout_s=CYCLE_TIMEOUT_S, sections=["player"])
+            except ab.BridgeError as e:
+                if e.code != "wait_for_timeout":
+                    raise
+                return ("FAIL", f"plain LeftShift did not enable {SPRINT_TAG} before the chord",
+                        b.state(["player"]))
+            expected = (start - 1) % WEAPON_COUNT
+            b.press("LeftShift")
+            try:
+                b.wait(0.05)
+                b.tap("Tab", hold_s=self.TAP_S)
+            finally:
+                b.release("LeftShift")
+            try:
+                b.wait_until(f"player.weapon.index=={expected}", timeout_s=CYCLE_TIMEOUT_S)
+            except ab.BridgeError as e:
+                if e.code != "timeout":
+                    raise
+                after = _weapon(b.state(["player"]))
+                return ("FAIL", f"sprinting Shift+Tab expected {start}->{expected}, got "
+                        f"{_weapon_text(after)}", after)
+            after_state = b.state(["player"])
+            after = _weapon(after_state)
+            sprint_after = SPRINT_TAG in _tags(after_state)
+            if not sprint_after:
+                return ("FAIL", f"Shift+Tab moved {start}->{expected}, but cleared "
+                        f"{SPRINT_TAG}", after)
+            return ("PASS", f"plain LeftShift enabled {SPRINT_TAG}; Shift+Tab moved "
+                    f"{start}->{expected} '{after.get('display_name')}' and sprint remained on",
+                    after)
+
+        return self.attempt(check, fn)
+
     def step_cycling(self):
         mace_ok = False
         for k in range(1, WEAPON_COUNT):
@@ -405,13 +571,24 @@ class Us078Run(kit.PlaytestRun):
                   needs_why="not taken: cycling to the Mace failed")
         self.cycle("cycle_wrap", NEXT_KEY, +1, require_from=WEAPON_COUNT - 1)
         self.cycle("cycle_prev_backslash", PREV_KEY, -1, require_from=0)
-        self.cycle("cycle_prev_shift_tab", PREV_STORY_KEYS, -1)
+        shift_tab_ok, _ = self.cycle(
+            "cycle_prev_shift_tab", PREV_STORY_KEYS, -1, hud=True,
+            preserve_sprint=True)
+        self.shot("shift_tab_spear", needs=shift_tab_ok,
+                  needs_why="not taken: Shift+Tab did not equip the Spear without toggling sprint")
         self.cycle("cycle_gamepad_y", GAMEPAD_NEXT_KEY, +1)
+        self.cycle("cycle_prev_shift_tab_same_frame", PREV_STORY_KEYS, -1,
+                   preserve_sprint=True, simultaneous=True)
+        self.release_shift_first()
+        self.shift_tap_while_tab_held()
+        self.cycle("cycle_prev_right_shift_tab", ("RightShift", "Tab"), -1,
+                   preserve_sprint=True)
+        self.shift_tab_while_sprinting()
         self.cycle("weapon_hud_updates", NEXT_KEY, +1, hud=True, needs=self.hud_ok,
                    needs_why="not run: weapon_hud_text failed (no weapon name on screen to "
                              "follow)")
 
-    # --- 13-14: attacks ---------------------------------------------------------------------
+    # --- attacks ----------------------------------------------------------------------------
     def attack(self, check, hold_s, timeout_s, heavy):
         """Click (held hold_s) from idle; PASS when the attack's tag shows: the heavy attack's
         Mordecai.Attack.Heavy, or for a light attack Mordecai.State.Attacking without it."""

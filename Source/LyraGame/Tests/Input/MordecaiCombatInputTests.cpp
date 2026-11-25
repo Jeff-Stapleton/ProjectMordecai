@@ -19,6 +19,7 @@
 #include "Mordecai/Combat/MordecaiGA_HeavyAttack.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
 #include "Mordecai/Combat/MordecaiGA_Parry.h"
+#include "Mordecai/Input/MordecaiInputTriggers.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/MordecaiHeroComponent.h"
@@ -186,7 +187,31 @@ bool FMordecai_Recovery_InputCombatActionsMappedAndBound::RunTest(const FString&
 	}
 	TestNotNull("SpaceBar maps jump", FindKeyMapping(IMC, Jump, EKeys::SpaceBar));
 	TestNotNull("Gamepad A maps jump", FindKeyMapping(IMC, Jump, EKeys::Gamepad_FaceButton_Bottom));
-	TestNotNull("LeftShift maps sprint", FindKeyMapping(IMC, Sprint, EKeys::LeftShift));
+	TestNotNull("Gamepad L3 maps sprint", FindKeyMapping(
+		IMC, Sprint, EKeys::Gamepad_LeftThumbstick));
+	const FEnhancedActionKeyMapping* SprintKeyboardMapping = nullptr;
+	const FEnhancedActionKeyMapping* SprintKeyboardReleaseMapping = nullptr;
+	for (const FEnhancedActionKeyMapping& Mapping : IMC->GetMappings())
+	{
+		if (Mapping.Key != EKeys::LeftShift)
+		{
+			continue;
+		}
+		if (FindMappingTrigger<UMordecaiInputTriggerFreshKeyPress>(&Mapping))
+		{
+			SprintKeyboardMapping = &Mapping;
+		}
+		if (FindMappingTrigger<UInputTriggerReleased>(&Mapping))
+		{
+			SprintKeyboardReleaseMapping = &Mapping;
+		}
+	}
+	TestNotNull("LeftShift maps a fresh physical sprint press", SprintKeyboardMapping);
+	TestNotNull("LeftShift maps a physical sprint release", SprintKeyboardReleaseMapping);
+	const UInputAction* SprintKeyboard =
+		SprintKeyboardMapping ? SprintKeyboardMapping->Action.Get() : nullptr;
+	const UInputAction* SprintKeyboardRelease =
+		SprintKeyboardReleaseMapping ? SprintKeyboardReleaseMapping->Action.Get() : nullptr;
 
 	// Bindings: ability input presses / releases a tag on the ASC (the hero's handlers); jump and sprint act on the character
 	struct FExpectedBinding
@@ -215,6 +240,8 @@ bool FMordecai_Recovery_InputCombatActionsMappedAndBound::RunTest(const FString&
 		{ Jump, ETriggerEvent::Started, Character, TEXT("jump") },
 		{ Jump, ETriggerEvent::Completed, Character, TEXT("stop jumping") },
 		{ Sprint, ETriggerEvent::Started, Hero, TEXT("sprint toggle") },
+		{ SprintKeyboard, ETriggerEvent::Triggered, Hero, TEXT("keyboard sprint toggle") },
+		{ SprintKeyboardRelease, ETriggerEvent::Triggered, Hero, TEXT("keyboard sprint release") },
 	};
 	for (const FExpectedBinding& Expected : ExpectedBindings)
 	{
@@ -241,6 +268,14 @@ bool FMordecai_Recovery_InputCombatActionsMappedAndBound::RunTest(const FString&
 	ExecuteBinding(EIC, Sprint, ETriggerEvent::Started, Hero);
 	TestFalse("Second press toggles back", Character->bIsSprinting);
 	TestEqual("Walk speed", CMC->MaxWalkSpeed, Character->WalkSpeed);
+	TestTrue("Fresh LeftShift binding runs in its trigger frame",
+		ExecuteBinding(EIC, SprintKeyboard, ETriggerEvent::Triggered, Hero));
+	TestTrue("Fresh LeftShift toggles sprint immediately", Character->bIsSprinting);
+	TestTrue("LeftShift release binding runs",
+		ExecuteBinding(EIC, SprintKeyboardRelease, ETriggerEvent::Triggered, Hero));
+	ExecuteBinding(EIC, SprintKeyboard, ETriggerEvent::Triggered, Hero);
+	TestFalse("A later fresh LeftShift toggles sprint back off",
+		Character->bIsSprinting);
 
 	// Building again (the pawn is possessed again) rebinds instead of stacking: a doubled toggle would cancel itself
 	const int32 NumBindings = EIC->GetActionEventBindings().Num();
