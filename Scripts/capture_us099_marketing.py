@@ -259,8 +259,6 @@ def _capture_extra_args(movie_dir=None):
         "ShowFlag.TextRender 0,t.MaxFPS 30,r.SetRes 1920x1080f")
     args = [
         "-MordecaiMarketingCapture",
-        "-BENCHMARK",
-        f"-FPS={FPS}",
         "-NOSCREENMESSAGES",
         f"-ResX={OUTPUT_SIZE[0]}",
         f"-ResY={OUTPUT_SIZE[1]}",
@@ -269,6 +267,8 @@ def _capture_extra_args(movie_dir=None):
     ]
     if movie_dir is not None:
         args.extend((
+            "-BENCHMARK",
+            f"-FPS={FPS}",
             "-MarketingFrameCapture",
             _marketing_frame_dir_argument(movie_dir),
             "-MarketingFrameLimit=1200",
