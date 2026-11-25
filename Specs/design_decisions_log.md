@@ -302,6 +302,17 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 
 ---
 
+## 2026-11-25 — Screenshot review for agent stories
+
+- Screenshot review for agent stories is done by the coordinator from the checksummed evidence
+  bundle; builders verify images by script only and never open PNG/JPG/video with the file-read
+  tool.
+- Completion Notes state what is on screen from the coordinator's review and identify which
+  frames the coordinator reviewed.
+- Source: coordinator standing no-Read rule supplied with US-099 round 2 on 2026-11-25.
+
+---
+
 ## 2026-11-17 — Player aim drives facing (issue #34, US-098)
 
 - **Final decision:** the player character faces the aim direction.

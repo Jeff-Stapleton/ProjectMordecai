@@ -6,7 +6,11 @@
 **Paired story:** none; this story owns the authorized material and DevTestMap wall update
 
 ## Overview
-The exploratory agent found that at the arena's south-west corner the near wall hides everything but the top of the player's head (N21), and the fixed diorama camera has no cutaway or fade. In a fixed-camera game the player must always be able to see their character. Features: camera, movement.
+The exploratory agent found that at DevTestMap's original F07 evidence point
+`(-935, +935)` the near (-X) wall hides everything but the top of the player's head
+(N21), and the fixed diorama camera has no cutaway or fade. Under the yaw-0 gameplay
+camera this +Y corner is screen south-east, not south-west. In a fixed-camera game the
+player must always be able to see their character. Features: camera, movement.
 
 ## Execution Mode
 **EDITOR**
@@ -19,13 +23,13 @@ editor Python script and asset/map changes in this story.
 - `Specs/map_style_technical_design_v1.md` (height tiers, wall heights, cutaway rules if any), `Specs/game_design_v2.md` (diorama camera), CLAUDE.md "Never implement camera rotation"
 - Existing code: `Source/LyraGame/Mordecai/Camera/MordecaiCameraMode_Diorama.*` (fixed pitch -50, yaw 0)
 - Lane geometry used by the playtests: lane L1 runs along y = -800 from x = -700 (`Scripts/playtests/us001_movement.py` `walk_lane_start`)
-- DevTestMap's arena: walls 200 cm high, inner faces at ±975 (`Scripts/us054_04_setup_arena.py`; `ARENA_WALLS` in `Scripts/tests/fake_bridge.py`). F07 stood against the near (-X) wall at (-935, 935).
+- DevTestMap's arena: walls 200 cm high, inner faces at ±975 (`Scripts/us054_04_setup_arena.py`; `ARENA_WALLS` in `Scripts/tests/fake_bridge.py`). F07 stood against the near (-X) wall at (-935, +935).
 - US-100 (issue #46): `us001_movement.py` plays MovementTestMap since then. Its walls are 100 cm high at ±2000, with nothing tall on the camera side, so N21 cannot be reproduced there.
 
 ## Acceptance Criteria
 - [x] AC-099.1: TODO(DECISION) N21 answered by Jeff and recorded in `Specs/design_decisions_log.md`: (a) fade/hide occluding geometry between camera and player, (b) player silhouette through walls (custom depth / stencil), (c) lower near-side walls by level design (map rule in `map_style_technical_design_v1.md`), or a combination
-- [x] AC-099.2: The chosen mechanism is implemented and covered by Tier 1 tests named after it (e.g. `Mordecai.Recovery.Camera.OccluderFadesWhenBlockingPlayer`)
-- [x] AC-099.3: In the packaged build on DevTestMap, the player walks (WASD) into the south-west corner, against the 200 cm near (-X) wall, and the character is visible on screen — verified by a NEW check + screenshot `walk_sw_corner` / `screenshot sw_corner` in a DevTestMap script, e.g. a new `Scripts/playtests/us099_walls.py` (`STORY` "US-099", `MAP = kit.DEFAULT_MAP`, its own `RUN_SUFFIX`) — not `us001_movement.py`, which plays MovementTestMap (Tier 4: the walk is the input; the visibility is judged from `bridge_NN.png`, which the agent opens and describes; add a state assertion if the bridge reports occluder/fade state)
+- [ ] AC-099.2: The chosen mechanism is implemented and covered by Tier 1 tests named after it, including a world trace that proves tagged walls behind nearer untagged/stacked geometry fade and then restore
+- [ ] AC-099.3: In the packaged build on DevTestMap, the player walks (WASD) to the original F07 point at `(-935,+935)`, against the 200 cm near (-X) wall, and the character is visible on screen. Tier 4 requires x <= -915, `Arena_Wall_W` fade <= 0.05 within 0.5 s, then a real-input return to `(0,0)` and fade >= 0.999 within 0.5 s. The coordinator reviews `sw_corner` and `restored` screenshots from the bundle under the standing no-Read rule.
 - [x] AC-099.4: The camera still never rotates: `camera_fixed`, `no_camera_rotation_input` of `Scripts/playtests/us001_movement.py` PASS
 
 ## Technical Notes
@@ -37,7 +41,13 @@ editor Python script and asset/map changes in this story.
   top/centre/bottom drive `MordecaiOcclusionFade` on tagged `WorldStatic` wall primitives. The
   explicit wall tag and masked material keep floors and non-wall actors out; only current trace
   blockers enter the camera mode's small restoration map.
-- New DevTestMap script (committed before packaging), e.g. `Scripts/playtests/us099_walls.py`, a `PlaytestRun` with `STORY = "US-099"`, `MAP = kit.DEFAULT_MAP` and its own `RUN_SUFFIX`: `walk_sw_corner` = tap sprint and `walk_to` the original F07 evidence spot hugging the near (-X) wall inside the ±975 arena, about (-930, +930), then `shot("sw_corner")` with `SCREENSHOTS["sw_corner"] = "the player fully visible at the south-west corner (near wall faded/cut away/silhouette)"`; `proves` `AC-099.3`. Offline test against `Scripts/tests/fake_bridge.py` (`FakeWorld(**MAP_PRESETS[DEFAULT_MAP])`, which has the arena walls). The +Y world coordinate is the exploratory screenshot's south-west screen corner; using -Y instead runs into DevTestMap's `Cover_01` before reaching the wall.
+- `Scripts/playtests/us099_walls.py` is a `PlaytestRun` with `STORY = "US-099"`,
+  `MAP = kit.DEFAULT_MAP` and its own `RUN_SUFFIX`. It taps sprint and walks to the
+  original F07 evidence spot at `(-935,+935)`, requires x <= -915 and
+  `Arena_Wall_W` fade <= 0.05, captures `sw_corner`, returns to `(0,0)`, requires
+  fade >= 0.999, and captures `restored`. The +Y route is used because F07 is the
+  original bug location recorded by the story on `main`; the drafted -Y route was
+  not that evidence location.
   - Why not us001: since US-100 it plays MovementTestMap, whose walls are 100 cm high at ±2000; a corner there shows the whole character with or without the fix, a false PASS.
   - DevTestMap's Frontliners swarm the spawn and kill a standing player in about 10 s (N14, T1). Walk to the corner first and take the screenshot at once; a death or a shove before the shot is a FAIL to report, not to hide. Do not use `us054_arena.py`: its run stands at the spawn for the AI checks.
   - Alternative, decided when the story starts: add a 200 cm near-side wall segment to MovementTestMap (an EDITOR change to `Scripts/us100_02_create_test_maps.py`, re-run and committed with the map) and put the check in us001 there.
@@ -52,36 +62,44 @@ editor Python script and asset/map changes in this story.
 ### Tier 3 — Packaged playtest
 - See Playtest
 ### Tier 4 — Real-input playtest
-- the new DevTestMap script (e.g. `Scripts/playtests/us099_walls.py`): `walk_sw_corner` + `sw_corner` screenshot
+- `Scripts/playtests/us099_walls.py`: F07 position + fade assertion, `sw_corner`
+  screenshot, real-input return to centre, restore assertion, and `restored` screenshot
 - `Scripts/playtests/us001_movement.py` (MovementTestMap): `camera_fixed`, `no_camera_rotation_input` (AC-099.4)
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py` (DevTestMap → B_MordecaiArenaExperience); Tier 4: `py Scripts/playtest_story.py US-099` on the same package (it runs the new DevTestMap script), plus `py Scripts/playtest_story.py US-001` (MovementTestMap) for AC-099.4
-- **Player steps:** walk (WASD) to the south-west corner of DevTestMap's arena, against the 200 cm near (-X) wall
-- **Visible on screen:** the `sw_corner` screenshot shows the whole character (not just the top of its head) next to the near wall
-- **Proof:** Tier 4 check `walk_sw_corner` and the `sw_corner` screenshot of the new DevTestMap script (e.g. `Scripts/playtests/us099_walls.py`); `camera_fixed`, `no_camera_rotation_input` of `Scripts/playtests/us001_movement.py`
+- **Player steps:** walk (WASD) to DevTestMap's original F07 point `(-935,+935)` against the 200 cm near (-X) wall, then walk back to `(0,0)`
+- **Visible on screen:** `sw_corner` shows the whole character (not just the top of the head) beside the faded west wall; `restored` shows that wall fully restored after the player returns to centre
+- **Proof:** Tier 4 checks `walk_sw_corner`, `wall_fades_at_corner`,
+  `walk_back_to_centre`, and `wall_restores_clear`, plus the two screenshots;
+  `camera_fixed`, `no_camera_rotation_input` of `Scripts/playtests/us001_movement.py`
 - **Tier 4 script:** the new DevTestMap script (e.g. `Scripts/playtests/us099_walls.py`) — run: `py Scripts/playtest_story.py US-099`
 - **Steps:** generated by `py Scripts/playtest_story.py US-099 --plan`; checked by `--lint`
 
 <!-- Scripts/playtests/us099_walls.py -->
 | # | Check | Player step (bridge calls) → expected | Proves |
 |---|---|---|---|
-| 1 | `walk_sw_corner` | tap `LeftShift`, `walk_to(-925, 0)`, then `walk_to(-925, 925)` with real WASD → within 60 cm and `player.is_dead==false`, then immediately screenshot `sw_corner` | AC-099.3 |
+| 1 | `walk_sw_corner` | tap `LeftShift`, `walk_to(-935, 0)`, then `walk_to(-935, 935)` with real WASD → within 20 cm, x <= -915, and alive | AC-099.3 |
+| 2 | `wall_fades_at_corner` | observe `camera.occluders[Arena_Wall_W].fade <= 0.05` within 0.5 s, then screenshot `sw_corner` | AC-099.2, AC-099.3 |
+| 3 | `walk_back_to_centre` | `walk_to(-935, 0)`, then `walk_to(0, 0)` with real WASD | AC-099.3 |
+| 4 | `wall_restores_clear` | observe `camera.occluders[Arena_Wall_W].fade >= 0.999` within 0.5 s, then screenshot `restored` | AC-099.2, AC-099.3 |
 - **Playable alone:** YES (after the decision; NO if an EDITOR pair is split off — then "playable after US-XXX")
 
 ## Definition of Done
-- [x] All ACs checked off
-- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [x] Content: every asset (if any) saved and committed; `py Scripts/check_content_committed.py` exits 0
-- [x] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [x] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
-- [x] `py Scripts/playtest_story.py US-099` on that same fresh package: `walk_sw_corner` PASSes, the `sw_corner` screenshot shows the whole character; `py Scripts/playtest_story.py US-001` (MovementTestMap): `camera_fixed`, `no_camera_rotation_input` PASS; no check that PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
-- [x] Known issue N21 marked FIXED in `Specs/agent_playtest_plan_v1.md`
-- [x] Screenshot review handled by Jeff under the task-specific no-Read override; scripted
-  viewport/media checks and expected contents are recorded in Completion Notes
-- [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-099]` closing commit
-- [x] Pushed; story moved to `stories/done/` only after all of the above pass
+- [ ] All ACs checked off
+- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [ ] Content: every asset (if any) saved and committed; `py Scripts/check_content_committed.py` exits 0
+- [ ] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [ ] `py Scripts/playtest_story.py US-099` on that same fresh package: all fade,
+  position, restore, and screenshot checks PASS; `py Scripts/playtest_story.py US-001`
+  (MovementTestMap): `camera_fixed`, `no_camera_rotation_input` PASS; no check that
+  PASSed in the sweep now FAILs; `--lint` exits 0 — never `--allow-stale`
+- [ ] Known issue N21 marked FIXED on DevTestMap in `Specs/agent_playtest_plan_v1.md`
+- [ ] Every screenshot (engine_NN.png, bridge_NN.png) reviewed by the coordinator under the standing no-Read rule; Completion Notes state what is on screen.
+- [ ] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-099]` closing commit
+- [ ] Pushed; story moved to `stories/done/` only after all of the above pass
 
 ## Completion Notes
 - Decision: Jeff selected N21 option (a) on 2026-11-17. Three camera-to-capsule
@@ -104,6 +122,11 @@ editor Python script and asset/map changes in this story.
   point at `(-935.0, 934.4)` alive, 13.8 cm from the target; `walk_sw_corner`,
   `screenshot_sw_corner`, no-crash and cooked-content checks passed. Evidence frame:
   `bridge_01.png`.
+- Round-1 coordinator screenshot review (standing no-Read rule):
+  `bridge_01.png` from the US-099 Tier 4 run shows the player capsule fully visible at
+  the corner directly beside the west wall with the HUD present. `engine_02.png` from
+  the Tier 3 boot shows the arena from the default camera with the usual death screen
+  from the boot swarm.
 - AC-099.4 regression PASS:
   `Saved/Playtests/20261125-000459-us001`; both `camera_fixed` and
   `no_camera_rotation_input` passed with control rotation fixed at `[-50, 0, 0]`. Its Tier 3
@@ -119,10 +142,15 @@ editor Python script and asset/map changes in this story.
   source matching, HUD structure, all 8/8 sampled motion pairs, 53/53 temporal-continuity
   pairs and 21/21 unique source-frame hashes. `label-proof.json` passed with TextRender
   labels suppressed and no rendered actor/debug labels or enemy indicators.
-- Per Jeff's task-specific override, the agent did not open any PNG/JPG/video with the Read
-  tool. The scripts verified dimensions, non-static motion, HUD structure, provenance and
-  clean presentation; Jeff owns the final visual review of all cited media.
-- Route note: the acceptance route uses the original F07 `(-935, +935)` evidence point.
-  The initially drafted `(-925, -925)` path runs into DevTestMap's `Cover_01`; that failed
-  diagnostic run was not cited as acceptance evidence.
+- Under the standing no-Read rule, the builder did not open PNG/JPG/video. Scripts
+  verified dimensions, non-static motion, HUD structure, provenance and clean
+  presentation; the coordinator reviews every acceptance and marketing frame from the
+  checksummed bundle.
+- Route note: the acceptance route uses the original F07 `(-935, +935)` evidence point
+  recorded by the story on `main`. The drafted negative-Y route was dropped because it
+  was not the original bug location. With camera yaw 0, +Y is screen-right, so this point
+  is not described as screen south-west.
 - Bundle: `us099-493f45c0` in the assigned Agent Store.
+- Round 2 reopened the story after evidence review. New world-trace, bridge-state,
+  negative-control, package, sweep, media and coordinator screenshot evidence is pending;
+  the story remains in `stories/in-progress/` until those checks pass.

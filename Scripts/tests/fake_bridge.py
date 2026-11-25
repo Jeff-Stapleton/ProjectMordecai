@@ -96,8 +96,8 @@ MAX_LINE_BYTES = 1024 * 1024
 MAX_CONNECTIONS = 4
 MAX_CONDITION_LENGTH = 4096   # MordecaiAgentBridge::MaxConditionLength
 MAX_CONDITION_DEPTH = 64      # MordecaiAgentBridge::MaxConditionDepth ('!' and '(' levels)
-SECTIONS = ("game", "focus", "player", "input", "pickups", "inventory", "pause_menu", "widgets",
-            "actors")
+SECTIONS = ("game", "focus", "player", "camera", "input", "pickups", "inventory", "pause_menu",
+            "widgets", "actors")
 VIEWPORT_W, VIEWPORT_H = 1280, 720
 DEFAULT_MAP = "/MordecaiCore/Game/Maps/DevTestMap"
 DEFAULT_EXPERIENCE = "B_MordecaiArenaExperience"
@@ -1198,6 +1198,17 @@ class FakeWorld:
                        "type": ["Sword", "Staff"][self.weapon_index],
                        "index": self.weapon_index, "count": 2},
             "spells": spells, "kills": self.kills}
+
+    def _s_camera(self):
+        if not self.has_pawn:
+            return {"valid": False, "reason": "no pawn yet"}
+        occluders = []
+        for name, _ in self.wall_boxes:
+            fade = 1.0
+            if name == "Arena_Wall_W" and self.pos[0] <= -915.0:
+                fade = 0.0
+            occluders.append({"name": name, "fade": fade})
+        return {"valid": True, "occluders": occluders}
 
     def _s_input(self):
         held = []

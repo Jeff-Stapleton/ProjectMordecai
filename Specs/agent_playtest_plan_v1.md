@@ -423,12 +423,15 @@ The contract is `Specs/story_playtests_v1.md`.
   - Fix: the same `ECC_WorldStatic` trace continues after locally adding each hit Pawn actor to its ignored-actor query, while retaining every non-Pawn component's channel response; this is actor-level trace ignoring, not a component-level Pawn-object filter. It checks the real capsule at the endpoint, searches only backward on the cast line when occupied, and completes any numerically positive move before SP/cooldown/cast-event/invulnerability commit. Zero or failed movement has no cast side effects.
   - Tier 1 through R1: the original strengthened RED was 2 PASS / 3 FAIL and endpoint-resolution-disabled mutation was 4 PASS / 1 FAIL. R1 isolated mutations prove Pawn-to-wall continuation, zero-move `EndAbility`, and the no-minimum positive-move boundary (each 6 PASS / 1 intended FAIL); restored focused Blink is 7/7 PASS, retained expiry is 1/1 PASS, all 788 Mordecai tests pass, and the deterministic owner deadline regression brings Python to 612/612 PASS. Both relevant lints, content guard, default PIE 16/16 and pickup-map PIE 3/3 pass.
   - Fresh-package acceptance: dedicated owner `Saved/Playtests/20261108-184046-us087-blink` PASSes real Slate E with the retained stationary TestDummy about 1 m ahead, SP 10→8 and +500 cm movement; the complete comparison sweep `Saved/Playtests/20261108-184125-sweep` has 14 owners, 381 PASS / 14 retained FAIL / 6 WARN / 1 SKIP / 18 INFO, with zero baseline PASS→FAIL and no missing owner or check.
-- **N21 Walls hide the player (FIXED, US-099 / issue #26).** Jeff selected option (a):
+- **N21 Walls hide the player (FIXED on DevTestMap, US-099 / issue #26).** Jeff selected option (a):
   only tagged `WorldStatic` geometry hit by one of three fixed-camera-to-capsule visibility
-  traces fades. DevTestMap's four arena walls use a masked Default Lit material driven by the
+  traces fades. DevTestMap's four arena walls and two interior walls use a masked Default Lit
+  material driven by the
   `MordecaiOcclusionFade` scalar through Unreal's `DitherTemporalAA`; the camera mode eases each
   hit wall out and restores it in 0.25 s. The floor is untagged, Pawns are rejected, and camera
   position/rotation behavior is unchanged.
+  - This FIXED status is limited to DevTestMap. Other existing and future maps still require
+    an authoring pass under `map_style_technical_design_v1.md` §8.2.
   - Tier 1: `Mordecai.Recovery.Camera.OccluderFadesWhenBlockingPlayer`,
     `RestoresWhenNotBlocking`, and `DoesNotFadeFloor` (RED `91443b41`).
   - Packaged run paths and the script-verified `sw_corner` frame are recorded in US-099's

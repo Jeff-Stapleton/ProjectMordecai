@@ -507,6 +507,15 @@ Avoid placing tall decorative assets where they:
 
 Use tall foreground elements sparingly and intentionally.
 
+Foreground wall meshes that may block the fixed camera's view of the player must use the
+`Mordecai.OcclusionFade` component tag and a material slot that exposes the
+`MordecaiOcclusionFade` scalar parameter. The tag belongs only on non-instanced
+`WorldStatic` mesh components: instanced static meshes cannot receive the required
+per-component fade and must instead be split into independently fadeable wall components.
+Do not tag floors, ground, the player's tile, enemies, interactables, or decorative geometry
+that does not intentionally participate in camera occlusion. A tagged component with no
+compatible material is a map-authoring error and emits a one-time runtime warning.
+
 ---
 
 ## 8.3 Framing landmarks
