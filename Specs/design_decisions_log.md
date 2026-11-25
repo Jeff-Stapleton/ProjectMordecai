@@ -286,6 +286,22 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 
 ---
 
+## 2026-11-17 — Near-wall player visibility (issue #26, US-099)
+
+- **Final decision:** walls between the fixed camera and the player fade out (N21 option a).
+- Fade only geometry that actually blocks a camera-to-player line of sight, not every near-side
+  wall.
+- Prefer a dithered/masked fade to avoid translucent sorting. Ease it in and out over roughly
+  0.2–0.3 seconds and restore the wall fully after the player moves clear.
+- Floors, ground and the player's own tile never fade. Enemies and other actors are untouched.
+- The camera never rotates and its follow/location behavior does not change.
+- **Implementation call supplied with the decision:** a local-player trace from the camera to
+  capsule top/centre/bottom may drive a scalar fade through a dither material parameter or Custom
+  Primitive Data; prefer the smallest engine-provided mechanism.
+- Source: Jeff's owner decision supplied with issue #26 / US-099 on 2026-11-17.
+
+---
+
 ## 2026-11-17 — Player aim drives facing (issue #34, US-098)
 
 - **Final decision:** the player character faces the aim direction.

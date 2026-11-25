@@ -1,7 +1,7 @@
 // Project Mordecai — Camera Tests (Story 1.2)
 
 #include "Misc/AutomationTest.h"
-#include "Components/BoxComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Mordecai/Camera/MordecaiCameraMode_Diorama.h"
 
 // Mordecai.Camera.FollowsCharacterPosition
@@ -69,7 +69,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiRecoveryCamera_OccluderFades,
 
 bool FMordecaiRecoveryCamera_OccluderFades::RunTest(const FString& Parameters)
 {
-	UBoxComponent* Wall = NewObject<UBoxComponent>();
+	UStaticMeshComponent* Wall = NewObject<UStaticMeshComponent>();
 	Wall->SetCollisionObjectType(ECC_WorldStatic);
 	Wall->ComponentTags.Add(TEXT("Mordecai.OcclusionFade"));
 
@@ -102,11 +102,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecaiRecoveryCamera_DoesNotFadeFloor,
 
 bool FMordecaiRecoveryCamera_DoesNotFadeFloor::RunTest(const FString& Parameters)
 {
-	UBoxComponent* Floor = NewObject<UBoxComponent>();
+	UStaticMeshComponent* Floor = NewObject<UStaticMeshComponent>();
 	Floor->SetCollisionObjectType(ECC_WorldStatic);
 	TestFalse("Untagged floor is not eligible", UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(Floor));
 
-	UBoxComponent* Enemy = NewObject<UBoxComponent>();
+	UStaticMeshComponent* Enemy = NewObject<UStaticMeshComponent>();
 	Enemy->SetCollisionObjectType(ECC_Pawn);
 	Enemy->ComponentTags.Add(TEXT("Mordecai.OcclusionFade"));
 	TestFalse("Pawn geometry is never eligible", UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(Enemy));

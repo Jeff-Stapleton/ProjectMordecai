@@ -7,6 +7,7 @@
 #include "MordecaiCameraMode_Diorama.generated.h"
 
 class UPrimitiveComponent;
+class UMeshComponent;
 
 /**
  * UMordecaiCameraMode_Diorama
@@ -41,9 +42,14 @@ public:
 	static bool IsOcclusionFadeCandidate(const UPrimitiveComponent* Primitive);
 
 protected:
+	virtual void OnDeactivation() override;
 	virtual void UpdateView(float DeltaTime) override;
 
 private:
+	void UpdateOcclusionFades(float DeltaTime, AActor* TargetActor);
+	void RestoreOccluders();
+
 	FVector SmoothedPivotLocation;
 	bool bFirstUpdate;
+	TMap<TWeakObjectPtr<UMeshComponent>, float> OccluderFadeProgress;
 };

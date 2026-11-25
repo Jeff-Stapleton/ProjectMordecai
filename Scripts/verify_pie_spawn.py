@@ -106,6 +106,32 @@ def _run():
     check("Pawn not at world origin", not_at_origin,
           f"Location=({loc.x:.0f}, {loc.y:.0f}, {loc.z:.0f}) -- may not have spawned correctly")
 
+    # --- US-099 wall-fade content contract (DevTestMap only) ---
+    if "DevTestMap" in world.get_path_name():
+        fade_tag = "Mordecai.OcclusionFade"
+        fade_material = "M_OcclusionFadeWall"
+        static_actors = unreal.GameplayStatics.get_all_actors_of_class(
+            world, unreal.StaticMeshActor)
+        walls = [actor for actor in static_actors
+                 if actor.get_actor_label().startswith("Arena_Wall_")]
+        check("US-099 has four fade-enabled arena walls", len(walls) == 4,
+              f"Found {[actor.get_actor_label() for actor in walls]}")
+        for wall in walls:
+            mesh = wall.static_mesh_component
+            tags = [str(tag) for tag in mesh.get_editor_property("component_tags")]
+            material = mesh.get_material(0)
+            check(f"US-099 {wall.get_actor_label()} tagged for occlusion fade",
+                  fade_tag in tags, f"Tags={tags}")
+            check(f"US-099 {wall.get_actor_label()} uses masked fade material",
+                  material is not None and fade_material in material.get_name(),
+                  f"Material={material}")
+        floors = [actor for actor in static_actors
+                  if actor.get_actor_label() == "Arena_Floor"]
+        floor_tags = [str(tag) for floor in floors
+                      for tag in floor.static_mesh_component.get_editor_property("component_tags")]
+        check("US-099 arena floor is never fade-enabled",
+              bool(floors) and fade_tag not in floor_tags, f"Floor tags={floor_tags}")
+
     print("")
     print(f"RESULT: {pass_count} passed, {fail_count} failed")
 

@@ -1,12 +1,21 @@
 // Project Mordecai
 
 #include "MordecaiCameraMode_Diorama.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/MeshComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiCameraMode_Diorama)
+
+namespace
+{
+	const FName OcclusionFadeTag(TEXT("Mordecai.OcclusionFade"));
+	const FName OcclusionFadeParameter(TEXT("MordecaiOcclusionFade"));
+}
 
 UMordecaiCameraMode_Diorama::UMordecaiCameraMode_Diorama()
 	: PitchAngle(-50.0f)
@@ -28,12 +37,97 @@ UMordecaiCameraMode_Diorama::UMordecaiCameraMode_Diorama()
 float UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(
 	float CurrentFade, bool bBlockingPlayer, float DeltaTime, float FadeDuration)
 {
-	return CurrentFade;
+	const float TargetFade = bBlockingPlayer ? 0.0f : 1.0f;
+	const float FadeSpeed = FadeDuration > UE_SMALL_NUMBER ? 1.0f / FadeDuration : BIG_NUMBER;
+	return FMath::FInterpConstantTo(CurrentFade, TargetFade, DeltaTime, FadeSpeed);
 }
 
 bool UMordecaiCameraMode_Diorama::IsOcclusionFadeCandidate(const UPrimitiveComponent* Primitive)
 {
-	return false;
+	return Primitive
+		&& Primitive->GetCollisionObjectType() == ECC_WorldStatic
+		&& Primitive->ComponentHasTag(OcclusionFadeTag)
+		&& Primitive->IsA<UMeshComponent>();
+}
+
+void UMordecaiCameraMode_Diorama::OnDeactivation()
+{
+	RestoreOccluders();
+	Super::OnDeactivation();
+}
+
+void UMordecaiCameraMode_Diorama::RestoreOccluders()
+{
+	for (const TPair<TWeakObjectPtr<UMeshComponent>, float>& Entry : OccluderFadeProgress)
+	{
+		if (UMeshComponent* Mesh = Entry.Key.Get())
+		{
+			Mesh->SetScalarParameterValueOnMaterials(OcclusionFadeParameter, 1.0f);
+		}
+	}
+	OccluderFadeProgress.Reset();
+}
+
+void UMordecaiCameraMode_Diorama::UpdateOcclusionFades(float DeltaTime, AActor* TargetActor)
+{
+	UWorld* World = GetWorld();
+	if (!World || World->GetNetMode() == NM_DedicatedServer || !TargetActor)
+	{
+		RestoreOccluders();
+		return;
+	}
+
+	float HalfHeight = 0.0f;
+	if (const ACharacter* Character = Cast<ACharacter>(TargetActor))
+	{
+		if (const UCapsuleComponent* Capsule = Character->GetCapsuleComponent())
+		{
+			HalfHeight = Capsule->GetScaledCapsuleHalfHeight() * 0.9f;
+		}
+	}
+
+	const FVector TargetCenter = TargetActor->GetActorLocation();
+	const FVector TraceTargets[] = {
+		TargetCenter + FVector::UpVector * HalfHeight,
+		TargetCenter,
+		TargetCenter - FVector::UpVector * HalfHeight
+	};
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MordecaiCameraOcclusion), false, TargetActor);
+	TSet<UMeshComponent*> BlockingOccluders;
+	for (const FVector& TraceTarget : TraceTargets)
+	{
+		FHitResult Hit;
+		if (World->LineTraceSingleByChannel(Hit, View.Location, TraceTarget, ECC_Visibility, QueryParams))
+		{
+			if (UMeshComponent* Mesh = Cast<UMeshComponent>(Hit.GetComponent());
+				IsOcclusionFadeCandidate(Mesh))
+			{
+				BlockingOccluders.Add(Mesh);
+				OccluderFadeProgress.FindOrAdd(Mesh, 1.0f);
+			}
+		}
+	}
+
+	for (auto It = OccluderFadeProgress.CreateIterator(); It; ++It)
+	{
+		UMeshComponent* Mesh = It.Key().Get();
+		if (!Mesh)
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+
+		const bool bBlockingPlayer = BlockingOccluders.Contains(Mesh);
+		const float Progress = AdvanceOcclusionFade(
+			It.Value(), bBlockingPlayer, DeltaTime, OcclusionFadeDuration);
+		It.Value() = Progress;
+		const float EasedOpacity = FMath::InterpEaseInOut(0.0f, 1.0f, Progress, 2.0f);
+		Mesh->SetScalarParameterValueOnMaterials(OcclusionFadeParameter, EasedOpacity);
+		if (!bBlockingPlayer && FMath::IsNearlyEqual(Progress, 1.0f))
+		{
+			It.RemoveCurrent();
+		}
+	}
 }
 
 void UMordecaiCameraMode_Diorama::UpdateView(float DeltaTime)
@@ -67,4 +161,6 @@ void UMordecaiCameraMode_Diorama::UpdateView(float DeltaTime)
 	View.Rotation = FixedRotation;
 	View.ControlRotation = FixedRotation;
 	View.FieldOfView = FieldOfView;
+
+	UpdateOcclusionFades(DeltaTime, TargetActor);
 }
