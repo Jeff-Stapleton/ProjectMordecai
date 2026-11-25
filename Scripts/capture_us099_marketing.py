@@ -304,6 +304,7 @@ def _capture_extra_args(movie_dir=None):
         "ShowFlag.TextRender 0,t.MaxFPS 30,r.SetRes 1920x1080f")
     args = [
         "-MordecaiMarketingCapture",
+        "-MordecaiMarketingFreezeAI",
         "-NOSCREENMESSAGES",
         f"-ResX={OUTPUT_SIZE[0]}",
         f"-ResY={OUTPUT_SIZE[1]}",
@@ -362,7 +363,7 @@ def _drive_wall_fade_route(bridge, output_dir=None, phase_prefix="capture"):
         mid_state = bridge.wait_for(
             lambda value: (
                 _occluder(value) is not None
-                and 0.35 <= float(_occluder(value).get("fade", 1.0)) <= 0.65
+                and 0.25 <= float(_occluder(value).get("fade", 1.0)) <= 0.40
             ),
             timeout_s=90.0,
             sections=["camera", "player"],
@@ -378,7 +379,7 @@ def _drive_wall_fade_route(bridge, output_dir=None, phase_prefix="capture"):
         if output_dir is not None:
             mid_still = _capture_still(
                 bridge, output_dir, "still_02_mid_fade.png",
-                "the west wall in its dithered transition while the player enters occlusion",
+                "the west wall visibly dithered with the player partly showing through it",
                 require_transition_bracket=True)
             stills.append(mid_still)
             mid_fade = float((mid_still.get("west_wall") or {}).get("fade", -1.0))
@@ -407,8 +408,7 @@ def _drive_wall_fade_route(bridge, output_dir=None, phase_prefix="capture"):
                 "the west wall fully faded with the whole player clear and HUD visible"))
 
         bridge.tap("LeftShift")
-        bridge.walk_to(-935.0, 0.0, tol=20.0, timeout_s=90.0)
-        bridge.walk_to(0.0, 0.0, tol=20.0, timeout_s=90.0)
+        bridge.walk_to(-500.0, 935.0, tol=20.0, timeout_s=90.0)
         restored_state = bridge.wait_for(
             lambda value: (
                 _occluder(value) is not None
@@ -426,7 +426,7 @@ def _drive_wall_fade_route(bridge, output_dir=None, phase_prefix="capture"):
         if output_dir is not None:
             stills.append(_capture_still(
                 bridge, output_dir, "still_04_restored.png",
-                "the player back at centre with the fully restored west wall still in frame"))
+                "the player beside the fully restored west wall, which remains in frame"))
 
         final = bridge.state(
             ["game", "player", "camera", "actors", "widgets"], radius=3000)
@@ -569,6 +569,7 @@ def capture(output_dir):
         "camera_distance": 1000,
         "production_fade_duration_seconds": 0.25,
         "still_session_fade_duration_seconds": STILL_FADE_DURATION_SECONDS,
+        "enemies_frozen": True,
         "non_acceptance": True,
     }
     with open(os.path.join(output_dir, "capture-result.json"), "w", encoding="utf-8") as stream:
@@ -595,6 +596,9 @@ def capture(output_dir):
             f"{STILL_FADE_DURATION_SECONDS:.1f}s marketing fade so the mid-fade screenshot "
             "is ordered between pre/post transitional material states. The continuous clip "
             "and all acceptance evidence retain the production 0.25s fade.\n"
+            "- Enemies: inert during this capture through the dedicated "
+            "`-MordecaiMarketingFreezeAI` flag; the shared `-MordecaiMarketingCapture` "
+            "presentation flag does not freeze AI.\n"
             "- Camera: 1000 cm marketing camera (`-MordecaiMarketingCapture`), not the 1800 cm "
             "gameplay camera; the closer view keeps the wall transition legible.\n"
             "- Content: approach, dither transition, fully faded west wall with the player "

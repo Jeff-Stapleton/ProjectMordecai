@@ -309,7 +309,9 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
   tool.
 - Completion Notes state what is on screen from the coordinator's review and identify which
   frames the coordinator reviewed.
-- Source: coordinator standing no-Read rule supplied with US-099 round 2 on 2026-11-25.
+- This supersedes the `CLAUDE.md` Step 4c/4d builder screenshot-reading steps for agent stories.
+- Source: decided by the coordinator for Jeff through the standing no-Read rule supplied with
+  US-099 round 2 on 2026-11-25.
 
 ---
 

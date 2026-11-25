@@ -37,6 +37,10 @@ void AMordecaiEnemyAIController::BeginPlay()
 {
 	Super::BeginPlay();
 
+#if !UE_BUILD_SHIPPING
+	bFreezeAIForMarketing = ShouldFreezeAIForMarketing(FCommandLine::Get());
+#endif
+
 	if (APawn* MyPawn = GetPawn())
 	{
 		SpawnLocation = MyPawn->GetActorLocation();
@@ -229,7 +233,11 @@ void AMordecaiEnemyAIController::NotifyAttackCompleted()
 
 bool AMordecaiEnemyAIController::ShouldFreezeAIForMarketing(const TCHAR* CommandLine)
 {
-	return CommandLine && FParse::Param(CommandLine, TEXT("MordecaiMarketingCapture"));
+#if UE_BUILD_SHIPPING
+	return false;
+#else
+	return CommandLine && FParse::Param(CommandLine, TEXT("MordecaiMarketingFreezeAI"));
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -240,12 +248,14 @@ void AMordecaiEnemyAIController::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// Marketing capture runs fixed-timestep rendering faster than wall-clock time.
-	// Keep its non-acceptance wall-fade footage free of accelerated AI deaths.
-	if (ShouldFreezeAIForMarketing(FCommandLine::Get()))
+#if !UE_BUILD_SHIPPING
+	// US-099's fixed-timestep marketing capture opts into inert enemies independently from
+	// the shared presentation flag. BeginPlay parses the command line once.
+	if (bFreezeAIForMarketing)
 	{
 		return;
 	}
+#endif
 
 	// AC-051.12: Only run state machine on server
 	if (!HasAuthority())

@@ -433,9 +433,13 @@ The contract is `Specs/story_playtests_v1.md`.
   - This FIXED status is limited to DevTestMap. Other existing and future maps still require
     an authoring pass under `map_style_technical_design_v1.md` §8.2.
   - Tier 1: `Mordecai.Recovery.Camera.OccluderFadesWhenBlockingPlayer`,
-    `RestoresWhenNotBlocking`, and `DoesNotFadeFloor` (RED `91443b41`).
-  - Packaged run paths and the script-verified `sw_corner` frame are recorded in US-099's
-    completion notes and delivery PR.
+    `WorldTraceFadesAndRestoresTaggedWalls`, `RestoresWhenNotBlocking`, and
+    `DoesNotFadeFloor`. The world test proves multi-hit tracing through nearer untagged and
+    mistagged geometry, stacked tagged walls, exact fade 0, no MID on a mistagged wall, clear-path
+    restoration, target-destruction restoration, and camera-mode-deactivation restoration.
+  - Tier 4: `us099_walls.py` checks the original F07 position, exact wall fade, return route and
+    restoration, with `f07_corner` and `restored` frames. Packaged run paths and coordinator
+    descriptions are recorded in US-099's completion notes and delivery PR.
 - **N22 (design question) Items have no actions.** Picked-up items have no Use or Equip action: the Health Potion cannot be used, and the Rusty Sword cannot be equipped or added to the weapon cycle.
 - **The Settings tab shows "Coming Soon" (accepted by AC-069.3; not part of N5's US-093 fix).** A real Settings screen remains a separate design decision and is not in issue #10's Skills/Feats recovery scope.
 

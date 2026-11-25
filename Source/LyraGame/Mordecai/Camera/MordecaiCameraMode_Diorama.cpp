@@ -39,6 +39,7 @@ UMordecaiCameraMode_Diorama::UMordecaiCameraMode_Diorama()
 	ViewPitchMax = PitchAngle;
 	BlendTime = 0.5f;
 
+#if !UE_BUILD_SHIPPING
 	float MarketingFadeDuration = 0.0f;
 	if (FParse::Param(FCommandLine::Get(), TEXT("MordecaiMarketingCapture"))
 		&& FParse::Value(
@@ -50,6 +51,7 @@ UMordecaiCameraMode_Diorama::UMordecaiCameraMode_Diorama()
 		// normal gameplay omit this flag and retain the production 0.25-second transition.
 		OcclusionFadeDuration = FMath::Clamp(MarketingFadeDuration, 0.05f, 5.0f);
 	}
+#endif
 }
 
 float UMordecaiCameraMode_Diorama::AdvanceOcclusionFade(
@@ -74,6 +76,7 @@ void UMordecaiCameraMode_Diorama::OnDeactivation()
 	if (AActor* TargetActor = OcclusionTarget.Get())
 	{
 		TargetActor->OnEndPlay.RemoveDynamic(this, &ThisClass::HandleOcclusionTargetEndPlay);
+		TargetActor->OnDestroyed.RemoveDynamic(this, &ThisClass::HandleOcclusionTargetDestroyed);
 	}
 	OcclusionTarget.Reset();
 	RestoreOccluders();
@@ -99,17 +102,28 @@ void UMordecaiCameraMode_Diorama::SetOcclusionTarget(AActor* TargetActor)
 	if (AActor* PreviousTarget = OcclusionTarget.Get())
 	{
 		PreviousTarget->OnEndPlay.RemoveDynamic(this, &ThisClass::HandleOcclusionTargetEndPlay);
+		PreviousTarget->OnDestroyed.RemoveDynamic(this, &ThisClass::HandleOcclusionTargetDestroyed);
 	}
 	RestoreOccluders();
 	OcclusionTarget = TargetActor;
 	if (TargetActor)
 	{
 		TargetActor->OnEndPlay.AddUniqueDynamic(this, &ThisClass::HandleOcclusionTargetEndPlay);
+		TargetActor->OnDestroyed.AddUniqueDynamic(this, &ThisClass::HandleOcclusionTargetDestroyed);
 	}
 }
 
 void UMordecaiCameraMode_Diorama::HandleOcclusionTargetEndPlay(
 	AActor* Actor, EEndPlayReason::Type EndPlayReason)
+{
+	if (Actor == OcclusionTarget.Get())
+	{
+		RestoreOccluders();
+		OcclusionTarget.Reset();
+	}
+}
+
+void UMordecaiCameraMode_Diorama::HandleOcclusionTargetDestroyed(AActor* Actor)
 {
 	if (Actor == OcclusionTarget.Get())
 	{

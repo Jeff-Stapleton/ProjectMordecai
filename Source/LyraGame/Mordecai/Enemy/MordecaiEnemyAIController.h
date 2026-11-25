@@ -131,4 +131,5 @@ private:
 	float RecoverElapsedTime = 0.f;
 	bool bAttackInProgress = false;
 	bool bLoggedNoMeleeAttack = false;
+	bool bFreezeAIForMarketing = false;
 };

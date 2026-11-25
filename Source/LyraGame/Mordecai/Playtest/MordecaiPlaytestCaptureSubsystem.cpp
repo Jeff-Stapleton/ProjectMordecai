@@ -26,7 +26,11 @@ FMordecaiPlaytestCaptureConfig FMordecaiPlaytestCaptureConfig::FromCommandLine(c
 
 	Config.bPlaytestCapture = FParse::Param(CommandLine, TEXT("PlaytestCapture"));
 	Config.bMarketingFrameCapture = FParse::Param(CommandLine, TEXT("MarketingFrameCapture"));
-	Config.bEnabled = Config.bPlaytestCapture || Config.bMarketingFrameCapture;
+	Config.bConflictingCaptureModes =
+		Config.bPlaytestCapture && Config.bMarketingFrameCapture;
+	Config.bEnabled =
+		(Config.bPlaytestCapture || Config.bMarketingFrameCapture)
+		&& !Config.bConflictingCaptureModes;
 
 	FParse::Value(CommandLine, TEXT("PlaytestShots="), Config.NumShots);
 	FParse::Value(CommandLine, TEXT("MarketingFrameLimit="), Config.MarketingFrameLimit);
@@ -69,7 +73,15 @@ bool UMordecaiPlaytestCaptureSubsystem::ShouldCreateSubsystem(UObject* Outer) co
 #if UE_BUILD_SHIPPING
 	return false;
 #else
-	return Super::ShouldCreateSubsystem(Outer) && FMordecaiPlaytestCaptureConfig::FromCommandLine(FCommandLine::Get()).bEnabled;
+	const FMordecaiPlaytestCaptureConfig CaptureConfig =
+		FMordecaiPlaytestCaptureConfig::FromCommandLine(FCommandLine::Get());
+	if (CaptureConfig.bConflictingCaptureModes)
+	{
+		UE_LOG(LogMordecaiPlaytest, Error,
+			TEXT("-PlaytestCapture and -MarketingFrameCapture cannot be combined; refusing capture"));
+		return false;
+	}
+	return Super::ShouldCreateSubsystem(Outer) && CaptureConfig.bEnabled;
 #endif
 }
 
@@ -85,11 +97,12 @@ void UMordecaiPlaytestCaptureSubsystem::Initialize(FSubsystemCollectionBase& Col
 		FTickerDelegate::CreateUObject(this, &ThisClass::Tick),
 		Config.bMarketingFrameCapture ? 0.0f : 0.1f);
 
-	if (Config.bPlaytestCapture)
+	if (ULoadingScreenManager* Manager =
+		Collection.InitializeDependency<ULoadingScreenManager>())
 	{
-		if (ULoadingScreenManager* Manager = Collection.InitializeDependency<ULoadingScreenManager>())
+		LoadingScreenManager = Manager;
+		if (Config.bPlaytestCapture)
 		{
-			LoadingScreenManager = Manager;
 			Manager->OnLoadingScreenVisibilityChangedDelegate().AddUObject(
 				this, &ThisClass::HandleLoadingScreenVisibilityChanged);
 		}
@@ -164,6 +177,14 @@ bool UMordecaiPlaytestCaptureSubsystem::Tick(float DeltaTime)
 
 	if (Config.bMarketingFrameCapture)
 	{
+		// The loading screen remains after the experience loads. Numbered marketing frames must
+		// begin in gameplay so the encoded clip never needs a lossy post-capture trim.
+		if (const ULoadingScreenManager* Manager = LoadingScreenManager.Get();
+			Manager && Manager->GetLoadingScreenDisplayStatus())
+		{
+			return true;
+		}
+
 		// Let the startup r.SetRes command and viewport settle before frame 1. Requests made
 		// during that resize can be accepted by FScreenshotRequest but never reach disk.
 		// Warm-up ticks are intentionally unnumbered; every numbered tick must produce a file.
@@ -180,7 +201,6 @@ bool UMordecaiPlaytestCaptureSubsystem::Tick(float DeltaTime)
 			const FString Path = Config.GetMarketingFramePath(MarketingFrameIndex);
 			FScreenshotRequest::RequestScreenshot(
 				Path, /*bInShowUI*/ true, /*bAddFilenameSuffix*/ false);
-			++NextMarketingFrame;
 		}
 		else
 		{

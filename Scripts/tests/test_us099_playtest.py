@@ -124,6 +124,7 @@ class Us099PlaytestCase(unittest.TestCase):
 
     def test_plan_and_launch_path_are_pinned(self):
         self.assertEqual(kit.plan_problems(us099.Us099Run), [])
+        self.assertEqual(us099.FADED_MAX, 0.0001)
         self.assertIs(us099.Run, us099.Us099Run)
         self.assertEqual(us099.Us099Run.STORY, "US-099")
         self.assertEqual(us099.Us099Run.RUN_SUFFIX, "us099")

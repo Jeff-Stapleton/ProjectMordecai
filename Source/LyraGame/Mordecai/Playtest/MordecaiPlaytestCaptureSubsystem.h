@@ -18,6 +18,7 @@ struct FMordecaiPlaytestCaptureConfig
 	bool bEnabled = false;
 	bool bPlaytestCapture = false;
 	bool bMarketingFrameCapture = false;
+	bool bConflictingCaptureModes = false;
 	int32 NumShots = 3;
 	int32 MarketingFrameLimit = 1200;
 	float DelaySeconds = 6.f;
@@ -69,7 +70,6 @@ private:
 	TWeakObjectPtr<ULoadingScreenManager> LoadingScreenManager;
 	double ExperienceLoadedTime = -1.0;
 	int32 NextShot = 0;
-	int32 NextMarketingFrame = 0;
 	int32 MarketingTickCount = 0;
 	int32 MarketingWarmupTickCount = 0;
 	bool bLoadingShotTaken = false;

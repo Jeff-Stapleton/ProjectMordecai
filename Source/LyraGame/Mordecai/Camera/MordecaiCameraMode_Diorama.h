@@ -67,6 +67,9 @@ private:
 	UFUNCTION()
 	void HandleOcclusionTargetEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason);
 
+	UFUNCTION()
+	void HandleOcclusionTargetDestroyed(AActor* Actor);
+
 	FVector SmoothedPivotLocation;
 	bool bFirstUpdate;
 	TWeakObjectPtr<AActor> OcclusionTarget;

@@ -131,18 +131,33 @@ def _run():
             check(f"US-099 {wall.get_actor_label()} uses masked fade material",
                   material is not None and fade_material in material.get_name(),
                   f"Material={material}")
+            base_material = material.get_base_material() if material is not None else None
+            blend_mode = (
+                base_material.get_editor_property("blend_mode")
+                if base_material is not None else None
+            )
+            clip_value = (
+                float(base_material.get_editor_property("opacity_mask_clip_value"))
+                if base_material is not None else None
+            )
+            check(f"US-099 {wall.get_actor_label()} base material is BLEND_MASKED",
+                  blend_mode == unreal.BlendMode.BLEND_MASKED,
+                  f"Base={base_material}, blend={blend_mode}")
+            check(f"US-099 {wall.get_actor_label()} opacity-mask clip is 0.333",
+                  clip_value is not None and abs(clip_value - 0.333) <= 0.001,
+                  f"Base={base_material}, clip={clip_value}")
             parameter_names = (
                 [str(name) for name in
                  unreal.MaterialEditingLibrary.get_scalar_parameter_names(material)]
                 if material is not None else []
             )
-            check(f"[LOGIC] US-099 {wall.get_actor_label()} material exposes fade scalar",
+            check(f"US-099 {wall.get_actor_label()} material exposes fade scalar",
                   fade_parameter in parameter_names,
                   f"Scalar parameters={parameter_names}")
             if material is not None and fade_parameter in parameter_names:
                 fade_value = unreal.MaterialEditingLibrary.get_material_default_scalar_parameter_value(
                     material, fade_parameter)
-                check(f"[LOGIC] US-099 {wall.get_actor_label()} fade scalar starts opaque",
+                check(f"US-099 {wall.get_actor_label()} fade scalar starts opaque",
                       abs(float(fade_value) - 1.0) <= 0.001,
                       f"{fade_parameter}={fade_value}")
         floors = [actor for actor in static_actors

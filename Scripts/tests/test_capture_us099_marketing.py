@@ -104,8 +104,10 @@ class CaptureUs099MarketingTests(unittest.TestCase):
         self.assertNotIn("-BENCHMARK", still_args)
         self.assertFalse(any(arg.startswith("-FPS=") for arg in still_args))
         self.assertIn("-MordecaiMarketingFadeDuration=2.0", still_args)
+        self.assertIn("-MordecaiMarketingFreezeAI", still_args)
         self.assertIn("-BENCHMARK", movie_args)
         self.assertIn("-FPS=30", movie_args)
+        self.assertIn("-MordecaiMarketingFreezeAI", movie_args)
         self.assertNotIn("-MordecaiMarketingFadeDuration=2.0", movie_args)
 
     def test_mid_still_requires_an_ordered_transitional_state_bracket(self):
