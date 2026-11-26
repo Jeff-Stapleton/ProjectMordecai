@@ -129,6 +129,13 @@ bool FMordecai_Playtest_CaptureMarketingSessionSuppressesDebugPresentation::RunT
 	TestFalse("Marketing presentation is distinct from boot capture", Config.bPlaytestCapture);
 	TestFalse("Marketing presentation is distinct from continuous frame capture",
 		Config.bMarketingFrameCapture);
+
+	const FMordecaiPlaytestCaptureConfig WarmupFreeze =
+		FMordecaiPlaytestCaptureConfig::FromCommandLine(
+			TEXT("-MordecaiMarketingCapture -MarketingFrameCapture "
+				"-MordecaiMarketingFreezeAIUntilFrames"));
+	TestTrue("Loading-only AI freeze is parsed for fixed-frame sessions",
+		WarmupFreeze.bFreezeAIUntilMarketingFrames);
 	return true;
 }
 

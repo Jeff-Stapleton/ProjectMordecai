@@ -20,6 +20,7 @@ class MarketingRecapTests(unittest.TestCase):
         self.assertIn("-MarketingFrameCapture", args)
         self.assertIn("-BENCHMARK", args)
         self.assertIn("-FPS=30", args)
+        self.assertIn("-MordecaiMarketingFreezeAIUntilFrames", args)
         self.assertNotIn("-MordecaiMarketingFreezeAI", args)
 
     def test_recapture_uses_devtest_map_and_1080p(self):

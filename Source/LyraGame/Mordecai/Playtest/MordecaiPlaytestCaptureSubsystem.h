@@ -20,6 +20,7 @@ struct FMordecaiPlaytestCaptureConfig
 	bool bMarketingFrameCapture = false;
 	bool bMarketingCaptureSession = false;
 	bool bSuppressDebugPresentation = false;
+	bool bFreezeAIUntilMarketingFrames = false;
 	bool bConflictingCaptureModes = false;
 	int32 NumShots = 3;
 	int32 MarketingFrameLimit = 1200;
@@ -72,6 +73,7 @@ private:
 	void RestoreMarketingPresentation();
 
 	bool bMarketingPresentationApplied = false;
+	bool bMarketingAIReleased = false;
 	bool bPreviousScreenMessagesEnabled = true;
 	int32 PreviousDrawDebugHelpers = 1;
 	int32 PreviousMeleeHitShapes = 1;

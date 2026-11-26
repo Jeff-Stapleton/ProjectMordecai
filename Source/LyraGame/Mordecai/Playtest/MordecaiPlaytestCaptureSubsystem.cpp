@@ -7,6 +7,7 @@
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameModes/LyraExperienceManagerComponent.h"
 #include "HAL/FileManager.h"
@@ -14,6 +15,7 @@
 #include "LoadingScreenManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
+#include "Mordecai/Enemy/MordecaiEnemyAIController.h"
 #include "UnrealClient.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPlaytestCaptureSubsystem)
@@ -34,6 +36,9 @@ FMordecaiPlaytestCaptureConfig FMordecaiPlaytestCaptureConfig::FromCommandLine(c
 	Config.bMarketingCaptureSession =
 		FParse::Param(CommandLine, TEXT("MordecaiMarketingCapture"));
 	Config.bSuppressDebugPresentation = Config.bMarketingCaptureSession;
+	Config.bFreezeAIUntilMarketingFrames =
+		FParse::Param(
+			CommandLine, TEXT("MordecaiMarketingFreezeAIUntilFrames"));
 #endif
 	Config.bConflictingCaptureModes =
 		Config.bPlaytestCapture && Config.bMarketingFrameCapture;
@@ -280,6 +285,19 @@ bool UMordecaiPlaytestCaptureSubsystem::Tick(float DeltaTime)
 		{
 			return true;
 		}
+
+#if !UE_BUILD_SHIPPING
+		if (Config.bFreezeAIUntilMarketingFrames && !bMarketingAIReleased)
+		{
+			for (TActorIterator<AMordecaiEnemyAIController> It(GetWorld()); It; ++It)
+			{
+				It->SetMarketingCaptureFrozen(false);
+			}
+			bMarketingAIReleased = true;
+			UE_LOG(LogMordecaiPlaytest, Display,
+				TEXT("MarketingFrameCapture: released AI before frame 1"));
+		}
+#endif
 
 		const int32 MarketingFrameIndex = MarketingTickCount++;
 		if (!FScreenshotRequest::IsScreenshotRequested())

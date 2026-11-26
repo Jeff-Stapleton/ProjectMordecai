@@ -236,7 +236,10 @@ bool AMordecaiEnemyAIController::ShouldFreezeAIForMarketing(const TCHAR* Command
 #if UE_BUILD_SHIPPING
 	return false;
 #else
-	return CommandLine && FParse::Param(CommandLine, TEXT("MordecaiMarketingFreezeAI"));
+	return CommandLine
+		&& (FParse::Param(CommandLine, TEXT("MordecaiMarketingFreezeAI"))
+			|| FParse::Param(
+				CommandLine, TEXT("MordecaiMarketingFreezeAIUntilFrames")));
 #endif
 }
 

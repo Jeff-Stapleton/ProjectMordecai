@@ -106,6 +106,7 @@ def _capture_args(frame_dir):
         "ShowFlag.TextRender 0,t.MaxFPS 30,r.SetRes 1920x1080f")
     return (
         "-MordecaiMarketingCapture",
+        "-MordecaiMarketingFreezeAIUntilFrames",
         "-NOSCREENMESSAGES",
         f"-ResX={OUTPUT_SIZE[0]}",
         f"-ResY={OUTPUT_SIZE[1]}",
@@ -173,7 +174,19 @@ def _drive_spell_points(bridge, frame_dir):
     state = bridge.wait_for(
         lambda value: (
             isinstance(_attrs(value).get("spell_points"), (int, float))
-            and _attrs(value)["spell_points"] >= drained + 0.5
+            and drained + 0.24 <= _attrs(value)["spell_points"] <= drained + 0.26
+            and _player(value).get("is_dead") is False
+        ),
+        timeout_s=30.0,
+        sections=["game", "player", "actors", "widgets"],
+        poll_s=0.02,
+    )
+    events.append(_record_event(bridge, frame_dir, "regen_tick_1", state))
+    state = bridge.wait_for(
+        lambda value: (
+            isinstance(_attrs(value).get("spell_points"), (int, float))
+            and drained + 0.49 <= _attrs(value)["spell_points"] <= drained + 0.51
+            and _player(value).get("is_dead") is False
         ),
         timeout_s=30.0,
         sections=["game", "player", "actors", "widgets"],
@@ -454,6 +467,7 @@ def capture_feature(output_dir, feature):
         "unique_frame_ratio": decimate["unique_frame_ratio"],
         "stills": [still["file"] for still in stills],
         "enemies_frozen": False,
+        "ai_frozen_before_numbered_frames": True,
         "content_check_passed": True,
     }
     with open(os.path.join(output_dir, "capture-result.json"), "w", encoding="utf-8") as stream:
@@ -478,7 +492,9 @@ def capture_feature(output_dir, feature):
             "- HUD: on. Debug draws, facing arrows and on-screen messages: off and "
             "verified from runtime state plus scripted green/yellow pixel checks.\n"
             "- Loading screen: absent from numbered frames after the built-in warm-up.\n"
-            "- AI: active; `-MordecaiMarketingFreezeAI` was not used.\n"
+            "- AI: frozen only while loading and warming up, then automatically released "
+            "before numbered frame 1; AI is active throughout retained footage. The "
+            "full-session `-MordecaiMarketingFreezeAI` flag was not used.\n"
             f"- Edit: {edit_caveat}\n"
             "- Caveat: this is postable marketing media, not acceptance evidence.\n\n"
             "## Stills\n\n"
