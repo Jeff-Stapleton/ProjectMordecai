@@ -502,7 +502,10 @@ class TestUs001TodaysGame(PlaytestCase):
         code, rep = self.play(server)
         self.assertEqual(code, 0)
         acs = self.acs(rep)
-        self.assertEqual({a["story"] for a in rep["acs"]}, {"US-001", "US-004"})
+        self.assertEqual(
+            {a["story"] for a in rep["acs"]}, {"US-001", "US-004", "US-085"})
+        self.assertEqual(acs["AC-085.4"]["status"], "PASS")
+        self.assertEqual(acs["AC-085.4"]["checks"], ["move_a", "walk_lane_wp1"])
         for ac in ("AC-2.2.5", "AC-2.3.3", "AC-1.2.2", "AC-1.2.4", "AC-2.1.6"):
             self.assertEqual(acs[ac]["status"], "PASS", ac)
         for ac in ("AC-2.1.1", "AC-1.3.2"):
