@@ -44,18 +44,19 @@ us054 = load_playtest()
 ARENA_SPAWNS = ((600.0, 0.0), (-400.0, 500.0), (-400.0, -500.0))
 PLAN_ORDER = ["hud_visible", "hud_layout", "enemies_present", "enemies_visible",
               "enemy_health_bars", "enemy_indicators", "enemy_aggro", "enemy_approaches",
-              "enemy_damages_player"]
+              "enemy_damages_player", "burning_on_hit"]
 # The DevTestMap checks keep the proves they had before the us054 split.
 PROVES = {
     "hud_visible": ("AC-054.7", "AC-054.8", "US-063:AC-063.3", "US-063:AC-063.4"),
     "hud_layout": ("AC-054.7",),
-    "enemies_present": ("AC-054.11", "AC-054.2", "US-050:AC-050.3"),
-    "enemies_visible": ("AC-054.13",),
+    "enemies_present": ("AC-054.11", "AC-054.2", "US-050:AC-050.3",
+                        "US-085:AC-085.2"),
+    "enemies_visible": ("AC-054.13", "US-085:AC-085.1"),
     "enemy_health_bars": ("AC-054.9", "US-052:AC-052.10"),
     "enemy_indicators": ("US-064:AC-064.2", "US-064:AC-064.10", "US-092:AC-092.4"),
     "enemy_aggro": ("US-051:AC-051.3",),
     "enemy_approaches": ("US-051:AC-051.4",),
-    "enemy_damages_player": ("AC-054.13", "US-051:AC-051.5"),
+    "enemy_damages_player": ("AC-054.13", "US-051:AC-051.5", "US-085:AC-085.3"),
 }
 
 
@@ -69,7 +70,7 @@ class ArenaWorld(fb.FakeWorld):
 
     def __init__(self, *, visible_mesh=True, enemy_hp=200.0, aggro=True, aggro_s=0.3,
                  approach=True, approach_speed=400.0, stop_cm=150.0, damage=True,
-                 hit_damage=5.0, hit_interval=0.3, hit_range=200.0, indicators=True,
+                 hit_damage=5.0, hit_interval=0.3, hit_range=200.0, indicators=True, burning=True,
                  enemy_bars=False, hud_layout_ok=True, kills_text=0,
                  converged=False,
                  **kwargs):
@@ -82,6 +83,7 @@ class ArenaWorld(fb.FakeWorld):
         self.damage, self.hit_damage, self.hit_interval = damage, hit_damage, hit_interval
         self.hit_range = hit_range
         self.indicators, self.enemy_bars = indicators, enemy_bars
+        self.burning, self.burning_active = burning, False
         self.hud_layout_ok, self.kills_text = hud_layout_ok, kills_text
         self.aggroed = False
         self.hits = 0
@@ -89,8 +91,9 @@ class ArenaWorld(fb.FakeWorld):
         self.arena = [
             {"location": [p[0], p[1], 100.0], "spawn_location": [s[0], s[1], 100.0],
              "health": self.enemy_hp, "ai_state": "Attack" if converged else "Idle",
-             "next_hit": 0.0}
-            for s, p in zip(ARENA_SPAWNS, converged_locations if converged else ARENA_SPAWNS)
+             "next_hit": 0.0, "fire": i == 0}
+            for i, (s, p) in enumerate(zip(
+                ARENA_SPAWNS, converged_locations if converged else ARENA_SPAWNS))
         ]
         self.aggroed = converged
 
@@ -118,11 +121,19 @@ class ArenaWorld(fb.FakeWorld):
                     e["ai_state"] = "Attack"
                     self.hits += 1
                     self.health -= self.hit_damage
+                    if self.burning and e["fire"]:
+                        self.burning_active = True
                     if self.health <= 0:
                         self.kill_player()
                         return
 
     # --- state --------------------------------------------------------------------------------
+    def _s_player(self):
+        out = super()._s_player()
+        if self.burning_active and not self.is_dead:
+            out["tags"].append("Mordecai.Status.Burning")
+        return out
+
     def _s_widgets(self):
         out = super()._s_widgets()
         rows = ([[40, 20], [40, 44], [40, 64]] if self.hud_layout_ok
@@ -141,6 +152,9 @@ class ArenaWorld(fb.FakeWorld):
                 out.append({"class": "MordecaiEnemyIndicatorWidget", "name": f"Ind_{i}",
                             "rect": [100 * i, 300, 150, 20],
                             "texts": [], "buttons": []})
+        if self.burning_active and not self.is_dead:
+            out.append({"class": "MordecaiStatusIndicatorWidget", "name": "Burning",
+                        "rect": [40, 110, 150, 20], "texts": ["Burning"], "buttons": []})
         return out
 
     def _actors(self, radius, include_all):
@@ -153,7 +167,9 @@ class ArenaWorld(fb.FakeWorld):
                 continue
             entries.append({
                 "label": f"BP_MordecaiEnemy_Frontliner_C_{i}", "name": f"Frontliner_{i}",
-                "class": "BP_MordecaiEnemy_Frontliner_C", "native_class": "MordecaiEnemyCharacter",
+                "class": ("BP_MordecaiEnemy_Frontliner_Fire_C" if e["fire"]
+                          else "BP_MordecaiEnemy_Frontliner_C"),
+                "native_class": "MordecaiEnemyCharacter",
                 "kind": "enemy", "location": [round(v, 2) for v in loc], "distance": round(d, 1),
                 "spawn_location": [round(v, 2) for v in e["spawn_location"]],
                 "hidden": False, "has_visible_mesh": self.visible_mesh,
@@ -184,6 +200,7 @@ class Us054Case(unittest.TestCase):
         self.addCleanup(patcher.stop)
         # Short waits for the paths that are expected to time out.
         for name, value in (("APPROACH_TIMEOUT_S", 1.5), ("DAMAGE_TIMEOUT_S", 1.5),
+                            ("BURNING_TIMEOUT_S", 1.5),
                             ("INDICATOR_TIMEOUT_S", 1.5), ("AGGRO_TIMEOUT_S", 1.5),
                             ("HUD_TIMEOUT_S", 1.5)):
             p = mock.patch.object(us054, name, value)
@@ -225,7 +242,7 @@ class TestUs054Plan(Us054Case):
             kit.set_log_stream(previous)
         text = out.getvalue()
         self.assertIn("| 1 | `hud_visible` |", text)
-        self.assertIn("| 9 | `enemy_damages_player` |", text)
+        self.assertIn("| 10 | `burning_on_hit` |", text)
         self.assertNotIn("known issue", text)
 
     def test_proves_known_issues_and_declarations(self):
@@ -235,7 +252,8 @@ class TestUs054Plan(Us054Case):
             # No DevTestMap check carries a known_issue (death_screen's N2 moved with it).
             self.assertIsNone(plan[name].known_issue, name)
         self.assertEqual(set(us054.Us054Run.COVERS),
-                         {"US-050", "US-051", "US-052", "US-063", "US-064", "US-092"})
+                         {"US-050", "US-051", "US-052", "US-063", "US-064", "US-085",
+                          "US-092"})
         self.assertEqual(us054.Us054Run.STORY, "US-054")
         self.assertEqual(us054.Us054Run.RUN_SUFFIX, "us054")
         self.assertEqual(us054.Us054Run.launch_map(), kit.DEFAULT_MAP)
@@ -282,7 +300,7 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertEqual(checks["map"]["status"], "PASS", checks["map"]["detail"])
         self.assertIn(fb.DEFAULT_MAP, checks["map"]["detail"])
         self.assertEqual(rep["fixed_candidates"], [])
-        self.assertEqual([s["label"] for s in rep["screenshots"]], ["start", "hit"])
+        self.assertEqual([s["label"] for s in rep["screenshots"]], ["start", "hit", "burning"])
         # The Frontliners really walked up and hit the player standing at the spawn.
         self.assertGreater(world.hits, 0)
         # The report rounds to 0.1 cm after the live check has proved strictly > DISPLACED_CM.
@@ -332,6 +350,7 @@ class TestUs054AgainstTheFake(Us054Case):
         self.assertEqual(rep["new_failures"], ["enemy_damages_player"])
         self.assertEqual(checks["screenshot_hit"]["status"], "SKIP")
         self.assertIn("never hit", checks["screenshot_hit"]["detail"])
+        self.assertEqual(checks["burning_on_hit"]["status"], "SKIP")
 
     def test_idle_enemies_keep_indicators_while_aggro_and_approach_fail(self):
         _, server = self.serve(aggro=False, approach=False, damage=False)

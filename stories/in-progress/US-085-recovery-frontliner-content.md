@@ -31,9 +31,10 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - [ ] AC-085.3: Standing next to a Frontliner, the player takes damage within 20 s — verified by check `enemy_damages_player` of `Scripts/playtests/us054_arena.py` (Tier 4); the chain that was SKIPped behind it now runs: `player_dies`, `dead_no_move`, `respawn`, `arena_reset`, `respawn_moves` (US-053 ACs) and `burning_on_hit` (US-057 AC-057.8/057.11). Each must PASS, or its FAIL is filed as a new Epic R story / Known issues entry before this story closes (`death_screen` is US-086)
   - US-100 (T1, issue #46, 2026-10-29; not yet run on a package): `enemy_damages_player` stays in `us054_arena.py` on DevTestMap, next to the Frontliners. The chain this AC names moves to the new `Scripts/playtests/us054_combat.py` on CombatTestMap: `player_dies`, `dead_no_move`, `respawn`, `arena_reset`, `respawn_moves`, `burning_on_hit`.
     - That chain now runs against the `TestAttacker` (a fixed-spot BasicSlash attacker), not a Frontliner.
-    - The attacker swings BasicSlash only, so `burning_on_hit` can only WARN there (the FireSlash TODO(DECISION) below).
+    - The attacker swings BasicSlash only, so its `burning_on_hit` remains WARN. The closeout also drives `burning_on_hit` against the fire Frontliner on DevTestMap.
+    - DECIDED (coordinator for Jeff, 2026-11-26): `enemy_damages_player` must PASS on DevTestMap. The CombatTestMap chain results are all reported, and every FAIL is a follow-up before closeout.
     - Not accepted, not ticked.
-- [ ] AC-085.4: The player is no longer stopped by invisible bodies at the spawn: checks `move_a` and `walk_lane_wp1` of `Scripts/playtests/us001_movement.py` (Tier 4) PASS (see the placement TODO(DECISION))
+- [ ] AC-085.4: The player is no longer stopped by invisible bodies at the spawn: checks `move_a` and `walk_lane_wp1` of `Scripts/playtests/us001_movement.py` (Tier 4) PASS on MovementTestMap
   - Issue #19: the bodies are no longer invisible (AC-085.1). The two checks still depend on the spawn swarm. Jeff decided (2026-10-28) that the swarm is T1's (issue #46), so this AC waits on T1.
   - Results on `f21525f`:
     - story run `Saved/Playtests/20261028-085852-us001`: `move_a` PASS; `walk_lane_wp1` FAIL, the player killed at (152, -109);
@@ -44,6 +45,7 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - [x] AC-085.5: No `LogMordecai` enemy-content error (US-084 AC-084.3) in the packaged `game.log`
   - Issue #19, `f21525f`: 0 errors in the Tier 3 `game.log` (`Saved/Playtests/20261028-085310-boot`, exit 0) and in every Tier 4 run of the sweep `Saved/Playtests/20261028-090808-sweep`. Before: three "has no visible mesh" errors.
 - [ ] AC-085.6: every asset is saved and committed; `py Scripts/check_content_committed.py` passes
+  - DECIDED (coordinator for Jeff, 2026-11-26): the passing content guard is this AC's acceptance evidence.
 
 ## Technical Notes
 - One script, `Scripts/us085_configure_frontliner.py`, that sets AND saves: the BP's mesh component (a skeletal mesh already in the project — e.g. the Lyra mannequin the player uses; look up its real path, do not assume one — or an engine basic shape — anything cooked and visible from the diorama camera), `default_max_health`/posture/speed/ranges per AC-054.2, `enemy_attack_profiles = [DA_EnemyAttack_BasicSlash]`; then the DevTestMap instance overrides (one Frontliner → `DA_EnemyAttack_FireSlash` per AC-057.8); `EditorAssetLibrary.save_asset` on the BP and `save_current_level()`.
@@ -53,15 +55,22 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
     - DevTestMap is unchanged: the placed Frontliners take the Blueprint's body.
 - Check that the level instances do not override the BP defaults with old values (N13 may be an instance override rather than the CDO).
   - DONE for N13 (issue #18): it was an instance override (`DefaultMaxHealth` 100 on each placed Frontliner vs the BP's 200). `Scripts/us085_configure_frontliner.py` now holds the stat part of this story's script: it clears instance overrides of `DefaultMaxHealth`/`DefaultMaxPosture`/`DefaultMoveSpeed` and saves DevTestMap. The BP stats themselves already match AC-054.2 (MaxHealth 200 in the BP; MaxPosture 100, MoveSpeed 400 and the AI's 900/200/1800 ranges are native defaults). The mesh, attack-profile and placement parts are still to be added.
-  - `EnemyAttackProfiles` is `EditDefaultsOnly`, so "one Frontliner → `DA_EnemyAttack_FireSlash`" cannot be an instance override (Python refuses to write an `EditDefaultsOnly` property on a placed actor). Today every Frontliner has [BasicSlash, FireSlash]. TODO(DECISION) (Jeff): a Frontliner Blueprint child with FireSlash, or make `EnemyAttackProfiles` editable on instances.
+  - DECIDED (coordinator for Jeff, 2026-11-26): keep `EnemyAttackProfiles`
+    `EditDefaultsOnly`. The base Frontliner has only BasicSlash; a Blueprint
+    child has only FireSlash; exactly one existing DevTestMap placement uses
+    the child with its transform unchanged.
 - DECIDED (Jeff, 2026-10-30, issue #47): derive the attack range from the attack profile. `AMordecaiEnemyAIController::GetEffectiveAttackRange()` is now the active profile's reach (`UMordecaiGA_MeleeAttack::GetAttackReach`); `AttackRange` (200, AC-054.2) is only the fallback for a melee attack without a profile. The Frontliners attack from their slash's 150 cm (AC-054.3). No content change: the numbers can no longer disagree. Tier 1: `Mordecai.Recovery.Enemy.AttackRangeDerivedFromProfile` and `Mordecai.Recovery.Enemy.BlueprintAttackRangeWithinReach` (the saved Frontliner and TestAttacker Blueprints). Target capsule radius in hit detection stays as is (not part of this decision).
-- ~~TODO(DECISION)~~ (Jeff): AC-054.2's `AttackRange` 200 is longer than the slash's 150 cm reach (AC-054.3, `DA_EnemyAttack_BasicSlash` / `FireSlash` arc radius). Since issue #12 the AI closes to `min(AttackRange, reach)`, so enemies attack from ≤ 150 cm and hit; whether the content should align the two numbers (raise the reach or lower AttackRange) is a design call, not decided here.
-- Since issue #12 (branch `fix/issue-12-enemy-damage`), enemies reliably hit and kill a player standing at the spawn, and the player dies and respawns (N31 fixed). The `arena_reset` check also requires the AC-054.2 200 max health (N13): on `48f60b2` the first read after the respawn had all three enemies back at their spawns at 100/100, and they re-aggroed onto the respawned player within ~1.5 s because every spawn is inside AggroRange of PlayerStart (the placement TODO(DECISION) above).
+- DECIDED (coordinator for Jeff, 2026-11-26): no content change.
+  `AttackRange` remains 200 for AC-054.2; issue #47 derives the effective
+  attack range from the active profile's 150 cm reach.
+- Since issue #12 (branch `fix/issue-12-enemy-damage`), enemies reliably hit and kill a player standing at the spawn, and the player dies and respawns (N31 fixed). The `arena_reset` check also requires the AC-054.2 200 max health (N13): on `48f60b2` the first read after the respawn had all three enemies back at their spawns at 100/100, and they re-aggroed onto the respawned player within ~1.5 s because every spawn is inside AggroRange of PlayerStart.
 - Collision: the capsule stays Pawn-blocking (enemies should be solid once visible). N14 "invisible wall" is resolved by visibility; the remaining question is the swarm at the spawn.
   - Issue #19: `BodyMesh` is NoCollision, makes no overlaps and does not affect navigation, so blocking and hits stay the capsule's. A dead enemy's collision is off (AC-050.6), so its body is hidden too; the arena reset shows it again.
 - TODO(DECISION) (Jeff): corpse visuals (death animation, ragdoll, fade-out). Until then a dead enemy shows only its empty bar, as before issue #19.
 - DECIDED (Jeff, 2026-10-28, issue #19): the placement stays, and the swarm at the spawn is T1's (issue #46). The original question follows.
-- ~~TODO(DECISION)~~ (Jeff): the Frontliners are placed within AggroRange (900 cm) of PlayerStart (e.g. (-400, -500) is ~640 cm away), so they swarm the spawn on frame one and `us001_movement.py`'s movement lanes run inside a melee. Options: (a) place them > 900 cm from PlayerStart so the player starts out of aggro; (b) keep the layout and move us001's movement checks to a lane away from the enemies. Do not choose; until decided, record `move_a` / `walk_lane_wp1` results honestly. Option (a) changes waypoints that `us054_arena.py` (`walk_to_frontliner3` targets (-400, -500)) and `us057_magic.py` (`walk_shot_line`) use — update them in the same commit.
+- DECIDED (coordinator for Jeff, 2026-11-26): accept AC-085.4 when
+  `move_a` and `walk_lane_wp1` pass on enemy-free MovementTestMap. Other
+  filed known failures in that `us001_movement.py` run do not block AC-085.4.
 - Enemies that now hit the player affect other scripts (us057, us069, us079 run on DevTestMap with the enemies awake): rerun all six scripts (`py Scripts/playtest_story.py --all`) and report any new FAIL caused by being attacked (e.g. dying mid-run).
 - Script bookkeeping (commit before packaging): remove the `known_issue` from `enemies_visible` in `us054_arena.py`; `enemies_present`, `enemy_damages_player`, `move_a`, `walk_lane_wp1` were NEW (no `known_issue` to remove).
 - No PIE-only paths: nothing depends on `IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings`, or editor-only state.
@@ -87,17 +96,8 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - **Player steps:** stand at the spawn (enemies aggro and approach); walk next to Frontliner_3 (WASD); stand until hit, keep standing until dead; wait for respawn; hold W
 - **Visible on screen:** Tier 3 `engine_NN.png`: three enemy bodies under the three red health bars in the diorama arena. Tier 4: `bridge_01.png` (us054 start) three visible Frontliners; the hit / dead / respawned screenshots of us054
 - **Proof:** Tier 3 boot screenshots for the visible bodies; Tier 4 checks `enemies_present`, `enemies_visible`, `enemy_damages_player`, `player_dies`, `dead_no_move`, `respawn`, `arena_reset`, `respawn_moves`, `burning_on_hit` (us054), `move_a`, `walk_lane_wp1` (us001)
-- **Tier 4 script:** `Scripts/playtests/us054_arena.py` — run: `py Scripts/playtest_story.py US-054`; `Scripts/playtests/us001_movement.py` — run: `py Scripts/playtest_story.py US-001`
-- **Steps:** (owning stories' rows; `py Scripts/playtest_story.py US-054 --plan`)
-
-| Script | Check | Player step (bridge calls) → expected | Sweep result (8ea853b) |
-|---|---|---|---|
-| us054 | `enemies_present` | state actors (radius 3000) -> 3 kind=='enemy', health {200, 200}, pairwise > 300 cm apart | FAIL (NEW): 100/100 |
-| us054 | `enemies_visible` | state actors -> every enemy has_visible_mesh==true | FAIL (known): 0/3 |
-| us054 | `enemy_damages_player` | stand next to the enemy -> wait_until player.attributes.health < player.attributes.max_health within 20s | FAIL (NEW) |
-| us054 | `player_dies` … `respawn_moves`, `burning_on_hit` | see US-054 Steps rows 13-20 | SKIP (never hit) |
-| us001 | `move_a` | hold A 0.4s -> player.location moves > 100 cm along -Y, < 30 cm across | FAIL (NEW): 93 cm |
-| us001 | `walk_lane_wp1` | walk_to(0, -650) -> within 60 cm | FAIL (NEW): stuck at (-78, -45) |
+- **Tier 4 scripts:** `Scripts/playtests/us054_arena.py`, `Scripts/playtests/us054_combat.py`, and `Scripts/playtests/us001_movement.py` — run together with `py Scripts/playtest_story.py US-085`
+- **Steps:** `py Scripts/playtest_story.py US-085 --plan`
 
 - **Playable alone:** YES (with US-084 landed first)
 

@@ -78,6 +78,10 @@ INDICATOR_TIMEOUT_S = 3.0
 AGGRO_TIMEOUT_S = 3.0
 APPROACH_TIMEOUT_S = 6.0
 DAMAGE_TIMEOUT_S = 20.0
+BURNING_TIMEOUT_S = 30.0
+TAG_BURNING = "Mordecai.Status.Burning"
+BURNING_TEXT = "Burning"
+FIRE_FRONTLINER_CLASS = "BP_MordecaiEnemy_Frontliner_Fire_C"
 
 SCREENSHOTS = {
     "start": "the Mordecai diorama arena from the fixed overhead camera, the player at the centre, "
@@ -86,6 +90,7 @@ SCREENSHOTS = {
              "health bar above each one and no legacy WBP_EnemyHealthBar",
     "hit": "the player at the arena centre after the first Frontliner hit: the health bar below "
            "full, Frontliners (red cylinders) next to the player",
+    "burning": "the player beside the fire Frontliner with the on-screen Burning status indicator",
 }
 KNOWN_ISSUES = ()
 
@@ -97,9 +102,9 @@ PLAN = (
          "below it, PostureBar below that", proves=("AC-054.7",)),
     Step("enemies_present", f"state actors (radius {ENEMY_RADIUS}) -> 3 kind=='enemy', health "
          f"{{{ENEMY_MAX_HEALTH:g}, {ENEMY_MAX_HEALTH:g}}}, pairwise > {MIN_ENEMY_SPACING:g} cm apart",
-         proves=("AC-054.11", "AC-054.2", "US-050:AC-050.3")),
+         proves=("AC-054.11", "AC-054.2", "US-050:AC-050.3", "US-085:AC-085.2")),
     Step("enemies_visible", "state actors -> every enemy has_visible_mesh==true",
-         proves=("AC-054.13",)),
+         proves=("AC-054.13", "US-085:AC-085.1")),
     Step("enemy_health_bars", f"state actors + widgets -> exactly one visible {INDICATOR_CLASS} "
          f"per enemy and no actor-attached {LEGACY_ENEMY_BAR_CLASS}",
          proves=("AC-054.9", "US-052:AC-052.10")),
@@ -112,7 +117,10 @@ PLAN = (
          f"{APPROACH_TIMEOUT_S:g}s", proves=("US-051:AC-051.4",)),
     Step("enemy_damages_player", "stand at the spawn -> wait_until player.attributes.health "
          f"< player.attributes.max_health within {DAMAGE_TIMEOUT_S:g}s",
-         proves=("AC-054.13", "US-051:AC-051.5")),
+         proves=("AC-054.13", "US-051:AC-051.5", "US-085:AC-085.3")),
+    Step("burning_on_hit", f"keep standing beside the one {FIRE_FRONTLINER_CLASS} -> within "
+         f"{BURNING_TIMEOUT_S:g}s '{TAG_BURNING}' in player.tags and a widget text "
+         f"'{BURNING_TEXT}'"),
 )
 
 
@@ -218,7 +226,7 @@ class Us054Run(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
-    COVERS = ("US-050", "US-051", "US-052", "US-063", "US-064", "US-092")
+    COVERS = ("US-050", "US-051", "US-052", "US-063", "US-064", "US-085", "US-092")
     FEATURES = ("enemies", "enemy_ai", "combat_hud", "kill_counter", "enemy_indicators")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX
@@ -290,6 +298,9 @@ class Us054Run(kit.PlaytestRun):
             problems = []
             if len(es) != 3:
                 problems.append(f"{len(es)} enemies (expected 3)")
+            fire = [a for a in es if FIRE_FRONTLINER_CLASS in str(a.get("class") or "")]
+            if len(fire) != 1:
+                problems.append(f"{len(fire)} fire Frontliners (expected 1)")
             for a in es:
                 cur, mx = enemy_health(a)
                 if cur != ENEMY_MAX_HEALTH or mx != ENEMY_MAX_HEALTH:
@@ -397,6 +408,21 @@ class Us054Run(kit.PlaytestRun):
                             "player.attributes.health<player.attributes.max_health",
                             timeout_s=DAMAGE_TIMEOUT_S)
         self.shot("hit", needs=ok, needs_why="not taken: the player was never hit")
+        why = "not run: the Frontliners never damaged the player"
+
+        def burning(st):
+            p = (st or {}).get("player")
+            tags = p.get("tags") if isinstance(p, dict) else []
+            texts = all_texts(st)
+            return TAG_BURNING in tags and any(BURNING_TEXT.lower() in t.lower() for t in texts)
+
+        burned, _ = self.observe(
+            "burning_on_hit", ["player", "widgets"], burning,
+            lambda st: (f"player.tags {((st or {}).get('player') or {}).get('tags')}; "
+                        f"texts on screen {all_texts(st)}"),
+            timeout_s=BURNING_TIMEOUT_S, needs=ok, needs_why=why)
+        self.shot("burning", needs=burned,
+                  needs_why="not taken: Burning was not shown on the player")
         return ok
 
     # --- report hooks -------------------------------------------------------------------------

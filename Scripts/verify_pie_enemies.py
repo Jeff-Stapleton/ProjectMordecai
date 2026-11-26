@@ -15,6 +15,12 @@
 import unreal
 
 FRONTLINER_CLASS = "/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner.BP_MordecaiEnemy_Frontliner_C"
+FIRE_FRONTLINER_CLASS = (
+    "/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner_Fire."
+    "BP_MordecaiEnemy_Frontliner_Fire_C"
+)
+BASIC_SLASH = "/MordecaiCore/Combat/Enemies/DA_EnemyAttack_BasicSlash.DA_EnemyAttack_BasicSlash"
+FIRE_SLASH = "/MordecaiCore/Combat/Enemies/DA_EnemyAttack_FireSlash.DA_EnemyAttack_FireSlash"
 EXPECTED_ENEMIES = 3
 EXPECTED_MAX_HEALTH = 200.0  # AC-054.2
 STATS = ("default_max_health", "default_max_posture", "default_move_speed")
@@ -102,6 +108,9 @@ def _run():
             return None
         return attribute_set.get_editor_property(name).get_editor_property("current_value")
 
+    def profile_paths(enemy):
+        return [p.get_path_name() for p in enemy.get_editor_property("enemy_attack_profiles")]
+
     print("=" * 60)
     print("PIE SMOKE TEST: FRONTLINER ENEMIES")
     print("=" * 60)
@@ -117,6 +126,15 @@ def _run():
         problems = body_problems(bp_body)
         check("Frontliner Blueprint BodyMesh has a visible, non-colliding mesh", not problems,
               body_detail(bp_body, problems))
+        paths = profile_paths(unreal.get_default_object(frontliner_class))
+        check("base Frontliner Blueprint uses BasicSlash only", paths == [BASIC_SLASH],
+              f"Got {paths}")
+    fire_class = unreal.load_class(None, FIRE_FRONTLINER_CLASS)
+    check("fire Frontliner Blueprint class loads", fire_class is not None, FIRE_FRONTLINER_CLASS)
+    if fire_class:
+        paths = profile_paths(unreal.get_default_object(fire_class))
+        check("fire Frontliner Blueprint uses FireSlash only", paths == [FIRE_SLASH],
+              f"Got {paths}")
 
     # --- PIE World ---
     world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_game_world()
@@ -136,6 +154,9 @@ def _run():
     enemies = list(unreal.GameplayStatics.get_all_actors_of_class(world, unreal.MordecaiEnemyCharacter))
     check(f"{EXPECTED_ENEMIES} enemies in the arena", len(enemies) == EXPECTED_ENEMIES,
           f"Found {len(enemies)}: {[e.get_name() for e in enemies]}")
+    fire_enemies = [e for e in enemies if fire_class and e.get_class() == fire_class]
+    check("exactly one placed Frontliner is the fire child", len(fire_enemies) == 1,
+          f"Found {[e.get_name() for e in fire_enemies]}")
 
     for enemy in enemies:
         name = enemy.get_name()
@@ -157,6 +178,11 @@ def _run():
         problems = body_problems(body)
         check(f"{where} has a visible body that does not collide", not problems,
               body_detail(body, problems))
+
+        expected_profile = FIRE_SLASH if fire_class and enemy.get_class() == fire_class else BASIC_SLASH
+        paths = profile_paths(enemy)
+        check(f"{where} uses its class attack profile only", paths == [expected_profile],
+              f"Got {paths}; expected {[expected_profile]}")
 
         arrow, problems = arrow_problems(enemy)
         check(f"{where} FacingArrow is rendered and visible to every player", not problems,

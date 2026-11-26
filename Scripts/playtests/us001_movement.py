@@ -306,14 +306,17 @@ PLAN = (
          "pawn forward vector", proves=("AC-2.1.5",)),
     *[Step(check, f"hold {key} {MOVE_HOLD_S:g}s (retry once if a frame hitch yields a short "
            f"correct-direction move) -> player.location moves > {MOVE_MIN:g} cm along {d}, "
-           f"< {CROSS_MAX:g} cm across", proves=("AC-2.1.1", "AC-1.3.2"))
+           f"< {CROSS_MAX:g} cm across",
+           proves=("AC-2.1.1", "AC-1.3.2")
+                  + (("US-085:AC-085.4",) if check == "move_a" else ()))
       for check, key, _, _, d in MOVES],
     Step("camera_fixed", f"wait_until player.control_rotation == [{CAMERA_PITCH:g}, 0, 0] "
          f"(+-{CAMERA_TOL:g}) after the moves", proves=("AC-1.2.2",)),
     Step("no_camera_rotation_input", "axis Gamepad_RightX=1, Gamepad_RightY=1 held; mouse to "
          "(200,100), (1100,620), (640,360) -> player.control_rotation stays "
          f"[{CAMERA_PITCH:g}, 0, 0] at every sample", proves=("AC-1.2.4", "AC-1.2.2")),
-    *[Step(check, f"walk_to({x:g}, {y:g}) -> within 60 cm (waypoint to lane L1)")
+    *[Step(check, f"walk_to({x:g}, {y:g}) -> within 60 cm (waypoint to lane L1)",
+           proves=(("US-085:AC-085.4",) if check == "walk_lane_wp1" else ()))
       for check, x, y in LANE_WAYPOINTS],
     Step("walk_lane_start", f"walk_to({LANE_START[0]:g}, {LANE_START[1]:g}) -> within 60 cm "
          "(lane L1 start)"),
@@ -374,7 +377,7 @@ class Us001Run(kit.PlaytestRun):
     """One run of the playtest.  execute() returns the exit code."""
 
     STORY = STORY
-    COVERS = ("US-004",)
+    COVERS = ("US-004", "US-085")
     FEATURES = ("movement", "camera", "sprint")
     TITLE = TITLE
     RUN_SUFFIX = RUN_SUFFIX

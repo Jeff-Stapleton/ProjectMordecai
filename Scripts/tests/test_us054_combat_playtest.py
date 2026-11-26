@@ -519,7 +519,8 @@ class TestUs054CombatPlan(unittest.TestCase):
         # N1 (issue #6) and N2 (issue #7) are fixed: no check is expected to fail
         self.assertEqual({s.check for s in us054c.PLAN if s.known_issue}, set())
         self.assertEqual(set(us054c.Us054CombatRun.COVERS),
-                         {"US-053", "US-057", "US-062", "US-063", "US-086", "US-090"})
+                         {"US-053", "US-057", "US-062", "US-063", "US-085", "US-086",
+                          "US-090"})
 
     def test_declarations(self):
         run = us054c.Us054CombatRun

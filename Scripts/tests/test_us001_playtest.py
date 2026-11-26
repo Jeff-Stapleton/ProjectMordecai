@@ -880,8 +880,11 @@ class TestUs001Plan(unittest.TestCase):
         self.assertEqual(kit.plan_problems(us001.Us001Run), [])
         self.assertIs(us001.Run, us001.Us001Run)
         self.assertEqual(us001.Us001Run.STORY, "US-001")
-        self.assertEqual(us001.Us001Run.COVERS, ("US-004",))
+        self.assertEqual(us001.Us001Run.COVERS, ("US-004", "US-085"))
         self.assertEqual(us001.Us001Run.FEATURES, ("movement", "camera", "sprint"))
+        plan = {step.check: step for step in us001.PLAN}
+        self.assertIn("US-085:AC-085.4", plan["move_a"].proves)
+        self.assertIn("US-085:AC-085.4", plan["walk_lane_wp1"].proves)
         ids = self.story_ac_ids()
         covered_ids = {
             f"US-004:{ac}"
@@ -889,6 +892,14 @@ class TestUs001Plan(unittest.TestCase):
                 os.path.join(
                     os.path.dirname(SCRIPTS),
                     "stories", "done", "US-004-melee-attack-ability.md")
+            )
+        }
+        covered_ids |= {
+            f"US-085:{ac}"
+            for ac in self.story_ac_ids(
+                os.path.join(
+                    os.path.dirname(SCRIPTS),
+                    "stories", "in-progress", "US-085-recovery-frontliner-content.md")
             )
         }
         for step in us001.PLAN:

@@ -15,9 +15,9 @@
    stale value (every placed actor now matches it) and back: all of them follow it back, equal
    their archetype, and the level save drops the override.  The writes on the class default object
    do not notify, so the Blueprint asset is not dirtied by this part.
-Still to do in this script (US-085): the attack profiles (FireSlash on one Frontliner, a
-TODO(DECISION)).  The placement stays: the swarm at the spawn is left to the T1 test maps (issue #46,
-Jeff 2026-10-28).
+3. The attack profiles.  The base Frontliner uses BasicSlash only.  A Blueprint child uses
+   FireSlash only, and exactly one of DevTestMap's three existing Frontliners is replaced by that
+   child without changing its transform.  EnemyAttackProfiles remains EditDefaultsOnly.
 
 Every part is rerunnable: it saves only what it changed.
 
@@ -27,7 +27,11 @@ Usage (an absolute path: the editor's working directory is not the project root)
 import unreal
 
 FRONTLINER_BP = '/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner'
+FIRE_FRONTLINER_BP = '/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner_Fire'
 ARENA_MAP = '/MordecaiCore/Game/Maps/DevTestMap'
+ATTACK_PROFILE_FOLDER = '/MordecaiCore/Combat/Enemies'
+BASIC_SLASH = f'{ATTACK_PROFILE_FOLDER}/DA_EnemyAttack_BasicSlash'
+FIRE_SLASH = f'{ATTACK_PROFILE_FOLDER}/DA_EnemyAttack_FireSlash'
 EXPECTED_MAX_HEALTH = 200.0  # AC-054.2
 STATS = ('default_max_health', 'default_max_posture', 'default_move_speed')
 NO_NOTIFY = unreal.PropertyAccessChangeNotifyMode.NEVER
@@ -168,11 +172,68 @@ def configure_body(frontliner_class):
     print(f'saved {FRONTLINER_BP}')
 
 
-# --- 2. the base stats ------------------------------------------------------------------------
+# --- 2. the attack profiles -------------------------------------------------------------------
+
+def ensure_fire_frontliner(base_class):
+    if not EAL.does_asset_exist(FIRE_FRONTLINER_BP):
+        folder, name = FIRE_FRONTLINER_BP.rsplit('/', 1)
+        factory = unreal.BlueprintFactory()
+        factory.set_editor_property('parent_class', base_class)
+        created = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            name, folder, unreal.Blueprint, factory)
+        if created is None:
+            raise RuntimeError(f'could not create {FIRE_FRONTLINER_BP}')
+        print(f'created {FIRE_FRONTLINER_BP}')
+    blueprint = EAL.load_asset(FIRE_FRONTLINER_BP)
+    generated = EAL.load_blueprint_class(FIRE_FRONTLINER_BP)
+    if blueprint is None or generated is None:
+        raise RuntimeError(f'{FIRE_FRONTLINER_BP} does not load as a Blueprint class')
+    if not unreal.MathLibrary.class_is_child_of(generated, base_class):
+        raise RuntimeError(f'{FIRE_FRONTLINER_BP} is not a child of {FRONTLINER_BP}')
+    return blueprint
+
+
+def configure_attack_profiles(base_class):
+    profiles = {
+        FRONTLINER_BP: [unreal.load_asset(BASIC_SLASH)],
+        FIRE_FRONTLINER_BP: [unreal.load_asset(FIRE_SLASH)],
+    }
+    if any(value[0] is None for value in profiles.values()):
+        raise RuntimeError(f'attack profile missing: {profiles}')
+    ensure_fire_frontliner(base_class)
+
+    for path, expected in profiles.items():
+        blueprint = EAL.load_asset(path)
+
+        def current():
+            generated = EAL.load_blueprint_class(path)
+            return list(unreal.get_default_object(generated).get_editor_property('enemy_attack_profiles'))
+
+        if current() == expected and path not in dirty_package_names():
+            print(f'{path} already uses {[p.get_name() for p in expected]}')
+            continue
+        for attempt in (1, 2):
+            generated = EAL.load_blueprint_class(path)
+            unreal.get_default_object(generated).set_editor_property('enemy_attack_profiles', expected)
+            unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
+            if current() == expected:
+                break
+            print(f'{path} compile {attempt} did not retain the attack profile')
+        else:
+            raise RuntimeError(f'{path} attack profiles are {current()}, expected {expected}')
+        if not EAL.save_loaded_asset(blueprint, only_if_is_dirty=False):
+            raise RuntimeError(f'save failed for {path}')
+        print(f'saved {path}: {[p.get_name() for p in expected]}')
+
+    return EAL.load_blueprint_class(FIRE_FRONTLINER_BP)
+
+
+# --- 3. the base stats and placement -----------------------------------------------------------
 
 def placed_frontliners(frontliner_class):
     actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
-    return [a for a in actors if a.get_class() == frontliner_class]
+    return [a for a in actors
+            if unreal.MathLibrary.class_is_child_of(a.get_class(), frontliner_class)]
 
 
 def stale_stats(actors, class_defaults):
@@ -183,8 +244,8 @@ def stale_stats(actors, class_defaults):
 
 
 def clear_stat_overrides(frontliner_class, level_editor):
-    class_defaults = unreal.get_default_object(frontliner_class)
-    bp_health = class_defaults.get_editor_property('default_max_health')
+    base_defaults = unreal.get_default_object(frontliner_class)
+    bp_health = base_defaults.get_editor_property('default_max_health')
     if bp_health != EXPECTED_MAX_HEALTH:
         raise RuntimeError(f'{FRONTLINER_BP} DefaultMaxHealth is {bp_health}, expected {EXPECTED_MAX_HEALTH}')
     print(f'{FRONTLINER_BP}: DefaultMaxHealth {bp_health} (AC-054.2)')
@@ -193,7 +254,9 @@ def clear_stat_overrides(frontliner_class, level_editor):
     if len(actors) != 3:
         raise RuntimeError(f'{len(actors)} Frontliners placed in {ARENA_MAP}, expected 3')
 
-    stale = stale_stats(actors, class_defaults)
+    stale = []
+    for actor in actors:
+        stale += stale_stats([actor], unreal.get_default_object(actor.get_class()))
     if not stale:
         print(f'no placed Frontliner overrides {STATS}: nothing to save')
         return actors
@@ -201,13 +264,18 @@ def clear_stat_overrides(frontliner_class, level_editor):
         print(f'{actor.get_actor_label()} ({actor.get_name()}) overrides {stat}: {value} (Blueprint {class_value})')
         actor.modify()  # the propagated write does not notify: dirty the level for the save
 
-    for stat in STATS:
-        class_value = class_defaults.get_editor_property(stat)
-        for value in {v for _, s, v, _ in stale if s == stat}:
-            class_defaults.set_editor_property(stat, value, NO_NOTIFY)
-            class_defaults.set_editor_property(stat, class_value, NO_NOTIFY)
+    for actor_class in {actor.get_class() for actor, _, _, _ in stale}:
+        class_defaults = unreal.get_default_object(actor_class)
+        for stat in STATS:
+            class_value = class_defaults.get_editor_property(stat)
+            for value in {v for actor, s, v, _ in stale
+                          if actor.get_class() == actor_class and s == stat}:
+                class_defaults.set_editor_property(stat, value, NO_NOTIFY)
+                class_defaults.set_editor_property(stat, class_value, NO_NOTIFY)
 
-    left = stale_stats(actors, class_defaults)
+    left = []
+    for actor in actors:
+        left += stale_stats([actor], unreal.get_default_object(actor.get_class()))
     if left:
         raise RuntimeError('still overridden, level NOT saved: '
                            + '; '.join(f'{a.get_name()} {s} {v} (Blueprint {c})' for a, s, v, c in left))
@@ -222,6 +290,36 @@ def clear_stat_overrides(frontliner_class, level_editor):
     return actors
 
 
+def ensure_one_fire_frontliner(frontliner_class, fire_class, level_editor):
+    actors = placed_frontliners(frontliner_class)
+    base = [a for a in actors if a.get_class() == frontliner_class]
+    fire = [a for a in actors if a.get_class() == fire_class]
+    if len(base) == 2 and len(fire) == 1:
+        print(f'{fire[0].get_actor_label()} already uses {FIRE_FRONTLINER_BP}')
+        return actors
+    if len(base) != 3 or fire:
+        raise RuntimeError(f'expected 3 base and 0 fire Frontliners, got {len(base)} base/{len(fire)} fire')
+
+    old = sorted(base, key=lambda actor: actor.get_actor_label())[0]
+    transform = old.get_actor_transform()
+    label = old.get_actor_label()
+    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    replacement = actor_sub.spawn_actor_from_class(
+        fire_class, transform.translation, transform.rotation.rotator())
+    if replacement is None:
+        raise RuntimeError(f'could not replace {label} with {FIRE_FRONTLINER_BP}')
+    replacement.set_actor_transform(transform, sweep=False, teleport=False)
+    replacement.set_actor_label(label)
+    if not vectors_near(replacement.get_actor_location(), transform.translation):
+        actor_sub.destroy_actor(replacement)
+        raise RuntimeError(f'{label} replacement did not retain its transform')
+    actor_sub.destroy_actor(old)
+    if not level_editor.save_current_level():
+        raise RuntimeError(f'save_current_level failed for {ARENA_MAP}')
+    print(f'saved {ARENA_MAP}: {label} now uses {FIRE_FRONTLINER_BP} at {transform.translation}')
+    return placed_frontliners(frontliner_class)
+
+
 def main():
     # The cook reads the Blueprint from disk: an unsaved edit would make the placed actors match a value no player gets
     if FRONTLINER_BP in dirty_package_names():
@@ -230,6 +328,9 @@ def main():
     frontliner_class = EAL.load_blueprint_class(FRONTLINER_BP)
     configure_body(frontliner_class)
     frontliner_class = EAL.load_blueprint_class(FRONTLINER_BP)  # the compile made a new class
+    fire_class = configure_attack_profiles(frontliner_class)
+    frontliner_class = EAL.load_blueprint_class(FRONTLINER_BP)
+    fire_class = EAL.load_blueprint_class(FIRE_FRONTLINER_BP)
 
     level_editor = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
     world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
@@ -237,6 +338,7 @@ def main():
         if not level_editor.load_level(ARENA_MAP):
             raise RuntimeError(f'could not load {ARENA_MAP}')
     actors = clear_stat_overrides(frontliner_class, level_editor)
+    actors = ensure_one_fire_frontliner(frontliner_class, fire_class, level_editor)
 
     # The placed Frontliners have no BodyMesh data of their own: they show their Blueprint's body
     for actor in actors:
