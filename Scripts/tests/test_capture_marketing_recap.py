@@ -40,6 +40,17 @@ class MarketingRecapTests(unittest.TestCase):
         self.assertTrue(recap._visible_weapon_plate(state, "Greatsword"))
         self.assertFalse(recap._visible_weapon_plate(state, "Dagger"))
 
+    def test_drained_spell_points_allows_one_racing_regen_tick(self):
+        state = {
+            "player": {
+                "valid": True,
+                "attributes": {"spell_points": 0.5},
+            },
+        }
+        self.assertTrue(recap._spell_points_are_drained(state))
+        state["player"]["attributes"]["spell_points"] = 0.75
+        self.assertFalse(recap._spell_points_are_drained(state))
+
 
 if __name__ == "__main__":
     unittest.main()

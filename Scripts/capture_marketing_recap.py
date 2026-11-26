@@ -24,6 +24,7 @@ FPS = 30
 OUTPUT_SIZE = (1920, 1080)
 MAX_FRAMES = FPS * 20
 MIN_FRAMES = FPS * 5
+DRAINED_SPELL_POINTS_MAX = 0.5
 MAP = kit.DEFAULT_MAP
 EXPECTED_EXPERIENCE = kit.DEFAULT_EXPERIENCE
 
@@ -52,6 +53,14 @@ def _player(state):
 def _attrs(state):
     value = _player(state).get("attributes")
     return value if isinstance(value, dict) else {}
+
+
+def _spell_points_are_drained(state):
+    value = _attrs(state).get("spell_points")
+    return (
+        isinstance(value, (int, float))
+        and value <= DRAINED_SPELL_POINTS_MAX
+    )
 
 
 def _weapon(state):
@@ -160,10 +169,7 @@ def _drive_spell_points(bridge, frame_dir):
     )
     bridge.tap("One", hold_s=0.1)
     state = bridge.wait_for(
-        lambda value: (
-            isinstance(_attrs(value).get("spell_points"), (int, float))
-            and _attrs(value)["spell_points"] <= 0.25
-        ),
+        _spell_points_are_drained,
         timeout_s=20.0,
         sections=["game", "player", "actors", "widgets"],
         poll_s=0.02,
