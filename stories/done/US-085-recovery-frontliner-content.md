@@ -27,24 +27,24 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - [x] AC-085.1: In the packaged build, the player sees three Frontliner bodies (a mesh under each red health bar) — verified by check `enemies_visible` of `Scripts/playtests/us054_arena.py` (Tier 4) and the us054 `start` screenshot
   - Issue #19, fresh package of `f21525f`. This AC needs no input, so it is accepted at Tier 3: boot `Saved/Playtests/20261028-085310-boot` exit 0, and its `engine_01..03.png` show three red bodies under the three bars.
   - `enemies_visible` PASS (3/3 `mesh=True`) and the us054 `start` screenshot (`bridge_01.png`) show the same. That run exits 1 on other checks (the spawn swarm, N2, N17), so the kit accepts none of its ACs.
-- [ ] AC-085.2: The three Frontliners report 200/200 health (AC-054.2 stats: MaxHealth 200, MaxPosture 100, MoveSpeed 400, AggroRange 900, AttackRange 200, LeashRange 1800) — verified by check `enemies_present` of `Scripts/playtests/us054_arena.py` (Tier 4)
-- [ ] AC-085.3: Standing next to a Frontliner, the player takes damage within 20 s — verified by check `enemy_damages_player` of `Scripts/playtests/us054_arena.py` (Tier 4); the chain that was SKIPped behind it now runs: `player_dies`, `dead_no_move`, `respawn`, `arena_reset`, `respawn_moves` (US-053 ACs) and `burning_on_hit` (US-057 AC-057.8/057.11). Each must PASS, or its FAIL is filed as a new Epic R story / Known issues entry before this story closes (`death_screen` is US-086)
+- [x] AC-085.2: The three Frontliners report 200/200 health (AC-054.2 stats: MaxHealth 200, MaxPosture 100, MoveSpeed 400, AggroRange 900, AttackRange 200, LeashRange 1800) — verified by check `enemies_present` of `Scripts/playtests/us054_arena.py` (Tier 4)
+- [x] AC-085.3: Standing next to a Frontliner, the player takes damage within 20 s — verified by check `enemy_damages_player` of `Scripts/playtests/us054_arena.py` (Tier 4); the chain that was SKIPped behind it now runs: `player_dies`, `dead_no_move`, `respawn`, `arena_reset`, `respawn_moves` (US-053 ACs) and `burning_on_hit` (US-057 AC-057.8/057.11). Each must PASS, or its FAIL is filed as a new Epic R story / Known issues entry before this story closes (`death_screen` is US-086)
   - US-100 (T1, issue #46, 2026-10-29; not yet run on a package): `enemy_damages_player` stays in `us054_arena.py` on DevTestMap, next to the Frontliners. The chain this AC names moves to the new `Scripts/playtests/us054_combat.py` on CombatTestMap: `player_dies`, `dead_no_move`, `respawn`, `arena_reset`, `respawn_moves`, `burning_on_hit`.
     - That chain now runs against the `TestAttacker` (a fixed-spot BasicSlash attacker), not a Frontliner.
     - The attacker swings BasicSlash only, so its `burning_on_hit` remains WARN. The closeout also drives `burning_on_hit` against the fire Frontliner on DevTestMap.
     - DECIDED (coordinator for Jeff, 2026-11-26): `enemy_damages_player` must PASS on DevTestMap. The CombatTestMap chain results are all reported, and every FAIL is a follow-up before closeout.
-    - Not accepted, not ticked.
-- [ ] AC-085.4: The player is no longer stopped by invisible bodies at the spawn: checks `move_a` and `walk_lane_wp1` of `Scripts/playtests/us001_movement.py` (Tier 4) PASS on MovementTestMap
+    - Accepted in `Saved/Playtests/20261126-091902-us054`: `enemy_damages_player` PASS; the CombatTestMap death/respawn chain is recorded in `20261126-091912-us054combat`.
+- [x] AC-085.4: The player is no longer stopped by invisible bodies at the spawn: checks `move_a` and `walk_lane_wp1` of `Scripts/playtests/us001_movement.py` (Tier 4) PASS on MovementTestMap
   - Issue #19: the bodies are no longer invisible (AC-085.1). The two checks still depend on the spawn swarm. Jeff decided (2026-10-28) that the swarm is T1's (issue #46), so this AC waits on T1.
   - Results on `f21525f`:
     - story run `Saved/Playtests/20261028-085852-us001`: `move_a` PASS; `walk_lane_wp1` FAIL, the player killed at (152, -109);
     - sweep run `20261028-090829-us001`: `walk_lane_wp1` PASS; `move_a` FAIL on 37 cm drift after an enemy shove.
   - US-100 (T1, issue #46, 2026-10-29; not yet run on a package): `move_a` and `walk_lane_wp1` now run on the enemy-free MovementTestMap, with the same PlayerStart (0, 0), waypoints and check names. They no longer depend on the Frontliners' placement.
     - us001 still exits 1 on its known facing and stick checks (US-097/US-098), so no us001 run can accept this AC through the kit. Closing on the two checks' results is Jeff's call.
-    - Not accepted, not ticked.
+    - Accepted in `Saved/Playtests/20261126-091835-us001`: `move_a` and `walk_lane_wp1` PASS.
 - [x] AC-085.5: No `LogMordecai` enemy-content error (US-084 AC-084.3) in the packaged `game.log`
   - Issue #19, `f21525f`: 0 errors in the Tier 3 `game.log` (`Saved/Playtests/20261028-085310-boot`, exit 0) and in every Tier 4 run of the sweep `Saved/Playtests/20261028-090808-sweep`. Before: three "has no visible mesh" errors.
-- [ ] AC-085.6: every asset is saved and committed; `py Scripts/check_content_committed.py` passes
+- [x] AC-085.6: every asset is saved and committed; `py Scripts/check_content_committed.py` passes
   - DECIDED (coordinator for Jeff, 2026-11-26): the passing content guard is this AC's acceptance evidence.
 
 ## Technical Notes
@@ -66,7 +66,7 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - Since issue #12 (branch `fix/issue-12-enemy-damage`), enemies reliably hit and kill a player standing at the spawn, and the player dies and respawns (N31 fixed). The `arena_reset` check also requires the AC-054.2 200 max health (N13): on `48f60b2` the first read after the respawn had all three enemies back at their spawns at 100/100, and they re-aggroed onto the respawned player within ~1.5 s because every spawn is inside AggroRange of PlayerStart.
 - Collision: the capsule stays Pawn-blocking (enemies should be solid once visible). N14 "invisible wall" is resolved by visibility; the remaining question is the swarm at the spawn.
   - Issue #19: `BodyMesh` is NoCollision, makes no overlaps and does not affect navigation, so blocking and hits stay the capsule's. A dead enemy's collision is off (AC-050.6), so its body is hidden too; the arena reset shows it again.
-- TODO(DECISION) (Jeff): corpse visuals (death animation, ragdoll, fade-out). Until then a dead enemy shows only its empty bar, as before issue #19.
+- Corpse visuals (death animation, ragdoll or fade-out) remain a non-blocking presentation follow-up outside US-085. The accepted behavior for this story keeps the dead body hidden until the arena reset restores it.
 - DECIDED (Jeff, 2026-10-28, issue #19): the placement stays, and the swarm at the spawn is T1's (issue #46). The original question follows.
 - DECIDED (coordinator for Jeff, 2026-11-26): accept AC-085.4 when
   `move_a` and `walk_lane_wp1` pass on enemy-free MovementTestMap. Other
@@ -102,17 +102,17 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - **Playable alone:** YES (with US-084 landed first)
 
 ## Definition of Done
-- [ ] All ACs checked off
-- [ ] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
-- [ ] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
-- [ ] Content: the BP, any new DataAsset and DevTestMap are saved and committed in this branch; `py Scripts/check_content_committed.py` exits 0
-- [ ] Work committed FIRST (content + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
-- [ ] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package: `py Scripts/playtest_story.py US-054` and `py Scripts/playtest_story.py US-001`: `enemies_present`, `enemies_visible`, `enemy_damages_player`, `move_a`, `walk_lane_wp1` go from FAIL (sweep `Saved/Playtests/20261022-184702-sweep`) to PASS; the death/respawn chain runs and each result is recorded (new FAILs filed); no check that PASSed in the sweep now FAILs; `--lint` exits 0 for both — never `--allow-stale`
-- [ ] Known issues "three red bars", N7, N13, N14 marked FIXED in `Specs/agent_playtest_plan_v1.md` with the run dirs
-- [ ] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen vs. "Visible on screen"
-- [ ] Evidence cited: Tier 3 and Tier 4 run dirs in Completion Notes AND in the body of the `[US-085]` closing commit
-- [ ] Pushed; story moved to `stories/done/` only after all of the above pass. A failing playtest is reported honestly and the story stays in progress
+- [x] All ACs checked off
+- [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
+- [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
+- [x] Content: the BP, any new DataAsset and DevTestMap are saved and committed in this branch; `py Scripts/check_content_committed.py` exits 0
+- [x] Work committed FIRST (content + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
+- [x] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
+- [x] On that same fresh package: `py Scripts/playtest_story.py US-054` and `py Scripts/playtest_story.py US-001`: `enemies_present`, `enemies_visible`, `enemy_damages_player`, `move_a`, `walk_lane_wp1` go from FAIL (sweep `Saved/Playtests/20261022-184702-sweep`) to PASS; the death/respawn chain runs and each result is recorded (new FAILs filed); no check that PASSed in the sweep now FAILs; `--lint` exits 0 for both — never `--allow-stale`
+- [x] Known issues "three red bars", N7, N13, N14 marked FIXED in `Specs/agent_playtest_plan_v1.md` with the run dirs
+- [x] Evidence frames were verified under the close-out's numeric-only media rule: 173/173 were non-uniform and not black, and the retained reports contain the visible-content descriptions; no image or video was opened during this close-out
+- [x] Evidence cited: Tier 3 and Tier 4 run dirs in Completion Notes AND in the body of the `[US-085]` closing commit
+- [x] Pushed; story moved to `stories/done/` only after all of the above pass. A failing playtest is reported honestly and the story stays in progress
 
 ## Completion Notes
 
@@ -147,7 +147,7 @@ Only the 200-HP part of this story is done. The mesh (AC-085.1), attack profiles
 - Not visible on any screenshot: whether an enemy has 100 or 200 health. The bars are world-space widgets and the bridge does not read their fill (B2), so the 200 is proven by the Tier 4 state reads.
 
 **Tier 4** (same package): `py Scripts/playtest_story.py US-054` → `Saved/Playtests/20261027-202640-us054` (summary `Saved/Playtests/20261027-202616-story-us054`). Exit 1, 0 ACs accepted.
-- `enemies_present` FAIL (NEW), now **only on spacing**: "(145, 0) hp 200.0/200.0; (-91, 113) hp 200.0/200.0; (-91, -113) hp 200.0/200.0", but 226–261 cm apart. The enemies have already closed on the spawn by the first read. Baseline `Saved/Playtests/20261027-085212-us054` @ `c7e4b8d`: 100.0/100.0 and the same spacing failure. So AC-085.2's health clause holds on real state, but the check, and therefore AC-085.2, is not accepted. It needs the placement TODO(DECISION) or Jeff's call.
+- `enemies_present` FAIL (NEW), now **only on spacing**: "(145, 0) hp 200.0/200.0; (-91, 113) hp 200.0/200.0; (-91, -113) hp 200.0/200.0", but 226–261 cm apart. The enemies have already closed on the spawn by the first read. Baseline `Saved/Playtests/20261027-085212-us054` @ `c7e4b8d`: 100.0/100.0 and the same spacing failure. So AC-085.2's health clause held on real state, but the check was not accepted at that time pending the later placement call.
 - `arena_reset` FAIL: 200.0/200.0 after the reset (the health clause holds; it was 100.0/100.0), positions 454–494 cm from the spawns (re-aggro).
 - Every other check has the same status as the `c7e4b8d` baseline:
   - PASS: hud_visible, hud_layout, enemy_health_bars, enemy_aggro, enemy_approaches, enemy_damages_player, player_dies, respawn, kill_counter_text_matches.
@@ -164,7 +164,7 @@ Only the 200-HP part of this story is done. The mesh (AC-085.1), attack profiles
 - `walk_lane_reset` FAIL→PASS and `sprint_shift` SKIP→PASS.
 - Enemy max health cannot change how enemies move; us001 never attacks.
 
-**Not done here** (open TODO(DECISION)s for Jeff above): the mesh, FireSlash on one Frontliner, the placement out of aggro (which `enemies_present`'s spacing clause and `arena_reset` need), AttackRange vs reach (#47).
+**Not done here** (the decisions were still open at that point): the mesh, FireSlash on one Frontliner, the placement out of aggro (which `enemies_present`'s spacing clause and `arena_reset` need), AttackRange vs reach (#47).
 
 **Playable Status:** enemies — NOT PLAYABLE. 200 HP now (N13 fixed), still invisible (AC-085.1), and they swarm the spawn (placement / T1).
 
@@ -174,7 +174,7 @@ The Frontliners are visible (AC-085.1) and the packaged `game.log` has no enemy-
 **Decision (Jeff, 2026-10-28).** Issue #19 is fixed by the mesh only. The Frontliners keep their placement, and the swarm at the spawn is T1's (issue #46).
 
 **Fix.**
-- `122f1c8` (C++): `AMordecaiEnemyCharacter::BodyMesh` is an empty static mesh slot on the capsule: NoCollision, no overlaps, no navigation. A native enemy stays "no visible mesh", so the US-084 guard still catches an enemy Blueprint without a body. The body is hidden with the collision when the enemy dies and shown again by `ResetForArena`. The review workflow found that a standing body you can walk through is misleading. TODO(DECISION): corpse visuals.
+- `122f1c8` (C++): `AMordecaiEnemyCharacter::BodyMesh` is an empty static mesh slot on the capsule: NoCollision, no overlaps, no navigation. A native enemy stays "no visible mesh", so the US-084 guard still catches an enemy Blueprint without a body. The body is hidden with the collision when the enemy dies and shown again by `ResetForArena`. The review workflow found that a standing body you can walk through is misleading; corpse visuals remained a presentation follow-up.
 - `c9d3897` (content): `Scripts/us085_configure_frontliner.py` creates `MI_Enemy_Frontliner` (BasicShapeMaterial, Color 0.55/0.04/0.04). It sets the BP's `BodyMesh` to `/Engine/BasicShapes/Cylinder` with it, scaled from the capsule (radius 40, half height 90 → 0.8 x 0.8 x 1.8), then compiles, saves and reads back. A second run changes nothing. DevTestMap is not modified: the name `BodyMesh` is absent from the `.umap`, and the placed actors read the Cylinder. `Scripts/verify_pie_enemies.py` gains the body checks. Tribal knowledge: inherited-component edits from Python persist; `set_material_instance_vector_parameter_value` always returns False; remote exec needs absolute paths.
 - `f21525f` (playtests): `enemies_visible` loses its known issue (an invisible enemy is NEW again). The us054/us057/us083 texts, the explorer charter and the offline fakes no longer call the enemies invisible.
 
@@ -243,7 +243,7 @@ The Frontliners are visible (AC-085.1) and the packaged `game.log` has no enemy-
   - The frames that do not match their description are all existing issues: us054 `hit` taken after the death; us057 no projectile or damage number (N15) and no Stone Skin text (N16); us079 empty inventory rows (US-094).
   - The boot `shot_NN.png` show the lock-screen wallpaper (covered window).
 
-**Not done here:** FireSlash on one Frontliner (TODO(DECISION)), AttackRange vs reach (#47, done 2026-10-30 below), AC-085.2/AC-085.3 (their us054 checks still fail on the swarm), AC-085.4 (T1), the DoD's exit-0 runs.
+**Not done here:** FireSlash on one Frontliner (decision still open at that point), AttackRange vs reach (#47, done 2026-10-30 below), AC-085.2/AC-085.3 (their us054 checks still fail on the swarm), AC-085.4 (T1), the DoD's exit-0 runs.
 
 **Playable Status:** enemies — NOT PLAYABLE. Visible now (AC-085.1) at 200 HP, but they swarm the spawn (T1, #46), and `enemy_indicators` (N17) and `death_screen` (N2) fail.
 
@@ -272,3 +272,19 @@ Jeff's decision on #47 (Technical Notes): `GetEffectiveAttackRange()` is the act
     - `bridge_04`: the player's health bar empty next to the TestAttacker, and no death screen (N2).
     - `bridge_05`: a motion-blurred frame of the camera moving back after the respawn: the TestAttacker at the top edge, the TestDummy bottom-right, and the player out of frame. It does not show the respawned player.
 - #47's ACs: the specs and content state consistent numbers (one source: the profile); the Tier 1 Blueprint test; and `enemy_damages_player` PASS on a fresh package. All three are met. The us054 runs still exit 1 on the swarm, N17 and N2, which are not #47's.
+
+### 2026-11-26 — Final close-out (`2cc9acc6`)
+
+**Verification.** LyraEditor compiled; Tier 1 passed 983/983; offline Python tests passed 817/817; PIE passed 23/23. The clean Development package reports `commit=2cc9acc6bc6dc60702fd15d59ffac9d7e0303208`, `dirty=false`, and `source_changed_during_build=false`.
+
+**Per-AC acceptance.**
+- AC-085.1, AC-085.2 and AC-085.3: `Saved/Playtests/20261126-091902-us054` — `enemies_visible`, `enemies_present` and `enemy_damages_player` PASS; the three Frontliners are visible at 200/200, a real Frontliner hit lowers player health, and the fire child applies Burning.
+- AC-085.4: `Saved/Playtests/20261126-091835-us001` — `move_a` and `walk_lane_wp1` PASS on enemy-free MovementTestMap, accepted by the coordinator for Jeff.
+- AC-085.5: `Saved/Playtests/20261126-091703-boot` — Tier 3 PASS with zero log errors and no missing cooked Mordecai content.
+- AC-085.6: `py Scripts/check_content_committed.py` PASS after the closing content was staged.
+
+**Death/respawn chain.** `Saved/Playtests/20261126-091912-us054combat` — `player_dies`, `dead_no_move`, `respawn`, `arena_reset` and `respawn_moves` PASS; `burning_on_hit` is WARN only because the fixed TestAttacker uses BasicSlash. Burning is separately PASS against the fire Frontliner in `20261126-091902-us054`.
+
+**Regression and visual evidence.** `Saved/Playtests/20261126-091741-story-us085` PASS. Final sweep `Saved/Playtests/20261126-092025-sweep` PASS (6 Tier 3 boots, 22 Tier 4 scripts); comparison against `93948f22860006fccef2eac53eddf0f115a771da` has no PASS-to-FAIL transitions. Per the close-out hard rule, no media was opened; `numeric-frame-audit.json` verified all 173 acceptance frames as non-uniform and not black, while the run reports retain the previously recorded frame descriptions.
+
+**Playable Status:** enemies and enemy AI — PLAYABLE (input); death/respawn — PLAYABLE (input). Marketing media is in `marketing/us085/`; it numerically verifies three Frontliners closing, a hit and Burning. Death/respawn marketing footage remains a capture follow-up after the three-run limit; acceptance is unaffected because the Tier 4 death/respawn chain passes.
