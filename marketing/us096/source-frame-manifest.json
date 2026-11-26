@@ -1,354 +1,1429 @@
 {
   "version": 1,
-  "capture": "continuous packaged-game DUMPMOVIE viewport frames at fixed 30 fps",
-  "fps": 30,
-  "frame_count": 22,
-  "duration_seconds": 6.5,
-  "weapon_sequence": [
-    "Longsword",
-    "Dagger",
-    "Greatsword",
-    "Dagger",
-    "Longsword"
-  ],
-  "continuous_movie": {
-    "source": "Unreal packaged-game -DUMPMOVIE",
-    "fixed_simulation_fps": 30,
-    "selected_dump_frames": 195,
-    "first_dump_frame": 167,
-    "last_dump_frame": 361,
-    "start_dump_offset": 19
-  },
+  "capture": "30 fps samples decoded from the retained continuous-source.mp4, which was encoded from the validated contiguous fixed-timestep Unreal PNGs",
+  "source_movie": "continuous-source.mp4",
+  "source_movie_sha256": "fcdbfcf43020c5b00b0eda76de293d40c0277fedb1168d2cde12417e9d5ba6f4",
   "frames": [
     {
       "index": 1,
-      "file": "source-frames/frame_0001.png",
-      "elapsed_s": 0.1,
-      "event": "start",
-      "weapon": "Longsword",
-      "weapon_index": 0,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": false,
-      "sprinting_after": false,
-      "width": 1280,
-      "height": 720,
-      "sha256": "95f39ca4d515a5b787eb5d81d89556e96093702657f46f09677905d2af8850e7"
+      "file": "source-frames/frame_0001.jpg",
+      "sha256": "855b8e98cb741e5f85a2f27fbf865ba7a1c1a284cbd436c1efa90ea8ccf57da8",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 2,
-      "file": "source-frames/frame_0002.png",
-      "elapsed_s": 0.334,
-      "event": "live",
-      "weapon": "Longsword",
-      "weapon_index": 0,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "588c020fc7cfcf5f5d6651cdd2bbb427d107c0b0ab54f3d2615f70783f5cc737"
+      "file": "source-frames/frame_0002.jpg",
+      "sha256": "38fff8cd6f85aa48cc79ebd09f6869a9e3f43cb7be26f9bb3008494a906b6039",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 3,
-      "file": "source-frames/frame_0003.png",
-      "elapsed_s": 0.634,
-      "event": "live",
-      "weapon": "Longsword",
-      "weapon_index": 0,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "d6db1673d40eee20eacb9f97816e303473920e11c26522c5d47dcf40bcd660df"
+      "file": "source-frames/frame_0003.jpg",
+      "sha256": "83c02cea0ccf0c756a3ac7ff893e2c22ef8ba99e3abb92dd634bdb47ce451eb5",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 4,
-      "file": "source-frames/frame_0004.png",
-      "elapsed_s": 0.934,
-      "event": "live",
-      "weapon": "Longsword",
-      "weapon_index": 0,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "cbbad1f27efdbbc74be02004ec534cd92df28eb7c8a7db2fce8d83c22585b801"
+      "file": "source-frames/frame_0004.jpg",
+      "sha256": "f87c0c0da3881607d8c700219411c6e26bfd2d9630820d723de0da09256ad27e",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 5,
-      "file": "source-frames/frame_0005.png",
-      "elapsed_s": 1.267,
-      "event": "next",
-      "weapon": "Dagger",
-      "weapon_index": 1,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": false,
-      "sprinting_after": false,
-      "width": 1280,
-      "height": 720,
-      "sha256": "4f436f28e8014a0a73a6d4972926204ea68b91316f0ab15c195480d14687a824"
+      "file": "source-frames/frame_0005.jpg",
+      "sha256": "8be13a7f8675aae966ef303fc1becab7f8a45948bf50b8de1ebdb680a5c59fbf",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 6,
-      "file": "source-frames/frame_0006.png",
-      "elapsed_s": 1.534,
-      "event": "live",
-      "weapon": "Dagger",
-      "weapon_index": 1,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "b78b4501a3ab7d5ac7481b73987d2c9a1b8d6d9ce15bbe3126f4e899675c5f78"
+      "file": "source-frames/frame_0006.jpg",
+      "sha256": "dc42ad2aca96f14f2b8bc083c99072a638caaa392ba94f8aa7c726275b12eaf1",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 7,
-      "file": "source-frames/frame_0007.png",
-      "elapsed_s": 1.867,
-      "event": "live",
-      "weapon": "Dagger",
-      "weapon_index": 1,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "9e2d0d8b155e65d5bb857a15aea3f0b006699dc0dab07d60c85314330044c83b"
+      "file": "source-frames/frame_0007.jpg",
+      "sha256": "9dcded09025ecd20a0b64e4bee0e286cb57ef841ac56d05c54f4dba2d152ff30",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 8,
-      "file": "source-frames/frame_0008.png",
-      "elapsed_s": 2.134,
-      "event": "live",
-      "weapon": "Dagger",
-      "weapon_index": 1,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "2a1ce36143ea214e3bec0f73c901ae7003e961d4e1e59e39770ce98d417d411e"
+      "file": "source-frames/frame_0008.jpg",
+      "sha256": "2da61ffe7114b3896b30ec10cfd240572190dfcba971c5bdd7ae4536d04ddccb",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 9,
-      "file": "source-frames/frame_0009.png",
-      "elapsed_s": 2.467,
-      "event": "next",
-      "weapon": "Greatsword",
-      "weapon_index": 2,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": false,
-      "sprinting_after": false,
-      "width": 1280,
-      "height": 720,
-      "sha256": "0e69eaa40bbc4b151794ae71677ee5a4b0d9f403265f7707db4981ced8f6c4f4"
+      "file": "source-frames/frame_0009.jpg",
+      "sha256": "fd7ec74d05a446a0867108735e615cc12b782377084394e4fbb6b639daa5db4d",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 10,
-      "file": "source-frames/frame_0010.png",
-      "elapsed_s": 2.734,
-      "event": "live",
-      "weapon": "Greatsword",
-      "weapon_index": 2,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "88359b62c06d6899605714450c0d21e31f3bfbed02e18739b4706bf0ae74cd7f"
+      "file": "source-frames/frame_0010.jpg",
+      "sha256": "8506dc68326afb9e702507605aafd491b43a96bfe3e3cade194aa35767a0c608",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 11,
-      "file": "source-frames/frame_0011.png",
-      "elapsed_s": 3.034,
-      "event": "live",
-      "weapon": "Greatsword",
-      "weapon_index": 2,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "2c5a618ac4e2c3fbc128fe9d062383b66cfd822342ea9bd1aab3c707122fa23d"
+      "file": "source-frames/frame_0011.jpg",
+      "sha256": "ae29cc7ee1d374280a925b21be874e1f1fe436985c24871457884e3b39d04cee",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 12,
-      "file": "source-frames/frame_0012.png",
-      "elapsed_s": 3.4,
-      "event": "live",
-      "weapon": "Greatsword",
-      "weapon_index": 2,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "6d8ade916fc93d00bcfeb91bf3a7ce1987d4f5e4df8a5a9b68e059307f7dd79c"
+      "file": "source-frames/frame_0012.jpg",
+      "sha256": "fc299ce0c6f291a80f30933bd66d5d2037ab1df0675f3b978973209a14e6d3d2",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 13,
-      "file": "source-frames/frame_0013.png",
-      "elapsed_s": 3.834,
-      "event": "previous",
-      "weapon": "Dagger",
-      "weapon_index": 1,
-      "sprinting": false,
-      "shift_tab": true,
-      "sprinting_before": false,
-      "sprinting_after": false,
-      "width": 1280,
-      "height": 720,
-      "sha256": "a2560f5eb3f7c1acee4c9e2d7ea005e9fb236d211f49cb08c6405a86886d940c"
+      "file": "source-frames/frame_0013.jpg",
+      "sha256": "d0ad2f570f9d319f285bdb7fd720ac632e9f10f555cb7dc61fd4731105e09a1a",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 14,
-      "file": "source-frames/frame_0014.png",
-      "elapsed_s": 3.934,
-      "event": "live",
-      "weapon": "Dagger",
-      "weapon_index": 1,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "b334081bc5e2125242cd5a99ec2f4cefc4c25a6d2e9f99b76f773e1019065980"
+      "file": "source-frames/frame_0014.jpg",
+      "sha256": "1a73c60c3ef2244abdf45b03d6fec3afa5c76dc8f47b6b50f5990f15e1c22fb6",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 15,
-      "file": "source-frames/frame_0015.png",
-      "elapsed_s": 4.234,
-      "event": "live",
-      "weapon": "Dagger",
-      "weapon_index": 1,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "c1432194a68da02963597c3f74e98a82e6a64472ce2b0544f77cc7102f38265b"
+      "file": "source-frames/frame_0015.jpg",
+      "sha256": "105292d0e84e6412d3597d098911524fdf7c0cddde8359fd05111a0451244d93",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 16,
-      "file": "source-frames/frame_0016.png",
-      "elapsed_s": 4.534,
-      "event": "live",
-      "weapon": "Dagger",
-      "weapon_index": 1,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "c0288342b25a1d0d4aaf247a5d86026bca1de8544cf1ad0fdad3de2aa18dbf37"
+      "file": "source-frames/frame_0016.jpg",
+      "sha256": "22908667d818994ddbafe9f1832f39198a8f3cbfbb1fcc285a030989b3282f67",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 17,
-      "file": "source-frames/frame_0017.png",
-      "elapsed_s": 5.0,
-      "event": "previous",
-      "weapon": "Longsword",
-      "weapon_index": 0,
-      "sprinting": false,
-      "shift_tab": true,
-      "sprinting_before": false,
-      "sprinting_after": false,
-      "width": 1280,
-      "height": 720,
-      "sha256": "f67710d00e9f1e96a62e0c103057e14734ca082c885068555d2e995f0dc6ba1c"
+      "file": "source-frames/frame_0017.jpg",
+      "sha256": "42c28c8348dfdd9a42e40abb23f28948212ad6bb58112c7d3ff45ce17421dea4",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 18,
-      "file": "source-frames/frame_0018.png",
-      "elapsed_s": 5.134,
-      "event": "live",
-      "weapon": "Longsword",
-      "weapon_index": 0,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "ee017e39d7023d663e9633a07ea59fb41fc8c7bc8bb78efbfb5b1a30721f77b8"
+      "file": "source-frames/frame_0018.jpg",
+      "sha256": "83cebd300faff00671e2c5fa5310334e52e17adcf69d54e3d34a0a8f416517c6",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 19,
-      "file": "source-frames/frame_0019.png",
-      "elapsed_s": 5.434,
-      "event": "live",
-      "weapon": "Longsword",
-      "weapon_index": 0,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "2432480ef240065a38eae07d78fa9e0cab458a84b11fb2023438eaec97b567ef"
+      "file": "source-frames/frame_0019.jpg",
+      "sha256": "0a8f48cc476d262fd462760d60a1189a30821b88a77e159efdfa7e6572e857f6",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 20,
-      "file": "source-frames/frame_0020.png",
-      "elapsed_s": 5.734,
-      "event": "live",
-      "weapon": "Longsword",
-      "weapon_index": 0,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "9fc4fb45970d01ae7e8a10cbe4898cd6e6952220abf3e8fff853a2958e9dc8ab"
+      "file": "source-frames/frame_0020.jpg",
+      "sha256": "01500d71ba448b6f8c3926f4c8b827c286bf3d9ceeb6f5990f232c66afa0a078",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 21,
-      "file": "source-frames/frame_0021.png",
-      "elapsed_s": 6.034,
-      "event": "live",
-      "weapon": "Longsword",
-      "weapon_index": 0,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "59c6f787f194e6c9ec0539ddf8dbb5ae9561fa53147cb550e593993a6460b2ac"
+      "file": "source-frames/frame_0021.jpg",
+      "sha256": "30a8a045e1ff27d361845fc2ef0f961fb94f944b9b3be136e7d6ef98677f0405",
+      "width": 960,
+      "height": 540
     },
     {
       "index": 22,
-      "file": "source-frames/frame_0022.png",
-      "elapsed_s": 6.334,
-      "event": "live",
-      "weapon": "Longsword",
-      "weapon_index": 0,
-      "sprinting": false,
-      "shift_tab": false,
-      "sprinting_before": null,
-      "sprinting_after": null,
-      "width": 1280,
-      "height": 720,
-      "sha256": "f195b4d60741ea54f62e933744172be7ccc04e7dfccdcbc24ab090b350e3f67b"
+      "file": "source-frames/frame_0022.jpg",
+      "sha256": "d8aca383e4427b4f2f31e0c12debf82be87662350baf0d90dfc2f602c80a58bb",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 23,
+      "file": "source-frames/frame_0023.jpg",
+      "sha256": "8577636c69b078cbaa74a288b824cf6ae3cb45dcc7393735adeec3cd6961972e",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 24,
+      "file": "source-frames/frame_0024.jpg",
+      "sha256": "3f00d7cf044bfd43e770c613d7e38c950c3d8d428fba9a30c1358dc52858c522",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 25,
+      "file": "source-frames/frame_0025.jpg",
+      "sha256": "97e9390409f6726c795bdf310c21f4f1442e46d55d78e9e04491e19f0ce40a67",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 26,
+      "file": "source-frames/frame_0026.jpg",
+      "sha256": "08eb29f0f915e21df6f83d61fd4d8515541dadc3f68ea7d39818ee30eb9e9cca",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 27,
+      "file": "source-frames/frame_0027.jpg",
+      "sha256": "79c3dbcf67dd3ee89f140870a562122c4d92c09f3ded23070e535d058b2c2d02",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 28,
+      "file": "source-frames/frame_0028.jpg",
+      "sha256": "6da01d64287c46c78fac4cb5571a63853a61d829a4ff41b9e1232ac715bd2524",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 29,
+      "file": "source-frames/frame_0029.jpg",
+      "sha256": "70ccb3b0302fb95a9388fba184f301dcb1c77e34977a42eaeaa3d0ba2c034cec",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 30,
+      "file": "source-frames/frame_0030.jpg",
+      "sha256": "6640cd16c3f39ced824426ebc8d45e29c206b0d326af791b9b001aa43c8cc8b4",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 31,
+      "file": "source-frames/frame_0031.jpg",
+      "sha256": "05aa2dcc919e8120374e49e82441d0f5ddfa2d79cf448ae62f46b02c56bd9554",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 32,
+      "file": "source-frames/frame_0032.jpg",
+      "sha256": "f4e939643715eb85dc167f9b310e2f8b370698b20e53616753f63db7fbd4b748",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 33,
+      "file": "source-frames/frame_0033.jpg",
+      "sha256": "2fc720db0dd29b9c969d2c0b06b5d0e72e19f992936d28bcfb8ff1a53fbf42af",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 34,
+      "file": "source-frames/frame_0034.jpg",
+      "sha256": "fd2c5ee234c32e96cedc1cd03b18933e0eccd5d5e98cda781db4ca6a8a36ecbe",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 35,
+      "file": "source-frames/frame_0035.jpg",
+      "sha256": "45fdc494f96afc101dd2188ab21cad70bcc974ceac0a639acf9ea8be74728ee0",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 36,
+      "file": "source-frames/frame_0036.jpg",
+      "sha256": "837d1c481117208c27869f5765b2707f73bc3f2adb9c0f4ad3b56e7cc2084951",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 37,
+      "file": "source-frames/frame_0037.jpg",
+      "sha256": "d2448b96f26dec2ee816e8686ba95eadb263d0fabc5217654dbb1ef293782539",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 38,
+      "file": "source-frames/frame_0038.jpg",
+      "sha256": "c789f697f52c353564130672d1dad675a4bace09623474648ad3a22c84fe4fc6",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 39,
+      "file": "source-frames/frame_0039.jpg",
+      "sha256": "f4743c615af96a311148a67a61e335656795e3c9a47771e7a215e7394119b1ac",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 40,
+      "file": "source-frames/frame_0040.jpg",
+      "sha256": "31b994b3b2a3ce150105fae9931c9f6bb9ea1b9dd988d8c6e3812b2c597afdc0",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 41,
+      "file": "source-frames/frame_0041.jpg",
+      "sha256": "7c03b17c67ff5a5e9b630ae685507c724f7f1c11d354216c000b4e44135aef25",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 42,
+      "file": "source-frames/frame_0042.jpg",
+      "sha256": "99009602c2495714bbc657ed970c40e133585dc81a769b1ba274613be007a765",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 43,
+      "file": "source-frames/frame_0043.jpg",
+      "sha256": "4f4ca8e96cb42aea309d67839cc274b94784c2ef3aa5e1651b65b2aaa47a3f23",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 44,
+      "file": "source-frames/frame_0044.jpg",
+      "sha256": "f0113410547934345a0739954f49aa7f67448a0609a15f86b235d8ccc7fab7e8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 45,
+      "file": "source-frames/frame_0045.jpg",
+      "sha256": "795a92633a8ffe9244dc015aa0591c3d4de076aeddba7e2fa994072aa128a11f",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 46,
+      "file": "source-frames/frame_0046.jpg",
+      "sha256": "b7b7aa9f48dbe0a5c82cd0beaddd4d067a08ec760004ebee0205a3e272cc5fb1",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 47,
+      "file": "source-frames/frame_0047.jpg",
+      "sha256": "2f690a6737411b7f7b98b5ddf85c6f4ded10e43ad6a35e06234ab42bffd3a97b",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 48,
+      "file": "source-frames/frame_0048.jpg",
+      "sha256": "800242ed29716f43d5adc2fe0a771c7d731f7e6a9e8cf89f641a25e269c895dc",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 49,
+      "file": "source-frames/frame_0049.jpg",
+      "sha256": "994b98f13680027772f13b82f630f2933881d1ec5ca23354c96a65272f1b7f93",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 50,
+      "file": "source-frames/frame_0050.jpg",
+      "sha256": "ed4165ecfbcd94c90c227b519894e9df8f5b4ae7f4306fe0f8f4edf5911b9b9a",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 51,
+      "file": "source-frames/frame_0051.jpg",
+      "sha256": "5060c85b60de31bcfea5b87c7acbf4869901277279dbab9ee51cabb4271cb521",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 52,
+      "file": "source-frames/frame_0052.jpg",
+      "sha256": "004c8f2701c637ebec56d03be5685c8adc1e19c21ace7005ca01efb2c99b39c4",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 53,
+      "file": "source-frames/frame_0053.jpg",
+      "sha256": "94f7a3e5ed903c0cdf9aaf8164fd60a7d7c7506dcae27cfce4f2bbf91ca85fac",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 54,
+      "file": "source-frames/frame_0054.jpg",
+      "sha256": "d45d3efb1616e8f5d275a6378a3633e10fc92f1073eb8c7e57772d7b3768ff5e",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 55,
+      "file": "source-frames/frame_0055.jpg",
+      "sha256": "43b829418f90970100b64be1a5999850a80bcec4786122a01930c7076366ae70",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 56,
+      "file": "source-frames/frame_0056.jpg",
+      "sha256": "0aa748e0fcc951e76df5682822aa586efd26d58e698b748d65081c6c7d38da69",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 57,
+      "file": "source-frames/frame_0057.jpg",
+      "sha256": "ae5302aed6b552c22b9969c458cb7c2e14d16cc3b9d1db8e56b984f2e8dc3604",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 58,
+      "file": "source-frames/frame_0058.jpg",
+      "sha256": "047f24db2577ae161f2cb9ce3df166c82f37d7161bb7c053512a49da6c48149b",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 59,
+      "file": "source-frames/frame_0059.jpg",
+      "sha256": "9e34798e54d944de55c80ec1d9c9955f10b9de47d136e977add1880ebdd7cedf",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 60,
+      "file": "source-frames/frame_0060.jpg",
+      "sha256": "44668943abe5de36030296b9c296db09a580d1010bcd43ba801bb45ec5929fef",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 61,
+      "file": "source-frames/frame_0061.jpg",
+      "sha256": "a59369529206bde52e531ac26a4175e64c29bf851c22bb2f11e3c8ed7536492b",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 62,
+      "file": "source-frames/frame_0062.jpg",
+      "sha256": "fbe3754f1b3409320f442f04fc646626d5900d3c89a55e42d45affff2a6f6398",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 63,
+      "file": "source-frames/frame_0063.jpg",
+      "sha256": "4764bb1217e964bfe5887c0d8390a620a90ae4c81a755345c1b954e50ed0eb2c",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 64,
+      "file": "source-frames/frame_0064.jpg",
+      "sha256": "6ea777adcd7da883790cc734c57529adc0c26275ac2eea19bf0c8857739f160b",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 65,
+      "file": "source-frames/frame_0065.jpg",
+      "sha256": "8de7b3bccabea2b06acf0ae58403c47d30bef5057316258d132d7c312519d7d6",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 66,
+      "file": "source-frames/frame_0066.jpg",
+      "sha256": "412fef6ee4de3a6f46cecb2789477596eb307a3497abf2763707ff7c9b4e1e89",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 67,
+      "file": "source-frames/frame_0067.jpg",
+      "sha256": "a3ae448fabccea467e2adaa068802de382cedf65079b0978b0d5475813700565",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 68,
+      "file": "source-frames/frame_0068.jpg",
+      "sha256": "2cebec4c03550fd9da065f6f056631ade5023776174e7f2d45d71d390fdeb028",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 69,
+      "file": "source-frames/frame_0069.jpg",
+      "sha256": "3a0878d34d1ff92673b1ba2be917649d36b950724d2d273641f93c7ec29aa6d8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 70,
+      "file": "source-frames/frame_0070.jpg",
+      "sha256": "ec8302d2f5291f5c115a8b2cb7a7559d09eba573dff3b92197cbc17d940d978d",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 71,
+      "file": "source-frames/frame_0071.jpg",
+      "sha256": "afec3a66edb892708ec7e81dc10f1a567cddc45be446421b9dfadb621e77f87e",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 72,
+      "file": "source-frames/frame_0072.jpg",
+      "sha256": "3236b70ff154d586b903283fbff7ae306dffc8f5cda35d133dc95280e76594bc",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 73,
+      "file": "source-frames/frame_0073.jpg",
+      "sha256": "72a08c52cec61614d61093f395f74b276475357327b6f2e2a4faa36b81421b39",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 74,
+      "file": "source-frames/frame_0074.jpg",
+      "sha256": "9c396f186e91b25defce6e2e8aebb2cfd3bedb6b8cee2eb8ba04c1ec1eff4a56",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 75,
+      "file": "source-frames/frame_0075.jpg",
+      "sha256": "e2b7247f4c45a949251de8ead91fc2257501e2d38aa8615ade4364c0ed8a1769",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 76,
+      "file": "source-frames/frame_0076.jpg",
+      "sha256": "e16732c1d8f6dcbc400851471ed84d4053355855a1e52d4958b8d3ef9e2be482",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 77,
+      "file": "source-frames/frame_0077.jpg",
+      "sha256": "2259fc8920ea363e2d1578c840ceb4a147462118d5e3139beec9f56795a2ab86",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 78,
+      "file": "source-frames/frame_0078.jpg",
+      "sha256": "a7fe031b2ab2ab3acce4eea7c98baa9219a183bf09cad963b656e7d094fa9726",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 79,
+      "file": "source-frames/frame_0079.jpg",
+      "sha256": "93d884f2046ceec158697e9b00df77dfd7a225f2d8460b82467a4cbafdd532b7",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 80,
+      "file": "source-frames/frame_0080.jpg",
+      "sha256": "9f6742590236f5e4f1cf95197aeeea0597d413bbccfde63b3a571cde902023f8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 81,
+      "file": "source-frames/frame_0081.jpg",
+      "sha256": "8896ee66f8b82ee68f9a5d5b3ef2ddabf9ffc3808fa3c15d63a747186751934c",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 82,
+      "file": "source-frames/frame_0082.jpg",
+      "sha256": "d4685f69420d60da42d5992774d1662e79a1c2a87ac7789a11bad58804bbadca",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 83,
+      "file": "source-frames/frame_0083.jpg",
+      "sha256": "9116f73f4482798a9072750deea1a04c8c42c28c8993c39e2d01cd8703872c5e",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 84,
+      "file": "source-frames/frame_0084.jpg",
+      "sha256": "2f15582f659feb693a0f954532e13aa82cecea8398b8938a939607c2a9244dac",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 85,
+      "file": "source-frames/frame_0085.jpg",
+      "sha256": "c39d6e37293a165811d2e6bd5088efffdc19d7d6efb5a0e1e82fd2177d7c7a85",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 86,
+      "file": "source-frames/frame_0086.jpg",
+      "sha256": "9d9a7761822889c49daba27635e4a62fdffbd670d829c00fba12264c6d9169e5",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 87,
+      "file": "source-frames/frame_0087.jpg",
+      "sha256": "e835e165f3203c382e0db1f58fcc16fd5ae1535e32812c1eb51bfb38accde9a6",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 88,
+      "file": "source-frames/frame_0088.jpg",
+      "sha256": "f2252139cae8cccccce3ee554987b018f1dca35c427b4967e55f2720af258328",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 89,
+      "file": "source-frames/frame_0089.jpg",
+      "sha256": "215d7848520b8ef0ac95aeae882a05c847e273151a771a750c0300d9bb21469f",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 90,
+      "file": "source-frames/frame_0090.jpg",
+      "sha256": "eaab687a491e28c40f207f782c93de881f56d5d926d6dd4219a43b55309860c8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 91,
+      "file": "source-frames/frame_0091.jpg",
+      "sha256": "f1fb9bc3915480f6e2d83fad7e0f21823cdba08232a3d49f9be82fdec2e8be34",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 92,
+      "file": "source-frames/frame_0092.jpg",
+      "sha256": "f485abfb82836f8991dba33fedebc2974a2a601f1fb84d166d21ae1e5ea518dc",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 93,
+      "file": "source-frames/frame_0093.jpg",
+      "sha256": "1979c7bd6139f8de2ae417b7abaedd8bd7c1b0778dde4d8afabe721f42f85787",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 94,
+      "file": "source-frames/frame_0094.jpg",
+      "sha256": "1a20a962729f224c3c4e2da0c369d41c63d2318e8bfaee27aaa08cbe6d3bd3e9",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 95,
+      "file": "source-frames/frame_0095.jpg",
+      "sha256": "4c30679f8cbdb67bdfcc4ea497c658e39727165e0a372b3a9fde6d070c594704",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 96,
+      "file": "source-frames/frame_0096.jpg",
+      "sha256": "45eeb0bd0595bf8edf7ae415bb4fb868b8f93524f81884de7683824a34f5bf89",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 97,
+      "file": "source-frames/frame_0097.jpg",
+      "sha256": "48c3a59683592f5eaa7402644242290dd2080ed897f6fa81d0f25b21405670e1",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 98,
+      "file": "source-frames/frame_0098.jpg",
+      "sha256": "1538d8e6877cd33c5f531f4f0430309862278cd345f82b5d2f39adf2ac152fb9",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 99,
+      "file": "source-frames/frame_0099.jpg",
+      "sha256": "ee7871def46bfeecf75fdc8e35291bc7dc3ef5f8d23261595d6ae78da1b4c843",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 100,
+      "file": "source-frames/frame_0100.jpg",
+      "sha256": "f577ddb39d27a2d257272e073bc9df4e52b250c56413a2629308de48595cfce8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 101,
+      "file": "source-frames/frame_0101.jpg",
+      "sha256": "17371d7882938932c0b0e08712e0ca00f12e58cf10283563b4786daf6f2d04f0",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 102,
+      "file": "source-frames/frame_0102.jpg",
+      "sha256": "17d4a4531c3743a82a1b027051ba6f3eb2305826365c475f63343ece15e44471",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 103,
+      "file": "source-frames/frame_0103.jpg",
+      "sha256": "8ebea17a0d989037ee6be43e14a3f7bad6a4361a0618a523aa605cd27b2d9a24",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 104,
+      "file": "source-frames/frame_0104.jpg",
+      "sha256": "37bf02a6e8349cfa833effdb674353ee53f25ff39d60b704022b5b1d637c501a",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 105,
+      "file": "source-frames/frame_0105.jpg",
+      "sha256": "73aae0d50214d512db8fd6fbf692d61118e7ec9685c90bc798530484a8635ed4",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 106,
+      "file": "source-frames/frame_0106.jpg",
+      "sha256": "7622b456e34bc6af22fae18d86082e69993b77f24258100b55920535390243ca",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 107,
+      "file": "source-frames/frame_0107.jpg",
+      "sha256": "932a2de2f64eee6e21a0a61484fd3816ec2dc77ff47a786d935aa4dee532f4bc",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 108,
+      "file": "source-frames/frame_0108.jpg",
+      "sha256": "ee3db6424994e92c5b251124e94d7f8920f4e56d55fb1d5da9f444239ba78fd7",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 109,
+      "file": "source-frames/frame_0109.jpg",
+      "sha256": "e7d3c267bfecbc0be76f5d85e4598633ab621156ec9ca9f8e6461630fa99d606",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 110,
+      "file": "source-frames/frame_0110.jpg",
+      "sha256": "d86f01759a0da11ceba3779a1cfcc49de2e1a7f387185917f2e5bcd342811a28",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 111,
+      "file": "source-frames/frame_0111.jpg",
+      "sha256": "b4d36f56813faf7f8bbf51a15d04d92148e22734cef62fbb16ac293348cc3b9a",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 112,
+      "file": "source-frames/frame_0112.jpg",
+      "sha256": "57bab202294729fdf8e44e6547de80ece2c8fae8f968bd15af29f6c7e54ff7c8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 113,
+      "file": "source-frames/frame_0113.jpg",
+      "sha256": "b4f67f7c53c2ea216964e0ec6d275248ed8472935cb9d414cd7866fed650370d",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 114,
+      "file": "source-frames/frame_0114.jpg",
+      "sha256": "6690d21a27f8cb3cb5e5b2ece68c11cc9cf02c8655c2eedc71cae3fa8c0d2cdf",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 115,
+      "file": "source-frames/frame_0115.jpg",
+      "sha256": "a933a8549afad1e14ff65ca7d875c6c65fc9427431881fa530729e5ddc888753",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 116,
+      "file": "source-frames/frame_0116.jpg",
+      "sha256": "9b68d5a24835dbb4d2a57e5b3b031c968a86b3850ff53ed2c7643f342fe26a38",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 117,
+      "file": "source-frames/frame_0117.jpg",
+      "sha256": "abb3239090ccc29112ed2e676601c915f3745bef275553be496a7f7d82bab6e9",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 118,
+      "file": "source-frames/frame_0118.jpg",
+      "sha256": "d2d1d59e0143ec63a4cf95a343be9d45aad6bc36232fbf6d669fb5566ed77e26",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 119,
+      "file": "source-frames/frame_0119.jpg",
+      "sha256": "ff38beced64ab5a41ef789bc997ef6060d97b978e06c9c8bbce4b81c139b7372",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 120,
+      "file": "source-frames/frame_0120.jpg",
+      "sha256": "d02bdb934cfafc6f7ddd6b63c4c10922ce8f3b8a22cf4daae2153060e01d0168",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 121,
+      "file": "source-frames/frame_0121.jpg",
+      "sha256": "806645ceb1a01eff0cfaf79d9e541fa372f73a0275698d761049805dbd3364f0",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 122,
+      "file": "source-frames/frame_0122.jpg",
+      "sha256": "8e8446f7b5c86f6ceed25b4e12251563fc91652af86aae7efe028268da92fe2a",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 123,
+      "file": "source-frames/frame_0123.jpg",
+      "sha256": "a8ecd2cb13f72801acfdd55c6a85a1a8f3f14cc5fd950ae3af40b84a4daf0c3d",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 124,
+      "file": "source-frames/frame_0124.jpg",
+      "sha256": "2cbf58a920a9d8eb6a3699e7da8bb1e19042334894c23b9b8d7d0370edea1eca",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 125,
+      "file": "source-frames/frame_0125.jpg",
+      "sha256": "2bb0ca4d9a203f09f9beec28aeb1ef340658e917f7c4ad15cfd5b04c1871d9e2",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 126,
+      "file": "source-frames/frame_0126.jpg",
+      "sha256": "bc65f5a49d0727d9ca1f3c42bf8486170ecb2b2934dd15b12724bfb165925a46",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 127,
+      "file": "source-frames/frame_0127.jpg",
+      "sha256": "01c2076a1f70cd356896edddfddbd77671cb53bc4c080d3bbae97bf8afe6ce75",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 128,
+      "file": "source-frames/frame_0128.jpg",
+      "sha256": "3d520e4f76d8d8738ff57999d25b7d35d97bd04b27708ab594ff942eed66d479",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 129,
+      "file": "source-frames/frame_0129.jpg",
+      "sha256": "ff22c9b3b408c88a4b5e9d3426cbbbb3a85c0cc9fec693e4ed71f51e055e77ee",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 130,
+      "file": "source-frames/frame_0130.jpg",
+      "sha256": "0464df7a58f763282ec85dc9287875c874cffa13d322a02514a03338fc8959ef",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 131,
+      "file": "source-frames/frame_0131.jpg",
+      "sha256": "919abad83780a933ee0c49bba0ffc90465065b8f13699b8f20065c7fbc80e45c",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 132,
+      "file": "source-frames/frame_0132.jpg",
+      "sha256": "9f8de3960be17b0e84c5e5873deed5960fb864e1e330f2d15fe9ca792b1e476d",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 133,
+      "file": "source-frames/frame_0133.jpg",
+      "sha256": "3620a80d43751da2a538a93098f9e06cfc63789e5f0d24a4873e341d22ed992f",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 134,
+      "file": "source-frames/frame_0134.jpg",
+      "sha256": "b93f4acff96238b05722c99d3b70453bcbd84e9768d868220ba70b05151f20ee",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 135,
+      "file": "source-frames/frame_0135.jpg",
+      "sha256": "c03c667bd0d5cef8fedca0688362dfb17929e0a79bb362680c093f6a9f58496c",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 136,
+      "file": "source-frames/frame_0136.jpg",
+      "sha256": "c4f1c883f9651607909940868a34348ee3e6e103287cf8d070b6ac571f91fa2c",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 137,
+      "file": "source-frames/frame_0137.jpg",
+      "sha256": "ca51730436877c3247f2f9517dd88d723dd9f2274bdc9bdff881939fa9513d82",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 138,
+      "file": "source-frames/frame_0138.jpg",
+      "sha256": "d215fcdd5b61ee1e17b39dee92798a3097170586f6df06e9792beb48e11c1ee7",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 139,
+      "file": "source-frames/frame_0139.jpg",
+      "sha256": "bb407b66de0f42c29ef4f44214f3bc2200fc9b8b57c0dfee544a01a9842100ae",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 140,
+      "file": "source-frames/frame_0140.jpg",
+      "sha256": "e987bf68abdeef1ac77efa85c3400b81d431defdeb26c9e9d7a2a9a497da159b",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 141,
+      "file": "source-frames/frame_0141.jpg",
+      "sha256": "c2cb00bba332e96ac8afc0bc504674dfcd52ece29b46d91becbb0004fea6676b",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 142,
+      "file": "source-frames/frame_0142.jpg",
+      "sha256": "85f62b50309f58c886b2779b6ce08912b0256a6139c8b0f163953b547fdc75cf",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 143,
+      "file": "source-frames/frame_0143.jpg",
+      "sha256": "02b740681b4f84819aeb5d0799f88abfc7d690e81d78752ebde8d85a6a15d443",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 144,
+      "file": "source-frames/frame_0144.jpg",
+      "sha256": "2d85a74f7e7402095eec2bd18371a38c2a6627b722a4673432062749039a0033",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 145,
+      "file": "source-frames/frame_0145.jpg",
+      "sha256": "c1c806dad9f6ded67e19e4413ad1b825e2b59b1e0fb0d4ec9a2eb574bea352ce",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 146,
+      "file": "source-frames/frame_0146.jpg",
+      "sha256": "454dcbbf3a0997152bf82743ab4c9d71e5185599f8928e0ba909abf12165b6d8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 147,
+      "file": "source-frames/frame_0147.jpg",
+      "sha256": "90eceed4d00d2a999b1de4ecfc4ad6b9a10572dedadf52bcc71b0c54a85279c9",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 148,
+      "file": "source-frames/frame_0148.jpg",
+      "sha256": "fcd1eb9089ccac533a7ba247c5c478959ecc14148bcf1101182c96f019b096a9",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 149,
+      "file": "source-frames/frame_0149.jpg",
+      "sha256": "ce8d4b40eea0e4f32257bbd57a7e835fc6e084bd76bf774844c8c7ed15628c8f",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 150,
+      "file": "source-frames/frame_0150.jpg",
+      "sha256": "053dd1a5da9e973ec4833adf9cd8e886c92b7292d6e951643c0025a7af50242d",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 151,
+      "file": "source-frames/frame_0151.jpg",
+      "sha256": "c7300a2fc46e82655a3df19ba0b31c24ea3e7fe046d76fc7cecf5fbb6055cbf8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 152,
+      "file": "source-frames/frame_0152.jpg",
+      "sha256": "9c019c69581c98c7fe73a21806f2808c22e669b1a7468abba7802ec572409b89",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 153,
+      "file": "source-frames/frame_0153.jpg",
+      "sha256": "99ed8f15d0509467fb4dc6236e824eb03adba3715d675677429f2b721101e838",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 154,
+      "file": "source-frames/frame_0154.jpg",
+      "sha256": "c0c56f25a020763faa3cfc123498ee5e1f56da7aa5718f20d1b68761c86aebab",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 155,
+      "file": "source-frames/frame_0155.jpg",
+      "sha256": "af9fa5482e5760f77059e104047c0bc3121150ae8ef2d3c35480f323ce5e352e",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 156,
+      "file": "source-frames/frame_0156.jpg",
+      "sha256": "e83cf1b9596de65494b3872a8729f8bba645976bbb7c27eb07e7b6574c1d5f09",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 157,
+      "file": "source-frames/frame_0157.jpg",
+      "sha256": "29ea368ae3dec0c4be08cb4f7f238ca5745eda6532207a789a8437f87fe439f8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 158,
+      "file": "source-frames/frame_0158.jpg",
+      "sha256": "6a02fdf86c604066ec64d1c43935461faa195387274abef7e5a4c03562941292",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 159,
+      "file": "source-frames/frame_0159.jpg",
+      "sha256": "073584be0795f4fd48415c0812b210a6d0c77fd94e71a492ceb569f093641290",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 160,
+      "file": "source-frames/frame_0160.jpg",
+      "sha256": "7ce2ed973e0711a1cb8f108fdc234468d3ea1df842bd261e7a1a499c572604da",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 161,
+      "file": "source-frames/frame_0161.jpg",
+      "sha256": "023300de43cf4d32dd52449febdd872912600a786e113c448fcaca14764b247e",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 162,
+      "file": "source-frames/frame_0162.jpg",
+      "sha256": "2141e99e77c7433dd3e841cefddadf3a5b1293899700e64764e409e4fec90bcc",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 163,
+      "file": "source-frames/frame_0163.jpg",
+      "sha256": "68944a2b0f2c1a05f3a2543cd4d3439fc413ee4f3e628a58b216d5c1cc2f2c9f",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 164,
+      "file": "source-frames/frame_0164.jpg",
+      "sha256": "ab9c2469c0f936e29f7586791b7b00982a93a25a3cf0e62f716e51224684cc27",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 165,
+      "file": "source-frames/frame_0165.jpg",
+      "sha256": "bd8ba2a402177deb467a6d337beaad089b5363126aa5e844f5201c0a9a87d853",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 166,
+      "file": "source-frames/frame_0166.jpg",
+      "sha256": "007cd0a14035c31a92bfc26ec064cf09381bd366d47bf085a41d0b8c183fb499",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 167,
+      "file": "source-frames/frame_0167.jpg",
+      "sha256": "a07ebcc152a41e4d67db2585f8937f9ec5cd713591cd9789c3d18dd23c3b1af4",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 168,
+      "file": "source-frames/frame_0168.jpg",
+      "sha256": "44f96ea31861aecdb039befe9e41d14635708b5940613406d1d790c5bf7475ba",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 169,
+      "file": "source-frames/frame_0169.jpg",
+      "sha256": "fbc136f6c8f42d0d10337adfe4218629785084ba9e45116f74160c72350c7d4d",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 170,
+      "file": "source-frames/frame_0170.jpg",
+      "sha256": "60cf06808ccc7a49354b2eb9c0effd648a985d1f1fed9604ab720064d9e1fe92",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 171,
+      "file": "source-frames/frame_0171.jpg",
+      "sha256": "a4266b98f9141ee25081d41d80f8c66a80aa453644e037108b1ca93e4ff22fa2",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 172,
+      "file": "source-frames/frame_0172.jpg",
+      "sha256": "bb5ee0770a011da01f5d02fa5f5f05d5c54b33b16324f209b4dee19979043599",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 173,
+      "file": "source-frames/frame_0173.jpg",
+      "sha256": "333dd61ded14524bdfa1bd466ca6ada7db95ea0ab67f50c50b34e207488b89e0",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 174,
+      "file": "source-frames/frame_0174.jpg",
+      "sha256": "6c3b0b0d2041cccc6a878acd4dd7047f8ef1598233fc512bd5f5a4708c3a004b",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 175,
+      "file": "source-frames/frame_0175.jpg",
+      "sha256": "b5e44ad53fec03059bba0f2dd62f2522a85527b070c0e509781cbdd519e910b8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 176,
+      "file": "source-frames/frame_0176.jpg",
+      "sha256": "38dd631e879fd7e87b1bc786b359763d1cd4b361300a3ef55f7baffb0f7d7c31",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 177,
+      "file": "source-frames/frame_0177.jpg",
+      "sha256": "d8747aeb6fe2174bd4c4df8151347fbdae30341a43f36b9cb6a144e40b582147",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 178,
+      "file": "source-frames/frame_0178.jpg",
+      "sha256": "949a90b797a2d1e96720e6e4f9cdda146e4152700aee0d0f61663ba480cc05a3",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 179,
+      "file": "source-frames/frame_0179.jpg",
+      "sha256": "149f640b1d009aaeb3650f34dc30f230c899ccd0d8b743062158f93f92ef5865",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 180,
+      "file": "source-frames/frame_0180.jpg",
+      "sha256": "9626915bfaecb19b638a1dad2ee053d16fcfb2c6e3a8f2b15b9344af850a22e9",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 181,
+      "file": "source-frames/frame_0181.jpg",
+      "sha256": "117cb6dcf3530e984476bc1740608868e6680c5981e7b0b6a2e62a6ab8d139ae",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 182,
+      "file": "source-frames/frame_0182.jpg",
+      "sha256": "521fc9db36c4a3877eebf427d3c140024af1f9b9826ad9dff26f6829b9c11a8d",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 183,
+      "file": "source-frames/frame_0183.jpg",
+      "sha256": "0d6a2ead238cd85890892cf2376b8c1a7d9bedbd0d39eaeaabb0dff3a32781cb",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 184,
+      "file": "source-frames/frame_0184.jpg",
+      "sha256": "919ef1fdabf8456bf19bd6005f37e18dea02fc55fc2657590548e90475d2e02e",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 185,
+      "file": "source-frames/frame_0185.jpg",
+      "sha256": "9333fde2c81f785aa675423ad8c36f30c2c254763785b9cbadb206b7ef6fccaa",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 186,
+      "file": "source-frames/frame_0186.jpg",
+      "sha256": "f31b16901838a8d22f1961f6b723ec59c2658b9de938d0f0bfa78badee331c79",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 187,
+      "file": "source-frames/frame_0187.jpg",
+      "sha256": "43c7821428a3cf56ea38f2905cea510fab722aa6915c5a22b55139cd4793d7c1",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 188,
+      "file": "source-frames/frame_0188.jpg",
+      "sha256": "9e160348577031df2b53480bf9cde12d7fb9d6158b7d5843b18bc7c77a8aabd3",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 189,
+      "file": "source-frames/frame_0189.jpg",
+      "sha256": "72dfc331d08ada7a80c1723dc201b25e9277a2525698801315dec1f95907dec7",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 190,
+      "file": "source-frames/frame_0190.jpg",
+      "sha256": "a2cf9b22669d57911fcebb8a94954703f9d96f12468559d8972ce4863df6aaba",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 191,
+      "file": "source-frames/frame_0191.jpg",
+      "sha256": "d9a2eb8a6b3c401b268cbe94932f8606e2e8ae509cafde03e1f5f7b30a8f44dd",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 192,
+      "file": "source-frames/frame_0192.jpg",
+      "sha256": "cf0083e10759b0cdb4d89e4b9ce086b174cb39abe1fefe490efd66c830e0c32f",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 193,
+      "file": "source-frames/frame_0193.jpg",
+      "sha256": "a0870328037de01f81499c3f1d1caf5e5b8e6c8a750f3a5461a0a179c7a5b93a",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 194,
+      "file": "source-frames/frame_0194.jpg",
+      "sha256": "36b10a70bd65d849a5ec87789b09fefefd44664fd2cb3888152945f8f1cb040a",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 195,
+      "file": "source-frames/frame_0195.jpg",
+      "sha256": "b51382a1085c5d50e5a5396b5de0b0d0415e9ec68019838e070279fb2441c199",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 196,
+      "file": "source-frames/frame_0196.jpg",
+      "sha256": "8ce8ae526ba2dc36ca612f474684dd2b710dd59ecdce6d2b6627e9c2dec2f0d8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 197,
+      "file": "source-frames/frame_0197.jpg",
+      "sha256": "657874349bee7e8c3c58f7efbf083b2d02f29bb839c0d8d53b2ea202f55f4b20",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 198,
+      "file": "source-frames/frame_0198.jpg",
+      "sha256": "4070853c2fa8c46a6e72889d3ceb92b7e23f2b8025c0ee0b8efd5660de9289bb",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 199,
+      "file": "source-frames/frame_0199.jpg",
+      "sha256": "826b608cb30c8fcfe763dff922fa253cb3e58237da97a2a5395b1809be4e677f",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 200,
+      "file": "source-frames/frame_0200.jpg",
+      "sha256": "9f78a5cc843630f52203fa7f783806694a6aa369947abed1a2e0420cddb4e451",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 201,
+      "file": "source-frames/frame_0201.jpg",
+      "sha256": "72307251d4c6fdd64c785e765d2dcc1dfe85c8196b957b6c41bdcb25bac5edd8",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 202,
+      "file": "source-frames/frame_0202.jpg",
+      "sha256": "ca9a134b16eb8095bf6694728e0abe161cc696bc9df29c5c10cabf5652b50a56",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "index": 203,
+      "file": "source-frames/frame_0203.jpg",
+      "sha256": "4c34b83b38e30e9db759793fd2c652948ab5e36760e1c7672ffc14d8fdf58549",
+      "width": 960,
+      "height": 540
     }
   ]
 }

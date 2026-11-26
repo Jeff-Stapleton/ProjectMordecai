@@ -1,0 +1,25 @@
+{
+  "feature": "us090",
+  "map": "/MordecaiCore/Game/Maps/DevTestMap",
+  "clip": "spell-points-drain-regen-respawn.mp4",
+  "clip_sha256": "0323edee5d03cba5390048942d12758e41b78febe8e4d63a9f56726a82d2b37e",
+  "source_movie": "continuous-source.mp4",
+  "source_movie_sha256": "a4c173f718a76fe64895726cb3ee59a0c0c5640faf0d6243cbf0bcb3d2c3bff9",
+  "duration_seconds": 7.466667,
+  "fps": "30/1",
+  "frame_count": 224,
+  "raw_frame_count": 314,
+  "retained_rendered_frame_count": 224,
+  "edit_caveat": "One disclosed cut removes the static death-screen wait: raw frames 1-214, then 305-314. Every retained frame is an original rendered Unreal frame.",
+  "mpdecimate_kept_frames": 219,
+  "unique_frame_ratio": 0.977679,
+  "stills": [
+    "still_01_full.png",
+    "still_02_drained.png",
+    "still_03_regen.png",
+    "still_04_respawn.png"
+  ],
+  "enemies_frozen": false,
+  "ai_frozen_before_numbered_frames": true,
+  "content_check_passed": true
+}

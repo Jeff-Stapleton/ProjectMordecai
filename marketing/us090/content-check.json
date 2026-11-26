@@ -1,0 +1,257 @@
+{
+  "video": {
+    "video": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us090\\spell-points-drain-regen-respawn.mp4",
+    "source_manifest": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us090\\source-frame-manifest.json",
+    "source_frame_count": 224,
+    "minimum_source_psnr_db": 24.0,
+    "minimum_motion": 0.00035,
+    "metadata": {
+      "width": 1920,
+      "height": 1080,
+      "pixel_format": "yuv420p",
+      "frame_rate": "30/1",
+      "frame_count": 224,
+      "duration_seconds": 7.466667,
+      "size_bytes": 1507680
+    },
+    "metadata_passed": true,
+    "samples": [
+      {
+        "second": 0.747,
+        "best_source_frame": "frame_0024.jpg",
+        "best_source_psnr_db": 43.6,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 1.493,
+        "best_source_frame": "frame_0046.jpg",
+        "best_source_psnr_db": 43.746,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 2.24,
+        "best_source_frame": "frame_0069.jpg",
+        "best_source_psnr_db": 43.791,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 2.987,
+        "best_source_frame": "frame_0091.jpg",
+        "best_source_psnr_db": 43.752,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 3.733,
+        "best_source_frame": "frame_0113.jpg",
+        "best_source_psnr_db": 43.809,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 4.48,
+        "best_source_frame": "frame_0136.jpg",
+        "best_source_psnr_db": 43.844,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 5.227,
+        "best_source_frame": "frame_0158.jpg",
+        "best_source_psnr_db": 43.914,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 5.973,
+        "best_source_frame": "frame_0181.jpg",
+        "best_source_psnr_db": 43.904,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 6.72,
+        "best_source_frame": "frame_0203.jpg",
+        "best_source_psnr_db": 43.892,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    ],
+    "motion": {
+      "consecutive_sample_scores": [
+        0.159017,
+        0.023112,
+        0.017902,
+        0.008813,
+        0.006642,
+        0.014507,
+        0.00677,
+        0.007497
+      ],
+      "moving_pairs": 8,
+      "required_moving_pairs": 6,
+      "passed": true
+    },
+    "temporal_continuity": {
+      "sample_count": 75,
+      "moving_pairs": 74,
+      "pair_count": 74,
+      "moving_pair_ratio": 1.0,
+      "minimum_motion": 0.00015,
+      "minimum_ratio": 0.6,
+      "passed": true
+    },
+    "mpdecimate": {
+      "method": "ffmpeg mpdecimate -> framehash kept-frame count",
+      "input_frames": 224,
+      "kept_frames": 219,
+      "unique_frame_ratio": 0.977679,
+      "minimum_unique_frame_ratio": 0.9,
+      "passed": true
+    },
+    "passed": true
+  },
+  "stills": [
+    {
+      "file": "still_01_full.png",
+      "source_frame": 3,
+      "caption": "Full spell-point bar before casting.",
+      "verification": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us090\\still_01_full.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 46.7297,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "file": "still_02_drained.png",
+      "source_frame": 58,
+      "caption": "Spell-point bar drained after three casts.",
+      "verification": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us090\\still_02_drained.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 48.3399,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "file": "still_03_regen.png",
+      "source_frame": 111,
+      "caption": "Spell-point bar partially restored by slow regeneration.",
+      "verification": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us090\\still_03_regen.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 48.807,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "file": "still_04_respawn.png",
+      "source_frame": 312,
+      "caption": "Spell-point bar full after respawn.",
+      "verification": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us090\\still_04_respawn.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 46.4309,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    }
+  ],
+  "game_owned_source": true,
+  "hud_required": true,
+  "lock_screen_rejected_by_game_owned_source_and_hud": true,
+  "passed": true
+}

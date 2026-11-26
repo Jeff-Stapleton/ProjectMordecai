@@ -1,0 +1,108 @@
+{
+  "events": [
+    {
+      "event": "full",
+      "source_frame": 3,
+      "world_time_s": 6.767,
+      "spell_points": 10,
+      "max_spell_points": 10,
+      "health": 100,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Longsword",
+      "weapon_index": 0,
+      "weapon_plate_visible": true
+    },
+    {
+      "event": "fireball_spend",
+      "source_frame": 9,
+      "world_time_s": 7.633,
+      "spell_points": 7,
+      "max_spell_points": 10,
+      "health": 100,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Longsword",
+      "weapon_index": 0,
+      "weapon_plate_visible": true
+    },
+    {
+      "event": "stone_skin_spend",
+      "source_frame": 15,
+      "world_time_s": 7.833,
+      "spell_points": 3,
+      "max_spell_points": 10,
+      "health": 100,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Longsword",
+      "weapon_index": 0,
+      "weapon_plate_visible": true
+    },
+    {
+      "event": "drained",
+      "source_frame": 58,
+      "world_time_s": 9.267,
+      "spell_points": 0.5,
+      "max_spell_points": 10,
+      "health": 85,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Longsword",
+      "weapon_index": 0,
+      "weapon_plate_visible": true
+    },
+    {
+      "event": "regen_tick_1",
+      "source_frame": 81,
+      "world_time_s": 10.033,
+      "spell_points": 0.75,
+      "max_spell_points": 10,
+      "health": 55,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Longsword",
+      "weapon_index": 0,
+      "weapon_plate_visible": true
+    },
+    {
+      "event": "slow_regen",
+      "source_frame": 111,
+      "world_time_s": 11.033,
+      "spell_points": 1,
+      "max_spell_points": 10,
+      "health": 63,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Longsword",
+      "weapon_index": 0,
+      "weapon_plate_visible": true
+    },
+    {
+      "event": "dead",
+      "source_frame": 222,
+      "world_time_s": 14.733,
+      "spell_points": 1.75,
+      "max_spell_points": 10,
+      "health": 0,
+      "max_health": 100,
+      "is_dead": true,
+      "weapon": "Longsword",
+      "weapon_index": 0,
+      "weapon_plate_visible": false
+    },
+    {
+      "event": "respawn_refill",
+      "source_frame": 312,
+      "world_time_s": 17.733,
+      "spell_points": 10,
+      "max_spell_points": 10,
+      "health": 100,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Longsword",
+      "weapon_index": 0,
+      "weapon_plate_visible": true
+    }
+  ]
+}

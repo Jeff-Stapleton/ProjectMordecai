@@ -1,8 +1,20 @@
-# US-096 in-engine marketing media
+# US096 clean marketing recapture
 
-- Clip: `weapon-cycling-back-and-forth.mp4` (6.5 seconds, 30 fps, 1280x720).
-- Content: Tab cycles Longsword → Dagger → Greatsword; Shift+Tab cycles Greatsword → Dagger → Longsword while the player moves through CombatTestMap.
-- Stills: `still_01_longsword.png`, `still_02_dagger.png`, `still_03_greatsword.png`, `still_04_dagger.png`, `still_05_longsword.png`.
-- Source: continuous Unreal packaged-game `-DUMPMOVIE -BENCHMARK -FPS=30` viewport frames; no desktop capture and no slideshow encoding.
-- Presentation: `-MordecaiMarketingCapture -NOSCREENMESSAGES`; `label-proof.json` passes with no actor/debug labels or enemy indicators.
-- Static/lock-screen defense: `Scripts/verify_marketing_media.py` validates the encoded video against SHA256-pinned game-owned viewport frames, HUD structure, adjacent-frame motion, and 10 fps temporal continuity. See `content-check.json`.
+The player uses Tab from Longsword to Dagger to Greatsword, then Shift+Tab back through Dagger to Longsword; the weapon HUD plate updates each time.
+
+- Map: `/MordecaiCore/Game/Maps/DevTestMap`. DevTestMap is used because the existing dressed `L_VW_TileTest` terrain fixture has no enemies; the existing maps with working enemies are grey test fixtures. No new content was built.
+- Clip: `weapon-cycling-forward-and-back.mp4` — 6.767 s, 30/1 fps, 1920x1080, 203 frames.
+- Unique frames: ffmpeg mpdecimate kept 193 / 203 (95.074%; required at least 90%).
+- Capture: game-owned, contiguous fixed-timestep frames from the US-099 `-MarketingFrameCapture -BENCHMARK -FPS=30` path; no desktop capture.
+- HUD: on. Debug draws, facing arrows and on-screen messages: off and verified from runtime state plus scripted green/yellow pixel checks.
+- Loading screen: absent from numbered frames after the built-in warm-up.
+- AI: frozen only while loading and warming up, then automatically released before numbered frame 1; AI is active throughout retained footage. The full-session `-MordecaiMarketingFreezeAI` flag was not used.
+- Edit: No editorial frame cut.
+- Caveat: this is postable marketing media, not acceptance evidence.
+
+## Stills
+
+- `still_01_longsword.png`: Longsword shown in the weapon HUD plate.
+- `still_02_dagger.png`: Dagger shown after Tab.
+- `still_03_greatsword.png`: Greatsword shown after Tab.
+- `still_04_longsword_return.png`: Longsword shown after Shift+Tab cycling back.
