@@ -28,6 +28,10 @@ class MarketingRecapTests(unittest.TestCase):
         self.assertEqual(recap.OUTPUT_SIZE, (1920, 1080))
         self.assertEqual(recap.MIN_FRAMES, 150)
         self.assertEqual(recap.MAX_FRAMES, 600)
+        self.assertEqual(
+            recap.WEAPON_CAPTURE_MOVEMENT_KEYS,
+            ("W", "S", "W", "S", "W"),
+        )
 
     def test_weapon_plate_requires_visible_matching_widget_text(self):
         state = {

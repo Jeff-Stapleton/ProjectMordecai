@@ -25,6 +25,7 @@ OUTPUT_SIZE = (1920, 1080)
 MAX_FRAMES = FPS * 20
 MIN_FRAMES = FPS * 5
 DRAINED_SPELL_POINTS_MAX = 0.5
+WEAPON_CAPTURE_MOVEMENT_KEYS = ("W", "S", "W", "S", "W")
 MAP = kit.DEFAULT_MAP
 EXPECTED_EXPERIENCE = kit.DEFAULT_EXPERIENCE
 
@@ -244,7 +245,7 @@ def _cycle(bridge, modifier, expected_index):
 def _drive_weapon_cycle(bridge, frame_dir):
     events = []
     proofs = []
-    movement_key = "W"
+    movement_key = WEAPON_CAPTURE_MOVEMENT_KEYS[0]
     state = bridge.state(
         ["game", "player", "actors", "widgets"], radius=3000)
     proofs.append(_presentation_proof(state, "start"))
@@ -265,6 +266,9 @@ def _drive_weapon_cycle(bridge, frame_dir):
             ("LeftShift", 1, "Dagger"),
             ("LeftShift", 0, "Longsword"),
         ), 1):
+            bridge.release(movement_key)
+            movement_key = WEAPON_CAPTURE_MOVEMENT_KEYS[order]
+            bridge.press(movement_key)
             state = _cycle(bridge, modifier, expected_index)
             if _weapon(state).get("display_name") != expected_name:
                 raise RuntimeError(
@@ -276,10 +280,6 @@ def _drive_weapon_cycle(bridge, frame_dir):
                 ("previous_" if modifier else "next_") + expected_name.lower(),
                 state,
             ))
-            if order == 2:
-                bridge.release(movement_key)
-                movement_key = "S"
-                bridge.press(movement_key)
 
         _wait_for_frame_count(
             bridge, frame_dir, max(MIN_FRAMES, len(_frame_paths(frame_dir)) + 15))
