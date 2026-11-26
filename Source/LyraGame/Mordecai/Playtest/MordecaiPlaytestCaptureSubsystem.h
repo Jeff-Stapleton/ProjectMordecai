@@ -18,6 +18,9 @@ struct FMordecaiPlaytestCaptureConfig
 	bool bEnabled = false;
 	bool bPlaytestCapture = false;
 	bool bMarketingFrameCapture = false;
+	bool bMarketingCaptureSession = false;
+	bool bSuppressDebugPresentation = false;
+	bool bFreezeAIUntilMarketingFrames = false;
 	bool bConflictingCaptureModes = false;
 	int32 NumShots = 3;
 	int32 MarketingFrameLimit = 1200;
@@ -64,6 +67,17 @@ public:
 private:
 	bool Tick(float DeltaTime);
 	void HandleLoadingScreenVisibilityChanged(bool bIsVisible);
+
+#if !UE_BUILD_SHIPPING
+	void ApplyMarketingPresentation();
+	void RestoreMarketingPresentation();
+
+	bool bMarketingPresentationApplied = false;
+	bool bMarketingAIReleased = false;
+	bool bPreviousScreenMessagesEnabled = true;
+	int32 PreviousDrawDebugHelpers = 1;
+	int32 PreviousMeleeHitShapes = 1;
+#endif
 
 	FMordecaiPlaytestCaptureConfig Config;
 	FTSTicker::FDelegateHandle TickHandle;

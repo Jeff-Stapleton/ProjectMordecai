@@ -390,6 +390,9 @@ bool FMordecai_EnemyAI_MarketingCaptureDoesNotFreezeAI::RunTest(const FString& P
 	TestTrue("Dedicated US-099 marketing flag freezes AI",
 		AMordecaiEnemyAIController::ShouldFreezeAIForMarketing(
 			TEXT("-MordecaiMarketingCapture -MordecaiMarketingFreezeAI")));
+	TestTrue("Loading-only marketing flag initially freezes AI",
+		AMordecaiEnemyAIController::ShouldFreezeAIForMarketing(
+			TEXT("-MordecaiMarketingCapture -MordecaiMarketingFreezeAIUntilFrames")));
 	TestFalse("Normal launches keep AI active",
 		AMordecaiEnemyAIController::ShouldFreezeAIForMarketing(TEXT("-windowed -log")));
 	return true;

@@ -2,14 +2,20 @@
 
 #include "Mordecai/Playtest/MordecaiPlaytestCaptureSubsystem.h"
 
+#include "CoreGlobals.h"
+#include "DrawDebugHelpers.h"
+#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameModes/LyraExperienceManagerComponent.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "LoadingScreenManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
+#include "Mordecai/Enemy/MordecaiEnemyAIController.h"
 #include "UnrealClient.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MordecaiPlaytestCaptureSubsystem)
@@ -26,10 +32,19 @@ FMordecaiPlaytestCaptureConfig FMordecaiPlaytestCaptureConfig::FromCommandLine(c
 
 	Config.bPlaytestCapture = FParse::Param(CommandLine, TEXT("PlaytestCapture"));
 	Config.bMarketingFrameCapture = FParse::Param(CommandLine, TEXT("MarketingFrameCapture"));
+#if !UE_BUILD_SHIPPING
+	Config.bMarketingCaptureSession =
+		FParse::Param(CommandLine, TEXT("MordecaiMarketingCapture"));
+	Config.bSuppressDebugPresentation = Config.bMarketingCaptureSession;
+	Config.bFreezeAIUntilMarketingFrames =
+		FParse::Param(
+			CommandLine, TEXT("MordecaiMarketingFreezeAIUntilFrames"));
+#endif
 	Config.bConflictingCaptureModes =
 		Config.bPlaytestCapture && Config.bMarketingFrameCapture;
 	Config.bEnabled =
-		(Config.bPlaytestCapture || Config.bMarketingFrameCapture)
+		(Config.bPlaytestCapture || Config.bMarketingFrameCapture
+			|| Config.bMarketingCaptureSession)
 		&& !Config.bConflictingCaptureModes;
 
 	FParse::Value(CommandLine, TEXT("PlaytestShots="), Config.NumShots);
@@ -90,6 +105,20 @@ void UMordecaiPlaytestCaptureSubsystem::Initialize(FSubsystemCollectionBase& Col
 	Super::Initialize(Collection);
 
 	Config = FMordecaiPlaytestCaptureConfig::FromCommandLine(FCommandLine::Get());
+#if !UE_BUILD_SHIPPING
+	if (Config.bSuppressDebugPresentation)
+	{
+		ApplyMarketingPresentation();
+	}
+#endif
+
+	if (!Config.bPlaytestCapture && !Config.bMarketingFrameCapture)
+	{
+		UE_LOG(LogMordecaiPlaytest, Display,
+			TEXT("MarketingCapture: debug draws and on-screen messages suppressed"));
+		return;
+	}
+
 	IFileManager::Get().MakeDirectory(
 		*(Config.bMarketingFrameCapture ? Config.MarketingFrameDir : Config.ShotDir),
 		/*Tree*/ true);
@@ -124,13 +153,77 @@ void UMordecaiPlaytestCaptureSubsystem::Initialize(FSubsystemCollectionBase& Col
 
 void UMordecaiPlaytestCaptureSubsystem::Deinitialize()
 {
-	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
+	if (TickHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
+	}
 	if (ULoadingScreenManager* Manager = LoadingScreenManager.Get())
 	{
 		Manager->OnLoadingScreenVisibilityChangedDelegate().RemoveAll(this);
 	}
+#if !UE_BUILD_SHIPPING
+	RestoreMarketingPresentation();
+#endif
 	Super::Deinitialize();
 }
+
+#if !UE_BUILD_SHIPPING
+void UMordecaiPlaytestCaptureSubsystem::ApplyMarketingPresentation()
+{
+	if (bMarketingPresentationApplied)
+	{
+		return;
+	}
+
+	bMarketingPresentationApplied = true;
+	bPreviousScreenMessagesEnabled = GAreScreenMessagesEnabled;
+	GAreScreenMessagesEnabled = false;
+	if (GEngine)
+	{
+		GEngine->ClearOnScreenDebugMessages();
+	}
+
+	if (IConsoleVariable* DrawHelpers =
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.EnableDrawDebugHelpers")))
+	{
+		PreviousDrawDebugHelpers = DrawHelpers->GetInt();
+		DrawHelpers->Set(0, ECVF_SetByCode);
+	}
+	if (IConsoleVariable* MeleeShapes =
+		IConsoleManager::Get().FindConsoleVariable(
+			TEXT("Mordecai.Debug.DrawMeleeHitShapes")))
+	{
+		PreviousMeleeHitShapes = MeleeShapes->GetInt();
+		MeleeShapes->Set(0, ECVF_SetByCode);
+	}
+	if (const UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr)
+	{
+		FlushPersistentDebugLines(World);
+	}
+}
+
+void UMordecaiPlaytestCaptureSubsystem::RestoreMarketingPresentation()
+{
+	if (!bMarketingPresentationApplied)
+	{
+		return;
+	}
+
+	GAreScreenMessagesEnabled = bPreviousScreenMessagesEnabled;
+	if (IConsoleVariable* DrawHelpers =
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.EnableDrawDebugHelpers")))
+	{
+		DrawHelpers->Set(PreviousDrawDebugHelpers, ECVF_SetByCode);
+	}
+	if (IConsoleVariable* MeleeShapes =
+		IConsoleManager::Get().FindConsoleVariable(
+			TEXT("Mordecai.Debug.DrawMeleeHitShapes")))
+	{
+		MeleeShapes->Set(PreviousMeleeHitShapes, ECVF_SetByCode);
+	}
+	bMarketingPresentationApplied = false;
+}
+#endif
 
 void UMordecaiPlaytestCaptureSubsystem::HandleLoadingScreenVisibilityChanged(bool bIsVisible)
 {
@@ -192,6 +285,19 @@ bool UMordecaiPlaytestCaptureSubsystem::Tick(float DeltaTime)
 		{
 			return true;
 		}
+
+#if !UE_BUILD_SHIPPING
+		if (Config.bFreezeAIUntilMarketingFrames && !bMarketingAIReleased)
+		{
+			for (TActorIterator<AMordecaiEnemyAIController> It(GetWorld()); It; ++It)
+			{
+				It->SetMarketingCaptureFrozen(false);
+			}
+			bMarketingAIReleased = true;
+			UE_LOG(LogMordecaiPlaytest, Display,
+				TEXT("MarketingFrameCapture: released AI before frame 1"));
+		}
+#endif
 
 		const int32 MarketingFrameIndex = MarketingTickCount++;
 		if (!FScreenshotRequest::IsScreenshotRequested())

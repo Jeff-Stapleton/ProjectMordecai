@@ -1,0 +1,69 @@
+{
+  "events": [
+    {
+      "event": "longsword_start",
+      "source_frame": 23,
+      "world_time_s": 7.7,
+      "spell_points": 10,
+      "max_spell_points": 10,
+      "health": 100,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Longsword",
+      "weapon_index": 0,
+      "weapon_plate_visible": true
+    },
+    {
+      "event": "next_dagger",
+      "source_frame": 61,
+      "world_time_s": 9.333,
+      "spell_points": 10,
+      "max_spell_points": 10,
+      "health": 85,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Dagger",
+      "weapon_index": 1,
+      "weapon_plate_visible": true
+    },
+    {
+      "event": "next_greatsword",
+      "source_frame": 99,
+      "world_time_s": 10.6,
+      "spell_points": 10,
+      "max_spell_points": 10,
+      "health": 85,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Greatsword",
+      "weapon_index": 2,
+      "weapon_plate_visible": true
+    },
+    {
+      "event": "previous_dagger",
+      "source_frame": 141,
+      "world_time_s": 12,
+      "spell_points": 10,
+      "max_spell_points": 10,
+      "health": 85,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Dagger",
+      "weapon_index": 1,
+      "weapon_plate_visible": true
+    },
+    {
+      "event": "previous_longsword",
+      "source_frame": 183,
+      "world_time_s": 13.4,
+      "spell_points": 10,
+      "max_spell_points": 10,
+      "health": 85,
+      "max_health": 100,
+      "is_dead": false,
+      "weapon": "Longsword",
+      "weapon_index": 0,
+      "weapon_plate_visible": true
+    }
+  ]
+}

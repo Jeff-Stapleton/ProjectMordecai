@@ -1,113 +1,257 @@
 {
-  "method": "required SHA256 source-frame manifest + decoded-frame PSNR source matching + HUD structure + consecutive-frame motion + 10 fps temporal continuity",
-  "videos": [
-    {
-      "video": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\us096\\weapon-cycling-back-and-forth.mp4",
-      "source_manifest": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\us096\\source-frame-manifest.json",
-      "source_frame_count": 22,
-      "minimum_source_psnr_db": 24.0,
-      "minimum_motion": 0.00035,
-      "metadata": {
-        "width": 1280,
-        "height": 720,
-        "pixel_format": "yuv420p",
-        "frame_rate": "30/1",
-        "frame_count": 195,
-        "duration_seconds": 6.5,
-        "size_bytes": 3683364
+  "video": {
+    "video": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us096\\weapon-cycling-forward-and-back.mp4",
+    "source_manifest": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us096\\source-frame-manifest.json",
+    "source_frame_count": 203,
+    "minimum_source_psnr_db": 24.0,
+    "minimum_motion": 0.00035,
+    "metadata": {
+      "width": 1920,
+      "height": 1080,
+      "pixel_format": "yuv420p",
+      "frame_rate": "30/1",
+      "frame_count": 203,
+      "duration_seconds": 6.766667,
+      "size_bytes": 3231353
+    },
+    "metadata_passed": true,
+    "samples": [
+      {
+        "second": 0.677,
+        "best_source_frame": "frame_0022.jpg",
+        "best_source_psnr_db": 44.067,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
       },
-      "metadata_passed": true,
-      "samples": [
-        {
-          "second": 0.65,
-          "best_source_frame": "frame_0003.png",
-          "best_source_psnr_db": 33.952,
-          "hud_region_non_uniform": true,
+      {
+        "second": 1.353,
+        "best_source_frame": "frame_0042.jpg",
+        "best_source_psnr_db": 43.82,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
           "passed": true
         },
-        {
-          "second": 1.3,
-          "best_source_frame": "frame_0009.png",
-          "best_source_psnr_db": 31.247,
-          "hud_region_non_uniform": true,
+        "passed": true
+      },
+      {
+        "second": 2.03,
+        "best_source_frame": "frame_0062.jpg",
+        "best_source_psnr_db": 43.86,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
           "passed": true
         },
-        {
-          "second": 1.95,
-          "best_source_frame": "frame_0007.png",
-          "best_source_psnr_db": 39.353,
-          "hud_region_non_uniform": true,
+        "passed": true
+      },
+      {
+        "second": 2.707,
+        "best_source_frame": "frame_0083.jpg",
+        "best_source_psnr_db": 43.843,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
           "passed": true
         },
-        {
-          "second": 2.6,
-          "best_source_frame": "frame_0009.png",
-          "best_source_psnr_db": 34.824,
-          "hud_region_non_uniform": true,
+        "passed": true
+      },
+      {
+        "second": 3.383,
+        "best_source_frame": "frame_0103.jpg",
+        "best_source_psnr_db": 43.797,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
           "passed": true
         },
-        {
-          "second": 3.25,
-          "best_source_frame": "frame_0007.png",
-          "best_source_psnr_db": 27.438,
-          "hud_region_non_uniform": true,
+        "passed": true
+      },
+      {
+        "second": 4.06,
+        "best_source_frame": "frame_0123.jpg",
+        "best_source_psnr_db": 43.886,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
           "passed": true
         },
-        {
-          "second": 3.9,
-          "best_source_frame": "frame_0014.png",
-          "best_source_psnr_db": 33.68,
-          "hud_region_non_uniform": true,
+        "passed": true
+      },
+      {
+        "second": 4.737,
+        "best_source_frame": "frame_0144.jpg",
+        "best_source_psnr_db": 43.908,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
           "passed": true
         },
-        {
-          "second": 4.55,
-          "best_source_frame": "frame_0016.png",
-          "best_source_psnr_db": 39.388,
-          "hud_region_non_uniform": true,
+        "passed": true
+      },
+      {
+        "second": 5.413,
+        "best_source_frame": "frame_0164.jpg",
+        "best_source_psnr_db": 44.132,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
           "passed": true
         },
-        {
-          "second": 5.2,
-          "best_source_frame": "frame_0018.png",
-          "best_source_psnr_db": 39.678,
-          "hud_region_non_uniform": true,
+        "passed": true
+      },
+      {
+        "second": 6.09,
+        "best_source_frame": "frame_0184.jpg",
+        "best_source_psnr_db": 44.184,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
           "passed": true
         },
-        {
-          "second": 5.85,
-          "best_source_frame": "frame_0016.png",
-          "best_source_psnr_db": 29.881,
-          "hud_region_non_uniform": true,
-          "passed": true
-        }
+        "passed": true
+      }
+    ],
+    "motion": {
+      "consecutive_sample_scores": [
+        0.188616,
+        0.184711,
+        0.175444,
+        0.204736,
+        0.20812,
+        0.188583,
+        0.166715,
+        0.029043
       ],
-      "motion": {
-        "consecutive_sample_scores": [
-          0.044695,
-          0.029462,
-          0.022588,
-          0.046921,
-          0.068549,
-          0.044053,
-          0.02091,
-          0.036997
-        ],
-        "moving_pairs": 8,
-        "required_moving_pairs": 6,
-        "passed": true
-      },
-      "temporal_continuity": {
-        "sample_count": 65,
-        "moving_pairs": 64,
-        "pair_count": 64,
-        "moving_pair_ratio": 1.0,
-        "minimum_motion": 0.00015,
-        "minimum_ratio": 0.6,
-        "passed": true
-      },
+      "moving_pairs": 8,
+      "required_moving_pairs": 6,
       "passed": true
+    },
+    "temporal_continuity": {
+      "sample_count": 68,
+      "moving_pairs": 67,
+      "pair_count": 67,
+      "moving_pair_ratio": 1.0,
+      "minimum_motion": 0.00015,
+      "minimum_ratio": 0.6,
+      "passed": true
+    },
+    "mpdecimate": {
+      "method": "ffmpeg mpdecimate -> framehash kept-frame count",
+      "input_frames": 203,
+      "kept_frames": 193,
+      "unique_frame_ratio": 0.950739,
+      "minimum_unique_frame_ratio": 0.9,
+      "passed": true
+    },
+    "passed": true
+  },
+  "stills": [
+    {
+      "file": "still_01_longsword.png",
+      "source_frame": 23,
+      "caption": "Longsword shown in the weapon HUD plate.",
+      "verification": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us096\\still_01_longsword.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 47.9575,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "file": "still_02_dagger.png",
+      "source_frame": 61,
+      "caption": "Dagger shown after Tab.",
+      "verification": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us096\\still_02_dagger.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 47.725,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "file": "still_03_greatsword.png",
+      "source_frame": 99,
+      "caption": "Greatsword shown after Tab.",
+      "verification": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us096\\still_03_greatsword.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 50.0449,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "file": "still_04_longsword_return.png",
+      "source_frame": 183,
+      "caption": "Longsword shown after Shift+Tab cycling back.",
+      "verification": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\Saved\\MarketingRecapture\\64181b31\\us096\\still_04_longsword_return.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 49.02,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
     }
   ],
+  "game_owned_source": true,
+  "hud_required": true,
+  "lock_screen_rejected_by_game_owned_source_and_hud": true,
   "passed": true
 }

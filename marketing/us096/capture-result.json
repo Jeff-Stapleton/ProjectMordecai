@@ -1,26 +1,25 @@
 {
-  "clip": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\us096\\weapon-cycling-back-and-forth.mp4",
+  "feature": "us096",
+  "map": "/MordecaiCore/Game/Maps/DevTestMap",
+  "clip": "weapon-cycling-forward-and-back.mp4",
+  "clip_sha256": "a72842a6c9106474b4c0c9aff39d9dc1f4a14b1d88770746a6fef5441dd8f9d1",
+  "source_movie": "continuous-source.mp4",
+  "source_movie_sha256": "fcdbfcf43020c5b00b0eda76de293d40c0277fedb1168d2cde12417e9d5ba6f4",
+  "duration_seconds": 6.766667,
+  "fps": "30/1",
+  "frame_count": 203,
+  "raw_frame_count": 203,
+  "retained_rendered_frame_count": 203,
+  "edit_caveat": "No editorial frame cut.",
+  "mpdecimate_kept_frames": 193,
+  "unique_frame_ratio": 0.950739,
   "stills": [
     "still_01_longsword.png",
     "still_02_dagger.png",
     "still_03_greatsword.png",
-    "still_04_dagger.png",
-    "still_05_longsword.png"
+    "still_04_longsword_return.png"
   ],
-  "duration_seconds": 6.5,
-  "fps": 30,
-  "resolution": [
-    1280,
-    720
-  ],
-  "weapon_sequence": [
-    "Longsword",
-    "Dagger",
-    "Greatsword",
-    "Dagger",
-    "Longsword"
-  ],
-  "dump_frame_count": 218,
-  "selected_dump_frames": 195,
-  "start_dump_offset": 19
+  "enemies_frozen": false,
+  "ai_frozen_before_numbered_frames": true,
+  "content_check_passed": true
 }

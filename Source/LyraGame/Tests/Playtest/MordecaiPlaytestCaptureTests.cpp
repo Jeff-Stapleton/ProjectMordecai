@@ -111,6 +111,34 @@ bool FMordecai_Playtest_CaptureMarketingFrameSettings::RunTest(const FString& Pa
 	return true;
 }
 
+// Mordecai.Playtest.Capture.MarketingSessionSuppressesDebugPresentation
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_CaptureMarketingSessionSuppressesDebugPresentation,
+	"Mordecai.Playtest.Capture.MarketingSessionSuppressesDebugPresentation",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Playtest_CaptureMarketingSessionSuppressesDebugPresentation::RunTest(
+	const FString& Parameters)
+{
+	const FMordecaiPlaytestCaptureConfig Config =
+		FMordecaiPlaytestCaptureConfig::FromCommandLine(
+			TEXT("-MordecaiMarketingCapture"));
+	TestTrue("Marketing presentation flag creates the session subsystem", Config.bEnabled);
+	TestTrue("Marketing presentation mode is parsed", Config.bMarketingCaptureSession);
+	TestTrue("Marketing presentation mode requests debug suppression",
+		Config.bSuppressDebugPresentation);
+	TestFalse("Marketing presentation is distinct from boot capture", Config.bPlaytestCapture);
+	TestFalse("Marketing presentation is distinct from continuous frame capture",
+		Config.bMarketingFrameCapture);
+
+	const FMordecaiPlaytestCaptureConfig WarmupFreeze =
+		FMordecaiPlaytestCaptureConfig::FromCommandLine(
+			TEXT("-MordecaiMarketingCapture -MarketingFrameCapture "
+				"-MordecaiMarketingFreezeAIUntilFrames"));
+	TestTrue("Loading-only AI freeze is parsed for fixed-frame sessions",
+		WarmupFreeze.bFreezeAIUntilMarketingFrames);
+	return true;
+}
+
 // Mordecai.Playtest.Capture.RejectsCombinedCaptureModes
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Playtest_CaptureRejectsCombinedModes,
 	"Mordecai.Playtest.Capture.RejectsCombinedCaptureModes",

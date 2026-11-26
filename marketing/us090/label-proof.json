@@ -1,0 +1,243 @@
+{
+  "proofs": [
+    {
+      "map": "/MordecaiCore/Game/Maps/DevTestMap",
+      "experience": "B_MordecaiArenaExperience",
+      "command_line_flag": "-MordecaiMarketingCapture",
+      "actor_count": 10,
+      "rendered_widget_texts": [
+        "Longsword",
+        "Slash",
+        "Tab",
+        "HP",
+        "100%",
+        "Kills: 0",
+        "[I] Inventory",
+        "Q",
+        "E",
+        "R",
+        "1",
+        "SP",
+        "10 / 10",
+        "ST",
+        "\u00d71.25"
+      ],
+      "actor_widget_violations": [],
+      "rendered_actor_name_violations": [],
+      "enemy_indicator_widgets": [],
+      "debug_text_violations": [],
+      "presentation_state": {
+        "marketing_capture": true,
+        "debug_draw_helpers_enabled": false,
+        "melee_hit_shapes_enabled": false,
+        "screen_messages_enabled": false,
+        "marketing_presentation_clean": true
+      },
+      "presentation_violations": [],
+      "facing_arrow_violations": [],
+      "passed": true,
+      "text_label_components_suppressed_by_show_flag": [
+        {
+          "actor": "TestPickup_MysteriousAmulet",
+          "label": {
+            "component": "NameLabel",
+            "text": "Unidentified Purple Amulet",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_HealthPotion",
+          "label": {
+            "component": "NameLabel",
+            "text": "Health Potion",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_TownStone",
+          "label": {
+            "component": "NameLabel",
+            "text": "Town Stone",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_UpgradeKey",
+          "label": {
+            "component": "NameLabel",
+            "text": "Upgrade Key",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_IronOre",
+          "label": {
+            "component": "NameLabel",
+            "text": "Iron Ore",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_RustySword",
+          "label": {
+            "component": "NameLabel",
+            "text": "Rusty Sword",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        }
+      ],
+      "text_label_violations": [],
+      "combat_hud_widgets": [
+        {
+          "class": "WBP_CombatHUD_C",
+          "name": "WBP_CombatHUD_C_2147482168",
+          "rect": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "texts": [],
+          "buttons": []
+        }
+      ],
+      "combat_hud_visible": true,
+      "text_render_show_flag": false,
+      "phase": "start"
+    },
+    {
+      "map": "/MordecaiCore/Game/Maps/DevTestMap",
+      "experience": "B_MordecaiArenaExperience",
+      "command_line_flag": "-MordecaiMarketingCapture",
+      "actor_count": 10,
+      "rendered_widget_texts": [
+        "Longsword",
+        "Slash",
+        "Tab",
+        "HP",
+        "100%",
+        "Kills: 0",
+        "[I] Inventory",
+        "Q",
+        "E",
+        "5.8",
+        "R",
+        "2.1",
+        "1",
+        "SP",
+        "10 / 10",
+        "ST",
+        "\u00d71.25",
+        "Stone Skin",
+        "0.9"
+      ],
+      "actor_widget_violations": [],
+      "rendered_actor_name_violations": [],
+      "enemy_indicator_widgets": [],
+      "debug_text_violations": [],
+      "presentation_state": {
+        "marketing_capture": true,
+        "debug_draw_helpers_enabled": false,
+        "melee_hit_shapes_enabled": false,
+        "screen_messages_enabled": false,
+        "marketing_presentation_clean": true
+      },
+      "presentation_violations": [],
+      "facing_arrow_violations": [],
+      "passed": true,
+      "text_label_components_suppressed_by_show_flag": [
+        {
+          "actor": "TestPickup_MysteriousAmulet",
+          "label": {
+            "component": "NameLabel",
+            "text": "Unidentified Purple Amulet",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_HealthPotion",
+          "label": {
+            "component": "NameLabel",
+            "text": "Health Potion",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_TownStone",
+          "label": {
+            "component": "NameLabel",
+            "text": "Town Stone",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_UpgradeKey",
+          "label": {
+            "component": "NameLabel",
+            "text": "Upgrade Key",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_IronOre",
+          "label": {
+            "component": "NameLabel",
+            "text": "Iron Ore",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        },
+        {
+          "actor": "TestPickup_RustySword",
+          "label": {
+            "component": "NameLabel",
+            "text": "Rusty Sword",
+            "visible": true,
+            "facing": 1,
+            "upright": 1
+          }
+        }
+      ],
+      "text_label_violations": [],
+      "combat_hud_widgets": [
+        {
+          "class": "WBP_CombatHUD_C",
+          "name": "WBP_CombatHUD_C_2147482168",
+          "rect": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "texts": [],
+          "buttons": []
+        }
+      ],
+      "combat_hud_visible": true,
+      "text_render_show_flag": false,
+      "phase": "end"
+    }
+  ],
+  "passed": true
+}

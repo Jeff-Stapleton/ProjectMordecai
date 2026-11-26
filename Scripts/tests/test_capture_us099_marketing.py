@@ -49,7 +49,13 @@ class CaptureUs099MarketingTests(unittest.TestCase):
 
     def test_text_render_components_are_accepted_when_the_show_flag_is_off(self):
         state = {
-            "game": {},
+            "game": {
+                "marketing_capture": True,
+                "debug_draw_helpers_enabled": False,
+                "melee_hit_shapes_enabled": False,
+                "screen_messages_enabled": False,
+                "marketing_presentation_clean": True,
+            },
             "widgets": [{
                 "class": "MordecaiCombatHUDWidget",
                 "visible": True,

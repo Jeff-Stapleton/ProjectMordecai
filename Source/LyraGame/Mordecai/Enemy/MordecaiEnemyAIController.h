@@ -99,6 +99,11 @@ public:
 	/** Command-line policy seam used by the marketing-capture regression test. */
 	static bool ShouldFreezeAIForMarketing(const TCHAR* CommandLine);
 
+#if !UE_BUILD_SHIPPING
+	/** Capture setup releases the temporary loading/warm-up freeze before frame one. */
+	void SetMarketingCaptureFrozen(bool bFrozen) { bFreezeAIForMarketing = bFrozen; }
+#endif
+
 	// --- Spawn Location ---
 
 	FVector GetSpawnLocation() const { return SpawnLocation; }

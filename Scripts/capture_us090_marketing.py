@@ -61,6 +61,8 @@ def _widget_texts(state):
 
 
 def _label_proof(state):
+    game = state.get("game") if isinstance(state, dict) else {}
+    game = game if isinstance(game, dict) else {}
     actors = [actor for actor in (state.get("actors") or []) if isinstance(actor, dict)]
     actor_names = {
         str(actor.get(key))
@@ -92,9 +94,30 @@ def _label_proof(state):
         text for text in texts
         if any(marker in text.lower() for marker in DEBUG_TEXT_MARKERS)
     ]
+    presentation_violations = [
+        key for key, expected in (
+            ("marketing_capture", True),
+            ("debug_draw_helpers_enabled", False),
+            ("melee_hit_shapes_enabled", False),
+            ("screen_messages_enabled", False),
+            ("marketing_presentation_clean", True),
+        )
+        if game.get(key) is not expected
+    ]
+    facing_arrow_violations = []
+    player_arrow = ((_player(state).get("facing_arrow")
+                     if isinstance(state, dict) else None))
+    if isinstance(player_arrow, dict) and player_arrow.get("hidden_in_game") is not True:
+        facing_arrow_violations.append("player")
+    facing_arrow_violations.extend(
+        str(actor.get("label") or actor.get("name") or "actor")
+        for actor in actors
+        if isinstance(actor.get("facing_arrow"), dict)
+        and actor["facing_arrow"].get("hidden_in_game") is not True
+    )
     proof = {
-        "map": (state.get("game") or {}).get("map"),
-        "experience": (state.get("game") or {}).get("experience"),
+        "map": game.get("map"),
+        "experience": game.get("experience"),
         "command_line_flag": "-MordecaiMarketingCapture",
         "actor_count": len(actors),
         "rendered_widget_texts": texts,
@@ -103,9 +126,22 @@ def _label_proof(state):
         "rendered_actor_name_violations": rendered_names,
         "enemy_indicator_widgets": enemy_indicators,
         "debug_text_violations": debug_texts,
+        "presentation_state": {
+            key: game.get(key)
+            for key in (
+                "marketing_capture",
+                "debug_draw_helpers_enabled",
+                "melee_hit_shapes_enabled",
+                "screen_messages_enabled",
+                "marketing_presentation_clean",
+            )
+        },
+        "presentation_violations": presentation_violations,
+        "facing_arrow_violations": facing_arrow_violations,
     }
     proof["passed"] = not any(
-        (actor_widgets, text_labels, rendered_names, enemy_indicators, debug_texts))
+        (actor_widgets, text_labels, rendered_names, enemy_indicators, debug_texts,
+         presentation_violations, facing_arrow_violations))
     return proof
 
 
