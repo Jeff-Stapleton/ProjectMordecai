@@ -899,8 +899,8 @@ class PlaytestRun:
         if reasons:
             return "DIAGNOSTIC ONLY -- not acceptance evidence: " + "; ".join(reasons)
         if self.exit_code == EXIT_PASS:
-            return ("ACCEPTANCE CANDIDATE -- fresh package launched by this script; open every "
-                    "screenshot and describe it before citing this run")
+            return ("ACCEPTANCE CANDIDATE -- fresh package launched by this script; follow the "
+                    "2026-11-26 media-viewing decision before citing this run")
         return "FAILED on a fresh package -- the failures below are real findings"
 
     def is_candidate(self):
@@ -1136,8 +1136,8 @@ class PlaytestRun:
                   f"- End: `{dumps(rep['focus_end'])}`"]
 
         lines += ["", "## Screenshots", "",
-                  "Open every screenshot with the Read tool and state what is actually on "
-                  "screen. A screenshot nobody looked at is not evidence.", ""]
+                  "Follow the 2026-11-26 media-viewing decision: builders verify media "
+                  "numerically; the coordinator views and describes it.", ""]
         if rep["screenshots"]:
             for s in rep["screenshots"]:
                 flag = ""

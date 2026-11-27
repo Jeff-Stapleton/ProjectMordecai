@@ -27,8 +27,8 @@ import playtest_kit as kit  # noqa: E402
 import playtest_story as ps  # noqa: E402
 
 REAL_STORIES = os.path.join(os.path.dirname(SCRIPTS), "stories")
-CANDIDATE_EVIDENCE = ("ACCEPTANCE CANDIDATE -- fresh package launched by this script; open every "
-                      "screenshot and describe it before citing this run")
+CANDIDATE_EVIDENCE = ("ACCEPTANCE CANDIDATE -- fresh package launched by this script; follow the "
+                      "2026-11-26 media-viewing decision before citing this run")
 
 # A Tier 4 stub: real PlaytestRun declarations (discovery imports it), and a __main__ that writes
 # the report.json its <stem>.behavior.json describes.

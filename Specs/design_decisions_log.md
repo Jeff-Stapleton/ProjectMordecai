@@ -565,3 +565,37 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
   weapon gameplay method.
 - Source: Jeff's decisions supplied with issue #14 and PR #167 review on
   2026-11-24.
+
+---
+
+## 2026-11-26 — US-085 Frontliner content closeout
+
+- The base `BP_MordecaiEnemy_Frontliner` uses only
+  `DA_EnemyAttack_BasicSlash`. A Blueprint child,
+  `BP_MordecaiEnemy_Frontliner_Fire`, uses only
+  `DA_EnemyAttack_FireSlash`. Exactly one of DevTestMap's three existing
+  Frontliners uses the child without changing its transform.
+  `EnemyAttackProfiles` remains defaults-only and is not made instance
+  editable.
+- AC-054.2 keeps `AttackRange=200`. The active profile's 150 cm reach is the
+  effective attack range under issue #47, so no content number changes.
+- AC-085.4 is accepted when `move_a` and `walk_lane_wp1` pass in
+  `Scripts/playtests/us001_movement.py` on enemy-free MovementTestMap. Other
+  filed known failures in that run do not block this AC.
+- AC-085.3 requires `enemy_damages_player` to pass on DevTestMap. The
+  `player_dies`, `dead_no_move`, `respawn`, `arena_reset`, `respawn_moves` and
+  `burning_on_hit` results from `us054_combat.py` are all reported; each
+  failure is a follow-up before closeout.
+- AC-085.6 is accepted only when `py Scripts/check_content_committed.py`
+  passes.
+- Source: decided by the coordinator for Jeff for US-085 closeout
+  (2026-11-26).
+
+---
+
+## 2026-11-26 — DECIDED (coordinator for Jeff): media viewing
+
+- Builder agents must not open or delegate images or video because the model provider rejects those requests.
+- Builders verify media numerically only: ffprobe, frame uniqueness, black/freeze detection, and colour stats.
+- The coordinator views acceptance screenshots and marketing media and records what is on screen in the story's Completion Notes.
+- This supersedes the "open every screenshot with the Read tool" instruction for builders in `CLAUDE.md` Step 6 and the playtest harness documentation.

@@ -1,0 +1,8 @@
+Attempt 1: timed out waiting 15 seconds for death after one hit.
+Attempt 2: nearest-enemy chase ended at 10 HP without death.
+Attempt 3: real hit and Burning reached; capture-only K / DamageSelfDestruct did not enter Mordecai dead state within 5 seconds.
+Salvage: no fourth launch; encoded the 96 contiguous game-owned frames after removing near-duplicate frames, then used disclosed linear interpolation for a 5+ second 30 fps output.
+CAPTURE_EVENT closing: source_frame=18 world_time_s=8.467 health=100/100 is_dead=False tags=['Mordecai.Stamina.Tier.Green', 'Mordecai.Weapon.Type.Sword', 'Movement.Mode.Walking']
+CAPTURE_EVENT hit: source_frame=61 world_time_s=9.9 health=85/100 is_dead=False tags=['Mordecai.Stamina.Tier.Green', 'Mordecai.Status.Burning', 'Mordecai.Weapon.Type.Sword', 'Movement.Mode.Walking']
+CAPTURE_EVENT burning: source_frame=61 world_time_s=9.9 health=85/100 is_dead=False tags=['Mordecai.Stamina.Tier.Green', 'Mordecai.Status.Burning', 'Mordecai.Weapon.Type.Sword', 'Movement.Mode.Walking']
+CAPTURE_EVENT capture_end: source_frame=96 world_time_s=11.367 health=49/100 is_dead=False tags=['Mordecai.Stamina.Tier.Green', 'Mordecai.Status.Burning', 'Mordecai.Weapon.Type.Sword', 'Movement.Mode.Walking']

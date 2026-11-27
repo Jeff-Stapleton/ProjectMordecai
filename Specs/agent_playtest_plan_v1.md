@@ -367,7 +367,7 @@ The contract is `Specs/story_playtests_v1.md`.
     - Tier 3: boot PASS (`Saved/Playtests/20261027-202616-boot`). `game.log` has no "overrides Default…" error, only the three "no visible mesh" errors.
     - Tier 4: see above.
     - Sweep `Saved/Playtests/20261027-202756-sweep`: same statuses as the `c7e4b8d` sweep in us054/us057/us069/us078/us079/us083. us001 varies with where the enemies stand (N14): `move_d` FAIL (blocked at 55 health), `walk_lane_reset` and `sprint_shift` PASS.
-- **N14 The invisible enemies body-block the player.** They crowd the spawn and follow the player, so the player meets an invisible wall:
+- **N14 The invisible enemies body-block the player (FIXED, issues #19/#46, US-085/US-100).** They crowded the spawn and followed the player, so the player met an invisible wall:
   - A 0.7 s hold of A moved the player only 93 cm (`us001_movement.py` `move_a`).
   - `walk_to(0, -650)` got stuck at (−78, −45) (`walk_lane_wp1`).
   - `us054_arena.py` `walk_to_frontliner3` fails intermittently on its third leg, where the player walks into the enemies (2026-10-23). Base commit `32d3927`: FAIL, then PASS (`Saved/Playtests/20261023-150847-us054`, `20261023-150936-us054`). The step carries no `known_issue`, so it reports NEW. When it fails, `melee_lmb` and `dodge_lalt` run without the player next to the enemy.
@@ -389,6 +389,7 @@ The contract is `Specs/story_playtests_v1.md`.
     - The melee/dodge/death chain of us054, and us057 and us078, run on `/MordecaiCore/Game/Maps/CombatTestMap`: a TestDummy that never moves or attacks, and a TestAttacker that holds its spot more than 900 cm from every scripted spot except its fight spot.
     - DevTestMap keeps its Frontliners for the enemy-AI checks (`us054_arena.py`) and for us079.
     - On DevTestMap itself the swarm still kills the player (us054_arena, us079); that is by design (Jeff, 2026-10-28 and 2026-10-29).
+  - US-085 closeout reconfirmed both halves on a fresh package of `cf0e8218`: the three bodies and `burning_on_hit` are visible in `Saved/Playtests/20261126-072947-us054`, while `move_a` and `walk_lane_wp1` PASS on the enemy-free MovementTestMap in `Saved/Playtests/20261126-072920-us001`.
 - **N15 Fireball spends SP but does nothing visible (FIXED, US-087 Fireball slice, issue #20; final PR head supersedes the initial `66bcbc82` fix).**
   - Fix: projectile specs are initialized before deferred-spawn completion; world-space velocity opts out of `UProjectileMovementComponent`'s default local-space initialization before `FinishSpawning`, so assisted non-axis aim is not rotated twice; movement receives active velocity, lifetime/range are enforced, signed pre-movement spawn clearance includes caster/projectile radii, and a collision-disabled engine sphere is visible. Fireball and the shared Magic Missile lifecycle use the same contract.
   - Strengthened Tier 1 coverage uses the actual `SpawnActorDeferred` → init → `FinishSpawning` lifecycle at nonzero yaw, a non-axis GAS cast with natural swept damage/status, and timer-only capture of the spawn location before the movement component's first tick. Engine-source excerpts and the red/green logs are attached to PR #87.

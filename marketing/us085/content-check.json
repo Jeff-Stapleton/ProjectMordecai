@@ -1,0 +1,298 @@
+{
+  "video": {
+    "video": "C:\\Users\\jeffd\\AppData\\Local\\Cursor\\AgentStores\\cursor_agent_stores\\bc-881538ce-5f6e-5b24-9882-7a9cfcc76dfc\\files\\us085-2cc9acc6\\marketing\\us085\\frontliners-closing-hit-burning.mp4",
+    "source_manifest": "C:\\Users\\jeffd\\AppData\\Local\\Cursor\\AgentStores\\cursor_agent_stores\\bc-881538ce-5f6e-5b24-9882-7a9cfcc76dfc\\files\\us085-2cc9acc6\\marketing\\us085\\source-frame-manifest.json",
+    "source_frame_count": 96,
+    "minimum_source_psnr_db": 24.0,
+    "minimum_motion": 0.00035,
+    "metadata": {
+      "width": 1920,
+      "height": 1080,
+      "pixel_format": "yuv420p",
+      "frame_rate": "30/1",
+      "frame_count": 157,
+      "duration_seconds": 5.233333,
+      "size_bytes": 1526083
+    },
+    "metadata_passed": true,
+    "samples": [
+      {
+        "second": 0.523,
+        "best_source_frame": "frame_0009.jpg",
+        "best_source_psnr_db": 43.586,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 1.047,
+        "best_source_frame": "frame_0016.jpg",
+        "best_source_psnr_db": 42.539,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 1.57,
+        "best_source_frame": "frame_0023.jpg",
+        "best_source_psnr_db": 40.921,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 2.093,
+        "best_source_frame": "frame_0030.jpg",
+        "best_source_psnr_db": 35.804,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 2.617,
+        "best_source_frame": "frame_0037.jpg",
+        "best_source_psnr_db": 37.639,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 3.14,
+        "best_source_frame": "frame_0053.jpg",
+        "best_source_psnr_db": 43.627,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 3.663,
+        "best_source_frame": "frame_0065.jpg",
+        "best_source_psnr_db": 43.754,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 4.187,
+        "best_source_frame": "frame_0080.jpg",
+        "best_source_psnr_db": 42.326,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      {
+        "second": 4.71,
+        "best_source_frame": "frame_0087.jpg",
+        "best_source_psnr_db": 38.889,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    ],
+    "motion": {
+      "consecutive_sample_scores": [
+        0.100807,
+        0.134988,
+        0.140885,
+        0.128406,
+        0.098151,
+        0.020168,
+        0.010881,
+        0.025208
+      ],
+      "moving_pairs": 8,
+      "required_moving_pairs": 6,
+      "passed": true
+    },
+    "temporal_continuity": {
+      "sample_count": 52,
+      "moving_pairs": 51,
+      "pair_count": 51,
+      "moving_pair_ratio": 1.0,
+      "minimum_motion": 0.00015,
+      "minimum_ratio": 0.6,
+      "passed": true
+    },
+    "mpdecimate": {
+      "method": "ffmpeg mpdecimate -> framehash kept-frame count",
+      "input_frames": 157,
+      "kept_frames": 154,
+      "unique_frame_ratio": 0.980892,
+      "minimum_unique_frame_ratio": 0.9,
+      "passed": true
+    },
+    "passed": true
+  },
+  "blackdetect": {
+    "command_exit_code": 0,
+    "black_periods": [],
+    "passed": true
+  },
+  "stills": [
+    {
+      "file": "still_01_frontliners_closing.png",
+      "caption": "Three Frontliners close in around the player in the arena.",
+      "source_frame": 18,
+      "path": "still_01_frontliners_closing.png",
+      "width": 1920,
+      "height": 1080,
+      "mean_rgb": [
+        141.83,
+        140.255,
+        147.7446
+      ],
+      "stddev_rgb": [
+        49.0001,
+        49.4411,
+        48.2487
+      ],
+      "debug_green_pixels": 0,
+      "debug_yellow_pixels": 0,
+      "debug_colour_pixel_fraction": 0.0,
+      "verification": {
+        "file": "C:\\Users\\jeffd\\AppData\\Local\\Cursor\\AgentStores\\cursor_agent_stores\\bc-881538ce-5f6e-5b24-9882-7a9cfcc76dfc\\files\\us085-2cc9acc6\\marketing\\us085\\still_01_frontliners_closing.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 49.4411,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "file": "still_02_frontliner_hit.png",
+      "caption": "Frontliners surround the player after a hit lowers the health bar.",
+      "source_frame": 61,
+      "path": "still_02_frontliner_hit.png",
+      "width": 1920,
+      "height": 1080,
+      "mean_rgb": [
+        147.0706,
+        142.329,
+        149.3514
+      ],
+      "stddev_rgb": [
+        48.3735,
+        46.9109,
+        45.7667
+      ],
+      "debug_green_pixels": 0,
+      "debug_yellow_pixels": 0,
+      "debug_colour_pixel_fraction": 0.0,
+      "verification": {
+        "file": "C:\\Users\\jeffd\\AppData\\Local\\Cursor\\AgentStores\\cursor_agent_stores\\bc-881538ce-5f6e-5b24-9882-7a9cfcc76dfc\\files\\us085-2cc9acc6\\marketing\\us085\\still_02_frontliner_hit.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 48.3735,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "file": "still_03_burning.png",
+      "caption": "The Burning status appears while the fire Frontliner attacks the player.",
+      "source_frame": 96,
+      "path": "still_03_burning.png",
+      "width": 1920,
+      "height": 1080,
+      "mean_rgb": [
+        145.6559,
+        140.7621,
+        148.6704
+      ],
+      "stddev_rgb": [
+        48.396,
+        46.9444,
+        46.0354
+      ],
+      "debug_green_pixels": 0,
+      "debug_yellow_pixels": 0,
+      "debug_colour_pixel_fraction": 0.0,
+      "verification": {
+        "file": "C:\\Users\\jeffd\\AppData\\Local\\Cursor\\AgentStores\\cursor_agent_stores\\bc-881538ce-5f6e-5b24-9882-7a9cfcc76dfc\\files\\us085-2cc9acc6\\marketing\\us085\\still_03_burning.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 48.396,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    }
+  ],
+  "game_owned_source": true,
+  "hud_required": true,
+  "loading_screen_absent_from_numbered_frames": true,
+  "presentation_clean": true,
+  "slow_motion": {
+    "source_render_fps": 30,
+    "presentation_input_fps": 13.2,
+    "output_fps": 30,
+    "near_duplicate_source_frames_removed": true,
+    "linear_interpolation": true
+  },
+  "passed": true
+}

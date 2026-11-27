@@ -1,0 +1,325 @@
+{
+  "marketing_frame_1_engine_frame": 244,
+  "first_observed_world_time_s": 7.9,
+  "events": [
+    {
+      "event": "closing",
+      "source_frame": 18,
+      "world_time_s": 8.467,
+      "health": 100,
+      "max_health": 100,
+      "is_dead": false,
+      "tags": [
+        "Mordecai.Stamina.Tier.Green",
+        "Mordecai.Weapon.Type.Sword",
+        "Movement.Mode.Walking"
+      ],
+      "widget_texts": [
+        "Longsword",
+        "Slash",
+        "Tab",
+        "HP",
+        "100%",
+        "Kills: 0",
+        "[I] Inventory",
+        "Q",
+        "E",
+        "R",
+        "1",
+        "SP",
+        "10 / 10",
+        "ST",
+        "\u00d71.25"
+      ],
+      "enemies": [
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_Fire_C",
+          "location": [
+            493.208,
+            0,
+            92.15
+          ],
+          "spawn_location": [
+            600,
+            0,
+            100
+          ],
+          "ai_state": "Approach",
+          "visible": true
+        },
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_C",
+          "location": [
+            -358.354,
+            -447.942,
+            92.15
+          ],
+          "spawn_location": [
+            -400,
+            -500,
+            92.15
+          ],
+          "ai_state": "Approach",
+          "visible": true
+        },
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_C",
+          "location": [
+            -358.354,
+            447.942,
+            92.15
+          ],
+          "spawn_location": [
+            -400,
+            500,
+            92.15
+          ],
+          "ai_state": "Approach",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "event": "hit",
+      "source_frame": 61,
+      "world_time_s": 9.9,
+      "health": 85,
+      "max_health": 100,
+      "is_dead": false,
+      "tags": [
+        "Mordecai.Stamina.Tier.Green",
+        "Mordecai.Status.Burning",
+        "Mordecai.Weapon.Type.Sword",
+        "Movement.Mode.Walking"
+      ],
+      "widget_texts": [
+        "Longsword",
+        "Slash",
+        "Tab",
+        "HP",
+        "85%",
+        "Kills: 0",
+        "[I] Inventory",
+        "Q",
+        "E",
+        "R",
+        "1",
+        "SP",
+        "10 / 10",
+        "ST",
+        "\u00d71.25",
+        "Burning",
+        "5.0"
+      ],
+      "enemies": [
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_Fire_C",
+          "location": [
+            146.542,
+            0,
+            92.15
+          ],
+          "spawn_location": [
+            600,
+            0,
+            100
+          ],
+          "ai_state": "Attack",
+          "visible": true
+        },
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_C",
+          "location": [
+            -91.817,
+            114.771,
+            92.15
+          ],
+          "spawn_location": [
+            -400,
+            500,
+            92.15
+          ],
+          "ai_state": "Attack",
+          "visible": true
+        },
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_C",
+          "location": [
+            -91.817,
+            -114.771,
+            92.15
+          ],
+          "spawn_location": [
+            -400,
+            -500,
+            92.15
+          ],
+          "ai_state": "Attack",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "event": "burning",
+      "source_frame": 61,
+      "world_time_s": 9.9,
+      "health": 85,
+      "max_health": 100,
+      "is_dead": false,
+      "tags": [
+        "Mordecai.Stamina.Tier.Green",
+        "Mordecai.Status.Burning",
+        "Mordecai.Weapon.Type.Sword",
+        "Movement.Mode.Walking"
+      ],
+      "widget_texts": [
+        "Longsword",
+        "Slash",
+        "Tab",
+        "HP",
+        "85%",
+        "Kills: 0",
+        "[I] Inventory",
+        "Q",
+        "E",
+        "R",
+        "1",
+        "SP",
+        "10 / 10",
+        "ST",
+        "\u00d71.25",
+        "Burning",
+        "5.0"
+      ],
+      "enemies": [
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_Fire_C",
+          "location": [
+            146.542,
+            0,
+            92.15
+          ],
+          "spawn_location": [
+            600,
+            0,
+            100
+          ],
+          "ai_state": "Attack",
+          "visible": true
+        },
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_C",
+          "location": [
+            -91.817,
+            114.771,
+            92.15
+          ],
+          "spawn_location": [
+            -400,
+            500,
+            92.15
+          ],
+          "ai_state": "Attack",
+          "visible": true
+        },
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_C",
+          "location": [
+            -91.817,
+            -114.771,
+            92.15
+          ],
+          "spawn_location": [
+            -400,
+            -500,
+            92.15
+          ],
+          "ai_state": "Attack",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "event": "capture_end",
+      "source_frame": 96,
+      "world_time_s": 11.367,
+      "health": 49,
+      "max_health": 100,
+      "is_dead": false,
+      "tags": [
+        "Mordecai.Stamina.Tier.Green",
+        "Mordecai.Status.Burning",
+        "Mordecai.Weapon.Type.Sword",
+        "Movement.Mode.Walking"
+      ],
+      "widget_texts": [
+        "Longsword",
+        "Slash",
+        "Tab",
+        "HP",
+        "49%",
+        "Kills: 0",
+        "[I] Inventory",
+        "Q",
+        "E",
+        "R",
+        "1",
+        "SP",
+        "10 / 10",
+        "ST",
+        "\u00d71.25",
+        "Burning",
+        "3.6"
+      ],
+      "enemies": [
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_Fire_C",
+          "location": [
+            146.542,
+            0,
+            92.15
+          ],
+          "spawn_location": [
+            600,
+            0,
+            100
+          ],
+          "ai_state": "Recover",
+          "visible": true
+        },
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_C",
+          "location": [
+            -91.817,
+            114.771,
+            92.15
+          ],
+          "spawn_location": [
+            -400,
+            500,
+            92.15
+          ],
+          "ai_state": "Recover",
+          "visible": true
+        },
+        {
+          "class": "BP_MordecaiEnemy_Frontliner_C",
+          "location": [
+            -91.817,
+            -114.771,
+            92.15
+          ],
+          "spawn_location": [
+            -400,
+            -500,
+            92.15
+          ],
+          "ai_state": "Recover",
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "death_respawn_captured": false,
+  "death_respawn_followup": "The third and final allowed capture used K / DamageSelfDestruct after the real hit and Burning, but Mordecai health did not enter dead state."
+}

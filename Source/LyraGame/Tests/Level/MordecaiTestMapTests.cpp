@@ -36,13 +36,19 @@
 
 namespace MordecaiTestMapTests
 {
+	const TCHAR* const DevTestMapPath = TEXT("/MordecaiCore/Game/Maps/DevTestMap.DevTestMap");
 	const TCHAR* const MovementTestMapPath = TEXT("/MordecaiCore/Game/Maps/MovementTestMap.MovementTestMap");
 	const TCHAR* const CombatTestMapPath = TEXT("/MordecaiCore/Game/Maps/CombatTestMap.CombatTestMap");
 	const TCHAR* const PickupProjectileTestMapPath =
 		TEXT("/MordecaiCore/Game/Maps/PickupProjectileTestMap.PickupProjectileTestMap");
+	const TCHAR* const FrontlinerClassPath =
+		TEXT("/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner.BP_MordecaiEnemy_Frontliner_C");
+	const TCHAR* const FireFrontlinerClassPath =
+		TEXT("/MordecaiCore/Enemies/BP_MordecaiEnemy_Frontliner_Fire.BP_MordecaiEnemy_Frontliner_Fire_C");
 	const TCHAR* const TestDummyClassPath = TEXT("/MordecaiCore/Enemies/BP_MordecaiEnemy_TestDummy.BP_MordecaiEnemy_TestDummy_C");
 	const TCHAR* const TestAttackerClassPath = TEXT("/MordecaiCore/Enemies/BP_MordecaiEnemy_TestAttacker.BP_MordecaiEnemy_TestAttacker_C");
 	const TCHAR* const BasicSlashPath = TEXT("/MordecaiCore/Combat/Enemies/DA_EnemyAttack_BasicSlash.DA_EnemyAttack_BasicSlash");
+	const TCHAR* const FireSlashPath = TEXT("/MordecaiCore/Combat/Enemies/DA_EnemyAttack_FireSlash.DA_EnemyAttack_FireSlash");
 	// Every T1_ box: a measuring grid that is always cooked
 	const TCHAR* const GridMaterialPath = TEXT("/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial");
 
@@ -57,6 +63,7 @@ namespace MordecaiTestMapTests
 	const TCHAR* const TestDummyClassName = TEXT("BP_MordecaiEnemy_TestDummy_C");
 	const TCHAR* const TestAttackerClassName = TEXT("BP_MordecaiEnemy_TestAttacker_C");
 	const TCHAR* const FrontlinerClassName = TEXT("BP_MordecaiEnemy_Frontliner_C");
+	const TCHAR* const FireFrontlinerClassName = TEXT("BP_MordecaiEnemy_Frontliner_Fire_C");
 
 	// Both maps: one PlayerStart at the origin, 100 cm over a floor whose top is z 0 (the scripts' SPAWN (0, 0))
 	const FVector PlayerStartLocation(0.0, 0.0, 100.0);
@@ -362,6 +369,90 @@ namespace MordecaiTestMapTests
 	{
 		return Pawn->AutoPossessAI == EAutoPossessAI::PlacedInWorld || Pawn->AutoPossessAI == EAutoPossessAI::PlacedInWorldOrSpawned;
 	}
+}
+
+// ---------------------------------------------------------------------------
+// 1. Mordecai.Level.DevTestMapFrontlinersHaveOneFireVariant (US-085)
+// The saved base Frontliner uses BasicSlash only. A Blueprint child uses FireSlash only, and exactly
+// one of DevTestMap's three existing placements has that child class without changing its spot.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Level_DevTestMap_FrontlinerVariants,
+	"Mordecai.Level.DevTestMapFrontlinersHaveOneFireVariant",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Level_DevTestMap_FrontlinerVariants::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiTestMapTests;
+
+	const AMordecaiEnemyCharacter* Base = LoadEnemyDefaults(*this, FrontlinerClassPath);
+	const AMordecaiEnemyCharacter* Fire = LoadEnemyDefaults(*this, FireFrontlinerClassPath);
+	auto TestProfile = [this](const TCHAR* Who, const AMordecaiEnemyCharacter* Enemy, const TCHAR* Expected)
+	{
+		if (!Enemy || !TestEqual(FString::Printf(TEXT("%s has exactly one attack profile"), Who), Enemy->EnemyAttackProfiles.Num(), 1))
+		{
+			return;
+		}
+		TestEqual(FString::Printf(TEXT("%s uses %s"), Who, Expected), *GetPathNameSafe(Enemy->EnemyAttackProfiles[0]), Expected);
+	};
+	TestProfile(TEXT("base Frontliner"), Base, BasicSlashPath);
+	TestProfile(TEXT("fire Frontliner"), Fire, FireSlashPath);
+
+	for (const TPair<const TCHAR*, const AMordecaiEnemyCharacter*>& Variant :
+		{ TPair<const TCHAR*, const AMordecaiEnemyCharacter*>(TEXT("base Frontliner"), Base),
+		  TPair<const TCHAR*, const AMordecaiEnemyCharacter*>(TEXT("fire Frontliner"), Fire) })
+	{
+		if (!Variant.Value)
+		{
+			continue;
+		}
+		TestEqual(FString::Printf(TEXT("%s MaxHealth"), Variant.Key), Variant.Value->DefaultMaxHealth, 200.f);
+		TestEqual(FString::Printf(TEXT("%s MaxPosture"), Variant.Key), Variant.Value->DefaultMaxPosture, 100.f);
+		TestEqual(FString::Printf(TEXT("%s MoveSpeed"), Variant.Key), Variant.Value->DefaultMoveSpeed, 400.f);
+		const AMordecaiEnemyAIController* AI = AIDefaultsOf(Variant.Value);
+		if (TestNotNull(FString::Printf(TEXT("%s has enemy AI defaults"), Variant.Key), AI))
+		{
+			TestEqual(FString::Printf(TEXT("%s AggroRange"), Variant.Key), AI->AggroRange, 900.f);
+			TestEqual(FString::Printf(TEXT("%s AttackRange fallback"), Variant.Key), AI->AttackRange, 200.f);
+			TestEqual(FString::Printf(TEXT("%s LeashRange"), Variant.Key), AI->LeashRange, 1800.f);
+		}
+	}
+
+	const UWorld* World = LoadMap(*this, DevTestMapPath);
+	if (!World)
+	{
+		return true;
+	}
+	const TArray<AActor*> Frontliners = LevelActorsOfClassNamed(World, FrontlinerClassName);
+	TestEqual("DevTestMap has exactly three Frontliners", Frontliners.Num(), 3);
+	TestEqual("DevTestMap has exactly one fire Frontliner",
+		Frontliners.FilterByPredicate([](const AActor* Actor) { return Actor->GetClass()->GetFName() == FName(FireFrontlinerClassName); }).Num(), 1);
+	TestEqual("DevTestMap has exactly two base Frontliners",
+		Frontliners.FilterByPredicate([](const AActor* Actor) { return Actor->GetClass()->GetFName() == FName(FrontlinerClassName); }).Num(), 2);
+
+	const FVector2D ExpectedSpots[] = { FVector2D(600.0, 0.0), FVector2D(-400.0, 500.0), FVector2D(-400.0, -500.0) };
+	for (const AActor* Actor : Frontliners)
+	{
+		const AMordecaiEnemyCharacter* Enemy = Cast<AMordecaiEnemyCharacter>(Actor);
+		if (!TestNotNull(FString::Printf(TEXT("%s is an enemy"), *Actor->GetActorNameOrLabel()), Enemy))
+		{
+			continue;
+		}
+		const AMordecaiEnemyCharacter* Defaults = GetDefault<AMordecaiEnemyCharacter>(Enemy->GetClass());
+		TestEqual(FString::Printf(TEXT("%s keeps class MaxHealth"), *Actor->GetActorNameOrLabel()), Enemy->DefaultMaxHealth, Defaults->DefaultMaxHealth);
+		TestEqual(FString::Printf(TEXT("%s keeps class MaxPosture"), *Actor->GetActorNameOrLabel()), Enemy->DefaultMaxPosture, Defaults->DefaultMaxPosture);
+		TestEqual(FString::Printf(TEXT("%s keeps class MoveSpeed"), *Actor->GetActorNameOrLabel()), Enemy->DefaultMoveSpeed, Defaults->DefaultMoveSpeed);
+		TestTrue(FString::Printf(TEXT("%s keeps class attack profiles"), *Actor->GetActorNameOrLabel()),
+			Enemy->EnemyAttackProfiles == Defaults->EnemyAttackProfiles);
+		const FVector2D Spot = ActorSpotOf(Actor);
+		bool bAtExpectedSpot = false;
+		for (const FVector2D& Expected : ExpectedSpots)
+		{
+			bAtExpectedSpot |= FVector2D::Distance(Spot, Expected) <= SpotToleranceCm;
+		}
+		TestTrue(FString::Printf(TEXT("%s keeps an existing Frontliner transform at (%.0f, %.0f)"), *Actor->GetActorNameOrLabel(), Spot.X, Spot.Y),
+			bAtExpectedSpot);
+	}
+	return true;
 }
 
 // ---------------------------------------------------------------------------

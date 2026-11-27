@@ -424,7 +424,7 @@ py Scripts/check_content_committed.py --base <ref> --json   # base defaults to o
   - All ACs pass at Tier 1 and Tier 2
   - `playtest_boot.py` exited 0 on a fresh package of the delivered commit (no STALE BUILD, no `--allow-stale`)
   - Story with ACs that need player input: its `Scripts/playtests/usXXX_<name>.py` exited 0 on that same fresh package (no STALE BUILD, no `--allow-stale`), and every input-driven AC the bridge can drive was accepted by that run. An AC recorded `PENDING TIER 4 (bridge cannot drive: <reason>)` stays unchecked and is not claimed; the story may still move to done, its Playable Status says the input is not yet accepted, and the bridge gap is added to the Known issues backlog in `Specs/agent_playtest_plan_v1.md`. If no input AC can be driven, no Tier 4 script is required.
-  - You opened every screenshot (`engine_loading.png`, `engine_NN.png` and `bridge_NN.png`) and described what is on screen
+  - Media review follows `Specs/design_decisions_log.md` entry "DECIDED (coordinator for Jeff): media viewing" (2026-11-26): builders verify numerically; the coordinator views and describes it
   - `check_content_committed.py` exits 0
 - If the packaged or real-input playtest failed or was not run, the story stays in `stories/in-progress/` — record the failure and the run dir in the story
 - HEADLESS story whose feature needs content: name the paired EDITOR story in the completion notes and record `NOT YET PLAYABLE — pending US-XXX`. The feature — and the epic's playable milestone — is not met until both land and the packaged playtest shows it.
@@ -512,7 +512,7 @@ Stories live in `stories/` and use a kanban flow:
 - Never guess on open items (use TODO(DECISION))
 - Never add BuildGraph, Horde, Gauntlet, or CI infrastructure — packaging and playtests stay local Python scripts
 - Never gate gameplay setup on `World->IsPlayInEditor()`, `WITH_EDITOR`, `LyraDeveloperSettings` (ExperienceOverride is PIE-only), or any editor-only state — every Mordecai map must resolve the Mordecai experience in a packaged build
-- Never move a story to done on PIE-only evidence — Tier 1/Tier 2 passing is not done; the Step 4c packaged playtest must pass and its screenshots must be read, and so must the Step 4d real-input playtest for every AC that needs input
+- Never move a story to done on PIE-only evidence — Tier 1/Tier 2 passing is not done; Step 4c and Step 4d must pass as applicable, with media handled under `Specs/design_decisions_log.md` entry "DECIDED (coordinator for Jeff): media viewing" (2026-11-26)
 - Never commit an asset-creating editor script without the saved `.uasset`/`.umap` files it produces, in the same branch
 - Never fake player input in acceptance checks (teleport + `try_pickup_focused()`, direct `toggle_pause_menu_to_tab()`, calling what an input action would call) — those are `[LOGIC]` checks only
 - Never cite a `debug_*` bridge command, a `route:"viewport"` key, or any direct-call result as Tier 4 evidence — Tier 4 evidence is the bridge's real-input commands (key/axis/mouse/click) in the story's playtest run
