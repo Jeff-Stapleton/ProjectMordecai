@@ -405,7 +405,10 @@ The contract is `Specs/story_playtests_v1.md`.
     - `shoulder_switches_tab` FAIL (NEW) → PASS: LB on Settings → Inventory, `bridge_04.png`.
     - The new `shoulder_rb_switches_tab` PASS: RB → Settings, `bridge_05.png`.
   - Tier 1: `Mordecai.Recovery.PauseMenu.ShoulderButtonsCycleTabs` and `TabModelCyclesWithWrap`.
-  - us069 still exits 1, on N4 and N5 only. US-095 stays in progress until Jeff's call or until N4/N5 are fixed.
+  - Closed 2026-11-27 after N4/N5 were fixed: fresh-main `us069` exits 0
+    with all five US-095 checks PASS (`Saved/Playtests/20261127-014050-us069`);
+    the full sweep `Saved/Playtests/20261127-014334-sweep` is 22/22 Tier 4
+    scripts PASS with no baseline PASS → FAIL transitions.
 - **The CommonUI pool bug is CONFIRMED** (it was latent). **FIXED in code** (issue #28, US-094, `a8aaa51`); see "The CommonUI pool left inventory rows stale" above.
   - Open the inventory before any pickup ("Inventory is empty.", correct), close it, then pick up all six items: the second open still shows "Inventory is empty." and "No resources stored." (`us079_inventory.py` checks `menu_rows`, `menu_ledger_rows`, `identify_button`, `filter_*`; `bridge_03.png`).
   - A player who opens the inventory twice sees a stale, empty list.

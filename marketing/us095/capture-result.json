@@ -1,0 +1,454 @@
+{
+  "map": "/MordecaiCore/Game/Maps/L_VW_TileTest",
+  "experience": "B_MordecaiArenaExperience",
+  "package_commit": "3aece9dc225f995c35d8b30ca0f6daa14f2a9f99",
+  "stills": [
+    {
+      "file": "still_01_character.png",
+      "tab": "character",
+      "caption": "The pause menu with Character selected in the five-tab bar.",
+      "sha256": "7452b0ce917e2b8eb404cbeab91d3d25066f286f4b8bd05589925fd217fb8619",
+      "ffprobe": {
+        "codec": "png",
+        "width": 1920,
+        "height": 1080,
+        "pixel_format": "rgba"
+      },
+      "blackdetect": {
+        "filter": "blackdetect=d=0.1:pic_th=0.98:pix_th=0.10",
+        "black_segments": [],
+        "passed": true
+      },
+      "pixel_checks": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\us095\\still_01_character.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 27.1677,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      "label_proof": {
+        "map": "/MordecaiCore/Game/Maps/L_VW_TileTest",
+        "experience": "B_MordecaiArenaExperience",
+        "command_line_flag": "-MordecaiMarketingCapture",
+        "actor_count": 1,
+        "rendered_widget_texts": [
+          "Character",
+          "Health",
+          "100 / 100",
+          "Stamina",
+          "100 / 100",
+          "Spell Points",
+          "10 / 10",
+          "Posture",
+          "100 / 100",
+          "Physical",
+          "STR",
+          "Strength",
+          "10",
+          "+8.5%",
+          "DEX",
+          "Dexterity",
+          "10",
+          "+8.5%",
+          "END",
+          "Endurance",
+          "10",
+          "+8.5%",
+          "Resilience",
+          "CON",
+          "Constitution",
+          "10",
+          "+8.5%",
+          "RES",
+          "Resistance",
+          "10",
+          "+8.5%",
+          "DIS",
+          "Discipline",
+          "10",
+          "+8.5%",
+          "Magical",
+          "INT",
+          "Intelligence",
+          "10",
+          "+8.5%",
+          "WIS",
+          "Wisdom",
+          "10",
+          "+8.5%",
+          "CHA",
+          "Charisma",
+          "10",
+          "+8.5%",
+          "Longsword",
+          "Slash",
+          "Tab",
+          "HP",
+          "100%",
+          "Kills: 0",
+          "[I] Inventory",
+          "Q",
+          "E",
+          "R",
+          "1",
+          "SP",
+          "10 / 10",
+          "ST",
+          "\u00d71.25",
+          "Paused",
+          "Character",
+          "Skills",
+          "Feats",
+          "Inventory",
+          "Settings"
+        ],
+        "actor_widget_violations": [],
+        "rendered_actor_name_violations": [],
+        "enemy_indicator_widgets": [],
+        "debug_text_violations": [],
+        "presentation_state": {
+          "marketing_capture": true,
+          "debug_draw_helpers_enabled": false,
+          "melee_hit_shapes_enabled": false,
+          "screen_messages_enabled": false,
+          "marketing_presentation_clean": true
+        },
+        "presentation_violations": [],
+        "facing_arrow_violations": [],
+        "passed": true,
+        "text_label_components_suppressed_by_show_flag": [],
+        "text_label_violations": [],
+        "combat_hud_widgets": [
+          {
+            "class": "WBP_CombatHUD_C",
+            "name": "WBP_CombatHUD_C_2147482176",
+            "rect": [
+              0,
+              0,
+              1920,
+              1080
+            ],
+            "texts": [],
+            "buttons": []
+          }
+        ],
+        "combat_hud_visible": true,
+        "text_render_show_flag": false,
+        "active_tab": "character"
+      },
+      "state": {
+        "open": true,
+        "active_tab": "character",
+        "tabs": [
+          {
+            "id": "character",
+            "name": "Character"
+          },
+          {
+            "id": "skills",
+            "name": "Skills"
+          },
+          {
+            "id": "feats",
+            "name": "Feats"
+          },
+          {
+            "id": "inventory",
+            "name": "Inventory"
+          },
+          {
+            "id": "settings",
+            "name": "Settings"
+          }
+        ]
+      }
+    },
+    {
+      "file": "still_02_inventory.png",
+      "tab": "inventory",
+      "caption": "The pause menu with Inventory selected in the five-tab bar.",
+      "sha256": "91383d5408d9f81142684c916d2e9ff630456903541a02d69c1e10dca2f6e1be",
+      "ffprobe": {
+        "codec": "png",
+        "width": 1920,
+        "height": 1080,
+        "pixel_format": "rgba"
+      },
+      "blackdetect": {
+        "filter": "blackdetect=d=0.1:pic_th=0.98:pix_th=0.10",
+        "black_segments": [],
+        "passed": true
+      },
+      "pixel_checks": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\us095\\still_02_inventory.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 25.1919,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      "label_proof": {
+        "map": "/MordecaiCore/Game/Maps/L_VW_TileTest",
+        "experience": "B_MordecaiArenaExperience",
+        "command_line_flag": "-MordecaiMarketingCapture",
+        "actor_count": 1,
+        "rendered_widget_texts": [
+          "Longsword",
+          "Slash",
+          "Tab",
+          "HP",
+          "100%",
+          "All",
+          "Weapons",
+          "Armor",
+          "Trinkets",
+          "Consumables",
+          "Materials",
+          "Quest",
+          "Magical",
+          "Inventory is empty.",
+          "Stored Resources",
+          "No resources stored.",
+          "Kills: 0",
+          "[I] Inventory",
+          "Q",
+          "E",
+          "R",
+          "1",
+          "SP",
+          "10 / 10",
+          "ST",
+          "\u00d71.25",
+          "Paused",
+          "Character",
+          "Skills",
+          "Feats",
+          "Inventory",
+          "Settings"
+        ],
+        "actor_widget_violations": [],
+        "rendered_actor_name_violations": [],
+        "enemy_indicator_widgets": [],
+        "debug_text_violations": [],
+        "presentation_state": {
+          "marketing_capture": true,
+          "debug_draw_helpers_enabled": false,
+          "melee_hit_shapes_enabled": false,
+          "screen_messages_enabled": false,
+          "marketing_presentation_clean": true
+        },
+        "presentation_violations": [],
+        "facing_arrow_violations": [],
+        "passed": true,
+        "text_label_components_suppressed_by_show_flag": [],
+        "text_label_violations": [],
+        "combat_hud_widgets": [
+          {
+            "class": "WBP_CombatHUD_C",
+            "name": "WBP_CombatHUD_C_2147482176",
+            "rect": [
+              0,
+              0,
+              1920,
+              1080
+            ],
+            "texts": [],
+            "buttons": []
+          }
+        ],
+        "combat_hud_visible": true,
+        "text_render_show_flag": false,
+        "active_tab": "inventory"
+      },
+      "state": {
+        "open": true,
+        "active_tab": "inventory",
+        "tabs": [
+          {
+            "id": "character",
+            "name": "Character"
+          },
+          {
+            "id": "skills",
+            "name": "Skills"
+          },
+          {
+            "id": "feats",
+            "name": "Feats"
+          },
+          {
+            "id": "inventory",
+            "name": "Inventory"
+          },
+          {
+            "id": "settings",
+            "name": "Settings"
+          }
+        ]
+      }
+    },
+    {
+      "file": "still_03_settings.png",
+      "tab": "settings",
+      "caption": "The pause menu with Settings selected in the five-tab bar.",
+      "sha256": "2c9642745a64e4c25e83aeb2ee3d6caebd721dd12556123b8af9d047911aabe0",
+      "ffprobe": {
+        "codec": "png",
+        "width": 1920,
+        "height": 1080,
+        "pixel_format": "rgba"
+      },
+      "blackdetect": {
+        "filter": "blackdetect=d=0.1:pic_th=0.98:pix_th=0.10",
+        "black_segments": [],
+        "passed": true
+      },
+      "pixel_checks": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\us095\\still_03_settings.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 20.891,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      },
+      "label_proof": {
+        "map": "/MordecaiCore/Game/Maps/L_VW_TileTest",
+        "experience": "B_MordecaiArenaExperience",
+        "command_line_flag": "-MordecaiMarketingCapture",
+        "actor_count": 1,
+        "rendered_widget_texts": [
+          "Longsword",
+          "Slash",
+          "Tab",
+          "HP",
+          "100%",
+          "Kills: 0",
+          "Coming Soon",
+          "[I] Inventory",
+          "Q",
+          "E",
+          "R",
+          "1",
+          "SP",
+          "10 / 10",
+          "ST",
+          "\u00d71.25",
+          "Paused",
+          "Character",
+          "Skills",
+          "Feats",
+          "Inventory",
+          "Settings"
+        ],
+        "actor_widget_violations": [],
+        "rendered_actor_name_violations": [],
+        "enemy_indicator_widgets": [],
+        "debug_text_violations": [],
+        "presentation_state": {
+          "marketing_capture": true,
+          "debug_draw_helpers_enabled": false,
+          "melee_hit_shapes_enabled": false,
+          "screen_messages_enabled": false,
+          "marketing_presentation_clean": true
+        },
+        "presentation_violations": [],
+        "facing_arrow_violations": [],
+        "passed": true,
+        "text_label_components_suppressed_by_show_flag": [],
+        "text_label_violations": [],
+        "combat_hud_widgets": [
+          {
+            "class": "WBP_CombatHUD_C",
+            "name": "WBP_CombatHUD_C_2147482176",
+            "rect": [
+              0,
+              0,
+              1920,
+              1080
+            ],
+            "texts": [],
+            "buttons": []
+          }
+        ],
+        "combat_hud_visible": true,
+        "text_render_show_flag": false,
+        "active_tab": "settings"
+      },
+      "state": {
+        "open": true,
+        "active_tab": "settings",
+        "tabs": [
+          {
+            "id": "character",
+            "name": "Character"
+          },
+          {
+            "id": "skills",
+            "name": "Skills"
+          },
+          {
+            "id": "feats",
+            "name": "Feats"
+          },
+          {
+            "id": "inventory",
+            "name": "Inventory"
+          },
+          {
+            "id": "settings",
+            "name": "Settings"
+          }
+        ]
+      }
+    }
+  ],
+  "input_timeline": [
+    {
+      "input": "LB",
+      "from": "character",
+      "to": "settings"
+    },
+    {
+      "input": "LB",
+      "from": "settings",
+      "to": "inventory"
+    },
+    {
+      "input": "RB",
+      "from": "inventory",
+      "to": "settings"
+    },
+    {
+      "input": "I",
+      "from": "settings",
+      "to": "closed",
+      "open": false,
+      "paused": false
+    }
+  ],
+  "clip": null,
+  "clip_reason": "Optional clip omitted: a paused, static menu cannot honestly satisfy the >=90% unique-frame requirement without artificial rapid tab changes.",
+  "passed": true
+}

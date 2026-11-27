@@ -21,10 +21,10 @@ CommonUI action bindings registered from C++ (`RegisterUIActionBinding` with `FB
 
 ## Acceptance Criteria
 - [x] AC-095.1: While the pause menu is open, I closes it (the same close path as Escape: `NativeOnDeactivated` → subsystem close, game unpaused) — verified by `Mordecai.Recovery.PauseMenu.InventoryKeyClosesMenu`
-- [ ] AC-095.2: In the packaged build, the player presses I (menu opens on Inventory) and presses I again (menu closes) — verified by check `i_closes` of `Scripts/playtests/us069_pause_menu.py` (Tier 4)
+- [x] AC-095.2: In the packaged build, the player presses I (menu opens on Inventory) and presses I again (menu closes) — verified by checks `i_opens_inventory` and `i_closes` in `Saved/Playtests/20261127-014050-us069`
 - [x] AC-095.3 (per TODO(DECISION) N18): While the menu is open, LB selects the previous tab and RB the next (wrapping), via CommonUI action bindings — verified by `Mordecai.Recovery.PauseMenu.ShoulderButtonsCycleTabs`
-- [ ] AC-095.4 (per TODO(DECISION) N18): In the packaged build, the player taps LB on the Settings tab and the active tab changes — verified by check `shoulder_switches_tab` of `Scripts/playtests/us069_pause_menu.py` (Tier 4), plus a NEW check `shoulder_rb_switches_tab` (tap Gamepad_RightShoulder → next tab) added to the script
-- [ ] AC-095.5 (added during implementation; found by the review of this story): In the packaged build, a player who holds I in the open menu keeps it open while the key is down (its key repeats included), the key-up closes it, and it stays closed: a held I never reopens the menu — verified by check `i_held_closes_on_key_up` of `Scripts/playtests/us069_pause_menu.py` (Tier 4); logic in `Mordecai.Recovery.PauseMenu.InventoryKeyClosesMenu`
+- [x] AC-095.4 (per TODO(DECISION) N18): In the packaged build, LB selects the previous tab and RB the next — verified by `shoulder_switches_tab` and `shoulder_rb_switches_tab` in `Saved/Playtests/20261127-014050-us069`
+- [x] AC-095.5 (added during implementation; found by the review of this story): In the packaged build, a player who holds I in the open menu keeps it open while the key is down (its key repeats included), the key-up closes it, and it stays closed: a held I never reopens the menu — verified by `i_held_closes_on_key_up` in `Saved/Playtests/20261127-014050-us069`; logic in `Mordecai.Recovery.PauseMenu.InventoryKeyClosesMenu`
 
 ## Technical Notes
 - N18 **decided: keep** LB/RB tab switching (AC-069.4). Jeff asked to fix issue #23 (2026-10-30), which keeps it; recorded in `Specs/design_decisions_log.md`. It does not conflict with LB/RB spells because game input is blocked in Menu mode. (The alternative was to drop it and amend AC-069.4.)
@@ -54,7 +54,7 @@ All in `Source/LyraGame/Tests/Recovery/MordecaiRecoveryPauseMenuInputTests.cpp`.
 - **Visible on screen:** the tab highlight moves on LB (to Inventory, with the inventory list) and on RB (to Settings, "Coming Soon"): `bridge_NN.png` labelled `menu_lb` / `menu_rb`; after the second I the MovementTestMap grid floor with the HUD and no menu (`menu_closed_by_i`)
 - **Proof:** Tier 4 checks `shoulder_switches_tab`, `shoulder_rb_switches_tab` (AC-095.4), `i_opens_inventory` + `i_closes` (AC-095.2), `i_held_closes_on_key_up` (AC-095.5) of `Scripts/playtests/us069_pause_menu.py`
 - **Tier 4 script:** `Scripts/playtests/us069_pause_menu.py` — run: `py Scripts/playtest_story.py US-095`
-- **Steps** (`py Scripts/playtest_story.py US-095 --plan`; US-095's checks are 12, 13, 19, 20 and 21):
+- **Steps** (`py Scripts/playtest_story.py US-095 --plan`; US-095's checks are 13, 14, 20, 21 and 22):
 
 <!-- Scripts/playtests/us069_pause_menu.py -->
 | # | Check | Player step (bridge calls) → expected | Proves |
@@ -64,43 +64,44 @@ All in `Source/LyraGame/Tests/Recovery/MordecaiRecoveryPauseMenuInputTests.cpp`.
 | 3 | `menu_input_mode` | state focus, widgets -> focus.commonui_input_mode=="Menu" && focus.mouse_cursor_shown==true and the pause menu widget shows "Paused" | AC-069.1 |
 | 4 | `tabs_listed` | state pause_menu, widgets -> pause_menu.tabs is exactly character/Character, skills/Skills, feats/Feats, inventory/Inventory, settings/Settings and 5 enabled tab buttons with those ids are on screen | AC-069.2 |
 | 5 | `game_input_blocked` | tap W (0.3s), tap Q, wait 1s -> player.location moved < 5 cm and spell_points unchanged, menu still open | AC-069.1 |
-| 6 | `character_tab_content` | state pause_menu, widgets -> on the character tab a visible MordecaiCharacterSheetWidget with all 9 primary attributes (STR..CHA), the groups Physical/Resilience/Magical and an 'x / y' resource line _(known issue: N4 The Character tab of the pause menu is blank: UMordecaiCharacterSheetWidget builds no widget tree (Known issues backlog, Specs/agent_playtest_plan_v1.md))_ | US-066:AC-066.1, US-066:AC-066.3, US-066:AC-066.4, US-066:AC-066.5 |
+| 6 | `character_tab_content` | state pause_menu, widgets -> on the character tab a visible MordecaiCharacterSheetWidget with exact-case STR..CHA codes, all 9 numeric values and '+X%' effective modifiers, the Physical/Resilience/Magical groups, and all four named Health/Stamina/Spell Points/Posture 'x / y' resource lines | US-066:AC-066.1, US-066:AC-066.3, US-066:AC-066.4, US-066:AC-066.5 |
 | 7 | `click_skills_tab` | click_button(button_id="skills") -> wait_until pause_menu.active_tab=="skills" | AC-069.4 |
-| 8 | `skills_tab_content` | state pause_menu, widgets -> a visible MordecaiSkillTreeWidget with texts including "Weapon" and "/ 20" _(known issue: N5 The Skills and Feats tabs show "Coming Soon": MordecaiPauseMenuWidget registers only Character and Inventory (Known issues backlog, Specs/agent_playtest_plan_v1.md))_ | US-067:AC-067.1, US-067:AC-067.3, US-067:AC-067.4 |
-| 9 | `click_feats_tab` | click_button(button_id="feats") -> wait_until pause_menu.active_tab=="feats" | AC-069.4 |
-| 10 | `feats_tab_content` | state pause_menu, widgets -> a visible MordecaiFeatDisplayWidget with a text starting "Feats:" _(known issue: N5 The Skills and Feats tabs show "Coming Soon": MordecaiPauseMenuWidget registers only Character and Inventory (Known issues backlog, Specs/agent_playtest_plan_v1.md))_ | US-068:AC-068.1, US-068:AC-068.8 |
-| 11 | `settings_placeholder` | click_button(button_id="settings") -> active_tab=="settings" and a visible widget shows "Coming Soon" | AC-069.3 |
-| 12 | `shoulder_switches_tab` | tap Gamepad_LeftShoulder -> wait_until pause_menu.open==true && pause_menu.active_tab == the previous tab in tab-bar order, wrapping (settings -> inventory) | AC-069.4, US-095:AC-095.4 |
-| 13 | `shoulder_rb_switches_tab` | tap Gamepad_RightShoulder -> wait_until pause_menu.open==true && pause_menu.active_tab == the next tab in tab-bar order, wrapping (inventory -> settings) | AC-069.4, US-095:AC-095.4 |
-| 14 | `escape_closes` | tap Escape -> wait_until pause_menu.open==false && game.paused==false | AC-069.10, AC-069.6 |
-| 15 | `reopen_restores_tab` | tap Escape -> wait_until pause_menu.open==true && pause_menu.active_tab == the tab active before escape_closes | AC-069.11 |
-| 16 | `gamepad_back_closes` | tap Gamepad_FaceButton_Right -> wait_until pause_menu.open==false && game.paused==false | AC-069.10 |
-| 17 | `start_button_opens` | tap Gamepad_Special_Right -> wait_until pause_menu.open==true && game.paused==true | AC-069.7 |
-| 18 | `escape_closes_again` | tap Escape -> wait_until pause_menu.open==false | - |
-| 19 | `i_opens_inventory` | tap I -> wait_until pause_menu.open==true && pause_menu.active_tab=="inventory" | US-095:AC-095.2 |
-| 20 | `i_closes` | tap I (the menu closes on its key-up) -> wait_until pause_menu.open==false && game.paused==false within 3s | US-095:AC-095.2 |
-| 21 | `i_held_closes_on_key_up` | tap I -> wait_until pause_menu.open==true; press I, wait 1.2s (key repeats from 0.5s) -> pause_menu.open==true while held; release I -> wait_until pause_menu.open==false && game.paused==false; wait 1s -> still closed (a held I never reopens the menu) | US-095:AC-095.5 |
-| 22 | `final_close` | if the menu is still open: tap Escape -> wait_until pause_menu.open==false (runs even when i_closes or i_held_closes_on_key_up failed) | - |
+| 8 | `skills_tab_content` | state pause_menu, widgets -> a visible MordecaiSkillTreeWidget with texts including "Weapon" and "/ 20" | US-067:AC-067.1, US-067:AC-067.4 |
+| 9 | `click_magic_category` | click_button(button_id="magic") -> wait for exact texts 'Magic · 11 skills' and 'Fireball' | US-067:AC-067.3 |
+| 10 | `click_feats_tab` | click_button(button_id="feats") -> wait_until pause_menu.active_tab=="feats" | AC-069.4 |
+| 11 | `feats_tab_content` | state pause_menu, widgets -> a visible MordecaiFeatDisplayWidget with a text starting "Feats:" | US-068:AC-068.1, US-068:AC-068.8 |
+| 12 | `settings_placeholder` | click_button(button_id="settings") -> active_tab=="settings" and a visible widget shows "Coming Soon" | AC-069.3 |
+| 13 | `shoulder_switches_tab` | tap Gamepad_LeftShoulder -> wait_until pause_menu.open==true && pause_menu.active_tab == the previous tab in tab-bar order, wrapping (settings -> inventory) | AC-069.4, US-095:AC-095.4 |
+| 14 | `shoulder_rb_switches_tab` | tap Gamepad_RightShoulder -> wait_until pause_menu.open==true && pause_menu.active_tab == the next tab in tab-bar order, wrapping (inventory -> settings) | AC-069.4, US-095:AC-095.4 |
+| 15 | `escape_closes` | tap Escape -> wait_until pause_menu.open==false && game.paused==false | AC-069.10, AC-069.6 |
+| 16 | `reopen_restores_tab` | tap Escape -> wait_until pause_menu.open==true && pause_menu.active_tab == the tab active before escape_closes | AC-069.11 |
+| 17 | `gamepad_back_closes` | tap Gamepad_FaceButton_Right -> wait_until pause_menu.open==false && game.paused==false | AC-069.10 |
+| 18 | `start_button_opens` | tap Gamepad_Special_Right -> wait_until pause_menu.open==true && game.paused==true | AC-069.7 |
+| 19 | `escape_closes_again` | tap Escape -> wait_until pause_menu.open==false | - |
+| 20 | `i_opens_inventory` | tap I -> wait_until pause_menu.open==true && pause_menu.active_tab=="inventory" | US-095:AC-095.2 |
+| 21 | `i_closes` | tap I (the menu closes on its key-up) -> wait_until pause_menu.open==false && game.paused==false within 3s | US-095:AC-095.2 |
+| 22 | `i_held_closes_on_key_up` | tap I -> wait_until pause_menu.open==true; press I, wait 1.2s (key repeats from 0.5s) -> pause_menu.open==true while held; release I -> wait_until pause_menu.open==false && game.paused==false; wait 1s -> still closed (a held I never reopens the menu) | US-095:AC-095.5 |
+| 23 | `final_close` | if the menu is still open: tap Escape -> wait_until pause_menu.open==false (runs even when i_closes or i_held_closes_on_key_up failed) | - |
 
 - **Before this story** (sweep on `8ea853b`, run `Saved/Playtests/20261022-184913-us069`): `shoulder_switches_tab` FAIL (NEW, then "active_tab changes"), `i_closes` FAIL (known); `shoulder_rb_switches_tab` did not exist.
 - **Playable alone:** YES
 
 ## Definition of Done
-- [ ] All ACs checked off (N18 decided "keep"): AC-095.1/095.3 yes; AC-095.2/095.4/095.5 PASS at Tier 4 but not accepted, because us069 exits 1 on the known N4/N5 (see Completion Notes)
+- [x] All ACs checked off (N18 decided "keep"); AC-095.2/095.4/095.5 accepted by the fresh-main Tier 4 run `Saved/Playtests/20261127-014050-us069`
 - [x] Tier 1: project compiles; ALL `Mordecai.*` automation tests pass (`py Scripts/run_tests.py` exits 0)
 - [x] Tier 2: PIE smoke tests pass (`py Scripts/run_pie_verify.py`); direct-call checks labeled LOGIC
 - [x] Content: none expected; `py Scripts/check_content_committed.py` exits 0
 - [x] Work committed FIRST (code + script edits), then a fresh package of that commit: `py Scripts/package_playtest.py` exits 0
 - [x] `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` exits 0 — never `--allow-stale`
-- [ ] On that same fresh package `py Scripts/playtest_story.py US-095`: `i_closes`, `shoulder_switches_tab`, `shoulder_rb_switches_tab`, `i_held_closes_on_key_up` PASS ✓; no check that PASSed before now FAILs ✓; `--lint` exits 0 ✓; the script itself exits 1 on the known N4/N5 (US-066/067/068) ✗
-- [ ] Known issues "I does not close the pause menu" and N18 marked FIXED/decided in `Specs/agent_playtest_plan_v1.md` (next commit, Specs only)
-- [x] Every screenshot (`engine_NN.png`, `bridge_NN.png`) opened with the Read tool; Completion Notes state what is actually on screen
+- [x] On that same fresh package `py Scripts/playtest_story.py US-095` exits 0: all five US-095 checks PASS and all 20 covered ACs are accepted (`Saved/Playtests/20261127-014032-story-us095`)
+- [x] Known issues "I does not close the pause menu" and N18 are marked FIXED/decided in `Specs/agent_playtest_plan_v1.md`
+- [x] Every screenshot was verified numerically under the 2026-11-26 media-viewing decision; coordinator viewing remains separate
 - [x] Evidence cited: run dirs in Completion Notes AND in the body of the `[US-095]` closing commit
-- [ ] Pushed; story moved to `stories/done/` only after all of the above pass (stays in progress: closes at Jeff's call or once N4/N5 are fixed)
+- [x] Closing commits pushed; story moved to `stories/done/` after the fresh-main story run and full sweep passed
 
 ## Completion Notes
 
-**Status: IN PROGRESS.** Every US-095 check PASSes on a fresh package, but `us069_pause_menu.py` exits 1 on three known failures owned by other stories: N4, Character tab blank (US-066, issue #9); N5, Skills/Feats "Coming Soon" (US-067/US-068, issue #10). The DoD needs that script to exit 0, so AC-095.2/095.4/095.5 are not ticked ("Accepted: no" in the summary). The story closes at Jeff's call or once N4/N5 are fixed.
+**Historical status (2026-10-30):** Every US-095 check PASSed, but the shared `us069_pause_menu.py` still failed on N4/N5 owned by US-066/067/068. Those blockers are now fixed; see the 2026-11-27 close-out below.
 
 **What changed** (commits `9be2071`, `54e7775`, `3294f0a`; packaged `3294f0a`):
 - `UMordecaiPauseMenuWidget` registers CommonUI UI action bindings once in `NativeOnInitialized`:
@@ -143,3 +144,57 @@ All in `Source/LyraGame/Tests/Recovery/MordecaiRecoveryPauseMenuInputTests.cpp`.
 - `control_bindings_v1.1.md` still lists neither "I — Inventory" nor in-menu LB/RB (TODO(DECISION), doc change by Jeff).
 - A held Escape probably reopens the menu after about 0.5 s, the same repeat path I had. That comes from reading the code; it was not reproduced, and the back action is engine code.
 - If an I key-up is ever lost while the menu stays active (window focus loss, a modal over the menu), the next I key-up closes the menu. Low impact.
+
+### 2026-11-27 close-out on current main
+
+**Status: DONE.** Re-proofed the shipped implementation on clean `origin/main`
+`3aece9dc225f995c35d8b30ca0f6daa14f2a9f99`; no gameplay code regressed and
+no code, content, config or playtest script changed in this close-out.
+
+- Compile: `LyraEditor Win64 Development` PASS.
+- Tier 1 targeted: `Mordecai.Recovery.PauseMenu` 7 / 7 PASS
+  (`Saved/TestLogs/tests-20261127-002803.log`).
+- Tier 1 overall: 984 / 984 `Mordecai.*` PASS
+  (`Saved/TestLogs/tests-20261127-002955.log`).
+- Python tooling: 817 / 817 PASS.
+- Tier 2: 23 / 23 PIE scripts PASS. `verify_pie_pause_menu.py` is 44 / 44:
+  PreviousTab and NextTab registered once, Inventory registered twice (press and
+  key-up), and the `[LOGIC]` next / previous / close diagnostics pass.
+- Package: `PackagedBuilds/Playtest/build_info.json` records commit
+  `3aece9dc`, `dirty=false`, `source_changed_during_build=false`; UAT log
+  `Saved/Playtests/package-20261127-012809.log`.
+- Tier 3: `Saved/Playtests/20261127-013954-boot` PASS (fresh package,
+  B_MordecaiArenaExperience, no crash, no missing cooked content, 0 errors,
+  all 3 engine and 3 desktop frames non-black/non-uniform). The story runner's
+  second Tier 3 boot also PASSed at `Saved/Playtests/20261127-014032-boot`.
+- Tier 4: `Saved/Playtests/20261127-014050-us069` PASS, exit 0,
+  37 PASS / 0 WARN / 0 FAIL / 1 SKIP; 20 / 20 covered ACs accepted.
+  Story summary: `Saved/Playtests/20261127-014032-story-us095/summary.md`.
+  - `i_opens_inventory`: PASS — tapped I; menu open on Inventory after 0 s.
+  - `i_closes`: PASS — tapped I; menu closed and game unpaused after 0 s.
+  - `shoulder_switches_tab`: PASS — LB changed Settings to Inventory after 0 s.
+  - `shoulder_rb_switches_tab`: PASS — RB changed Inventory to Settings after 0 s.
+  - `i_held_closes_on_key_up`: PASS — menu stayed open during the 1.2 s hold,
+    closed on release after 0 s, and remained closed 1 s later.
+- Tier 4 numeric frame checks: all eight `bridge_NN.png` files are 1280x720,
+  non-black and non-uniform. US-095-specific paths:
+  `bridge_05.png` (LB/Inventory, stddev 22.9), `bridge_06.png`
+  (RB/Settings, stddev 18.0), and `bridge_08.png` (closed by I, stddev 32.0).
+  Per the 2026-11-26 decision, the builder did not open or delegate media.
+- Full sweep (required because the close-out adds LFS marketing stills):
+  `Saved/Playtests/20261127-014334-sweep` PASS, 6 / 6 Tier 3 boots and
+  22 / 22 Tier 4 scripts, no failures. Compared with the prior all-PASS sweep
+  `Saved/Playtests/20261126-223825-sweep`, `pass_to_fail=[]`.
+- Marketing: `marketing/us095/` contains three 1920x1080 LFS stills for
+  Character, Inventory and Settings. ffprobe, blackdetect, non-uniform/black
+  checks, green/yellow debug-colour pixel checks, and runtime actor-name-label
+  checks all PASS in `content-check.json`. The optional clip was omitted because
+  a paused static menu cannot honestly meet the >=90% mpdecimate unique-frame
+  rule without artificial rapid tab changes.
+
+**Open items (not fixed here):**
+- Held Escape may reopen the menu after about 0.5 s; this remains unreproduced.
+- `Specs/control_bindings_v1.1.md` still lacks “I — Inventory” and in-menu
+  LB/RB; that documentation change belongs to Jeff and was not edited here.
+- If an I key-up is lost while the menu remains active, the next I key-up may
+  close it; this remains a low-impact, unreproduced edge case.

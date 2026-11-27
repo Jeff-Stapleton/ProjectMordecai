@@ -248,12 +248,13 @@ Colours by damage type:
 - Kill-counter half (AC-086.3/086.5, issue #6) still open. Goal: "Kills: 1" top-right after killing the TestDummy.
 - Remote clients see no death screen.
 
-**US-095 Pause Menu Input** (IN PROGRESS; every US-095 check PASSes, but us069 exits 1 on N4/N5)
+**US-095 Pause Menu Input** (DONE 2026-11-27; fresh-main us069 run exits 0)
 - I closes the menu on the key-up of a press made inside the menu.
 - LB/RB cycle tabs with wrap (Character ↔ Settings).
 - Done through UI action tags `UI.Action.Mordecai.PauseMenu.{PreviousTab,NextTab,Inventory}`.
 - No keyboard equivalent for tab switching; the mouse clicks the headers.
-- `bridge_04.png` shows the filter bar overlapping "Stored Resources".
+- Close-out proof: `Saved/Playtests/20261127-014050-us069` (37 PASS, 0 FAIL);
+  the full main-baseline sweep is `Saved/Playtests/20261127-014334-sweep`.
 
 **US-088 Spell Cooldown HUD** (backlog)
 - Four cooldown widgets, one per loadout slot, labelled with the slot key Q / E / R / 1, in a row under the SP bar.
