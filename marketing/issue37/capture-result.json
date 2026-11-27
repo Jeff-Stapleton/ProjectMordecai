@@ -1,0 +1,471 @@
+{
+  "package_commit": "b400a6f3e708b27cabc60d9bcd25feab667813be",
+  "launch_flags": [
+    "-MordecaiMarketingCapture",
+    "-MordecaiMarketingFreezeAI",
+    "-NOSCREENMESSAGES",
+    "-ResX=1920",
+    "-ResY=1080",
+    "-WINDOWED",
+    "-ExecCmds=\"Mordecai.Debug.DrawMeleeHitShapes 0,ShowFlag.TextRender 0,t.MaxFPS 30,r.SetRes 1920x1080f\""
+  ],
+  "stills": [
+    {
+      "path": "still_01_inventory_all.png",
+      "caption": "Pause-menu Inventory tab with All selected, four item rows, and the Stored Resources ledger.",
+      "sha256": "59b27398db3efd63058cf74021b19e82ad51a8a69dcf54f7c676b6dd9c488611",
+      "filter": "all",
+      "rows": [
+        "Upgrade Key",
+        "Rusty Sword",
+        "? Unidentified Purple Amulet",
+        "Health Potion"
+      ],
+      "ledger_rows": [
+        "Iron Ore  x1",
+        "Town Stone  x1"
+      ],
+      "widget_rect": [
+        476,
+        345,
+        968,
+        499
+      ],
+      "widget_texts": [
+        "All",
+        "Weapons",
+        "Armor",
+        "Trinkets",
+        "Consumables",
+        "Materials",
+        "Quest",
+        "Magical",
+        "Upgrade Key",
+        "Rusty Sword",
+        "? Unidentified Purple Amulet",
+        "Identify",
+        "Health Potion",
+        "Stored Resources",
+        "Iron Ore  x1",
+        "Town Stone  x1"
+      ],
+      "filter_buttons": [
+        {
+          "id": "all",
+          "label": "All",
+          "center": [
+            513.5,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "weapons",
+          "label": "Weapons",
+          "center": [
+            636,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "armor",
+          "label": "Armor",
+          "center": [
+            783.5,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "trinkets",
+          "label": "Trinkets",
+          "center": [
+            923,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "consumables",
+          "label": "Consumables",
+          "center": [
+            593,
+            418
+          ],
+          "enabled": true
+        },
+        {
+          "id": "materials",
+          "label": "Materials",
+          "center": [
+            796.5,
+            418
+          ],
+          "enabled": true
+        },
+        {
+          "id": "quest",
+          "label": "Quest",
+          "center": [
+            944.5,
+            418
+          ],
+          "enabled": true
+        },
+        {
+          "id": "magical",
+          "label": "Magical",
+          "center": [
+            1082,
+            418
+          ],
+          "enabled": true
+        }
+      ],
+      "crop_stats": {
+        "bounds": [
+          476,
+          345,
+          1444,
+          485
+        ],
+        "size": [
+          968,
+          140
+        ],
+        "rgb_mean": [
+          86.624,
+          87.815,
+          100.384
+        ],
+        "rgb_stddev": [
+          52.502,
+          53.347,
+          51.604
+        ],
+        "luma_min": 59,
+        "luma_max": 255,
+        "near_black_ratio": 0.0,
+        "edge_pixel_ratio": 0.122285,
+        "sampled_unique_colors": 996
+      },
+      "verification": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\issue37\\still_01_inventory_all.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 28.805,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "path": "still_02_inventory_weapons.png",
+      "caption": "Pause-menu Inventory tab with Weapons selected, the Rusty Sword row, and the Stored Resources ledger.",
+      "sha256": "8eded4f59ea57fcfdb263c81e2336ffdf7239d52f035514d489f9d23d79cf750",
+      "filter": "weapons",
+      "rows": [
+        "Rusty Sword"
+      ],
+      "ledger_rows": [
+        "Iron Ore  x1",
+        "Town Stone  x1"
+      ],
+      "widget_rect": [
+        476,
+        345,
+        968,
+        499
+      ],
+      "widget_texts": [
+        "All",
+        "Weapons",
+        "Armor",
+        "Trinkets",
+        "Consumables",
+        "Materials",
+        "Quest",
+        "Magical",
+        "Rusty Sword",
+        "Stored Resources",
+        "Iron Ore  x1",
+        "Town Stone  x1"
+      ],
+      "filter_buttons": [
+        {
+          "id": "all",
+          "label": "All",
+          "center": [
+            513.5,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "weapons",
+          "label": "Weapons",
+          "center": [
+            636,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "armor",
+          "label": "Armor",
+          "center": [
+            783.5,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "trinkets",
+          "label": "Trinkets",
+          "center": [
+            923,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "consumables",
+          "label": "Consumables",
+          "center": [
+            593,
+            418
+          ],
+          "enabled": true
+        },
+        {
+          "id": "materials",
+          "label": "Materials",
+          "center": [
+            796.5,
+            418
+          ],
+          "enabled": true
+        },
+        {
+          "id": "quest",
+          "label": "Quest",
+          "center": [
+            944.5,
+            418
+          ],
+          "enabled": true
+        },
+        {
+          "id": "magical",
+          "label": "Magical",
+          "center": [
+            1082,
+            418
+          ],
+          "enabled": true
+        }
+      ],
+      "crop_stats": {
+        "bounds": [
+          476,
+          345,
+          1444,
+          485
+        ],
+        "size": [
+          968,
+          140
+        ],
+        "rgb_mean": [
+          89.515,
+          90.41,
+          102.605
+        ],
+        "rgb_stddev": [
+          54.685,
+          55.307,
+          51.984
+        ],
+        "luma_min": 59,
+        "luma_max": 255,
+        "near_black_ratio": 0.0,
+        "edge_pixel_ratio": 0.122152,
+        "sampled_unique_colors": 961
+      },
+      "verification": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\issue37\\still_02_inventory_weapons.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 26.3744,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "path": "still_03_inventory_consumables.png",
+      "caption": "Pause-menu Inventory tab with Consumables selected, the Health Potion row, and the Stored Resources ledger.",
+      "sha256": "0b5202e07a8b48ee454985e3dd965356b61fb4abb8c625b0caf8856747951b46",
+      "filter": "consumables",
+      "rows": [
+        "Health Potion"
+      ],
+      "ledger_rows": [
+        "Iron Ore  x1",
+        "Town Stone  x1"
+      ],
+      "widget_rect": [
+        476,
+        345,
+        968,
+        499
+      ],
+      "widget_texts": [
+        "All",
+        "Weapons",
+        "Armor",
+        "Trinkets",
+        "Consumables",
+        "Materials",
+        "Quest",
+        "Magical",
+        "Health Potion",
+        "Stored Resources",
+        "Iron Ore  x1",
+        "Town Stone  x1"
+      ],
+      "filter_buttons": [
+        {
+          "id": "all",
+          "label": "All",
+          "center": [
+            513.5,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "weapons",
+          "label": "Weapons",
+          "center": [
+            636,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "armor",
+          "label": "Armor",
+          "center": [
+            783.5,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "trinkets",
+          "label": "Trinkets",
+          "center": [
+            923,
+            368
+          ],
+          "enabled": true
+        },
+        {
+          "id": "consumables",
+          "label": "Consumables",
+          "center": [
+            593,
+            418
+          ],
+          "enabled": true
+        },
+        {
+          "id": "materials",
+          "label": "Materials",
+          "center": [
+            796.5,
+            418
+          ],
+          "enabled": true
+        },
+        {
+          "id": "quest",
+          "label": "Quest",
+          "center": [
+            944.5,
+            418
+          ],
+          "enabled": true
+        },
+        {
+          "id": "magical",
+          "label": "Magical",
+          "center": [
+            1082,
+            418
+          ],
+          "enabled": true
+        }
+      ],
+      "crop_stats": {
+        "bounds": [
+          476,
+          345,
+          1444,
+          485
+        ],
+        "size": [
+          968,
+          140
+        ],
+        "rgb_mean": [
+          90.653,
+          91.884,
+          104.49
+        ],
+        "rgb_stddev": [
+          55.261,
+          56.091,
+          53.047
+        ],
+        "luma_min": 59,
+        "luma_max": 255,
+        "near_black_ratio": 0.0,
+        "edge_pixel_ratio": 0.122794,
+        "sampled_unique_colors": 1030
+      },
+      "verification": {
+        "file": "C:\\Users\\jeffd\\Documents\\Gamedev\\ProjectMordecai\\marketing\\issue37\\still_03_inventory_consumables.png",
+        "width": 1920,
+        "height": 1080,
+        "luminance_stddev_max_channel": 26.6777,
+        "non_uniform": true,
+        "hud_region_non_uniform": true,
+        "debug_colors": {
+          "world_debug_green_pixels": 0,
+          "screen_debug_yellow_pixels": 0,
+          "maximum_allowed_pixels": 100,
+          "passed": true
+        },
+        "passed": true
+      }
+    }
+  ],
+  "clip": null,
+  "clip_note": "Optional clip omitted; three script-verified stills cover the UI-only fix.",
+  "passed": true
+}
