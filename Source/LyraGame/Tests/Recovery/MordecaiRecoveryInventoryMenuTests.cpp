@@ -11,7 +11,7 @@
 #include "Misc/AutomationTest.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
-#include "Components/HorizontalBox.h"
+#include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
@@ -165,7 +165,9 @@ namespace MordecaiRecoveryInventoryMenuTest
 	/** Click a filter button the way the bridge's click does: its UButton OnClicked, relayed with the filter id. */
 	bool ClickFilterButton(const UMordecaiInventoryWidget* Content, FName FilterId)
 	{
-		const UHorizontalBox* FilterBar = Content && Content->WidgetTree ? Content->WidgetTree->FindWidget<UHorizontalBox>(TEXT("FilterBar")) : nullptr;
+		const UPanelWidget* FilterBar = Content && Content->WidgetTree
+			? Content->WidgetTree->FindWidget<UPanelWidget>(TEXT("FilterBar"))
+			: nullptr;
 		if (!FilterBar)
 		{
 			return false;

@@ -599,3 +599,19 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Builders verify media numerically only: ffprobe, frame uniqueness, black/freeze detection, and colour stats.
 - The coordinator views acceptance screenshots and marketing media and records what is on screen in the story's Completion Notes.
 - This supersedes the "open every screenshot with the Read tool" instruction for builders in `CLAUDE.md` Step 6 and the playtest harness documentation.
+
+---
+
+## 2026-11-26 — Issue #37 inventory filter wrapping ahead of US-108
+
+- Fix issue #37 standalone before US-108. Keep the optional binding name
+  `FilterBar`, but bind and build it as a `UWrapBox` with `UWrapBoxSlot`
+  padding and inner row spacing so all eight existing filters stay inside the
+  list column and cannot overlap the ledger header.
+- Keep every shipping filter and string unchanged. Do not restyle the
+  inventory, add filters, add copy, or pull Tin Tally theme work forward;
+  US-108 AC-108.4 remains the styling owner.
+- Verify the no-overlap layout at 1920x1080 and 1280x720. Add a minimum ledger
+  width or list-column clipping only if wrapping alone does not provide the
+  guarantee.
+- Source: decided by the coordinator for Jeff for issue #37 (2026-11-26).

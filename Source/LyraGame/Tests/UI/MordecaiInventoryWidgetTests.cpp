@@ -4,8 +4,16 @@
 // and rebuild-on-delegate behavior.
 
 #include "Misc/AutomationTest.h"
+#include "Misc/App.h"
+#include "Misc/ScopeExit.h"
 #include "Engine/GameInstance.h"
 
+#include "Blueprint/WidgetTree.h"
+#include "Components/PanelWidget.h"
+#include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/WrapBox.h"
+#include "Input/HittestGrid.h"
 #include "Mordecai/Items/MordecaiIdentificationService.h"
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
 #include "Mordecai/Items/MordecaiItemDefinition.h"
@@ -15,6 +23,11 @@
 #include "Mordecai/Items/MordecaiResourceLedger.h"
 #include "Mordecai/UI/MordecaiInventoryWidget.h"
 #include "Mordecai/UI/MordecaiPauseMenuWidget.h"
+#include "Rendering/DrawElements.h"
+#include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
+#include "Types/PaintArgs.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SVirtualWindow.h"
 #include "MordecaiInventoryWidgetTestHelpers.h"
 
 // ---------------------------------------------------------------------------
@@ -87,6 +100,62 @@ namespace MordecaiInventoryWidgetTestHelpers
 	{
 		UGameInstance* GI = NewObject<UGameInstance>();
 		return NewObject<UMordecaiIdentificationService>(GI);
+	}
+
+	static void PaintForCachedGeometry(
+		UUserWidget* Widget,
+		const TSharedRef<SWidget>& SlateWidget,
+		const FVector2D& ViewportSize)
+	{
+		TSharedRef<SVirtualWindow> Window = SNew(SVirtualWindow).Size(ViewportSize);
+		Window->SetContent(SlateWidget);
+		Window->Resize(ViewportSize);
+		Widget->ForceLayoutPrepass();
+		SlateWidget->SlatePrepass(1.f);
+
+		const FGeometry RootGeometry = FGeometry::MakeRoot(
+			ViewportSize, FSlateLayoutTransform(1.f));
+		const FSlateRect CullingRect = RootGeometry.GetLayoutBoundingRect();
+		FHittestGrid HitTestGrid;
+		HitTestGrid.SetHittestArea(CullingRect.GetTopLeft(), CullingRect.GetSize());
+		FSlateWindowElementList DrawElements(Window);
+		const FPaintArgs PaintArgs(
+			nullptr, HitTestGrid, FVector2D::ZeroVector,
+			FApp::GetCurrentTime(), 0.f);
+		SlateWidget->Paint(
+			PaintArgs, RootGeometry, CullingRect, DrawElements, 0,
+			FWidgetStyle(), true);
+	}
+
+	static FSlateRect CachedRect(const UWidget* Widget)
+	{
+		const FGeometry Geometry = Widget->GetCachedGeometry();
+		const FVector2D Position = Geometry.GetAbsolutePosition();
+		const FVector2D Size = Geometry.GetLocalSize();
+		return FSlateRect(
+			Position.X, Position.Y, Position.X + Size.X, Position.Y + Size.Y);
+	}
+
+	static FString RectString(const FSlateRect& Rect)
+	{
+		return FString::Printf(
+			TEXT("[%.1f,%.1f]-[%.1f,%.1f]"),
+			Rect.Left, Rect.Top, Rect.Right, Rect.Bottom);
+	}
+
+	static bool ContainsRect(const FSlateRect& Outer, const FSlateRect& Inner)
+	{
+		constexpr float Tolerance = 0.1f;
+		return Inner.Left >= Outer.Left - Tolerance
+			&& Inner.Top >= Outer.Top - Tolerance
+			&& Inner.Right <= Outer.Right + Tolerance
+			&& Inner.Bottom <= Outer.Bottom + Tolerance;
+	}
+
+	static bool Intersects(const FSlateRect& A, const FSlateRect& B)
+	{
+		return A.Left < B.Right && A.Right > B.Left
+			&& A.Top < B.Bottom && A.Bottom > B.Top;
 	}
 }
 
@@ -730,6 +799,113 @@ bool FMordecai_UI_Inventory_RegistersWithPauseMenu::RunTest(const FString& Param
 
 	// Null pause menu must not crash
 	UMordecaiInventoryWidget::RegisterWithPauseMenu(nullptr);
+
+	return true;
+}
+
+// ===========================================================================
+// 19. Mordecai.UI.Inventory.FilterBarStaysInsideListColumn (issue #37)
+// ===========================================================================
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_UI_Inventory_FilterBarStaysInsideListColumn,
+	"Mordecai.UI.Inventory.FilterBarStaysInsideListColumn",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_UI_Inventory_FilterBarStaysInsideListColumn::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiInventoryWidgetTestHelpers;
+	using namespace MordecaiRecoveryTest;
+
+	FRecoveryControlledTestEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownWithController(); };
+	if (!TestTrue("controlled player world", Env.SetupWithController()))
+	{
+		return true;
+	}
+	UMordecaiInventoryWidget* Inventory = Env.MakeWidget<UMordecaiInventoryWidget>();
+
+	UPanelWidget* FilterPanel = Inventory->WidgetTree
+		? Cast<UPanelWidget>(Inventory->WidgetTree->FindWidget(TEXT("FilterBar")))
+		: nullptr;
+	UVerticalBox* ListColumn = Inventory->WidgetTree
+		? Cast<UVerticalBox>(Inventory->WidgetTree->FindWidget(TEXT("ListColumn")))
+		: nullptr;
+	UTextBlock* LedgerHeader = Inventory->WidgetTree
+		? Cast<UTextBlock>(Inventory->WidgetTree->FindWidget(TEXT("LedgerHeader")))
+		: nullptr;
+	TestNotNull("FilterBar exists", FilterPanel);
+	TestNotNull("ListColumn exists", ListColumn);
+	TestNotNull("LedgerHeader exists", LedgerHeader);
+	TestNotNull("FilterBar is a UWrapBox", Cast<UWrapBox>(FilterPanel));
+	if (!FilterPanel || !ListColumn || !LedgerHeader)
+	{
+		return true;
+	}
+	TestEqual("all eight shipping filters exist", FilterPanel->GetChildrenCount(), 8);
+
+	// The fallback pause shell is 1000 px wide with 16 px content padding on each side.
+	// Centre that exact 968 px content area in each requested viewport.
+	TSharedRef<SWidget> InventorySlate = Inventory->TakeWidget();
+	TSharedRef<SWidget> TestShell =
+		SNew(SBox)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox)
+			.WidthOverride(968.f)
+			.HeightOverride(499.f)
+			[
+				InventorySlate
+			]
+		];
+	const FVector2D Viewports[] = {
+		FVector2D(1920.f, 1080.f),
+		FVector2D(1280.f, 720.f),
+	};
+	for (const FVector2D& Viewport : Viewports)
+	{
+		PaintForCachedGeometry(Inventory, TestShell, Viewport);
+		const FSlateRect ListRect = CachedRect(ListColumn);
+		const FSlateRect HeaderRect = CachedRect(LedgerHeader);
+		TestTrue(
+			FString::Printf(TEXT("%.0fx%.0f ListColumn has layout geometry %s"),
+				Viewport.X, Viewport.Y, *RectString(ListRect)),
+			ListRect.Right > ListRect.Left && ListRect.Bottom > ListRect.Top);
+		TestTrue(
+			FString::Printf(TEXT("%.0fx%.0f LedgerHeader has layout geometry %s"),
+				Viewport.X, Viewport.Y, *RectString(HeaderRect)),
+			HeaderRect.Right > HeaderRect.Left && HeaderRect.Bottom > HeaderRect.Top);
+
+		FSlateRect FiltersRect(
+			TNumericLimits<float>::Max(), TNumericLimits<float>::Max(),
+			TNumericLimits<float>::Lowest(), TNumericLimits<float>::Lowest());
+		TSet<int32> FilterRows;
+		for (int32 Index = 0; Index < FilterPanel->GetChildrenCount(); ++Index)
+		{
+			const UWidget* Button = FilterPanel->GetChildAt(Index);
+			const FSlateRect ButtonRect = CachedRect(Button);
+			FiltersRect.Left = FMath::Min(FiltersRect.Left, ButtonRect.Left);
+			FiltersRect.Top = FMath::Min(FiltersRect.Top, ButtonRect.Top);
+			FiltersRect.Right = FMath::Max(FiltersRect.Right, ButtonRect.Right);
+			FiltersRect.Bottom = FMath::Max(FiltersRect.Bottom, ButtonRect.Bottom);
+			FilterRows.Add(FMath::RoundToInt(ButtonRect.Top));
+			TestTrue(
+				FString::Printf(
+					TEXT("%.0fx%.0f filter %d %s stays inside ListColumn %s"),
+					Viewport.X, Viewport.Y, Index, *RectString(ButtonRect),
+					*RectString(ListRect)),
+				ContainsRect(ListRect, ButtonRect));
+			TestFalse(
+				FString::Printf(
+					TEXT("%.0fx%.0f filter %d %s does not intersect LedgerHeader %s"),
+					Viewport.X, Viewport.Y, Index, *RectString(ButtonRect),
+					*RectString(HeaderRect)),
+				Intersects(ButtonRect, HeaderRect));
+		}
+		AddInfo(FString::Printf(
+			TEXT("%.0fx%.0f geometry: ListColumn=%s, LedgerHeader=%s, filters=%s across %d rows"),
+			Viewport.X, Viewport.Y, *RectString(ListRect), *RectString(HeaderRect),
+			*RectString(FiltersRect), FilterRows.Num()));
+	}
 
 	return true;
 }

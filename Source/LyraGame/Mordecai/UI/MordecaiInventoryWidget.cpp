@@ -9,6 +9,8 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Components/WrapBox.h"
+#include "Components/WrapBoxSlot.h"
 #include "Engine/GameInstance.h"
 #include "Mordecai/Items/MordecaiIdentificationService.h"
 #include "Mordecai/Items/MordecaiInventoryComponent.h"
@@ -413,7 +415,8 @@ void UMordecaiInventoryWidget::BuildDefaultLayout()
 		ListColumnSlot->SetPadding(FMargin(0.f, 0.f, 12.f, 0.f));
 	}
 
-	FilterBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("FilterBar"));
+	FilterBar = WidgetTree->ConstructWidget<UWrapBox>(UWrapBox::StaticClass(), TEXT("FilterBar"));
+	FilterBar->SetInnerSlotPadding(FVector2D(0.f, 4.f));
 	if (UVerticalBoxSlot* FilterSlot = ListColumn->AddChildToVerticalBox(FilterBar))
 	{
 		FilterSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
@@ -479,7 +482,7 @@ void UMordecaiInventoryWidget::RefreshVisuals()
 			Label->SetColorAndOpacity(FSlateColor(bActive ? FLinearColor::White : FLinearColor(0.7f, 0.7f, 0.7f, 1.f)));
 			Button->AddChild(Label);
 
-			if (UHorizontalBoxSlot* ButtonSlot = FilterBar->AddChildToHorizontalBox(Button))
+			if (UWrapBoxSlot* ButtonSlot = FilterBar->AddChildToWrapBox(Button))
 			{
 				ButtonSlot->SetPadding(FMargin(2.f, 0.f));
 			}

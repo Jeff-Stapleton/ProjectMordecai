@@ -9,7 +9,6 @@
 
 #include "MordecaiInventoryWidget.generated.h"
 
-class UHorizontalBox;
 class UMordecaiIdentificationService;
 class UMordecaiInventoryComponent;
 class UMordecaiPauseMenuWidget;
@@ -18,6 +17,7 @@ class UScrollBox;
 class UTextBlock;
 class UTexture2D;
 class UVerticalBox;
+class UWrapBox;
 
 /**
  * EMordecaiInventoryFilter
@@ -273,7 +273,7 @@ protected:
 	// --- Programmatic fallback layout (US-079) — BP polish can override ---
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UHorizontalBox> FilterBar;
+	TObjectPtr<UWrapBox> FilterBar;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UScrollBox> ItemListBox;
