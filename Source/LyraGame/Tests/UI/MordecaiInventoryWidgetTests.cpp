@@ -875,10 +875,19 @@ bool FMordecai_UI_Inventory_FilterBarStaysInsideListColumn::RunTest(const FStrin
 				Viewport.X, Viewport.Y, *RectString(HeaderRect)),
 			HeaderRect.Right > HeaderRect.Left && HeaderRect.Bottom > HeaderRect.Top);
 
+		FSlateRect FiltersRect(
+			TNumericLimits<float>::Max(), TNumericLimits<float>::Max(),
+			TNumericLimits<float>::Lowest(), TNumericLimits<float>::Lowest());
+		TSet<int32> FilterRows;
 		for (int32 Index = 0; Index < FilterPanel->GetChildrenCount(); ++Index)
 		{
 			const UWidget* Button = FilterPanel->GetChildAt(Index);
 			const FSlateRect ButtonRect = CachedRect(Button);
+			FiltersRect.Left = FMath::Min(FiltersRect.Left, ButtonRect.Left);
+			FiltersRect.Top = FMath::Min(FiltersRect.Top, ButtonRect.Top);
+			FiltersRect.Right = FMath::Max(FiltersRect.Right, ButtonRect.Right);
+			FiltersRect.Bottom = FMath::Max(FiltersRect.Bottom, ButtonRect.Bottom);
+			FilterRows.Add(FMath::RoundToInt(ButtonRect.Top));
 			TestTrue(
 				FString::Printf(
 					TEXT("%.0fx%.0f filter %d %s stays inside ListColumn %s"),
@@ -892,6 +901,10 @@ bool FMordecai_UI_Inventory_FilterBarStaysInsideListColumn::RunTest(const FStrin
 					*RectString(HeaderRect)),
 				Intersects(ButtonRect, HeaderRect));
 		}
+		AddInfo(FString::Printf(
+			TEXT("%.0fx%.0f geometry: ListColumn=%s, LedgerHeader=%s, filters=%s across %d rows"),
+			Viewport.X, Viewport.Y, *RectString(ListRect), *RectString(HeaderRect),
+			*RectString(FiltersRect), FilterRows.Num()));
 	}
 
 	return true;
