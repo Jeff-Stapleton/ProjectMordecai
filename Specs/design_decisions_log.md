@@ -615,3 +615,16 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
   width or list-column clipping only if wrapping alone does not provide the
   guarantee.
 - Source: decided by the coordinator for Jeff for issue #37 (2026-11-26).
+
+---
+
+## 2026-11-27 — Stamina spend at the floor (issue #148)
+
+- Any accepted stamina spend resets the regeneration delay, including
+  break-free when stamina is already at, or is clamped to, the shared `-50`
+  floor. Stamina never goes below `-50`.
+- Spend amounts, the floor, delay length, and regeneration rate remain
+  unchanged.
+- Keep this behavior in the shared stamina-spend path when that does not alter
+  other behavior; do not special-case break-free unnecessarily.
+- Source: decided by the coordinator for Jeff for issue #148 (2026-11-27).

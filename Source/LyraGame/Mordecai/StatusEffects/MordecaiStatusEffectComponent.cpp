@@ -13,6 +13,7 @@
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_MicroStunned.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
+#include "Mordecai/Combat/MordecaiStaminaRuntimeComponent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayEffect.h"
@@ -429,17 +430,8 @@ void UMordecaiStatusEffectComponent::OnBreakFreeEvent(const FGameplayEventData* 
 
 	// Low stamina never blocks an action. Spend the full break-free cost and
 	// let UMordecaiAttributeSet clamp the result to the shared -50 floor.
-	UGameplayEffect* StaminaCostGE = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_MordecaiBreakFreeStaminaCost"));
-	StaminaCostGE->DurationPolicy = EGameplayEffectDurationType::Instant;
-
-	FGameplayModifierInfo& Mod = StaminaCostGE->Modifiers.AddDefaulted_GetRef();
-	Mod.Attribute = UMordecaiAttributeSet::GetStaminaAttribute();
-	Mod.ModifierOp = EGameplayModOp::Additive;
-	Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(-CachedBreakFreeStaminaCost));
-
-	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
-	FGameplayEffectSpec Spec(StaminaCostGE, Context, 1.0f);
-	ASC->ApplyGameplayEffectSpecToSelf(Spec);
+	UMordecaiStaminaRuntimeComponent::SpendStamina(
+		ASC, CachedBreakFreeStaminaCost);
 
 	// Remove Root
 	RemoveStatusEffect(MordecaiGameplayTags::Status_Rooted);

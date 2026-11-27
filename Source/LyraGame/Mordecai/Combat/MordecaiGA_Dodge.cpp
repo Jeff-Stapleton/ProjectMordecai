@@ -4,6 +4,7 @@
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Combat/MordecaiStaminaRuntimeComponent.h"
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/MordecaiCharacter.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
@@ -362,8 +363,7 @@ void UMordecaiGA_Dodge::ApplyStaminaCost()
 	if (!ASC) return;
 
 	// Consume stamina — dodge always fires regardless of current stamina.
-	// Per stamina tier rules, stamina may go to 0 (clamped by attribute set).
-	ASC->ApplyModToAttribute(UMordecaiAttributeSet::GetStaminaAttribute(), EGameplayModOp::Additive, -StaminaCost);
+	UMordecaiStaminaRuntimeComponent::SpendStamina(ASC, StaminaCost);
 }
 
 // ---------------------------------------------------------------------------

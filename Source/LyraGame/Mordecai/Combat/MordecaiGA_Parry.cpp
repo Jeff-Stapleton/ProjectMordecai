@@ -4,6 +4,7 @@
 #include "Mordecai/Combat/MordecaiGA_Block.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Combat/MordecaiStaminaRuntimeComponent.h"
 #include "Mordecai/Enemy/MordecaiEnemyCharacter.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
@@ -261,7 +262,7 @@ void UMordecaiGA_Parry::ApplyStaminaCost()
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (!ASC) return;
 
-	ASC->ApplyModToAttribute(UMordecaiAttributeSet::GetStaminaAttribute(), EGameplayModOp::Additive, -ParryStaminaCost);
+	UMordecaiStaminaRuntimeComponent::SpendStamina(ASC, ParryStaminaCost);
 }
 
 // ---------------------------------------------------------------------------

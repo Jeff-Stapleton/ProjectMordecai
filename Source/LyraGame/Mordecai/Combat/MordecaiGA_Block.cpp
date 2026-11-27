@@ -5,6 +5,7 @@
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
 #include "Mordecai/Combat/MordecaiGA_MeleeAttack.h"
+#include "Mordecai/Combat/MordecaiStaminaRuntimeComponent.h"
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/Weapons/MordecaiEquipmentComponent.h"
 #include "Mordecai/Weapons/MordecaiShieldDataAsset.h"
@@ -186,10 +187,7 @@ float UMordecaiGA_Block::ReceiveBlockedHit(float IncomingDamage, double HitTime,
 	// Apply stamina drain
 	if (OwnerASC)
 	{
-		OwnerASC->ApplyModToAttribute(
-			UMordecaiAttributeSet::GetStaminaAttribute(),
-			EGameplayModOp::Additive,
-			-StaminaDrain);
+		UMordecaiStaminaRuntimeComponent::SpendStamina(OwnerASC, StaminaDrain);
 
 		// Apply health damage
 		OwnerASC->ApplyModToAttribute(
