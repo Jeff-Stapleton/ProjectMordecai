@@ -14,10 +14,10 @@
 | Heavy / Charged Attack | Combat | RT (hold) | Left Mouse (hold) | Charge time depends on weapon. |
 | Block | Combat | LT (hold) | Right Mouse (hold) | Block drains stamina; stability scales with skills/gear. |
 | Parry | Combat | LT + RT | Right Mouse + Left Mouse (timed) | Timed click while blocking; high risk/high reward. |
-| Use Skill A | Skills | RB (tap) | Q (tap) | Executes equipped Skill A. |
-| Select Skill A (Radial) | Skills | RB (hold) | Q (hold) | Option B: radial does NOT slow/pause time; selection is committed. |
-| Use Skill B | Skills | LB (tap) | E (tap) | Executes equipped Skill B. |
-| Select Skill B (Radial) | Skills | LB (hold) | E (hold) | Option B: radial does NOT slow/pause time; selection is committed. |
+| Use Skill A | Skills | LB (tap) | Q (tap) | Executes equipped Skill A. |
+| Select Skill A (Radial) | Skills | LB (hold) | Q (hold) | Option B: radial does NOT slow/pause time; selection is committed. |
+| Use Skill B | Skills | RB (tap) | E (tap) | Executes equipped Skill B. |
+| Select Skill B (Radial) | Skills | RB (hold) | E (hold) | Option B: radial does NOT slow/pause time; selection is committed. |
 | Jump | Movement | A | Space | Traversal + combat spacing. |
 | Dodge | Combat | B | Left Alt | Always possible; effectiveness depends on stamina tier. |
 | Interact | World | X | F | Talk, loot, activate, climb prompts. |
