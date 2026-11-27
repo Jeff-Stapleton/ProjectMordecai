@@ -902,7 +902,7 @@ class TestUs001Plan(unittest.TestCase):
             for ac in self.story_ac_ids(
                 os.path.join(
                     os.path.dirname(SCRIPTS),
-                    "stories", "in-progress", "US-085-recovery-frontliner-content.md")
+                    "stories", "done", "US-085-recovery-frontliner-content.md")
             )
         }
         for step in us001.PLAN:

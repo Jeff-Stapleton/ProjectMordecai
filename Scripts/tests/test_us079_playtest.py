@@ -241,7 +241,7 @@ class TestUs079AgainstTheFake(PlaytestCase):
         for s in rep["screenshots"]:
             self.assertTrue(ab.file_complete(s["path"]), s["path"])
         md = open(os.path.join(self.run_dir, "report.md"), encoding="utf-8").read()
-        self.assertIn("Open every screenshot with the Read tool", md)
+        self.assertIn("2026-11-26 media-viewing decision", md)
         self.assertIn(pb.AGENT_LINE, md)
         for s in rep["screenshots"]:
             self.assertIn(s["path"], md)

@@ -667,7 +667,7 @@ def boot_evidence(report, code):
     if reasons:
         return f"{DIAGNOSTIC} -- not acceptance evidence: " + "; ".join(reasons)
     if code == EXIT_PASS:
-        return f"{CANDIDATE} -- fresh package; open every engine_NN.png before citing this run"
+        return f"{CANDIDATE} -- fresh package; follow the 2026-11-26 media-viewing decision"
     return "FAILED on a fresh package -- the failures are real findings"
 
 
@@ -944,8 +944,8 @@ class Runner:
             return f"{DIAGNOSTIC} -- not acceptance evidence: " + "; ".join(reasons)
         if code == EXIT_PASS and all(t4["candidate"] for t4, _ in entries) and all(
                 b is None or str(b["evidence"]).startswith(CANDIDATE) for _, b in entries):
-            return (f"{CANDIDATE} -- fresh package; open every screenshot and describe it before "
-                    "citing these runs")
+            return (f"{CANDIDATE} -- fresh package; follow the 2026-11-26 media-viewing decision "
+                    "before citing these runs")
         if code == EXIT_PASS:
             return "PASSED, but not every run is an acceptance candidate (see the runs below)"
         if code == EXIT_INFRA:

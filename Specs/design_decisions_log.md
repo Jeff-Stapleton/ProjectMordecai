@@ -590,3 +590,12 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
   passes.
 - Source: decided by the coordinator for Jeff for US-085 closeout
   (2026-11-26).
+
+---
+
+## 2026-11-26 — DECIDED (coordinator for Jeff): media viewing
+
+- Builder agents must not open or delegate images or video because the model provider rejects those requests.
+- Builders verify media numerically only: ffprobe, frame uniqueness, black/freeze detection, and colour stats.
+- The coordinator views acceptance screenshots and marketing media and records what is on screen in the story's Completion Notes.
+- This supersedes the "open every screenshot with the Read tool" instruction for builders in `CLAUDE.md` Step 6 and the playtest harness documentation.

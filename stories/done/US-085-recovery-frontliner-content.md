@@ -46,6 +46,13 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
   - Issue #19, `f21525f`: 0 errors in the Tier 3 `game.log` (`Saved/Playtests/20261028-085310-boot`, exit 0) and in every Tier 4 run of the sweep `Saved/Playtests/20261028-090808-sweep`. Before: three "has no visible mesh" errors.
 - [x] AC-085.6: every asset is saved and committed; `py Scripts/check_content_committed.py` passes
   - DECIDED (coordinator for Jeff, 2026-11-26): the passing content guard is this AC's acceptance evidence.
+  - New-head evidence:
+    ```text
+    $ python3 Scripts/check_content_committed.py
+    [ContentCheck] Check 1 (uncommitted content): PASS -- no uncommitted .uasset/.umap changes
+    [ContentCheck] Check 2 (asset scripts without assets): PASS -- 1 asset-writing script(s) and 3 .uasset/.umap file(s) added/modified in range
+    RESULT: PASS
+    ```
 
 ## Technical Notes
 - One script, `Scripts/us085_configure_frontliner.py`, that sets AND saves: the BP's mesh component (a skeletal mesh already in the project — e.g. the Lyra mannequin the player uses; look up its real path, do not assume one — or an engine basic shape — anything cooked and visible from the diorama camera), `default_max_health`/posture/speed/ranges per AC-054.2, `enemy_attack_profiles = [DA_EnemyAttack_BasicSlash]`; then the DevTestMap instance overrides (one Frontliner → `DA_EnemyAttack_FireSlash` per AC-057.8); `EditorAssetLibrary.save_asset` on the BP and `save_current_level()`.
@@ -110,7 +117,7 @@ Blueprint defaults (mesh, stats, `EnemyAttackProfiles`), attack-profile DataAsse
 - [x] `py Scripts/playtest_boot.py` exits 0 — never `--allow-stale`
 - [x] On that same fresh package: `py Scripts/playtest_story.py US-054` and `py Scripts/playtest_story.py US-001`: `enemies_present`, `enemies_visible`, `enemy_damages_player`, `move_a`, `walk_lane_wp1` go from FAIL (sweep `Saved/Playtests/20261022-184702-sweep`) to PASS; the death/respawn chain runs and each result is recorded (new FAILs filed); no check that PASSed in the sweep now FAILs; `--lint` exits 0 for both — never `--allow-stale`
 - [x] Known issues "three red bars", N7, N13, N14 marked FIXED in `Specs/agent_playtest_plan_v1.md` with the run dirs
-- [x] Evidence frames were verified under the close-out's numeric-only media rule: 173/173 were non-uniform and not black, and the retained reports contain the visible-content descriptions; no image or video was opened during this close-out
+- [x] Evidence frames were verified under `Specs/design_decisions_log.md` entry "DECIDED (coordinator for Jeff): media viewing" (2026-11-26): 173/173 were non-uniform and not black, and the coordinator records the visible-content review
 - [x] Evidence cited: Tier 3 and Tier 4 run dirs in Completion Notes AND in the body of the `[US-085]` closing commit
 - [x] Pushed; story moved to `stories/done/` only after all of the above pass. A failing playtest is reported honestly and the story stays in progress
 
@@ -281,10 +288,14 @@ Jeff's decision on #47 (Technical Notes): `GetEffectiveAttackRange()` is the act
 - AC-085.1, AC-085.2 and AC-085.3: `Saved/Playtests/20261126-091902-us054` — `enemies_visible`, `enemies_present` and `enemy_damages_player` PASS; the three Frontliners are visible at 200/200, a real Frontliner hit lowers player health, and the fire child applies Burning.
 - AC-085.4: `Saved/Playtests/20261126-091835-us001` — `move_a` and `walk_lane_wp1` PASS on enemy-free MovementTestMap, accepted by the coordinator for Jeff.
 - AC-085.5: `Saved/Playtests/20261126-091703-boot` — Tier 3 PASS with zero log errors and no missing cooked Mordecai content.
-- AC-085.6: `py Scripts/check_content_committed.py` PASS after the closing content was staged.
+- AC-085.6: `python3 Scripts/check_content_committed.py` PASS at this close-out commit; the command output summary is recorded under the AC above.
 
 **Death/respawn chain.** `Saved/Playtests/20261126-091912-us054combat` — `player_dies`, `dead_no_move`, `respawn`, `arena_reset` and `respawn_moves` PASS; `burning_on_hit` is WARN only because the fixed TestAttacker uses BasicSlash. Burning is separately PASS against the fire Frontliner in `20261126-091902-us054`.
 
-**Regression and visual evidence.** `Saved/Playtests/20261126-091741-story-us085` PASS. Final sweep `Saved/Playtests/20261126-092025-sweep` PASS (6 Tier 3 boots, 22 Tier 4 scripts); comparison against `93948f22860006fccef2eac53eddf0f115a771da` has no PASS-to-FAIL transitions. Per the close-out hard rule, no media was opened; `numeric-frame-audit.json` verified all 173 acceptance frames as non-uniform and not black, while the run reports retain the previously recorded frame descriptions.
+**Regression and visual evidence.** `Saved/Playtests/20261126-091741-story-us085` PASS. Final sweep `Saved/Playtests/20261126-092025-sweep` PASS (6 Tier 3 boots, 22 Tier 4 scripts); comparison against `93948f22860006fccef2eac53eddf0f115a771da` has no PASS-to-FAIL transitions. An earlier builder session opened acceptance PNGs. During the final close-out, `numeric-frame-audit.json` verified all 173 acceptance frames as non-uniform and not black, while the run reports retain the previously recorded frame descriptions.
+
+### Coordinator media review (2026-11-26)
+
+Coordinator viewed contact sheets of the three stills and the clip from package 2cc9acc6. still_01: three red Frontliner enemies closing on the grey player capsule in the DevTestMap blockout arena, HP 100%, HUD on, no debug overlays. still_02: player surrounded by three Frontliners after a hit, HP 52%, Burning 4.7 status chip on the HUD. still_03: near-duplicate of still_02 (HP 49%, Burning 3.8), dropped. Clip rejected: frames were deduplicated, re-timed to 13.2 fps and blended up to 30 fps (slow motion with ghosting), which fails the real-30fps rule. Recapture tracked in #174. Burning shows only as a HUD chip; there is no on-screen fire effect.
 
 **Playable Status:** enemies and enemy AI — PLAYABLE (input); death/respawn — PLAYABLE (input). Marketing media is in `marketing/us085/`; it numerically verifies three Frontliners closing, a hit and Burning. Death/respawn marketing footage remains a capture follow-up after the three-run limit; acceptance is unaffected because the Tier 4 death/respawn chain passes.

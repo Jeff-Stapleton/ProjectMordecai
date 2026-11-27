@@ -143,8 +143,9 @@ UNIFORM_RANGE = 12      # max-min luminance at or below this = flat image
 UNIFORM_STDDEV = 3.0    # luminance stddev below this = flat image
 BLACK_MAX = 16          # brightest pixel at or below this = black frame
 
-AGENT_LINE = ("AGENT: open each screenshot with the Read tool and describe what is "
-              "actually on screen before declaring the story done.")
+AGENT_LINE = ("AGENT: follow the 2026-11-26 \"DECIDED (coordinator for Jeff): media viewing\" "
+              "entry in Specs/design_decisions_log.md: builders verify media numerically; the "
+              "coordinator views and describes it.")
 
 EXIT_PASS, EXIT_FAIL, EXIT_INFRA = 0, 1, 2
 
