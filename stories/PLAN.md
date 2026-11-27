@@ -107,7 +107,7 @@ The first Phase 3 sweep (`py Scripts/playtest_story.py --all` on a fresh package
 - US-091: weapon loadout plate + D20 CommonUI combat-HUD root migration (HEADLESS — N3, issue #8)
 - US-092: Always-on enemy indicators from spawn (HEADLESS — N17)
 - US-093: Pause menu Character / Skills / Feats tab contents (HEADLESS — N4, N5)
-- US-095: Pause menu input: I closes, LB/RB switch tabs (HEADLESS — I-close, N18 ← TODO(DECISION) for LB/RB)
+- US-095: Pause menu input: I closes, LB/RB switch tabs (HEADLESS) — DONE 2026-11-27; fresh-main story run `Saved/Playtests/20261127-014032-story-us095` and full sweep `Saved/Playtests/20261127-014334-sweep` PASS
 - US-097: Gamepad move / look / sprint key names (HEADLESS — invalid FKeys)
 - US-096: Previous-weapon key + weapon effects reach the ASC (HEADLESS — N9 ← TODO(DECISION) Shift+Tab vs BackSlash)
 - US-098: Facing and aim follow mouse / right stick (HEADLESS — BLOCKED on TODO(DECISION) fixed facing)
@@ -187,7 +187,7 @@ Delegated town systems.
     - Batch 1b (T1 test maps, DONE 2026-10-29): US-100 (EDITOR, no pair). It moves every script except the enemy-AI checks and us079 off the DevTestMap swarm, so the following batches' Tier 4 runs fail only on their own bugs.
     - Batch 2: US-094 (HEADLESS, DONE 2026-10-29 at Jeff's call, with US-079/US-071) → US-086 (HEADLESS, needs US-083/084/085; its death-screen, kill and kill-counter checks go in `us054_combat.py` on CombatTestMap, with the TestDummy as the kill target; `us054_arena.py` has no death chain since US-100 split it)
     - Batch 3 (spells): US-087 (HEADLESS) → US-088 (HEADLESS) → US-089 (EDITOR, pair of US-088)
-    - Batch 4 (HUD + menus): US-091 → US-092 → US-093 → US-095 (all HEADLESS; US-095's LB/RB ACs wait on N18)
+    - Batch 4 (HUD + menus): US-091 → US-092 → US-093 → US-095 (all HEADLESS; US-095 DONE 2026-11-27 after N18's "keep" decision)
     - Batch 5 (input): US-097 (HEADLESS, after US-083) → US-096 (HEADLESS, N9 decision)
     - Blocked on Jeff's decisions: US-098 (facing), US-099 (cutaway), US-090 (SP budget)
     - Re-run `py Scripts/playtest_story.py --all` on a fresh package after each batch; every NEW failure becomes a recovery story or a Known issues entry
