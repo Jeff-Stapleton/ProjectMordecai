@@ -196,3 +196,5 @@ no code, content, config or playtest script changed in this close-out.
 - Held Escape may reopen the menu after about 0.5 s; this remains unreproduced.
 - `Specs/control_bindings_v1.1.md` still lacks “I — Inventory” and in-menu
   LB/RB; that documentation change belongs to Jeff and was not edited here.
+- If an I key-up is lost while the menu remains active, the next I key-up may
+  close it; this remains a low-impact, unreproduced edge case.
