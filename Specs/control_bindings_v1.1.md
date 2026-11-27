@@ -28,5 +28,7 @@
 | Use Item C | Items | D-pad Up | 3 | Quickslot item use. |
 | Use Item D | Items | D-pad Right | 4 | Quickslot item use. |
 | Pause / Menu | System | Start/Menu | Esc | Inventory, character sheet, settings. |
+| Inventory (Toggle) | System | — | I | Opens the pause menu on the Inventory tab; I in the open menu closes it. Closes on key-up (a held I closes on release), and the key-up of the press that opened the menu is ignored. No gamepad binding (use Start/Menu). Source: US-095. |
+| Previous / Next Menu Tab | System (Menu) | LB / RB | — (click tab headers) | Pause menu open only; wraps at either end. No keyboard key bound. In game LB/RB use skills; the open menu blocks game input. Source: US-095. |
 | Map / Objective | System | View/Select | M | Metroidvania navigation support. |
 
