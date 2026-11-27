@@ -26,6 +26,12 @@ class LYRAGAME_API UMordecaiStaminaRuntimeComponent : public UActorComponent
 public:
 	UMordecaiStaminaRuntimeComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	/**
+	 * Apply an accepted stamina spend and restart the authoritative regeneration
+	 * delay even when clamping leaves the attribute unchanged at its floor.
+	 */
+	static void SpendStamina(UAbilitySystemComponent* ASC, float Cost);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

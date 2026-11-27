@@ -6,6 +6,7 @@
 #include "Mordecai/Combat/MordecaiHitDetectionTypes.h"
 #include "Mordecai/Combat/MordecaiHitDefense.h"
 #include "Mordecai/Combat/MordecaiPostureSystem.h"
+#include "Mordecai/Combat/MordecaiStaminaRuntimeComponent.h"
 #include "Mordecai/Combat/MordecaiStaminaSystem.h"
 #include "Mordecai/MordecaiGameplayTags.h"
 #include "Mordecai/AbilitySystem/MordecaiAttributeSet.h"
@@ -870,8 +871,7 @@ void UMordecaiGA_MeleeAttack::ApplyStaminaCost()
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (!ASC) return;
 
-	// Direct attribute modification for stamina consumption on activation
-	ASC->ApplyModToAttribute(UMordecaiAttributeSet::GetStaminaAttribute(), EGameplayModOp::Additive, -Cost);
+	UMordecaiStaminaRuntimeComponent::SpendStamina(ASC, Cost);
 }
 
 // ---------------------------------------------------------------------------

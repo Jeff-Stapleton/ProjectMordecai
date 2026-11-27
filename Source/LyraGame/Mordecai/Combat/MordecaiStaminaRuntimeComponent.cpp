@@ -89,6 +89,39 @@ double UMordecaiStaminaRuntimeComponent::GetRuntimeSeconds() const
 	return World ? static_cast<double>(World->GetTimeSeconds()) : 0.0;
 }
 
+void UMordecaiStaminaRuntimeComponent::SpendStamina(
+	UAbilitySystemComponent* ASC, float Cost)
+{
+	if (!ASC || Cost <= 0.f)
+	{
+		return;
+	}
+
+	const float Before = ASC->GetNumericAttribute(
+		UMordecaiAttributeSet::GetStaminaAttribute());
+	ASC->ApplyModToAttribute(
+		UMordecaiAttributeSet::GetStaminaAttribute(),
+		EGameplayModOp::Additive,
+		-Cost);
+	const float After = ASC->GetNumericAttribute(
+		UMordecaiAttributeSet::GetStaminaAttribute());
+
+	// A real decrease synchronously reaches OnStaminaChanged. At the clamp
+	// floor no value-change delegate fires, but the accepted spend still delays
+	// regeneration.
+	if (After >= Before - KINDA_SMALL_NUMBER)
+	{
+		if (AActor* OwnerActor = ASC->GetOwnerActor())
+		{
+			if (UMordecaiStaminaRuntimeComponent* Runtime =
+				OwnerActor->FindComponentByClass<UMordecaiStaminaRuntimeComponent>())
+			{
+				Runtime->MarkStaminaConsumed();
+			}
+		}
+	}
+}
+
 void UMordecaiStaminaRuntimeComponent::MarkStaminaConsumed()
 {
 	if (!StaminaSystem)
@@ -249,21 +282,8 @@ void UMordecaiStaminaRuntimeComponent::TickComponent(
 		{
 			bSprintMovedSinceToggle = true;
 			StationarySprintSeconds = 0.f;
-			// Only a moving sprint spends stamina and resets the delay. Attempts
-			// at the -50 floor still count, so regeneration waits until movement
-			// actually stops.
-			const float StaminaBeforeDrain = ASC->GetNumericAttribute(
-				UMordecaiAttributeSet::GetStaminaAttribute());
-			ASC->ApplyModToAttribute(
-				UMordecaiAttributeSet::GetStaminaAttribute(),
-				EGameplayModOp::Additive,
-				-StaminaSystem->ComputeSprintDrain(DeltaTime));
-			if (StaminaBeforeDrain <= -50.f + KINDA_SMALL_NUMBER)
-			{
-				// At the clamp floor no decrease delegate fires, so explicitly
-				// preserve the moving-spend delay semantics.
-				MarkStaminaConsumed();
-			}
+			// Only a moving sprint spends stamina and resets the delay.
+			SpendStamina(ASC, StaminaSystem->ComputeSprintDrain(DeltaTime));
 			return;
 		}
 

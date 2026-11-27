@@ -25,8 +25,10 @@
 #include "Mordecai/MordecaiHeroComponent.h"
 #include "Mordecai/MordecaiPlayerController.h"
 #include "Mordecai/Input/MordecaiInputTriggers.h"
+#include "Mordecai/StatusEffects/MordecaiStatusEffectComponent.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Fear.h"
 #include "Mordecai/StatusEffects/Effects/MordecaiGE_Focused.h"
+#include "Mordecai/StatusEffects/Effects/MordecaiGE_Rooted.h"
 #include "Mordecai/UI/MordecaiStaminaBarWidget.h"
 #include "Tests/Recovery/MordecaiRecoveryTestEnv.h"
 
@@ -264,6 +266,136 @@ bool FMordecai_StaminaRuntime_SecondSpendRestartsDelay::RunTest(const FString& P
 	TestEqual("the second spend restarts the full delay", Env.Stamina(), AfterSecondSpend);
 	Env.TickSeconds(0.5f);
 	TestTrue("regeneration starts after the restarted delay", Env.Stamina() > AfterSecondSpend);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_StaminaRuntime_BreakFreeAtFloorRestartsDelay,
+	"Mordecai.Stamina.Runtime.BreakFreeAtFloorRestartsDelay",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_StaminaRuntime_BreakFreeAtFloorRestartsDelay::RunTest(
+	const FString& Parameters)
+{
+	using namespace MordecaiStaminaRuntimeTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	{
+		return true;
+	}
+
+	UMordecaiStatusEffectComponent* Status =
+		NewObject<UMordecaiStatusEffectComponent>(Env.Player);
+	Status->SetAbilitySystemComponentOverride(Env.GetASC());
+	Status->RegisterComponent();
+	Env.SetStamina(-50.f);
+	Env.TickSeconds(0.75f);
+	TestTrue("real Rooted effect applied",
+		Status->ApplyStatusEffect(UMordecaiGE_Rooted::StaticClass(), Env.Player).IsValid());
+
+	FGameplayEventData EventData;
+	EventData.Instigator = Env.Player;
+	Env.GetASC()->HandleGameplayEvent(MordecaiGameplayTags::Event_BreakFree, &EventData);
+	TestFalse("break-free removes Rooted",
+		Status->HasStatusEffect(MordecaiGameplayTags::Status_Rooted));
+	TestEqual("break-free cannot spend below the floor", Env.Stamina(), -50.f);
+
+	// This passes the old delay's remaining 0.25 s, but not a full new delay.
+	Env.TickSeconds(0.5f);
+	TestEqual("accepted break-free at the floor restarts the full regen delay",
+		Env.Stamina(), -50.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_StaminaRuntime_SpendClampsAtFloor,
+	"Mordecai.Stamina.Runtime.SpendClampsAtFloor",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_StaminaRuntime_SpendClampsAtFloor::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiStaminaRuntimeTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	{
+		return true;
+	}
+
+	Env.SetStamina(-45.f);
+	Env.GetASC()->ApplyModToAttribute(
+		UMordecaiAttributeSet::GetStaminaAttribute(), EGameplayModOp::Additive, -25.f);
+	TestEqual("spending near the floor clamps at -50", Env.Stamina(), -50.f);
+	Env.GetASC()->ApplyModToAttribute(
+		UMordecaiAttributeSet::GetStaminaAttribute(), EGameplayModOp::Additive, -25.f);
+	TestEqual("spending at the floor never goes below -50", Env.Stamina(), -50.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_StaminaRuntime_BlockedHitRestartsDelay,
+	"Mordecai.Stamina.Runtime.BlockedHitRestartsDelay",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_StaminaRuntime_BlockedHitRestartsDelay::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiStaminaRuntimeTest;
+	FRuntimeEnv Env;
+	ON_SCOPE_EXIT { Env.TeardownRuntime(); };
+	if (!TestTrue("runtime world", Env.SetupRuntime()))
+	{
+		return true;
+	}
+
+	UMordecaiAttackProfileDataAsset* EnemyProfile =
+		MordecaiRecoveryTest::MakeStubProfile();
+	EnemyProfile->DamageProfile.BasePower = 15.f;
+	AMordecaiEnemyCharacter* Enemy =
+		Env.SpawnEnemy(FVector(100.f, 0.f, 0.f), { EnemyProfile });
+	if (!TestNotNull("real enemy attacker", Enemy))
+	{
+		return true;
+	}
+	Enemy->SetActorRotation(FRotator(0.f, 180.f, 0.f));
+
+	Env.SetStamina(50.f);
+	Env.TickSeconds(0.4f);
+	Env.Press(MordecaiGameplayTags::Input_Block);
+	UMordecaiGA_Block* Block = Env.Instance<UMordecaiGA_Block>();
+	if (!TestNotNull("real block instance", Block))
+	{
+		return true;
+	}
+	Env.TickSeconds(Block->GetPerfectBlockWindowSeconds() + 0.05f);
+	const float BeforeHit = Env.Stamina();
+
+	UAbilitySystemComponent* EnemyASC = Enemy->GetAbilitySystemComponent();
+	FGameplayAbilitySpec* EnemySpec =
+		EnemyASC ? EnemyASC->FindAbilitySpecFromClass(UMordecaiGA_MeleeAttack::StaticClass()) : nullptr;
+	UMordecaiGA_MeleeAttack* EnemyMelee =
+		EnemySpec ? Cast<UMordecaiGA_MeleeAttack>(EnemySpec->GetPrimaryInstance()) : nullptr;
+	if (!TestNotNull("real enemy melee instance", EnemyMelee)
+		|| !TestTrue("real enemy swing activates",
+			EnemyASC->TryActivateAbilityByClass(UMordecaiGA_MeleeAttack::StaticClass())))
+	{
+		return true;
+	}
+	for (int32 Frame = 0;
+		Frame < 10 && EnemyMelee->GetCurrentPhase() == EMordecaiAttackPhase::Windup;
+		++Frame)
+	{
+		Env.TickFrames(1);
+	}
+	TestEqual("enemy swing reaches the hit-defense path",
+		EnemyMelee->GetCurrentPhase(), EMordecaiAttackPhase::Active);
+	const float AfterHit = Env.Stamina();
+	const float ExpectedDrain =
+		EnemyProfile->DamageProfile.BasePower * (1.f - Block->Stability);
+	TestTrue("the blocked enemy hit spends stamina",
+		FMath::IsNearlyEqual(BeforeHit - AfterHit, ExpectedDrain, 0.01f));
+
+	// This passes the pre-hit delay's remaining time, but not a full post-hit delay.
+	Env.TickSeconds(0.5f);
+	TestEqual("the real blocked hit restarts the full regen delay",
+		Env.Stamina(), AfterHit);
 	return true;
 }
 
