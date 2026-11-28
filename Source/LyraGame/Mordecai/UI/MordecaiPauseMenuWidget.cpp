@@ -94,6 +94,7 @@ void UMordecaiPauseMenuWidget::NativeOnActivated()
 
 	// Only an I press made in this open menu closes it (US-095)
 	bInventoryCloseArmed = false;
+	bPauseCloseArmed = false;
 
 	Super::NativeOnActivated();
 }
@@ -101,6 +102,7 @@ void UMordecaiPauseMenuWidget::NativeOnActivated()
 void UMordecaiPauseMenuWidget::NativeOnDeactivated()
 {
 	bInventoryCloseArmed = false;
+	bPauseCloseArmed = false;
 
 	// A closed menu does not listen to the pawn; the next activation rebinds (US-094)
 	UnbindTabContent(CurrentContentWidget);
@@ -193,6 +195,21 @@ TArray<FBindUIActionArgs> UMordecaiPauseMenuWidget::MakeUIActionBindingArgs()
 	FBindUIActionArgs& InventoryReleased = Args.Emplace_GetRef(InventoryTag, false,
 		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleInventoryReleased));
 	InventoryReleased.KeyEvent = IE_Released;
+
+	// Escape and Start share Lyra's UI.Action.Escape mapping. Arm only a press that reached the open menu, so the
+	// release of the press that opened it does nothing. A dedicated release action consumes gamepad B through its
+	// release; the normal CommonUI back handler still closes B immediately, preserving its existing tap behavior.
+	const FUIActionTag PauseTag = FUIActionTag::ConvertChecked(
+		FGameplayTag::RequestGameplayTag(TEXT("UI.Action.Escape")));
+	Args.Emplace(PauseTag, false, FSimpleDelegate::CreateUObject(this, &ThisClass::HandlePauseClosePressed));
+	FBindUIActionArgs& PauseReleased = Args.Emplace_GetRef(PauseTag, false,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandlePauseCloseReleased));
+	PauseReleased.KeyEvent = IE_Released;
+
+	FBindUIActionArgs& BackReleased = Args.Emplace_GetRef(
+		FUIActionTag::ConvertChecked(MordecaiGameplayTags::UIAction_PauseMenu_Back), false,
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandlePauseCloseReleased));
+	BackReleased.KeyEvent = IE_Released;
 	return Args;
 }
 
@@ -224,6 +241,21 @@ void UMordecaiPauseMenuWidget::HandleInventoryReleased()
 
 	// What the default back action does (UCommonActivatableWidget::NativeOnHandleBackAction): NativeOnDeactivated
 	// then closes the menu through the subsystem (unpause, remember the tab, pop)
+	DeactivateWidget();
+}
+
+void UMordecaiPauseMenuWidget::HandlePauseClosePressed()
+{
+	bPauseCloseArmed = true;
+}
+
+void UMordecaiPauseMenuWidget::HandlePauseCloseReleased()
+{
+	if (!bPauseCloseArmed)
+	{
+		return; // the release of the Escape/Start press that opened the menu
+	}
+	bPauseCloseArmed = false;
 	DeactivateWidget();
 }
 

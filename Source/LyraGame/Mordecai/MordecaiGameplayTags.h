@@ -204,6 +204,7 @@ namespace MordecaiGameplayTags
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(UIAction_PauseMenu_PreviousTab);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(UIAction_PauseMenu_NextTab);
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(UIAction_PauseMenu_Inventory);
+	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(UIAction_PauseMenu_Back);
 
 	// Ability category tags (US-017)
 	LYRAGAME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Category_Spell);

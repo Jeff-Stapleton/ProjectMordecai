@@ -426,7 +426,7 @@ bool FMordecai_Recovery_PauseMenu_InventoryKeyClosesMenu::RunTest(const FString&
 	TestTrue("activated", Menu->IsActivated());
 
 	const FMenuActionBindings Bindings(*Menu);
-	TestEqual("the menu binds 4 UI actions (LB, RB, I press, I release)", Bindings.NumValid(), 4);
+	TestEqual("the menu binds 7 UI actions (tabs, I, and held-safe close bindings)", Bindings.NumValid(), 7);
 	const TSharedPtr<FUIActionBinding> InventoryPress = Bindings.Find(MordecaiGameplayTags::UIAction_PauseMenu_Inventory, IE_Pressed);
 	const TSharedPtr<FUIActionBinding> InventoryRelease = Bindings.Find(MordecaiGameplayTags::UIAction_PauseMenu_Inventory, IE_Released);
 	if (!TestTrue("the I press and I release UI action bindings", InventoryPress.IsValid() && InventoryRelease.IsValid()))
@@ -450,10 +450,11 @@ bool FMordecai_Recovery_PauseMenu_InventoryKeyClosesMenu::RunTest(const FString&
 	Bindings.Dispatch(EKeys::I, IE_Released);
 	TestTrue("the key-up of the opening press leaves the menu open", IsOpen());
 
-	// The back keys belong to the back action (Mordecai.UI.PauseMenu.IsCommonUIBackHandler), not to these bindings
-	TestEqual("Escape fires none of these bindings", Names(Bindings.Dispatch(EKeys::Escape, IE_Pressed)), FString());
+	// Escape is armed here and closes on release; gamepad B keeps CommonUI's press-time back action.
+	TestEqual("Escape arms its close-on-release action", Names(Bindings.Dispatch(EKeys::Escape, IE_Pressed)),
+		FString(TEXT("UI.Action.Escape")));
 	TestEqual("Gamepad B fires none of these bindings", Names(Bindings.Dispatch(EKeys::Gamepad_FaceButton_Right, IE_Pressed)), FString());
-	TestTrue("still open after the back keys reached these bindings", IsOpen());
+	TestTrue("still open until Escape release or CommonUI handles B", IsOpen());
 
 	// A new I press, held: the menu consumes the press and the repeats and stays open until the key-up
 	TestEqual("an I press fires the I action", Names(Bindings.Dispatch(EKeys::I, IE_Pressed)), InventoryAction);
@@ -510,7 +511,7 @@ bool FMordecai_Recovery_PauseMenu_ShoulderButtonsCycleTabs::RunTest(const FStrin
 
 	{
 		const FMenuActionBindings Bindings(*Menu);
-		TestEqual("the menu binds 4 UI actions (LB, RB, I press, I release)", Bindings.NumValid(), 4);
+		TestEqual("the menu binds 7 UI actions (tabs, I, and held-safe close bindings)", Bindings.NumValid(), 7);
 		const TSharedPtr<FUIActionBinding> Previous = Bindings.Find(MordecaiGameplayTags::UIAction_PauseMenu_PreviousTab);
 		const TSharedPtr<FUIActionBinding> Next = Bindings.Find(MordecaiGameplayTags::UIAction_PauseMenu_NextTab);
 		TestTrue("LB is the previous-tab action's only key", NormalKeys(Previous) == TArray<FKey>({ EKeys::Gamepad_LeftShoulder }));

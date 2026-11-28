@@ -628,3 +628,16 @@ Context: nothing applied block, parry, dodge i-frames, Blink invulnerability or 
 - Keep this behavior in the shared stamina-spend path when that does not alter
   other behavior; do not special-case break-free unnecessarily.
 - Source: decided by the coordinator for Jeff for issue #148 (2026-11-27).
+
+---
+
+## 2026-11-28 — Held pause-menu close inputs (issue #178)
+
+- A single press-and-hold of Escape, Gamepad B or Gamepad Start that closes the
+  pause menu must leave it closed after release; the same held press must never
+  reopen it. A fresh press after release still opens or closes normally.
+- Prefer the existing I-key close-on-release pattern, or consume the held input
+  until release, over a new mechanism. Normal-tap menu feel remains unchanged.
+- Fix the lost-I-key-up edge case only if it falls out of the same small change;
+  otherwise keep it as a follow-up.
+- Source: decided by the coordinator for Jeff for issue #178 (2026-11-28).

@@ -40,12 +40,10 @@ struct FBindUIActionArgs;
  * Menu input mode blocks every key without a CommonUI UI action binding
  * (US-095, issues #23 and #32): Escape / gamepad B close the menu through the
  * default back action (bIsBackHandler), and NativeOnInitialized registers UI
- * actions for LB / RB (previous / next tab, wrapping) and I (close). CommonUI
- * keeps those bindings across pooled reopens and re-attaches them on every
- * rebuild of the Slate tree. I closes on the key-up of a press made in the open
- * menu, so the menu consumes the whole press: no key repeat of a held I reaches
- * the game's Inventory action to reopen it, and the key-up of the press that
- * opened the menu closes nothing.
+ * actions for LB / RB (previous / next tab, wrapping) and close-on-release
+ * handling for I, Escape and Start. CommonUI keeps those bindings across pooled
+ * reopens and re-attaches them on every rebuild of the Slate tree. A close key
+ * opened outside the menu does not close it on that opening press's release.
  */
 UCLASS()
 class LYRAGAME_API UMordecaiPauseMenuWidget : public ULyraActivatableWidget
@@ -92,9 +90,9 @@ public:
 	void SelectNextTab();
 
 	/**
-	 * The CommonUI UI action bindings NativeOnInitialized registers (US-095): LB previous tab, RB next tab, and I
-	 * (press arms, release closes the menu). Public so headless tests can create exactly these bindings: Tier 1 has no
-	 * CommonUI action router.
+	 * The CommonUI UI action bindings NativeOnInitialized registers: LB/RB tab switching, I close-on-release, and
+	 * held-safe Escape/B/Start close handling. Public so headless tests can create exactly these bindings: Tier 1 has
+	 * no CommonUI action router.
 	 */
 	TArray<FBindUIActionArgs> MakeUIActionBindingArgs();
 
@@ -136,6 +134,12 @@ private:
 	/** I released: close the menu the way the back action does, if an I press in this open menu armed it (US-095). */
 	void HandleInventoryReleased();
 
+	/** Escape or Start pressed while this menu owns input: arm its release to close (#178). */
+	void HandlePauseClosePressed();
+
+	/** Close on an armed Escape/Start release; also consumes the back-key release (#178). */
+	void HandlePauseCloseReleased();
+
 	void InitDefaultTabs();
 	void EnsureDefaultLayout();
 	void RebuildTabBar();
@@ -154,4 +158,7 @@ private:
 
 	/** An I press reached this open menu; its release closes it. Reset on every activation and deactivation. */
 	bool bInventoryCloseArmed = false;
+
+	/** An Escape/Start press reached this open menu; its release closes it. */
+	bool bPauseCloseArmed = false;
 };

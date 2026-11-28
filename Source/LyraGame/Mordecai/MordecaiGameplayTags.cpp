@@ -203,6 +203,7 @@ namespace MordecaiGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UIAction_PauseMenu_PreviousTab, "UI.Action.Mordecai.PauseMenu.PreviousTab", "Pause menu UI action: previous tab, wrapping (LB)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UIAction_PauseMenu_NextTab,     "UI.Action.Mordecai.PauseMenu.NextTab",     "Pause menu UI action: next tab, wrapping (RB)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UIAction_PauseMenu_Inventory,   "UI.Action.Mordecai.PauseMenu.Inventory",   "Pause menu UI action: I closes the open menu (I opens it through Enhanced Input)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(UIAction_PauseMenu_Back,        "UI.Action.Mordecai.PauseMenu.Back",        "Pause menu UI action: consume gamepad B release after CommonUI closes on its press");
 
 	// Ability category tags (US-017)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Category_Spell,   "Mordecai.Ability.Category.Spell",   "Identifies an ability as a spell — blocked by Silenced");
