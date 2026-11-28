@@ -103,4 +103,7 @@ Added 2026-10-22 by the Phase 3 Playability Recovery sweep (`Specs/story_playtes
 | 20 | `i_opens_inventory` | tap I -> wait_until pause_menu.open==true && pause_menu.active_tab=="inventory" | US-095:AC-095.2 |
 | 21 | `i_closes` | tap I (the menu closes on its key-up) -> wait_until pause_menu.open==false && game.paused==false within 3s | US-095:AC-095.2 |
 | 22 | `i_held_closes_on_key_up` | tap I -> wait_until pause_menu.open==true; press I, wait 1.2s (key repeats from 0.5s) -> pause_menu.open==true while held; release I -> wait_until pause_menu.open==false && game.paused==false; wait 1s -> still closed (a held I never reopens the menu) | US-095:AC-095.5 |
-| 23 | `final_close` | if the menu is still open: tap Escape -> wait_until pause_menu.open==false (runs even when i_closes or i_held_closes_on_key_up failed) | - |
+| 23 | `escape_held_close_stays_closed` | open the menu; press Escape, wait 1.2s (key repeats included), release -> menu closed and unpaused; wait 1s -> still closed | - |
+| 24 | `gamepad_b_held_close_stays_closed` | open the menu; press Gamepad_FaceButton_Right, wait 1.2s (button repeats included), release -> menu closed and unpaused; wait 1s -> still closed | - |
+| 25 | `gamepad_start_held_close_stays_closed` | open the menu; press Gamepad_Special_Right, wait 1.2s (button repeats included), release -> menu closed and unpaused; wait 1s -> still closed | - |
+| 26 | `final_close` | if the menu is still open: tap Escape -> wait_until pause_menu.open==false (cleanup after any held-close failure) | - |

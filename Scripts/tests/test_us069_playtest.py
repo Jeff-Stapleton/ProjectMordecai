@@ -67,6 +67,7 @@ class PauseMenuWorld(fb.FakeWorld):
     def __init__(self, *, character_sheet=True, skills_tab=True, feats_tab=True,
                  shoulder_steps=SHOULDERS, gamepad_back_closes=True, start_toggles=True,
                  menu_blocks_input=True, i_close_on="release",
+                 held_close_reopens=(),
                  lowercase_attribute_codes=False, resource_line_count=4,
                  attribute_missing_value=False, attribute_missing_modifier=False,
                  attribute_clipped=False, **kwargs):
@@ -78,6 +79,7 @@ class PauseMenuWorld(fb.FakeWorld):
         self.shoulder_steps = dict(shoulder_steps)
         self.i_close_on = i_close_on
         self.i_close_armed = False
+        self.held_close_reopens = set(held_close_reopens)
         self.gamepad_back_closes = gamepad_back_closes
         self.start_toggles = start_toggles
         self.menu_blocks_input = menu_blocks_input
@@ -105,6 +107,9 @@ class PauseMenuWorld(fb.FakeWorld):
         super()._log_ups(before)
         if "I" in released and self.i_close_armed and self.menu_open:
             self.close_menu()
+        for key in released:
+            if key in self.held_close_reopens and not self.menu_open:
+                self.open_menu(self.last_tab or "character")
 
     def _on_key_pressed(self, key):
         if not self.ready:
@@ -286,6 +291,11 @@ class PlaytestCase(unittest.TestCase):
 CONTENT_CHECKS = ["character_tab_content", "skills_tab_content", "click_magic_category",
                   "feats_tab_content"]
 US095_CHECKS = ["shoulder_switches_tab", "shoulder_rb_switches_tab", "i_closes"]
+ISSUE178_CHECKS = [
+    "escape_held_close_stays_closed",
+    "gamepad_b_held_close_stays_closed",
+    "gamepad_start_held_close_stays_closed",
+]
 
 
 class TestUs069CurrentGame(PlaytestCase):
@@ -307,9 +317,12 @@ class TestUs069CurrentGame(PlaytestCase):
                      "settings_placeholder", "shoulder_switches_tab", "shoulder_rb_switches_tab",
                      "escape_closes", "reopen_restores_tab",
                      "gamepad_back_closes", "start_button_opens", "escape_closes_again",
-                     "i_opens_inventory", "i_closes", "i_held_closes_on_key_up"):
+                     "i_opens_inventory", "i_closes", "i_held_closes_on_key_up",
+                     *ISSUE178_CHECKS):
             self.assertEqual(checks[name]["status"], "PASS", f"{name}: {checks[name]['detail']}")
         self.assertIn("still closed", checks["i_held_closes_on_key_up"]["detail"])
+        for name in ISSUE178_CHECKS:
+            self.assertIn("still closed", checks[name]["detail"])
         self.assertIn(fb.MOVEMENT_TEST_MAP, checks["map"]["detail"])
         # The '[I] Inventory' hint is on screen with no pickup in the world
         self.assertEqual(world.world_pickups, [])
@@ -503,6 +516,26 @@ class TestUs069BeforeUs095(PlaytestCase):
         self.assertFalse(world.menu_open)
         self.assertNotIn("I", world._held_union(), "the held I must be released")
 
+    def test_each_held_close_reopen_is_caught_and_cleanup_isolates_the_next_check(self):
+        cases = {
+            "Escape": "escape_held_close_stays_closed",
+            "Gamepad_FaceButton_Right": "gamepad_b_held_close_stays_closed",
+            "Gamepad_Special_Right": "gamepad_start_held_close_stays_closed",
+        }
+        for key, failed_check in cases.items():
+            with self.subTest(key=key):
+                world, server = self.serve(held_close_reopens=(key,))
+                code, rep = self.play(server)
+                self.assertEqual(code, 1)
+                checks = self.by_name(rep)
+                self.assertEqual(checks[failed_check]["status"], "FAIL")
+                self.assertIn("menu did not close", checks[failed_check]["detail"])
+                self.assertEqual(
+                    [name for name in ISSUE178_CHECKS if checks[name]["status"] == "FAIL"],
+                    [failed_check],
+                )
+                self.assertFalse(world.menu_open, "cleanup must leave the next check isolated")
+
     def test_rb_alone_wraps_from_the_last_tab_to_the_first(self):
         _, server = self.serve(shoulder_steps={"Gamepad_RightShoulder": 1})
         code, rep = self.play(server)
@@ -604,10 +637,13 @@ class TestUs069Plan(unittest.TestCase):
                 story, ac_id = kit.split_ac(ac, "US-069")
                 self.assertIn(ac_id, self.story_ac_ids(story), f"{step.check}: {ac}")
         names = [s.check for s in us069.PLAN]
-        self.assertEqual(len(names), 23)
+        self.assertEqual(len(names), 26)
         self.assertEqual(names.index("shoulder_rb_switches_tab"),
                          names.index("shoulder_switches_tab") + 1)
-        self.assertEqual(names[-3:], ["i_closes", "i_held_closes_on_key_up", "final_close"])
+        self.assertEqual(
+            names[-5:],
+            ["i_held_closes_on_key_up", *ISSUE178_CHECKS, "final_close"],
+        )
         known = {s.check for s in us069.PLAN if s.known_issue}
         self.assertEqual(known, set())
         run = us069.Us069Run(us069.parse_args([]))

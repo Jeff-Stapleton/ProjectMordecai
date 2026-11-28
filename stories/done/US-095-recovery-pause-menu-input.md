@@ -50,7 +50,7 @@ All in `Source/LyraGame/Tests/Recovery/MordecaiRecoveryPauseMenuInputTests.cpp`.
 
 ## Playtest
 - **Launch path:** `py Scripts/playtest_boot.py --map /MordecaiCore/Game/Maps/MovementTestMap` (MovementTestMap → B_MordecaiArenaExperience; us069's `MAP` since US-100); Tier 4: `py Scripts/playtest_story.py US-095` (US-095 is in us069's `COVERS`) on the same package
-- **Player steps:** press Escape, click Settings, tap LB (previous tab: Inventory), tap RB (next tab: Settings), Escape; press I (inventory), press I (closes); press I (opens), hold I 1.2 s (stays open), release (closes and stays closed)
+- **Player steps:** press Escape, click Settings, tap LB (previous tab: Inventory), tap RB (next tab: Settings), Escape; press I (inventory), press I (closes); press I (opens), hold I 1.2 s (stays open), release (closes and stays closed); for each of Escape, Gamepad B and Gamepad Start, open the menu, hold the close key 1.2 s, release it, and verify the menu stays closed for 1 s
 - **Visible on screen:** the tab highlight moves on LB (to Inventory, with the inventory list) and on RB (to Settings, "Coming Soon"): `bridge_NN.png` labelled `menu_lb` / `menu_rb`; after the second I the MovementTestMap grid floor with the HUD and no menu (`menu_closed_by_i`)
 - **Proof:** Tier 4 checks `shoulder_switches_tab`, `shoulder_rb_switches_tab` (AC-095.4), `i_opens_inventory` + `i_closes` (AC-095.2), `i_held_closes_on_key_up` (AC-095.5) of `Scripts/playtests/us069_pause_menu.py`
 - **Tier 4 script:** `Scripts/playtests/us069_pause_menu.py` — run: `py Scripts/playtest_story.py US-095`
@@ -81,7 +81,10 @@ All in `Source/LyraGame/Tests/Recovery/MordecaiRecoveryPauseMenuInputTests.cpp`.
 | 20 | `i_opens_inventory` | tap I -> wait_until pause_menu.open==true && pause_menu.active_tab=="inventory" | US-095:AC-095.2 |
 | 21 | `i_closes` | tap I (the menu closes on its key-up) -> wait_until pause_menu.open==false && game.paused==false within 3s | US-095:AC-095.2 |
 | 22 | `i_held_closes_on_key_up` | tap I -> wait_until pause_menu.open==true; press I, wait 1.2s (key repeats from 0.5s) -> pause_menu.open==true while held; release I -> wait_until pause_menu.open==false && game.paused==false; wait 1s -> still closed (a held I never reopens the menu) | US-095:AC-095.5 |
-| 23 | `final_close` | if the menu is still open: tap Escape -> wait_until pause_menu.open==false (runs even when i_closes or i_held_closes_on_key_up failed) | - |
+| 23 | `escape_held_close_stays_closed` | open the menu; press Escape, wait 1.2s (key repeats included), release -> menu closed and unpaused; wait 1s -> still closed | - |
+| 24 | `gamepad_b_held_close_stays_closed` | open the menu; press Gamepad_FaceButton_Right, wait 1.2s (button repeats included), release -> menu closed and unpaused; wait 1s -> still closed | - |
+| 25 | `gamepad_start_held_close_stays_closed` | open the menu; press Gamepad_Special_Right, wait 1.2s (button repeats included), release -> menu closed and unpaused; wait 1s -> still closed | - |
+| 26 | `final_close` | if the menu is still open: tap Escape -> wait_until pause_menu.open==false (cleanup after any held-close failure) | - |
 
 - **Before this story** (sweep on `8ea853b`, run `Saved/Playtests/20261022-184913-us069`): `shoulder_switches_tab` FAIL (NEW, then "active_tab changes"), `i_closes` FAIL (known); `shoulder_rb_switches_tab` did not exist.
 - **Playable alone:** YES

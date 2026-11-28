@@ -91,6 +91,21 @@ namespace MordecaiRecoveryPauseMenuInputTest
 			return nullptr;
 		}
 
+		TSharedPtr<FUIActionBinding> FindByKey(const FKey& Key, EInputEvent InputEvent) const
+		{
+			for (const FUIActionBindingHandle& Handle : Handles)
+			{
+				TSharedPtr<FUIActionBinding> Binding = FUIActionBinding::FindBinding(Handle);
+				if (Binding && Binding->InputEvent == InputEvent
+					&& Binding->NormalMappings.ContainsByPredicate([&Key](const FUIActionKeyMapping& Mapping)
+						{ return Mapping.Key == Key; }))
+				{
+					return Binding;
+				}
+			}
+			return nullptr;
+		}
+
 		/**
 		 * Emulation of FActionRouterBindingCollection::ProcessNormalInput (UIActionRouterTypes.cpp) for a Menu-mode root:
 		 * a binding fires when the active input mode accepts it (Menu == its InputMode), one of its normal key mappings
@@ -335,7 +350,43 @@ bool FMordecai_Recovery_PauseMenu_TabModelCyclesWithWrap::RunTest(const FString&
 }
 
 // ---------------------------------------------------------------------------
-// 3. Mordecai.Recovery.PauseMenu.InventoryKeyClosesMenu (AC-095.1)
+// 3. Mordecai.Recovery.PauseMenu.HeldCloseBindingsUseRelease (issue #178)
+// Escape, gamepad B and Start consume their full held press in Menu mode and close only on release, so a repeat cannot
+// reach gameplay after the menu closes and reopen it. Start is also a normal menu close key.
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMordecai_Recovery_PauseMenu_HeldCloseBindingsUseRelease,
+	"Mordecai.Recovery.PauseMenu.HeldCloseBindingsUseRelease",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FMordecai_Recovery_PauseMenu_HeldCloseBindingsUseRelease::RunTest(const FString& Parameters)
+{
+	using namespace MordecaiRecoveryPauseMenuInputTest;
+	UMordecaiPauseMenuWidget* Menu = NewObject<UMordecaiPauseMenuWidget>(GetTransientPackage());
+	Menu->InitializeTabs();
+	Menu->ActivateWidget();
+	const FMenuActionBindings Bindings(*Menu);
+
+	TestEqual("LB, RB, I press/release, back release, and Start press/release", Bindings.NumValid(), 7);
+	for (const FKey& Key : { EKeys::Escape, EKeys::Gamepad_FaceButton_Right, EKeys::Gamepad_Special_Right })
+	{
+		const TSharedPtr<FUIActionBinding> Released = Bindings.FindByKey(Key, IE_Released);
+		TestTrue(FString::Printf(TEXT("%s has a consuming Menu-mode release binding"), *Key.ToString()),
+			Released && Released->InputMode == ECommonInputMode::Menu && Released->bConsumesInput);
+	}
+
+	const TSharedPtr<FUIActionBinding> StartPressed = Bindings.FindByKey(EKeys::Gamepad_Special_Right, IE_Pressed);
+	TestTrue("Start has a consuming Menu-mode press binding",
+		StartPressed && StartPressed->InputMode == ECommonInputMode::Menu && StartPressed->bConsumesInput);
+	TestEqual("Start press is consumed", Bindings.Dispatch(EKeys::Gamepad_Special_Right, IE_Pressed).Num(), 1);
+	TestTrue("held Start leaves the menu open until release", Menu->IsActivated());
+	TestEqual("Start repeats fire nothing", Bindings.Dispatch(EKeys::Gamepad_Special_Right, IE_Repeat).Num(), 0);
+	TestEqual("Start release is consumed", Bindings.Dispatch(EKeys::Gamepad_Special_Right, IE_Released).Num(), 1);
+	TestFalse("Start release closes the menu", Menu->IsActivated());
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// 4. Mordecai.Recovery.PauseMenu.InventoryKeyClosesMenu (AC-095.1)
 // While the menu is open, pressing I closes it through the same path as Escape: the widget deactivates and
 // NativeOnDeactivated closes the menu through the subsystem (which unpauses; this test world has no player controller
 // to pause). The menu consumes the whole press and closes on its key-up, so a held I's repeats never reach the game
@@ -431,7 +482,7 @@ bool FMordecai_Recovery_PauseMenu_InventoryKeyClosesMenu::RunTest(const FString&
 }
 
 // ---------------------------------------------------------------------------
-// 4. Mordecai.Recovery.PauseMenu.ShoulderButtonsCycleTabs (AC-095.3)
+// 5. Mordecai.Recovery.PauseMenu.ShoulderButtonsCycleTabs (AC-095.3)
 // While the menu is open, LB selects the previous tab and RB the next, wrapping at either end; each switch moves the
 // tab-bar highlight and swaps the content area like a tab click. Key-ups do nothing and the menu stays open.
 // ---------------------------------------------------------------------------

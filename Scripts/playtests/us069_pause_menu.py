@@ -101,6 +101,7 @@ TAB_TIMEOUT_S = 3.0
 CONTENT_TIMEOUT_S = 3.0
 SHOULDER_TIMEOUT_S = 2.0
 I_HOLD_S = 1.2        # past the 0.5 s keyboard repeat delay: the bridge sends repeats like the OS
+HELD_CLOSE_S = 1.2    # past keyboard and gamepad repeat delays
 REOPEN_WATCH_S = 1.0  # after the key-up: long enough for a reopen to show
 BLOCKED_SETTLE_S = 1.0
 BLOCKED_W_HOLD_S = 0.3
@@ -194,8 +195,17 @@ PLAN = (
          f"{I_HOLD_S:g}s (key repeats from 0.5s) -> pause_menu.open==true while held; release I "
          f"-> wait_until pause_menu.open==false && game.paused==false; wait {REOPEN_WATCH_S:g}s "
          "-> still closed (a held I never reopens the menu)", proves=("US-095:AC-095.5",)),
+    Step("escape_held_close_stays_closed", f"open the menu; press Escape, wait {HELD_CLOSE_S:g}s "
+         f"(key repeats included), release -> menu closed and unpaused; wait {REOPEN_WATCH_S:g}s "
+         "-> still closed"),
+    Step("gamepad_b_held_close_stays_closed", f"open the menu; press Gamepad_FaceButton_Right, "
+         f"wait {HELD_CLOSE_S:g}s (button repeats included), release -> menu closed and unpaused; "
+         f"wait {REOPEN_WATCH_S:g}s -> still closed"),
+    Step("gamepad_start_held_close_stays_closed", f"open the menu; press Gamepad_Special_Right, "
+         f"wait {HELD_CLOSE_S:g}s (button repeats included), release -> menu closed and unpaused; "
+         f"wait {REOPEN_WATCH_S:g}s -> still closed"),
     Step("final_close", "if the menu is still open: tap Escape -> wait_until "
-         "pause_menu.open==false (runs even when i_closes or i_held_closes_on_key_up failed)"),
+         "pause_menu.open==false (cleanup after any held-close failure)"),
 )
 
 
@@ -662,6 +672,14 @@ class Us069Run(kit.PlaytestRun):
         self.shot("menu_closed_by_i", needs=closed, needs_why="not taken: I did not close the menu")
         self.measure("i_held_closes_on_key_up", self._held_i, needs=self.is_closed(),
                      needs_why="not run: the pause menu is not closed")
+        for check, key in (
+            ("escape_held_close_stays_closed", "Escape"),
+            ("gamepad_b_held_close_stays_closed", "Gamepad_FaceButton_Right"),
+            ("gamepad_start_held_close_stays_closed", "Gamepad_Special_Right"),
+        ):
+            self.measure(check, lambda b, close_key=key: self._held_close(b, close_key),
+                         needs=self.is_closed(),
+                         needs_why="not run: the pause menu is not closed")
         self.press("final_close", "Escape", then="pause_menu.open==false",
                    timeout_s=CLOSE_TIMEOUT_S, needs=self.is_open(),
                    needs_why="not run: the pause menu is already closed")
@@ -709,6 +727,58 @@ class Us069Run(kit.PlaytestRun):
             return ("FAIL", f"{what}; {REOPEN_WATCH_S:g}s later pause_menu.open={after.get('open')} "
                     "(the held key reopened it)", None)
         return "PASS", f"{what}; still closed {REOPEN_WATCH_S:g}s later", None
+
+    def _held_close(self, b, close_key):
+        """One held close press must be fully consumed before gameplay input resumes."""
+        b.tap("Escape", hold_s=TAP_S)
+        try:
+            b.wait_until("pause_menu.open==true", timeout_s=OPEN_TIMEOUT_S)
+        except ab.BridgeError as e:
+            if e.code != "timeout":
+                raise
+            return "FAIL", f"setup: Escape did not open the menu for held {close_key}", None
+
+        released = False
+        b.press(close_key)
+        try:
+            b.wait(HELD_CLOSE_S)
+            b.release(close_key)
+            released = True
+        finally:
+            if not released:
+                try:
+                    b.release(close_key)
+                except ab.BridgeError:
+                    pass
+
+        try:
+            closed = b.wait_until("pause_menu.open==false && game.paused==false",
+                                  timeout_s=CLOSE_TIMEOUT_S)
+        except ab.BridgeError as e:
+            if e.code != "timeout":
+                raise
+            values = (e.response or {}).get("values") or {}
+            detail = (f"held {close_key} for {HELD_CLOSE_S:g}s then released; menu did not close "
+                      f"(open={values.get('pause_menu.open')}, paused={values.get('game.paused')})")
+            b.tap("I", hold_s=TAP_S)  # isolate the next regression check; this one remains FAIL
+            try:
+                b.wait_until("pause_menu.open==false", timeout_s=CLOSE_TIMEOUT_S)
+            except ab.BridgeError:
+                pass
+            return "FAIL", detail, None
+        b.wait(REOPEN_WATCH_S)
+        after = _menu(b.state(["pause_menu"]))
+        if after.get("open") is not False:
+            detail = (f"held {close_key} for {HELD_CLOSE_S:g}s then released; closed after "
+                      f"{closed.get('elapsed_s')}s but reopened within {REOPEN_WATCH_S:g}s")
+            b.tap("I", hold_s=TAP_S)  # isolate the next regression check; this one remains FAIL
+            try:
+                b.wait_until("pause_menu.open==false", timeout_s=CLOSE_TIMEOUT_S)
+            except ab.BridgeError:
+                pass
+            return "FAIL", detail, None
+        return ("PASS", f"held {close_key} for {HELD_CLOSE_S:g}s then released; closed after "
+                f"{closed.get('elapsed_s')}s and still closed {REOPEN_WATCH_S:g}s later", None)
 
     # --- report hooks ---------------------------------------------------------------------
     def report_extra(self):
